@@ -42,7 +42,7 @@ from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionErro
 @typechecked
 def run_ibm(job: Job) -> Result:
     """
-    Execute the job on the right IBM Q device precised in the job in parameter.
+    Executes the job on the right IBM Q device precised in the job in parameter.
     This function is not meant to be used directly, please use ``runner.run(...)`` instead.
 
     Args:
@@ -405,7 +405,7 @@ def extract_result(
 @typechecked
 def get_result_from_ibm_job_id(job_id: str) -> Result:
     """
-    Retrieve from IBM remote platform and parse the result of the job_id given in parameter.
+    Retrieves from IBM remote platform and parse the result of the job_id given in parameter.
     If the job is still running, we wait (blocking) until it is DONE.
 
     Args:
