@@ -1,0 +1,134 @@
+/* *** fix for alabaster *** */
+
+/* section > dl, dl.method:not(:last-child) {
+    border-block-end: lightgrey 1px solid;
+    padding-block-end: 1rem;
+    margin: unset;
+    margin-block: 1rem;
+}
+
+div.document {
+    width: 1200px;
+} */
+
+/* *** fix for furo dark mode *** */
+
+/* @media (prefers-color-scheme: dark) {
+    body:not([data-theme="light"]) .highlight >pre> span.n {
+        color: #a2e9a2;
+    }
+
+    body:not([data-theme="light"]) .highlight >pre> span.go {    
+        border-inline-start: 2px solid rgb(184, 89, 89);
+        padding-inline-start: 1em;
+    } 
+
+    body:not([data-theme="light"]) .highlight >pre> span.gp {    
+        color: lime;
+    }
+} */
+
+/* *** fix for rtd dark *** */
+
+html[data-theme="dark"] .sig > .sig-name > .pre {
+    color: white;
+}
+
+html[data-theme="dark"] .highlight > pre > span.go {
+    color: rgb(173, 173, 173);
+}
+
+html[data-theme="dark"].writer-html5 .rst-content 
+dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) 
+dl:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) > dt {
+    background-color: #0f0f0f;
+    color: #959595;
+    border-color: #2b2b2b;
+}
+
+html[data-theme="dark"].writer-html5 
+.rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not( .glossary ):not(.simple) 
+dl:not(.field-list) > dt {
+    color: #c6c6c6!important;
+}
+
+html[data-theme="dark"] .highlight > pre > span.n {
+    color: #80cb53;
+}
+
+html[data-theme="dark"] .highlight > pre > span.o {
+    color: #cbcbcb;
+}
+
+html[data-theme="dark"] .highlight > pre > span.nf,
+html[data-theme="dark"] .viewcode-block > span.nf {
+    color: #9975ec;
+}
+
+html[data-theme="dark"] .highlight > .copybtn {
+    background-color: transparent;
+    color: aliceblue;
+    border: 1px solid aliceblue;
+}
+
+html[data-theme="dark"] .highlight > pre {
+    font-size: medium;
+}
+
+.wy-nav-content {
+    max-width: 1200px;
+}
+
+.class.enum > dd > dl:not(.method) .sig-name ~ *:not(:last-child):not(:nth-last-child(2)),
+.class.enum > dd > .attribute > dt > .property,
+.attribute .sig-name ~ * {
+    display: none!important;
+}
+
+
+[role='contentinfo'] {
+    float: right
+}
+
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) .py.attribute,
+html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) .py.property {
+    display: block;
+    margin-inline-end: 2em;
+}
+
+.class:not(.enum) .py.attribute .sig-name::before {
+    content: 'attribute ';
+    font-style: italic;
+    color: #c6c6c6;
+}
+
+.wy-nav-side {
+    padding-bottom: 0;
+}
+
+.class.enum > dd > .attribute,
+.class.enum > dd > .attribute * {
+    margin-bottom: 5px!important;
+}
+
+html[data-theme="dark"] .wy-nav-content > a {
+    color: #80cb53;
+}
+
+html[data-theme="dark"] .wy-menu-vertical > p.caption {
+    color: #80cb53;
+}
+
+html[data-theme="dark"] .wy-side-nav-search {
+    background-color: #0d0d0d;
+}
+
+/*html[data-theme="dark"] .rst-content .admonition .admonition-title,
+html[data-theme="dark"] .rst-content .note .admonition-title {
+    background-color: #80cb53;
+}
+
+html[data-theme="dark"] .rst-content .admonition,
+html[data-theme="dark"] .rst-content .note {
+    background-color: #80cb53;
+}*/
