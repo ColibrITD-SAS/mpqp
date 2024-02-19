@@ -15,7 +15,7 @@ for you are most likely:
 Provider specifics
 ------------------
 
-Even though most of our interfaces use abstractions such that you don't need to
+Even though most of our interfaces use abstractions such that you do not need to
 know on which provider's QPU your code is running, we need at some point to
 tackle the specifics of each providers. Most (hopefully all soon) of it is
 tackle in these modules.

@@ -6,7 +6,7 @@ Execution
     from mpqp.execution import *
 
 Execution is the core of this library. Our goal is to allow you to run a circuit
-on any hardware without you having to rewrite your circuit in the providers's
+on any hardware without you having to rewrite your circuit in the providers'
 ``sdk``. We introduce here how execution works in ``mpqp``, both in local
 simulator and in remote QPUs.
 
@@ -22,7 +22,7 @@ it regroups methods common to all providers' devices.
 
 Then, for each supported quantum computer/simulator provider, we create a
 specific subclass enumerating all available devices. When devices are retrieved
-using a given name (a string), we use it to set the value associated to each key
+using a given name (a string), we use it to set the value associated with each key
 of the :class:`AvailableDevice<mpqp.execution.devices.AvailableDevice>`.
 Specific device's info and manipulation are handled by additional methods
 (sometimes static).
@@ -46,16 +46,16 @@ of data needed to setup the connection, summed up here:
 - Atos/Eviden (Qaptiva/QLM): for this provider, several connection methods
   exist. For now we only support the username/password method. You should have
   received you username and password by email;
-- AWS (braket): for this provider, you'll need more information: all of them can
+- AWS (braket): for this provider, you will need more information: all of them can
   be found in your 
   `AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
   In the console go to the ``IAM service``, in the ``Users`` tab, click on your
   username, in the ``Security credential`` tab, you'll find an ``Access keys`` 
   section. In this section, you can create a new access key for MPQP, you should
   save it because you will not be able to get back your secret latter on.
-  This will give you your key and your secret, for the configuration you also
+  This will give you your key and your secret, but for the configuration you also
   need a region (for example ``us-east-1``).
-  In short, you'll need:
+  In short, one would need:
 
   + ``AWS Access Key ID``,
   + ``AWS Secret Access Key`` and

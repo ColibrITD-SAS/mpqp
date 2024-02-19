@@ -20,7 +20,7 @@ From OpenQASM2.0 to OpenQASM3.0
 
 Recently, a new version of OpenQASM (3.0) has been released by conjoint members
 of IBM Quantum, AWS Quantum Computing, Zapata Computing, Zurich Instruments and
-University of Oxford. This version extends the version 2.0, adding some advanced
+University of Oxford. This version extends the 2.0 one, adding some advanced
 features, and modifying parts of syntax and grammar, making some part of
 OpenQASM2.0 not fully retro-compatible.
 
@@ -30,8 +30,8 @@ can use the function :func:`open_qasm_2_to_3` to translate a code given in
 parameter as a string. The other facultative parameters are used for recursive
 calls of the function (when having to translate included files for instance),
 but are not relevant from a user point of view, expect the parameter
-``path_to_file``, useful for locating imports. The translator also convert also
-imported files, and include the new ones in the converted code.
+``path_to_file``, useful for locating imports. The translator converts also
+imported files, and includes the new ones in the converted code.
 
 .. autofunction:: mpqp.qasm.open_qasm_2_and_3.open_qasm_2_to_3
 
@@ -102,7 +102,7 @@ combination of supported standard gates (``rx``, ``ry``, ``rz``, ``cnot``,
 ``phaseshift`` for instance). Besides, the inclusion of files is not yet handled
 by Braket library. Therefore, we temporarily created a custom file to *hard-*
 include (see :ref:`above<hard-include>`) directly in the OpenQASM 3.0 code, to
-be sure the parser and interpreter has all definitions in there. We also
+be sure the parser and interpreter have all definitions in there. We also
 hard-include all included files in the OpenQASM 3.0 code inputted for
 conversion.
 
@@ -113,7 +113,7 @@ conversion.
 
 .. autofunction:: mpqp.qasm.qasm_to_braket.qasm3_to_braket_Circuit
 
-In needed, one can also generate a Braket ``Program`` from an OpenQASM 3.0 input
+If needed, one can also generate a Braket ``Program`` from an OpenQASM 3.0 input
 string using the function below. However, in this case, the program parser does
 not need to redefine the native gates, and thus only performing a hard import of
 standard gates and other included file is sufficient. However, note that a

@@ -11,7 +11,13 @@ T = TypeVar("T")
 @dataclass
 class AnswerNode:
     """Represents a node in a decision tree corresponding to an answer to a question. An answer can lead to an action,
-    or to another question."""
+    or to another question.
+
+    Args:
+        label: See attribute description.
+        action: See attribute description.
+        next_question: See attribute description.
+    """
 
     label: str
     """The label or text associated with the answer."""
@@ -23,7 +29,12 @@ class AnswerNode:
 
 @dataclass
 class QuestionNode:
-    """Represents a node in a decision tree corresponding to a question."""
+    """Represents a node in a decision tree corresponding to a question.
+
+    Args:
+        label: See attribute description.
+        answers: See attribute description.
+    """
     label: str
     """The label or text associated with the question."""
     answers: list[AnswerNode]

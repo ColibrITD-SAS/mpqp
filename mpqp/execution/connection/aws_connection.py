@@ -14,7 +14,7 @@ from mpqp.tools.errors import AWSBraketRemoteExecutionError
 
 
 def setup_aws_braket_account() -> tuple[str, list[Any]]:
-    """Set up the connection to an Amazon Braket account using user input.
+    """Setups the connection to an Amazon Braket account using user input.
 
     This function checks whether an Amazon Braket account is already configured
     and prompts the user to update it if needed. It then collects the user's AWS
@@ -53,7 +53,7 @@ def get_aws_braket_account_info() -> str:
     """Get AWS Braket credentials information including access key ID,
     obfuscated secret access key, and region.
 
-    Examples:
+    Example:
         >>> get_aws_braket_account_info()
             access_key_id: 'AKIA26NYJ***********'
             secret_access_key: 'sMDad***********************************'
@@ -95,16 +95,16 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
     """
     Returns the AwsDevice device associate with the AWSDevice in parameter.
 
-    Args:
-        device: AWSDevice element describing which remote/local AwsDevice we want.
-
-    Examples:
+    Example:
         >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ASPEN_M_3)
         >>> device.properties.action['braket.ir.jaqcd.program'].supportedResultTypes
         [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
+
+    Args:
+        device: AWSDevice element describing which remote/local AwsDevice we want.
 
     Raises:
         AWSBraketRemoteExecutionError
@@ -129,9 +129,9 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
 
 
 def get_all_task_ids() -> list[str]:
-    """Retrieve all the task ids of this account/group from AWS.
+    """Retrieves all the task ids of this account/group from AWS.
 
-    Examples:
+    Example:
         >>> get_all_task_ids()
         ['arn:aws:braket:us-east-1:752542621531:quantum-task/6a46ae9a-d02f-4a23-b46f-eae43471bc22',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/11db7e68-2b17-4b00-a4ec-20f662fd4876',
@@ -149,10 +149,10 @@ def get_all_task_ids() -> list[str]:
 
 
 def get_all_partial_ids() -> list[str]:
-    """Retrieve all the task ids of this account/group from AWS and extracts the
+    """Retrieves all the task ids of this account/group from AWS and extracts the
     significant part.
 
-    Examples:
+    Example:
         >>> get_all_partial_ids()
         ['6a46ae9a-d02f-4a23-b46f-eae43471bc22',
          '11db7e68-2b17-4b00-a4ec-20f662fd4876',

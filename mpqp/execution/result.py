@@ -37,9 +37,9 @@ class StateVector:
     Class representing the state vector of a multi-qubit quantum system.
 
     Args:
-        vector: list of amplitudes defining the state vector
-        nb_qubits: number of qubits of the state
-        probabilities: list of probabilities associated to the state vector
+        vector: List of amplitudes defining the state vector.
+        nb_qubits: Number of qubits of the state.
+        probabilities: List of probabilities associated with the state vector.
 
     Example:
         >>> state_vector = StateVector(np.array([1, 1, 1, -1])/2, 2)
@@ -393,7 +393,7 @@ class BatchResult:
     Args:
         results: List of results.
 
-    Examples:
+    Example:
         >>> result1 = Result(
         ...     Job(JobType.STATE_VECTOR,QCircuit(0),ATOSDevice.MYQLM_PYLINALG),
         ...     StateVector(np.array([1, 1, 1, -1])/2, 2),

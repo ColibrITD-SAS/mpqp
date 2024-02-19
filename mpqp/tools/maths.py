@@ -17,8 +17,8 @@ atol = 1e-08
 
 
 @typechecked
-def normalize(v: npt.NDArray[np.complex64]):
-    """Normalize an array representing the amplitudes of the state.
+def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
+    """Normalizes an array representing the amplitudes of the state.
 
     Examples:
         >>> vector = np.array([1,0,0,1])
@@ -40,9 +40,10 @@ def normalize(v: npt.NDArray[np.complex64]):
 
 @typechecked
 def matrix_eq(lhs: Matrix, rhs: Matrix) -> bool:
-    r"""Returns True if two matrices lhs and rhs are element-wise equal, within
-    a tolerance. For respectively each elements `a` and `b` of both inputs, we
-    check this specific condition: `|a - b| \leq (atol + rtol * |b|)`
+    r"""Checks whether two matrix are element-wise equal, within a tolerance.
+
+    For respectively each elements `a` and `b` of both inputs, we check this
+    specific condition: `|a - b| \leq (atol + rtol * |b|)`.
 
     Args:
         lhs: Left-hand side matrix of the equality.
@@ -62,7 +63,7 @@ def matrix_eq(lhs: Matrix, rhs: Matrix) -> bool:
 
 
 @typechecked
-def is_hermitian(matrix: Matrix):
+def is_hermitian(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is hermitian.
 
     Args:
@@ -90,16 +91,16 @@ def is_hermitian(matrix: Matrix):
         False
 
     Returns:
-        True if the matrix in parameter is Hermitian
+        ``True`` if the matrix in parameter is Hermitian.
     """
     return matrix_eq(np.array(matrix).transpose().conjugate(), matrix)  # type: ignore
 
 
 @typechecked
-def is_unitary(matrix: Matrix):
+def is_unitary(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is unitary.
 
-    Examples:
+    Example:
         >>> a = np.array([[1,1],[1,-1]])
         >>> is_unitary(a)
         False

@@ -9,17 +9,27 @@ class AvailableDevice(Enum):
 
     @abstractmethod
     def is_remote(self) -> bool:
-        """Returns True if this device is remote, False if it is local device"""
+        """Indicates whether a device is remote or not.
+
+        Returns:
+            ``True`` if this device is remote.
+        """
         pass
 
     @abstractmethod
     def is_gate_based(self) -> bool:
-        """Returns True if this device is a gate-based simulator/QPU, False otherwise"""
+        """Indicates whether a device is gate based or not.
+
+        Returns:
+            ``True`` if this device is a gate-based simulator/QPU."""
         pass
 
     @abstractmethod
     def is_simulator(self) -> bool:
-        """Returns True if this device is a simulator, False if it is a quantum computer, QPU."""
+        """Indicates whether a device is a simulator or not.
+
+        Returns:
+            ``True`` if this device is a simulator."""
         pass
 
 
@@ -153,8 +163,13 @@ class AWSDevice(AvailableDevice):
             region = "us-west-1"
         elif self == AWSDevice.BRAKET_OQC_LUCY:
             region = "eu-west-2"
-        elif self in [AWSDevice.BRAKET_IONQ_HARMONY, AWSDevice.BRAKET_IONQ_ARIA_1, AWSDevice.BRAKET_IONQ_ARIA_2,
-                      AWSDevice.BRAKET_IONQ_FORTE_1, AWSDevice.BRAKET_QUERA_AQUILA]:
+        elif self in [
+            AWSDevice.BRAKET_IONQ_HARMONY,
+            AWSDevice.BRAKET_IONQ_ARIA_1,
+            AWSDevice.BRAKET_IONQ_ARIA_2,
+            AWSDevice.BRAKET_IONQ_FORTE_1,
+            AWSDevice.BRAKET_QUERA_AQUILA,
+        ]:
             region = "us-east-1"
         else:
             region = get_env_variable("AWS_DEFAULT_REGION")

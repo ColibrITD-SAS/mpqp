@@ -87,7 +87,7 @@ def qasm_code(instr: Instr) -> str:
     we hard include it.
 
     Args:
-        instr: Instr for which we want the corresponding OpenQASM code
+        instr: Instr for which we want the corresponding OpenQASM code.
 
     Returns:
         OpenQASM definition of ``instr``.
@@ -116,7 +116,7 @@ def parse_openqasm_2_file(code: str) -> list[str]:
 
     Args:
         code: The complete OpenQASM 2.0 program, we do not check for correct syntax, it is assumed that the code is
-        well formed.
+            well formed.
 
     Returns:
         List of instructions.
@@ -168,7 +168,7 @@ def convert_instruction_2_to_3(
     Args:
         instr: Instruction to be upgraded.
         included_instr: Some instructions need new imports, in order to keep
-            track of which instruction are already
+            track of which instruction are already.
         imported in the overall scope, a dictionary of already included
             instructions is passed and modified along.
         included_tree_current_node: Current Node in the file inclusion tree.
@@ -316,7 +316,7 @@ def open_qasm_2_to_3(
     temporary bridges between different platforms that use different versions.
 
     Args:
-        code: string containing the OpenQASM 2.0 code and instructions
+        code: String containing the OpenQASM 2.0 code and instructions.
         included_tree_current_node: Current Node in the file inclusion tree.
         path_to_file: Path to the location of the file from which the code is
             coming (useful for locating imports).
@@ -325,7 +325,7 @@ def open_qasm_2_to_3(
     Returns:
         Converted OpenQASM code in the 3.0 version.
 
-    Examples:
+    Example:
         >>> qasm2_str = '''\\
         ... OPENQASM 2.0;
         ... qreg q[2];
@@ -386,7 +386,7 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
     Returns:
         Converted OpenQASM code in the 3.0 version.
 
-    Examples:
+    Example:
         >>> example_dir = "example/qasm_files/"
         >>> with open(example_dir + "main.qasm", "r") as f:
         ...     print(f.read())
@@ -447,7 +447,7 @@ def open_qasm_hard_includes(
     every instruction in previously included files, directly in the code
     returned.
 
-    Examples:
+    Example:
         >>> examples_folder = "tests/qasm/qasm_examples"
         >>> filename = examples_folder + "/with_include.qasm"
         >>> with open(filename) as f:
@@ -461,7 +461,7 @@ def open_qasm_hard_includes(
         included_files: The set of files already included, used to avoid
             duplicate imports and circular dependencies. This set should be
             initialized with the name of the root file you started with.
-        path_to_file: Path used to localize files that are inputted.
+        path_to_file: Path used to localize files that are included.
         is_openqasm_header_included: Boolean used to only include once the
             OpenQASM header.
 
@@ -515,7 +515,7 @@ def is_path_in_tree(path: str, any_node: Node):
         any_node: One node of the tree on which we want to search.
 
     Returns:
-        True if the path is the name of one of the nodes of the tree.
+        ``True`` if the path is the name of one of the nodes of the tree.
     """
     return any([path in node.name for node in PreOrderIter(any_node.root)])
 
@@ -530,6 +530,6 @@ def is_path_in_ancestors(path: str, node: Node):
         node: The node for which we want to search in his ancestors.
 
     Returns:
-        True if the path is the name of one of the ancestors of the node/
+        ``True`` if the path is the name of one of the ancestors of the node/
     """
     return any([path in node.name for node in node.ancestors])

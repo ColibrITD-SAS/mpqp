@@ -44,7 +44,7 @@ class QCircuit:
     A circuit is composed of quantum and classical bits and it is defined as a
     list of instructions applied on specific quantum and/or classical bits.
 
-    Examples:
+    Example:
         >>> circuit = QCircuit(2)
         >>> circuit.pretty_print()
         QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 0
@@ -63,21 +63,21 @@ class QCircuit:
         q_4: ────────────
 
     Args:
-        data: Number of qubits or List of instructions to initiate the circuit
-            with. If the number of qubits is passed, it should be a positive int.
-        nb_qubits: Optional number of qubits, in case you input the sequence
-            of instruction and want to hardcode the number of qubits.
-        nb_cbits: Number of classical bits. It should be positive. Defaults to
-        None. label: Name of the circuit. Defaults to None.
+        data: Number of qubits or List of instructions to initiate the circuit with. If the number of qubits is passed,
+            it should be a positive int.
+        nb_qubits: Optional number of qubits, in case you input the sequence of instruction and want to hardcode the
+            number of qubits.
+        nb_cbits: Number of classical bits. It should be positive. Defaults to None.
+        label: Name of the circuit. Defaults to None.
     """
 
     def __init__(
-            self,
-            data: int | Sequence[Instruction],
-            *,
-            nb_qubits: Optional[int] = None,
-            nb_cbits: Optional[int] = None,
-            label: Optional[str] = None,
+        self,
+        data: int | Sequence[Instruction],
+        *,
+        nb_qubits: Optional[int] = None,
+        nb_cbits: Optional[int] = None,
+        label: Optional[str] = None,
     ):
         self.nb_cbits = nb_cbits
         """See parameter description."""
@@ -115,7 +115,7 @@ class QCircuit:
         Args:
             instruction : Instruction(s) to append at the end of the circuit.
 
-        Examples:
+        Example:
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
             >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
@@ -160,13 +160,13 @@ class QCircuit:
         self.instructions.append(instruction)
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
-        """Append the circuit at the end (right side) of this circuit, inplace.
+        """Appends the circuit at the end (right side) of this circuit, inplace.
 
-        If the size of the circuit in parameter is smaller than this circuit,
+        If the size of the ``other`` is smaller than this circuit,
         the parameter ``qubits_offset`` can be used to indicate at which qubit
         the ``other`` circuit must be added.
 
-        Examples:
+        Example:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> c1.append(c2)
@@ -221,13 +221,13 @@ class QCircuit:
         return res
 
     def tensor(self, other: QCircuit) -> QCircuit:
-        """Compute the tensor product of this circuit with the one in parameter.
+        """Computes the tensor product of this circuit with the one in parameter.
 
-        In the circuit notation, the upper part of the circuit will correspond
-        to this circuit, while the bottom part correspond to the circuit in
+        In the circuit notation, the upper part of the output circuit will correspond
+        to the first circuit, while the bottom part correspond to the one in
         parameter.
 
-        Examples:
+        Example:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> print(c1.tensor(c2))
@@ -243,12 +243,10 @@ class QCircuit:
                       └───┘
 
         Args:
-            other: QCircuit being the second operand of the tensor product with
-                this circuit.
+            other: QCircuit being the second operand of the tensor product with this circuit.
 
         Returns:
-            The QCircuit resulting of the tensor product of this circuit with
-            the one in parameter.
+            The QCircuit resulting from the tensor product of this circuit with the one in parameter.
         """
         res = deepcopy(self)
         res.nb_qubits += other.nb_qubits
@@ -264,7 +262,7 @@ class QCircuit:
         For now, this uses the qiskit circuit drawer, so all formats supported
         by qiskit are supported.
 
-        Examples:
+        Example:
             >>> theta = symbols("θ")
             >>> circ = QCircuit([
             ...     P(theta, 0),
@@ -299,7 +297,7 @@ class QCircuit:
         return fig
 
     def size(self) -> tuple[int, int]:
-        """Provide the size of the circuit, in terms of number of quantum and
+        """Provides the size of the circuit, in terms of number of quantum and
         classical bits.
 
         Examples:
@@ -314,13 +312,13 @@ class QCircuit:
             (3, 3)
 
         Returns:
-            A couple (q, c) of integers, with q the number of qubits, and c the
-            number of cbits of this circuit.
+            A couple ``(q, c)`` of integers, with ``q`` the number of qubits,
+            and ``c`` the number of cbits of this circuit.
         """
         return self.nb_qubits, (self.nb_cbits or 0)
 
     def depth(self) -> int:
-        """Compute the depth of the circuit.
+        """Computes the depth of the circuit.
 
         Example:
             >>> QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), X(2)]).depth()
@@ -360,7 +358,7 @@ class QCircuit:
     def __len__(self) -> int:
         """Returns the number of instructions added to this circuit.
 
-        Examples:
+        Example:
             >>> c1 = QCircuit([CNOT(0,1), CNOT(1,2), X(1), CNOT(1,2)])
             >>> len(c1)
             4
@@ -377,7 +375,7 @@ class QCircuit:
         Depending on the definition of the gates of the circuit, several methods
         could be used to do it in an optimized way.
 
-        Examples:
+        Example:
             >>> c1 = QCircuit([H(0), H(0)])
             >>> c2 = QCircuit([Rx(0, 0)])
             >>> c1.is_equivalent(c2)
@@ -388,7 +386,7 @@ class QCircuit:
                 to this circuit.
 
         Returns:
-            True if the circuit in parameter is equivalent to this circuit
+            ``True`` if the circuit in parameter is equivalent to this circuit
 
         3M-TODO: will only work once the circuit.to_matrix is implemented
         """
@@ -520,7 +518,7 @@ class QCircuit:
         # qiskit QuantumCircuit feature qc.initialize()
         """
         size = int(np.log2(len(state)))
-        if 2 ** size != len(state):
+        if 2**size != len(state):
             raise ValueError(f"Input state {state} should have a power of 2 size")
         res = cls(size)
         ...
@@ -554,9 +552,9 @@ class QCircuit:
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
     def get_measurements(self) -> list[Measure]:
-        """Returns all the measurement present in this circuit.
+        """Returns all the measurements present in this circuit.
 
-        Examples:
+        Example:
             >>> circuit = QCircuit([
             ...     BasisMeasure([0, 1], shots=1000),
             ...     ExpectationMeasure([1], Observable(np.identity(2)), shots=1000)
@@ -571,9 +569,9 @@ class QCircuit:
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
 
     def without_measurements(self) -> QCircuit:
-        """Provide a copy of this circuit with all the measurement removed.
+        """Provides a copy of this circuit with all the measurements removed.
 
-        Examples:
+        Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
             >>> print(circuit)
                  ┌───┐     ┌─┐
@@ -600,9 +598,10 @@ class QCircuit:
 
         return new_circuit
 
-    def to_other_language(self, language: Language = Language.QISKIT
-                          ) -> Union[QuantumCircuit, myQLM_Circuit, braket_Circuit]:
-        """Transform this circuit into the corresponding circuit in the language
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> Union[QuantumCircuit, myQLM_Circuit, braket_Circuit]:
+        """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
         By default, the circuit is translated to the corresponding
@@ -613,7 +612,7 @@ class QCircuit:
         method will be used only for complex objects that are not tractable by
         OpenQASM (like hybrid structures).
 
-        Examples:
+        Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1)])
             >>> qc = circuit.to_other_language()
             >>> type(qc)
@@ -653,7 +652,7 @@ class QCircuit:
                 elif isinstance(instruction, Gate):
                     qargs = instruction.targets
                 elif isinstance(instruction, BasisMeasure) and isinstance(
-                        instruction.basis, ComputationalBasis
+                    instruction.basis, ComputationalBasis
                 ):
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
@@ -684,12 +683,12 @@ class QCircuit:
             raise NotImplementedError(f"Error: {language} is not supported")
 
     def to_qasm2(self) -> str:
-        """Convert this circuit to the corresponding OpenQASM 2 code.
+        """Converts this circuit to the corresponding OpenQASM 2 code.
 
         For now, we use an intermediate conversion to a Qiskit
         ``QuantumCircuit``.
 
-        Examples:
+        Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
             >>> print(circuit.to_qasm2())
             OPENQASM 2.0;
@@ -705,21 +704,21 @@ class QCircuit:
             A string representing the OpenQASM2 code corresponding to this
             circuit.
         """
-        qasm = (
-            self.subs({}, remove_symbolic=True)
-                .to_other_language(Language.QISKIT)
-                .qasm()
+        qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
+            Language.QISKIT
         )
+        assert isinstance(qiskit_circ, QuantumCircuit)
+        qasm = qiskit_circ.qasm()
         assert qasm is not None
         return qasm
 
     def to_qasm3(self) -> str:
-        """Convert this circuit to the corresponding OpenQASM 3 code.
+        """Converts this circuit to the corresponding OpenQASM 3 code.
 
         For now, we use an intermediate conversion to OpenQASM 2, and then a
         converter from 2 to 3.
 
-        Examples:
+        Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
             >>> print(circuit.to_qasm3())
             OPENQASM 3.0;
@@ -740,7 +739,7 @@ class QCircuit:
         return qasm3_code
 
     def subs(
-            self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> QCircuit:
         r"""Substitute the parameters of the circuit with complex values.
         Optionally also remove all symbolic variables such as `\pi` (needed for
@@ -794,7 +793,7 @@ class QCircuit:
     def pretty_print(self):
         """Provides a pretty print of the QCircuit.
 
-        Examples:
+        Example:
             >>> c = QCircuit([H(0), CNOT(0,1)])
             >>> c.pretty_print()
             QCircuit : Size (Qubits,Cbits) = (2, None), Nb instructions = 2

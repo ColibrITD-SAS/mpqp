@@ -123,7 +123,7 @@ def _run_single(
     Returns:
         The Result containing information about the measurement required.
 
-    Examples:
+    Example:
         >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
         >>> print(result)
@@ -207,9 +207,7 @@ def run(
         if len(set_device) == 1:
             return _run_single(circuit, set_device[0], values)
 
-        return BatchResult(
-            [_run_single(circuit, dev, values) for dev in set_device]
-        )
+        return BatchResult([_run_single(circuit, dev, values) for dev in set_device])
 
     return _run_single(circuit, device, values)
 
@@ -224,7 +222,7 @@ def submit(
     If the circuit depends on variables, the values given in parameters are used to do the substitution.
     Unlike :meth:`run`, for the moment, one can only submit a circuit to a single device.
 
-    Examples:
+    Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
         >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG)
         Logging as user <qlm_user>...

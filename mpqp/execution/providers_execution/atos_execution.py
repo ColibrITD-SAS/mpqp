@@ -20,6 +20,7 @@ from ...tools.errors import QLMRemoteExecutionError
 
 from qat.qlmaas.result import AsyncResult
 from qat.core.contexts import QPUContext
+from qat.core.qpu.qpu import QPUHandler
 from qat.pylinalg import PyLinalg
 from qat.clinalg.qpu import CLinalg
 from qat.core.wrappers.observable import Observable as QLM_Observable
@@ -31,7 +32,16 @@ from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceExcepti
 
 
 @typechecked
-def get_local_qpu(device: ATOSDevice):
+def get_local_qpu(device: ATOSDevice) -> QPUHandler:
+    """
+    Returns the myQLM local QPU associated with the ATOSDevice given in parameter.
+
+    Args:
+        device: ATOSDevice referring to the myQLM local QPU.
+
+    Raises:
+        ValueError
+    """
     if device.is_remote():
         raise ValueError("Excepted a local device, not the remote QLM")
     if device == ATOSDevice.MYQLM_PYLINALG:
@@ -43,7 +53,7 @@ def get_local_qpu(device: ATOSDevice):
 def generate_state_vector_job(
     myqlm_circuit: Circuit, device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG
 ) -> tuple[JobQLM, QPUContext]:
-    """Generate a myQLM job from the myQLM circuit and select the right myQLM
+    """Generates a myQLM job from the myQLM circuit and selects the right myQLM
     QPU to run on it.
 
     Args:
@@ -68,8 +78,8 @@ def generate_state_vector_job(
 
 @typechecked
 def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUContext]:
-    """Generate a myQLM job from the myQLM circuit and job sample info (target,
-    shots, ...), and select the right myQLM QPU to run on it.
+    """Generates a myQLM job from the myQLM circuit and job sample info (target,
+    shots, ...), and selects the right myQLM QPU to run on it.
 
     Args:
         myqlm_circuit: MyQLM circuit of the job.
@@ -103,7 +113,7 @@ def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUCo
 def generate_observable_job(
     myqlm_circuit: Circuit, job: Job
 ) -> tuple[JobQLM, QPUContext]:
-    """Generate a myQLM job from the myQLM circuit and observable, and select
+    """Generates a myQLM job from the myQLM circuit and observable, and selects
     the right myQLM QPU to run on it.
 
     Args:
@@ -141,18 +151,18 @@ def extract_state_vector_result(
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
-    """Construct a Result from the result given by the myQLM/QLM run in state
+    """Constructs a Result from the result given by the myQLM/QLM run in state
     vector mode.
 
     Args:
-        myqlm_result: Result return by myQLM/QLM after run of the job.
+        myqlm_result: Result returned by myQLM/QLM after running of the job.
         job: Original mpqp job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
 
     Returns:
-        A Result containing the result info extract from the myQLM/QLM
+        A Result containing the result info extracted from the myQLM/QLM
         statevector result.
     """
     if job is None:
@@ -181,18 +191,18 @@ def extract_sample_result(
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
-    """Construct a Result from the result given by the myQLM/QLM run in sample
+    """Constructs a Result from the result given by the myQLM/QLM run in sample
     mode.
 
     Args:
-        myqlm_result: Result return by myQLM/QLM after run of the job.
+        myqlm_result: Result returned by myQLM/QLM after running of the job.
         job: Original mpqp job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
 
     Returns:
-        A Result containing the result info extract from the myQLM/QLM sample
+        A Result containing the result info extracted from the myQLM/QLM sample
         result.
     """
     if job is None:
@@ -236,18 +246,18 @@ def extract_observable_result(
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
-    """Construct a Result from the result given by the myQLM/QLM run in
+    """Constructs a Result from the result given by the myQLM/QLM run in
     observable mode.
 
     Args:
-        myqlm_result: Result return by myQLM/QLM after run of the job.
+        myqlm_result: Result returned by myQLM/QLM after running of the job.
         job: Original mpqp job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
 
     Returns:
-        A Result containing the result info extract from the myQLM/QLM
+        A Result containing the result info extracted from the myQLM/QLM
         observable result.
     """
     if job is None:
@@ -283,17 +293,17 @@ def extract_result(
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
     """
-    Construct a Result from the result given by the myQLM/QLM run.
+    Constructs a Result from the result given by the myQLM/QLM run.
 
     Args:
-        myqlm_result: Result returned by myQLM/QLM after run of the job.
+        myqlm_result: Result returned by myQLM/QLM after running of the job.
         job: Original mpqp job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
 
     Returns:
-        A Result containing the result info extract from the myQLM/QLM result.
+        A Result containing the result info extracted from the myQLM/QLM result.
     """
 
     if (job is None) or job.device.is_remote():
@@ -317,11 +327,14 @@ def extract_result(
 
 @typechecked
 def job_pre_processing(job: Job) -> Circuit:
-    """Extract the myQLM circuit and check if ``job.type`` and ``job.measure``
+    """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
     are coherent.
 
     Args:
         job: Mpqp job used to instantiate the myQLM circuit.
+
+    Returns:
+          The myQLM Circuit translated from the circuit of the job in parameter.
     """
 
     if (
@@ -342,7 +355,7 @@ def job_pre_processing(job: Job) -> Circuit:
 
 @typechecked
 def run_atos(job: Job) -> Result:
-    """Execute the job on the right ATOS device precised in the job in parameter.
+    """Executes the job on the right ATOS device precised in the job in parameter.
     This function is not meant to be used directly, please use
     ``runner.run(...)`` instead.
 
@@ -357,7 +370,7 @@ def run_atos(job: Job) -> Result:
 
 @typechecked
 def run_myQLM(job: Job) -> Result:
-    """Execute the job on the local myQLM simulator. This function is not meant
+    """Executes the job on the local myQLM simulator. This function is not meant
     to be used directly, please use ``runner.run(...)`` instead.
 
     Args:
@@ -405,7 +418,7 @@ def run_myQLM(job: Job) -> Result:
 
 @typechecked
 def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
-    """Submit the job on the remote QLM machine. This function is not meant to
+    """Submits the job on the remote QLM machine. This function is not meant to
     be used directly, please use ``runner.submit(...)`` instead.
 
     Args:
@@ -453,7 +466,7 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
 
 @typechecked
 def run_QLM(job: Job) -> Result:
-    """Submit the job on the remote QLM machine and wait for it to be done. This
+    """Submits the job on the remote QLM machine and waits for it to be done. This
     function is not meant to be used directly, please use ``runner.run(...)``
     instead.
 

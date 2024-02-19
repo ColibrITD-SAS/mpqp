@@ -3,7 +3,7 @@ class InstructionParsingError(ValueError):
 
 
 class NumberQubitsError(ValueError):
-    """Raised when the number of qubits defining in an instruction, a gate or a measurement is not coherent with the
+    """Raised when the number of qubits defining an instruction, a gate, or a measurement, is not coherent with the
     related objets (circuit, matrix, observable, etc.)"""
 
 

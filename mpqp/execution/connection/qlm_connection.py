@@ -19,7 +19,7 @@ QLM_connection = None
 
 @typechecked
 def config_qlm_account(username: str, password: str, global_config: bool) -> bool:
-    """Configure and save locally QLM account's information.
+    """Configures and saves locally QLM account's information.
 
     Args:
         username: QLM username.
@@ -79,8 +79,8 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
 
 
 def setup_qlm_account() -> tuple[str, list[Any]]:
-    """Setup the QLM account, by looking at the existing configuration, asking
-    for the token and update the current account."""
+    """Setups the QLM account, by looking at the existing configuration, asking
+    for username/password and updating the current account."""
     already_configured = get_env_variable("QLM_CONFIGURED") == "True"
 
     if already_configured:
@@ -110,12 +110,15 @@ def setup_qlm_account() -> tuple[str, list[Any]]:
 
 
 def get_all_job_ids() -> list[str]:
-    """Retrieve from the remote QLM all the job-ids associated with this account.
+    """Retrieves from the remote QLM all the job-ids associated with this account.
 
-    Examples:
+    Example:
         >>> get_all_job_ids()
         ['Job144361', 'Job144360', 'Job144359', 'Job144358', 'Job144357', 'Job143334', 'Job143333', 'Job143332',
         'Job141862', 'Job141861', 'Job141722', 'Job141720', 'Job141716', 'Job141715', 'Job141712', 'Job19341']
+
+    Returns:
+        List of all job-ids associated with this account.
     """
 
     connection = get_QLMaaSConnection()

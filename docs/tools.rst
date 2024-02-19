@@ -2,11 +2,11 @@ Tools
 =====
 
 Some additional tools are provided with our library. Even though most of them
-are geared at internal usage, there are all presented here. Amongst them, the
+are geared at internal usage, they are all presented here. Amongst them, the
 ones most probable of being of use for you are in:
 
 - the section :ref:`viz` presents visualization tools for several data types.
-  They might be integrated in these types is they are popular enough.
+  They might be integrated in these types if they are popular enough.
 - the section :ref:`math` presents mathematical tools for linear algebra,
   functions generalized to more data types, etc...
 
@@ -52,10 +52,10 @@ relevant, we also append the trace of the error raised by a provider's SDK.
 Choice Tree
 -----------
 
-This module provides functionality for working with decision trees, allowing for
+This module provides functionalities for working with decision trees, allowing for
 seamless navigation and interaction within a tree structure.
 
-The user define a :class:`QuestionNode<mpqp.tools.choice_tree.QuestionNode>`,
+The user defines a :class:`QuestionNode<mpqp.tools.choice_tree.QuestionNode>`,
 containing a question or requesting and answer from the user. Then the user can
 select among a list of possible answers, encoded in
 :class:`AnswerNode<mpqp.tools.choice_tree.AnswerNode>`. For each answer, either

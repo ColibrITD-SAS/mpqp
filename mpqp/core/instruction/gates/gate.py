@@ -62,7 +62,7 @@ class Gate(Instruction, ABC):
     def inverse(self) -> Gate:
         """Computing the inverse of this gate.
 
-        Examples:
+        Example:
             >>> Z(0).inverse()
             Z(0)
             >>> CustomGate(UnitaryMatrix(np.diag([1,1j])),[0]).inverse().to_matrix()
@@ -87,7 +87,7 @@ class Gate(Instruction, ABC):
         semantics (and thus ignores all other aspects of the gate such as the
         target qubits, the label, etc....)
 
-        Examples:
+        Example:
             >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
             True
 
@@ -95,7 +95,7 @@ class Gate(Instruction, ABC):
             other: the gate to test if it is equivalent to this gate
 
         Returns:
-            True if the two gates' matrix semantics are equal.
+            ``True`` if the two gates' matrix semantics are equal.
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
@@ -143,7 +143,7 @@ class Gate(Instruction, ABC):
     def tensor_product(self, other: Gate) -> Gate:
         """Compute the tensor product of the current gate.
 
-        Examples:
+        Example:
             >>> (X(0).tensor_product(Z(0))).to_matrix()
             array([[ 0,  0,  1,  0],
                    [ 0,  0,  0, -1],
@@ -185,7 +185,7 @@ class Gate(Instruction, ABC):
     def product(self, other: Gate, targets: Optional[list[int]] = None) -> Gate:
         """Compute the composition of self and the other gate.
 
-        Examples:
+        Example:
             >>> (X(0).product(Z(0))).to_matrix()
             array([[ 0, -1],
                    [ 1,  0]])
@@ -211,7 +211,7 @@ class Gate(Instruction, ABC):
         """Multiply this gate by a scalar. It normalizes the subtraction
         to ensure it is unitary.
 
-        Examples:
+        Example:
             >>> (X(0).scalar_product(1j)).to_matrix()
             array([[0, 1j],
                    [1j, 0]])
@@ -235,7 +235,7 @@ class Gate(Instruction, ABC):
         """Compute the subtraction of two gates. It normalizes the subtraction
         to ensure it is unitary.
 
-        Examples:
+        Example:
             >>> (X(0).minus(Z(0))).to_matrix()
             array([[-0.70710678,  0.70710678],
                    [ 0.70710678,  0.70710678]])
@@ -263,7 +263,7 @@ class Gate(Instruction, ABC):
         """Compute the sum of two gates. It normalizes the subtraction
         to ensure it is unitary.
 
-        Examples:
+        Example:
             >>> (X(0).plus(Z(0))).to_matrix()
             array([[ 0.70710678,  0.70710678],
                    [ 0.70710678, -0.70710678]])
