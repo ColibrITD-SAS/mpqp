@@ -21,8 +21,8 @@ from mpqp.tools.errors import DeviceJobIncompatibleError
 @typechecked
 def run_braket(job: Job) -> Result:
     """
-    Execute the job on the right AWS Braket device (local or remote) precised in the job in parameter and wait until
-    the task is completed, then return the Result.
+    Executes the job on the right AWS Braket device (local or remote) precised in the job in parameter and waits until
+    the task is completed, then returns the Result.
     This function is not meant to be used directly, please use ``runner.run(...)`` instead.
 
     Args:
@@ -39,7 +39,7 @@ def run_braket(job: Job) -> Result:
 @typechecked
 def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     """
-    Submit the job to the right local/remote device and return the generated task.
+    Submits the job to the right local/remote device and returns the generated task.
     This function is not meant to be used directly, please use ``runner.submit(...)`` instead.
 
     Args:
@@ -93,15 +93,15 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 def extract_result(braket_result: GateModelQuantumTaskResult, job: Optional[Job] = None,
                    device: Optional[AWSDevice] = AWSDevice.BRAKET_LOCAL_SIMULATOR) -> Result:
     """
-    Construct a Result from the result given by the run with Braket.
+    Constructs a Result from the result given by the run with Braket.
 
     Args:
-        braket_result: Result returned by myQLM/QLM after run of the job.
+        braket_result: Result returned by myQLM/QLM after running of the job.
         job: Original mpqp job used to generate the run. Used to retrieve more easily info to instantiate the result.
         device: AWSDevice on which the job was submitted.
 
     Returns:
-        A Result containing the result info extract from the Braket result.
+        A Result containing the result info extracted from the Braket result.
     """
     if job is None:
         if len(braket_result.values) == 0:
@@ -148,7 +148,7 @@ def extract_result(braket_result: GateModelQuantumTaskResult, job: Optional[Job]
 @typechecked
 def get_result_from_aws_task_arn(task_arn: str = None) -> Result:
     """
-    Retrieve the result, described by the job_id in parameter, from the remote QLM and convert it into an mpqp result.
+    Retrieves the result, described by the job_id in parameter, from the remote QLM and converts it into an mpqp result.
     If the job is still running, we wait (blocking) until it is DONE.
 
     Args:

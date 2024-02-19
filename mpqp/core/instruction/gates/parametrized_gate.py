@@ -39,7 +39,7 @@ class ParametrizedGate(Gate, ABC):
         parameters: List of parameters used to define the gate.
         label: Label used to identify the measurement.
 
-    Examples:
+    Example:
         >>> theta = np.pi/3
         >>> c, s = np.cos(theta / 2), np.sin(theta / 2)
         >>> gate_def = UnitaryMatrix(np.array([[c, s], [-s, c]]))

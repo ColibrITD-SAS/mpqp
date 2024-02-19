@@ -42,10 +42,9 @@ def minimize(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
 ) -> tuple[float, OptimizerInput]:
-    """This function runs an optimization on the parameters of the circuit, to
-    minimize the expectation value of the measure of the circuit by it's
-    observables. Note that this means that the circuit should contain an
-    expectation measure!
+    """This function runs an optimization on the parameters of the circuit, in order to
+    minimize the measured expectation value of observables associated with the given circuit.
+    Note that this means that the latter should contain an ``ExpectationMeasure``.
 
     Examples:
         >>> alpha, beta = symbols("α β")
@@ -88,10 +87,10 @@ def minimize(
         optimizable: Either the circuit, containing symbols and an expectation
             measure, or the evaluation function.
         method: The method used to optimize most of those methods come from
-            either scipy or cma. If the choice offered in this package are not
-            covering your needs, you can define your own optimizer. It should be
+            ``scipy``. If the choices offered in this package are not
+            covering your needs, you can define your own optimizer. This should be
             a function taking as input a function representing the circuit, with
-            as many inputs as the circuit has parameters, as well as optional
+            as many inputs as the circuit has parameters, and any optional
             initialization parameters, and returning the optimal value reached
             and the parameters used to reach this value.
         device: The device on which the circuit should be run.
@@ -105,7 +104,7 @@ def minimize(
             as is to the minimizer.
 
     Returns:
-        The optimal value reached and the parameters used to reach this value.
+        The optimal value reached and the parameters corresponding to this value.
     """
     if isinstance(optimizable, QCircuit):
         if device is None:

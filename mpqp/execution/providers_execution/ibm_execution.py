@@ -59,7 +59,7 @@ def compute_expectation_value(
     ibm_circuit: QuantumCircuit, ibm_backend: Optional[BackendV1 | BackendV2], job: Job
 ) -> Result:
     """
-    Configure observable job and run it locally, and return the corresponding Result.
+    Configures observable job and run it locally, and returns the corresponding Result.
     This function is not meant to be used directly, please use ``runner.run(...)`` instead.
 
     Args:
@@ -97,6 +97,15 @@ def compute_expectation_value(
 
 @typechecked
 def check_job_compatibility(job: Job):
+    """
+    Checks whether the job in parameter has coherent and compatible attributes.
+
+    Args:
+        job: Job for which we want to check compatibility.
+
+    Raises:
+        DeviceJobIncompatibleError
+    """
     if not type(job.measure) in job.job_type.value:
         raise DeviceJobIncompatibleError(
             f"An {job.job_type.name} job is valid only if the corresponding circuit has an measure in "
@@ -130,7 +139,7 @@ def check_job_compatibility(job: Job):
 @typechecked
 def run_aer(job: Job):
     """
-    Execute the job on the right AER local simulator precised in the job in parameter.
+    Executes the job on the right AER local simulator precised in the job in parameter.
     This function is not meant to be used directly, please use ``runner.run(...)`` instead.
 
     Args:
@@ -192,7 +201,7 @@ def run_aer(job: Job):
 @typechecked
 def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     """
-    Submit the job on the remote IBM device (quantum computer or simulator).
+    Submits the job on the remote IBM device (quantum computer or simulator).
     This function is not meant to be used directly, please use ``runner.submit(...)`` instead.
 
     Args:
@@ -248,7 +257,7 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
 @typechecked
 def run_ibmq(job: Job) -> Result:
     """
-    Submit the job on the right IBMQ remote device, precised in the job in parameter, and wait until the job is
+    Submits the job on the right IBMQ remote device, precised in the job in parameter, and waits until the job is
     completed.
     This function is not meant to be used directly, please use ``runner.run(...)`` instead.
 
@@ -273,18 +282,18 @@ def extract_result(
     ibm_job: Optional[IBMJob | RuntimeJob] = None,
 ) -> Result:
     """
-    Parse a result from IBM execution (remote or local) into an mpqp Result.
-    Depending on with which service you run the job (local/remote backend, Estimator, Sampler),
+    Parses a result from IBM execution (remote or local) into an mpqp Result.
+    Depending on which service you run the job (local/remote backend, Estimator, Sampler),
     you retrieve a different result.
 
     Args:
-        result: Result returned by IBM after run of the job.
+        result: Result returned by IBM after running of the job.
         job: Original mpqp job used to generate the run. Used to retrieve more easily info to instantiate the result.
         device: IBMDevice on which the job was submitted. Used to know if the run was remote or local
-        ibm_job:
+        ibm_job: IBM or Runtime job used to retrieve info about the circuit and the submitted job (in the remote case).
 
     Returns:
-        A Result containing the result info extract from the IBM result.
+        A Result containing the result info extracted from the IBM result.
     """
 
     if job is not None and (

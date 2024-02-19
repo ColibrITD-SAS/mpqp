@@ -72,7 +72,7 @@ class Instruction(ABC):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set[Parameter]] = None,
     ) -> Any:
-        """Transform this instruction into the corresponding object in the
+        """Transforms this instruction into the corresponding object in the
         language specified in the ``language`` arg.
 
         By default, the instruction is translated to the corresponding one in
@@ -130,8 +130,8 @@ class Instruction(ABC):
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> Instruction:
-        r"""Substitute the parameters of the instruction with complex values.
-        Optionally also remove all symbolic variables such as `\pi` (needed for
+        r"""Substitutes the parameters of the instruction with complex values.
+        Optionally also removes all symbolic variables such as `\pi` (needed for
         example for circuit execution).
 
         Since we use ``sympy`` for gates' parameters, ``values`` can in fact be

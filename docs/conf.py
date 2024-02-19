@@ -1,5 +1,6 @@
 from __future__ import annotations
 from typing import Literal
+import dotenv
 
 # Configuration file for the Sphinx documentation builder.
 from sphinx.application import Sphinx
@@ -36,14 +37,16 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_rtd_dark_mode",
     "sphinx_copybutton",
-    "sphinx_github_changelog",
 ]
 default_dark_mode = True
 autodoc_typehints = "description"
 autodoc_type_aliases = {"Matrix": "Matrix", "AvailableDevice": "AvailableDevice"}
 simplify_optional_unions = True
 typehints_defaults = "comma"
-sphinx_github_changelog_token = "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"
+dotenv.load_dotenv()
+sphinx_github_changelog_token = os.getenv("SPHINX_GITHUB_CHANGELOG_TOKEN")
+if sphinx_github_changelog_token is not None:
+    extensions.append("sphinx_github_changelog")
 
 # The suffix of source filenames.
 source_suffix = ".rst"

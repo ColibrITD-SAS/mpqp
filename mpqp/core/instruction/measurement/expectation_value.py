@@ -33,7 +33,7 @@ class Observable:
 
     For the moment, on can only define the observable using a matrix.
 
-    Examples:
+    Example:
         >>> matrix = np.array([[1, 0], [0, -1]])
         >>> obs = Observable(matrix)
 
@@ -84,7 +84,7 @@ class ExpectationMeasure(Measure):
     hardware. The swaps added can be checked out in the ``pre_measure``
     attribute of the :class:`ExpectationMeasure`.
 
-    Examples:
+    Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value

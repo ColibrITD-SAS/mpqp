@@ -23,7 +23,7 @@ class GateDefinition(ABC):
     This said, for now only one way of defining the gates is supported, using
     their matricial semantics.
 
-    Examples:
+    Example:
         >>> gate_matrix = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
         >>> gate_definition = UnitaryMatrix(gate_matrix)
         >>> custom_gate = CustomGate(gate_definition)
@@ -66,7 +66,7 @@ class GateDefinition(ABC):
         Args:
             other: The definition we want to know if it is equivalent.
 
-        Examples:
+        Example:
             >>> d1 = UnitaryMatrix(np.array([[1, 0], [0, -1]]))
             >>> d2 = UnitaryMatrix(np.array([[2, 0], [0, -2.0]]) / 2)
             >>> d1.is_equivalent(d2)
@@ -80,7 +80,7 @@ class GateDefinition(ABC):
         Returns:
             A GateDefinition representing the inverse of the gate defined.
 
-        Examples:
+        Example:
             >>> UnitaryMatrix(np.array([[1, 0], [0, -1]])).inverse()
             array([[ 1.,  0.],
                    [-0., -1.]])
@@ -172,12 +172,12 @@ class UnitaryMatrix(GateDefinition):
                 # "complex" cannot be assigned to return type "Complex"
                 return (
                     complex(v) if remove_symbolic else v
-                )  # pyright: ignore[reportGeneralTypeIssues]
+                )  # pyright: ignore[reportReturnType]
 
             # the types in sympy are relatively badly handled
             # Argument of type "Unknown | Basic | Expr" cannot be assigned to parameter "v" of type "Expr | Complex"
             return (
-                caster(val.subs(values))  # pyright: ignore[reportGeneralTypeIssues]
+                caster(val.subs(values))  # pyright: ignore[reportArgumentType]
                 if isinstance(val, Expr)
                 else val
             )

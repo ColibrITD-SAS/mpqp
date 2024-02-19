@@ -1,1 +1,1 @@
-include 'stdgates.inc';
+include "stdgates.inc";

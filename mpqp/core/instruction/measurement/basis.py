@@ -30,7 +30,7 @@ class Basis:
             specified, it will be automatically inferred from
             ``basis_vectors``'s dimensions.
 
-    Examples:
+    Example:
         >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
         Basis: [
             [1 0],
@@ -175,7 +175,7 @@ class HadamardBasis(VariableSizeBasis):
     Args:
         nb_qubits: number of qubits in the basis
 
-    Examples:
+    Example:
         >>> HadamardBasis(2).pretty_print()
         Basis: [
             [0.5+0.j 0.5+0.j 0.5+0.j 0.5+0.j],

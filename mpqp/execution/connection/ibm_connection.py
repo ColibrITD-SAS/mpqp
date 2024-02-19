@@ -9,8 +9,7 @@ from qiskit_ibm_runtime import QiskitRuntimeService
 from termcolor import colored
 from typeguard import typechecked
 
-from mpqp.execution.connection.env_manager import (get_env_variable,
-                                                   save_env_variable)
+from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import IBMDevice
 from mpqp.tools.errors import IBMRemoteExecutionError
 
@@ -43,8 +42,7 @@ def config_ibm_account(token: str):
 
 
 def setup_ibm_account():
-    """Setup the IBM Q account, by looking at the existing configuration, asking for the token and update
-    the current account."""
+    """Setups and updates the IBM Q account using the existing configuration and by asking for the token ."""
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
     if was_configured:
@@ -73,8 +71,10 @@ def setup_ibm_account():
 
 
 def test_connection() -> bool:
-    """
-    Tests if the connection to the provider works. Returns False if login failed, True otherwise.
+    """Tests if the connection to the provider works.
+
+    Returns:
+        ``False`` if login failed.
     """
     try:
         IBMProvider()
@@ -88,10 +88,10 @@ def test_connection() -> bool:
 
 
 def get_IBMProvider() -> IBMProvider:
-    """
-    Returns the IBMProvider needed to get one or several backends for execution
+    """Returns the IBMProvider needed to get one or several backends for
+    execution.
 
-    Examples:
+    Example:
         >>> instance = get_IBMProvider()
         >>> instance.backends()
         [<IBMBackend('ibmq_qasm_simulator')>,
@@ -131,7 +131,7 @@ def get_QiskitRuntimeService() -> QiskitRuntimeService:
     """
     Returns the QiskitRuntimeService needed for remote connection and execution
 
-    Examples:
+    Example:
         >>> service = get_QiskitRuntimeService()
         >>> service.jobs()
         [<RuntimeJob('cmdj3b4nktricigarn8g', 'estimator')>,
@@ -163,9 +163,7 @@ def get_active_account_info() -> str:
     """
     Returns the information concerning the active IBMQ account
 
-    Args:
-
-    Examples:
+    Example:
         >>> print(get_active_account_info())
             Channel: ibm_quantum
             Instance: ibm-q-startup/colibritd/default
@@ -174,7 +172,7 @@ def get_active_account_info() -> str:
             Verify: True
 
     Returns:
-        a string describin the account info
+        A string describing the account info.
     """
     provider = get_IBMProvider()
     account = provider.active_account()
@@ -189,19 +187,19 @@ def get_active_account_info() -> str:
 @typechecked
 def get_backend(device: IBMDevice) -> BackendV1:
     """
-    Retrieve the IBM Q remote device corresponding to the device in parameter
+    Retrieves the IBM Q remote device corresponding to the device in parameter
 
     Args:
         device: The IBMDevice to get from IBMQ provider.
 
-    Examples:
+    Example:
         >>> brisbane = get_backend(IBMDevice.IBM_BRISBANE)
         >>> brisbane.properties().gates[0].parameters
         [Nduv(datetime.datetime(2024, 1, 9, 11, 3, 18, tzinfo=tzlocal()), gate_error, , 0.00045619997922344296),
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
 
     Returns:
-        a qiskit.providers.backend.Backend object that will be use to execute circuit
+        A qiskit.providers.backend.Backend object that will be use to execute circuit.
 
     Raises:
         IBMRemoteExecutionError
@@ -231,10 +229,10 @@ def get_backend(device: IBMDevice) -> BackendV1:
 
 def get_all_job_ids() -> list[str]:
     """
-    Retrieve all the job ids of this account from the several IBM remote providers
+    Retrieves all the job ids of this account from the several IBM remote providers
     (IBMProvider, QiskitRuntimeService, ...)
 
-    Examples:
+    Example:
         >>> get_all_job_ids()
         ['cm6pp7e879ps6bbo7m30', 'cm6ou0q70abqioeudkd0', 'cm6opgcpduldih1hq7j0', 'cm01vp4pduldih0uoi2g',
         'cnvw8z3b08x0008y3e4g', 'cnvw7qyb08x0008y3e0g', 'cnvw7fdvn4c0008a6ztg', 'cnvw79dvn4c0008a6zt0',

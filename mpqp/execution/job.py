@@ -49,12 +49,12 @@ class JobType(Enum):
 
     _settings_ = NoAlias
     STATE_VECTOR = {BasisMeasure, type(None)}
-    """Retrieve the vector representing the quantum state, this type is *ideal*."""
+    """Retrieves the vector representing the quantum state, this type is *ideal*."""
     SAMPLE = {BasisMeasure}
-    """Measure several times the quantum state in the basis, and retrieve the 
+    """Measures several times the quantum state in the basis, and retrieve the 
     counts. Contrarily to the ``STATE_VECTOR`` job type, this one is *realistic*."""
     OBSERVABLE = {ExpectationMeasure}
-    """Compute the *expectation value* of an observable, using the state_vector 
+    """Computes the *expectation value* of an observable, using the state_vector 
     or the samples. This type is ideal too: it requires some trickery to 
     retrieve the expectation value in an optimal manner."""
 
@@ -66,9 +66,9 @@ class Job:
     the submission of a computation/measure of a quantum circuit on a
     specific hardware.
 
-    A job as a type, and a status, and is affected to a specific device.
+    A job has a type, and a status, and is attached to a specific device.
     Moreover, the job contains also the quantum circuit and the measure to be
-    computed on the circuit.
+    performed on the circuit.
 
     Args:
         job_type: Type of the job (sample, observable, ...).
@@ -115,7 +115,7 @@ class Job:
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. If the job is not 
-        local, it will be set latter on."""
+        local, it will be set later on."""
 
     @property
     def status(self):
