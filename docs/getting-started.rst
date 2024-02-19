@@ -68,7 +68,7 @@ QLMaaS / Qaptiva
 QLM proposes several ways of setting up the account to submit jobs on their
 simulators. We made the choice to use the ``username`` and ``password``
 credentials to identify yourself on the QLM. When configuring the connection
-with ``setup_connections`` script, we ask you to choose the between configuring
+with ``setup_connections`` script, we ask you to choose between configuring
 the account only in the scope of MPQP, or for your whole environment.
 
 AWS Braket
@@ -85,6 +85,6 @@ Execute examples
 
 .. code-block:: console
 
-    $ python -m example.bell_pair
-    $ python -m example.demonstration
-    $ python -m example.observable_job
+    $ python -m example.scripts.bell_pair
+    $ python -m example.scripts.demonstration
+    $ python -m example.scripts.observable_job
