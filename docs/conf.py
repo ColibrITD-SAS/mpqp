@@ -139,12 +139,12 @@ html_short_title = "MPQP"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
-html_logo = "resources/mpqp_test_logo.png"
+html_logo = "resources/mpqp-logo-dark-theme.svg"
 
 # The name of an image file (within the static path) to use as favicon of the
 # docs.  This file should be a Windows icon file (.ico) being 16x16 or 32x32
 # pixels large.
-html_favicon = "resources/mpqp_favicon.png"
+html_favicon = "resources/favicon.ico"
 
 # Add any extra paths that contain custom files (such as robots.txt or
 # .htaccess) here, relative to this directory. These files are copied
