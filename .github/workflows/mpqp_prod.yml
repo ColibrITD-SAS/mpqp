@@ -5,8 +5,29 @@ on:
     branches:
       - main
   push:
-    branches:
+    branches: 
       - main 
+
+jobs:
+  build_publish_package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Install Dependencies
+        run: |  
+          pip install -r requirements-dev.txt
+      - name: Build Package
+        run: python setup.py sdist bdist_wheel
+      - name: Install Twine
+        run: |
+          pip install twine
+      - name: Publish to PyPI
+        run: | 
+          twine upload  dist/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PRD_QT_API_TOKEN }}
 
 jobs: 
   build_publish_docs:
