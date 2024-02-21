@@ -1,5 +1,5 @@
 ![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp)
-![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/test?label=tests)
+![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/mpqp_dev.yml?branch=dev) 
 ![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc?label=doc)
 ![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy?label=pipy)
 
