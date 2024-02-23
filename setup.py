@@ -9,12 +9,11 @@ with open("LICENSE", "r") as f:
 with open("requirements.txt", "r") as f:
     requirements = f.readlines()
 
- 
 
 setup(
     name="mpqp",
     use_scm_version=True,
-    setup_requires=['setuptools_scm'],
+    setup_requires=["setuptools_scm"],
     description="Facilitate quantum algorithm development and execution, regardless of the hardware, with MPQP",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -27,6 +26,10 @@ setup(
         "console_scripts": [
             "setup_connections = mpqp.execution.connection.setup_connections:main_setup",
         ]
+    },
+    project_urls={
+        "Repository": "https://github.com/ColibrITD-SAS/mpqp",
+        "Documentation": "https://mpqpdoc.colibri-quantum.com/",
     },
     package_data={"mpqp.qasm.header_codes": ["*.qasm", "*.inc"]},
 )
