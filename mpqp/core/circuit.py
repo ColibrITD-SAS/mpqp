@@ -9,6 +9,7 @@ import numpy.typing as npt
 from matplotlib.figure import Figure
 from qiskit.circuit import QuantumCircuit, Operation
 from qiskit.circuit.quantumcircuit import CircuitInstruction
+
 from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from braket.circuits import Circuit as braket_Circuit
 from sympy import Basic, Expr
@@ -647,13 +648,19 @@ class QCircuit:
                 )
                 cargs = []
 
-                if isinstance(instruction, ControlledGate):
+                if isinstance(instruction, CustomGate):
+                    new_circ.unitary(instruction.to_other_language(), instruction.targets)
+                    #TODO hamza: to test
+                    break
+                elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
                 elif isinstance(instruction, Gate):
                     qargs = instruction.targets
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
+                    #TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
+                    # the condition to have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
