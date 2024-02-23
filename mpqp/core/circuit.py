@@ -12,6 +12,7 @@ from qiskit.circuit.quantumcircuit import CircuitInstruction
 
 from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from braket.circuits import Circuit as braket_Circuit
+from qiskit.quantum_info import Operator
 from sympy import Basic, Expr
 from typeguard import typechecked, TypeCheckError
 
@@ -644,14 +645,13 @@ class QCircuit:
                     Language.QISKIT, qiskit_parameters
                 )
                 assert isinstance(qiskit_inst, CircuitInstruction) or isinstance(
-                    qiskit_inst, Operation
-                )
+                    qiskit_inst, Operation) or isinstance(qiskit_inst, Operator)
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(instruction.to_other_language(), instruction.targets)
-                    #TODO hamza: to test
-                    break
+                    new_circ.unitary(instruction.to_other_language(), instruction.targets, instruction.label)
+                    #TODO hamza: to test, maybe need to reverse the order of elements in the matrix
+                    continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
                 elif isinstance(instruction, Gate):
