@@ -118,6 +118,10 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # html_theme = "alabaster"
 # html_theme = "furo"  # pip install furo
 # html_theme = "sphinx_rtd_theme"  # pip install sphinx-rtd-theme
+html_context = {
+    "display_github": True,
+    "github_repo": "ColibrITD-SAS/mpqp",
+}
 
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
