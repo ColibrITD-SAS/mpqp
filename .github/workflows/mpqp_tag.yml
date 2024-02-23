@@ -1,4 +1,4 @@
-name: Build and Publish
+name: Build and Publish on pipy
 
 on: 
   push: 
@@ -25,22 +25,3 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PRD_QT_API_TOKEN }}
-
-  build_publish_docs:
-    # Deploy to cloudflare
-    runs-on: ubuntu-latest
-    needs: build_publish_package
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Build Document
-        run: |  
-          pip install -r requirements-dev.txt
-          sphinx-build -b html docs build
-      - name: Publish
-        uses: cloudflare/pages-action@1
-        with:
-          apiToken: ${{ secrets.PRD_CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.PRD_CLOUDFLARE_ACCOUNT_ID }}
-          projectName: mpqp
-          directory: build 
