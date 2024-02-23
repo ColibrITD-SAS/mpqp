@@ -1,22 +1,22 @@
-name: Build and Publish documentation
+name: Documentation deployement
 
 on:
-  pull_request:
+  pull_request_target:
+    types:
+      - closed
     branches:
       - main
-  push:
-    branches: 
-      - main 
- 
-jobs: 
+
+jobs:
   build_publish_docs:
     # Deploy to cloudflare
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Build Document
-        run: |  
+        run: |
           pip install -r requirements-dev.txt
           sphinx-build -b html docs build
       - name: Publish
@@ -25,4 +25,4 @@ jobs:
           apiToken: ${{ secrets.PRD_CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.PRD_CLOUDFLARE_ACCOUNT_ID }}
           projectName: mpqp
-          directory: build 
+          directory: build
