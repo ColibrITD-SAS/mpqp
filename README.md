@@ -1,9 +1,9 @@
 ![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp)
-![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/mpqp_dev.yml?branch=dev&label=tests) 
-![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/mpqp_prod.yml?label=doc)
-![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/mpqp_tag.yml?label=pipy)
+![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/tests.yml?branch=dev&label=tests)
+![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc)
+![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy)
 
-![mpqp logo](resources/dark-logo.svg)
+![[alt:mpqp logo]](resources/dark-logo.png)
 
 # The MPQP library
 
@@ -14,7 +14,7 @@ algorithms across devices, compares the devices, etc...
 
 MPQP is thus the solution we bring to the community to tackle this problem.
 
-![mpqp examples](resources/mpqp-usage.gif)
+![[alt:mpqp examples]](resources/mpqp-usage.gif)
 
 On this page, you will find:
 

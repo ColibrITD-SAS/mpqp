@@ -1,9 +1,9 @@
-name: Build and Publish on pipy
+name: Pipy publishing
 
-on: 
-  push: 
+on:
+  push:
     tags:
-      - '*'
+      - "*"
 
 jobs:
   build_publish_package:
@@ -12,7 +12,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
       - name: Install Dependencies
-        run: |  
+        run: |
           pip install -r requirements-dev.txt
       - name: Build Package
         run: python setup.py sdist bdist_wheel
@@ -20,7 +20,7 @@ jobs:
         run: |
           pip install twine
       - name: Publish to PyPI
-        run: | 
+        run: |
           twine upload  dist/*
         env:
           TWINE_USERNAME: __token__
