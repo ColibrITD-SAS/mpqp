@@ -650,7 +650,8 @@ class QCircuit:
 
                 if isinstance(instruction, CustomGate):
                     new_circ.unitary(instruction.to_other_language(), instruction.targets, instruction.label)
-                    #TODO hamza: to test, maybe need to reverse the order of elements in the matrix
+                    # FIXME: minus sign appearing when it should not, seems there a phase added somewhere, check u gate
+                    #  in OpenQASM translation.
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
