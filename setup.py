@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 long_description = long_description.replace(
     "resources/dark-logo.svg",
-    "https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/resources/dark-logo.png",
+    "https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/resources/dark-logo.svg",
 ).replace(
     "resources/mpqp-usage.gif",
     "https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/resources/mpqp-usage.gif",
