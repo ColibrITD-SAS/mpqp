@@ -3,7 +3,13 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as f:
     long_description = f.read()
 
-long_description = long_description.replace(".svg", ".png").replace(".gif", ".png")
+long_description = long_description.replace(
+    "resources/dark-logo.png",
+    "https://github.com/ColibrITD-SAS/mpqp/blob/main/resources/dark-logo.png?raw=true",
+).replace(
+    "resources/mpqp-usage.gif",
+    "(https://github.com/ColibrITD-SAS/mpqp/blob/main/resources/mpqp-usage.png?raw=true)",
+)
 
 with open("LICENSE", "r") as f:
     license = f.readline()
