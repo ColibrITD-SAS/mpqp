@@ -5,10 +5,10 @@ with open("README.md", "r", encoding="utf-8") as f:
 
 long_description = long_description.replace(
     "resources/dark-logo.svg",
-    "https://github.com/ColibrITD-SAS/mpqp/blob/main/resources/dark-logo.png?raw=true",
+    "https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/resources/mpqp-usage.png",
 ).replace(
     "resources/mpqp-usage.gif",
-    "https://github.com/ColibrITD-SAS/mpqp/blob/main/resources/mpqp-usage.png?raw=true",
+    "https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/blob/main/resources/mpqp-usage.png",
 )
 
 with open("LICENSE", "r") as f:
