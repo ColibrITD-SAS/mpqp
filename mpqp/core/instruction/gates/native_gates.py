@@ -45,7 +45,6 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import cos, sin, exp
 
-
 @typechecked
 def _qiskit_parameter_adder(param: Expr | float, qiskit_parameters: set[Parameter]):
     """To avoid having several parameters in qiskit for the same value we keep
@@ -192,6 +191,14 @@ class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, ABC):
 
     def __init__(self, target: int):
         SingleQubitGate.__init__(self, target, type(self).__name__)
+
+
+class Id(OneQubitNoParamGate, InvolutionGate):
+    """TODO hamza/muhammad
+    """
+
+    qiskit_gate = ...
+    matrix = ...
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
@@ -625,3 +632,8 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         m = np.identity(8, dtype=complex)
         m[-2:, -2:] = np.ones(2) - np.identity(2)
         return m
+
+
+NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]
+# TODO : check the possibility to detect when a custom gate can be defined as a native gate, problem with
+#  parametrized gates maybe
