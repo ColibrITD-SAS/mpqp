@@ -1,14 +1,14 @@
 from setuptools import setup, find_packages
 
-with open("README.md", "r") as f:
+with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
 
 long_description = long_description.replace(
-    "resources/dark-logo.png",
+    "resources/dark-logo.svg",
     "https://github.com/ColibrITD-SAS/mpqp/blob/main/resources/dark-logo.png?raw=true",
 ).replace(
     "resources/mpqp-usage.gif",
-    "(https://github.com/ColibrITD-SAS/mpqp/blob/main/resources/mpqp-usage.png?raw=true)",
+    "https://github.com/ColibrITD-SAS/mpqp/blob/main/resources/mpqp-usage.png?raw=true",
 )
 
 with open("LICENSE", "r") as f:
