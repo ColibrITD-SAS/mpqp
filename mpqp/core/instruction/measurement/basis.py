@@ -16,6 +16,9 @@ from typing import Optional
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
+from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 
 from mpqp.tools.maths import matrix_eq, atol
 
@@ -96,6 +99,18 @@ class Basis:
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.basis_vectors}, {self.nb_qubits})"
 
+    def to_computational(self):
+        # TODO: test and document
+        basis_change = np.array(self.basis_vectors).T.conjugate()
+        assert self.nb_qubits is not None  # TODO: is this correct ?
+        return QCircuit(
+            [
+                CustomGate(
+                    UnitaryMatrix(basis_change), targets=list(range(self.nb_qubits))
+                )
+            ]
+        )
+
 
 @typechecked
 class VariableSizeBasis(Basis):
@@ -168,6 +183,11 @@ class ComputationalBasis(VariableSizeBasis):
         ]
         self.nb_qubits = nb_qubits
 
+    def to_computational(self):
+        assert self.nb_qubits != 0  # TODO: is this correct ?
+        circ = QCircuit(self.nb_qubits)
+        return circ
+
 
 class HadamardBasis(VariableSizeBasis):
     """Basis representing the Hadamard basis, also called X-basis or +/- basis.
@@ -196,3 +216,9 @@ class HadamardBasis(VariableSizeBasis):
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits
+
+    def to_computational(self):
+        from mpqp.core.instruction.gates.native_gates import H
+
+        assert self.nb_qubits != 0  # TODO: is this correct ?
+        return QCircuit([H(qb) for qb in range(self.nb_qubits)])
