@@ -10,6 +10,7 @@ from mpqp.core.instruction.gates.gate_definition import (
 )
 from mpqp.core.languages import Language
 from qiskit.circuit import Parameter
+from qiskit.quantum_info.operators import Operator as QiskitOperator
 
 
 @typechecked
@@ -39,7 +40,7 @@ class CustomGate(Gate):
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
-        return super().to_other_language(language, qiskit_parameters)
+        return QiskitOperator(self.matrix)
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.

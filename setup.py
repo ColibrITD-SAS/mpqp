@@ -3,6 +3,8 @@ from setuptools import setup, find_packages
 with open("README.md", "r") as f:
     long_description = f.read()
 
+long_description = long_description.replace(".svg", ".png").replace(".gif", ".png")
+
 with open("LICENSE", "r") as f:
     license = f.readline()
 

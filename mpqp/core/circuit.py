@@ -9,8 +9,10 @@ import numpy.typing as npt
 from matplotlib.figure import Figure
 from qiskit.circuit import QuantumCircuit, Operation
 from qiskit.circuit.quantumcircuit import CircuitInstruction
+
 from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from braket.circuits import Circuit as braket_Circuit
+from qiskit.quantum_info import Operator
 from sympy import Basic, Expr
 from typeguard import typechecked, TypeCheckError
 
@@ -643,17 +645,23 @@ class QCircuit:
                     Language.QISKIT, qiskit_parameters
                 )
                 assert isinstance(qiskit_inst, CircuitInstruction) or isinstance(
-                    qiskit_inst, Operation
-                )
+                    qiskit_inst, Operation) or isinstance(qiskit_inst, Operator)
                 cargs = []
 
-                if isinstance(instruction, ControlledGate):
+                if isinstance(instruction, CustomGate):
+                    new_circ.unitary(instruction.to_other_language(), instruction.targets, instruction.label)
+                    # FIXME: minus sign appearing when it should not, seems there a phase added somewhere, check u gate
+                    #  in OpenQASM translation.
+                    continue
+                elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
                 elif isinstance(instruction, Gate):
                     qargs = instruction.targets
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
+                    #TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
+                    # the condition to have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]

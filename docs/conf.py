@@ -115,9 +115,9 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
+# `html_theme` is not needed since we use a plugin to have the dark theme RTD,
+# so `html_theme` is overridden anyway.
 # html_theme = "alabaster"
-# html_theme = "furo"  # pip install furo
-# html_theme = "sphinx_rtd_theme"  # pip install sphinx-rtd-theme
 html_context = {
     "github_user": "ColibrITD",
     "github_repo": "mpqp",
