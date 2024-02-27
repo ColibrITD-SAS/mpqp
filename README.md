@@ -3,7 +3,7 @@
 ![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc)
 ![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy)
 
-![[alt:mpqp logo]](resources/dark-logo.png)
+![[alt:mpqp logo]](resources/dark-logo.svg)
 
 # The MPQP library
 
