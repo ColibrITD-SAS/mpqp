@@ -175,8 +175,7 @@ class ComputationalBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        basis = []
-        Basis.__init__(self, basis, nb_qubits)
+        Basis.__init__(self, [], nb_qubits)
         if nb_qubits is not None:
             self.set_size(nb_qubits)
 
@@ -208,8 +207,7 @@ class HadamardBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        basis = []
-        Basis.__init__(self, basis, nb_qubits)
+        Basis.__init__(self, [], nb_qubits)
         if nb_qubits is not None:
             self.set_size(nb_qubits)
 
