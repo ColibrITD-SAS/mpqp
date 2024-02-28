@@ -119,10 +119,11 @@ exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 # so `html_theme` is overridden anyway.
 # html_theme = "alabaster"
 html_context = {
-    "github_user": "ColibrITD",
+    "display_github": True,
+    "github_user": "ColibrITD-SAS",
     "github_repo": "mpqp",
     "github_version": "dev",
-    "conf_py_path": "/doc/",
+    "conf_py_path": "/docs/",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
