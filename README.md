@@ -1,7 +1,7 @@
-![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp)
-![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/tests.yml?branch=dev&label=tests)
-![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc)
-![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy)
+![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp?logo=openaccess&logoColor=white)
+![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/tests.yml?branch=dev&label=tests&logo=pytest&logoColor=white)
+![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc&logo=read-the-docs&logoColor=white)
+![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy&logo=pypi&logoColor=white)
 
 ![[alt:mpqp logo]](resources/dark-logo.svg)
 
