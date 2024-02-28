@@ -16,7 +16,6 @@ from typing import Optional
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
-from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 
@@ -106,6 +105,8 @@ class Basis:
 
     def to_computational(self):
         # TODO: test and document
+        from mpqp.core.circuit import QCircuit
+
         basis_change = np.array(self.basis_vectors).T.conjugate()
         return QCircuit(
             [
@@ -187,6 +188,8 @@ class ComputationalBasis(VariableSizeBasis):
         self.nb_qubits = nb_qubits
 
     def to_computational(self):
+        from mpqp.core.circuit import QCircuit
+
         return QCircuit(self.nb_qubits)
 
 
@@ -219,6 +222,7 @@ class HadamardBasis(VariableSizeBasis):
 
     def to_computational(self):
         from mpqp.core.instruction.gates.native_gates import H
+        from mpqp.core.circuit import QCircuit
 
         if self.nb_qubits == 0:
             return QCircuit(self.nb_qubits)
