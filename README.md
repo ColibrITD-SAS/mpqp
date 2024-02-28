@@ -2,6 +2,7 @@
 ![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/tests.yml?branch=dev&label=tests&logo=pytest&logoColor=white)
 ![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc&logo=read-the-docs&logoColor=white)
 ![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy&logo=pypi&logoColor=white)
+![github stars badge](https://img.shields.io/github/stars/ColibrITD-SAS/mpqp?logo=github)
 
 ![[alt:mpqp logo]](resources/dark-logo.svg)
 
