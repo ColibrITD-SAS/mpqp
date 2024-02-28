@@ -18,6 +18,8 @@ jobs:
       - name: Build Document
         run: |
           pip install -r requirements-dev.txt
+          touch .env
+          echo "SPHINX_GITHUB_CHANGELOG_TOKEN=${{secrets.DOC_GH_API_TOKEN}}" > .env
           sphinx-build -b html docs build
       - name: Publish
         uses: cloudflare/pages-action@1
