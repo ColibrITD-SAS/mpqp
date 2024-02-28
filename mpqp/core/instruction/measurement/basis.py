@@ -52,6 +52,11 @@ class Basis:
         #  would have something like:
         #  State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
         if len(basis_vectors) == 0:
+            if nb_qubits is None:
+                raise ValueError(
+                    "Empty basis and no number of qubits specified. Please at "
+                    "least specify one of these two."
+                )
             self.nb_qubits = nb_qubits
             self.basis_vectors = basis_vectors
             return
@@ -78,7 +83,7 @@ class Basis:
         ):
             raise ValueError("The given basis is not orthogonal")
 
-        self.nb_qubits = nb_qubits
+        self.nb_qubits: int = nb_qubits
         """See parameter description."""
         self.basis_vectors = basis_vectors
         """See parameter description."""
@@ -102,7 +107,6 @@ class Basis:
     def to_computational(self):
         # TODO: test and document
         basis_change = np.array(self.basis_vectors).T.conjugate()
-        assert self.nb_qubits is not None  # TODO: is this correct ?
         return QCircuit(
             [
                 CustomGate(
@@ -184,9 +188,7 @@ class ComputationalBasis(VariableSizeBasis):
         self.nb_qubits = nb_qubits
 
     def to_computational(self):
-        assert self.nb_qubits != 0  # TODO: is this correct ?
-        circ = QCircuit(self.nb_qubits)
-        return circ
+        return QCircuit(self.nb_qubits)
 
 
 class HadamardBasis(VariableSizeBasis):
@@ -220,5 +222,6 @@ class HadamardBasis(VariableSizeBasis):
     def to_computational(self):
         from mpqp.core.instruction.gates.native_gates import H
 
-        assert self.nb_qubits != 0  # TODO: is this correct ?
+        if self.nb_qubits == 0:
+            return QCircuit(self.nb_qubits)
         return QCircuit([H(qb) for qb in range(self.nb_qubits)])
