@@ -11,25 +11,25 @@ from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
-
 from qiskit.circuit import Parameter
 from qiskit.circuit.library import (
-    ZGate,
-    YGate,
     CCXGate,
+    CPhaseGate,
+    CXGate,
+    CZGate,
+    HGate,
+    IGate,
     PhaseGate,
-    SGate,
-    UGate,
-    TGate,
-    SwapGate,
     RXGate,
     RYGate,
     RZGate,
-    HGate,
-    CXGate,
+    SGate,
+    SwapGate,
+    TGate,
+    UGate,
     XGate,
-    CPhaseGate,
-    CZGate,
+    YGate,
+    ZGate,
 )
 from sympy import Expr, pi
 
@@ -37,13 +37,14 @@ from sympy import Expr, pi
 # this file :/
 from typeguard import typechecked
 
-from mpqp.core.languages import Language
-from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGate
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
+from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix
-from mpqp.tools.maths import cos, sin, exp
+from mpqp.tools.maths import cos, exp, sin
+
 
 @typechecked
 def _qiskit_parameter_adder(param: Expr | float, qiskit_parameters: set[Parameter]):
@@ -162,6 +163,7 @@ class NoParameterGate(NativeGate, ABC):
         | CXGate
         | CZGate
         | CCXGate
+        | IGate
     ]
     """Corresponding ``qiskit``'s gate class."""
     matrix: npt.NDArray[np.complex64]
@@ -194,11 +196,19 @@ class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, ABC):
 
 
 class Id(OneQubitNoParamGate, InvolutionGate):
-    """TODO hamza/muhammad
+    """One qubit identity gate.
+
+    Args:
+        target: Index referring to the qubit on which the gate will be applied.
+
+    Example:
+        >>> Id(0).to_matrix()
+        array([[1, 0],
+               [0, 1]])
     """
 
-    qiskit_gate = ...
-    matrix = ...
+    qiskit_gate = IGate
+    matrix = np.eye(2)
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
