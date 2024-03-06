@@ -1,63 +1,62 @@
 # pyright: reportUnusedImport=false
 import numpy as np
-from . import QCircuit, Barrier, Language, Instruction
-from .gates import (
-    X,
-    Y,
-    Z,
-    H,
-    P,
-    S,
-    T,
-    SWAP,
-    U,
-    Rx,
-    Ry,
-    Rz,
-    Rk,
-    CNOT,
-    CZ,
-    CRk,
-    TOF,
-    ControlledGate,
-    Gate,
-    ParametrizedGate,
-    symbols,
-    GateDefinition,
-    KrausRepresentation,
-    PauliDecomposition,
-    CustomGate,
-    UnitaryMatrix,
-)
-from .measures import (
-    ComputationalBasis,
-    Basis,
-    HadamardBasis,
-    VariableSizeBasis,
-    BasisMeasure,
-    ExpectationMeasure,
-    Observable,
-    Measure,
-)
+
+from mpqp.execution.providers_execution.atos_execution import get_result_from_qlm_job_id
+
+from . import Barrier, Instruction, Language, QCircuit
 from .execution import (
-    Result,
-    StateVector,
-    Sample,
-    run,
-    adjust_measure,
-    submit,
     Job,
     JobStatus,
     JobType,
+    Result,
+    Sample,
+    StateVector,
+    adjust_measure,
+    run,
+    submit,
 )
-from .execution.devices import (
-    ATOSDevice,
-    IBMDevice,
-    AWSDevice,
-)
-from .execution.vqa import minimize, Optimizer
 from .execution.connection.qlm_connection import get_all_job_ids
-from mpqp.execution.providers_execution.atos_execution import get_result_from_qlm_job_id
+from .execution.devices import ATOSDevice, AWSDevice, IBMDevice
+from .execution.vqa import Optimizer, minimize
+from .gates import (
+    CNOT,
+    CZ,
+    SWAP,
+    TOF,
+    ControlledGate,
+    CRk,
+    CustomGate,
+    Gate,
+    GateDefinition,
+    H,
+    Id,
+    KrausRepresentation,
+    P,
+    ParametrizedGate,
+    PauliDecomposition,
+    Rk,
+    Rx,
+    Ry,
+    Rz,
+    S,
+    T,
+    U,
+    UnitaryMatrix,
+    X,
+    Y,
+    Z,
+    symbols,
+)
+from .measures import (
+    Basis,
+    BasisMeasure,
+    ComputationalBasis,
+    ExpectationMeasure,
+    HadamardBasis,
+    Measure,
+    Observable,
+    VariableSizeBasis,
+)
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
 theta, k = symbols("θ k")  # type: ignore
