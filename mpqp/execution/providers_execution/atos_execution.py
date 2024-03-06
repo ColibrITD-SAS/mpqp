@@ -1,9 +1,22 @@
+from statistics import mean
 from typing import Optional
 
 import numpy as np
+from qat.clinalg.qpu import CLinalg
+from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+from qat.comm.qlmaas.ttypes import QLMServiceException
+from qat.core.contexts import QPUContext
+from qat.core.qpu.qpu import QPUHandler
+from qat.core.wrappers.circuit import Circuit
+from qat.core.wrappers.job import Job as JobQLM
+from qat.core.wrappers.observable import Observable as QLM_Observable
+from qat.core.wrappers.result import Result as QLM_Result
+from qat.plugins.observable_splitter import ObservableSplitter
+from qat.pylinalg import PyLinalg
+from qat.qlmaas.result import AsyncResult
 from typeguard import typechecked
-from statistics import mean
 
+from mpqp import Language, QCircuit
 from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
@@ -11,24 +24,12 @@ from mpqp.core.instruction.measurement.expectation_value import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
-from ..connection.qlm_connection import get_QLMaaSConnection
-from ..job import Job, JobType, JobStatus
-from ..result import Result, Sample, StateVector
 from mpqp.qasm import qasm2_to_myqlm_Circuit
-from mpqp import QCircuit, Language
-from ...tools.errors import QLMRemoteExecutionError
 
-from qat.qlmaas.result import AsyncResult
-from qat.core.contexts import QPUContext
-from qat.core.qpu.qpu import QPUHandler
-from qat.pylinalg import PyLinalg
-from qat.clinalg.qpu import CLinalg
-from qat.core.wrappers.observable import Observable as QLM_Observable
-from qat.plugins.observable_splitter import ObservableSplitter
-from qat.core.wrappers.result import Result as QLM_Result
-from qat.core.wrappers.circuit import Circuit
-from qat.core.wrappers.job import Job as JobQLM
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
+from ...tools.errors import QLMRemoteExecutionError
+from ..connection.qlm_connection import get_QLMaaSConnection
+from ..job import Job, JobStatus, JobType
+from ..result import Result, Sample, StateVector
 
 
 @typechecked
@@ -507,9 +508,7 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
     try:
         qlm_job = connection.get_job(job_id)
     except QLMServiceException as e:
-        raise QLMRemoteExecutionError(
-            f"Job with id {job_id} not found.\nTrace: " + str(e)
-        )
+        raise QLMRemoteExecutionError(f"Job with id {job_id} not found.") from e
 
     status = qlm_job.get_status()
     if status in [
