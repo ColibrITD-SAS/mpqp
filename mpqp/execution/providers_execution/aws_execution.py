@@ -8,14 +8,19 @@ from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 from braket.aws import AwsQuantumTask
 
 from mpqp import QCircuit, Language
-from mpqp.core.instruction.measurement import ExpectationMeasure, BasisMeasure, Observable
+from mpqp.core.instruction.measurement import (
+    ExpectationMeasure,
+    BasisMeasure,
+    Observable,
+)
 from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
 from mpqp.execution.job import Job, JobType, JobStatus
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import DeviceJobIncompatibleError
+
+# TODO: types are messed up here, fix it
 
 
 @typechecked
@@ -52,8 +57,10 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     # check some compatibility issues
 
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
-        raise DeviceJobIncompatibleError("State vector cannot be computed using AWS Braket remote simulators and "
-                                         "devices. Please use the LocalSimulator instead")
+        raise DeviceJobIncompatibleError(
+            "State vector cannot be computed using AWS Braket remote simulators"
+            " and devices. Please use the LocalSimulator instead"
+        )
 
     # instantiate the device
     device = get_braket_device(job.device)  # type: ignore
@@ -90,8 +97,11 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 
 
 @typechecked
-def extract_result(braket_result: GateModelQuantumTaskResult, job: Optional[Job] = None,
-                   device: Optional[AWSDevice] = AWSDevice.BRAKET_LOCAL_SIMULATOR) -> Result:
+def extract_result(
+    braket_result: GateModelQuantumTaskResult,
+    job: Optional[Job] = None,
+    device: Optional[AWSDevice] = AWSDevice.BRAKET_LOCAL_SIMULATOR,
+) -> Result:
     """
     Constructs a Result from the result given by the run with Braket.
 
@@ -111,11 +121,15 @@ def extract_result(braket_result: GateModelQuantumTaskResult, job: Optional[Job]
             measure = BasisMeasure(list(range(nb_qubits)), shots=shots)
         elif isinstance(braket_result.values[0], float):
             job_type = JobType.OBSERVABLE
-            nb_qubits = braket_result.task_metadata.deviceParameters.paradigmParameters.qubitCount
+            nb_qubits = (
+                braket_result.task_metadata.deviceParameters.paradigmParameters.qubitCount
+            )
             shots = braket_result.task_metadata.shots
-            measure = ExpectationMeasure(list(range(nb_qubits)),
-                                         Observable(np.zeros((2 ** nb_qubits, 2 ** nb_qubits))),
-                                         shots)
+            measure = ExpectationMeasure(
+                list(range(nb_qubits)),
+                Observable(np.zeros((2**nb_qubits, 2**nb_qubits))),
+                shots,
+            )
         else:
             job_type = JobType.STATE_VECTOR
             nb_qubits = int(math.log2(len(braket_result.values[0])))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 from copy import deepcopy
 from numbers import Complex
 
@@ -644,12 +644,20 @@ class QCircuit:
                 qiskit_inst = instruction.to_other_language(
                     Language.QISKIT, qiskit_parameters
                 )
-                assert isinstance(qiskit_inst, CircuitInstruction) or isinstance(
-                    qiskit_inst, Operation) or isinstance(qiskit_inst, Operator)
+                if TYPE_CHECKING:
+                    assert (
+                        isinstance(qiskit_inst, CircuitInstruction)
+                        or isinstance(qiskit_inst, Operation)
+                        or isinstance(qiskit_inst, Operator)
+                    )
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(instruction.to_other_language(), instruction.targets, instruction.label)
+                    new_circ.unitary(
+                        instruction.to_other_language(),
+                        instruction.targets,
+                        instruction.label,
+                    )
                     # FIXME: minus sign appearing when it should not, seems there a phase added somewhere, check u gate
                     #  in OpenQASM translation.
                     continue
@@ -660,7 +668,7 @@ class QCircuit:
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
-                    #TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
+                    # TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
                     # the condition to have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
@@ -670,6 +678,7 @@ class QCircuit:
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
 
+                assert not isinstance(qiskit_inst, Operator)
                 new_circ.append(
                     qiskit_inst,
                     qargs,

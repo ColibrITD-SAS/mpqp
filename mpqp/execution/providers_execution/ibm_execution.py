@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from qiskit import QuantumCircuit
 from qiskit_aer import Aer
@@ -153,6 +153,8 @@ def run_aer(job: Job):
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
     )
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
     check_job_compatibility(job)
@@ -229,7 +231,10 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
             )
     check_job_compatibility(job)
 
-    qiskit_circuit = job.circuit.to_other_language(Language.QISKIT).reverse_bits()
+    qiskit_circuit = job.circuit.to_other_language(Language.QISKIT)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
+    qiskit_circuit = qiskit_circuit.reverse_bits()
 
     service = get_QiskitRuntimeService()
     backend_str = job.device.value
@@ -381,7 +386,7 @@ def extract_result(
         if job.job_type == JobType.STATE_VECTOR:
             vector = result.get_statevector()
             state_vector = StateVector(
-                vector.data,  # pyright: ignore[reportGeneralTypeIssues]
+                vector.data,  # pyright: ignore[reportArgumentType]
                 job.circuit.nb_qubits,
             )
             return Result(job, state_vector, 0, 0)
