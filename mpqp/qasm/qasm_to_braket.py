@@ -1,10 +1,13 @@
 """File regrouping all features for translating QASM code to Amazon Braket objects."""
 
-from braket.ir.openqasm import Program
+import warnings
+
 from braket.circuits import Circuit
+from braket.ir.openqasm import Program
 from typeguard import typechecked
 
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
 @typechecked
@@ -55,6 +58,9 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> Circuit:
     after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
     # NOTE : gphase is a already used in Braket and thus cannot be redefined as a native gate in OpenQASM.
     # We used ggphase instead
+    if "U(" in after_stdgates_included or "gphase(" in after_stdgates_included:
+        warning_message = "This program uses OpenQASM language features that may not be supported on QPUs or on-demand simulators."
+        warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
 
     circuit = Circuit.from_ir(after_stdgates_included)
     return circuit
