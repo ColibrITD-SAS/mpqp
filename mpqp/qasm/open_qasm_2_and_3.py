@@ -5,11 +5,10 @@ from os.path import splitext
 from enum import Enum
 
 from warnings import warn
-from textwrap import dedent
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
 
-from mpqp.tools.errors import InstructionParsingError
+from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
 
 class Instr(Enum):
@@ -234,13 +233,13 @@ def convert_instruction_2_to_3(
         instructions_code += instr + ";\n"
     elif instr_name.lower() == "u":
         warn(
-            dedent(
-                """OpenQASMTranslationWarning: 
-                There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
-                We handled that for you by adding the extra phase at the right place. 
-                Be careful if you want to create a control gate from this circuit/gate, the
-                phase can become non-global."""
-            )
+            (
+                "\nThere is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.\n"
+                "We handled that for you by adding the extra phase at the right place.\n"
+                "Be careful if you want to create a control gate from this "
+                "circuit/gate, the phase can become non-global."
+            ),
+            OpenQASMTranslationWarning,
         )
         header_code += add_std_lib()
         instructions_code += "u3" + instr[1:] + ";\n"

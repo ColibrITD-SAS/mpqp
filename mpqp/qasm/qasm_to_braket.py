@@ -1,6 +1,7 @@
 """File regrouping all features for translating QASM code to Amazon Braket objects."""
 
 import warnings
+from logging import Logger, getLogger
 
 from braket.circuits import Circuit
 from braket.ir.openqasm import Program
@@ -58,9 +59,25 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> Circuit:
     after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
     # NOTE : gphase is a already used in Braket and thus cannot be redefined as a native gate in OpenQASM.
     # We used ggphase instead
-    if "U(" in after_stdgates_included or "gphase(" in after_stdgates_included:
-        warning_message = "This program uses OpenQASM language features that may not be supported on QPUs or on-demand simulators."
-        warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
+    warning_message = (
+        "This program uses OpenQASM language features that may not be "
+        "supported on QPUs or on-demand simulators."
+    )
 
+    # handle the logger output
+    # capture their logger
+    braket_logger = getLogger()
+    # add logger handler
+
+    logger_out = []
     circuit = Circuit.from_ir(after_stdgates_included)
+
+    if warning_message in logger_out:
+        warnings.warn("\n" + warning_message, UnsupportedBraketFeaturesWarning)
+        del logger_out[logger_out.index(warning_message)]
+    # remove logger handler
+
+    for line in logger_out:
+        braket_logger.warning(line)
+
     return circuit
