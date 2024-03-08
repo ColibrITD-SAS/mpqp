@@ -1,7 +1,8 @@
 """File regrouping all features for translating QASM code to Amazon Braket objects."""
 
+import io
 import warnings
-from logging import Logger, getLogger
+from logging import StreamHandler, getLogger
 
 from braket.circuits import Circuit
 from braket.ir.openqasm import Program
@@ -56,28 +57,32 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> Circuit:
     # we remove any include of stdgates.inc and replace it with custom include
     qasm3_str = qasm3_str.replace("stdgates.inc", "braket_custom_include.inc")
 
-    after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
-    # NOTE : gphase is a already used in Braket and thus cannot be redefined as a native gate in OpenQASM.
+    try:
+        after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
+    except Exception as e:
+        warning_message = (
+            f"An error occurred while processing the OpenQASM code with Braket: {e}"
+        )
+        warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
+        return None
+
+    # NOTE: gphase is already used in Braket and thus cannot be redefined as a native gate in OpenQASM.
     # We used ggphase instead
-    warning_message = (
-        "This program uses OpenQASM language features that may not be "
-        "supported on QPUs or on-demand simulators."
-    )
+    if "U(" in after_stdgates_included or "gphase(" in after_stdgates_included:
+        # Issue a warning only if not already issued
+        warning_message = "This program uses OpenQASM language features that may not be supported on QPUs or on-demand simulators."
+        warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
 
-    # handle the logger output
-    # capture their logger
+    # capture the Braket logger
     braket_logger = getLogger()
-    # add logger handler
 
-    logger_out = []
+    logger_output_stream = io.StringIO()
+    stream_handler = StreamHandler(logger_output_stream)
+    braket_logger.addHandler(stream_handler)
+
     circuit = Circuit.from_ir(after_stdgates_included)
 
-    if warning_message in logger_out:
-        warnings.warn("\n" + warning_message, UnsupportedBraketFeaturesWarning)
-        del logger_out[logger_out.index(warning_message)]
-    # remove logger handler
-
-    for line in logger_out:
-        braket_logger.warning(line)
+    # remove the logger handler
+    braket_logger.removeHandler(stream_handler)
 
     return circuit
