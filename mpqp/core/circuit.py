@@ -20,7 +20,7 @@ from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.gates import (
     ControlledGate,
-    Gate,
+    Gate, Id,
 )
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -683,7 +683,13 @@ class QCircuit:
             return myqlm_circuit
 
         elif language == Language.BRAKET:
-            circuit_qasm3 = self.to_qasm3()
+            circuit = deepcopy(self)
+            # add identity gates on non-operated qubits
+            operated = {target for gate in circuit.instructions if isinstance(gate, Gate)
+                        for target in gate.targets + getattr(gate, 'controls', [])}
+            for qubit in set(range(circuit.nb_qubits)) - operated:
+                circuit.add(Id(qubit))
+            circuit_qasm3 = circuit.to_qasm3()
             brkt_circuit = qasm3_to_braket_Circuit(circuit_qasm3)
             return brkt_circuit
 
