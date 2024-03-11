@@ -473,8 +473,10 @@ class Rz(RotationGate, SingleQubitGate):
     qiskit_gate = RZGate
 
     def to_matrix(self) -> Matrix:
-        e = exp(-1j * self.parameters[0] / 2)  # type:ignore
-        return np.array([[e, 0], [0, e]])
+        e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+        return np.array(  # pyright: ignore[reportCallIssue]
+            [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
+        )
 
 
 class Rk(RotationGate, SingleQubitGate):

@@ -177,8 +177,8 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
     if isinstance(angle, Complex):
         if TYPE_CHECKING:
             assert isinstance(angle, complex)
-        return np.sin(angle)
+        return np.exp(angle)
     else:
-        res = sp.sin(angle)
+        res = sp.exp(angle)
         assert isinstance(res, Expr)
         return res
