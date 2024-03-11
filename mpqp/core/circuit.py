@@ -1,41 +1,33 @@
 from __future__ import annotations
 
-from typing import Iterable, Optional, Sequence, Type, Union
 from copy import deepcopy
 from numbers import Complex
+from typing import Iterable, Optional, Sequence, Type, Union
 
 import numpy as np
 import numpy.typing as npt
-from matplotlib.figure import Figure
-from qiskit.circuit import QuantumCircuit, Operation
-from qiskit.circuit.quantumcircuit import CircuitInstruction
-
-from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from braket.circuits import Circuit as braket_Circuit
+from matplotlib.figure import Figure
+from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+from qiskit.circuit import Operation, QuantumCircuit
+from qiskit.circuit.quantumcircuit import CircuitInstruction
 from qiskit.quantum_info import Operator
 from sympy import Basic, Expr
-from typeguard import typechecked, TypeCheckError
+from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.gates import (
-    ControlledGate,
-    Gate, Id,
-)
+from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
-from mpqp.core.instruction.measurement import (
-    ComputationalBasis,
-    BasisMeasure,
-    Measure,
-)
+from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
+from mpqp.core.languages import Language
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import NumberQubitsError
-from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
 
 
@@ -644,12 +636,19 @@ class QCircuit:
                 qiskit_inst = instruction.to_other_language(
                     Language.QISKIT, qiskit_parameters
                 )
-                assert isinstance(qiskit_inst, CircuitInstruction) or isinstance(
-                    qiskit_inst, Operation) or isinstance(qiskit_inst, Operator)
+                assert (
+                    isinstance(qiskit_inst, CircuitInstruction)
+                    or isinstance(qiskit_inst, Operation)
+                    or isinstance(qiskit_inst, Operator)
+                )
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(instruction.to_other_language(), instruction.targets, instruction.label)
+                    new_circ.unitary(
+                        instruction.to_other_language(),
+                        instruction.targets,
+                        instruction.label,
+                    )
                     # FIXME: minus sign appearing when it should not, seems there a phase added somewhere, check u gate
                     #  in OpenQASM translation.
                     continue
@@ -660,7 +659,7 @@ class QCircuit:
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
-                    #TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
+                    # TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
                     # the condition to have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
@@ -684,14 +683,18 @@ class QCircuit:
 
         elif language == Language.BRAKET:
             circuit = deepcopy(self)
-            # add identity gates on non-operated qubits
-            operated = {target for gate in circuit.instructions if isinstance(gate, Gate)
-                        for target in gate.targets + getattr(gate, 'controls', [])}
-            for qubit in set(range(circuit.nb_qubits)) - operated:
-                circuit.add(Id(qubit))
-            circuit_qasm3 = circuit.to_qasm3()
-            brkt_circuit = qasm3_to_braket_Circuit(circuit_qasm3)
-            return brkt_circuit
+            used_qubits = set().union(
+                inst.connections() for inst in circuit.instructions
+            )
+            circuit.add(
+                [
+                    Id(qubit)
+                    for qubit in range(circuit.nb_qubits)
+                    if qubit not in used_qubits
+                ]
+            )
+
+            return qasm3_to_braket_Circuit(circuit.to_qasm3())
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
