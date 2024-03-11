@@ -148,13 +148,15 @@ class QCircuit:
             if any(qb >= self.nb_qubits for qb in instruction.controls):
                 raise NumberQubitsError("Control targets qubit outside of circuit")
 
-        if isinstance(instruction, BasisMeasure) and instruction.c_targets is None:
-            if self.nb_cbits is None:
-                self.nb_cbits = 0
-            instruction.c_targets = [
-                self.nb_cbits + i for i in range(len(instruction.targets))
-            ]
-            self.nb_cbits += len(instruction.c_targets)
+        if isinstance(instruction, BasisMeasure):
+            # has to be done in two steps, because Pycharm's type checker is unable to understand chained type inference
+            if instruction.c_targets is None:
+                if self.nb_cbits is None:
+                    self.nb_cbits = 0
+                instruction.c_targets = [
+                    self.nb_cbits + i for i in range(len(instruction.targets))
+                ]
+                self.nb_cbits += len(instruction.c_targets)
 
         if isinstance(instruction, Barrier):
             instruction.size = self.nb_qubits
