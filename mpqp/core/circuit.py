@@ -684,7 +684,7 @@ class QCircuit:
         elif language == Language.BRAKET:
             circuit = deepcopy(self)
             used_qubits = set().union(
-                inst.connections() for inst in circuit.instructions
+                *(inst.connections() for inst in circuit.instructions)
             )
             circuit.add(
                 [
