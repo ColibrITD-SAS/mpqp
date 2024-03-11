@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 from numbers import Complex, Real
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 import sympy as sp
-from sympy import Expr, I, pi
+from sympy import Expr, I, pi  # pyright: ignore[reportUnusedImport]
 from typeguard import typechecked
 
 from mpqp.tools.generics import Matrix
@@ -113,11 +114,14 @@ def is_unitary(matrix: Matrix) -> bool:
     Returns:
         ``True`` if the matrix in parameter is Unitary.
     """
-    return matrix_eq(np.eye(len(matrix)), matrix.transpose().conjugate().dot(matrix))
+    return matrix_eq(
+        np.eye(len(matrix), dtype=np.complex64),
+        matrix.transpose().conjugate().dot(matrix),
+    )
 
 
 @typechecked
-def cos(angle: sp.Expr | float) -> sp.Expr | float:
+def cos(angle: Expr | Real) -> sp.Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -127,11 +131,19 @@ def cos(angle: sp.Expr | float) -> sp.Expr | float:
     Returns:
         Cosine of the given ``angle``.
     """
-    return np.cos(angle) if isinstance(angle, Real) else sp.cos(angle)
+    # TODO: all those types checks are not ideal, can we do better ?
+    if isinstance(angle, Real):
+        if TYPE_CHECKING:
+            assert isinstance(angle, float)
+        return np.cos(angle)
+    else:
+        res = sp.cos(angle)
+        assert isinstance(res, Expr)
+        return res
 
 
 @typechecked
-def sin(angle: sp.Expr | float) -> sp.Expr | float:
+def sin(angle: Expr | Real) -> sp.Expr | float:
     """Generalization of the sine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -141,11 +153,18 @@ def sin(angle: sp.Expr | float) -> sp.Expr | float:
     Returns:
         Sine of the given ``angle``.
     """
-    return np.sin(angle) if isinstance(angle, Real) else sp.sin(angle)
+    if isinstance(angle, Real):
+        if TYPE_CHECKING:
+            assert isinstance(angle, float)
+        return np.sin(angle)
+    else:
+        res = sp.sin(angle)
+        assert isinstance(res, Expr)
+        return res
 
 
 @typechecked
-def exp(angle: sp.Expr | complex) -> sp.Expr | complex:
+def exp(angle: Expr | Complex) -> sp.Expr | complex:
     """Generalization of the exponential function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -155,4 +174,11 @@ def exp(angle: sp.Expr | complex) -> sp.Expr | complex:
     Returns:
         Exponential of the given ``angle``.
     """
-    return np.exp(angle) if isinstance(angle, Complex) else sp.exp(angle)
+    if isinstance(angle, Complex):
+        if TYPE_CHECKING:
+            assert isinstance(angle, complex)
+        return np.sin(angle)
+    else:
+        res = sp.sin(angle)
+        assert isinstance(res, Expr)
+        return res
