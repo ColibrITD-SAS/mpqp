@@ -4,12 +4,11 @@ import io
 import warnings
 from logging import StreamHandler, getLogger
 
-from braket.circuits import Circuit
 from braket.ir.openqasm import Program
+from braket.circuits import Circuit
 from typeguard import typechecked
 
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
 @typechecked
