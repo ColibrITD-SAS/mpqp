@@ -1,7 +1,8 @@
 """File regrouping all features for translating QASM code to Amazon Braket objects."""
 
 import io
-import warnings
+
+# import warnings
 from logging import StreamHandler, getLogger
 
 from braket.circuits import Circuit
@@ -9,7 +10,8 @@ from braket.ir.openqasm import Program
 from typeguard import typechecked
 
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+
+# from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
 @typechecked
@@ -57,28 +59,32 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> Circuit:
     # we remove any include of stdgates.inc and replace it with custom include
     qasm3_str = qasm3_str.replace("stdgates.inc", "braket_custom_include.inc")
 
-    try:
-        after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
-    except Exception as e:
-        warning_message = (
-            f"An error occurred while processing the OpenQASM code with Braket: {e}"
-        )
-        warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
-        return None
+    after_stdgates_included = open_qasm_hard_includes(qasm3_str, set())
+    # try:
+    # except Exception as e:
+    #     warning_message = (
+    #         f"An error occurred while processing the OpenQASM code with Braket: {e}"
+    #     )
+    #     warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
+    #     return None
 
-    # NOTE: gphase is already used in Braket and thus cannot be redefined as a native gate in OpenQASM.
-    # We used ggphase instead
-    if "U(" in after_stdgates_included or "gphase(" in after_stdgates_included:
-        # Issue a warning only if not already issued
-        warning_message = "This program uses OpenQASM language features that may not be supported on QPUs or on-demand simulators."
-        warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
+    # # NOTE: gphase is already used in Braket and thus cannot be redefined as a native gate in OpenQASM.
+    # # We used ggphase instead
+    # if "U(" in after_stdgates_included or "gphase(" in after_stdgates_included:
+    #     # Issue a warning only if not already issued
+    #     warning_message = "This program uses OpenQASM language features that may not be supported on QPUs or on-demand simulators."
+    #     warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
 
     # capture the Braket logger
     braket_logger = getLogger()
 
+    # TODO: catch the logged warning
     logger_output_stream = io.StringIO()
     stream_handler = StreamHandler(logger_output_stream)
     braket_logger.addHandler(stream_handler)
+    # if message == warning_message:
+    #     warnings.warn(warning_message, UnsupportedBraketFeaturesWarning)
+    stream_handler.addFilter(...)
 
     circuit = Circuit.from_ir(after_stdgates_included)
 

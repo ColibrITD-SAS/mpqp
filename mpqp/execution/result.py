@@ -1,19 +1,3 @@
-######################################
-# Copyright(C) 2021 - 2023 ColibrITD
-#
-# Developers :
-#  - Hamza JAFFALI < hamza.jaffali@colibritd.com >
-#  - Karla BAUMANN < karla.baumann@colibritd.com >
-#  - Henri de BOUTRAY < henri.de.boutray@colibritd.com >
-#
-# Version : 0.1
-#
-# This file is part of QUICK.
-#
-# QUICK can not be copied and / or distributed without the express
-# permission of ColibrITD
-#
-######################################
 from __future__ import annotations
 
 import math
