@@ -208,7 +208,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = IGate
-    matrix = np.eye(2)
+    matrix = np.eye(2, dtype=np.complex64)
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
