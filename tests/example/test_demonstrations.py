@@ -1,13 +1,25 @@
+from typing import Any, Callable
+
+import numpy as np
 import pytest
+from braket.devices import LocalSimulator
+
 from mpqp import QCircuit
-from mpqp.core.instruction.measurement import Observable, ExpectationMeasure
-from mpqp.execution.devices import AWSDevice, ATOSDevice, IBMDevice
+from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
+from mpqp.execution import run
+from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
-from mpqp.execution import run
-from braket.devices import LocalSimulator
-import numpy as np
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+
+
+def warn_guard(device: AvailableDevice, run: Callable[[], Any]):
+    if isinstance(device, AWSDevice):
+        with pytest.warns(UnsupportedBraketFeaturesWarning):
+            return run()
+    else:
+        return run()
 
 
 def test_sample_demo():
@@ -34,7 +46,7 @@ def test_sample_demo():
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
     # Run the circuit on a selected device
-    run(
+    runner = lambda: run(
         circuit,
         [
             IBMDevice.AER_SIMULATOR,
@@ -43,6 +55,8 @@ def test_sample_demo():
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ],
     )
+
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     assert True
 
@@ -68,7 +82,7 @@ def test_statevector_demo():
     circuit.add(Rz(3.14, 0))
 
     # when no measure in the circuit, must run in statevector mode
-    run(
+    runner = lambda: run(
         circuit,
         [
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
@@ -77,12 +91,14 @@ def test_statevector_demo():
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ],
     )
+
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     # same when we add a BasisMeasure with 0 shots
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=0))
 
     # Run the circuit on a selected device
-    run(
+    runner = lambda: run(
         circuit,
         [
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
@@ -91,6 +107,8 @@ def test_statevector_demo():
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ],
     )
+
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     assert True
 
@@ -121,7 +139,7 @@ def test_observable_demo():
     assert True
 
 
-def test_aws_executions():
+def test_aws_qasm_executions():
     device = LocalSimulator()
 
     qasm_str = """OPENQASM 3.0;
@@ -133,11 +151,12 @@ def test_aws_executions():
     c[0] = measure q[0];
     c[1] = measure q[1];"""
 
-    circuit = qasm3_to_braket_Circuit(qasm_str)
-
+    runner = lambda: qasm3_to_braket_Circuit(qasm_str)
+    circuit = warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
     device.run(circuit, shots=100).result()
 
-    #####################################################
+
+def test_aws_mpqp_executions():
 
     # Declaration of the circuit with the right size
     circuit = QCircuit(4)
@@ -161,7 +180,9 @@ def test_aws_executions():
     # Add measurement
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
-    run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    runner = lambda: run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     #####################################################
 
@@ -185,7 +206,10 @@ def test_aws_executions():
     circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=0))
 
     # Running the computation on myQLM and on Braket simulator, then retrieving the results
-    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
+    runner = lambda: run(
+        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
+    )
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     #####################################################
 
@@ -195,7 +219,10 @@ def test_aws_executions():
     )
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
+    runner = lambda: run(
+        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
+    )
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
 
 def test_all_native_gates():
