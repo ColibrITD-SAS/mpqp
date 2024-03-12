@@ -1,11 +1,6 @@
 from __future__ import annotations
-from typing import Optional
 
-from mpqp.core.instruction.gates import (
-    KrausRepresentation,
-    PauliDecomposition,
-)
-from mpqp.core.languages import Language
+from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -14,15 +9,17 @@ import numpy.typing as npt
 # from qat.lang.AQASM import Program, H, PH, CNOT, SWAP, RX
 from qat.quops.quantum_channels import QuantumChannelKraus
 
-# QISKIT
-
 # Import from Qiskit Aer noise module
 from qiskit_aer.noise import depolarizing_error
 
+from mpqp.core.instruction.gates import KrausRepresentation, PauliDecomposition
+from mpqp.core.languages import Language
+
+# QISKIT
+
 
 class GateNoise:
-    """
-    A class used to apply Noise on a specific Gate
+    """A class used to apply Noise on a specific Gate.
 
     Noise can be defined in several ways, and this class allows us apply a
     specific qubit quantum error to a selected gate
@@ -42,6 +39,7 @@ class GateNoise:
 
     #This will go in the MPQPNoiseModel class
     hw_model = HardwareModel(gates_spec, gates_noise, idle_noise=None)
+    # 3M-TODO : implement and comment
 
     """
 
@@ -53,23 +51,25 @@ class GateNoise:
 
 
 class GateNoiseCombination:
-    """
-    A class that allows to combine different types of Noise on a selected Gate(s)
-    by using composition, tensor product, and tensor expansion and thus produces a
-    new quantum error.
+    """A class that allows to combine different types of Noise on a selected
+    Gate(s) by using composition, tensor product, and tensor expansion and thus
+    produces a new quantum error.
 
 
     Args:?
-        matrix : unitary matrix representing the gate
-        gate_combination : combination of gates (sum, product, ...) defining the gate
-        kraus_operators : generalized Kraus representation of the gate
-        pauli_decomposition : when it is possible, decomposition of the gate in the Pauli basis (I, X, Y, Z)
-        nb_qubits : number of qubits of the gate defined
+        matrix: Unitary matrix representing the gate.
+        gate_combination: Combination of gates (sum, product, ...) defining the
+            gate.
+        kraus_operators : Generalized Kraus representation of the gate.
+        pauli_decomposition: When it is possible, decomposition of the gate in
+            the Pauli basis (I, X, Y, Z).
+        nb_qubits: Number of qubits of the gate defined.
 
         more has to be added here, once it is thought through
 
     Attributes:
-        _current_type (str): string describing which definition is currently used to define the gate
+        _current_type (str): string describing which definition is currently
+        used to define the gate
 
 
     """
@@ -80,21 +80,23 @@ class GateNoiseCombination:
 
 
 class NoiseModules:
-    """
-    A class that contains function and methods for noise modeling.
+    """A class that contains function and methods for noise modeling.
 
 
     Args:
-        matrix : unitary matrix representing the gate
-        gate_combination : combination of gates (sum, product, ...) defining the gate
-        kraus_operators : generalized Kraus representation of the gate
-        pauli_decomposition : when it is possible, decomposition of the gate in the Pauli basis (I, X, Y, Z)
-        nb_qubits : number of qubits of the gate defined
+        matrix: Unitary matrix representing the gate.
+        gate_combination: Combination of gates (sum, product, ...) defining the
+            gate.
+        kraus_operators: Generalized Kraus representation of the gate.
+        pauli_decomposition: When it is possible, decomposition of the gate in
+            the Pauli basis (I, X, Y, Z)?
+        nb_qubits: Number of qubits of the gate defined.
 
         more has to be added here, once it is thought through
 
     Attributes:
-        _current_type (str): string describing which definition is currently used to define the gate
+        _current_type (str): String describing which definition is currently
+            used to define the gate.
 
 
     """
@@ -107,7 +109,8 @@ class NoiseModules:
     def depolarizing_error(
         self, param: float, num_qubits: int, language: Language = Language.QISKIT
     ):
-        """
+        """Depol error.
+
         Args:
             param: depolarizing error parameter.
             num_qubits: the number of qubits for the error channel.

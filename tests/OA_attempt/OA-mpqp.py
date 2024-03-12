@@ -1,103 +1,149 @@
 # %%
 import re
+from math import floor
 
 # import cma
 import numpy as np
 import scipy.special as ss
 from matplotlib import pyplot as plt
-from math import floor
 from scipy.optimize import minimize
 
 from mpqp.all import *
+from mpqp.execution.vqa.vqa import OptimizerInput
 
 
-# %%
-def Cheb(_x, _n):
-    return np.cos(_n * np.arccos(_x))
+def cheb_mono(x: float, n: int) -> float:
+    """This function returns the `n`-th order Chebyshev monomial
+
+    Params:
+        x: value the polynomial is evaluated at
+        n: order of the Chebyshev polynomial
+    """
+    cos, acos = (np.cos, np.arccos) if abs(x) < 1 else (np.cosh, np.arccosh)
+    factor = 1 if x > -1 else (-1) ** n
+    return factor * cos(n * acos(x))
 
 
-def Chebyshev(_x, _n, _nOrder):
-    der = 0
-    if _nOrder == 0:
-        return Cheb(_x, _n)
-    else:
-        for k in range((_n - _nOrder) % 2, _n - _nOrder + 1, 2):
-            binomialFactor = ss.binom(
-                (_n + _nOrder - k) / 2 - 1, (_n - _nOrder - k) / 2
+def factorial(n: int) -> float:  # TODO dirty fix
+    """This function returns the factorial of any integer number n.
+
+    Params:
+        n: number to calculate the factorial of
+    """
+    res = ss.factorial(n)
+    assert isinstance(res, float)
+    return res
+
+
+def cheb_poly(x: float, n: int, order: int) -> float:
+    """This function returns the `n`-th order Chebyshev polynomial or its `order`
+    derivative
+
+    Params:
+        x: value the polynomial is evaluated at
+        n: order of the Chebyshev polynomial
+        order: order of the derivative
+    """
+    if order == 0:
+        return cheb_mono(x, n)
+
+    def bin_factor(k: int):
+        return ss.binom((n + order - k) / 2 - 1, (n - order - k) / 2)
+
+    def factor(k: int):
+        return ss.factorial((n + order + k) / 2 - 1)
+
+    def denominator(k: int):
+        return ss.factorial((n - order + k) / 2) * (2 if k == 0 else 1)
+
+    return (
+        2**order
+        * n
+        * sum(
+            [
+                bin_factor(k) * factor(k) / denominator(k) * cheb_mono(x, k)
+                for k in range((n - order) % 2, n - order + 1, 2)
+            ]
+        )
+    )
+
+
+def diagonal_observable(
+    x: float,
+    n_qubits: int,
+    order: int,
+) -> Observable:
+    """Returns the observable encoding the polynomial expansion.
+
+    Params:
+        x: value the polynomial is evaluated at
+        n_qubits: number of qubits
+        order: order of the derivative
+    """
+    return Observable(
+        np.diag([cheb_poly(x, index, order) for index in range(2 ** (n_qubits - 1))])
+    )
+
+
+def vqc(
+    parameters: OptimizerInput,
+    depth: int,
+    n_qubits: int,
+) -> QCircuit:
+    """This function returns a Variational Quantum Circuit with different
+    versions of the 'hardware efficient' Ansatz.
+
+    Params:
+        parameters: parameters of the VQC to optimize.
+        n_qubits: number of qubits
+        d: depth of the VQC
+    """
+    return QCircuit(
+        sum(
+            [
+                [Ry(parameters[n_qubits * d + i], i) for i in range(n_qubits)]
+                + [CNOT(k, k + 1) for k in range(0, n_qubits - 1, 2)]
+                + [CNOT(k, k + 1) for k in range(1, n_qubits - 1, 2)]
+                for d in range(depth)
+            ],
+            [],
+        )
+    )
+
+
+def extract_orders(expressions: list[str]) -> dict[str, int]:
+    """
+    This function returns the maximum order of the PDEs for each function.
+
+    The format of an expression should be a string version of a python expression, except for the
+    function and the derivatives, which are represented by a string composed of "d" (for derivative),
+    the order of the derivative and the name of the function.
+
+    Params:
+        expressions: list of PDEs in string format
+    """
+    functions = set().union(
+        *[
+            set(map(lambda m: m.group(1), re.finditer(r"d\d+(\w+)", expr)))
+            for expr in expressions
+        ]
+    )
+    orders = {}
+    sort_orders = {}
+    for function in functions:
+        orders_func = []
+        for expression in expressions:
+            matches = list(re.finditer(r"d(?P<order>\d+)" + function, expression))
+            orders_func.append(
+                max(map(lambda m: int(m.group("order")), matches), default=0)
             )
-            factor = ss.factorial((_n + _nOrder + k) / 2 - 1)
-            denominator = ss.factorial((_n - _nOrder + k) / 2)
-            if k == 0:
-                der += binomialFactor * factor / (2 * denominator) * Cheb(_x, k)
-            else:
-                der += binomialFactor * factor / denominator * Cheb(_x, k)
-        return 2**_nOrder * _n * der
+        orders[function] = max(orders_func)
+        ord_keys = list(orders.keys())
+        ord_keys.sort()
+        sort_orders = {i: orders[i] for i in ord_keys}
+    return sort_orders
 
 
-# %%
-def diagonal_observable_cheb(_x, _nQubits, _nOrder):
-    diagonal_elements_plus = np.array(
-        [Chebyshev(_x, index, _nOrder) for index in range(2 ** (_nQubits - 1))]
-    )
-    diagonal_elements_minus = -diagonal_elements_plus
-
-    diagonal_elements = np.concatenate(
-        (diagonal_elements_plus, diagonal_elements_minus), axis=None
-    )
-    # print(diagonal_elements)
-    return Operator(np.diag(v=diagonal_elements))
-
-
-# %%
-def vqc(list_parameters, _depth, _nQubits):
-    """
-    Generates a VQC of depth d, for N qubits, with list_parameters as angles.
-
-    :param list_parameters: LIST or np.ARRAY of OPTIMIZABLE parameters. It should have length 3Nd elements in [0,2pi]
-    :param N: INTEGER, number of qubits
-    :param d: INTEGER, depth of the vqc
-    :return: a circuit corresponding to (vqa)|0>
-    """
-    reg = QuantumRegister(_nQubits)
-    _qc = QuantumCircuit(reg)
-
-    for d in range(_depth):
-        for index, r in enumerate(reg):
-            _qc.ry((list_parameters[_nQubits * d + index]), r)
-
-        [_qc.cx(reg[k], reg[k + 1]) for k in range(_nQubits - 1)]
-
-    return _qc
-
-
-# %%
-def extractOrders(_expressions):  # works up to order 9
-    functions = ["f", "g", "h", "k"][: len(_expressions)]
-
-    orders = []
-    for expression in _expressions:
-        orderFunctions = []
-        for function in functions:
-            listDerivatives = re.findall(r"d+\w" + function, expression)
-            listDerivatives.sort(reverse=True)
-            listDerivatives = [
-                derivative.replace(function, "") for derivative in listDerivatives
-            ]
-            listDerivatives = [
-                derivative.replace("d", "") for derivative in listDerivatives
-            ]
-            if len(listDerivatives) == 0:
-                orderFunctions.append(0)
-            else:
-                orderFunctions.append(int(listDerivatives[0]))
-        orders.append(orderFunctions)
-    orders = np.array(orders)
-
-    maxOrderFunctions = [max(orders[:, i]) for i in range(len(_expressions))]
-    return maxOrderFunctions
-
-
-# %%
 nb_qubits = 2
 depth = 2
 nb_params = nb_qubits * depth
@@ -118,7 +164,7 @@ expressions = ["d1f - 1"]
 
 
 functions = ["f", "g", "h", "k"][: len(expressions)]
-orders = extractOrders(expressions)
+orders = extract_orders(expressions)
 boundaries = {"d0f": [0.0, 1.0]}
 # boundaries = {"d0f": [0.0, 1.0], "d0g": [0.95, 2.]}
 
@@ -127,7 +173,6 @@ _nb_variables = len(functions) * nb_params + len(functions)
 shots = None
 
 
-# %%
 def expectationValues(estimator, _attemptParameters, _shots=None):
     scaling_factor = _attemptParameters[: len(functions)]
     listExpectationValues = []
@@ -150,7 +195,6 @@ def expectationValues(estimator, _attemptParameters, _shots=None):
     return listExpectationValues
 
 
-# %%
 def cost_function(_attemptParameters, estimator):
     _expectationValues = expectationValues(estimator, _attemptParameters, shots)
     i = 0
@@ -192,7 +236,6 @@ def cost_function(_attemptParameters, estimator):
     return loss  # /n_samples #+ loss_BC
 
 
-# %%
 init_theta_list = np.random.uniform(low=0, high=2 * 3.14, size=(_nb_variables,))
 
 # %%

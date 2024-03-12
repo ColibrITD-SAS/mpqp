@@ -412,8 +412,7 @@ class QCircuit:
         ...
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
-        """
-        Compute the unitary matrix associated to this circuit.
+        """Compute the unitary matrix associated to this circuit.
 
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
@@ -670,6 +669,7 @@ class QCircuit:
                     qargs = range(instruction.size)
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
+                assert not isinstance(qiskit_inst, Operator)
 
                 new_circ.append(
                     qiskit_inst,

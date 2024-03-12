@@ -4,52 +4,50 @@ import math
 from typing import Optional
 
 from qiskit import QuantumCircuit
-from qiskit_aer import Aer
-from qiskit_aer import AerSimulator
-from qiskit.providers import BackendV1, BackendV2, JobStatus as IBM_JobStatus
 from qiskit.compiler import transpile
-from qiskit.primitives import (
-    Estimator as Qiskit_Estimator,
-    BackendEstimator,
-    EstimatorResult,
-    SamplerResult,
-)
+from qiskit.primitives import BackendEstimator
+from qiskit.primitives import Estimator as Qiskit_Estimator
+from qiskit.primitives import EstimatorResult, SamplerResult
+from qiskit.providers import BackendV1, BackendV2
+from qiskit.providers import JobStatus as IBM_JobStatus
 from qiskit.quantum_info import Operator
 from qiskit.result import Result as QiskitResult
+from qiskit_aer import Aer, AerSimulator
 from qiskit_ibm_provider.job import IBMJob
-from qiskit_ibm_runtime import (
-    RuntimeJob,
-    Sampler as Runtime_Sampler,
-    Estimator as Runtime_Estimator,
-    Session,
-)
+from qiskit_ibm_runtime import Estimator as Runtime_Estimator
+from qiskit_ibm_runtime import RuntimeJob
+from qiskit_ibm_runtime import Sampler as Runtime_Sampler
+from qiskit_ibm_runtime import Session
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
+from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
     get_IBMProvider,
     get_QiskitRuntimeService,
 )
 from mpqp.execution.devices import IBMDevice
-from mpqp.execution.job import Job, JobType, JobStatus
-from mpqp.execution.result import StateVector, Sample, Result
-from mpqp.core.languages import Language
+from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
 
 @typechecked
 def run_ibm(job: Job) -> Result:
-    """
-    Executes the job on the right IBM Q device precised in the job in parameter.
-    This function is not meant to be used directly, please use ``runner.run(...)`` instead.
+    """Executes the job on the right IBM Q device precised in the job in
+    parameter.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
-        job: Job to be executed
+        job: Job to be executed.
 
     Returns:
-        a Result after submission and execution of the job
+        The result of the job.
     """
     return run_aer(job) if not job.device.is_remote() else run_ibmq(job)
 
@@ -58,15 +56,20 @@ def run_ibm(job: Job) -> Result:
 def compute_expectation_value(
     ibm_circuit: QuantumCircuit, ibm_backend: Optional[BackendV1 | BackendV2], job: Job
 ) -> Result:
-    """
-    Configures observable job and run it locally, and returns the corresponding Result.
-    This function is not meant to be used directly, please use ``runner.run(...)`` instead.
+    """Configures observable job and run it locally, and returns the
+    corresponding Result.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         ibm_circuit: QuantumCircuit (already reversed bits)
         ibm_backend: The IBM backend (local of remote) on which we execute the job.
         job: Mpqp job describing the observable job to run.
 
+    Returns:
+        The result of the job.
     """
     if not isinstance(job.measure, ExpectationMeasure):
         raise ValueError(
@@ -97,14 +100,16 @@ def compute_expectation_value(
 
 @typechecked
 def check_job_compatibility(job: Job):
-    """
-    Checks whether the job in parameter has coherent and compatible attributes.
+    """Checks whether the job in parameter has coherent and compatible
+    attributes.
 
     Args:
         job: Job for which we want to check compatibility.
 
     Raises:
-        DeviceJobIncompatibleError
+        DeviceJobIncompatibleError: If there is a mismatch between information
+            contained in the job (measure and job_type, device and job_type,
+            etc...).
     """
     if not type(job.measure) in job.job_type.value:
         raise DeviceJobIncompatibleError(
@@ -138,21 +143,25 @@ def check_job_compatibility(job: Job):
 
 @typechecked
 def run_aer(job: Job):
-    """
-    Executes the job on the right AER local simulator precised in the job in parameter.
-    This function is not meant to be used directly, please use ``runner.run(...)`` instead.
+    """Executes the job on the right AER local simulator precised in the job in
+    parameter.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         job: Job to be executed.
 
     Returns:
-        A Result after submission and execution of the job.
+        the result of the job.
     """
     qiskit_circuit = (
         job.circuit.without_measurements().to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
     )
+    assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
     check_job_compatibility(job)
@@ -200,15 +209,17 @@ def run_aer(job: Job):
 
 @typechecked
 def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
-    """
-    Submits the job on the remote IBM device (quantum computer or simulator).
-    This function is not meant to be used directly, please use ``runner.submit(...)`` instead.
+    """Submits the job on the remote IBM device (quantum computer or simulator).
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.submit(...)`` instead.
 
     Args:
         job: Job to be executed.
 
     Returns:
-        The job_id of the submitted job and the RuntimeJob/IBMCircuitJob.
+        IBM's job id and the ``qiskit`` job itself.
     """
     if job.job_type == JobType.STATE_VECTOR:
         raise DeviceJobIncompatibleError(
@@ -229,7 +240,9 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
             )
     check_job_compatibility(job)
 
-    qiskit_circuit = job.circuit.to_other_language(Language.QISKIT).reverse_bits()
+    qiskit_circuit = job.circuit.to_other_language(Language.QISKIT)
+    assert isinstance(qiskit_circuit, QuantumCircuit)
+    qiskit_circuit = qiskit_circuit.reverse_bits()
 
     service = get_QiskitRuntimeService()
     backend_str = job.device.value
@@ -256,10 +269,12 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
 
 @typechecked
 def run_ibmq(job: Job) -> Result:
-    """
-    Submits the job on the right IBMQ remote device, precised in the job in parameter, and waits until the job is
-    completed.
-    This function is not meant to be used directly, please use ``runner.run(...)`` instead.
+    """Submits the job on the right IBMQ remote device, precised in the job in
+    parameter, and waits until the job is completed.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         job: Job to be executed.
@@ -281,19 +296,21 @@ def extract_result(
     device: IBMDevice = IBMDevice.AER_SIMULATOR,
     ibm_job: Optional[IBMJob | RuntimeJob] = None,
 ) -> Result:
-    """
-    Parses a result from IBM execution (remote or local) into an mpqp Result.
-    Depending on which service you run the job (local/remote backend, Estimator, Sampler),
-    you retrieve a different result.
+    """Parses a result from IBM execution (remote or local) into an ``mpqp``
+    Result. Depending on which service you run the job (local/remote backend,
+    Estimator, Sampler), you retrieve a different result.
 
     Args:
         result: Result returned by IBM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more easily info to instantiate the result.
-        device: IBMDevice on which the job was submitted. Used to know if the run was remote or local
-        ibm_job: IBM or Runtime job used to retrieve info about the circuit and the submitted job (in the remote case).
+        job: Original mpqp job used to generate the run. Used to retrieve more
+            easily info to instantiate the result.
+        device: IBMDevice on which the job was submitted. Used to know if the
+            run was remote or local
+        ibm_job: IBM or Runtime job used to retrieve info about the circuit and
+            the submitted job (in the remote case).
 
     Returns:
-        A Result containing the result info extracted from the IBM result.
+        The ``qiskit`` result converted to our format.
     """
 
     if job is not None and (
@@ -381,7 +398,7 @@ def extract_result(
         if job.job_type == JobType.STATE_VECTOR:
             vector = result.get_statevector()
             state_vector = StateVector(
-                vector.data,  # pyright: ignore[reportGeneralTypeIssues]
+                vector.data,  # pyright: ignore[reportArgumentType]
                 job.circuit.nb_qubits,
             )
             return Result(job, state_vector, 0, 0)
@@ -404,15 +421,15 @@ def extract_result(
 
 @typechecked
 def get_result_from_ibm_job_id(job_id: str) -> Result:
-    """
-    Retrieves from IBM remote platform and parse the result of the job_id given in parameter.
-    If the job is still running, we wait (blocking) until it is DONE.
+    """Retrieves from IBM remote platform and parse the result of the job_id
+    given in parameter. If the job is still running, we wait (blocking) until it
+    is ``DONE``.
 
     Args:
         job_id: Id of the remote IBM job.
 
     Returns:
-        A Result containing the formatted result of the executed ibm job.
+        The result converted to our format.
     """
     # search for job id in the connector given in parameter first
     # if not found, try with IBMProvider, then QiskitRuntimeService

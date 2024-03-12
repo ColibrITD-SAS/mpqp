@@ -1,5 +1,7 @@
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Optional
+
 from aenum import Enum, NoAlias
 
 # This is needed because for some reason pyright does not understand that Enum
@@ -9,17 +11,18 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from enum import Enum
 
-from mpqp.core.instruction.measurement import Measure, ExpectationMeasure, BasisMeasure
+from braket.aws import AwsQuantumTask
+from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+from qat.comm.qlmaas.ttypes import QLMServiceException
+from qiskit.providers import JobStatus as IBM_JobStatus
+
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
+
+from ..core.circuit import QCircuit
+from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.ibm_connection import get_IBMProvider, get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
-from ..core.circuit import QCircuit
-from .devices import AvailableDevice, IBMDevice, AWSDevice, ATOSDevice
-
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
-from qiskit.providers import JobStatus as IBM_JobStatus
-from braket.aws import AwsQuantumTask
-
-from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
+from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 
 
 class JobStatus(Enum):
@@ -40,8 +43,7 @@ class JobStatus(Enum):
 
 
 class JobType(Enum):
-    """
-    Possible types of Job to execute.
+    """Possible types of Job to execute.
 
     Each type of job is restricted to some measures (and to some backends, but
     this is tackled by the backends themselves).
@@ -61,8 +63,7 @@ class JobType(Enum):
 
 @typechecked
 class Job:
-    """
-    Representation of a job, an object regrouping all the information about
+    """Representation of a job, an object regrouping all the information about
     the submission of a computation/measure of a quantum circuit on a
     specific hardware.
 

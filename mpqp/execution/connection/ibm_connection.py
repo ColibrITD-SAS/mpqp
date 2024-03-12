@@ -19,8 +19,7 @@ Runtime_Service = None
 
 @typechecked
 def config_ibm_account(token: str):
-    """
-    Configure and save locally IBM Quantum account's information.
+    """Configure and save locally IBM Quantum account's information.
 
     Args:
         token: IBM Quantum API token.
@@ -128,8 +127,8 @@ def get_IBMProvider() -> IBMProvider:
 
 
 def get_QiskitRuntimeService() -> QiskitRuntimeService:
-    """
-    Returns the QiskitRuntimeService needed for remote connection and execution
+    """Returns the QiskitRuntimeService needed for remote connection and
+    execution.
 
     Example:
         >>> service = get_QiskitRuntimeService()
@@ -141,7 +140,8 @@ def get_QiskitRuntimeService() -> QiskitRuntimeService:
          <RuntimeJob('cm7vds4pduldih1k1mq0', 'sampler')>]
 
     Raises:
-        IBMRemoteExecutionError
+        IBMRemoteExecutionError: When the ``qiskit`` runtime is not configured
+            or the configuration cannot be retrieved.
     """
     global Runtime_Service
     if Runtime_Service is None:
@@ -160,8 +160,7 @@ def get_QiskitRuntimeService() -> QiskitRuntimeService:
 
 
 def get_active_account_info() -> str:
-    """
-    Returns the information concerning the active IBMQ account
+    """Returns the information concerning the active IBMQ account.
 
     Example:
         >>> print(get_active_account_info())
@@ -172,7 +171,7 @@ def get_active_account_info() -> str:
             Verify: True
 
     Returns:
-        A string describing the account info.
+        The description containing the account information.
     """
     provider = get_IBMProvider()
     account = provider.active_account()
@@ -186,8 +185,8 @@ def get_active_account_info() -> str:
 
 @typechecked
 def get_backend(device: IBMDevice) -> BackendV1:
-    """
-    Retrieves the IBM Q remote device corresponding to the device in parameter
+    """Retrieves the IBM Q remote device corresponding to the device in
+    parameter.
 
     Args:
         device: The IBMDevice to get from IBMQ provider.
@@ -199,10 +198,11 @@ def get_backend(device: IBMDevice) -> BackendV1:
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
 
     Returns:
-        A qiskit.providers.backend.Backend object that will be use to execute circuit.
+        The requested backend.
 
     Raises:
-        IBMRemoteExecutionError
+        ValueError: If the required backend is a local simulator.
+        IBMRemoteExecutionError: If the device was not found.
     """
     # NOTE:
     #       Question : when a backend is present in several IBMQ instances, which instance does it use to submit jobs
@@ -228,9 +228,8 @@ def get_backend(device: IBMDevice) -> BackendV1:
 
 
 def get_all_job_ids() -> list[str]:
-    """
-    Retrieves all the job ids of this account from the several IBM remote providers
-    (IBMProvider, QiskitRuntimeService, ...)
+    """Retrieves all the job ids of this account from the several IBM remote
+    providers (IBMProvider, QiskitRuntimeService, ...).
 
     Example:
         >>> get_all_job_ids()

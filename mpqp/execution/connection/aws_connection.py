@@ -92,8 +92,7 @@ def get_aws_braket_account_info() -> str:
 
 @typechecked
 def get_braket_device(device: AWSDevice) -> BraketDevice:
-    """
-    Returns the AwsDevice device associate with the AWSDevice in parameter.
+    """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Example:
         >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ASPEN_M_3)
@@ -107,7 +106,8 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
         device: AWSDevice element describing which remote/local AwsDevice we want.
 
     Raises:
-        AWSBraketRemoteExecutionError
+        AWSBraketRemoteExecutionError: If the device or the region could not be
+            retrieved.
     """
 
     if not device.is_remote():

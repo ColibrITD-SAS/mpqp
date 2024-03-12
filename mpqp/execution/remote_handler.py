@@ -8,23 +8,19 @@ from typeguard import typechecked
 
 from mpqp.execution import Result
 from mpqp.execution.connection.aws_connection import get_all_task_ids
-from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
-from mpqp.execution.providers_execution.atos_execution import get_result_from_qlm_job_id
-from mpqp.execution.providers_execution.aws_execution import (
-    get_result_from_aws_task_arn,
-)
-from mpqp.execution.providers_execution.ibm_execution import get_result_from_ibm_job_id
-
-from mpqp.execution.devices import IBMDevice, AWSDevice, ATOSDevice, AvailableDevice
+from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
+from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 from mpqp.execution.job import Job
+from mpqp.execution.providers.atos import get_result_from_qlm_job_id
+from mpqp.execution.providers.aws import get_result_from_aws_task_arn
+from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
 
 
 @typechecked
 def remote_result_from_id(job_id: str, device: AvailableDevice) -> Result:
-    """
-    Retrieve and parse a remote the result from a job_id and device. If the job is still running, it will wait until it
-    is done.
+    """Retrieve and parse a remote the result from a job_id and device. If the
+    job is still running, it will wait until it is done.
 
     Examples:
         >>> print(remote_result_from_id('Job141933', ATOSDevice.QLM_LINALG))

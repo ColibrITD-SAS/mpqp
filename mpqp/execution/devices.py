@@ -1,5 +1,5 @@
-from enum import Enum, auto
 from abc import abstractmethod
+from enum import Enum, auto
 
 from mpqp.execution.connection.env_manager import get_env_variable
 
@@ -141,8 +141,7 @@ class AWSDevice(AvailableDevice):
         return "SIMULATOR" in self.name
 
     def get_arn(self) -> str:
-        """
-        Retrieve the AwsDevice arn from this AWSDevice element.
+        """Retrieve the AwsDevice arn from this AWSDevice element.
 
         Examples:
             >>> AWSDevice.BRAKET_IONQ_HARMONY.get_arn()
@@ -153,7 +152,7 @@ class AWSDevice(AvailableDevice):
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3'
 
         Returns:
-            a string representing the arn of the device
+            The arn of the device.
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
@@ -177,8 +176,7 @@ class AWSDevice(AvailableDevice):
 
     @staticmethod
     def from_arn(arn: str):
-        """
-        Returns the right AWSDevice from the arn given in parameter.
+        """Returns the right AWSDevice from the arn given in parameter.
 
         Examples:
             >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Harmony')
@@ -193,4 +191,4 @@ class AWSDevice(AvailableDevice):
         for elem in AWSDevice:
             if elem.value in arn:
                 return elem
-        return None
+        raise ValueError(f"No device found for ARN `{arn}`.")

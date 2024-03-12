@@ -1,9 +1,22 @@
+from statistics import mean
 from typing import Optional
 
 import numpy as np
+from qat.clinalg.qpu import CLinalg
+from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+from qat.comm.qlmaas.ttypes import QLMServiceException
+from qat.core.contexts import QPUContext
+from qat.core.qpu.qpu import QPUHandler
+from qat.core.wrappers.circuit import Circuit
+from qat.core.wrappers.job import Job as JobQLM
+from qat.core.wrappers.observable import Observable as QLM_Observable
+from qat.core.wrappers.result import Result as QLM_Result
+from qat.plugins.observable_splitter import ObservableSplitter
+from qat.pylinalg import PyLinalg
+from qat.qlmaas.result import AsyncResult
 from typeguard import typechecked
-from statistics import mean
 
+from mpqp import Language, QCircuit
 from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
@@ -11,36 +24,23 @@ from mpqp.core.instruction.measurement.expectation_value import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
-from ..connection.qlm_connection import get_QLMaaSConnection
-from ..job import Job, JobType, JobStatus
-from ..result import Result, Sample, StateVector
-from mpqp.qasm import qasm2_to_myqlm_Circuit
-from mpqp import QCircuit, Language
-from ...tools.errors import QLMRemoteExecutionError
 
-from qat.qlmaas.result import AsyncResult
-from qat.core.contexts import QPUContext
-from qat.core.qpu.qpu import QPUHandler
-from qat.pylinalg import PyLinalg
-from qat.clinalg.qpu import CLinalg
-from qat.core.wrappers.observable import Observable as QLM_Observable
-from qat.plugins.observable_splitter import ObservableSplitter
-from qat.core.wrappers.result import Result as QLM_Result
-from qat.core.wrappers.circuit import Circuit
-from qat.core.wrappers.job import Job as JobQLM
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
+from ...tools.errors import QLMRemoteExecutionError
+from ..connection.qlm_connection import get_QLMaaSConnection
+from ..job import Job, JobStatus, JobType
+from ..result import Result, Sample, StateVector
 
 
 @typechecked
 def get_local_qpu(device: ATOSDevice) -> QPUHandler:
-    """
-    Returns the myQLM local QPU associated with the ATOSDevice given in parameter.
+    """Returns the myQLM local QPU associated with the ATOSDevice given in
+    parameter.
 
     Args:
         device: ATOSDevice referring to the myQLM local QPU.
 
     Raises:
-        ValueError
+        ValueError: If the required backend is a local simulator.
     """
     if device.is_remote():
         raise ValueError("Excepted a local device, not the remote QLM")
@@ -292,8 +292,7 @@ def extract_result(
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
-    """
-    Constructs a Result from the result given by the myQLM/QLM run.
+    """Constructs a Result from the result given by the myQLM/QLM run.
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
@@ -355,9 +354,12 @@ def job_pre_processing(job: Job) -> Circuit:
 
 @typechecked
 def run_atos(job: Job) -> Result:
-    """Executes the job on the right ATOS device precised in the job in parameter.
-    This function is not meant to be used directly, please use
-    ``runner.run(...)`` instead.
+    """Executes the job on the right ATOS device precised in the job in
+    parameter.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         job: Job to be executed.
@@ -370,8 +372,11 @@ def run_atos(job: Job) -> Result:
 
 @typechecked
 def run_myQLM(job: Job) -> Result:
-    """Executes the job on the local myQLM simulator. This function is not meant
-    to be used directly, please use ``runner.run(...)`` instead.
+    """Executes the job on the local myQLM simulator.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         job: Job to be executed.
@@ -418,8 +423,11 @@ def run_myQLM(job: Job) -> Result:
 
 @typechecked
 def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
-    """Submits the job on the remote QLM machine. This function is not meant to
-    be used directly, please use ``runner.submit(...)`` instead.
+    """Submits the job on the remote QLM machine.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.submit(...)`` instead.
 
     Args:
         job: Job to be executed.

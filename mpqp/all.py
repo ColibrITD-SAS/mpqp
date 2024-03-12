@@ -1,7 +1,7 @@
 # pyright: reportUnusedImport=false
 import numpy as np
 
-from mpqp.execution.providers_execution.atos_execution import get_result_from_qlm_job_id
+from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 
 from . import Barrier, Instruction, Language, QCircuit
 from .execution import (

@@ -17,8 +17,7 @@ from .job import Job, JobType
 
 @typechecked
 class StateVector:
-    """
-    Class representing the state vector of a multi-qubit quantum system.
+    """Class representing the state vector of a multi-qubit quantum system.
 
     Args:
         vector: List of amplitudes defining the state vector.
@@ -70,9 +69,8 @@ class StateVector:
 
 @typechecked
 class Sample:
-    """
-    Class representing a sample, which contains the result of the experiment concerning a specific basis state
-    of the Hilbert space.
+    """Class representing a sample, which contains the result of the experiment
+    concerning a specific basis state of the Hilbert space.
 
     Args:
         nb_qubits: Number of qubits of the quantum system of the experiment.

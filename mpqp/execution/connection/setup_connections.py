@@ -9,9 +9,7 @@ from mpqp.tools.errors import IBMRemoteExecutionError
 
 
 def print_config_info():
-    """
-    Prints the info concerning each provider's registered account
-    """
+    """Prints the info concerning each provider's registered account."""
     print("===== IBM Quantum info : ===== ")
     try:
         print(ibmqc.get_active_account_info())

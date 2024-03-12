@@ -9,19 +9,23 @@ import matplotlib.pyplot as plt
 from typeguard import typechecked
 
 from mpqp.execution.job import JobType
-from mpqp.execution.result import Result, BatchResult
+from mpqp.execution.result import BatchResult, Result
 
 
 @typechecked
 def plot_results_sample_mode(results: Union[BatchResult, Result]):
-    """
-    Display the several results in parameter in a grid using subplots.
+    """Display the result(s) using ``matplotlib.pyplot``.
+
+    If a ``BatchResult`` is given, the contained results will be displayed in a
+    grid using subplots.
 
     Args:
-        results: BatchResult to plot in the same window.
+        results: result(s) to plot.
     """
     if isinstance(results, Result):
-        return _plot_result_sample_mode(results)
+        plt.figure()
+
+        return _prep_plot(results)
 
     n_cols = math.ceil(len(results.results) // 2)
     n_rows = 2
@@ -35,22 +39,8 @@ def plot_results_sample_mode(results: Union[BatchResult, Result]):
 
 
 @typechecked
-def _plot_result_sample_mode(result: Result):
-    """
-    Display the result in parameter in a single figure.
-
-    Args:
-        result: Result to plot.
-    """
-    plt.figure()
-
-    _prep_plot(result)
-
-
-@typechecked
 def _prep_plot(result: Result):
-    """
-    Extract sampling info from the result and construct the bar diagram plot.
+    """Extract sampling info from the result and construct the bar diagram plot.
 
     Args:
         result: Result to transform into a bar diagram.
@@ -68,14 +58,15 @@ def _prep_plot(result: Result):
 
 
 @typechecked
-def _result_to_array_sample_mode(result: Result):
-    """
-    Transform a result into an x and y array containing the string of basis state with the associated counts
+def _result_to_array_sample_mode(result: Result) -> tuple[list[str], list[int]]:
+    """Transform a result into an x and y array containing the string of basis
+    state with the associated counts.
+
     Args:
-        result: result used to generate the array
+        result: Result used to generate the array.
 
     Returns:
-        the tuple x_array (strings for each basis state) and y_array (counts for each basis state)
+        The list of each basis state and the corresponding counts.
     """
     if result.job.job_type != JobType.SAMPLE:
         raise NotImplementedError(

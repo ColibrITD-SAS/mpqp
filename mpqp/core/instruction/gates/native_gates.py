@@ -47,11 +47,15 @@ from mpqp.tools.maths import cos, exp, sin
 
 
 @typechecked
-def _qiskit_parameter_adder(param: Expr | float, qiskit_parameters: set[Parameter]):
+def _qiskit_parameter_adder(
+    param: Expr | float, qiskit_parameters: set[Parameter]
+) -> Parameter | float | int:
     """To avoid having several parameters in qiskit for the same value we keep
     track of them in a set. This function takes care of this, this way you can
     directly call `QiskitGate(_qiskit_parameter_adder(<param>, <q_params_set>))`
     without having to manually take care of the de-duping.
+
+    This process is a form of memoization.
 
     Args:
         param: The parameter you need for your qiskit gate.
@@ -59,7 +63,7 @@ def _qiskit_parameter_adder(param: Expr | float, qiskit_parameters: set[Paramete
         is updated inplace.
 
     Returns:
-
+        The memoized parameter
     """
     if isinstance(param, Expr):
         name = str(param)
@@ -520,8 +524,7 @@ class Rk(RotationGate, SingleQubitGate):
 
 
 class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
-    """
-    Two-qubit Controlled-NOT gate.
+    """Two-qubit Controlled-NOT gate.
 
     Args:
         control: index referring to the qubit used to control the gate

@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+from numbers import Complex
 from typing import Optional, Union
 
 import numpy as np
 from sympy import Expr
 from typeguard import typechecked
-from numbers import Complex
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -13,15 +13,12 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution.devices import AvailableDevice, IBMDevice, ATOSDevice, AWSDevice
-from mpqp.execution.providers_execution.aws_execution import (
-    run_braket,
-    submit_job_braket,
-)
-from mpqp.execution.providers_execution.atos_execution import run_atos, submit_QLM
-from mpqp.execution.providers_execution.ibm_execution import run_ibm, submit_ibmq
-from mpqp.execution.result import Result, BatchResult
-from mpqp.execution.job import Job, JobType, JobStatus
+from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.providers.atos import run_atos, submit_QLM
+from mpqp.execution.providers.aws import run_braket, submit_job_braket
+from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
+from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.errors import RemoteExecutionError
 
 
@@ -216,11 +213,11 @@ def run(
 def submit(
     circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
 ) -> tuple[str, Job]:
-    """
-    Submit the job related with the circuit on the remote backend provided in parameter.
-    The submission returns a job_id that can be used to retrieve the Result later.
-    If the circuit depends on variables, the values given in parameters are used to do the substitution.
-    Unlike :meth:`run`, for the moment, one can only submit a circuit to a single device.
+    """Submit the job related with the circuit on the remote backend provided in
+    parameter. The submission returns a job_id that can be used to retrieve the
+    Result later. If the circuit depends on variables, the values given in
+    parameters are used to do the substitution. Unlike :meth:`run`, for the
+    moment, one can only submit a circuit to a single device.
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
