@@ -24,6 +24,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
+from mpqp.qasm import qasm2_to_myqlm_Circuit
 
 from ...tools.errors import QLMRemoteExecutionError
 from ..connection.qlm_connection import get_QLMaaSConnection
@@ -515,9 +516,7 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
     try:
         qlm_job = connection.get_job(job_id)
     except QLMServiceException as e:
-        raise QLMRemoteExecutionError(
-            f"Job with id {job_id} not found.\nTrace: " + str(e)
-        )
+        raise QLMRemoteExecutionError(f"Job with id {job_id} not found.") from e
 
     status = qlm_job.get_status()
     if status in [
