@@ -1,16 +1,16 @@
 from __future__ import annotations
+
+import os
+from getpass import getpass
 from typing import Any
 
-from typeguard import typechecked
-from getpass import getpass
-import os
-
 from termcolor import colored
+from typeguard import typechecked
 
 from mpqp.execution.connection.env_manager import (
-    save_env_variable,
     get_env_variable,
     load_env_variables,
+    save_env_variable,
 )
 from mpqp.tools.errors import QLMRemoteExecutionError
 
@@ -28,7 +28,7 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
             outside MPQP.
 
     Raises:
-        QLMRemoteExecutionError
+        QLMRemoteExecutionError: TODO
     """
     # store the username and password in environment variables QLM_USER and QLM_PASSWD in .mpqp
     prev_user = get_env_variable("QLM_USER")
