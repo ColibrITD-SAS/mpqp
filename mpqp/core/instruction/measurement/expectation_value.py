@@ -23,6 +23,33 @@ from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.maths import is_hermitian
 from mpqp.tools.generics import one_lined_repr
 
+class PauliDecomposition:
+    def __init__(self, paulistring: list):
+        self.paulistring = paulistring
+
+    def __repr__(self) -> str:
+        return f"Paulistring({self.paulistring})"
+    
+    def to_matrix(self):
+        pass
+    def to_qiskit_op(self):
+        pass
+
+    def to_myqlm_observable(self):
+        pass
+
+    def to_cirq_paulistring(self):
+        pass
+
+    def to_other_language(self, language: Language):
+        if language == Language.QISKIT:
+            return self.to_qiskit_op
+        elif language == Language.CIRQ:
+            return self.to_cirq_paulistring
+        elif language == Language.MY_QLM:
+            return self.to_myqlm_observable
+
+
 
 @typechecked
 class Observable:
@@ -41,10 +68,12 @@ class Observable:
         matrix: Hermitian matrix representing the observable.
     """
 
-    def __init__(self, matrix: npt.NDArray[np.complex64] | list[list[Complex]]):
+    def __init__(self, matrix: npt.NDArray[np.complex64] | list[list[Complex]] = None, pauli: PauliDecomposition = None):
         self.nb_qubits = int(np.log2(len(matrix)))
         """Number of qubits of this observable."""
         self.matrix = np.array(matrix)
+        """See parameter description."""
+        self.pauli = pauli
         """See parameter description."""
 
         basis_states = 2**self.nb_qubits
