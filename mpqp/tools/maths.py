@@ -41,7 +41,7 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
 
 @typechecked
 def matrix_eq(lhs: Matrix, rhs: Matrix) -> bool:
-    r"""Checks whether two matrix are element-wise equal, within a tolerance.
+    r"""Checks whether two matrix (including vectors) are element-wise equal, within a tolerance.
 
     For respectively each elements `a` and `b` of both inputs, we check this
     specific condition: `|a - b| \leq (atol + rtol * |b|)`.
