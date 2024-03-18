@@ -9,8 +9,13 @@ from mpqp.tools import Matrix
 from mpqp.tools.maths import matrix_eq
 
 pi = np.pi
+s = np.sqrt
+e = np.exp
 
-# TODO: Add Cirq simulators to the tests below, when available
+# TODO: Add Cirq simulators to the list, when available
+devices = [IBMDevice.AER_SIMULATOR_STATEVECTOR, ATOSDevice.MYQLM_CLINALG, ATOSDevice.MYQLM_PYLINALG,
+           AWSDevice.BRAKET_LOCAL_SIMULATOR]
+
 
 def hae_3_qubit_circuit(t1, t2, t3, t4, t5, t6):
     return QCircuit([Ry(t1, 0), Ry(t2, 1), Ry(t3, 2), CNOT(0, 1), CNOT(1, 2),
@@ -33,40 +38,64 @@ def hae_3_qubit_circuit(t1, t2, t3, t4, t5, t6):
     ],
 )
 def test_state_vector_result_HEA_ansatz(parameters, expected_vector):
-    batch = run(hae_3_qubit_circuit(*parameters),
-                [IBMDevice.AER_SIMULATOR_STATEVECTOR,
-                 ATOSDevice.MYQLM_CLINALG,
-                 ATOSDevice.MYQLM_PYLINALG,
-                 AWSDevice.BRAKET_LOCAL_SIMULATOR
-                 ])
+    batch = run(hae_3_qubit_circuit(*parameters), devices)
     for result in batch:
         assert matrix_eq(result.amplitudes, expected_vector)
 
 
 @pytest.mark.parametrize(
-    "instructions, expected_vector",
+    "gates, expected_vector",
     [
-        ([], np.array([])),
+        ([H(0), H(1), H(2), CNOT(0, 1), P(pi / 3, 2), T(0), CZ(1, 2)],
+         np.array([s(2) / 4, e(1j * pi / 3) * s(2) / 4, s(2) / 4, -e(1j * pi / 3) * s(2) / 4,
+                   (s(2) / 2 + 1j * s(2) / 2) * s(2) / 4, (s(2) / 2 + 1j * s(2) / 2) * e(1j * pi / 3) * s(2) / 4,
+                   (s(2) / 2 + 1j * s(2) / 2) * s(2) / 4, (-s(2) / 2 - 1j * s(2) / 2) * e(1j * pi / 3) * s(2) / 4])),
+        ([H(0), Rk(4,1), H(2), Rx(pi/3,0), CRk(6,1,2), CNOT(0,1), X(2)],
+         np.array([s(3)/4 - 1j/4, s(3)/4 - 1j/4, 0, 0,
+                   0, 0, s(3)/4 - 1j/4, s(3)/4 - 1j/4])),
     ],
 )
 def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: Matrix):
-    batch = run(QCircuit(gates),
-                [IBMDevice.AER_SIMULATOR_STATEVECTOR,
-                 ATOSDevice.MYQLM_CLINALG,
-                 ATOSDevice.MYQLM_PYLINALG,
-                 AWSDevice.BRAKET_LOCAL_SIMULATOR
-                 ])
-
-    pass
+    batch = run(QCircuit(gates), devices)
+    for result in batch:
+        assert matrix_eq(result.amplitudes, expected_vector)
 
 
+@pytest.mark.parametrize(
+    "gates, basis_states",
+    [
+        ([], ["000"]),
+    ],
+)
 def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str]):
     pass
 
 
+@pytest.mark.parametrize(
+    "gates, counts_intervals",
+    [
+        ([], [(0, 0.0)]),
+    ],
+)
 def test_sample_counts_in_trust_interval(gates: list[Gate], counts_intervals: list[tuple[int, int]]):
     pass
 
 
+@pytest.mark.parametrize(
+    "gates, observable, expected_value",
+    [
+        ([], np.array([]), 0.0),
+    ],
+)
 def test_observable_ideal_case(gates: list[Gate], observable: Matrix, expected_value: float):
+    pass
+
+
+@pytest.mark.parametrize(
+    "gates, observable, expected_interval",
+    [
+        ([], np.array([]), (0.0, 0.0)),
+    ],
+)
+def test_observable_shot_noise(gates: list[Gate], observable: Matrix, expected_interval: tuple[float, float]):
     pass
