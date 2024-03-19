@@ -21,35 +21,8 @@ from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.languages import Language
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.maths import is_hermitian
-from mpqp.tools.generics import one_lined_repr
-
-class PauliDecomposition:
-    def __init__(self, paulistring: list):
-        self.paulistring = paulistring
-
-    def __repr__(self) -> str:
-        return f"Paulistring({self.paulistring})"
-    
-    def to_matrix(self):
-        pass
-    def to_qiskit_op(self):
-        pass
-
-    def to_myqlm_observable(self):
-        pass
-
-    def to_cirq_paulistring(self):
-        pass
-
-    def to_other_language(self, language: Language):
-        if language == Language.QISKIT:
-            return self.to_qiskit_op
-        elif language == Language.CIRQ:
-            return self.to_cirq_paulistring
-        elif language == Language.MY_QLM:
-            return self.to_myqlm_observable
-
-
+from mpqp.tools.generics import one_lined_repr, Matrix
+from mpqp.core.instruction.measurement.pauli_string import PauliString
 
 @typechecked
 class Observable:
@@ -68,39 +41,89 @@ class Observable:
         matrix: Hermitian matrix representing the observable.
     """
 
-    def __init__(self, matrix: npt.NDArray[np.complex64] | list[list[Complex]] = None, pauli: PauliDecomposition = None):
-        self.nb_qubits = int(np.log2(len(matrix)))
-        """Number of qubits of this observable."""
-        self.matrix = np.array(matrix)
-        """See parameter description."""
-        self.pauli = pauli
-        """See parameter description."""
+    def __init__(self, observable: Matrix | PauliString):
+        self.matrix = None
+        self.paulistring = None
 
-        basis_states = 2**self.nb_qubits
-        if self.matrix.shape != (basis_states, basis_states):
-            raise ValueError(
-                f"The size of the matrix {self.matrix.shape} doesn't neatly fit on a"
-                " quantum register. It should be a square matrix of size a power"
-                " of two."
-            )
+        if (isinstance(observable, PauliString)):
+            self.paulistring = observable
+            self.nb_qubits = observable.nb_qubits
+            # simply paulistring 
+        else:
+            self.nb_qubits = int(np.log2(len(observable)))
+            """Number of qubits of this observable."""
 
-        if not is_hermitian(self.matrix):
-            raise ValueError(
-                "The matrix in parameter is not hermitian (cannot define an observable)"
-            )
+            self.matrix = np.array(observable)
+            """See parameter description."""
 
+            basis_states = 2**self.nb_qubits
+            if self.matrix.shape != (basis_states, basis_states):
+                raise ValueError(
+                    f"The size of the matrix {self.matrix.shape} doesn't neatly fit on a"
+                    " quantum register. It should be a square matrix of size a power"
+                    " of two."
+                )
+
+            if not is_hermitian(self.matrix):
+                raise ValueError(
+                    "The matrix in parameter is not hermitian (cannot define an observable)"
+                )
+    
+		
     def __repr__(self) -> str:
-        return f"Observable({one_lined_repr(self.matrix)})"
+        repr = ""
+        if self.paulistring is not None:
+            repr += f"PauliString({self.paulistring.__repr__()})"
+        if self.matrix is not None and self.paulistring is not None:
+            repr += "\n"
+        if self.matrix is not None:
+            repr += f"Matrix({one_lined_repr(self.matrix)})"
+        return repr
 
     def __mult__(self, other: Expr | Complex) -> Observable:
         """3M-TODO"""
         ...
 
     def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> Observable:
+		self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+	) -> Observable:
         """3M-TODO"""
-        ...
+        ... 
+            
+    def to_matrix(self) -> Matrix:
+        if (self.matrix is not None):
+            return self.matrix
+        else:
+            # TODO transform to matrix
+            self.matrix = self.paulistring.to_matrix()
+            return self.matrix
+        
+    def to_pauli_string(self):
+        if (self.paulistring is not None):
+            return self.paulistring
+        else:
+            # TODO transform to paulistring
+            pauliString = PauliString()
+            self.paulistring = pauliString
+            return self.paulistring
+
+    def to_qiskit_observable(self):
+        pass
+
+    def to_myqlm_observable(self):
+        pass
+
+    def to_cirq_observable(self):
+        pass
+
+
+    def to_other_language(self, language: Language):
+        if language == Language.QISKIT:
+            return self.to_qiskit_observable
+        elif language == Language.CIRQ:
+            return self.to_cirq_observable
+        elif language == Language.MY_QLM:
+            return self.to_myqlm_observable
 
 
 @typechecked
@@ -147,8 +170,9 @@ class ExpectationMeasure(Measure):
         from mpqp.core.circuit import QCircuit
 
         super().__init__(targets, shots, label)
-        self.observable = observable
+        self.observable = observable.matrix
         """See parameter description."""
+        # TODO Check
         if self.nb_qubits != observable.nb_qubits:
             raise NumberQubitsError(
                 f"{self.nb_qubits}, the number of target qubit(s) doesn't match"
