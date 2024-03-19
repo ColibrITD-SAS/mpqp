@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from functools import reduce
 from numbers import Real
@@ -51,7 +52,7 @@ class PauliString:
                 raise ValueError(
                     f"Non homogeneous sizes for given PauliStrings: {(self, other)}"
                 )
-        self._monomials.extend(deepcopy(other._monomials))
+        self._monomials.extend(deepcopy(other.monomials))
         return self
 
     def __add__(self, other: "PauliString") -> "PauliString":
@@ -67,8 +68,10 @@ class PauliString:
         return self + (-1) * other
 
     def __imul__(self, other: FixedReal) -> "PauliString":
-        for mono in self._monomials:
-            mono *= other
+        for i, mono in enumerate(self._monomials):
+            if isinstance(mono, PauliStringAtom):
+                self.monomials[i] = PauliStringMonomial(atoms=[mono])
+            self.monomials[i] *= other
         return self
 
     def __mul__(self, other: FixedReal) -> "PauliString":
@@ -139,7 +142,11 @@ class PauliStringMonomial(PauliString):
 
     def to_matrix(self):
         return (
-            reduce(np.kron, map(lambda a: a.to_matrix(), self.atoms), np.eye(1))
+            reduce(
+                np.kron,
+                map(lambda a: a.to_matrix(), self.atoms),
+                np.eye(1, dtype=np.complex64),
+            )
             * self.coef
         )
 
@@ -246,6 +253,9 @@ class PauliStringAtom(PauliStringMonomial):
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(1 / other, [self])
 
+    def __imul__(self, other: FixedReal) -> PauliStringMonomial:
+        return self * other
+
     def __mul__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(other, [self])
 
@@ -280,17 +290,18 @@ Z = PauliStringAtom("Z", np.diag([1, -1]))
 _allow_atom_creation = False
 
 if __name__ == "__main__":
-    print(f"{(I @ I).to_matrix()=}")
-    print(f"{(I @ (I @ I)).to_matrix()=}")
-    print(f"{((I @ I) @ I).to_matrix()=}")
-    print(f"{(I @ (I + I)).to_matrix()=}")
-    print(f"{((I + I) @ I).to_matrix()=}")
-    print(f"{(I / 2).to_matrix()=}")
-    print(f"{((1 * I) / 2).to_matrix()=}")
-    print(f"{((I + I) / 2).to_matrix()=}")
-    print(f"{(2 * I).to_matrix()=}")
-    print(f"{(2 * (2 * I)).to_matrix()=}")
-    print(f"{(2 * (I + I)).to_matrix()=}")
-    print(f"{(I * 2).to_matrix()=}")
-    print(f"{((2 * I) * 2).to_matrix()=}")
-    print(f"{((I + I) * 2).to_matrix()=}")
+    f_str_nl = lambda object: f"{os.linesep + str(object)}"
+    print(f"{f_str_nl((I @ I).to_matrix())=!s}")
+    print(f"{f_str_nl((I @ (I @ I)).to_matrix())=!s}")
+    print(f"{f_str_nl(((I @ I) @ I).to_matrix())=!s}")
+    print(f"{f_str_nl((I @ (I + I)).to_matrix())=!s}")
+    print(f"{f_str_nl(((I + I) @ I).to_matrix())=!s}")
+    print(f"{f_str_nl((I / 2).to_matrix())=!s}")
+    print(f"{f_str_nl(((1 * I) / 2).to_matrix())=!s}")
+    print(f"{f_str_nl(((I + I) / 2).to_matrix())=!s}")
+    print(f"{f_str_nl((2 * I).to_matrix())=!s}")
+    print(f"{f_str_nl((2 * (2 * I)).to_matrix())=!s}")
+    print(f"{f_str_nl((2 * (I + I)).to_matrix())=!s}")
+    print(f"{f_str_nl((I * 2).to_matrix())=!s}")
+    print(f"{f_str_nl(((2 * I) * 2).to_matrix())=!s}")
+    print(f"{f_str_nl(((I + I) * 2).to_matrix())=!s}")
