@@ -24,6 +24,7 @@ from mpqp.tools.maths import is_hermitian
 from mpqp.tools.generics import one_lined_repr, Matrix
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 
+
 @typechecked
 class Observable:
     """Class defining an observable, used for evaluating expectation values.
@@ -45,10 +46,10 @@ class Observable:
         self.matrix = None
         self.paulistring = None
 
-        if (isinstance(observable, PauliString)):
+        if isinstance(observable, PauliString):
             self.paulistring = observable
             self.nb_qubits = observable.nb_qubits
-            # simply paulistring 
+            # simply paulistring
         else:
             self.nb_qubits = int(np.log2(len(observable)))
             """Number of qubits of this observable."""
@@ -68,8 +69,7 @@ class Observable:
                 raise ValueError(
                     "The matrix in parameter is not hermitian (cannot define an observable)"
                 )
-    
-		
+
     def __repr__(self) -> str:
         repr = ""
         if self.paulistring is not None:
@@ -85,21 +85,21 @@ class Observable:
         ...
 
     def subs(
-		self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-	) -> Observable:
+        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+    ) -> Observable:
         """3M-TODO"""
-        ... 
-            
+        ...
+
     def to_matrix(self) -> Matrix:
-        if (self.matrix is not None):
+        if self.matrix is not None:
             return self.matrix
         else:
             # TODO transform to matrix
             self.matrix = self.paulistring.to_matrix()
             return self.matrix
-        
+
     def to_pauli_string(self):
-        if (self.paulistring is not None):
+        if self.paulistring is not None:
             return self.paulistring
         else:
             # TODO transform to paulistring
@@ -115,7 +115,6 @@ class Observable:
 
     def to_cirq_observable(self):
         pass
-
 
     def to_other_language(self, language: Language):
         if language == Language.QISKIT:
@@ -170,7 +169,7 @@ class ExpectationMeasure(Measure):
         from mpqp.core.circuit import QCircuit
 
         super().__init__(targets, shots, label)
-        self.observable = observable.matrix
+        self.observable = observable
         """See parameter description."""
         # TODO Check
         if self.nb_qubits != observable.nb_qubits:
