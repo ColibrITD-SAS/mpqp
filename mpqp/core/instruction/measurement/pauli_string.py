@@ -104,14 +104,12 @@ class PauliString:
     def simplify(self):
         res = PauliString()
         for unique_mono in set(self._monomials):
-            coefs = [mono.coef for mono in self._monomials if mono == unique_mono]
-            res._monomials.append(
-                PauliStringMonomial(sum(coefs), deepcopy(unique_mono).atoms)
-            )
+            coef = sum([mono.coef for mono in self._monomials if mono == unique_mono])
+            if coef != 0:
+                res._monomials.append(
+                    PauliStringMonomial(coef, deepcopy(unique_mono).atoms)
+                )
         return res
-
-    def to_other_language(self):
-        pass
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return sum(
