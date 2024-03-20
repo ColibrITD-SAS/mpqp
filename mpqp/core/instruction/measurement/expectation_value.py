@@ -16,6 +16,8 @@ from qiskit.circuit import Parameter
 from sympy import Expr
 from typeguard import typechecked
 
+import cirq
+
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.languages import Language
@@ -113,16 +115,52 @@ class Observable:
     def to_myqlm_observable(self):
         pass
 
-    def to_cirq_observable(self):
+    def atoms_to_cirq(self, atom_label: str, index):
+        pauli_gate_map = {
+            'I': cirq.I,
+            'X': cirq.X,
+            'Y': cirq.Y,
+            'Z': cirq.Z
+        }
+        return pauli_gate_map[atom_label](index)
+
+    
+
+    def to_cirq_observable(self, cirq_circuit: cirq.Circuit):
+        if cirq_circuit is None:
+            raise ValueError("Circuit must be specified for cirq_observable.")
+        if self.paulistring is None:
+            self.to_pauli_string()
+        
+        all_qubits = set(q for moment in cirq_circuit for op in moment.operations for q in op.qubits)
+        all_qubits_list = sorted(all_qubits)
+
+        
+        cirq_pauli_string = None
+        for monomial in self.paulistring.monomials:
+            cirq_monomial = None
+            for index, atom in enumerate(monomial.atoms):
+                cirq_atom = self.atoms_to_cirq(atom, all_qubits_list[index])
+                cirq_monomial = cirq_atom if cirq_monomial is None else cirq_monomial * cirq_atom
+            cirq_monomial *= monomial.coef
+            cirq_pauli_string = cirq_monomial if cirq_pauli_string is None else cirq_pauli_string + cirq_monomial
+        return cirq_pauli_string
+
+    
+        return self.paulistring.to_other_language(Language.CIRQ)
+    
+    def to_braket_observable(self):
         pass
 
-    def to_other_language(self, language: Language):
+    def to_other_language(self, language: Language, circuit: cirq.Circuit = None):
         if language == Language.QISKIT:
             return self.to_qiskit_observable
         elif language == Language.CIRQ:
-            return self.to_cirq_observable
+            return self.to_cirq_observable(circuit)
         elif language == Language.MY_QLM:
             return self.to_myqlm_observable
+        elif language == Language.BRAKET:
+            return self.to_braket_observable
 
 
 @typechecked

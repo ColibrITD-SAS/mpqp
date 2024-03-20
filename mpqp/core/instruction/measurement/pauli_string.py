@@ -10,6 +10,8 @@ import numpy as np
 import numpy.typing as npt
 
 FixedReal = Union[Real, float]
+from mpqp.tools.generics import Matrix
+from mpqp.tools.maths import atol, rtol
 
 
 class PauliString:
@@ -44,7 +46,7 @@ class PauliString:
         return -1 * self
 
     def __iadd__(self, other: "PauliString") -> "PauliString":
-        for mono in other._monomials:
+        for mono in other.monomials:
             if (
                 len(self._monomials) != 0
                 and mono.nb_qubits != self._monomials[0].nb_qubits
@@ -112,11 +114,48 @@ class PauliString:
     def to_other_language(self):
         pass
 
-    def to_matrix(self):
+    def to_matrix(self) -> Matrix:
         return sum(
             map(lambda m: m.to_matrix(), self._monomials),
             start=np.zeros((2**self.nb_qubits, 2**self.nb_qubits)),
         )
+
+    @classmethod
+    def from_matrix(matrix: Matrix) -> PauliString:
+        """Construct a PauliString from a matrix.
+
+        Args:
+            matrix (npt.NDArray[np.complex64]): Matrix.
+
+        Returns:
+            PauliString: form class PauliString.
+
+        Raises:
+            ValueError: If the input matrix is not square or its dimensions are not a power of 2.
+        """
+        if matrix.shape[0] != matrix.shape[1]:
+            raise ValueError("Input matrix must be square.")
+
+        num_qubits = int(np.log2(matrix.shape[0]))
+        if 2**num_qubits != matrix.shape[0]:
+            raise ValueError("Matrix dimensions must be a power of 2.")
+
+        # Return the ordered Pauli basis for the n-qubit Pauli basis.
+        pauli_1q = [PauliStringMonomial(1, [atom]) for atom in [I, X, Y, Z]]
+        if num_qubits == 1:
+            return pauli_1q
+        basis = pauli_1q
+        for _ in range(num_qubits - 1):
+            basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
+
+        pauli_list = PauliString()
+        for i, mat in enumerate(basis):
+            coeff = np.trace(mat.to_matrix().dot(matrix)) / (2**num_qubits)
+            if not np.isclose(coeff, 0, atol=atol, rtol=rtol):
+                mono = basis[i] * coeff
+                pauli_list += mono
+
+        return pauli_list
 
 
 class PauliStringMonomial(PauliString):
@@ -284,7 +323,7 @@ _allow_atom_creation = True
 
 I = PauliStringAtom("I", np.eye(2, dtype=np.complex64))
 X = PauliStringAtom("X", 1 - np.eye(2, dtype=np.complex64))
-Y = PauliStringAtom("Y", np.diag([1j, -1j]))
+Y = PauliStringAtom("Y", np.fliplr(np.diag([1j, -1j])))
 Z = PauliStringAtom("Z", np.diag([1, -1]))
 
 _allow_atom_creation = False
