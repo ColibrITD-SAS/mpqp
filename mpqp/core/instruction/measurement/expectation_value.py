@@ -7,22 +7,21 @@ from __future__ import annotations
 
 import copy
 from numbers import Complex
-from warnings import warn
 from typing import Optional
+from warnings import warn
 
 import numpy as np
-import numpy.typing as npt
 from qiskit.circuit import Parameter
 from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.core.languages import Language
 from mpqp.tools.errors import NumberQubitsError
+from mpqp.tools.generics import Matrix, one_lined_repr
 from mpqp.tools.maths import is_hermitian
-from mpqp.tools.generics import one_lined_repr, Matrix
-from mpqp.core.instruction.measurement.pauli_string import PauliString
 
 
 @typechecked
@@ -43,19 +42,16 @@ class Observable:
     """
 
     def __init__(self, observable: Matrix | PauliString):
-        self.matrix = None
-        self.paulistring = None
+        self.observable = observable
+        self._matrix = None
+        self._pauli_string = None
 
         if isinstance(observable, PauliString):
-            self.paulistring = observable
             self.nb_qubits = observable.nb_qubits
-            # simply paulistring
+            # simplify pauli string
         else:
             self.nb_qubits = int(np.log2(len(observable)))
             """Number of qubits of this observable."""
-
-            self.matrix = np.array(observable)
-            """See parameter description."""
 
             basis_states = 2**self.nb_qubits
             if self.matrix.shape != (basis_states, basis_states):
@@ -70,15 +66,28 @@ class Observable:
                     "The matrix in parameter is not hermitian (cannot define an observable)"
                 )
 
+    @property
+    def matrix(self):
+        if isinstance(self.observable, PauliString):
+            return self.observable.to_matrix() if self._matrix is None else self._matrix
+        else:
+            return self.observable
+
+    @property
+    def pauli_string(self):
+        if isinstance(self.observable, PauliString):
+            return self.observable
+        else:
+            if self._pauli_string is not None:
+                return self.paulistring
+            else:
+                # TODO transform to paulistring
+                pauliString = PauliString()
+                self.paulistring = pauliString
+                return self.paulistring
+
     def __repr__(self) -> str:
-        repr = ""
-        if self.paulistring is not None:
-            repr += f"PauliString({self.paulistring.__repr__()})"
-        if self.matrix is not None and self.paulistring is not None:
-            repr += "\n"
-        if self.matrix is not None:
-            repr += f"Matrix({one_lined_repr(self.matrix)})"
-        return repr
+        return f"{type(self).__name__}({one_lined_repr(self.observable)})"
 
     def __mult__(self, other: Expr | Complex) -> Observable:
         """3M-TODO"""
@@ -91,21 +100,7 @@ class Observable:
         ...
 
     def to_matrix(self) -> Matrix:
-        if self.matrix is not None:
-            return self.matrix
-        else:
-            # TODO transform to matrix
-            self.matrix = self.paulistring.to_matrix()
-            return self.matrix
-
-    def to_pauli_string(self):
-        if self.paulistring is not None:
-            return self.paulistring
-        else:
-            # TODO transform to paulistring
-            pauliString = PauliString()
-            self.paulistring = pauliString
-            return self.paulistring
+        return self.matrix
 
     def to_qiskit_observable(self):
         pass
