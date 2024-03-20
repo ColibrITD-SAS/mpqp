@@ -96,7 +96,7 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
                 "type ExpectationMeasure"
             )
 
-        herm_op = Hermitian(job.measure.observable.matrix)
+        herm_op = job.measure.observable.to_other_language(Language.BRAKET)
         braket_circuit.expectation(observable=herm_op, target=job.measure.targets)  # type: ignore
 
         job.status = JobStatus.RUNNING

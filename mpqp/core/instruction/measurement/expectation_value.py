@@ -206,13 +206,13 @@ class Observable:
             Depends on the target language.
         """
         if language == Language.QISKIT:
-            return self.to_qiskit_observable
+            return self.to_qiskit_observable()
         elif language == Language.CIRQ:
             return self.to_cirq_observable(circuit)
         elif language == Language.MY_QLM:
-            return self.to_myqlm_observable
+            return self.to_myqlm_observable()
         elif language == Language.BRAKET:
-            return self.to_braket_observable
+            return self.to_braket_observable()
         else:
             raise ValueError(f"Unsupported language: {language}")
 

@@ -125,12 +125,10 @@ def generate_observable_job(
     """
 
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-
+    qml_Obs = job.measure.observable.to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
-        observable=QLM_Observable(
-            job.measure.nb_qubits, matrix=job.measure.observable.matrix
-        ),
+        observable=qml_Obs,
         nbshots=job.measure.shots,
     )
     if job.device.is_remote():
