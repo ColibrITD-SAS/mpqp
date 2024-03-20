@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from copy import deepcopy
 from functools import reduce
 from numbers import Real
@@ -114,10 +113,10 @@ class PauliString:
     def to_other_language(self):
         pass
 
-    def to_matrix(self) -> Matrix:
+    def to_matrix(self) -> npt.NDArray[np.complex64]:
         return sum(
             map(lambda m: m.to_matrix(), self._monomials),
-            start=np.zeros((2**self.nb_qubits, 2**self.nb_qubits)),
+            start=np.zeros((2**self.nb_qubits, 2**self.nb_qubits), dtype=np.complex64),
         )
 
     @classmethod
@@ -179,7 +178,7 @@ class PauliStringMonomial(PauliString):
     def __repr__(self):
         return str(self)
 
-    def to_matrix(self):
+    def to_matrix(self) -> npt.NDArray[np.complex64]:
         return (
             reduce(
                 np.kron,
@@ -315,7 +314,7 @@ class PauliStringAtom(PauliStringMonomial):
                 res.monomials[i].atoms.insert(0, self)
         return res
 
-    def to_matrix(self):
+    def to_matrix(self) -> npt.NDArray[np.complex64]:
         return self.matrix
 
 
@@ -327,20 +326,3 @@ Y = PauliStringAtom("Y", np.fliplr(np.diag([1j, -1j])))
 Z = PauliStringAtom("Z", np.diag([1, -1]))
 
 _allow_atom_creation = False
-
-if __name__ == "__main__":
-    f_str_nl = lambda object: f"{os.linesep + str(object)}"
-    print(f"{f_str_nl((I @ I).to_matrix())=!s}")
-    print(f"{f_str_nl((I @ (I @ I)).to_matrix())=!s}")
-    print(f"{f_str_nl(((I @ I) @ I).to_matrix())=!s}")
-    print(f"{f_str_nl((I @ (I + I)).to_matrix())=!s}")
-    print(f"{f_str_nl(((I + I) @ I).to_matrix())=!s}")
-    print(f"{f_str_nl((I / 2).to_matrix())=!s}")
-    print(f"{f_str_nl(((1 * I) / 2).to_matrix())=!s}")
-    print(f"{f_str_nl(((I + I) / 2).to_matrix())=!s}")
-    print(f"{f_str_nl((2 * I).to_matrix())=!s}")
-    print(f"{f_str_nl((2 * (2 * I)).to_matrix())=!s}")
-    print(f"{f_str_nl((2 * (I + I)).to_matrix())=!s}")
-    print(f"{f_str_nl((I * 2).to_matrix())=!s}")
-    print(f"{f_str_nl(((2 * I) * 2).to_matrix())=!s}")
-    print(f"{f_str_nl(((I + I) * 2).to_matrix())=!s}")
