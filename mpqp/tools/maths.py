@@ -197,7 +197,7 @@ def rand_orthogonal_matrix_seed(size: int, seed: int) -> Matrix:
     Returns:
         A random orthogonal Matrix.
     """
-    # TODO: to example
+    # TODO: example
     np.random.seed(seed)
     m = np.random.rand(size, size)
     return m.dot(inv(sqrtm(m.T.dot(m))))
@@ -226,8 +226,13 @@ def rand_unitary_2x2_matrix() -> Matrix:
 
 
 def rand_product_local_unitaries(nb_qubits) -> Matrix:
-    """Generate a random tensor product of unitary matrices"""
-    # TODO: to comment + examples
+    """
+    Generate a random tensor product of unitary matrices
+
+    Args:
+        nb_qubits: Number of qubits on which the product of unitaries will act.
+    """
+    # TODO: xamples
     matrix = rand_unitary_2x2_matrix()
     for _ in range(nb_qubits-1):
         matrix = np.kron(matrix, rand_unitary_2x2_matrix())
@@ -241,7 +246,8 @@ def rand_hermitian_matrix(size) -> Matrix:
         size: Size (number of columns, or rows) of the squared matrix to generate.
 
     Returns:
-        A random orthogonal Matrix."""
-    # TODO: to comment + examples
+        A random orthogonal Matrix.
+    """
+    # TODO: examples
     m = np.random.rand(size, size)
     return m + m.conjugate().transpose()
