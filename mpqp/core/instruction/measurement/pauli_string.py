@@ -15,9 +15,14 @@ from mpqp.tools.maths import atol, rtol
 
 class PauliString:
     def __init__(self, monomials: Optional[list["PauliStringMonomial"]] = None):
-        self._monomials: list[PauliStringMonomial] = (
-            [] if monomials is None else monomials
-        )
+        self._monomials: list[PauliStringMonomial] = []
+
+        if monomials is not None:
+            for mono in monomials:
+                if isinstance(mono, PauliStringAtom):
+                    mono = PauliStringMonomial(1, [mono])
+                self._monomials.append(mono)
+
         for mono in self._monomials:
             if mono.nb_qubits != self.monomials[0].nb_qubits:
                 raise ValueError(
@@ -101,24 +106,38 @@ class PauliString:
         res @= other
         return res
 
+    def __eq__(self, other: "PauliString") -> bool:
+        return self.to_dict() == other.to_dict()
+
     def simplify(self):
         res = PauliString()
-        for unique_mono in set(self._monomials):
-            coef = sum([mono.coef for mono in self._monomials if mono == unique_mono])
+        for unique_mono in set(self.monomials):
+            coef = sum(
+                [
+                    mono.coef
+                    for mono in self.monomials
+                    if mono.atoms == unique_mono.atoms
+                ]
+            )
             if coef != 0:
-                res._monomials.append(
+                res.monomials.append(
                     PauliStringMonomial(coef, deepcopy(unique_mono).atoms)
                 )
+        if len(res.monomials) == 0:
+            res.monomials.append(
+                PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+            )
         return res
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
+        self = self.simplify()
         return sum(
-            map(lambda m: m.to_matrix(), self._monomials),
+            map(lambda m: m.to_matrix(), self.monomials),
             start=np.zeros((2**self.nb_qubits, 2**self.nb_qubits), dtype=np.complex64),
         )
 
     @classmethod
-    def from_matrix(matrix: Matrix) -> PauliString:
+    def from_matrix(self, matrix: Matrix) -> PauliString:
         """Construct a PauliString from a matrix.
 
         Args:
@@ -139,8 +158,6 @@ class PauliString:
 
         # Return the ordered Pauli basis for the n-qubit Pauli basis.
         pauli_1q = [PauliStringMonomial(1, [atom]) for atom in [I, X, Y, Z]]
-        if num_qubits == 1:
-            return pauli_1q
         basis = pauli_1q
         for _ in range(num_qubits - 1):
             basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
@@ -152,7 +169,36 @@ class PauliString:
                 mono = basis[i] * coeff
                 pauli_list += mono
 
+        if len(pauli_list.monomials) == 0:
+            pauli_list.monomials.append(
+                PauliStringMonomial(0, [I for _ in range(num_qubits)])
+            )
         return pauli_list
+
+    def to_dict(self) -> dict:
+        """
+        Convert the PauliString object to a dictionary representation.
+
+        Returns:
+            dict: Dictionary representation of the PauliString object.
+        """
+        self = self.simplify()
+        dict = {}
+        for mono in self.monomials:
+            atom_str = ""
+            for atom in mono.atoms:
+                atom_str += str(atom)
+            if atom_str not in dict:
+                dict[atom_str] = mono.coef
+            else:
+                dict[atom_str] += mono.coef
+        return dict
+
+    def __hash__(self):
+        monomials_as_tuples = tuple(
+            tuple((atom.label for atom in mono.atoms) for mono in self.monomials)
+        )
+        return hash(monomials_as_tuples)
 
 
 class PauliStringMonomial(PauliString):
@@ -234,8 +280,8 @@ class PauliStringMonomial(PauliString):
             res = deepcopy(other)
             res._monomials = [
                 mono
-                for s_mono in self._monomials
-                for mono in (s_mono @ other)._monomials
+                for s_mono in self.monomials
+                for mono in (other @ s_mono)._monomials
             ]
             return res
 
@@ -243,6 +289,21 @@ class PauliStringMonomial(PauliString):
         res = deepcopy(self)
         res @= other
         return res
+
+    def simplify(self):
+        return deepcopy(self)
+
+    def __eq__(self, other: PauliString) -> bool:
+        if isinstance(other, PauliStringMonomial):
+            for a1, a2 in zip(self.atoms, other.atoms):
+                if a1 != a2:
+                    return False
+            return self.coef == other.coef
+        return super().__eq__(other)
+
+    def __hash__(self):
+        atoms_as_tuples = tuple((atom.label for atom in self.atoms))
+        return hash(atoms_as_tuples)
 
 
 class PauliStringAtom(PauliStringMonomial):
@@ -314,6 +375,15 @@ class PauliStringAtom(PauliStringMonomial):
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return self.matrix
+
+    def __eq__(self, other: PauliString) -> bool:
+        if isinstance(other, PauliStringAtom):
+            return self.label == other.label
+        else:
+            return super().__eq__(other)
+
+    def __hash__(self):
+        return hash(self.label)
 
 
 _allow_atom_creation = True

@@ -14,6 +14,7 @@ import numpy as np
 from qiskit.circuit import Parameter
 from sympy import Expr
 from typeguard import typechecked
+
 if TYPE_CHECKING:
     import cirq.circuits.circuit as Cirq_Circuit
 
@@ -49,6 +50,7 @@ class Observable:
             not match the number of target qubits.
 
     """
+
     def __init__(self, observable: Matrix | PauliString):
         """
         Initialize an Observable object.
@@ -118,8 +120,8 @@ class Observable:
             return self.observable
         else:
             if self._pauli_string is None:
-                self.paulistring = PauliString.from_matrix(self.observable)
-            return self.paulistring
+                self._pauli_string = PauliString.from_matrix(self.matrix)
+            return self._pauli_string
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({one_lined_repr(self.observable)})"
@@ -134,8 +136,6 @@ class Observable:
         """3M-TODO"""
         ...
 
-    
-
     def to_qiskit_observable(self):
         from qiskit.quantum_info import Operator
 
@@ -145,7 +145,7 @@ class Observable:
         from qat.core.wrappers.observable import Observable as QLM_Observable
 
         return QLM_Observable(self.nb_qubits, matrix=self.matrix)
-    
+
     def to_braket_observable(self):
         from braket.circuits.observables import Hermitian
 
@@ -166,7 +166,7 @@ class Observable:
             ValueError: If the circuit is not specified.
 
         """
-        from cirq import I as Cirq_I, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z 
+        from cirq import I as Cirq_I, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
 
         if cirq_circuit is None:
             raise ValueError("Circuit must be specified for cirq_observable.")
@@ -178,7 +178,7 @@ class Observable:
 
         cirq_pauli_string = None
         pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
-        for monomial in self._pauli_string.monomials:
+        for monomial in self.pauli_string.monomials:
             cirq_monomial = None
             for index, atom in enumerate(monomial.atoms):
                 cirq_atom = pauli_gate_map[atom.label](all_qubits_list[index])
@@ -194,7 +194,7 @@ class Observable:
 
         return cirq_pauli_string
 
-    def to_other_language(self, language: Language, circuit = None):
+    def to_other_language(self, language: Language, circuit=None):
         """
         Converts the observable to the representation of another quantum programming language.
 
