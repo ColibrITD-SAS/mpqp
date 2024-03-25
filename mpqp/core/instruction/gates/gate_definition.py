@@ -50,16 +50,6 @@ class GateDefinition(ABC):
     ) -> GateDefinition:
         pass
 
-    # @abstractmethod
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """6M-TODO"""
-        raise NotImplementedError()
-
-    # @abstractmethod
-    def to_pauli_decomposition(self) -> PauliDecomposition:
-        """6M-TODO"""
-        raise NotImplementedError()
-
     def is_equivalent(self, other: GateDefinition) -> bool:
         """Determines if this definition is equivalent to the other.
 
@@ -94,20 +84,6 @@ class GateDefinition(ABC):
         return UnitaryMatrix(np.linalg.inv(mat))  # type:ignore
 
 
-class KrausRepresentation(GateDefinition):
-    """# 6M-TODO : implement and comment"""
-
-    def __init__(self):
-        self.pp = 1
-
-
-class PauliDecomposition(GateDefinition):
-    """# 6M-TODO : implement and comment"""
-
-    def __init__(self):
-        self.pp = 1
-
-
 @typechecked
 class UnitaryMatrix(GateDefinition):
     """Definition of a gate using it's matrix.
@@ -133,14 +109,6 @@ class UnitaryMatrix(GateDefinition):
 
     def to_matrix(self) -> Matrix:
         return self.matrix
-
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """6M-TODO to implement"""
-        ...
-
-    def to_pauli_decomposition(self) -> PauliDecomposition:
-        """6M-TODO to implement"""
-        ...
 
     def subs(
         self,
