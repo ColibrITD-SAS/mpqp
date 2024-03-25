@@ -1,8 +1,10 @@
+#!/usr/bin/env bash
 
 if [[ $# -eq 0 ]]; then
 	echo "Please pass as argument to this script the python binary you want to install mpqp to."
 	echo "For example:"
 	echo "    $ ./mac-install.sh python3"
+	exit 1
 fi
 python_exec=$1
 brew install cmake libomp
