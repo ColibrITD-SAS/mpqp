@@ -3,7 +3,9 @@ from mpqp import QCircuit
 from mpqp.measures import BasisMeasure
 from mpqp.execution.devices import GOOGLEDevice, IBMDevice, AWSDevice
 from mpqp.execution import run
-from mpqp.execution.providers_execution.google_execution import circuit_to_processor_cirq_Circuit
+from mpqp.execution.providers_execution.google_execution import (
+    circuit_to_processor_cirq_Circuit,
+)
 from mpqp.qasm import qasm2_to_cirq_Circuit
 from mpqp.tools.visualization import plot_results_sample_mode
 import matplotlib.pyplot as plt
@@ -34,9 +36,18 @@ shots = circuit.get_measurements()[0].shots
 grid_circuit, simulator = circuit_to_processor_cirq_Circuit(processor_id, cirq_circuit)
 print(f"circuit for processor {processor_id}:\n{grid_circuit}\n")
 #####################################
- 
 
-results = run(circuit, [GOOGLEDevice.CIRQ, GOOGLEDevice.PROCESSOR_RAINBOW, GOOGLEDevice.PROCESSOR_WEBER, IBMDevice.AER_SIMULATOR, AWSDevice.BRAKET_LOCAL_SIMULATOR])
+
+results = run(
+    circuit,
+    [
+        GOOGLEDevice.CIRQ,
+        GOOGLEDevice.PROCESSOR_RAINBOW,
+        GOOGLEDevice.PROCESSOR_WEBER,
+        IBMDevice.AER_SIMULATOR,
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    ],
+)
 print(results)
 
 plot_results_sample_mode(results)

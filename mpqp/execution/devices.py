@@ -193,6 +193,7 @@ class AWSDevice(AvailableDevice):
                 return elem
         raise ValueError(f"No device found for ARN `{arn}`.")
 
+
 class GOOGLEDevice(AvailableDevice):
     """Enum regrouping all available devices provided by CIRQ."""
 
@@ -208,6 +209,6 @@ class GOOGLEDevice(AvailableDevice):
 
     def is_simulator(self) -> bool:
         return True
-    
+
     def is_processor(self) -> bool:
         return self.name.startswith("PROCESSOR")
