@@ -16,7 +16,7 @@ from sympy import Expr
 from typeguard import typechecked
 
 if TYPE_CHECKING:
-    import cirq.circuits.circuit as Cirq_Circuit
+    from cirq.circuits.circuit import Circuit as Cirq_Circuit
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
@@ -99,7 +99,6 @@ class Observable:
 
         Returns:
             np.ndarray: The matrix representation of the observable.
-
         """
         if isinstance(self.observable, PauliString):
             if self._matrix is None:
@@ -136,36 +135,22 @@ class Observable:
         """3M-TODO"""
         ...
 
-    def to_qiskit_observable(self):
+    def _to_qiskit_observable(self):
         from qiskit.quantum_info import Operator
 
         return Operator(self.matrix)
 
-    def to_myqlm_observable(self):
+    def _to_myqlm_observable(self):
         from qat.core.wrappers.observable import Observable as QLM_Observable
 
         return QLM_Observable(self.nb_qubits, matrix=self.matrix)
 
-    def to_braket_observable(self):
+    def _to_braket_observable(self):
         from braket.circuits.observables import Hermitian
 
         return Hermitian(self.matrix)
 
-    def to_cirq_observable(self, cirq_circuit: Cirq_Circuit):
-        """
-        Convert the observable to a Cirq observable.
-
-        Args:
-            cirq_circuit (cirq.Circuit): The circuit to which the Cirq observable
-                will be added.
-
-        Returns:
-            cirq.PauliSum: The Cirq observable.
-
-        Raises:
-            ValueError: If the circuit is not specified.
-
-        """
+    def _to_cirq_observable(self, cirq_circuit: Cirq_Circuit):
         from cirq import I as Cirq_I, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
 
         if cirq_circuit is None:
@@ -198,7 +183,13 @@ class Observable:
         """
         Converts the observable to the representation of another quantum programming language.
 
-        Parameters:
+        Example:
+            >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
+            >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
+            >>> print(obs_qiskit)
+            <bound method Observable.to_qiskit_observable of Observable(array([[ 0.7, 0. , 0. , 0. ], [ 0. , -1. , 0. , 0. ], [ 0. , 0. , 1. , 0. ], [ 0. , 0. , 0. , 1. ]]))>
+
+        Args:
             language (str): The target programming language ('qiskit', 'pyquil', 'braket', 'cirq').
             circuit: The Cirq circuit associated with the observable (required for 'cirq' language).
 
@@ -206,13 +197,13 @@ class Observable:
             Depends on the target language.
         """
         if language == Language.QISKIT:
-            return self.to_qiskit_observable()
+            return self._to_qiskit_observable()
         elif language == Language.CIRQ:
-            return self.to_cirq_observable(circuit)
+            return self._to_cirq_observable(circuit)
         elif language == Language.MY_QLM:
-            return self.to_myqlm_observable()
+            return self._to_myqlm_observable()
         elif language == Language.BRAKET:
-            return self.to_braket_observable()
+            return self._to_braket_observable()
         else:
             raise ValueError(f"Unsupported language: {language}")
 
