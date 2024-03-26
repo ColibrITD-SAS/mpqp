@@ -27,6 +27,7 @@ mat = ps_obs.matrix
 
 print(obs)
 print(ps_obs)
+print(mat)
 
 # Declaration of the circuit with the right size
 circuit = QCircuit(2, label="Observable test")
