@@ -25,7 +25,8 @@ def pauli_string_combinations():
 
     for ps in pauli:
         for op in scalar_bin_operation:
-            result.append((op(ps[0], 1), ps[1]))
+            a = randint(1, 9)
+            result.append((op(ps[0], a), op(ps[1], a)))
         for op in un_operation:
             result.append((op(ps[0]), op(ps[1])))
     for ps_1, ps_2 in product(pauli, repeat=2):
