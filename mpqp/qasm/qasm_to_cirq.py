@@ -1,12 +1,15 @@
 """File regrouping all features for translating QASM code to cirq objects """
-from cirq import Circuit
-from cirq.contrib.qasm_import import circuit_from_qasm
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from cirq.circuits.circuit import Circuit
+
 from typeguard import typechecked
 
 
 
 @typechecked
-def qasm2_to_cirq_Circuit(qasm_str: str) -> Circuit:
+def qasm2_to_cirq_Circuit(qasm_str: str) -> "Circuit":
     """
     Converting a OpenQASM 2.0 code into a cirq Circuit
 
@@ -16,4 +19,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> Circuit:
     Returns:
         a Circuit equivalent to the QASM code in parameter
     """
+    from cirq.contrib.qasm_import.qasm import circuit_from_qasm
+
+    # NOTE: the cu1 gate is not supported by cirq
     return circuit_from_qasm(qasm_str)

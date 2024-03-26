@@ -4,7 +4,6 @@ from typing import Optional
 import numpy as np
 from braket.aws import AwsQuantumTask
 from braket.circuits import Circuit
-from braket.circuits.observables import Hermitian
 from braket.device_schema.ionq import IonqDeviceParameters
 from braket.device_schema.oqc import OqcDeviceParameters
 from braket.device_schema.rigetti import RigettiDeviceParameters

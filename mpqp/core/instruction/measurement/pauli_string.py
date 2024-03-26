@@ -1,3 +1,8 @@
+"""Represents Pauli strings, which are linear combinations of :class:`PauliMonomial` with is a combinaison of :class:`PauliAtom`.
+:class:`PauliString` objects can be added, subtracted, and multiplied by scalars. They also support matrix multiplication
+with other :class:`PauliString` objects.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -14,6 +19,21 @@ from mpqp.tools.maths import atol, rtol
 
 
 class PauliString:
+    """Represents a Pauli string, a linear combination of Pauli monomials.
+
+    Args:
+        monomials [list[PauliStringMonomial]]: List of Pauli monomials.
+            Defaults to None.
+
+    Example:
+        >>> X = PauliString([PauliStringMonomial(1, [X])])
+        >>> X = PauliString([PauliStringMonomial(1, [X])])
+        >>> Y = PauliString([PauliStringMonomial(1, [Y])])
+        >>> Z = PauliString([PauliStringMonomial(1, [Z])])
+        >>> X + Y + Z
+        (1+0j)*X + (1+0j)*Y + (1+0j)*Z
+    """
+
     def __init__(self, monomials: Optional[list["PauliStringMonomial"]] = None):
         self._monomials: list[PauliStringMonomial] = []
 
@@ -112,6 +132,18 @@ class PauliString:
         return self.to_dict() == other.to_dict()
 
     def simplify(self):
+        """Simplify the PauliString by combining like terms and removing terms with zero coefficients.
+
+        Returns:
+            PauliString: A simplified version of the PauliString.
+
+        Example:
+            >>> ps = I@I - 2* I@I + Z@I - Z@I
+            >>> simplified_ps = ps.simplify()
+            >>> print(simplified_ps)
+            -1*I@I
+
+        """
         res = PauliString()
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
             coef = sum(
@@ -130,6 +162,18 @@ class PauliString:
         return res
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
+        """Convert the PauliString to a matrix representation.
+
+        Returns:
+            npt.NDArray[np.complex64]: Matrix representation of the PauliString.
+
+        Example:
+            >>> ps = I + Z
+            >>> matrix_representation = ps.to_matrix()
+            >>> print(matrix_representation)
+            [[2.+0.j 0.+0.j]
+            [0.+0.j 0.+0.j]]
+        """
         self = self.simplify()
         return sum(
             map(lambda m: m.to_matrix(), self.monomials),
@@ -145,6 +189,11 @@ class PauliString:
 
         Returns:
             PauliString: form class PauliString.
+
+        Example:
+            >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
+            >>> print(ps)
+            (1+0j)*I + (1+0j)*X + (-1+0j)*Z
 
         Raises:
             ValueError: If the input matrix is not square or its dimensions are not a power of 2.
@@ -180,6 +229,11 @@ class PauliString:
 
         Returns:
             dict: Dictionary representation of the PauliString object.
+
+        Example:
+            >>> ps = 1 * I @ Z + 2 * I @ I
+            >>> print(ps.to_dict())
+            {'II': 2, 'IZ': 1}
         """
         self = self.simplify()
         dict = {}
