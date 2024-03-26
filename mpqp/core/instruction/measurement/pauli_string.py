@@ -106,23 +106,23 @@ class PauliString:
         res @= other
         return res
 
-    def __eq__(self, other: "PauliString") -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, PauliString):
+            return False
         return self.to_dict() == other.to_dict()
 
     def simplify(self):
         res = PauliString()
-        for unique_mono in set(self.monomials):
+        for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
             coef = sum(
                 [
                     mono.coef
                     for mono in self.monomials
-                    if mono.atoms == unique_mono.atoms
+                    if mono.atoms == list(unique_mono_atoms)
                 ]
             )
             if coef != 0:
-                res.monomials.append(
-                    PauliStringMonomial(coef, deepcopy(unique_mono).atoms)
-                )
+                res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
         if len(res.monomials) == 0:
             res.monomials.append(
                 PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
@@ -137,7 +137,7 @@ class PauliString:
         )
 
     @classmethod
-    def from_matrix(self, matrix: Matrix) -> PauliString:
+    def from_matrix(cls, matrix: Matrix) -> PauliString:
         """Construct a PauliString from a matrix.
 
         Args:
@@ -175,9 +175,8 @@ class PauliString:
             )
         return pauli_list
 
-    def to_dict(self) -> dict:
-        """
-        Convert the PauliString object to a dictionary representation.
+    def to_dict(self) -> dict[str, float]:
+        """Convert the PauliString object to a dictionary representation.
 
         Returns:
             dict: Dictionary representation of the PauliString object.
@@ -293,7 +292,7 @@ class PauliStringMonomial(PauliString):
     def simplify(self):
         return deepcopy(self)
 
-    def __eq__(self, other: PauliString) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, PauliStringMonomial):
             for a1, a2 in zip(self.atoms, other.atoms):
                 if a1 != a2:
@@ -376,7 +375,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return self.matrix
 
-    def __eq__(self, other: PauliString) -> bool:
+    def __eq__(self, other: object) -> bool:
         if isinstance(other, PauliStringAtom):
             return self.label == other.label
         else:
