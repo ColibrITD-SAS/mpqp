@@ -7,61 +7,124 @@ from __future__ import annotations
 
 import copy
 from numbers import Complex
+from typing import Optional, TYPE_CHECKING
 from warnings import warn
-from typing import Optional
 
 import numpy as np
-import numpy.typing as npt
 from qiskit.circuit import Parameter
 from sympy import Expr
 from typeguard import typechecked
 
+if TYPE_CHECKING:
+    import cirq.circuits.circuit as Cirq_Circuit
+
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.core.languages import Language
 from mpqp.tools.errors import NumberQubitsError
+from mpqp.tools.generics import Matrix, one_lined_repr
 from mpqp.tools.maths import is_hermitian
-from mpqp.tools.generics import one_lined_repr
 
 
 @typechecked
 class Observable:
     """Class defining an observable, used for evaluating expectation values.
 
-    An observable can be defined by using a hermitian matrix, or using a combination of operators in a specific
-    basis (Kraus, Pauli, ...).
-
-    For the moment, on can only define the observable using a matrix.
+    An observable can be defined by using a Hermitian matrix, or using a combination of operators in a specific
+    basis Pauli.
 
     Example:
         >>> matrix = np.array([[1, 0], [0, -1]])
+        >>> pauli_string = 3 * I @ Z + 4 * X @ Y
         >>> obs = Observable(matrix)
+        >>> obs2 = Observable(pauli_string)
 
-    Args:
+    Attributes:
         matrix: Hermitian matrix representing the observable.
+        pauli_string: PauliString representing the observable.
+
+    Raises:
+        ValueError: If the input matrix is not Hermitian or does not have a square shape.
+        NumberQubitsError: If the number of qubits in the input observable does
+            not match the number of target qubits.
+
     """
 
-    def __init__(self, matrix: npt.NDArray[np.complex64] | list[list[Complex]]):
-        self.nb_qubits = int(np.log2(len(matrix)))
-        """Number of qubits of this observable."""
-        self.matrix = np.array(matrix)
-        """See parameter description."""
+    def __init__(self, observable: Matrix | PauliString):
+        """
+        Initialize an Observable object.
 
-        basis_states = 2**self.nb_qubits
-        if self.matrix.shape != (basis_states, basis_states):
-            raise ValueError(
-                f"The size of the matrix {self.matrix.shape} doesn't neatly fit on a"
-                " quantum register. It should be a square matrix of size a power"
-                " of two."
-            )
+        Args:
+            observable (Matrix | PauliString): The observable to be represented.
+                Can be specified as a matrix or a PauliString.
 
-        if not is_hermitian(self.matrix):
-            raise ValueError(
-                "The matrix in parameter is not hermitian (cannot define an observable)"
-            )
+        Raises:
+            ValueError: If the input matrix is not hermitian or does not have a
+                square shape.
+            NumberQubitsError: If the number of qubits in the input observable does
+                not match the number of target qubits.
+
+        """
+        self.observable = observable
+        self._matrix = None
+        self._pauli_string = None
+
+        if isinstance(observable, PauliString):
+            self.nb_qubits = observable.nb_qubits
+            self._pauli_string = observable.simplify()
+            self.observable = self._pauli_string
+        else:
+            self.nb_qubits = int(np.log2(len(observable)))
+            """Number of qubits of this observable."""
+            self._matrix = np.array(observable)
+
+            basis_states = 2**self.nb_qubits
+            if self.matrix.shape != (basis_states, basis_states):
+                raise ValueError(
+                    f"The size of the matrix {self.matrix.shape} doesn't neatly fit on a"
+                    " quantum register. It should be a square matrix of size a power"
+                    " of two."
+                )
+
+            if not is_hermitian(self.matrix):
+                raise ValueError(
+                    "The matrix in parameter is not hermitian (cannot define an observable)"
+                )
+
+    @property
+    def matrix(self) -> Matrix:
+        """
+        Returns the matrix representation of the observable.
+
+        Returns:
+            np.ndarray: The matrix representation of the observable.
+
+        """
+        if isinstance(self.observable, PauliString):
+            if self._matrix is None:
+                self._matrix = self.observable.to_matrix()
+            return self._matrix
+        else:
+            return self.observable
+
+    @property
+    def pauli_string(self) -> PauliString:
+        """
+        Returns the PauliString representation of the observable.
+
+        Returns:
+            PauliString: The PauliString representation of the observable.
+        """
+        if isinstance(self.observable, PauliString):
+            return self.observable
+        else:
+            if self._pauli_string is None:
+                self._pauli_string = PauliString.from_matrix(self.matrix)
+            return self._pauli_string
 
     def __repr__(self) -> str:
-        return f"Observable({one_lined_repr(self.matrix)})"
+        return f"{type(self).__name__}({one_lined_repr(self.observable)})"
 
     def __mult__(self, other: Expr | Complex) -> Observable:
         """3M-TODO"""
@@ -72,6 +135,86 @@ class Observable:
     ) -> Observable:
         """3M-TODO"""
         ...
+
+    def to_qiskit_observable(self):
+        from qiskit.quantum_info import Operator
+
+        return Operator(self.matrix)
+
+    def to_myqlm_observable(self):
+        from qat.core.wrappers.observable import Observable as QLM_Observable
+
+        return QLM_Observable(self.nb_qubits, matrix=self.matrix)
+
+    def to_braket_observable(self):
+        from braket.circuits.observables import Hermitian
+
+        return Hermitian(self.matrix)
+
+    def to_cirq_observable(self, cirq_circuit: Cirq_Circuit):
+        """
+        Convert the observable to a Cirq observable.
+
+        Args:
+            cirq_circuit (cirq.Circuit): The circuit to which the Cirq observable
+                will be added.
+
+        Returns:
+            cirq.PauliSum: The Cirq observable.
+
+        Raises:
+            ValueError: If the circuit is not specified.
+
+        """
+        from cirq import I as Cirq_I, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
+
+        if cirq_circuit is None:
+            raise ValueError("Circuit must be specified for cirq_observable.")
+
+        all_qubits = set(
+            q for moment in cirq_circuit for op in moment.operations for q in op.qubits
+        )
+        all_qubits_list = sorted(all_qubits)
+
+        cirq_pauli_string = None
+        pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
+        for monomial in self.pauli_string.monomials:
+            cirq_monomial = None
+            for index, atom in enumerate(monomial.atoms):
+                cirq_atom = pauli_gate_map[atom.label](all_qubits_list[index])
+                cirq_monomial = (
+                    cirq_atom if cirq_monomial is None else cirq_monomial * cirq_atom
+                )
+            cirq_monomial *= monomial.coef
+            cirq_pauli_string = (
+                cirq_monomial
+                if cirq_pauli_string is None
+                else cirq_pauli_string + cirq_monomial
+            )
+
+        return cirq_pauli_string
+
+    def to_other_language(self, language: Language, circuit=None):
+        """
+        Converts the observable to the representation of another quantum programming language.
+
+        Parameters:
+            language (str): The target programming language ('qiskit', 'pyquil', 'braket', 'cirq').
+            circuit: The Cirq circuit associated with the observable (required for 'cirq' language).
+
+        Returns:
+            Depends on the target language.
+        """
+        if language == Language.QISKIT:
+            return self.to_qiskit_observable()
+        elif language == Language.CIRQ:
+            return self.to_cirq_observable(circuit)
+        elif language == Language.MY_QLM:
+            return self.to_myqlm_observable()
+        elif language == Language.BRAKET:
+            return self.to_braket_observable()
+        else:
+            raise ValueError(f"Unsupported language: {language}")
 
 
 @typechecked
@@ -120,6 +263,7 @@ class ExpectationMeasure(Measure):
         super().__init__(targets, shots, label)
         self.observable = observable
         """See parameter description."""
+        # TODO Check
         if self.nb_qubits != observable.nb_qubits:
             raise NumberQubitsError(
                 f"{self.nb_qubits}, the number of target qubit(s) doesn't match"

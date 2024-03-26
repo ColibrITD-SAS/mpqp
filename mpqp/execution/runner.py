@@ -13,12 +13,13 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice, GOOGLEDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
-from mpqp.execution.result import BatchResult, Result
+from mpqp.execution.providers.google import run_google
+from mpqp.execution.result import Result, BatchResult
 from mpqp.tools.errors import RemoteExecutionError
 
 
@@ -140,6 +141,8 @@ def _run_single(
         return run_atos(job)
     elif isinstance(device, AWSDevice):
         return run_braket(job)
+    elif isinstance(device, GOOGLEDevice):
+        return run_google(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 

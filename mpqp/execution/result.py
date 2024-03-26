@@ -61,10 +61,7 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f"""
-        State vector: {self.vector}
-        Probabilities: {self.probabilities}
-        Number of qubits: {self.nb_qubits}"""
+        return f"State vector: {self.vector}\nProbabilities: {self.probabilities}\nNumber of qubits: {self.nb_qubits}"
 
 
 @typechecked
@@ -272,6 +269,7 @@ class Result:
                     " either `count` or `probability` (and the non-None "
                     "attribute amongst the two must be the same in all samples)."
                 )
+            self.samples.sort(key=lambda sample: sample.bin_str)
         else:
             raise ValueError(f"{job.job_type} not handled")
 
@@ -345,24 +343,28 @@ class Result:
 
     def __str__(self):
         header = f"Result: {type(self.device).__name__}, {self.device.name}"
+        
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = ("\n" + " " * 16).join(map(str, self.samples))
+            samples_str = "\n".join(map(lambda s: f"{' ' * 1}{s}", map(str, self.samples)))
             cleaned_probas = str(self._probabilities).replace("\n", " ")
-            return header + dedent(
-                f"""
-                Counts: {self._counts}
-                Probabilities: {cleaned_probas}
-                {samples_str}
-                Error: {self.error}\n\n"""
+            return (
+                f"{header}\n"
+                f"Counts: {self._counts}\n"
+                f"Probabilities: {cleaned_probas}\n"
+                f"{samples_str}\n"
+                f"Error: {self.error}\n\n"
             )
+            
         if self.job.job_type == JobType.STATE_VECTOR:
-            return f"""{header}\n{self._state_vector}\n\n"""
+            return f"{header}\n{self._state_vector}\n"
+        
         if self.job.job_type == JobType.OBSERVABLE:
-            return header + dedent(
-                f"""
-                Expectation value: {self.expectation_value}
-                Error/Variance: {self.error}\n\n"""
+            return (
+                f"{header}\n"
+                f"Expectation value: {self.expectation_value}\n"
+                f"Error/Variance: {self.error}\n"
             )
+
         raise NotImplementedError(
             f"Job type {self.job.job_type} not implemented for __str__ method"
         )
