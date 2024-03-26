@@ -1,76 +1,41 @@
+from itertools import product
+from operator import add, matmul, mul, neg, pos, sub, truediv
+from random import randint
+
 import numpy as np
 import numpy.typing as npt
 import pytest
 
 from mpqp.core.instruction.measurement.pauli_string import I, PauliString
 from mpqp.tools.maths import matrix_eq
-from random import randint
 
 
 def pauli_string_combinations():
-    operation = ["@", "+", "-", "/", "*", "u-", "u+"]
+    scalar_bin_operation = [mul, truediv]
+    homogeneous_bin_operation = [add, sub]
+    bin_operation = [matmul]
+    un_operation = [pos, neg]
     pauli = [
-        ("I", "np.eye(2)"),
-        ("(I@I)", "np.eye(4)"),
-        ("(I+I)", "(2*np.eye(2))"),
-    ]  # Assuming I is the identity matrix
-    first_values = [True, False]
+        (I, np.eye(2)),
+        ((I @ I), np.eye(4)),
+        ((I + I), (2 * np.eye(2))),
+        ((I + I) @ I, (2 * np.eye(4))),
+    ]
     result = []
 
-    for ps_1 in pauli:
-        for ps_2 in pauli:
-            for op in operation:
-                for first_val in first_values:
-                    if first_val:
-                        if op == "@":
-                            result.append(
-                                (
-                                    eval(ps_2[0] + op + ps_1[0]),
-                                    eval("np.kron(" + ps_2[1] + "," + ps_1[1] + ")"),
-                                )
-                            )
-                        elif ps_1[0] == ps_2[0] and (op == "+" or op == "-"):
-                            result.append(
-                                (
-                                    eval(ps_2[0] + op + ps_1[0]),
-                                    eval(ps_2[1] + op + ps_1[1]),
-                                )
-                            )
-                        elif op == "u-" or op == "u+":
-                            result.append(
-                                (eval(op[1] + ps_1[0]), eval(op[1] + ps_1[1]))
-                            )
-                        elif op != "/" and op != "+" and op != "-":
-                            rd = randint(1, 5)
-                            result.append(
-                                (
-                                    eval(str(rd) + op + ps_1[0]),
-                                    eval(str(rd) + op + ps_1[1]),
-                                )
-                            )
-                    else:
-                        if op == "@":
-                            result.append(
-                                (
-                                    eval(ps_1[0] + op + ps_2[0]),
-                                    eval("np.kron(" + ps_1[1] + "," + ps_2[1] + ")"),
-                                )
-                            )
-                        elif ps_1[0] == ps_2[0] and (op == "+" or op == "-"):
-                            result.append(
-                                (
-                                    eval(ps_1[0] + op + ps_2[0]),
-                                    eval(ps_1[1] + op + ps_2[1]),
-                                )
-                            )
-                        elif op != "+" and op != "-" and op != "u+" and op != "u-":
-                            rd = randint(1, 5)
-                            result.append(
-                                (
-                                    eval(ps_1[0] + op + str(rd)),
-                                    eval(ps_1[1] + op + str(rd)),
-                                )
-                            )
+    for ps in pauli:
+        for op in scalar_bin_operation:
+            result.append((op(ps[0], 1), ps[1]))
+        for op in un_operation:
+            result.append((op(ps[0]), op(ps[1])))
+    for ps_1, ps_2 in product(pauli, repeat=2):
+        for op in bin_operation:
+            converted_op = op if op != matmul else np.kron
+            result.append((op(ps_1[0], ps_2[0]), converted_op(ps_1[1], ps_2[1])))
+        if ps_1[0].nb_qubits == ps_2[0].nb_qubits:
+            for op in homogeneous_bin_operation:
+                result.append((op(ps_1[0], ps_2[0]), op(ps_1[1], ps_2[1])))
+
     return result
 
 
