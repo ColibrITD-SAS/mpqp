@@ -3,33 +3,29 @@ from typing import Optional
 from typeguard import typechecked
 
 from mpqp.execution.devices import GOOGLEDevice
-from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.job import JobType, Job
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.qasm import qasm2_to_cirq_Circuit
 
 from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.core.instruction.measurement.expectation_value import (
-    ExpectationMeasure,
-    Observable,
-)
+from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
+
 from mpqp import Language
 
-from cirq.sim.simulator import SimulatesExpectationValues
 from cirq import (
     Simulator,
     RouteCQC,
     optimize_for_target_gateset,
     state_vector_to_probabilities,
-    circuits,
-    measure_single_paulistring,
 )
-from cirq import Result as cirq_result, SqrtIswapTargetGateset
+from cirq.circuits import circuit as cirq_circuit
+from cirq.study.result import Result as cirq_result
+from cirq.transformers.target_gatesets.sqrt_iswap_gateset import SqrtIswapTargetGateset
 from cirq_google import (
     engine,
     noise_properties_from_calibration,
     NoiseModelFromGoogleNoiseProperties,
-    SycamoreTargetGateset,
 )
 from qsimcirq import QSimSimulator
 from cirq.work.observable_measurement import (
@@ -107,7 +103,7 @@ def run_local(job: Job) -> Result:
 
 
 @typechecked
-def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: circuits):
+def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: cirq_circuit):
 
     cal = engine.load_median_device_calibration(processor_id)
     noise_props = noise_properties_from_calibration(cal)
@@ -182,7 +178,7 @@ def extract_result_STATE_VECTOR(
 
 def extract_result_OBSERVABLE(
     result: cirq_result,
-    job: Optional[Job] = None,
+    job: Optional[Job],
     device: Optional[GOOGLEDevice] = None,
 ) -> Result:
     print(result)
