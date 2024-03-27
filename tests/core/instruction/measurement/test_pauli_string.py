@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp.core.instruction.measurement.pauli_string import I, PauliString
+from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z, PauliString
 from mpqp.tools.maths import matrix_eq
 
 
@@ -43,3 +43,45 @@ def pauli_string_combinations():
 @pytest.mark.parametrize("ps, matrix", pauli_string_combinations())
 def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex64]):
     assert matrix_eq(ps.to_matrix(), matrix)
+
+
+@pytest.mark.parametrize(
+    "init_ps, simplified_ps",
+    [
+        # Test cases with single terms
+        (I @ I, I @ I),
+        (2 * I @ I, 2 * I @ I),
+        (-I @ I, -I @ I),
+        (0 * I @ I, 0 * I @ I),
+        # Test cases with multiple terms
+        (I @ I + I @ I + I @ I, 3 * I @ I),
+        (2 * I @ I + 3 * I @ I - 2 * I @ I, 3 * I @ I),
+        (2 * I @ I - 3 * I @ I + I @ I, 0),
+        (-I @ I + I @ I - I @ I, 0),
+        (I @ I - 2 * I @ I + I @ I, I @ I),
+        (2 * I @ I + I @ I - I @ I, 2 * I @ I),
+        (I @ I + I @ I + I @ I, 3 * I @ I),
+        (2 * I @ I + 3 * I @ I, 5 * I @ I),
+        (I @ I - I @ I + I @ I, I @ I),
+        # Test cases with cancellation
+        (I @ I - I @ I, 0 * I @ I),
+        (2 * I @ I - 2 * I @ I, 0 * I @ I),
+        (-2 * I @ I + 2 * I @ I, 0 * I @ I),
+        (I @ I + I @ I - 2 * I @ I, 0 * I @ I),
+        # Test cases with mixed terms
+        (I @ I - 2 * I @ I + 3 * I @ I, 2 * I @ I),
+        (2 * I @ I + I @ I - I @ I, 2 * I @ I),
+        (I @ I + I @ I + I @ I - 3 * I @ I, I @ I),
+        # Test cases with combinations of different gates
+        (I @ X + X @ X - X @ I, 2 * X @ X),
+        (Y @ Z + Z @ Y - Z @ Z, Y @ Z + Z @ Y),
+        (I @ X + X @ Y - Y @ X - X @ I, 0 * I @ I),
+        (I @ X + X @ X - X @ Y - Y @ X + Y @ Y, I @ X - X @ Y - Y @ X + Y @ Y),
+        (2 * X @ X - X @ Y + Y @ X - X @ X, X @ X - X @ Y + Y @ X),
+        (X @ X + X @ Y + Y @ X - X @ X - X @ Y - Y @ X, 0 * I @ I),
+        (2 * X @ X - 3 * X @ Y + 2 * Y @ X - X @ X, X @ X - 3 * X @ Y + 2 * Y @ X),
+    ],
+)
+def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
+    simplified_ps = init_ps.simplify()
+    assert simplified_ps == simplified_ps

@@ -1,4 +1,4 @@
-"""Represents Pauli strings, which are linear combinations of :class:`PauliMonomial` with is a combinaison of :class:`PauliAtom`.
+"""Represents Pauli strings, which is linear combinations of :class:`PauliMonomial` with is a combinaison of :class:`PauliAtom`.
 :class:`PauliString` objects can be added, subtracted, and multiplied by scalars. They also support matrix multiplication
 with other :class:`PauliString` objects.
 """
@@ -22,16 +22,11 @@ class PauliString:
     """Represents a Pauli string, a linear combination of Pauli monomials.
 
     Args:
-        monomials [list[PauliStringMonomial]]: List of Pauli monomials.
-            Defaults to None.
+        monomials : List of Pauli monomials.
 
     Example:
-        >>> X = PauliString([PauliStringMonomial(1, [X])])
-        >>> X = PauliString([PauliStringMonomial(1, [X])])
-        >>> Y = PauliString([PauliStringMonomial(1, [Y])])
-        >>> Z = PauliString([PauliStringMonomial(1, [Z])])
-        >>> X + Y + Z
-        (1+0j)*X + (1+0j)*Y + (1+0j)*Z
+        >>> I@Z + 2*Y@I + X@Z
+        1*I@Z + 2*Y@I + 1*X@Z
     """
 
     def __init__(self, monomials: Optional[list["PauliStringMonomial"]] = None):
@@ -51,10 +46,20 @@ class PauliString:
 
     @property
     def monomials(self) -> list[PauliStringMonomial]:
+        """Get the monomials of the PauliString.
+
+        Returns:
+            The list of monomials in the PauliString.
+        """
         return self._monomials
 
     @property
-    def nb_qubits(self):
+    def nb_qubits(self) -> int:
+        """Get the number of qubits associated with the PauliString.
+
+        Returns:
+            The number of qubits associated with the PauliString.
+        """
         return 0 if len(self._monomials) == 0 else self._monomials[0].nb_qubits
 
     def __str__(self):
@@ -131,17 +136,17 @@ class PauliString:
             return False
         return self.to_dict() == other.to_dict()
 
-    def simplify(self):
+    def simplify(self) -> PauliString:
         """Simplify the PauliString by combining like terms and removing terms with zero coefficients.
-
-        Returns:
-            PauliString: A simplified version of the PauliString.
 
         Example:
             >>> ps = I@I - 2* I@I + Z@I - Z@I
             >>> simplified_ps = ps.simplify()
             >>> print(simplified_ps)
             -1*I@I
+
+        Returns:
+            PauliString: A simplified version of the PauliString.
 
         """
         res = PauliString()
@@ -164,15 +169,15 @@ class PauliString:
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         """Convert the PauliString to a matrix representation.
 
-        Returns:
-            npt.NDArray[np.complex64]: Matrix representation of the PauliString.
-
         Example:
             >>> ps = I + Z
             >>> matrix_representation = ps.to_matrix()
             >>> print(matrix_representation)
             [[2.+0.j 0.+0.j]
             [0.+0.j 0.+0.j]]
+
+        Returns:
+            Matrix representation of the PauliString.
         """
         self = self.simplify()
         return sum(
@@ -185,15 +190,15 @@ class PauliString:
         """Construct a PauliString from a matrix.
 
         Args:
-            matrix (npt.NDArray[np.complex64]): Matrix.
-
-        Returns:
-            PauliString: form class PauliString.
+            Matrix from which the PauliString is generated
 
         Example:
             >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
             >>> print(ps)
             (1+0j)*I + (1+0j)*X + (-1+0j)*Z
+
+        Returns:
+            PauliString: form class PauliString.
 
         Raises:
             ValueError: If the input matrix is not square or its dimensions are not a power of 2.
@@ -228,7 +233,7 @@ class PauliString:
         """Convert the PauliString object to a dictionary representation.
 
         Returns:
-            dict: Dictionary representation of the PauliString object.
+            Dictionary representation of the PauliString object.
 
         Example:
             >>> ps = 1 * I @ Z + 2 * I @ I
@@ -255,6 +260,13 @@ class PauliString:
 
 
 class PauliStringMonomial(PauliString):
+    """Represents a monomial in a Pauli string, consisting of a coefficient and a list of PauliStringAtom objects.
+
+    Args:
+        coef: The coefficient of the monomial.
+        atoms: The list of PauliStringAtom objects forming the monomial.
+    """
+
     def __init__(
         self, coef: Real | float = 1, atoms: Optional[list["PauliStringAtom"]] = None
     ):
@@ -262,11 +274,11 @@ class PauliStringMonomial(PauliString):
         self.atoms = [] if atoms is None else atoms
 
     @property
-    def nb_qubits(self):
+    def nb_qubits(self) -> int:
         return len(self.atoms)
 
     @property
-    def monomials(self):
+    def monomials(self) -> list["PauliStringMonomial"]:
         return [PauliStringMonomial(self.coef, self.atoms)]
 
     def __str__(self):
@@ -360,6 +372,19 @@ class PauliStringMonomial(PauliString):
 
 
 class PauliStringAtom(PauliStringMonomial):
+    """Represents a single Pauli operator acting on a qubit in a Pauli string.
+
+    Args:
+        Label: The label representing the Pauli operator (e.g., 'I', 'X', 'Y', 'Z').
+        Matrix: The matrix representation of the Pauli operator.
+
+    Raises:
+        AttributeError: new atoms cannot be created
+
+    Note:
+        All the atoms are already initialized. Available atoms are ('I', 'X', 'Y', 'Z').
+    """
+
     __is_mutable = True
 
     def __init__(self, label: str, matrix: npt.NDArray[np.complex64]):
@@ -373,7 +398,7 @@ class PauliStringAtom(PauliStringMonomial):
             )
 
     @property
-    def nb_qubits(self):
+    def nb_qubits(self) -> int:
         return 1
 
     @property
@@ -442,8 +467,27 @@ class PauliStringAtom(PauliStringMonomial):
 _allow_atom_creation = True
 
 I = PauliStringAtom("I", np.eye(2, dtype=np.complex64))
+"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
+Matrix representation:
+[1 0]
+[0 1]
+"""
 X = PauliStringAtom("X", 1 - np.eye(2, dtype=np.complex64))
+"""Pauli-X atom representing the X operator in a Pauli monomial or string.
+Matrix representation:
+[0 1]
+[1 0]
+"""
 Y = PauliStringAtom("Y", np.fliplr(np.diag([1j, -1j])))
+"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
+Matrix representation:
+[0 -i]
+[i  0]
+"""
 Z = PauliStringAtom("Z", np.diag([1, -1]))
-
+"""Pauli-Z atom representing the Z operator in a Pauli monomial or string.
+Matrix representation:
+[1  0]
+[0 -1]
+"""
 _allow_atom_creation = False

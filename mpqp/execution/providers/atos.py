@@ -124,10 +124,10 @@ def generate_observable_job(
     """
 
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-    qml_Obs = job.measure.observable.to_other_language(Language.MY_QLM)
+    qml_obs = job.measure.observable.to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
-        observable=qml_Obs,
+        observable=qml_obs,
         nbshots=job.measure.shots,
     )
     if job.device.is_remote():
@@ -279,7 +279,7 @@ def extract_observable_result(
         if job.measure is None:
             raise NotImplementedError("We cannot handle job without measure for now")
         nb_shots = job.measure.shots
-    
+
     error = None if myqlm_result.error is None else abs(myqlm_result.error)
     return Result(job, myqlm_result.value, error, nb_shots)
 
