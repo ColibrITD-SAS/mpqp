@@ -1,4 +1,5 @@
 from mpqp import QCircuit
+from mpqp.core.instruction.gates import Gate
 
 # Wish list
 # Apply noise model to the whole circuit --> DepolarizingNoise on whole circuit
@@ -6,62 +7,58 @@ from mpqp import QCircuit
 # Apply noise to specific gate, all qubits --> Noise on Hadamard on all qubits
 # Apply noise to specific gate, specific qubits --> Noise on Hadamard(0)
 # Predefined noise models : with focus on DepolarizingNoise, GateNoise
-# Wish providers ? The four of them
+# Which providers ? The four of them is possible
 #
 
 ################# USAGE PART #################
-from mpqp.core.instruction.gates import Gate
 
 circuit = QCircuit()
+
+#TODO : take a decision, find new argument about using add/add_noise/noise/...
+
+# Remark : the precision of the target list, when None, has to be done at execution
+
+# Remark 2: Hardware model could be Custom noise (combination of several noise models)
+
+# Remark 3: could we just put the error rates specific to each subclass of NoiseModel ?
+
 
 # depolarizing noise on the whole circuit
 circuit.add(Depolarizing(0.03))
 
 # depolarizing noise on the two first qubits
-circuit.add(Depolarizing(0.03, [0,1]))
+circuit.add(Depolarizing(0.03, [0, 1]))
+circuit.add(Depolarizing(0.03, [0, 1], gates=[H]))
 
 # adding several noises at the same time to the circuit
-circuit.add([Depolarizing(0.02, 0), BitFlip(0.1, [2, 3])])
+circuit.add([Depolarizing(0.02, [0]), BitFlip(0.1, [2, 3])])
 
 # adding noise to specific gates, all qubits
-circuit.add(GateNoise(([H, X, Y, Z], Depolarizing(0.03))))
+circuit.add(Depolarizing(0.03, [0, 1], gates=[H, X ,Y, Z]))
 
-# adding several noise to different gates, all qubits
-circuit.add(GateNoise(
-    [
-        ([H, X, Y, Z], Depolarizing(0.03)),
-        ([CNOT, CZ], Bitflip(0.5))
-    ])
-)
-
-# adding noise to specific gates, specific qubits
-circuit.add(GateNoise(([H], Depolarizing(0.03, [0,1, 2]))))
-
-
-
+# adding several noise to different gates, specific qubits
+circuit.add([Depolarizing(0.02, [0], gates=[H, X, Y, Z]), BitFlip(0.1, [2, 3], gates=[CZ, CNOT])])
 
 ################# CONCEPTION PART #################
 
 
 class NoiseModel:
-    def __init__(self, p_error: float, target: int | list[int] = None):
+    def __init__(self, target: list[int] = None, gates: list[Gate] = None):
         # if target is None, it has to be set from circuit.add() as targets = list(range(circuit.nb_qubits))
         self.target = target
+        self.gates = gates
         pass
 
 
 class Depolarizing(NoiseModel):
-
+    self.e1
+    self.e2
     pass
 
 
 class BitFlip(NoiseModel):
+    self.flip_proba
     pass
-
-
-class GateNoise():
-    def __init__(self, gate_noise_spec: tuple[list[Gate], NoiseModel] | list[tuple[list[Gate], NoiseModel]]):
-        pass
 
 
 class CustomNoise(NoiseModel):

@@ -164,3 +164,4 @@ class UnitaryMatrix(GateDefinition):
 
     def __repr__(self) -> str:
         return f"UnitaryMatrix({one_lined_repr(getattr(self, 'matrix', ''))})"
+
