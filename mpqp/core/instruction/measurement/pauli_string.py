@@ -114,11 +114,11 @@ class PauliString:
         return self * other
 
     def __itruediv__(self, other: FixedReal) -> "PauliString":
-        self *= 1 / other
+        self *= 1 / other  # pyright: ignore[reportOperatorIssue]
         return self
 
     def __truediv__(self, other: FixedReal) -> "PauliString":
-        return self * (1 / other)
+        return self * (1 / other) # pyright: ignore[reportOperatorIssue]
 
     def __imatmul__(self, other: "PauliString") -> "PauliString":
         self._monomials = [
@@ -166,7 +166,7 @@ class PauliString:
             )
         return res
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
+    def to_matrix(self) -> Matrix:
         """Convert the PauliString to a matrix representation.
 
         Example:
@@ -287,7 +287,7 @@ class PauliStringMonomial(PauliString):
     def __repr__(self):
         return str(self)
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
+    def to_matrix(self) -> Matrix:
         return (
             reduce(
                 np.kron,
@@ -426,7 +426,7 @@ class PauliStringAtom(PauliStringMonomial):
         return str(self)
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
-        return PauliStringMonomial(1 / other, [self])
+        return PauliStringMonomial(1 / other , [self]) # pyright: ignore[reportArgumentType]
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
         return self * other

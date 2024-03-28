@@ -63,7 +63,7 @@ class Observable:
             self.nb_qubits = int(np.log2(len(observable)))
             """Number of qubits of this observable."""
             self._matrix = np.array(observable)
-
+            
             basis_states = 2**self.nb_qubits
             if self.matrix.shape != (basis_states, basis_states):
                 raise ValueError(
@@ -88,7 +88,7 @@ class Observable:
         if isinstance(self.observable, PauliString):
             if self._matrix is None:
                 self._matrix = self.observable.to_matrix()
-            return self._matrix
+            return self._matrix.astype(np.complex64)
         else:
             return self.observable
 
@@ -154,7 +154,8 @@ class Observable:
         elif language == Language.CIRQ:
             if circuit is None:
                 raise ValueError("Circuit must be specified for cirq_observable.")
-            from cirq import I as Cirq_I, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
+            from cirq.ops.identity import I as Cirq_I
+            from cirq.ops.pauli_gates import X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
 
             all_qubits = set(
                 q for moment in circuit for op in moment.operations for q in op.qubits
