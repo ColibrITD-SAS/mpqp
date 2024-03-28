@@ -17,6 +17,7 @@ from typeguard import typechecked
 
 if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as Cirq_Circuit
+    from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum 
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
@@ -160,13 +161,14 @@ class Observable:
                 raise ValueError("Circuit must be specified for cirq_observable.")
             from cirq.ops.identity import I as Cirq_I
             from cirq.ops.pauli_gates import X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
+            from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum 
 
             all_qubits = set(
                 q for moment in circuit for op in moment.operations for q in op.qubits
             )
             all_qubits_list = sorted(all_qubits)
 
-            cirq_pauli_string = None
+            cirq_pauli_string: Cirq_PauliSum = Cirq_PauliSum()
             pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
             for monomial in self.pauli_string.monomials:
                 cirq_monomial = None
@@ -175,15 +177,10 @@ class Observable:
                     cirq_monomial = (
                         cirq_atom
                         if cirq_monomial is None
-                        else cirq_monomial * cirq_atom
+                        else cirq_monomial * cirq_atom # type: ignore[reportOperatorIssue]
                     )
-                cirq_monomial *= monomial.coef
-                cirq_pauli_string = (
-                    cirq_monomial
-                    if cirq_pauli_string is None
-                    else cirq_pauli_string + cirq_monomial
-                )
-
+                cirq_monomial *= monomial.coef # type: ignore[reportOperatorIssue]
+                cirq_pauli_string += cirq_monomial
             return cirq_pauli_string
         else:
             raise ValueError(f"Unsupported language: {language}")

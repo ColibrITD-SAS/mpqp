@@ -292,7 +292,7 @@ class PauliStringMonomial(PauliString):
             reduce(
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
-                np.eye(1, dtype=np.complex64),
+                np.eye(1, dtype=np.complex64).tolist(),
             )
             * self.coef
         )
@@ -426,7 +426,9 @@ class PauliStringAtom(PauliStringMonomial):
         return str(self)
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
-        return PauliStringMonomial(1 / other , [self]) # pyright: ignore[reportArgumentType]
+        return PauliStringMonomial(
+            1 / other, [self] # pyright: ignore[reportArgumentType]
+        )  
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
         return self * other
