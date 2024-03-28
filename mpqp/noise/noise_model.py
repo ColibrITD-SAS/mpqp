@@ -1,21 +1,19 @@
-from __future__ import annotations
-
-# import math
-# import numpy as np
-
-# from qat.hardware.default import DefaultGatesSpecification, HardwareModel
-# from qiskit_aer.noise import NoiseModel
-
-# from .noise_methods import GateNoise, GateNoiseCombination, NoiseModules
-from mpqp.core.languages import Language
+from mpqp.core.instruction.gates import Gate
 
 
-class MPQPNoiseModel:
-    def __init__(self):
-        # 3M-TODO : implement and comment
-        self.pp = 1
-
-    def no_idea_what_i_am_doing(
-        self, language: Language = Language.QISKIT
-    ):  # can be also in MYQLM
+class NoiseModel:
+    def __init__(self, target: list[int] = None, gates: list[Gate] = None):
+        # if target is None, it has to be set from circuit.add() as targets = list(range(circuit.nb_qubits))
+        self.target = target
+        self.gates = gates
         pass
+
+class Depolarizing(NoiseModel):
+    self.e1
+    self.e2
+    pass
+
+
+class BitFlip(NoiseModel):
+    self.flip_proba
+    pass

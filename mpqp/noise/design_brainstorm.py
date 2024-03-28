@@ -42,37 +42,7 @@ circuit.add([Depolarizing(0.02, [0], gates=[H, X, Y, Z]), BitFlip(0.1, [2, 3], g
 ################# CONCEPTION PART #################
 
 
-class NoiseModel:
-    def __init__(self, target: list[int] = None, gates: list[Gate] = None):
-        # if target is None, it has to be set from circuit.add() as targets = list(range(circuit.nb_qubits))
-        self.target = target
-        self.gates = gates
-        pass
 
 
-class Depolarizing(NoiseModel):
-    self.e1
-    self.e2
-    pass
 
 
-class BitFlip(NoiseModel):
-    self.flip_proba
-    pass
-
-
-class CustomNoise(NoiseModel):
-    """# 3M-TODO : implement and comment"""
-    pass
-
-
-class KrausOperator():
-    """# 3M-TODO : implement and comment"""
-    pass
-
-
-class KrausRepresentation():
-    """# 3M-TODO : implement and comment"""
-
-    def __init__(self, k_ops: list[KrausOperator]):
-        self.pp = 1

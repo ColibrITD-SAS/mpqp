@@ -24,6 +24,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.noise.noise_model import NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -67,7 +68,7 @@ class QCircuit:
 
     def __init__(
         self,
-        data: int | Sequence[Instruction],
+        data: int | Sequence[Union[Instruction, NoiseModel]],
         *,
         nb_qubits: Optional[int] = None,
         nb_cbits: Optional[int] = None,
@@ -79,6 +80,8 @@ class QCircuit:
         """See parameter description."""
         self.instructions: list[Instruction] = []
         """List of instructions of the circuit."""
+        self.noises: list[NoiseModel] = []
+        """List of noise models attached to the circuit."""
         self.nb_qubits: int
         """Number of qubits of the circuit."""
 
@@ -89,7 +92,7 @@ class QCircuit:
                     "this does not make sense."
                 )
             self.nb_qubits = data
-        else:
+        elif isinstance(data[0], Instruction):
             if nb_qubits is None:
                 if len(data) == 0:
                     self.nb_qubits = 0
@@ -101,6 +104,9 @@ class QCircuit:
             else:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
+        else:
+            #TODO implement how we add noise models from the constructor
+            pass
 
     def add(self, instruction: Instruction | Iterable[Instruction]):
         """Adds one instruction or a list of instructions at the end of the
