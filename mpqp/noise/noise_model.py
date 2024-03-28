@@ -1,19 +1,73 @@
+from abc import ABC, abstractmethod
+from typing import Union
+
+from sympy import Expr
+
 from mpqp.core.instruction.gates import Gate
+from mpqp.noise.custom_noise import KrausRepresentation
 
 
-class NoiseModel:
+class NoiseModel(ABC):
     def __init__(self, target: list[int] = None, gates: list[Gate] = None):
         # if target is None, it has to be set from circuit.add() as targets = list(range(circuit.nb_qubits))
         self.target = target
         self.gates = gates
         pass
 
+    @abstractmethod
+    def to_kraus_representation(self) -> KrausRepresentation:
+        pass
+
+
 class Depolarizing(NoiseModel):
-    self.e1
-    self.e2
-    pass
+    # TODO: NOISE - define the __init__ --> need to know what are all the parameters for defining Depolarizing Noise ?
+    #  Error on one qubit, two qubits ?
+
+    # TODO : NOISE - Is this a single qubit Depolarizing that we can put on several qubit ? Or it also captures the Two-qubit
+    #  Depolarizing channel ? --> look at d parameter ?
+
+    def __init__(self,
+                 proba: Union[float, Expr],
+                 dimension: int = 1,
+                 target: list[int] = None,
+                 gates: list[Gate] = None
+    ):
+        # TODO check that the parameter verifies 0 <= proba <= 1+1/(d**2-1), with d dimension of the depolarizing channel
+        super().__init__()
+        self.proba
+
+    # TODO
+
+    def to_kraus_representation(self):
+        # TODO
+        pass
 
 
 class BitFlip(NoiseModel):
-    self.flip_proba
+    """3M-TODO"""
+    pass
+
+
+class Pauli(NoiseModel):
+    """3M-TODO"""
+    pass
+
+
+class Dephasing(NoiseModel):
+    """3M-TODO"""
+    pass
+
+
+class PhaseFlip(NoiseModel):
+    """3M-TODO"""
+    pass
+
+
+class AmplitudeDamping(NoiseModel):
+    """3M-TODO"""
+    pass
+
+
+class PhaseDamping(NoiseModel):
+    """3M-TODO"""
     pass

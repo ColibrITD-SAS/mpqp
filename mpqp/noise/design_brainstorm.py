@@ -14,13 +14,9 @@ from mpqp.core.instruction.gates import Gate
 
 circuit = QCircuit()
 
-#TODO : take a decision, find new argument about using add/add_noise/noise/...
-
 # Remark : the precision of the target list, when None, has to be done at execution
 
 # Remark 2: Hardware model could be Custom noise (combination of several noise models)
-
-# Remark 3: could we just put the error rates specific to each subclass of NoiseModel ?
 
 
 # depolarizing noise on the whole circuit
@@ -38,8 +34,6 @@ circuit.add(Depolarizing(0.03, [0, 1], gates=[H, X ,Y, Z]))
 
 # adding several noise to different gates, specific qubits
 circuit.add([Depolarizing(0.02, [0], gates=[H, X, Y, Z]), BitFlip(0.1, [2, 3], gates=[CZ, CNOT])])
-
-################# CONCEPTION PART #################
 
 
 

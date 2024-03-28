@@ -105,7 +105,7 @@ class QCircuit:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
         else:
-            #TODO implement how we add noise models from the constructor
+            #TODO - NOISE implement how we add noise models from the constructor
             pass
 
     def add(self, instruction: Instruction | Iterable[Instruction]):
@@ -129,6 +129,7 @@ class QCircuit:
             c: 2/═══════════╩══╩═
                             0  1
         """
+        # TODO : NOISE, modify add so it can take as parameter NoiseModel
         if isinstance(instruction, Iterable):
             for inst in instruction:
                 self.add(inst)
@@ -599,6 +600,17 @@ class QCircuit:
 
         return new_circuit
 
+    def without_noises(self) -> QCircuit:
+        """Provides a copy of this circuit with all the noise models removed.
+
+        Examples:
+
+        Returns:
+            A copy of this circuit with all the noise models removed.
+        """
+        #TODO - Noise, to implement
+        pass
+
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> Union[QuantumCircuit, myQLM_Circuit, braket_Circuit]:
@@ -625,6 +637,9 @@ class QCircuit:
         Returns:
             The corresponding circuit in the target language.
         """
+
+        # TODO: NOISE - Add NoiseModel to the exported circuit when it is possible ? Because we don't do it for
+        #  measurement in Braket for example
 
         if language == Language.QISKIT:
             # to avoid defining twice the same parameter, we keep trace of the

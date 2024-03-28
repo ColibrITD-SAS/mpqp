@@ -15,4 +15,4 @@ class KrausRepresentation():
     """# 3M-TODO : implement and comment"""
 
     def __init__(self, k_ops: list[KrausOperator]):
-        self.pp = 1
+        self.pp = k_ops
