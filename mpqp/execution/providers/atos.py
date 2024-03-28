@@ -281,7 +281,8 @@ def extract_observable_result(
             raise NotImplementedError("We cannot handle job without measure for now")
         nb_shots = job.measure.shots
 
-    return Result(job, myqlm_result.value, myqlm_result.error, nb_shots)
+    error = float(myqlm_result.error) if isinstance(myqlm_result.error, np.complex128) else myqlm_result.error # type: ignore[reportArgumentType]
+    return Result(job, myqlm_result.value, error, nb_shots)
 
 
 @typechecked

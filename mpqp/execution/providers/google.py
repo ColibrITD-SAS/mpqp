@@ -1,3 +1,4 @@
+from __future__ import annotations
 from typing import Optional
 
 from typeguard import typechecked
@@ -65,7 +66,7 @@ def run_local(job: Job) -> Result:
 
     if job.job_type == JobType.STATE_VECTOR:
         result_sim = sim.simulate(cirq_circuit)
-        result = extract_result_STATE_VECTOR(result_sim, job, GOOGLEDevice.CIRQ)
+        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
         if isinstance(job.measure.basis, ComputationalBasis):
@@ -79,23 +80,22 @@ def run_local(job: Job) -> Result:
             raise NotImplementedError(
                 "Does not handle other basis than the ComputationalBasis for the moment"
             )
-
-        result = extract_result_SAMPLE(result_sim, job, GOOGLEDevice.CIRQ)
+        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ)
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
         if job.measure.shots == 0:
-            result = sim.simulate_expectation_values(cirq_circuit, observables=cirq_obs)
+            result_sim = sim.simulate_expectation_values(cirq_circuit, observables=cirq_obs)
         else:
-            result = measure_observables(
+            result_sim = measure_observables(
                 cirq_circuit,
                 cirq_obs,
                 sim,
                 stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
             )
-        result = extract_result_OBSERVABLE(result, job, GOOGLEDevice.CIRQ)
+        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ)
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
@@ -130,10 +130,27 @@ def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: cirq_circ
 
     return fcirc, sim_engine
 
-
-def extract_result_SAMPLE(
+def extract_result(
     result: cirq_result,
     job: Optional[Job] = None,
+    device: Optional[GOOGLEDevice] = None,
+    )->Result:
+    print(type(result))
+    if job is None:
+        raise NotImplementedError("result from job None is not implemented")
+    else:
+        if job.job_type == JobType.SAMPLE:
+            return extract_result_SAMPLE(result, job, device)
+        elif job.job_type == JobType.STATE_VECTOR:
+            return extract_result_STATE_VECTOR(result, job, device)
+        elif job.job_type == JobType.OBSERVABLE:
+            return extract_result_OBSERVABLE(result, job, device)
+        else:
+            raise NotImplementedError("Job type not supported")
+    
+def extract_result_SAMPLE(
+    result: cirq_result,
+    job: Job,
     device: Optional[GOOGLEDevice] = None,
 ) -> Result:
     """
@@ -166,7 +183,7 @@ def extract_result_SAMPLE(
 
 def extract_result_STATE_VECTOR(
     result: cirq_result,
-    job: Optional[Job] = None,
+    job: Job,
     device: Optional[GOOGLEDevice] = None,
 ) -> Result:
     state_vector = result.final_state_vector
@@ -178,16 +195,20 @@ def extract_result_STATE_VECTOR(
 
 def extract_result_OBSERVABLE(
     result: cirq_result,
-    job: Optional[Job],
+    job: Job,
     device: Optional[GOOGLEDevice] = None,
 ) -> Result:
-    print(result)
     mean = 0.0
     variance = 0.0
-    if job.measure.shots == 0:
-        mean = abs(result[0])
-    else:
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+    if isinstance(result, (list, tuple)) and isinstance(result[0], complex):
+        for result1 in result:
+            mean += abs(result1)
+    elif isinstance(result, (list, tuple)):
         for result1 in result:
             mean += result1.mean
             # TODO variance not supported variance += result1.variance
+    else:
+        raise NotImplementedError(f"Result type {type(result)} not supported")
     return Result(job, mean, variance, job.measure.shots)
