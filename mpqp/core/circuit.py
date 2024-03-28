@@ -7,6 +7,7 @@ from typing import Iterable, Optional, Sequence, Type, Union
 import numpy as np
 import numpy.typing as npt
 from braket.circuits import Circuit as braket_Circuit
+from cirq import Circuit as cirq_Circuit
 from matplotlib.figure import Figure
 from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from qiskit.circuit import Operation, QuantumCircuit
@@ -27,6 +28,7 @@ from mpqp.core.languages import Language
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.maths import matrix_eq
 
@@ -595,7 +597,7 @@ class QCircuit:
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> Union[QuantumCircuit, myQLM_Circuit, braket_Circuit]:
+    ) -> Union[QuantumCircuit, myQLM_Circuit, braket_Circuit, cirq_Circuit,]:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -697,7 +699,10 @@ class QCircuit:
             )
 
             return qasm3_to_braket_Circuit(circuit.to_qasm3())
-
+        elif language == Language.CIRQ:
+            cirq_circuit = qasm2_to_cirq_Circuit(self.to_qasm2())
+            return cirq_circuit
+        
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 

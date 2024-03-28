@@ -77,7 +77,7 @@ def compute_expectation_value(
             "type ExpectationMeasure"
         )
     nb_shots = job.measure.shots
-    qiskit_observable = Operator(job.measure.observable.matrix)
+    qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
 
     if nb_shots != 0:
         assert ibm_backend is not None
@@ -250,7 +250,7 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     if job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
-        qiskit_observable = Operator(job.measure.observable.matrix)
+        qiskit_observable: Operator = job.measure.observable.to_other_language(Language.QISKIT)
 
         ibm_job = estimator.run(
             qiskit_circuit, qiskit_observable, shots=job.measure.shots
