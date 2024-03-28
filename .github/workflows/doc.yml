@@ -6,7 +6,6 @@ on:
       - closed
     branches:
       - main
-
 jobs:
   build_publish_docs:
     # Deploy to cloudflare
