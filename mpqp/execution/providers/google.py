@@ -8,27 +8,22 @@ from mpqp.execution.job import JobType, Job
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.qasm import qasm2_to_cirq_Circuit
 
+
 from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 
 from mpqp import Language
 
-from cirq import (
-    Simulator,
-    RouteCQC,
-    optimize_for_target_gateset,
-    state_vector_to_probabilities,
-)
+from cirq.transformers.optimize_for_target_gateset import optimize_for_target_gateset
+from cirq.value.probability import state_vector_to_probabilities
+from cirq.transformers.routing.route_circuit_cqc import RouteCQC
+from cirq.sim.sparse_simulator import Simulator
 from cirq.circuits import circuit as cirq_circuit
 from cirq.study.result import Result as cirq_result
 from cirq.transformers.target_gatesets.sqrt_iswap_gateset import SqrtIswapTargetGateset
-from cirq_google import (
-    engine,
-    noise_properties_from_calibration,
-    NoiseModelFromGoogleNoiseProperties,
-)
-from qsimcirq import QSimSimulator
+from cirq_google import engine
+from qsimcirq.qsim_simulator import QSimSimulator
 from cirq.work.observable_measurement import (
     measure_observables,
     RepetitionsStoppingCriteria,
@@ -47,15 +42,22 @@ def run_google(job: Job) -> Result:
     Returns:
         A Result after submission and execution of the job.
     """
-    return run_local(job) if not job.device.is_remote() else print("none")
+    return run_local(job) if not job.device.is_remote() else run_google_remote(job)
 
 
 @typechecked
+def run_google_remote(job: Job) -> Result:
+    pass
+
+@typechecked
 def run_local(job: Job) -> Result:
+    if type(job.device) != GOOGLEDevice:
+        raise ValueError("Job device must be GOOGLEDevice")
 
     cirq_circuit = qasm2_to_cirq_Circuit(job.circuit.to_qasm2())
+    print(type(cirq_circuit))
     sim = Simulator()
-    if job.device.is_processor():
+    if  job.device.is_processor():
         if job.job_type != JobType.SAMPLE:
             raise NotImplementedError(
                 f"Does not handle {job.job_type} for processor for the moment"
@@ -106,9 +108,9 @@ def run_local(job: Job) -> Result:
 def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: cirq_circuit):
 
     cal = engine.load_median_device_calibration(processor_id)
-    noise_props = noise_properties_from_calibration(cal)
-    noise_model = NoiseModelFromGoogleNoiseProperties(noise_props)
-    sim = QSimSimulator(noise=noise_model)
+    #noise_props = noise_properties_from_calibration(cal)
+    #noise_model = NoiseModelFromGoogleNoiseProperties(noise_props)
+    sim = QSimSimulator(noise=None)
 
     device = engine.create_device_from_processor_id(processor_id)
 
@@ -135,7 +137,6 @@ def extract_result(
     job: Optional[Job] = None,
     device: Optional[GOOGLEDevice] = None,
     )->Result:
-    print(type(result))
     if job is None:
         raise NotImplementedError("result from job None is not implemented")
     else:

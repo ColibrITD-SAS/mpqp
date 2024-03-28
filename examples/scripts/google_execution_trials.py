@@ -3,9 +3,8 @@ from mpqp import QCircuit
 from mpqp.measures import BasisMeasure
 from mpqp.execution.devices import GOOGLEDevice, IBMDevice, AWSDevice
 from mpqp.execution import run
-from mpqp.execution.providers_execution.google_execution import (
-    circuit_to_processor_cirq_Circuit,
-)
+from mpqp.execution.providers.google import circuit_to_processor_cirq_Circuit
+
 from mpqp.qasm import qasm2_to_cirq_Circuit
 from mpqp.tools.visualization import plot_results_sample_mode
 import matplotlib.pyplot as plt
