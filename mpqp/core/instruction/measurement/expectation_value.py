@@ -284,6 +284,8 @@ class ExpectationMeasure(Measure):
     ) -> None:
         if qiskit_parameters is None:
             qiskit_parameters = set()
+        #TODO : incoherence here, if the language is Qiskit we raise a NotImplementedError, and otherwise we say that
+        # only qiskit is supported
         if language == Language.QISKIT:
             raise NotImplementedError(
                 "Qiskit does not implement these kind of measures"
