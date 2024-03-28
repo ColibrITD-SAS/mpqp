@@ -25,7 +25,7 @@ class PauliString:
         monomials : List of Pauli monomials.
 
     Example:
-        >>> I@Z + 2*Y@I + X@Z
+        >>> I @ Z + 2 * Y @ I + X @ Z
         1*I@Z + 2*Y@I + 1*X@Z
     """
 
@@ -118,7 +118,7 @@ class PauliString:
         return self
 
     def __truediv__(self, other: FixedReal) -> "PauliString":
-        return self * (1 / other) # pyright: ignore[reportOperatorIssue]
+        return self * (1 / other)  # pyright: ignore[reportOperatorIssue]
 
     def __imatmul__(self, other: "PauliString") -> "PauliString":
         self._monomials = [
@@ -140,7 +140,7 @@ class PauliString:
         """Simplify the PauliString by combining like terms and removing terms with zero coefficients.
 
         Example:
-            >>> ps = I@I - 2* I@I + Z@I - Z@I
+            >>> ps = I @ I - 2 * I @ I + Z @ I - Z @ I
             >>> simplified_ps = ps.simplify()
             >>> print(simplified_ps)
             -1*I@I
@@ -426,7 +426,9 @@ class PauliStringAtom(PauliStringMonomial):
         return str(self)
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
-        return PauliStringMonomial(1 / other , [self]) # pyright: ignore[reportArgumentType]
+        return PauliStringMonomial(
+            1 / other, [self]
+        )  # pyright: ignore[reportArgumentType]
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
         return self * other
@@ -467,27 +469,24 @@ class PauliStringAtom(PauliStringMonomial):
 _allow_atom_creation = True
 
 I = PauliStringAtom("I", np.eye(2, dtype=np.complex64))
-"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
+r"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
 Matrix representation:
-[1 0]
-[0 1]
+`\begin{pmatrix}1&0\\0&1\end{pmatrix}`
 """
 X = PauliStringAtom("X", 1 - np.eye(2, dtype=np.complex64))
-"""Pauli-X atom representing the X operator in a Pauli monomial or string.
+r"""Pauli-X atom representing the X operator in a Pauli monomial or string.
 Matrix representation:
-[0 1]
-[1 0]
+`\begin{pmatrix}0&1\\1&0\end{pmatrix}`
+
 """
 Y = PauliStringAtom("Y", np.fliplr(np.diag([1j, -1j])))
-"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
+r"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
 Matrix representation:
-[0 -i]
-[i  0]
+`\begin{pmatrix}0&-i\\i&0\end{pmatrix}`
 """
 Z = PauliStringAtom("Z", np.diag([1, -1]))
-"""Pauli-Z atom representing the Z operator in a Pauli monomial or string.
+r"""Pauli-Z atom representing the Z operator in a Pauli monomial or string.
 Matrix representation:
-[1  0]
-[0 -1]
+`\begin{pmatrix}1&0\\0&-1\end{pmatrix}`
 """
 _allow_atom_creation = False
