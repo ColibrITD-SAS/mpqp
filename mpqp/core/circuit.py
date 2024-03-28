@@ -92,21 +92,18 @@ class QCircuit:
                     "this does not make sense."
                 )
             self.nb_qubits = data
-        elif isinstance(data[0], Instruction):
+        else:
             if nb_qubits is None:
                 if len(data) == 0:
                     self.nb_qubits = 0
                 else:
                     connections: set[int] = set.union(
-                        *(inst.connections() for inst in data)
+                        *(item.connections() for item in data)
                     )
                     self.nb_qubits = max(connections) + 1
             else:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
-        else:
-            #TODO - NOISE implement how we add noise models from the constructor
-            pass
 
     def add(self, instruction: Instruction | Iterable[Instruction]):
         """Adds one instruction or a list of instructions at the end of the
@@ -608,7 +605,7 @@ class QCircuit:
         Returns:
             A copy of this circuit with all the noise models removed.
         """
-        #TODO - Noise, to implement
+        # TODO - Noise, to implement
         pass
 
     def to_other_language(
