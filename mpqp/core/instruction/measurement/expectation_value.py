@@ -51,14 +51,12 @@ class Observable:
     """
 
     def __init__(self, observable: Matrix | PauliString):
-        self.observable = observable
         self._matrix = None
         self._pauli_string = None
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
-            self.observable = self._pauli_string
         else:
             self.nb_qubits = int(np.log2(len(observable)))
             """Number of qubits of this observable."""
@@ -85,12 +83,10 @@ class Observable:
         Returns:
             np.ndarray: The matrix representation of the observable.
         """
-        if isinstance(self.observable, PauliString):
-            if self._matrix is None:
-                self._matrix = self.observable.to_matrix()
-            return self._matrix.astype(np.complex64)
-        else:
-            return self.observable
+        if self._matrix is None:
+            self._matrix = self.pauli_string.to_matrix()
+        matrix = copy.deepcopy(self._matrix).astype(np.complex64)
+        return matrix
 
     @property
     def pauli_string(self) -> PauliString:
@@ -100,15 +96,23 @@ class Observable:
         Returns:
             PauliString: The PauliString representation of the observable.
         """
-        if isinstance(self.observable, PauliString):
-            return self.observable
-        else:
-            if self._pauli_string is None:
-                self._pauli_string = PauliString.from_matrix(self.matrix)
-            return self._pauli_string
+        if self._pauli_string is None:
+            self._pauli_string = PauliString.from_matrix(self.matrix)
+        pauli_string = copy.deepcopy(self._pauli_string)
+        return pauli_string
+    
+    @pauli_string.setter
+    def pauli_string(self, pauli_string: PauliString):
+        self._pauli_string = pauli_string
+        self._matrix = None
+    
+    @matrix.setter
+    def matrix(self, matrix: Matrix):
+        self._matrix = matrix
+        self._pauli_string = None
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({one_lined_repr(self.observable)})"
+        return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
 
     def __mult__(self, other: Expr | Complex) -> Observable:
         """3M-TODO"""
