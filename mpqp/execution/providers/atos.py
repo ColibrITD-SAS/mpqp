@@ -9,7 +9,6 @@ from qat.core.contexts import QPUContext
 from qat.core.qpu.qpu import QPUHandler
 from qat.core.wrappers.circuit import Circuit
 from qat.core.wrappers.job import Job as JobQLM
-from qat.core.wrappers.observable import Observable as QLM_Observable
 from qat.core.wrappers.result import Result as QLM_Result
 from qat.plugins.observable_splitter import ObservableSplitter
 from qat.pylinalg import PyLinalg
@@ -125,10 +124,10 @@ def generate_observable_job(
     """
 
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-    qml_Obs = job.measure.observable.to_other_language(Language.MY_QLM)
+    qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
-        observable=qml_Obs,
+        observable=qlm_obs,
         nbshots=job.measure.shots,
     )
     if job.device.is_remote():
@@ -281,7 +280,7 @@ def extract_observable_result(
             raise NotImplementedError("We cannot handle job without measure for now")
         nb_shots = job.measure.shots
 
-    error = float(myqlm_result.error) if isinstance(myqlm_result.error, np.complex128) else myqlm_result.error # type: ignore[reportArgumentType]
+    error = None if myqlm_result.error is None else abs(myqlm_result.error)
     return Result(job, myqlm_result.value, error, nb_shots)
 
 
