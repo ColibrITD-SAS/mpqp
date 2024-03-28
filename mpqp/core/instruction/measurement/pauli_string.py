@@ -1,6 +1,8 @@
-"""Represents Pauli strings, which is linear combinations of :class:`PauliMonomial` with is a combinaison of :class:`PauliAtom`.
-:class:`PauliString` objects can be added, subtracted, and multiplied by scalars. They also support matrix multiplication
-with other :class:`PauliString` objects.
+"""Represents Pauli strings, which is linear combinations of
+:class:`PauliMonomial` with is a combination of :class:`PauliAtom`.
+:class:`PauliString` objects can be added, subtracted, and multiplied by
+scalars. They also support matrix multiplication with other :class:`PauliString`
+objects.
 """
 
 from __future__ import annotations
@@ -118,7 +120,7 @@ class PauliString:
         return self
 
     def __truediv__(self, other: FixedReal) -> "PauliString":
-        return self * (1 / other) # pyright: ignore[reportOperatorIssue]
+        return self * (1 / other)  # pyright: ignore[reportOperatorIssue]
 
     def __imatmul__(self, other: "PauliString") -> "PauliString":
         self._monomials = [
@@ -426,7 +428,9 @@ class PauliStringAtom(PauliStringMonomial):
         return str(self)
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
-        return PauliStringMonomial(1 / other , [self]) # pyright: ignore[reportArgumentType]
+        return PauliStringMonomial(
+            1 / other, [self]
+        )  # pyright: ignore[reportArgumentType]
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
         return self * other
