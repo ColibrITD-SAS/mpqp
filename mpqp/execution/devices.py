@@ -32,6 +32,15 @@ class AvailableDevice(Enum):
             ``True`` if this device is a simulator."""
         pass
 
+    @abstractmethod
+    def is_noisy_simulator(self) -> bool:
+        """Indicates whether a device can simulate noise or not.
+
+        Returns:
+            ``True`` if this device can simulate noise.
+        """
+        pass
+
 
 class IBMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by IBM Quantum."""
@@ -85,6 +94,10 @@ class IBMDevice(AvailableDevice):
     def is_simulator(self) -> bool:
         return "simulator" in self.value
 
+    def is_noisy_simulator(self) -> bool:
+        # TODO: determine which devices can simulate noise
+        pass
+
 
 class ATOSDevice(AvailableDevice):
     """Enum regrouping all available devices provided by ATOS."""
@@ -113,6 +126,10 @@ class ATOSDevice(AvailableDevice):
     def is_simulator(self) -> bool:
         return True
 
+    def is_noisy_simulator(self) -> bool:
+        # TODO: to check
+        return self == ATOSDevice.QLM_NOISY_QPROC
+
 
 class AWSDevice(AvailableDevice):
     """Enum regrouping all available devices provided by AWS Braket."""
@@ -139,6 +156,10 @@ class AWSDevice(AvailableDevice):
 
     def is_simulator(self) -> bool:
         return "SIMULATOR" in self.name
+
+    def is_noisy_simulator(self) -> bool:
+        # TODO: to check if all simulators support noise (especially remote ones)
+        return self.is_simulator()
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.
