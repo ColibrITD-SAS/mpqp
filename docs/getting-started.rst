@@ -15,6 +15,20 @@ supported). MacOS versions will come very soon!
 
    $ pip install mpqp
 
+.. note::
+    For mac users, additional steps are required before the installation, 
+    specifically because of the ``myqlm`` library. To run these steps, you can 
+    either follow their instructions on 
+    `this page <https://myqlm.github.io/01_getting_started/%3Amyqlm%3Amacos.html#macos>`_
+    or run the script we created to facilitate this step:
+
+    .. code-block:: bash
+
+        curl -L https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/mac-install.sh | bash -s -- <your-python-bin>
+        
+    where ``<your-python-bin>`` is the binary you use to invoke python. I could 
+    for instance be ``python``, ``python3``, ``python3.9``, etc...
+
 Your first circuit
 ------------------
 
