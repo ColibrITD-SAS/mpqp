@@ -8,11 +8,10 @@ from mpqp.noise.custom_noise import KrausRepresentation
 
 
 class NoiseModel(ABC):
+    # TODO: to define the 'docstring'
     def __init__(self, targets: list[int], gates: list[Gate] = None):
-        # if target is None, it has to be set from circuit.add() as targets = list(range(circuit.nb_qubits))
         self.targets = targets
-        self.gates = gates
-        pass
+        self.gates = gates if gates is not None else []
 
     def connections(self) -> set[int]:
         return set(self.targets)
@@ -23,12 +22,7 @@ class NoiseModel(ABC):
 
 
 class Depolarizing(NoiseModel):
-    # TODO: NOISE - define the __init__ --> need to know what are all the parameters for defining Depolarizing Noise ?
-    #  Error on one qubit, two qubits ?
-
-    # TODO : NOISE - Is this a single qubit Depolarizing that we can put on several qubit ? Or it also captures the Two-qubit
-    #  Depolarizing channel ? --> look at d parameter ?
-
+    # TODO: to define the 'docstring'
     def __init__(
         self,
         proba: Union[float, Expr],
@@ -36,12 +30,18 @@ class Depolarizing(NoiseModel):
         dimension: int = 1,
         gates: list[Gate] = None,
     ):
-        # TODO check that the parameter verifies 0 <= proba <= 1+1/(d**2-1), with d dimension of the depolarizing channel
-        super().__init__()
-        self.proba
+
+        super().__init__(targets, gates)
+
+        if not (0 <= proba <= 1 + 1 / (dimension**2 - 1)):
+            raise ValueError(
+                f"Invalid probability; {proba} must be between 0 and {1 + 1 / (dimension**2 - 1)}"
+            )
+
+        self.proba = proba
+        self.dimension = dimension
 
     # TODO
-
     def to_kraus_representation(self):
         # TODO
         pass
