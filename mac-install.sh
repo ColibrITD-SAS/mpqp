@@ -15,4 +15,4 @@ if [[ ! -f /usr/local/lib/libomp.dylib ]]; then
 	sudo mkdir /usr/local/lib
 	sudo ln -sf $libom_location/$version/lib/libomp.dylib /usr/local/lib/libomp.dylib
 fi
-pip $python_exec -p pip install mpqp
+$python_exec -m pip install mpqp
