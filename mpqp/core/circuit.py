@@ -37,9 +37,10 @@ class QCircuit:
     """This class models a quantum circuit.
 
     A circuit is composed of quantum and classical bits and it is defined as a
-    list of instructions applied on specific quantum and/or classical bits.
+    list of instructions and noise models applied on specific quantum and/or classical bits.
 
     Example:
+        TODO: add an example with noise model
         >>> circuit = QCircuit(2)
         >>> circuit.pretty_print()
         QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 0
@@ -58,9 +59,9 @@ class QCircuit:
         q_4: ────────────
 
     Args:
-        data: Number of qubits or List of instructions to initiate the circuit with. If the number of qubits is passed,
+        data: Number of qubits or List of [Instruction or NoiseModel] to initiate the circuit with. If the number of qubits is passed,
             it should be a positive int.
-        nb_qubits: Optional number of qubits, in case you input the sequence of instruction and want to hardcode the
+        nb_qubits: Optional number of qubits, in case you input the sequence of instructions or noise models and want to hardcode the
             number of qubits.
         nb_cbits: Number of classical bits. It should be positive. Defaults to None.
         label: Name of the circuit. Defaults to None.
@@ -105,14 +106,17 @@ class QCircuit:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
 
-    def add(self, instruction: Instruction | Iterable[Instruction]):
-        """Adds one instruction or a list of instructions at the end of the
+    def add(
+        self, components: Instruction | NoiseModel | Iterable[Instruction | NoiseModel]
+    ):
+        """Adds an instruction or a noise model or a list of [instructions or noise models] at the end of the
         circuit.
 
         Args:
-            instruction : Instruction(s) to append at the end of the circuit.
+            components : Instruction(s) or NoiseModel(s) to append at the end of the circuit.
 
         Example:
+            TODO add an example with noise model
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
             >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
@@ -126,38 +130,39 @@ class QCircuit:
             c: 2/═══════════╩══╩═
                             0  1
         """
-        # TODO : NOISE, modify add so it can take as parameter NoiseModel
-        if isinstance(instruction, Iterable):
-            for inst in instruction:
-                self.add(inst)
+
+        if isinstance(components, Iterable):
+            for comp in components:
+                self.add(comp)
             return
 
-        if any(conn > self.nb_qubits for conn in instruction.connections()):
+        if any(conn >= self.nb_qubits for conn in components.connections()):
+            component_type = (
+                "Instruction" if isinstance(components, Instruction) else "NoiseModel"
+            )
             raise NumberQubitsError(
-                f"Instruction {type(instruction)}'s connections "
-                f"({instruction.connections()}) are not compatible with circuit"
+                f"{component_type} {type(components)}'s connections "
+                f"({components.connections()}) are not compatible with circuit"
                 f" size ({self.nb_qubits})."
             )
-        if any(qb >= self.nb_qubits for qb in instruction.targets):
-            raise NumberQubitsError("Instruction targets qubit outside of circuit")
-        if isinstance(instruction, ControlledGate):
-            if any(qb >= self.nb_qubits for qb in instruction.controls):
-                raise NumberQubitsError("Control targets qubit outside of circuit")
 
-        if isinstance(instruction, BasisMeasure):
+        if isinstance(components, BasisMeasure):
             # has to be done in two steps, because Pycharm's type checker is unable to understand chained type inference
-            if instruction.c_targets is None:
+            if components.c_targets is None:
                 if self.nb_cbits is None:
                     self.nb_cbits = 0
-                instruction.c_targets = [
-                    self.nb_cbits + i for i in range(len(instruction.targets))
+                components.c_targets = [
+                    self.nb_cbits + i for i in range(len(components.targets))
                 ]
-                self.nb_cbits += len(instruction.c_targets)
+                self.nb_cbits += len(components.c_targets)
 
-        if isinstance(instruction, Barrier):
-            instruction.size = self.nb_qubits
+        if isinstance(components, Barrier):
+            components.size = self.nb_qubits
 
-        self.instructions.append(instruction)
+        if isinstance(components, NoiseModel):
+            self.noises.append(components)
+        else:
+            self.instructions.append(components)
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.
@@ -601,12 +606,14 @@ class QCircuit:
         """Provides a copy of this circuit with all the noise models removed.
 
         Examples:
+            TODO: add an example with noise model
 
         Returns:
             A copy of this circuit with all the noise models removed.
         """
-        # TODO - Noise, to implement
-        pass
+        new_circuit = deepcopy(self)
+        new_circuit.noises = []
+        return new_circuit
 
     def to_other_language(
         self, language: Language = Language.QISKIT
