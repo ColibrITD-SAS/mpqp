@@ -26,7 +26,7 @@ is not supported, so your milage may vary).
 
         curl -L https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/mac-install.sh | bash -s -- <your-python-bin>
         
-    where ``<your-python-bin>`` is the binary you use to invoke python. I could 
+    where ``<your-python-bin>`` is the binary you use to invoke python. It could
     for instance be ``python``, ``python3``, ``python3.9``, etc...
 
 Your first circuit
