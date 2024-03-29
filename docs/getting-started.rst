@@ -53,17 +53,12 @@ Setup remote connection
 
 After you installed MPQP package using ``pip install``, the script
 :mod:`setup_connections.py<mpqp.execution.connection.setup_connections>` can be
-called from everywhere, not only in ``mpqp`` folder, using the following command
-line:
+called to setup your connection to the remote backends supported, using the
+following command:
 
 .. code-block:: console
 
     $ setup_connections
-
-This script will allow you to configure and save your personal account to
-connect to remote machines. Depending on the provider, different credentials can
-be asked. Information concerning which provider is configured and related
-credentials are stored in the ``~/.mpqp`` file.
 
 IBM Quantum
 ^^^^^^^^^^^
