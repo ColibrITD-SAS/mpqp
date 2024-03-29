@@ -8,7 +8,6 @@ from mpqp.core.instruction.gates import Gate
 # Apply noise to specific gate, specific qubits --> Noise on Hadamard(0)
 # Predefined noise models : with focus on DepolarizingNoise, GateNoise
 # Which providers ? The four of them is possible
-#
 
 ################# USAGE PART #################
 
