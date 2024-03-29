@@ -7,9 +7,9 @@ Installation
 .. TODO: grab the compatibility matrix from MyQLM and relax our requirements 
 .. when possible, test on many different configurations (tox or other ?)
 
-For now, we support python versions 3.9 to 3.11, and both Windows and Linux
-(specifically, if was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 is not
-supported). MacOS versions will come very soon!
+For now, we support python versions 3.9 to 3.11, and both Windows, Linux and 
+MacOS (specifically, Linux was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 
+is not supported, so your milage may vary).
 
 .. code-block:: console
 
