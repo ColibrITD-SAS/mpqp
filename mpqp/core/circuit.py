@@ -847,6 +847,7 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
         """
+        # TODO print also the noise models attached to the circuit
         print(
             f"QCircuit {self.label or ''}: Size (Qubits,Cbits) = {self.size()},"
             f" Nb instructions = {len(self)}\n"
@@ -854,9 +855,11 @@ class QCircuit:
         )
 
     def __str__(self) -> str:
+        # TODO print also the noise models attached to the circuit
         return str(self.to_other_language(Language.QISKIT))
 
     def __repr__(self) -> str:
+        # TODO print also the noise models attached to the circuit
         return f"QCircuit({self.instructions})"
 
     def variables(self):

@@ -77,6 +77,10 @@ class Depolarizing(NoiseModel):
         # TODO
         pass
 
+    def __repr__(self):
+        #TODO
+        pass
+
 
 class BitFlip(NoiseModel):
     """3M-TODO"""
