@@ -211,4 +211,10 @@ class GOOGLEDevice(AvailableDevice):
         return True
 
     def is_processor(self) -> bool:
+        """
+        Check if the device is a processor.
+
+        Returns:
+            True if the device is a processor, False otherwise.
+        """
         return self.name.startswith("PROCESSOR")

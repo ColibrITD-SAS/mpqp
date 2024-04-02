@@ -33,6 +33,8 @@ Specific device's info and manipulation are handled by additional methods
 
 .. autoclass:: mpqp.execution.devices.AWSDevice
 
+.. autoclass:: mpqp.execution.devices.GOOGLEDevice
+
 Setting up a remote device
 --------------------------
 

@@ -123,7 +123,7 @@ Braket.
 .. autofunction:: mpqp.qasm.qasm_to_braket.qasm3_to_braket_Program
 
 From OpenQASM to Cirq
-----------------------
+---------------------
 
 The Cirq library allows the user to instantiate a Cirq ``Circuit`` from an
 OpenQASM 2.0 code. This feature enables users to seamlessly transition 
