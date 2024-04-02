@@ -8,12 +8,31 @@ from mpqp.noise.custom_noise import KrausRepresentation
 
 
 class NoiseModel(ABC):
-    # TODO: to define the 'docstring'
+    """Abstract class used to represent a generic noise model, specifying criteria for applying different noise type
+    to a quantum circuit, or some of its qubits.
+
+    It allows to specify which qubits (targets) and which gates of the circuit will be affected with this noise model.
+
+    Args:
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
+
+    Raises:
+        ValueError: When target list is empty, or target indices are duplicated or negative.
+    """
+
     def __init__(self, targets: list[int], gates: list[Gate] = None):
+        if len(targets) == 0:
+            raise ValueError("Expected non-empty target list")
+
         if len(set(targets)) != len(targets):
-            raise ValueError(f"Duplicate registers in targets: {targets}")
+            raise ValueError(f"Duplicate indices in targets: {targets}")
+
         if any(index < 0 for index in targets):
             raise ValueError(f"Target indices must be non-negative, but got: {targets}")
+
+        # TODO: check if the size of the gate in gates is higher than the number of targets, raise error ?
+
         self.targets = targets
         self.gates = gates if gates is not None else []
 
@@ -36,23 +55,27 @@ class NoiseModel(ABC):
 
 
 class Depolarizing(NoiseModel):
-    """
-    TODO: doc
-    blablblabl
+    """Class representing the depolarizing noise channel, which maps a state onto a linear combination of itself and
+    the maximally mixed state. It can applied to a single or multiple qubits, and depends on a single parameter
+    (probability or error rate).
+
+    When the number of qubits in the target is higher than the dimension, the noise will be applied to all possible
+    combinations of indices of size ``dimension``.
 
     Examples:
-        >>>
-        >>>
-        >>>
+        >>> circuit.add(Depolarizing(0.32, list(range(circuit.nb_qubits)))
+        >>> circuit.add(Depolarizing(0.05, [0, 1], dimension=2)
+        >>> circuit.add(Depolarizing(0.05, [0, 1, 2], dimension=2)
+        >>> circuit.add(Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
 
     Args:
-        proba:
-        targets:
-        dimension:
-        gates:
+        proba: Depolarizing error probability or error rate.
+        targets: List of qubit indices affected by this noise.
+        dimension: Dimension of the depolarizing channel.
+        gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
 
     Raises:
-
+        ValueError: when a wrong dimension (negative) or probability (outside of the expected interval) is input.
     """
 
     def __init__(
@@ -62,7 +85,7 @@ class Depolarizing(NoiseModel):
         dimension: int = 1,
         gates: list[Gate] = None,
     ):
-        proba_upper_bound = 1 + 1 / (dimension**2 - 1)
+        proba_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= proba <= proba_upper_bound):
             raise ValueError(
                 f"Invalid probability: {proba} must have been between 0 and {proba_upper_bound}"
@@ -73,9 +96,13 @@ class Depolarizing(NoiseModel):
                 f"Dimension of the depolarizing channel must be strictly greater than 1, but got {dimension} instead."
             )
 
+        nb_targets = len(targets)
+        if nb_targets < dimension:
+            raise ValueError(f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}. ")
+
+        super().__init__(targets, gates)
         self.proba = proba
         self.dimension = dimension
-        super().__init__(targets, gates)
 
     def to_kraus_representation(self):
         # TODO
@@ -84,8 +111,9 @@ class Depolarizing(NoiseModel):
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):
-        #TODO
-        pass
+        return f"{type(self).__name__}({self.proba}, {self.targets}, {self.dimension}" + \
+               ("" if len(self.gates) == 0 else ", " + str(self.gates)) + ")"
+        #TODO: when printint str(self.gates), we remarked the gates do not have a nice __repr__
 
 
 class BitFlip(NoiseModel):

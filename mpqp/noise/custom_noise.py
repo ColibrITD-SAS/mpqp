@@ -1,7 +1,4 @@
-from mpqp.noise.noise_model import NoiseModel
-
-
-class CustomNoise(NoiseModel):
+class CustomNoise():
     """# 3M-TODO : implement and comment"""
     pass
 
