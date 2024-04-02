@@ -26,7 +26,7 @@ print(f"Cirq circuit:\n{cirq_circuit}\n")
 #####################################
 
 
-results = run(circuit, [GOOGLEDevice.CIRQ])
+results = run(circuit, [GOOGLEDevice.CIRQ_LOCAL_SIMULATOR])
 print(results)
 
 
@@ -42,7 +42,7 @@ results = run(
     circuit,
     [
         IBMDevice.AER_SIMULATOR,
-        GOOGLEDevice.CIRQ,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         GOOGLEDevice.PROCESSOR_RAINBOW,
         GOOGLEDevice.PROCESSOR_WEBER,
     ],

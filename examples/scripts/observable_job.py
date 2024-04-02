@@ -41,7 +41,7 @@ results = run(
     circuit,
     [
         ATOSDevice.MYQLM_PYLINALG,
-        GOOGLEDevice.CIRQ,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         IBMDevice.AER_SIMULATOR,
         ATOSDevice.MYQLM_CLINALG,
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
@@ -67,7 +67,7 @@ results = run(
         ATOSDevice.MYQLM_CLINALG,
         IBMDevice.AER_SIMULATOR,
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        GOOGLEDevice.CIRQ,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
     ],
 )
 print(results)

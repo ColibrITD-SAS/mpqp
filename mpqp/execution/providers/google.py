@@ -23,9 +23,12 @@ from cirq.transformers.routing.route_circuit_cqc import RouteCQC
 from cirq.sim.sparse_simulator import Simulator
 from cirq.circuits.circuit import Circuit as cirq_circuit
 from cirq.study.result import Result as cirq_result
-from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum 
+from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
 from cirq.transformers.target_gatesets.sqrt_iswap_gateset import SqrtIswapTargetGateset
-from cirq_google.engine.virtual_engine_factory import load_median_device_calibration, create_device_from_processor_id
+from cirq_google.engine.virtual_engine_factory import (
+    load_median_device_calibration,
+    create_device_from_processor_id,
+)
 from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
 from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
 from qsimcirq.qsim_simulator import QSimSimulator
@@ -65,7 +68,7 @@ def run_local(job: Job) -> Result:
 
     Returns:
         Result: The result after submission and execution of the job.
-        
+
     Raises:
         ValueError: If the job device is not GOOGLEDevice.
     """
@@ -81,7 +84,7 @@ def run_local(job: Job) -> Result:
                 f"Does not handle {job.job_type} for processor for the moment"
             )
         result_sim = sim.simulate(cirq_circuit)
-        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ)
+        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
 
@@ -99,13 +102,13 @@ def run_local(job: Job) -> Result:
             raise NotImplementedError(
                 "Does not handle other basis than the ComputationalBasis for the moment"
             )
-        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ)
+        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
-        
+
         if type(cirq_obs) != Cirq_PauliSum:
             raise ValueError("cirq_obs must be a Cirq_PauliSum object")
 
@@ -116,11 +119,11 @@ def run_local(job: Job) -> Result:
         else:
             result_sim = measure_observables(
                 cirq_circuit,
-                cirq_obs, # type: ignore[reportArgumentType]
+                cirq_obs,  # type: ignore[reportArgumentType]
                 sim,
                 stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
             )
-        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ)
+        result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
@@ -160,7 +163,7 @@ def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: cirq_circ
 
     router = RouteCQC(device.metadata.nx_graph)
 
-    rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit) # type: ignore[reportUnusedVariable]
+    rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
 
     fcirc = optimize_for_target_gateset(rcirc, gateset=SqrtIswapTargetGateset())
 
@@ -178,7 +181,12 @@ def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: cirq_circ
 
 
 def extract_result(
-    result: StateVectorTrialResult | cirq_result | list[float] | list[ObservableMeasuredResult],
+    result: (
+        StateVectorTrialResult
+        | cirq_result
+        | list[float]
+        | list[ObservableMeasuredResult]
+    ),
     job: Optional[Job] = None,
     device: Optional[GOOGLEDevice] = None,
 ) -> Result:
@@ -300,9 +308,9 @@ def extract_result_OBSERVABLE(
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     for result1 in result:
-            if isinstance(result1, float):
-                mean += abs(result1)
-            if isinstance(result1, ObservableMeasuredResult):
-                mean += result1.mean
-                # TODO variance not supported variance += result1.variance
+        if isinstance(result1, float):
+            mean += abs(result1)
+        if isinstance(result1, ObservableMeasuredResult):
+            mean += result1.mean
+            # TODO variance not supported variance += result1.variance
     return Result(job, mean, variance, job.measure.shots)

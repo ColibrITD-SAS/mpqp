@@ -46,7 +46,7 @@ import sys
     ],
 )
 def running_remote_local_cirq(circuit: QCircuit):
-    result = run(circuit, GOOGLEDevice.CIRQ)
+    result = run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
 if "-l" in sys.argv or "--long" in sys.argv:

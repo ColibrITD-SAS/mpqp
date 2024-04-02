@@ -197,7 +197,7 @@ class AWSDevice(AvailableDevice):
 class GOOGLEDevice(AvailableDevice):
     """Enum regrouping all available devices provided by CIRQ."""
 
-    CIRQ = "LocalSimulator"
+    CIRQ_LOCAL_SIMULATOR = "LocalSimulator"
     PROCESSOR_RAINBOW = "rainbow"
     PROCESSOR_WEBER = "weber"
 
