@@ -71,10 +71,10 @@ The main object used to perform quantum computations in Qiskit is the
 circuit. One can remark that few remote devices also support OpenQASM 3.0 code,
 this is not generalized yet to the whole library and device. We call the
 function
-:func:`qasm2_to_QuantumCircuit<mpqp.qasm.qasm_to_qiskit.qasm2_to_QuantumCircuit>`
+:func:`qasm2_to_Qiskit_Circuit<mpqp.qasm.qasm_to_qiskit.qasm2_to_Qiskit_Circuit>`
 to generate the circuit from the qasm code.
 
-.. autofunction:: mpqp.qasm.qasm_to_qiskit.qasm2_to_QuantumCircuit
+.. autofunction:: mpqp.qasm.qasm_to_qiskit.qasm2_to_Qiskit_Circuit
 
 From OpenQASM to myQLM
 ----------------------
@@ -83,7 +83,7 @@ The myQLM library allows the user to instantiate a myQLM ``Circuit`` from an
 OpenQASM 2.0 code. MyQLM is able to parse most of the standard gates, and allows
 us to complete the missing gates by linking them to already defined ones. We
 call the function
-:func:`qasm2_to_Circuit<mpqp.qasm.qasm_to_myqlm.qasm2_to_Circuit>` to generate
+:func:`qasm2_to_myqlm_Circuit<mpqp.qasm.qasm_to_myqlm.qasm2_to_myqlm_Circuit>` to generate
 the circuit from the qasm code.
 
 .. autofunction:: mpqp.qasm.qasm_to_myqlm.qasm2_to_myqlm_Circuit
@@ -121,3 +121,22 @@ standard gates and other included file is sufficient. However, note that a
 Braket.
 
 .. autofunction:: mpqp.qasm.qasm_to_braket.qasm3_to_braket_Program
+
+From OpenQASM to Cirq
+----------------------
+
+The Cirq library allows the user to instantiate a Cirq ``Circuit`` from an
+OpenQASM 2.0 code. This feature enables users to seamlessly transition 
+their quantum circuits from OpenQASM to Cirq, leveraging Cirq's capabilities
+and features.
+
+At present, the Cirq parser lacks native support for certain OpenQASM 2.0 
+operations such as ``cu1``, ``crz``, ``cu3``, ``reset``, and ``u0``. 
+To address this limitation, we've temporarily incorporated these gates directly 
+into the parser. This ensures seamless generation of circuits from QASM code 
+using the qasm2_to_cirq_Circuit function.
+
+:func:`qasm2_to_cirq_Circuit<mpqp.qasm.qasm_to_cirq.qasm2_to_cirq_Circuit>` to generate
+the circuit from the qasm code.
+
+.. autofunction:: mpqp.qasm.qasm_to_cirq.qasm2_to_cirq_Circuit
