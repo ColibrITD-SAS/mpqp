@@ -85,18 +85,28 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     batch = run(c, sampling_devices)
     nb_states = len(basis_states)
     for result in batch:
-        print(result)
         assert len(result.samples) == nb_states
 
 
 @pytest.mark.parametrize(
-    "instructions, counts_intervals",
+    "instructions",
     [
-        ([], [(0, 1)]),
+        ([H(0), CNOT(0, 1), CNOT(1, 2)]),
     ],
 )
-def test_sample_counts_in_trust_interval(instructions: list[Instruction], counts_intervals: list[tuple[int, int]]):
-    pass
+def test_sample_counts_in_trust_interval(instructions: list[Instruction]):
+    c = QCircuit(instructions)
+    shots = 500000
+    expected_counts = [int(count) for count in np.round(shots * run(c, state_vector_devices[0]).probabilities)]
+    c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
+    batch = run(c, sampling_devices)
+    for result in batch:
+        counts = result.counts
+        # check if the true value is inside the trust interval
+        for i in range(len(counts)):
+            test = 100*shots/expected_counts[i]
+            assert np.floor(counts[i]-test) <= expected_counts[i] <= np.ceil(counts[i]+test)
+    # TODO: doesn't work apparently
 
 
 @pytest.mark.parametrize(
