@@ -43,21 +43,18 @@ pip install -r requirements-dev.txt
 
 ### Our tech stack
 
-All the code of the Library is in [Python](https://www.python.org).
+Here are the pieces of software useful to know to work on our library:
 
-We run our tests using [pytest](https://docs.pytest.org).
-
-We generate our documentation using [Sphinx](https://www.sphinx-doc.org).
-
-We format the code using [black](https://black.readthedocs.io), but this is not
-configured yet.
-
-We check our types using [Pyright](https://microsoft.github.io/pyright), but
-this is not configured yet.
-
-The documentation is automatically deployed on new versions with
-[GitHub Actions](https://docs.github.com/en/actions). (As well as a few other
-bits and bobs)
+- All the code of the Library is in [Python](https://www.python.org).
+- We run our tests using [pytest](https://docs.pytest.org).
+- We generate our documentation using [Sphinx](https://www.sphinx-doc.org).
+- We format the code using [black](https://black.readthedocs.io), but this is not
+  configured yet.
+- We check our types using [Pyright](https://microsoft.github.io/pyright), but
+  this is not configured yet.
+- The documentation is automatically deployed on new versions with
+  [GitHub Actions](https://docs.github.com/en/actions). (As well as a few other
+  bits and bobs)
 
 ### Implement your changes
 
