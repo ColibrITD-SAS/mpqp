@@ -83,6 +83,10 @@ class Depolarizing(NoiseModel):
         kraus_operators = [...]  # list of Kraus operators
         return KrausRepresentation(kraus_operators)
 
+    def __repr__(self):
+        #TODO
+        pass
+
 
 class BitFlip(NoiseModel):
     """3M-TODO"""
