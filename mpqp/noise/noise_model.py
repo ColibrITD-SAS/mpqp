@@ -10,7 +10,10 @@ from mpqp.noise.custom_noise import KrausRepresentation
 class NoiseModel(ABC):
     # TODO: to define the 'docstring'
     def __init__(self, targets: list[int], gates: list[Gate] = None):
-        # TODO: check that targets do not contain negative indices (inspire from what is done in instructions ?)
+        if len(set(targets)) != len(targets):
+            raise ValueError(f"Duplicate registers in targets: {targets}")
+        if any(index < 0 for index in targets):
+            raise ValueError(f"Target indices must be non-negative, but got: {targets}")
         self.targets = targets
         self.gates = gates if gates is not None else []
 
@@ -51,6 +54,7 @@ class Depolarizing(NoiseModel):
     Raises:
 
     """
+
     def __init__(
         self,
         proba: Union[float, Expr],
@@ -58,7 +62,7 @@ class Depolarizing(NoiseModel):
         dimension: int = 1,
         gates: list[Gate] = None,
     ):
-        proba_upper_bound = 1 + 1/(dimension**2 - 1)
+        proba_upper_bound = 1 + 1 / (dimension**2 - 1)
         if not (0 <= proba <= proba_upper_bound):
             raise ValueError(
                 f"Invalid probability: {proba} must have been between 0 and {proba_upper_bound}"
@@ -75,14 +79,32 @@ class Depolarizing(NoiseModel):
 
     def to_kraus_representation(self):
         # TODO
-        pass
+        # generate Kraus operators for depolarizing noise
+        kraus_operators = [...]  # list of Kraus operators
+        return KrausRepresentation(kraus_operators)
 
 
 class BitFlip(NoiseModel):
     """3M-TODO"""
 
+    # def __init__(
+    #     self,
+    #     proba: Union[float, Expr],
+    #     targets: List[int],
+    #     dimension: int = 1,
+    #     gates: List[Gate] = None):
+
+    #     super().__init__(proba, targets, dimension, gates)
+
     def to_kraus_representation(self) -> KrausRepresentation:
+        # generate Kraus operators for bit flip noise
+        # kraus_operators = [
+        #     np.sqrt(1 - self.proba) * np.array([[1, 0], [0, 1]]),  # Identity
+        #     np.sqrt(self.proba) * np.array([[0, 1], [1, 0]])      # Bit flip
+        # ]
+        # return KrausRepresentation(kraus_operators)
         pass
+
 
 class Pauli(NoiseModel):
     """3M-TODO"""
