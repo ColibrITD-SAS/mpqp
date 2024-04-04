@@ -24,7 +24,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import NoiseModel
+from mpqp.noise.noise_model import Depolarizing, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -847,20 +847,31 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
         """
-        # TODO print also the noise models attached to the circuit
         print(
             f"QCircuit {self.label or ''}: Size (Qubits,Cbits) = {self.size()},"
-            f" Nb instructions = {len(self)}\n"
-            f"{self.to_other_language(Language.QISKIT)}"
+            f" Nb instructions = {len(self)}"
         )
+        if self.noises:
+            for model in self.noises:
+                if isinstance(model, Depolarizing):
+                    print(
+                        f"Depolarizing noise: probability {model.proba} on qubits {model.targets}"
+                    )
+
+        print(f"{self.to_other_language(Language.QISKIT)}")
 
     def __str__(self) -> str:
-        # TODO print also the noise models attached to the circuit
-        return str(self.to_other_language(Language.QISKIT))
+        circ_str = str(self.to_other_language(Language.QISKIT))
+        noise_str = (
+            "\nNoiseModel: " + "".join(str(noise) for noise in self.noises)
+            if self.noises
+            else ""
+        )
+        return circ_str + noise_str
 
     def __repr__(self) -> str:
-        # TODO print also the noise models attached to the circuit
-        return f"QCircuit({self.instructions})"
+        noises_repr = f"NoiseModel={self.noises}" if self.noises else ""
+        return f"QCircuit({self.instructions}, {noises_repr})"
 
     def variables(self):
         """Returns all the parameters involved in this circuit.
