@@ -31,7 +31,11 @@ class NoiseModel(ABC):
         if any(index < 0 for index in targets):
             raise ValueError(f"Target indices must be non-negative, but got: {targets}")
 
-        # TODO: check if the size of the gate in gates is higher than the number of targets, raise error ?
+        if gates and any(gate.nb_qubits > len(targets) for gate in gates):
+            raise ValueError(
+                "Noise could not be applied to the gates"
+                + f"gate size is higher than the size of the noise {len(targets)}"
+            )
 
         self.targets = targets
         self.gates = gates if gates is not None else []
@@ -98,7 +102,9 @@ class Depolarizing(NoiseModel):
 
         nb_targets = len(targets)
         if nb_targets < dimension:
-            raise ValueError(f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}. ")
+            raise ValueError(
+                f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}. "
+            )
 
         super().__init__(targets, gates)
         self.proba = proba
@@ -111,9 +117,12 @@ class Depolarizing(NoiseModel):
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.proba}, {self.targets}, {self.dimension}" + \
-               ("" if len(self.gates) == 0 else ", " + str(self.gates)) + ")"
-        #TODO: when printint str(self.gates), we remarked the gates do not have a nice __repr__
+        return (
+            f"{type(self).__name__}(proba={self.proba}, targets={self.targets}, "
+            f"dimension={self.dimension}"
+            + (", gates=" + str(self.gates) if self.gates else "")
+            + ")"
+        )
 
 
 class BitFlip(NoiseModel):
