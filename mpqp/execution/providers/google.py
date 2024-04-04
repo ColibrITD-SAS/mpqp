@@ -6,8 +6,6 @@ from typeguard import typechecked
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import JobType, Job
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.qasm import qasm2_to_cirq_Circuit
-
 
 from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -21,7 +19,7 @@ from cirq.transformers.optimize_for_target_gateset import optimize_for_target_ga
 from cirq.value.probability import state_vector_to_probabilities
 from cirq.transformers.routing.route_circuit_cqc import RouteCQC
 from cirq.sim.sparse_simulator import Simulator
-from cirq.circuits.circuit import Circuit as cirq_circuit
+from cirq.circuits.circuit import Circuit as Cirq_circuit
 from cirq.study.result import Result as cirq_result
 from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
 from cirq.transformers.target_gatesets.sqrt_iswap_gateset import SqrtIswapTargetGateset
@@ -36,6 +34,9 @@ from cirq.work.observable_measurement import (
     measure_observables,
     RepetitionsStoppingCriteria,
 )
+import cirq_ionq as ionq
+from cirq_ionq.ionq_gateset import IonQTargetGateset
+from cirq import LineQubit
 
 
 @typechecked
@@ -55,7 +56,39 @@ def run_google(job: Job) -> Result:
 
 @typechecked
 def run_google_remote(job: Job) -> Result:
-    raise NotImplementedError("run_google_remote is not yet implemented")
+
+    if type(job.device) != GOOGLEDevice:
+        raise ValueError("Job device must be GOOGLEDevice")
+
+    job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
+    if not isinstance(job_cirq_circuit, Cirq_circuit):
+        raise ValueError("Circuit must be Cirq_circuit")
+
+    if job.device.is_ionq():
+        if job.job_type != JobType.SAMPLE:
+            raise ValueError(
+                f"{job.device}: job_type must be {JobType.SAMPLE} for job type {job.job_type}"
+            )
+        assert isinstance(job.measure, BasisMeasure)
+
+        if isinstance(job.measure.basis, ComputationalBasis):
+            service = ionq.Service(default_target=job.device.value)
+            job_cirq_circuit = optimize_for_target_gateset(
+                job_cirq_circuit, gateset=IonQTargetGateset()
+            )
+            job_cirq_circuit = job_cirq_circuit.transform_qubits(
+                {qb: LineQubit(i) for i, qb in enumerate(job_cirq_circuit.all_qubits())}
+            )
+            result_sim = service.run(
+                circuit=job_cirq_circuit, repetitions=job.measure.shots
+            )
+        else:
+            raise NotImplementedError(
+                "Does not handle other basis than the ComputationalBasis for the moment"
+            )
+
+    result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+    return result
 
 
 @typechecked
@@ -75,7 +108,10 @@ def run_local(job: Job) -> Result:
     if type(job.device) != GOOGLEDevice:
         raise ValueError("Job device must be GOOGLEDevice")
 
-    cirq_circuit = qasm2_to_cirq_Circuit(job.circuit.to_qasm2())
+    job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
+    if not isinstance(job_cirq_circuit, Cirq_circuit):
+        raise ValueError("Circuit must be Cirq_circuit")
+
     sim = Simulator()
 
     if job.job_type == JobType.STATE_VECTOR:
@@ -83,21 +119,21 @@ def run_local(job: Job) -> Result:
             raise NotImplementedError(
                 f"Does not handle {job.job_type} for processor for the moment"
             )
-        result_sim = sim.simulate(cirq_circuit)
+        result_sim = sim.simulate(job_cirq_circuit)
         result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
 
         if isinstance(job.measure.basis, ComputationalBasis):
             if job.device.is_processor():
-                cirq_circuit, sim = circuit_to_processor_cirq_Circuit(
-                    job.device.value, cirq_circuit
+                job_cirq_circuit, sim = circuit_to_processor_cirq_Circuit(
+                    job.device.value, job_cirq_circuit
                 )
                 result_sim = sim.get_sampler(job.device.value).run(
-                    cirq_circuit, repetitions=job.measure.shots
+                    job_cirq_circuit, repetitions=job.measure.shots
                 )
             else:
-                result_sim = sim.run(cirq_circuit, repetitions=job.measure.shots)
+                result_sim = sim.run(job_cirq_circuit, repetitions=job.measure.shots)
         else:
             raise NotImplementedError(
                 "Does not handle other basis than the ComputationalBasis for the moment"
@@ -105,8 +141,9 @@ def run_local(job: Job) -> Result:
         result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
+
         cirq_obs = job.measure.observable.to_other_language(
-            language=Language.CIRQ, circuit=cirq_circuit
+            language=Language.CIRQ, circuit=job_cirq_circuit
         )
 
         if type(cirq_obs) != Cirq_PauliSum:
@@ -114,11 +151,11 @@ def run_local(job: Job) -> Result:
 
         if job.measure.shots == 0:
             result_sim = sim.simulate_expectation_values(
-                cirq_circuit, observables=cirq_obs
+                job_cirq_circuit, observables=cirq_obs
             )
         else:
             result_sim = measure_observables(
-                cirq_circuit,
+                job_cirq_circuit,
                 cirq_obs,  # type: ignore[reportArgumentType]
                 sim,
                 stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
@@ -126,12 +163,11 @@ def run_local(job: Job) -> Result:
         result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
-
     return result
 
 
 @typechecked
-def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: cirq_circuit):
+def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: Cirq_circuit):
     """
     Converts a Cirq circuit to be suitable for simulation on a specific processor.
 

@@ -7,7 +7,7 @@ from typing import Iterable, Optional, Sequence, Type, Union
 import numpy as np
 import numpy.typing as npt
 from braket.circuits import Circuit as braket_Circuit
-from cirq import Circuit as cirq_Circuit
+from cirq.circuits.circuit import Circuit as cirq_Circuit
 from matplotlib.figure import Figure
 from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from qiskit.circuit import Operation, QuantumCircuit
@@ -595,9 +595,12 @@ class QCircuit:
 
         return new_circuit
 
-    def to_other_language(
-        self, language: Language = Language.QISKIT
-    ) -> Union[QuantumCircuit, myQLM_Circuit, braket_Circuit, cirq_Circuit,]:
+    def to_other_language(self, language: Language = Language.QISKIT) -> Union[
+        QuantumCircuit,
+        myQLM_Circuit,
+        braket_Circuit,
+        cirq_Circuit,
+    ]:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -702,7 +705,7 @@ class QCircuit:
         elif language == Language.CIRQ:
             cirq_circuit = qasm2_to_cirq_Circuit(self.to_qasm2())
             return cirq_circuit
-        
+
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
