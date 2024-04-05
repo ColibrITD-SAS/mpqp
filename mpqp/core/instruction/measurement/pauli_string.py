@@ -138,8 +138,12 @@ class PauliString:
             return False
         return self.to_dict() == other.to_dict()
 
-    def simplify(self) -> PauliString:
-        """Simplify the PauliString by combining like terms and removing terms with zero coefficients.
+    def simplify(self, inplace: bool = False) -> PauliString:
+        """Simplify the PauliString by combining like terms and removing terms
+        with zero coefficients.
+
+        Args:
+            inplace: If the simplify should change self.
 
         Example:
             >>> ps = I @ I - 2 * I @ I + Z @ I - Z @ I
@@ -166,6 +170,8 @@ class PauliString:
             res.monomials.append(
                 PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
             )
+        if inplace:
+            self._monomials = res.monomials
         return res
 
     def to_matrix(self) -> Matrix:
@@ -357,7 +363,7 @@ class PauliStringMonomial(PauliString):
         res @= other
         return res
 
-    def simplify(self):
+    def simplify(self, inplace: bool = False):
         return deepcopy(self)
 
     def __eq__(self, other: object) -> bool:
