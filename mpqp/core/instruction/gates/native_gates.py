@@ -5,7 +5,6 @@ a lot of gates. Feel free to use them for your own custom gates!"""
 
 from __future__ import annotations
 
-from abc import ABC
 from numbers import Integral
 from typing import Optional
 
@@ -42,7 +41,7 @@ from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGa
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
-from mpqp.tools.generics import Matrix
+from mpqp.tools.generics import Matrix, SimpleClassReprABC
 from mpqp.tools.maths import cos, exp, sin
 
 
@@ -87,7 +86,7 @@ def _qiskit_parameter_adder(
 
 
 @typechecked
-class NativeGate(Gate, ABC):
+class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
     This class represent all those gates supported by default.
@@ -102,7 +101,7 @@ class NativeGate(Gate, ABC):
 
 
 @typechecked
-class RotationGate(NativeGate, ParametrizedGate, ABC):
+class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
     a single parameter: ``theta``. This class help up factorize this behavior,
@@ -147,7 +146,7 @@ class RotationGate(NativeGate, ParametrizedGate, ABC):
 
 
 @typechecked
-class NoParameterGate(NativeGate, ABC):
+class NoParameterGate(NativeGate, SimpleClassReprABC):
     """Class describing native gates that do not depend on parameters.
 
     Args:
@@ -188,7 +187,7 @@ class NoParameterGate(NativeGate, ABC):
 
 
 @typechecked
-class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, ABC):
+class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
     """Class describing one-qubit native gates that do not depend on parameters.
 
     Args:
@@ -353,8 +352,10 @@ class SWAP(InvolutionGate, NoParameterGate):
     def __init__(self, a: int, b: int):
         super().__init__([a, b], "SWAP")
 
+    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
 
-class U(NativeGate, ParametrizedGate):
+
+class U(NativeGate, ParametrizedGate, SingleQubitGate):
     """Generic one qubit unitary gate. It is parametrized by 3 Euler angles.
 
     Args:
@@ -546,6 +547,8 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     def to_matrix(self) -> Matrix:
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
+    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
+
 
 class CZ(InvolutionGate, NoParameterGate, ControlledGate):
     """Two-qubit Controlled-Z gate.
@@ -571,6 +574,8 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         m = np.eye(8, dtype=complex)
         m[-1, -1] = -1
         return m
+
+    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
 
 
 class CRk(RotationGate, ControlledGate):
@@ -616,6 +621,8 @@ class CRk(RotationGate, ControlledGate):
     def __repr__(self):
         return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
 
+    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
+
 
 class TOF(InvolutionGate, NoParameterGate, ControlledGate):
     """Three-qubit Controlled-Controlled-NOT gate, also known as Toffoli Gate
@@ -647,6 +654,8 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         m = np.identity(8, dtype=complex)
         m[-2:, -2:] = np.ones(2) - np.identity(2)
         return m
+
+    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
 
 
 NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]

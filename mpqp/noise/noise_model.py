@@ -1,5 +1,7 @@
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Optional, Union
 
 from sympy import Expr
 
@@ -8,20 +10,26 @@ from mpqp.noise.custom_noise import KrausRepresentation
 
 
 class NoiseModel(ABC):
-    """Abstract class used to represent a generic noise model, specifying criteria for applying different noise type
-    to a quantum circuit, or some of its qubits.
+    """Abstract class used to represent a generic noise model, specifying
+    criteria for applying different noise type to a quantum circuit, or some of
+    its qubits.
 
-    It allows to specify which qubits (targets) and which gates of the circuit will be affected with this noise model.
+    It allows to specify which qubits (targets) and which gates of the circuit
+    will be affected with this noise model.
 
     Args:
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>`
+            affected by this noise.
 
     Raises:
-        ValueError: When target list is empty, or target indices are duplicated or negative.
+        ValueError: When target list is empty, or target indices are duplicated
+            or negative.
     """
 
-    def __init__(self, targets: list[int], gates: list[Gate] = None):
+    def __init__(
+        self, targets: list[int], gates: Optional[list[Gate | type[Gate]]] = None
+    ):
         if len(targets) == 0:
             raise ValueError("Expected non-empty target list")
 
@@ -31,11 +39,21 @@ class NoiseModel(ABC):
         if any(index < 0 for index in targets):
             raise ValueError(f"Target indices must be non-negative, but got: {targets}")
 
-        if gates and any(gate.nb_qubits > len(targets) for gate in gates):
-            raise ValueError(
-                "Noise could not be applied to the gates"
-                + f"gate size is higher than the size of the noise {len(targets)}"
-            )
+        if gates is not None:
+            for gate in gates:
+                nb_qubits = gate.nb_qubits
+                if isinstance(nb_qubits, property):
+                    # TODO: set class attribute for all native gates
+                    raise ValueError(
+                        "If you want to pass a custom gate class to specify"
+                        " the noise target, please add `nb_qubits` to this "
+                        "class as a class attribute."
+                    )
+                if nb_qubits > len(targets):  # pyright: ignore[reportOperatorIssue]
+                    raise ValueError(
+                        "Size mismatch between gate and noise: gate size is "
+                        f"{gate.nb_qubits} but noise size is {len(targets)}"
+                    )
 
         self.targets = targets
         self.gates = gates if gates is not None else []
@@ -73,7 +91,7 @@ class Depolarizing(NoiseModel):
         >>> circuit.add(Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
 
     Args:
-        proba: Depolarizing error probability or error rate.
+        prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
         gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
@@ -84,15 +102,15 @@ class Depolarizing(NoiseModel):
 
     def __init__(
         self,
-        proba: Union[float, Expr],
+        prob: Union[float, Expr],
         targets: list[int],
         dimension: int = 1,
-        gates: list[Gate] = None,
+        gates: Optional[list[Gate | type[Gate]]] = None,
     ):
-        proba_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
-        if not (0 <= proba <= proba_upper_bound):
+        prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
+        if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]
             raise ValueError(
-                f"Invalid probability: {proba} must have been between 0 and {proba_upper_bound}"
+                f"Invalid probability: {prob} must have been between 0 and {prob_upper_bound}"
             )
 
         if dimension <= 0:
@@ -107,7 +125,7 @@ class Depolarizing(NoiseModel):
             )
 
         super().__init__(targets, gates)
-        self.proba = proba
+        self.proba = prob
         self.dimension = dimension
 
     def to_kraus_representation(self):
@@ -144,39 +162,34 @@ class BitFlip(NoiseModel):
         #     np.sqrt(self.proba) * np.array([[0, 1], [1, 0]])      # Bit flip
         # ]
         # return KrausRepresentation(kraus_operators)
-        pass
+        ...
 
 
 class Pauli(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        pass
+    def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
 class Dephasing(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        pass
+    def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
 class PhaseFlip(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        pass
+    def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
 class AmplitudeDamping(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        pass
+    def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
 class PhaseDamping(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        pass
+    def to_kraus_representation(self) -> KrausRepresentation: ...
