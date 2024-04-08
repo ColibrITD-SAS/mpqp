@@ -1,15 +1,16 @@
 from __future__ import annotations
+
 from typing import Optional, Sequence
 
-import pytest
 import numpy as np
+import pytest
 from qiskit import QuantumCircuit
 from typeguard import TypeCheckError
 
-from mpqp import QCircuit, Instruction, Barrier, Language
-from mpqp.gates import Gate, CNOT, X, Y, Z, CZ, SWAP, T, H, Rx, S, Ry, Rz
+from mpqp import Barrier, Instruction, Language, QCircuit
+from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.tools.generics import ListOrSingle, one_lined_repr
+from mpqp.tools.generics import OneOrMany, one_lined_repr
 
 # 3M-TODO: a lot of these tests use str to test circuit equivalence, it would be
 # preferable to define a __eq__ in the QCircuit class, or at least an
@@ -59,7 +60,7 @@ def test_init_wrong(init_param: int | Sequence[Instruction]):
 )
 def test_add(
     init_circuit: QCircuit,
-    added_gates: ListOrSingle[Instruction],
+    added_gates: OneOrMany[Instruction],
     printed_result_filename: str,
 ):
     with open(

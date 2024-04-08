@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from numbers import Complex
-from typing import Optional, Union
+from typing import Iterable, Optional, Union
 
 import numpy as np
 from sympy import Expr
@@ -203,13 +203,8 @@ def run(
     if values is None:
         values = {}
 
-    if isinstance(device, list):
-        # Duplicate devices are removed
-        set_device = list(set(device))
-        if len(set_device) == 1:
-            return _run_single(circuit, set_device[0], values)
-
-        return BatchResult([_run_single(circuit, dev, values) for dev in set_device])
+    if isinstance(device, Iterable):
+        return BatchResult([_run_single(circuit, dev, values) for dev in set(device)])
 
     return _run_single(circuit, device, values)
 

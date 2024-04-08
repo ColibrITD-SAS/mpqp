@@ -3,21 +3,21 @@ common methods to all of them."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from copy import deepcopy
-from typing import Any, Optional
 from numbers import Complex
+from typing import Any, Optional
 
-from sympy import Expr
 from qiskit.circuit import Parameter
+from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.languages import Language
-from mpqp.tools.generics import flatten
+from mpqp.tools.generics import SimpleClassReprABC, flatten
 
 
 @typechecked
-class Instruction(ABC):
+class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 
     An Instruction is the elementary component of a

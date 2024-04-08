@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from abc import ABCMeta
 from typing import Callable, Iterable, Iterator, Sequence, TypeVar, Union
 
 import numpy as np
@@ -8,8 +9,8 @@ import numpy.typing as npt
 from typeguard import typechecked
 
 T = TypeVar("T")
-ListOrSingle = Union[list[T], T]
-"""Type alias for both elements of type ``T``, or list of elements of type ``T``."""
+OneOrMany = Union[T, Iterable[T]]
+"""Type alias for elements of generic type ``T`` or for iterables of ``T``."""
 ArbitraryNestedSequence = Union[Sequence["ArbitraryNestedSequence"], T]
 """Since arbitrarily nested list are defined by recursion, this type allow us to 
 define a base case.
@@ -94,3 +95,20 @@ def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
         if oracle(item):
             return item
     raise ValueError("No objects satisfies the given oracle")
+
+
+class SimpleClassReprMeta(type):
+    """Metaclass used to change the repr of the class (not the instances) to
+    display the name of the class only (instead of the usual
+    <class mpqp.path.ClassName>)"""
+
+    def __repr__(cls):
+        return cls.__name__
+
+
+class SimpleClassReprABCMeta(SimpleClassReprMeta, ABCMeta):
+    pass
+
+
+class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
+    pass

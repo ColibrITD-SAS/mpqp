@@ -29,6 +29,7 @@ from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import NumberQubitsError
+from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
 
 
@@ -106,14 +107,12 @@ class QCircuit:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
 
-    def add(
-        self, components: Instruction | NoiseModel | Iterable[Instruction | NoiseModel]
-    ):
-        """Adds an instruction or a noise model or a list of [instructions or noise models] at the end of the
-        circuit.
+    def add(self, components: OneOrMany[Instruction | NoiseModel]):
+        """Adds an instruction or a noise model or a list of either instructions
+        or noise models at the end of the circuit.
 
         Args:
-            components : Instruction(s) or NoiseModel(s) to append at the end of the circuit.
+            components : Instruction(s) or NoiseModel(s) to append to the circuit.
 
         Example:
             TODO add an example with noise model
@@ -138,7 +137,7 @@ class QCircuit:
 
         if any(conn >= self.nb_qubits for conn in components.connections()):
             component_type = (
-                "Instruction" if isinstance(components, Instruction) else "NoiseModel"
+                "Instruction" if isinstance(components, Instruction) else "Noise model"
             )
             raise NumberQubitsError(
                 f"{component_type} {type(components)}'s connections "
@@ -147,7 +146,8 @@ class QCircuit:
             )
 
         if isinstance(components, BasisMeasure):
-            # has to be done in two steps, because Pycharm's type checker is unable to understand chained type inference
+            # has to be done in two steps, because Pycharm's type checker is
+            # unable to understand chained type inference
             if components.c_targets is None:
                 if self.nb_cbits is None:
                     self.nb_cbits = 0
@@ -397,7 +397,7 @@ class QCircuit:
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
-    def optimize(self, criteria: Optional[str | list[str]] = None) -> QCircuit:
+    def optimize(self, criteria: Optional[OneOrMany[str]] = None) -> QCircuit:
         """Optimize the circuit to satisfy some criteria (depth, number of
         qubits, gate restriction) in parameter.
 
