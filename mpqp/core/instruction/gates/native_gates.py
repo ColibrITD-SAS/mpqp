@@ -655,7 +655,7 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         m[-2:, -2:] = np.ones(2) - np.identity(2)
         return m
 
-    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
+    nb_qubits = 3  # pyright: ignore[reportAssignmentType]
 
 
 NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]
