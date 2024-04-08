@@ -1,14 +1,15 @@
 from __future__ import annotations
 
+import math
+from functools import reduce
 from numbers import Complex, Real
 from typing import TYPE_CHECKING
-from qiskit import quantum_info
 
-from scipy.linalg import sqrtm, inv
-import math
 import numpy as np
 import numpy.typing as npt
 import sympy as sp
+from qiskit import quantum_info
+from scipy.linalg import inv, sqrtm
 from sympy import Expr, I, pi  # pyright: ignore[reportUnusedImport]
 from typeguard import typechecked
 
@@ -187,7 +188,7 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
         return res
 
 
-def rand_orthogonal_matrix_seed(size: int, seed: int) -> Matrix:
+def rand_orthogonal_matrix_seed(size: int, seed: int) -> npt.NDArray[np.complex64]:
     """Generate a random orthogonal matrix with a given seed.
 
     Args:
@@ -203,43 +204,49 @@ def rand_orthogonal_matrix_seed(size: int, seed: int) -> Matrix:
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
-def rand_orthogonal_matrix(size) -> Matrix:
+def rand_orthogonal_matrix(size: int) -> npt.NDArray[np.complex64]:
     """Generate a random orthogonal matrix without a given seed"""
     # TODO: to comment + examples
     m = np.random.rand(size, size)
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
-def rand_clifford_matrix(nb_qubits) -> Matrix:
+def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
     """Generate a random Clifford matrix"""
     # TODO: to comment + examples
-    return quantum_info.random_clifford(nb_qubits).to_matrix()
+    return quantum_info.random_clifford(
+        nb_qubits
+    ).to_matrix()  # pyright: ignore[reportReturnType]
 
 
-def rand_unitary_2x2_matrix() -> Matrix:
+def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:
     """Generate a random one-qubit unitary matrix"""
     # TODO: to comment + examples
-    angles = np.random.rand(3)*2*math.pi
-    m = np.array([[np.cos(angles[0]/2), -np.exp(angles[2]*1j)*np.sin(angles[0]/2)],
-                           [np.exp(angles[1]*1j)*np.sin(angles[0]/2), np.exp((angles[1]+angles[2])*1j)*math.cos(angles[0]/2)]])
-    return m
+    theta, phi, gamma = np.random.rand(3) * 2 * math.pi
+    c, s, eg, ep = (
+        np.cos(theta / 2),
+        np.sin(theta / 2),
+        np.exp(gamma * 1j),
+        np.exp(phi * 1j),
+    )
+    return np.array([[c, -eg * s], [eg * s, eg * ep * c]])
 
 
-def rand_product_local_unitaries(nb_qubits) -> Matrix:
+def rand_product_local_unitaries(nb_qubits: int) -> npt.NDArray[np.complex64]:
     """
     Generate a random tensor product of unitary matrices
 
     Args:
         nb_qubits: Number of qubits on which the product of unitaries will act.
     """
-    # TODO: xamples
-    matrix = rand_unitary_2x2_matrix()
-    for _ in range(nb_qubits-1):
-        matrix = np.kron(matrix, rand_unitary_2x2_matrix())
-    return matrix
+    return reduce(
+        np.kron,
+        [rand_unitary_2x2_matrix() for _ in range(nb_qubits - 1)],
+        np.eye(1, dtype=np.complex64),
+    )
 
 
-def rand_hermitian_matrix(size) -> Matrix:
+def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
     """Generate a random Hermitian matrix.
 
     Args:
@@ -249,5 +256,5 @@ def rand_hermitian_matrix(size) -> Matrix:
         A random orthogonal Matrix.
     """
     # TODO: examples
-    m = np.random.rand(size, size)
+    m = np.random.rand(size, size).astype(np.complex64)
     return m + m.conjugate().transpose()
