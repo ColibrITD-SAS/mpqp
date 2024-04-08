@@ -111,7 +111,10 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
     """
 
     if not device.is_remote():
+        # TODO precise the simulator so it returns he noisy simulator when needed. Maybe add a parameter 'is_noisy' that
+        #  is by default False, but will help you select the right device
         return LocalSimulator()
+
 
     try:
         return AwsDevice(device.get_arn())

@@ -95,8 +95,8 @@ class IBMDevice(AvailableDevice):
         return "simulator" in self.value
 
     def is_noisy_simulator(self) -> bool:
-        # TODO: determine which devices can simulate noise
-        pass
+        # TODO: determine which devices can simulate noise or not for Qiskit remote, or local
+        raise NotImplementedError()
 
 
 class ATOSDevice(AvailableDevice):
@@ -127,7 +127,8 @@ class ATOSDevice(AvailableDevice):
         return True
 
     def is_noisy_simulator(self) -> bool:
-        # TODO: to check
+        # TODO: to check if QLM_NOISY_QPROC is the only qpu that can simulate noise in QLM
+        raise NotImplementedError()
         return self == ATOSDevice.QLM_NOISY_QPROC
 
 
@@ -159,7 +160,9 @@ class AWSDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         # TODO: to check if all simulators support noise (especially remote ones)
-        return self.is_simulator()
+        #  investigate and then correct the line below
+        raise NotImplementedError()
+        return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.

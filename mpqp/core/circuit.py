@@ -709,6 +709,7 @@ class QCircuit:
             return myqlm_circuit
 
         elif language == Language.BRAKET:
+            # filling the circuit with identity gates when some qubits don't have any instruction
             circuit = deepcopy(self)
             used_qubits = set().union(
                 *(inst.connections() for inst in circuit.instructions)
@@ -870,8 +871,13 @@ class QCircuit:
         return circ_str + noise_str
 
     def __repr__(self) -> str:
+        # TODO: rework on the __repr__ so it corresponds to a real instantiation of QCircuit
+        #  Example : QCircuit([H(0), T(1), Depolarizing(0.1, [1,2])])
+        #  The instructions and the noises should appear in the same list to instantiate QCircuit, so need do some trick that the string is
+        #  '[ {self.instructions}_without_braket + {self.noises}_without brakets ]'
         noises_repr = f"NoiseModel={self.noises}" if self.noises else ""
         return f"QCircuit({self.instructions}, {noises_repr})"
+
 
     def variables(self):
         """Returns all the parameters involved in this circuit.

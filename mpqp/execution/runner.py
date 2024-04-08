@@ -134,6 +134,11 @@ def _run_single(
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
+    # TODO: check if the circuit is noisy or not --> check is circuit.noises is empty or not
+    #  if the circuit is noisy, then check that the device can simulate the noise
+    #  if it cannot, then return an error to say that there is a device incompatibility
+    #  here, to know if the device can simulate or not the noise, use the method device.is_noisy_simulator()
+
     if isinstance(device, IBMDevice):
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):
