@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from numbers import Complex
-from textwrap import dedent
 from typing import Optional
 
 import numpy as np
@@ -61,12 +60,11 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return dedent(
-            f"""\
-            State vector: {self.vector}
-            Probabilities: {self.probabilities}
-            Number of qubits: {self.nb_qubits}"""
-        )
+        cleaned_vector = str(self.vector).replace("\n", " ")
+        cleaned_probas = str(self.probabilities).replace("\n", " ")
+        return f"""State vector: {cleaned_vector}
+Probabilities: {cleaned_probas}
+Number of qubits: {self.nb_qubits}"""
 
 
 @typechecked
@@ -263,7 +261,6 @@ class Result:
                     assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
-                # if is_counts shots != 0
                 assert shots != 0
                 self._probabilities = np.array(counts, dtype=float) / self.shots
                 for sample in self._samples:
@@ -352,25 +349,19 @@ class Result:
         if self.job.job_type == JobType.SAMPLE:
             samples_str = "\n".join(map(lambda s: f" {s}", self.samples))
             cleaned_probas = str(self._probabilities).replace("\n", " ")
-            return header + dedent(
-                f"""\
-                Counts: {self._counts}
-                Probabilities: {cleaned_probas}
-                {samples_str}
-                Error: {self.error}
-                """
-            )
+            return f"""{header}
+Counts: {self._counts}
+Probabilities: {cleaned_probas}
+{samples_str}
+Error: {self.error}"""
 
         if self.job.job_type == JobType.STATE_VECTOR:
-            return f"{header}\n{self._state_vector}\n"
+            return header + "\n" + str(self.state_vector)
 
         if self.job.job_type == JobType.OBSERVABLE:
-            return header + dedent(
-                f"""\
-                Expectation value: {self.expectation_value}
-                Error/Variance: {self.error}
-                """
-            )
+            return f"""{header}
+Expectation value: {self.expectation_value}
+Error/Variance: {self.error}"""
 
         raise NotImplementedError(
             f"Job type {self.job.job_type} not implemented for __str__ method"
