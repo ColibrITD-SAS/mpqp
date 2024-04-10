@@ -127,8 +127,8 @@ def _run_single(
         Result: IBMDevice, AER_SIMULATOR
         Counts: [512, 0, 0, 488]
         Probabilities: [0.512 0.    0.    0.488]
-        State: 00, Index: 0, Count: 512, Probability: 0.512
-        State: 11, Index: 3, Count: 488, Probability: 0.488
+         State: 00, Index: 0, Count: 512, Probability: 0.512
+         State: 11, Index: 3, Count: 488, Probability: 0.488
         Error: None
     """
     job = generate_job(circuit, device, values)
@@ -172,8 +172,8 @@ def run(
         Result: IBMDevice, AER_SIMULATOR
         Counts: [512, 0, 0, 488]
         Probabilities: [0.512 0.    0.    0.488]
-        State: 00, Index: 0, Count: 512, Probability: 0.512
-        State: 11, Index: 3, Count: 488, Probability: 0.488
+         State: 00, Index: 0, Count: 512, Probability: 0.512
+         State: 11, Index: 3, Count: 488, Probability: 0.488
         Error: None
         >>> batch_result = run(
         ...     c,
@@ -184,14 +184,14 @@ def run(
         Result: AWSDevice, BRAKET_LOCAL_SIMULATOR
         Counts: [492, 0, 0, 508]
         Probabilities: [0.492 0.    0.    0.508]
-        State: 00, Index: 0, Count: 492, Probability: 0.492
-        State: 11, Index: 3, Count: 508, Probability: 0.508
+         State: 00, Index: 0, Count: 492, Probability: 0.492
+         State: 11, Index: 3, Count: 508, Probability: 0.508
         Error: None
         Result: ATOSDevice, MYQLM_PYLINALG
         Counts: [462, 0, 0, 538]
         Probabilities: [0.462 0.    0.    0.538]
-        State: 00, Index: 0, Count: 462, Probability: 0.462
-        State: 11, Index: 3, Count: 538, Probability: 0.538
+         State: 00, Index: 0, Count: 462, Probability: 0.462
+         State: 11, Index: 3, Count: 538, Probability: 0.538
         Error: 0.015773547629015002
     """
 

@@ -77,7 +77,9 @@ def compute_expectation_value(
             "type ExpectationMeasure"
         )
     nb_shots = job.measure.shots
-    qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
+    qiskit_observable: Operator = job.measure.observable.to_other_language(
+        Language.QISKIT
+    )  # pyright: ignore[reportAssignmentType]
 
     if nb_shots != 0:
         assert ibm_backend is not None
@@ -123,7 +125,8 @@ def check_job_compatibility(job: Job):
     ):
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
-            f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead"
+            f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "
+            "type, by for example giving a number of shots to the measure)."
         )
     if job.device == IBMDevice.AER_SIMULATOR_STATEVECTOR:
         if job.job_type == JobType.SAMPLE:
@@ -250,7 +253,9 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     if job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
-        qiskit_observable: Operator = job.measure.observable.to_other_language(Language.QISKIT)
+        qiskit_observable: Operator = job.measure.observable.to_other_language(
+            Language.QISKIT
+        )  # pyright: ignore[reportAssignmentType]
 
         ibm_job = estimator.run(
             qiskit_circuit, qiskit_observable, shots=job.measure.shots
