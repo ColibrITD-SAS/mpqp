@@ -91,7 +91,7 @@ def get_aws_braket_account_info() -> str:
 
 
 @typechecked
-def get_braket_device(device: AWSDevice) -> BraketDevice:
+def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> BraketDevice:
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Example:
@@ -113,8 +113,12 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
     if not device.is_remote():
         # TODO precise the simulator so it returns he noisy simulator when needed. Maybe add a parameter 'is_noisy' that
         #  is by default False, but will help you select the right device
-        return LocalSimulator()
-
+        if is_noisy:
+            # return noisy simulator
+            # TODO: other noisy simulators
+            return LocalSimulator("braket_dm")
+        else:
+            return LocalSimulator()
 
     try:
         return AwsDevice(device.get_arn())
