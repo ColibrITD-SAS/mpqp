@@ -95,8 +95,17 @@ class IBMDevice(AvailableDevice):
         return "simulator" in self.value
 
     def is_noisy_simulator(self) -> bool:
+        # return self.name.startswith("IBLQ")
         # TODO: determine which devices can simulate noise or not for Qiskit remote, or local
-        raise NotImplementedError()
+        # TODO: other devices to be figured out
+        noise_support_devices = {
+            IBMDevice.IBMQ_SIMULATOR_STATEVECTOR: True,
+            IBMDevice.AER_SIMULATOR_STABILIZER: True,
+            IBMDevice.IBMQ_SIMULATOR_EXTENDED_STABILIZER: False,
+            IBMDevice.IBMQ_SIMULATOR_MPS: False,
+            IBMDevice.IBMQ_QASM_SIMULATOR: True,
+        }
+        return self.is_simulator() and noise_support_devices.get(self.value, False)
 
 
 class ATOSDevice(AvailableDevice):
@@ -128,7 +137,6 @@ class ATOSDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         # TODO: to check if QLM_NOISY_QPROC is the only qpu that can simulate noise in QLM
-        raise NotImplementedError()
         return self == ATOSDevice.QLM_NOISY_QPROC
 
 
@@ -160,9 +168,16 @@ class AWSDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         # TODO: to check if all simulators support noise (especially remote ones)
+        # other devices to be figured out
         #  investigate and then correct the line below
-        raise NotImplementedError()
-        return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
+        # return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
+        noise_support_devices = {
+            AWSDevice.BRAKET_LOCAL_SIMULATOR: False,
+            AWSDevice.BRAKET_SV1_SIMULATOR: True,
+            AWSDevice.BRAKET_DM1_SIMULATOR: True,
+            AWSDevice.BRAKET_TN1_SIMULATOR: True,  # not very sure
+        }
+        return self.is_simulator() and noise_support_devices.get(self.value, False)
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.
