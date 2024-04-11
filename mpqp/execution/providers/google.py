@@ -36,7 +36,7 @@ from cirq.work.observable_measurement import (
 )
 import cirq_ionq as ionq
 from cirq_ionq.ionq_gateset import IonQTargetGateset
-from cirq import LineQubit
+from cirq.devices.line_qubit import LineQubit
 
 
 @typechecked
@@ -86,6 +86,8 @@ def run_google_remote(job: Job) -> Result:
             raise NotImplementedError(
                 "Does not handle other basis than the ComputationalBasis for the moment"
             )
+    else:
+        raise NotImplementedError(f" does not handle {job.device} for the moment only ionq is supported")
 
     result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     return result
