@@ -722,7 +722,11 @@ class QCircuit:
                 ]
             )
 
-            return qasm3_to_braket_Circuit(circuit.to_qasm3())
+            bqc = qasm3_to_braket_Circuit(circuit.to_qasm3())
+            for noise in ...:
+                bqc.add_noise(noise.to_other_language())
+            return bqc
+            # return qasm3_to_braket_Circuit(circuit.to_qasm3())
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
@@ -870,14 +874,22 @@ class QCircuit:
         )
         return circ_str + noise_str
 
-    def __repr__(self) -> str:
-        # TODO: rework on the __repr__ so it corresponds to a real instantiation of QCircuit
-        #  Example : QCircuit([H(0), T(1), Depolarizing(0.1, [1,2])])
-        #  The instructions and the noises should appear in the same list to instantiate QCircuit, so need do some trick that the string is
-        #  '[ {self.instructions}_without_braket + {self.noises}_without brakets ]'
-        noises_repr = f"NoiseModel={self.noises}" if self.noises else ""
-        return f"QCircuit({self.instructions}, {noises_repr})"
+    # def __repr__(self) -> str:
+    #     # TODO: rework on the __repr__ so it corresponds to a real instantiation of QCircuit
+    #     #  Example : QCircuit([H(0), T(1), Depolarizing(0.1, [1,2])])
+    #     #  The instructions and the noises should appear in the same list to instantiate QCircuit, so need do some trick that the string is
+    #     #  '[ {self.instructions}_without_braket + {self.noises}_without brakets ]'
+    #     noises_repr = f"NoiseModel={self.noises}" if self.noises else ""
+    #     return f"QCircuit({self.instructions}, {noises_repr})"
 
+    def __repr__(self) -> str:
+        """Returns a string representation of the QCircuit object."""
+        instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
+        instructions_repr = instructions_repr.replace("[", "").replace(
+            "]", ""
+        )  # CNOT([0], [1]) to CNOT(0, 1)
+        noise_repr = f"{self.noises[0]}" if self.noises else "NoiseModel=None"
+        return f"QCircuit([{instructions_repr}, {noise_repr}])"
 
     def variables(self):
         """Returns all the parameters involved in this circuit.
