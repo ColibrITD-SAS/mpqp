@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from numbers import Complex
-from typing import Optional, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 from sympy import Expr
@@ -21,6 +21,7 @@ from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.result import Result, BatchResult
 from mpqp.tools.errors import RemoteExecutionError
+from mpqp.tools.generics import OneOrMany
 
 
 @typechecked
@@ -150,7 +151,7 @@ def _run_single(
 @typechecked
 def run(
     circuit: QCircuit,
-    device: AvailableDevice | list[AvailableDevice],
+    device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Union[Result, BatchResult]:
     """Runs the circuit on the backend, or list of backend, provided in
@@ -201,7 +202,7 @@ def run(
     if values is None:
         values = {}
 
-    if isinstance(device, list):
+    if isinstance(device, Sequence):
         # Duplicate devices are removed
         set_device = list(set(device))
         if len(set_device) == 1:
