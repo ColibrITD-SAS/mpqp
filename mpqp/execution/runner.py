@@ -19,7 +19,7 @@ from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
 from mpqp.execution.result import BatchResult, Result
-from mpqp.tools.errors import RemoteExecutionError
+from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 
 
 @typechecked
@@ -134,10 +134,11 @@ def _run_single(
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
-    # TODO: check if the circuit is noisy or not --> check is circuit.noises is empty or not
-    #  if the circuit is noisy, then check that the device can simulate the noise
-    #  if it cannot, then return an error to say that there is a device incompatibility
-    #  here, to know if the device can simulate or not the noise, use the method device.is_noisy_simulator()
+    if circuit.noises:
+        if not device.is_noisy_simulator():
+            raise DeviceJobIncompatibleError(
+                f"Circuit contains noise, but device {device} cannot simulate noise."
+            )
 
     if isinstance(device, IBMDevice):
         return run_ibm(job)
