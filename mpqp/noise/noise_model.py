@@ -3,9 +3,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Optional, Union
 
+from braket.circuits.noises import Depolarizing as BraketDepolarizing
+from braket.circuits.noises import Noise as BraketNoise
+from qiskit_aer.noise import NoiseModel as QiskitNoise
 from sympy import Expr
 
 from mpqp.core.instruction.gates import Gate
+from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
 
 
@@ -75,6 +79,17 @@ class NoiseModel(ABC):
         """
         pass
 
+    @abstractmethod
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> BraketNoise | QiskitNoise:
+        """
+        TODO: doc
+        Returns:
+
+        """
+        pass
+
 
 class Depolarizing(NoiseModel):
     """Class representing the depolarizing noise channel, which maps a state onto a linear combination of itself and
@@ -136,11 +151,19 @@ class Depolarizing(NoiseModel):
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}(proba={self.proba}, targets={self.targets}, "
-            f"dimension={self.dimension}"
-            + (", gates=" + str(self.gates) if self.gates else "")
+            f"{type(self).__name__}({self.proba}, {self.targets}, {self.dimension}"
+            + (", " + str(self.gates) if self.gates else "")
             + ")"
         )
+
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> BraketNoise | QiskitNoise:
+        if language == Language.BRAKET:
+            return BraketDepolarizing(probability=self.proba)
+        else:
+            # TODO: add other providers
+            raise NotImplementedError
 
 
 class BitFlip(NoiseModel):
