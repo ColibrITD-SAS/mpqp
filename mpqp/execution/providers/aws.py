@@ -24,15 +24,11 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
 
-@typechecked
-def apply_noise_to_braket_circuit(braket_circuit) -> None:
-    # TODO : go through all noises in job.circuit.noises
-    #  for each noise in the mpqp circuit, apply the correspind braket noise on the braket circuit
-    #  if in the mpqp NoiseModel, some gates specified, you need to use apply_gate_noise in braket side, to check
-    #  for noise in job.circuit.noises:
-    #      braket_circuit.apply_gate_noise/apply_readout_noise/apply_initialization_noise
 
-    return
+@typechecked
+def apply_noise_to_braket_circuit(braket_circuit: Circuit, job: Job) -> None:
+    for noise in job.circuit.noises:
+        braket_circuit.apply_gate_noise(noise.to_other_language(Language.BRAKET))
 
 
 @typechecked
@@ -54,9 +50,9 @@ def run_braket(job: Job) -> Result:
     _, task = submit_job_braket(job)
     assert isinstance(job.device, AWSDevice)
     res = task.result()
+
     assert isinstance(res, GateModelQuantumTaskResult)
-    # TODO: check if when we launch a noisy simulation, the result handling is different from the non-noisy case
-    #  if so, you will have to modify extract_result, and treat the noisy case apart
+
     return extract_result(res, job, job.device)
 
 
@@ -77,27 +73,28 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     """
 
     # check some compatibility issues
-
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using AWS Braket remote simulators and "
             "devices. Please use the LocalSimulator instead"
         )
 
-    # instantiate the device
-    # TODO : call this function with the information that is noisy or not
-    device = get_braket_device(job.device) #, is_noisy=True)  # type: ignore
+    is_noisy = bool(job.circuit.noises)
+    device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
 
     # convert job circuit into braket circuit
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
     assert isinstance(braket_circuit, Circuit)
 
-    # TODO: if the circuit is noisy, add noise to the circuit
-    # apply noise appropriate to the circuit
-    apply_noise_to_braket_circuit(braket_circuit)
+    apply_noise_to_braket_circuit(
+        braket_circuit, job
+    )  # no difference if we have an empty noise list, will run anyway
 
-
-    # TODO: check if, when your circuit is noisy, can I run all types of jobs, check how I run
+    if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
+        raise ValueError(
+            f"Job of type {job.job_type} is not supported for noisy circuits."
+        )
+    # excute the job based on its type
     if job.job_type == JobType.STATE_VECTOR:
         braket_circuit.state_vector()  # type: ignore
         job.status = JobStatus.RUNNING
