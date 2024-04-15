@@ -877,8 +877,9 @@ class QCircuit:
     def __repr__(self) -> str:
         instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
         instructions_repr = instructions_repr.replace("[", "").replace("]", "")
+        #FIXME: update the repr in caes of non noisy case
         noise_repr = ", ".join(map(repr, self.noises))
-        return f"QCircuit([{instructions_repr}, {noise_repr}])"
+        return f"QCircuit([{instructions_repr} {noise_repr}])"
 
     def variables(self):
         """Returns all the parameters involved in this circuit.
