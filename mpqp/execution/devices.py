@@ -172,12 +172,12 @@ class AWSDevice(AvailableDevice):
         #  investigate and then correct the line below
         # return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
         noise_support_devices = {
-            AWSDevice.BRAKET_LOCAL_SIMULATOR: False,
-            AWSDevice.BRAKET_SV1_SIMULATOR: True,
-            AWSDevice.BRAKET_DM1_SIMULATOR: True,
-            AWSDevice.BRAKET_TN1_SIMULATOR: True,  # not very sure
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            AWSDevice.BRAKET_SV1_SIMULATOR,
+            AWSDevice.BRAKET_DM1_SIMULATOR,
+            AWSDevice.BRAKET_TN1_SIMULATOR,
         }
-        return self.is_simulator() and noise_support_devices.get(self.value, False)
+        return self in noise_support_devices
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.
