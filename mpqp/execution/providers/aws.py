@@ -1,5 +1,5 @@
 import math
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 from braket.aws import AwsQuantumTask
@@ -23,11 +23,12 @@ from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
+from mpqp.noise.noise_model import NoiseModel
 
 
 @typechecked
-def apply_noise_to_braket_circuit(braket_circuit: Circuit, job: Job) -> None:
-    for noise in job.circuit.noises:
+def apply_noise_to_braket_circuit(braket_circuit: Circuit, noises: List[NoiseModel]) -> None:
+    for noise in noises:
         braket_circuit.apply_gate_noise(noise.to_other_language(Language.BRAKET))
 
 
@@ -79,7 +80,10 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
             "devices. Please use the LocalSimulator instead"
         )
 
+    #FIXME: noises list not updated, circuit is noisy
     is_noisy = bool(job.circuit.noises)
+    print(is_noisy)
+    print(job.circuit.noises)
     device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
 
     # convert job circuit into braket circuit
@@ -87,7 +91,7 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     assert isinstance(braket_circuit, Circuit)
 
     apply_noise_to_braket_circuit(
-        braket_circuit, job
+        braket_circuit, job.circuit.noises
     )  # no difference if we have an empty noise list, will run anyway
 
     if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
