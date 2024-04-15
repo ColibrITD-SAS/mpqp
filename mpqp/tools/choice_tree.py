@@ -50,24 +50,28 @@ def run_choice_tree(question: QuestionNode):
     Args:
         question: Root question from which the choice tree will start
     """
-    # 3M-TODO: allow exit with Ctrl+C and Q
+    # 3M-TODO: allow exit with Q
     prev_args = []
     prev_message = ""
     next_question = question
-    while True:
-        option, _ = pick(
-            list(map(lambda a: a.label, next_question.answers)) + ["Exit"],
-            prev_message + "\n\n" + next_question.label,
-            indicator="=>",
-        )
-        if option == "Exit":
-            return
-        selected_answer = find(next_question.answers, lambda a: a.label == option)
-        prev_message, prev_args = selected_answer.action(*prev_args)
-        next_question = selected_answer.next_question
-        if next_question is None:
-            pick(["Press 'Enter' to continue"], prev_message, indicator="")
-            return
+    try:
+        while True:
+            option, _ = pick(
+                list(map(lambda a: a.label, next_question.answers)) + ["Exit"],
+                prev_message + "\n\n" + next_question.label,
+                indicator="=>",
+            )
+            if option == "Exit":
+                return
+            selected_answer = find(next_question.answers, lambda a: a.label == option)
+            prev_message, prev_args = selected_answer.action(*prev_args)
+            next_question = selected_answer.next_question
+            if next_question is None:
+                pick(["Press 'Enter' to continue"], prev_message, indicator="")
+                return
+            
+    except KeyboardInterrupt:
+        pass
 
 
 # Example:
