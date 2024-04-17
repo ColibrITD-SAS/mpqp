@@ -1,5 +1,5 @@
 import math
-from typing import Optional, List
+from typing import List, Optional
 
 import numpy as np
 from braket.aws import AwsQuantumTask
@@ -22,12 +22,14 @@ from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
 from mpqp.noise.noise_model import NoiseModel
+from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
 
 
 @typechecked
-def apply_noise_to_braket_circuit(braket_circuit: Circuit, noises: List[NoiseModel]) -> None:
+def apply_noise_to_braket_circuit(
+    braket_circuit: Circuit, noises: List[NoiseModel]
+) -> None:
     for noise in noises:
         braket_circuit.apply_gate_noise(noise.to_other_language(Language.BRAKET))
 
@@ -80,14 +82,17 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
             "devices. Please use the LocalSimulator instead"
         )
 
-    #FIXME: noises list not updated, circuit is noisy
+    # FIXME: noises list not updated, circuit is noisy
+    print(job)
+    print(job.circuit)
     is_noisy = bool(job.circuit.noises)
-    print(is_noisy)
-    print(job.circuit.noises)
+    # print(is_noisy)
+    # print(job.circuit.noises)
     device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
 
     # convert job circuit into braket circuit
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
+    print(braket_circuit)
     assert isinstance(braket_circuit, Circuit)
 
     apply_noise_to_braket_circuit(

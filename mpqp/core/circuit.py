@@ -721,9 +721,10 @@ class QCircuit:
                     if qubit not in used_qubits
                 ]
             )
+            print(circuit)
             # TODO: come back to it, one day..
             # bqc = qasm3_to_braket_Circuit(circuit.to_qasm3())
-            # for noise in ...:
+            # for noise in circuit.noises:
             #     bqc.add_noise(noise.to_other_language())
             # return bqc
             return qasm3_to_braket_Circuit(circuit.to_qasm3())
@@ -833,7 +834,9 @@ class QCircuit:
             The circuit with the replaced parameters.
         """
         return QCircuit(
-            data=[inst.subs(values, remove_symbolic) for inst in self.instructions],
+            # TODO: modify this line when noise will be parameterized
+            data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
+            + self.noises,
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,
@@ -877,7 +880,7 @@ class QCircuit:
     def __repr__(self) -> str:
         instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
         instructions_repr = instructions_repr.replace("[", "").replace("]", "")
-        
+
         if self.noises:
             noise_repr = ", ".join(map(repr, self.noises))
             return f"QCircuit([{instructions_repr}, {noise_repr}])"
