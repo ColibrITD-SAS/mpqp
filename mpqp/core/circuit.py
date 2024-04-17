@@ -710,17 +710,13 @@ class QCircuit:
 
         elif language == Language.BRAKET:
             # filling the circuit with identity gates when some qubits don't have any instruction
-            circuit = deepcopy(self)
             used_qubits = set().union(
-                *(inst.connections() for inst in circuit.instructions if isinstance(inst, Gate))
+                *(inst.connections() for inst in self.instructions if isinstance(inst, Gate))
             )
-            circuit.add(
-                [
-                    Id(qubit)
-                    for qubit in range(circuit.nb_qubits)
-                    if qubit not in used_qubits
-                ]
-            )
+            circuit = QCircuit(
+                [Id(qubit) for qubit in range(self.nb_qubits) if qubit not in used_qubits],
+                nb_qubits=self.nb_qubits
+            ) + deepcopy(self)
 
             # TODO: here call the function ``apply_noise_to_braket_circuit``
             #  to the braket circuit before returning it
