@@ -712,7 +712,7 @@ class QCircuit:
             # filling the circuit with identity gates when some qubits don't have any instruction
             circuit = deepcopy(self)
             used_qubits = set().union(
-                *(inst.connections() for inst in circuit.instructions)
+                *(inst.connections() for inst in circuit.instructions if isinstance(inst, Gate))
             )
             circuit.add(
                 [
@@ -721,13 +721,11 @@ class QCircuit:
                     if qubit not in used_qubits
                 ]
             )
-            print(circuit)
-            # TODO: come back to it, one day..
-            # bqc = qasm3_to_braket_Circuit(circuit.to_qasm3())
-            # for noise in circuit.noises:
-            #     bqc.add_noise(noise.to_other_language())
-            # return bqc
+
+            # TODO: here call the function ``apply_noise_to_braket_circuit``
+            #  to the braket circuit before returning it
             return qasm3_to_braket_Circuit(circuit.to_qasm3())
+
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")

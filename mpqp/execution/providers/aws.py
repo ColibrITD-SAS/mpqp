@@ -83,16 +83,11 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
         )
 
     # FIXME: noises list not updated, circuit is noisy
-    print(job)
-    print(job.circuit)
     is_noisy = bool(job.circuit.noises)
-    # print(is_noisy)
-    # print(job.circuit.noises)
     device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
 
     # convert job circuit into braket circuit
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
-    print(braket_circuit)
     assert isinstance(braket_circuit, Circuit)
 
     apply_noise_to_braket_circuit(
