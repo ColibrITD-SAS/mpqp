@@ -90,6 +90,11 @@ class NoiseModel(ABC):
         """
         pass
 
+    # @abstractmethod
+    # def subs(self):
+    #     #TODO: implement the possibilty of having a parameterized noise
+    #     pass
+
 
 class Depolarizing(NoiseModel):
     """Class representing the depolarizing noise channel, which maps a state onto a linear combination of itself and
