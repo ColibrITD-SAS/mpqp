@@ -31,7 +31,7 @@ __________
 Execution
 __________
 
-.. automodule:: mpqp.execution.providers_execution.ibm_execution
+.. automodule:: mpqp.execution.providers.ibm
 
 Atos/Eviden
 ^^^^^^^^^^^
@@ -44,12 +44,12 @@ __________
 Execution
 __________
 
-.. automodule:: mpqp.execution.providers_execution.atos_execution
+.. automodule:: mpqp.execution.providers.atos
 
 AWS
 ^^^
 
-.. automodule:: mpqp.execution.providers_execution.aws_execution
+.. automodule:: mpqp.execution.providers.aws
 
 Connection
 __________

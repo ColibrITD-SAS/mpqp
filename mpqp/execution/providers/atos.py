@@ -1,8 +1,19 @@
 from typing import TYPE_CHECKING, Optional
+from statistics import mean
 
 import numpy as np
+from qat.clinalg.qpu import CLinalg
+from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+from qat.comm.qlmaas.ttypes import QLMServiceException
+from qat.core.contexts import QPUContext
+from qat.core.qpu.qpu import QPUHandler
+from qat.core.wrappers.circuit import Circuit
+from qat.core.wrappers.job import Job as JobQLM
+from qat.core.wrappers.result import Result as QLM_Result
+from qat.plugins.observable_splitter import ObservableSplitter
+from qat.pylinalg import PyLinalg
+from qat.qlmaas.result import AsyncResult
 from typeguard import typechecked
-from statistics import mean
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.languages import Language
@@ -29,9 +40,6 @@ if TYPE_CHECKING:
 
 @typechecked
 def get_local_qpu(device: ATOSDevice) -> QPUHandler:
-    from qat.pylinalg import PyLinalg
-    from qat.clinalg.qpu import CLinalg
-
     """
     Returns the myQLM local QPU associated with the ATOSDevice given in parameter.
 
@@ -39,8 +47,11 @@ def get_local_qpu(device: ATOSDevice) -> QPUHandler:
         device: ATOSDevice referring to the myQLM local QPU.
 
     Raises:
-        ValueError
+        ValueError: If the required backend is a local simulator.
     """
+    from qat.pylinalg import PyLinalg
+    from qat.clinalg.qpu import CLinalg
+
     if device.is_remote():
         raise ValueError("Excepted a local device, not the remote QLM")
     if device == ATOSDevice.MYQLM_PYLINALG:
@@ -126,12 +137,10 @@ def generate_observable_job(
     from qat.plugins.observable_splitter import ObservableSplitter
 
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-
+    qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
-        observable=QLM_Observable(
-            job.measure.nb_qubits, matrix=job.measure.observable.matrix
-        ),
+        observable=qlm_obs,
         nbshots=job.measure.shots,
     )
     if job.device.is_remote():
@@ -284,7 +293,8 @@ def extract_observable_result(
             raise NotImplementedError("We cannot handle job without measure for now")
         nb_shots = job.measure.shots
 
-    return Result(job, myqlm_result.value, myqlm_result.error, nb_shots)
+    error = None if myqlm_result.error is None else abs(myqlm_result.error)
+    return Result(job, myqlm_result.value, error, nb_shots)
 
 
 @typechecked
@@ -293,8 +303,7 @@ def extract_result(
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
-    """
-    Constructs a Result from the result given by the myQLM/QLM run.
+    """Constructs a Result from the result given by the myQLM/QLM run.
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
@@ -356,9 +365,12 @@ def job_pre_processing(job: Job) -> Circuit:
 
 @typechecked
 def run_atos(job: Job) -> Result:
-    """Executes the job on the right ATOS device precised in the job in parameter.
-    This function is not meant to be used directly, please use
-    ``runner.run(...)`` instead.
+    """Executes the job on the right ATOS device precised in the job in
+    parameter.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         job: Job to be executed.
@@ -371,8 +383,11 @@ def run_atos(job: Job) -> Result:
 
 @typechecked
 def run_myQLM(job: Job) -> Result:
-    """Executes the job on the local myQLM simulator. This function is not meant
-    to be used directly, please use ``runner.run(...)`` instead.
+    """Executes the job on the local myQLM simulator.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         job: Job to be executed.
@@ -419,8 +434,11 @@ def run_myQLM(job: Job) -> Result:
 
 @typechecked
 def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
-    """Submits the job on the remote QLM machine. This function is not meant to
-    be used directly, please use ``runner.submit(...)`` instead.
+    """Submits the job on the remote QLM machine.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.submit(...)`` instead.
 
     Args:
         job: Job to be executed.
@@ -509,10 +527,8 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
 
     try:
         qlm_job = connection.get_job(job_id)
-    except QLMServiceException as e:
-        raise QLMRemoteExecutionError(
-            f"Job with id {job_id} not found.\nTrace: " + str(e)
-        )
+    except QLMServiceException:
+        raise QLMRemoteExecutionError(f"Job with id {job_id} not found.") from None
 
     status = qlm_job.get_status()
     if status in [

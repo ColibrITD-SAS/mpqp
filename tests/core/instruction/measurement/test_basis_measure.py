@@ -18,7 +18,7 @@ def test_basis_measure_init_fails_duplicate_c_targets():
 
 
 def test_basis_measure_to_other_language_not_implemented():
-    measure = BasisMeasure([0], basis=HadamardBasis)
+    measure = BasisMeasure([0], basis=HadamardBasis())
     with pytest.raises(NotImplementedError):
         measure.to_other_language(language=Language.QISKIT)
 

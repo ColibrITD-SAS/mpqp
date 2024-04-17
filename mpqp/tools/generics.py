@@ -1,6 +1,8 @@
 from __future__ import annotations
+
 import re
-from typing import Iterator, Sequence, TypeVar, Union, Callable, Iterable
+from typing import Callable, Iterable, Iterator, Sequence, TypeVar, Union
+
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
@@ -69,8 +71,7 @@ def one_lined_repr(obj: object):
 
 @typechecked
 def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
-    """
-    Finds the first element in the iterable that satisfies the given oracle.
+    """Finds the first element in the iterable that satisfies the given oracle.
 
     Example:
         >>> numbers = [1, 2, 3, 4, 5]

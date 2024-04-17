@@ -1,24 +1,7 @@
-######################################
-# Copyright(C) 2021 - 2023 ColibrITD
-#
-# Developers :
-#  - Hamza JAFFALI < hamza.jaffali@colibritd.com >
-#  - Karla BAUMANN < karla.baumann@colibritd.com >
-#  - Henri de BOUTRAY < henri.de.boutray@colibritd.com >
-#
-# Version : 0.1
-#
-# This file is part of QUICK.
-#
-# QUICK can not be copied and / or distributed without the express
-# permission of ColibrITD
-#
-######################################
 from __future__ import annotations
 
 import math
 from numbers import Complex
-from textwrap import dedent
 from typing import Optional
 
 import numpy as np
@@ -33,8 +16,7 @@ from .job import Job, JobType
 
 @typechecked
 class StateVector:
-    """
-    Class representing the state vector of a multi-qubit quantum system.
+    """Class representing the state vector of a multi-qubit quantum system.
 
     Args:
         vector: List of amplitudes defining the state vector.
@@ -78,17 +60,17 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f"""
-        State vector: {self.vector}
-        Probabilities: {self.probabilities}
-        Number of qubits: {self.nb_qubits}"""
+        cleaned_vector = str(self.vector).replace("\n", " ")
+        cleaned_probas = str(self.probabilities).replace("\n", " ")
+        return f"""State vector: {cleaned_vector}
+Probabilities: {cleaned_probas}
+Number of qubits: {self.nb_qubits}"""
 
 
 @typechecked
 class Sample:
-    """
-    Class representing a sample, which contains the result of the experiment concerning a specific basis state
-    of the Hilbert space.
+    """Class representing a sample, which contains the result of the experiment
+    concerning a specific basis state of the Hilbert space.
 
     Args:
         nb_qubits: Number of qubits of the quantum system of the experiment.
@@ -279,7 +261,6 @@ class Result:
                     assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
-                # if is_counts shots != 0
                 assert shots != 0
                 self._probabilities = np.array(counts, dtype=float) / self.shots
                 for sample in self._samples:
@@ -290,6 +271,7 @@ class Result:
                     " either `count` or `probability` (and the non-None "
                     "attribute amongst the two must be the same in all samples)."
                 )
+            self.samples.sort(key=lambda sample: sample.bin_str)
         else:
             raise ValueError(f"{job.job_type} not handled")
 
@@ -363,24 +345,24 @@ class Result:
 
     def __str__(self):
         header = f"Result: {type(self.device).__name__}, {self.device.name}"
+
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = ("\n" + " " * 16).join(map(str, self.samples))
+            samples_str = "\n".join(map(lambda s: f" {s}", self.samples))
             cleaned_probas = str(self._probabilities).replace("\n", " ")
-            return header + dedent(
-                f"""
-                Counts: {self._counts}
-                Probabilities: {cleaned_probas}
-                {samples_str}
-                Error: {self.error}\n\n"""
-            )
+            return f"""{header}
+Counts: {self._counts}
+Probabilities: {cleaned_probas}
+{samples_str}
+Error: {self.error}"""
+
         if self.job.job_type == JobType.STATE_VECTOR:
-            return f"""{header}\n{self._state_vector}\n\n"""
+            return header + "\n" + str(self.state_vector)
+
         if self.job.job_type == JobType.OBSERVABLE:
-            return header + dedent(
-                f"""
-                Expectation value: {self.expectation_value}
-                Error/Variance: {self.error}\n\n"""
-            )
+            return f"""{header}
+Expectation value: {self.expectation_value}
+Error/Variance: {self.error}"""
+
         raise NotImplementedError(
             f"Job type {self.job.job_type} not implemented for __str__ method"
         )
@@ -421,22 +403,22 @@ class BatchResult:
         BatchResult: 3 results
         Result: ATOSDevice, MYQLM_PYLINALG
         State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
-                Probabilities: [0.25 0.25 0.25 0.25]
-                Number of qubits: 2
+        Probabilities: [0.25 0.25 0.25 0.25]
+        Number of qubits: 2
         Result: ATOSDevice, MYQLM_PYLINALG
         Counts: [250, 0, 0, 250]
         Probabilities: [0.5 0.  0.  0.5]
-        State: 00, Index: 0, Count: 250, Probability: 0.5
-        State: 11, Index: 3, Count: 250, Probability: 0.5
+         State: 00, Index: 0, Count: 250, Probability: 0.5
+         State: 11, Index: 3, Count: 250, Probability: 0.5
         Error: 0.034
         Result: ATOSDevice, MYQLM_PYLINALG
         Expectation value: -3.09834
         Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: ATOSDevice, MYQLM_PYLINALG
-            State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
-            Probabilities: [0.25 0.25 0.25 0.25]
-            Number of qubits: 2
+         State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
+         Probabilities: [0.25 0.25 0.25 0.25]
+        Number of qubits: 2
     """
 
     def __init__(self, results: list[Result]):

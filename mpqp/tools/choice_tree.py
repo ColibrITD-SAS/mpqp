@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Optional, TypeVar
+
 from pick import pick
 from typeguard import typechecked
 
@@ -35,6 +36,7 @@ class QuestionNode:
         label: See attribute description.
         answers: See attribute description.
     """
+
     label: str
     """The label or text associated with the question."""
     answers: list[AnswerNode]
@@ -43,8 +45,7 @@ class QuestionNode:
 
 @typechecked
 def run_choice_tree(question: QuestionNode):
-    """
-    Execute the choice tree by starting with the question node in parameter.
+    """Execute the choice tree by starting with the question node in parameter.
 
     Args:
         question: Root question from which the choice tree will start

@@ -3,39 +3,34 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 from copy import deepcopy
 from numbers import Complex
+from typing import Iterable, Optional, Sequence, Type, Union
 
 import numpy as np
 import numpy.typing as npt
-from matplotlib.figure import Figure
-from qiskit.circuit import QuantumCircuit, Operation
-from qiskit.circuit.quantumcircuit import CircuitInstruction
-
-from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from braket.circuits import Circuit as braket_Circuit
+from cirq.circuits.circuit import Circuit as cirq_Circuit
+from matplotlib.figure import Figure
+from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+from qiskit.circuit import Operation, QuantumCircuit
+from qiskit.circuit.quantumcircuit import CircuitInstruction
 from qiskit.quantum_info import Operator
 from sympy import Basic, Expr
-from typeguard import typechecked, TypeCheckError
+from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.gates import (
-    ControlledGate,
-    Gate,
-)
+from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
-from mpqp.core.instruction.measurement import (
-    ComputationalBasis,
-    BasisMeasure,
-    Measure,
-)
+from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
+from mpqp.core.languages import Language
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 from mpqp.tools.errors import NumberQubitsError
-from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
 
 
@@ -148,13 +143,15 @@ class QCircuit:
             if any(qb >= self.nb_qubits for qb in instruction.controls):
                 raise NumberQubitsError("Control targets qubit outside of circuit")
 
-        if isinstance(instruction, BasisMeasure) and instruction.c_targets is None:
-            if self.nb_cbits is None:
-                self.nb_cbits = 0
-            instruction.c_targets = [
-                self.nb_cbits + i for i in range(len(instruction.targets))
-            ]
-            self.nb_cbits += len(instruction.c_targets)
+        if isinstance(instruction, BasisMeasure):
+            # has to be done in two steps, because Pycharm's type checker is unable to understand chained type inference
+            if instruction.c_targets is None:
+                if self.nb_cbits is None:
+                    self.nb_cbits = 0
+                instruction.c_targets = [
+                    self.nb_cbits + i for i in range(len(instruction.targets))
+                ]
+                self.nb_cbits += len(instruction.c_targets)
 
         if isinstance(instruction, Barrier):
             instruction.size = self.nb_qubits
@@ -418,8 +415,7 @@ class QCircuit:
         ...
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
-        """
-        Compute the unitary matrix associated to this circuit.
+        """Compute the unitary matrix associated to this circuit.
 
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
@@ -600,9 +596,12 @@ class QCircuit:
 
         return new_circuit
 
-    def to_other_language(
-        self, language: Language = Language.QISKIT
-    ) -> Union[QuantumCircuit, myQLM_Circuit, braket_Circuit]:
+    def to_other_language(self, language: Language = Language.QISKIT) -> Union[
+        QuantumCircuit,
+        myQLM_Circuit,
+        braket_Circuit,
+        cirq_Circuit,
+    ]:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -677,6 +676,7 @@ class QCircuit:
                     qargs = range(instruction.size)
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
+                assert not isinstance(qiskit_inst, Operator)
 
                 assert not isinstance(qiskit_inst, Operator)
                 new_circ.append(
@@ -692,9 +692,22 @@ class QCircuit:
             return myqlm_circuit
 
         elif language == Language.BRAKET:
-            circuit_qasm3 = self.to_qasm3()
-            brkt_circuit = qasm3_to_braket_Circuit(circuit_qasm3)
-            return brkt_circuit
+            circuit = deepcopy(self)
+            used_qubits = set().union(
+                *(inst.connections() for inst in circuit.instructions)
+            )
+            circuit.add(
+                [
+                    Id(qubit)
+                    for qubit in range(circuit.nb_qubits)
+                    if qubit not in used_qubits
+                ]
+            )
+
+            return qasm3_to_braket_Circuit(circuit.to_qasm3())
+        elif language == Language.CIRQ:
+            cirq_circuit = qasm2_to_cirq_Circuit(self.to_qasm2())
+            return cirq_circuit
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")

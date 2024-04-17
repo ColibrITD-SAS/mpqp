@@ -1,4 +1,11 @@
 #! /usr/bin/env python3
+"""This script helps you configuring the connections for all the supported 
+remote backends. In time, it will also guide you to retrieve the tokens,
+passwords, etc... but for now, it is a prerequisite that you already have these
+credentials to use this script.
+
+Information concerning which provider is configured and related
+credentials are stored in the ``~/.mpqp`` file."""
 
 import mpqp.execution.connection.aws_connection as awsc
 import mpqp.execution.connection.env_manager as env_m
@@ -9,9 +16,7 @@ from mpqp.tools.errors import IBMRemoteExecutionError
 
 
 def print_config_info():
-    """
-    Prints the info concerning each provider's registered account
-    """
+    """Prints the info concerning each provider's registered account."""
     print("===== IBM Quantum info : ===== ")
     try:
         print(ibmqc.get_active_account_info())

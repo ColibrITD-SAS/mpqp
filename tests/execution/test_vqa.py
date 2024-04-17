@@ -1,4 +1,5 @@
 from typing import Any
+
 import numpy as np
 import pytest
 from sympy import Expr
@@ -8,11 +9,12 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.gates import *
-from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice, ATOSDevice
-from mpqp.execution.vqa import minimize, Optimizer
-from mpqp.execution.vqa.vqa import OptimizableFunc
+from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution.vqa import Optimizer, minimize
+from mpqp.execution.vqa.vqa import OptimizableFunc
+from mpqp.gates import *
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 # the symbols function is a bit wacky, so some manual type definition is needed here
 theta: Expr = symbols("θ")  # type: ignore
@@ -41,8 +43,15 @@ def with_local_devices(args: tuple[Any, ...]):
     ),
 )
 def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevice):
-    try:
+    def run():
         assert minimize(circ, Optimizer.BFGS, device)[0] - minimum < 0.05
+
+    try:
+        if isinstance(device, AWSDevice):
+            with pytest.warns(UnsupportedBraketFeaturesWarning):
+                run()
+        else:
+            run()
     except (ValueError, NotImplementedError) as err:
         if "not handled" not in str(err):
             raise

@@ -1,5 +1,6 @@
 from __future__ import annotations
-from abc import abstractmethod, ABC
+
+from abc import ABC, abstractmethod
 from copy import deepcopy
 from typing import Optional
 
@@ -7,8 +8,8 @@ import numpy as np
 from scipy.linalg import fractional_matrix_power
 from typeguard import typechecked
 
-from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
 

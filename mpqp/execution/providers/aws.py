@@ -1,11 +1,15 @@
 import math
 from typing import Optional
-from typeguard import typechecked
 
 import numpy as np
-from braket.circuits.observables import Hermitian
-from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 from braket.aws import AwsQuantumTask
+from braket.circuits import Circuit
+from braket.device_schema.ionq import IonqDeviceParameters
+from braket.device_schema.oqc import OqcDeviceParameters
+from braket.device_schema.rigetti import RigettiDeviceParameters
+from braket.device_schema.simulators import GateModelSimulatorDeviceParameters
+from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+from typeguard import typechecked
 
 from mpqp import QCircuit, Language
 from mpqp.core.instruction.measurement import (
@@ -15,6 +19,7 @@ from mpqp.core.instruction.measurement import (
 )
 from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
+from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
 from mpqp.execution.job import Job, JobType, JobStatus
@@ -25,33 +30,41 @@ from mpqp.tools.errors import DeviceJobIncompatibleError
 
 @typechecked
 def run_braket(job: Job) -> Result:
-    """
-    Executes the job on the right AWS Braket device (local or remote) precised in the job in parameter and waits until
-    the task is completed, then returns the Result.
-    This function is not meant to be used directly, please use ``runner.run(...)`` instead.
+    """Executes the job on the right AWS Braket device (local or remote)
+    precised in the job in parameter and waits until the task is completed, then
+    returns the Result.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
 
     Args:
         job: Job to be executed.
 
     Returns:
-        A Result after submission and execution of the job.
+        The result of the job.
     """
     _, task = submit_job_braket(job)
     assert isinstance(job.device, AWSDevice)
-    return extract_result(task.result(), job, job.device)
+    res = task.result()
+    assert isinstance(res, GateModelQuantumTaskResult)
+    return extract_result(res, job, job.device)
 
 
 @typechecked
 def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
-    """
-    Submits the job to the right local/remote device and returns the generated task.
-    This function is not meant to be used directly, please use ``runner.submit(...)`` instead.
+    """Submits the job to the right local/remote device and returns the
+    generated task.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.submit(...)`` instead.
 
     Args:
         job: Job to be executed.
 
     Returns:
-        A string representing the task' id, and the Task itself.
+        The task's id and the Task itself.
     """
 
     # check some compatibility issues
@@ -66,16 +79,18 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     device = get_braket_device(job.device)  # type: ignore
 
     # convert job circuit into braket circuit
-    brkt_circuit = job.circuit.to_other_language(Language.BRAKET)
+    braket_circuit = job.circuit.to_other_language(Language.BRAKET)
+    assert isinstance(braket_circuit, Circuit)
 
     if job.job_type == JobType.STATE_VECTOR:
-        brkt_circuit.state_vector()  # type: ignore
+        braket_circuit.state_vector()  # type: ignore
         job.status = JobStatus.RUNNING
-        task = device.run(brkt_circuit, shots=0)
+        task = device.run(braket_circuit, shots=0, inputs=None)
 
     elif job.job_type == JobType.SAMPLE:
+        assert job.measure is not None
         job.status = JobStatus.RUNNING
-        task = device.run(brkt_circuit, shots=job.measure.shots)
+        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
         if not isinstance(job.measure, ExpectationMeasure):
@@ -84,11 +99,11 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
                 "type ExpectationMeasure"
             )
 
-        herm_op = Hermitian(job.measure.observable.matrix)
-        brkt_circuit.expectation(observable=herm_op, target=job.measure.targets)  # type: ignore
+        herm_op = job.measure.observable.to_other_language(Language.BRAKET)
+        braket_circuit.expectation(observable=herm_op, target=job.measure.targets)  # type: ignore
 
         job.status = JobStatus.RUNNING
-        task = device.run(brkt_circuit, shots=job.measure.shots)
+        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
@@ -107,11 +122,12 @@ def extract_result(
 
     Args:
         braket_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more easily info to instantiate the result.
+        job: Original mpqp job used to generate the run. Used to retrieve more
+            easily info to instantiate the result.
         device: AWSDevice on which the job was submitted.
 
     Returns:
-        A Result containing the result info extracted from the Braket result.
+        The ``braket`` result converted to our format.
     """
     if job is None:
         if len(braket_result.values) == 0:
@@ -121,13 +137,18 @@ def extract_result(
             measure = BasisMeasure(list(range(nb_qubits)), shots=shots)
         elif isinstance(braket_result.values[0], float):
             job_type = JobType.OBSERVABLE
-            nb_qubits = (
-                braket_result.task_metadata.deviceParameters.paradigmParameters.qubitCount
+            device_params = braket_result.task_metadata.deviceParameters
+            assert (
+                isinstance(device_params, IonqDeviceParameters)
+                or isinstance(device_params, OqcDeviceParameters)
+                or isinstance(device_params, RigettiDeviceParameters)
+                or isinstance(device_params, GateModelSimulatorDeviceParameters)
             )
+            nb_qubits = device_params.paradigmParameters.qubitCount
             shots = braket_result.task_metadata.shots
             measure = ExpectationMeasure(
                 list(range(nb_qubits)),
-                Observable(np.zeros((2**nb_qubits, 2**nb_qubits))),
+                Observable(np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex64)),
                 shots,
             )
         else:
@@ -139,10 +160,12 @@ def extract_result(
 
     if job.job_type == JobType.STATE_VECTOR:
         vector = braket_result.values[0]
+        assert isinstance(vector, list) or isinstance(vector, np.ndarray)
         state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
         return Result(job, state_vector, 0, 0)
 
     elif job.job_type == JobType.SAMPLE:
+        assert job.measure is not None
         counts = braket_result.measurement_counts
         sample_info = []
         for state in counts.keys():
@@ -152,6 +175,7 @@ def extract_result(
         return Result(job, sample_info, None, job.measure.shots)
 
     elif job.job_type == JobType.OBSERVABLE:
+        assert job.measure is not None
         exp_value = braket_result.values[0]
         return Result(job, exp_value, None, job.measure.shots)
 
@@ -160,9 +184,10 @@ def extract_result(
 
 
 @typechecked
-def get_result_from_aws_task_arn(task_arn: str = None) -> Result:
-    """
-    Retrieves the result, described by the job_id in parameter, from the remote QLM and converts it into an mpqp result.
+def get_result_from_aws_task_arn(task_arn: str) -> Result:
+    """Retrieves the result, described by the job_id in parameter, from the
+    remote QLM and converts it into an mpqp result.
+
     If the job is still running, we wait (blocking) until it is DONE.
 
     Args:
@@ -170,15 +195,15 @@ def get_result_from_aws_task_arn(task_arn: str = None) -> Result:
 
     """
     task: QuantumTask = AwsQuantumTask(task_arn)
-    # eventually catch an error if the id is not correct (wrong ID, wrong region/blablabla)
+    # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
 
-    status: str = task.state()  # get the status of the task, it is a string
-    # depending on the status, either raise an error, wait for the task to finish, or get the result if done
+    status = task.state()
 
     if status in ["FAILED", "CANCELLED"]:
-        raise AWSBraketRemoteExecutionError("")
+        raise AWSBraketRemoteExecutionError(f"Job status: {status}")
     elif status in ["CREATED", "QUEUED", "RUNNING", "COMPLETED"]:  #
-        result = task.result()  # will get the result, and eventually wait for it
+        result = task.result()
+        assert isinstance(result, GateModelQuantumTaskResult)
     else:
         raise AWSBraketRemoteExecutionError(
             f"Unknown status {status} for the task {task_arn}"

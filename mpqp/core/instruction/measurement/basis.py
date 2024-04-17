@@ -9,6 +9,7 @@ On the other hand, some common basis are available for you to use:
 :class:`ComputationalBasis` and :class:`HadamardBasis`."""
 
 from __future__ import annotations
+
 from abc import abstractmethod
 from functools import reduce
 from typing import Optional
@@ -17,7 +18,7 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
-from mpqp.tools.maths import matrix_eq, atol
+from mpqp.tools.maths import atol, matrix_eq
 
 
 @typechecked
@@ -107,8 +108,7 @@ class VariableSizeBasis(Basis):
 
     @abstractmethod
     def set_size(self, nb_qubits: int):
-        """
-        To allow the user to use a basis without having to specify the size
+        """To allow the user to use a basis without having to specify the size
         (because implicitly the size should be the number of qubits of the
         circuit), we use this method, that will only be called once the
         circuit's size is definitive (i.e. at the last moment before the circuit
