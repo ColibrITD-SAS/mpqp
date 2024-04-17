@@ -1,19 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 from copy import deepcopy
 from numbers import Complex
-from typing import Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
+
+if TYPE_CHECKING:
+    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from braket.circuits import Circuit as braket_Circuit
+    from qiskit.circuit import QuantumCircuit
 
 import numpy as np
 import numpy.typing as npt
-from braket.circuits import Circuit as braket_Circuit
-from cirq.circuits.circuit import Circuit as cirq_Circuit
 from matplotlib.figure import Figure
-from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-from qiskit.circuit import Operation, QuantumCircuit
-from qiskit.circuit.quantumcircuit import CircuitInstruction
-from qiskit.quantum_info import Operator
 from sympy import Basic, Expr
 from typeguard import TypeCheckError, typechecked
 
@@ -627,6 +626,10 @@ class QCircuit:
         """
 
         if language == Language.QISKIT:
+            from qiskit.circuit import Operation, QuantumCircuit
+            from qiskit.circuit.quantumcircuit import CircuitInstruction
+            from qiskit.quantum_info import Operator
+
             # to avoid defining twice the same parameter, we keep trace of the
             # added parameters, and we use those instead of new ones when they
             # are used more than once
@@ -652,7 +655,7 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(
+                    new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
                         instruction.to_other_language(),
                         instruction.targets,
                         instruction.label,
