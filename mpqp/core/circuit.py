@@ -740,7 +740,8 @@ class QCircuit:
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
         )
-        assert isinstance(qiskit_circ, QuantumCircuit)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circ, QuantumCircuit)
         qasm = qiskit_circ.qasm()
         assert qasm is not None
         return qasm

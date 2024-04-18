@@ -1,16 +1,17 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
+
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import (
-    UnitaryMatrix,
     KrausRepresentation,
     PauliDecomposition,
+    UnitaryMatrix,
 )
 from mpqp.core.languages import Language
-from qiskit.circuit import Parameter
-from qiskit.quantum_info.operators import Operator as QiskitOperator
 
 
 @typechecked
@@ -36,8 +37,10 @@ class CustomGate(Gate):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
+        from qiskit.quantum_info.operators import Operator as QiskitOperator
+
         if qiskit_parameters is None:
             qiskit_parameters = set()
         return QiskitOperator(self.matrix)
@@ -55,6 +58,7 @@ class CustomGate(Gate):
 @typechecked
 class KrausGate(CustomGate):
     """6M-TODO"""
+
     def __init__(
         self,
         definition: KrausRepresentation,
@@ -69,6 +73,7 @@ class KrausGate(CustomGate):
 @typechecked
 class PauliDecompositionGate(CustomGate):
     """6M-TODO"""
+
     def __init__(
         self,
         definition: PauliDecomposition,

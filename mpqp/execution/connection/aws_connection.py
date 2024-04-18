@@ -1,12 +1,11 @@
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from botocore.exceptions import NoRegionError
-from braket.aws import AwsDevice, AwsSession
-from braket.devices import LocalSimulator
-from braket.devices.device import Device as BraketDevice
 from termcolor import colored
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from braket.devices.device import Device as BraketDevice
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
@@ -68,6 +67,7 @@ def get_aws_braket_account_info() -> str:
         raise AWSBraketRemoteExecutionError(
             "Error when trying to get AWS credentials. No AWS Braket account configured."
         )
+    from braket.aws import AwsSession
 
     try:
         session = AwsSession()
@@ -91,7 +91,7 @@ def get_aws_braket_account_info() -> str:
 
 
 @typechecked
-def get_braket_device(device: AWSDevice) -> BraketDevice:
+def get_braket_device(device: AWSDevice) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Example:
@@ -109,9 +109,12 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
         AWSBraketRemoteExecutionError: If the device or the region could not be
             retrieved.
     """
-
     if not device.is_remote():
+        from braket.devices import LocalSimulator
+
         return LocalSimulator()
+    from botocore.exceptions import NoRegionError
+    from braket.aws import AwsDevice
 
     try:
         return AwsDevice(device.get_arn())
@@ -140,6 +143,8 @@ def get_all_task_ids() -> list[str]:
          'arn:aws:braket:us-east-1:752542621531:quantum-task/edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
     """
+    from braket.aws import AwsSession
+
     return [
         task["quantumTaskArn"]
         for task in (
