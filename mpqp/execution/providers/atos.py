@@ -162,14 +162,17 @@ def generate_hardware_model(noises: list[NoiseModel]) -> HardwareModel:
         if isinstance(noise, Depolarizing):
 
             channel = ...
-            if noise.gates:
-                for gate in noise.gates:
-                    gate_noise["f"] = ...
-
-            channels.append(channel)
         else:
             raise NotImplementedError(f"NoiseModel of type {type(noise).__name__} is not handled yet "
                                       f"for noisy runs on the QLM")
+
+
+
+        if noise.gates:
+            for gate in noise.gates:
+                gate_noise["f"] = ...
+
+            channels.append(channel)
 
     return HardwareModel(gate_noise=gate_noise)
 
