@@ -5,6 +5,7 @@ aws-configure==2.1.8
 myqlm==1.9.3
 qlmaas==1.9.1
 myqlm-interop==1.9.3
+cvxpy==1.4.3
 qiskit==0.45.0
 qiskit_aer==0.13.1
 qiskit_ibm_provider==0.7.2

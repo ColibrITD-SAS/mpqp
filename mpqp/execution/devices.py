@@ -122,9 +122,7 @@ class ATOSDevice(AvailableDevice):
     QLM_FEYNMAN = auto()
     QLM_BDD = auto()
     QLM_NOISY_QPROC = auto()
-    QLM_SQA = auto()
     QLM_QPEG = auto()
-    QLM_CLASSICAL_QPU = auto()
 
     def is_remote(self):
         return self.name.startswith("QLM")
@@ -136,8 +134,8 @@ class ATOSDevice(AvailableDevice):
         return True
 
     def is_noisy_simulator(self) -> bool:
-        # TODO: to check if QLM_NOISY_QPROC is the only qpu that can simulate noise in QLM
-        return self == ATOSDevice.QLM_NOISY_QPROC
+        # TODO: to check QPUs in QLM, and update this set and the enum
+        return self in {ATOSDevice.QLM_NOISY_QPROC, ATOSDevice.QLM_MPO}
 
 
 class AWSDevice(AvailableDevice):

@@ -3,8 +3,7 @@ from typing import Optional
 
 import numpy as np
 from qat.clinalg.qpu import CLinalg
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
-from qat.comm.qlmaas.ttypes import QLMServiceException
+from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
 from qat.core.contexts import QPUContext
 from qat.core.qpu.qpu import QPUHandler
 from qat.core.wrappers.circuit import Circuit
@@ -14,6 +13,7 @@ from qat.core.wrappers.result import Result as QLM_Result
 from qat.plugins.observable_splitter import ObservableSplitter
 from qat.pylinalg import PyLinalg
 from qat.qlmaas.result import AsyncResult
+from qat.hardware.default import HardwareModel
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
@@ -24,11 +24,11 @@ from mpqp.core.instruction.measurement.expectation_value import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
+from mpqp.noise.noise_model import NoiseModel, Depolarizing
 
-from ...tools.errors import QLMRemoteExecutionError
-from ..connection.qlm_connection import get_QLMaaSConnection
-from ..job import Job, JobStatus, JobType
-from ..result import Result, Sample, StateVector
+from mpqp.tools.errors import QLMRemoteExecutionError
+from mpqp.execution.connection.qlm_connection import get_QLMaaSConnection
+from mpqp.execution import Job, JobStatus, JobType, Result, Sample, StateVector
 
 
 @typechecked
@@ -144,6 +144,31 @@ def generate_observable_job(
 
     return myqlm_job, qpu
 
+
+@typechecked
+def generate_hardware_model(noises: list[NoiseModel]) -> HardwareModel:
+    """
+
+    Args:
+        noises: List of NoiseModel of a QCircuit used to generate a QLM HardwareModel
+
+    Returns:
+
+    """
+    #TODO: comment and implement
+
+    for noise in noises:
+        if isinstance(noise, Depolarizing):
+
+            if noise.gates:
+                gate_noise = ...
+            else:
+                gate_noise = None
+
+            return HardwareModel(gate_noise=gate_noise)
+        else:
+            raise NotImplementedError(f"NoiseModel of type {type(noise).__name__} is not handled yet "
+                                      f"for noisy runs on the QLM")
 
 @typechecked
 def extract_state_vector_result(
@@ -487,8 +512,8 @@ def run_QLM(job: Job) -> Result:
 
     if not isinstance(job.device, ATOSDevice) or not job.device.is_remote():
         raise ValueError(
-            "The job given is not a QLM one, so it cannot be handled by this "
-            "function."
+            "This job's device is not a QLM one, so it cannot be handled by this "
+            "function. Use ``run`` instead."
         )
 
     _, async_result = submit_QLM(job)

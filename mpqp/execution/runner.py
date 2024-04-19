@@ -137,7 +137,7 @@ def _run_single(
     if circuit.noises:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
-                f"Circuit contains noise, but device {device} cannot simulate noise."
+                f"Device {device} cannot simulate circuits containing NoiseModels."
             )
 
     if isinstance(device, IBMDevice):

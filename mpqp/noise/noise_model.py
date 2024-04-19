@@ -6,6 +6,7 @@ from typing import Optional, Union
 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from braket.circuits.noises import Noise as BraketNoise
 from qiskit_aer.noise import NoiseModel as QiskitNoise
+from qat.quops.class_concepts import QuantumChannel as QLMNoise
 from sympy import Expr
 
 from mpqp.core.instruction.gates import Gate
@@ -82,7 +83,7 @@ class NoiseModel(ABC):
     @abstractmethod
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QiskitNoise:
+    ) -> BraketNoise | QiskitNoise | QLMNoise:
         """
         TODO: doc
         Returns:
@@ -163,7 +164,7 @@ class Depolarizing(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QiskitNoise:
+    ) -> BraketNoise | QiskitNoise | QLMNoise:
         if language == Language.BRAKET:
             return BraketDepolarizing(probability=self.proba)
         else:
