@@ -211,6 +211,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = IGate
+    qlm_aqasm_keyword = "I"
     matrix = np.eye(2, dtype=np.complex64)
 
 
@@ -227,6 +228,7 @@ class X(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = XGate
+    qlm_aqasm_keyword = "X"
     matrix = np.array([[0, 1], [1, 0]])
 
 
@@ -243,6 +245,7 @@ class Y(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = YGate
+    qlm_aqasm_keyword = "Y"
     matrix = np.array([[0, -1j], [1j, 0]])
 
 
@@ -259,6 +262,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = ZGate
+    qlm_aqasm_keyword = "Z"
     matrix = np.array([[1, 0], [0, -1]])
 
 
@@ -275,6 +279,7 @@ class H(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = HGate
+    qlm_aqasm_keyword = "H"
     matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
 
@@ -292,6 +297,7 @@ class P(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = PhaseGate
+    qlm_aqasm_keyword = "PH"
 
     def to_matrix(self) -> Matrix:
         return np.array([[1, 0], [0, exp(self.parameters[0] * 1j)]])  # type:ignore
@@ -311,6 +317,7 @@ class S(OneQubitNoParamGate):
     """
 
     qiskit_gate = SGate
+    qlm_aqasm_keyword = "S"
     matrix = np.array([[1, 0], [0, 1j]])
 
 
@@ -328,6 +335,7 @@ class T(OneQubitNoParamGate):
     """
 
     qiskit_gate = TGate
+    qlm_aqasm_keyword = "T"
     matrix = np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
 
 
@@ -347,6 +355,7 @@ class SWAP(InvolutionGate, NoParameterGate):
     """
 
     qiskit_gate = SwapGate
+    qlm_aqasm_keyword = "SWAP"
     matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
     def __init__(self, a: int, b: int):
@@ -369,7 +378,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         array([[ 0.8660254 +0.j        , -0.35355339-0.35355339j],
                [ 0.5       +0.j        ,  0.61237244+0.61237244j]])
     """
-
     def __init__(
         self,
         theta: Expr | float,
@@ -421,6 +429,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         )
         return np.array([[c, -eg * s], [ep * s, eg * ep * c]])  # type:ignore
 
+    # TODO: to check how it is decomposed, or if we can put directly "U"
+    qlm_aqasm_keyword = "U"
+
 
 class Rx(RotationGate, SingleQubitGate):
     """One qubit rotation around the X axis
@@ -436,6 +447,8 @@ class Rx(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = RXGate
+    qlm_aqasm_keyword = "RX"
+
 
     def to_matrix(self) -> Matrix:
         c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
@@ -456,6 +469,7 @@ class Ry(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = RYGate
+    qlm_aqasm_keyword = "RY"
 
     def to_matrix(self) -> Matrix:
         c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
@@ -476,6 +490,7 @@ class Rz(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = RZGate
+    qlm_aqasm_keyword = "RZ"
 
     def to_matrix(self) -> Matrix:
         e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
@@ -498,6 +513,7 @@ class Rk(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = PhaseGate
+    qlm_aqasm_keyword = "PH"
 
     def __init__(self, k: Expr | int, target: int):
         self.parameters = [k]
@@ -540,6 +556,7 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     qiskit_gate = CXGate
+    qlm_aqasm_keyword = "CNOT"
 
     def __init__(self, control: int, target: int):
         ControlledGate.__init__(self, [control], [target], X(target), "CNOT")
@@ -566,6 +583,7 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     qiskit_gate = CZGate
+    qlm_aqasm_keyword = "CSIGN"
 
     def __init__(self, control: int, target: int):
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
@@ -595,6 +613,7 @@ class CRk(RotationGate, ControlledGate):
     """
 
     qiskit_gate = CPhaseGate
+    qlm_aqasm_keyword = ["X", "PH"]
 
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
@@ -644,6 +663,7 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     qiskit_gate = CCXGate
+    qlm_aqasm_keyword = "CCNOT"
 
     def __init__(self, control: list[int], target: int):
         if len(control) != 2:
