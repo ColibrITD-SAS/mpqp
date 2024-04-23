@@ -87,7 +87,9 @@ def run_google_remote(job: Job) -> Result:
                 "Does not handle other basis than the ComputationalBasis for the moment"
             )
     else:
-        raise NotImplementedError(f" does not handle {job.device} for the moment only ionq is supported")
+        raise NotImplementedError(
+            f" does not handle {job.device} for the moment only ionq is supported"
+        )
 
     result = extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
     return result
@@ -346,7 +348,7 @@ def extract_result_OBSERVABLE(
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     for result1 in result:
-        if isinstance(result1, float):
+        if isinstance(result1, float) or isinstance(result1, complex):
             mean += abs(result1)
         if isinstance(result1, ObservableMeasuredResult):
             mean += result1.mean
