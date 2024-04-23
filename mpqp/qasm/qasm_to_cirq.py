@@ -33,7 +33,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     """Define a custom single-qubit gate."""
 
     class PhaseGate(Gate):
-        def __init__(self, theta):
+        def __init__(self, theta: complex):
             super(PhaseGate, self)
             self.theta = theta
 
@@ -42,14 +42,15 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
 
         def _unitary_(self):
             return np.array(
-                [[np.exp(1j * self.theta), 0], [0, np.exp(1j * self.theta)]]
+                [[np.exp(1j * self.theta), 0], 
+                 [0, np.exp(1j * self.theta)]]
             )
 
         def _circuit_diagram_info_(self, args):
             return f"P({self.theta})"
 
     class Rxx(Gate):
-        def __init__(self, theta):
+        def __init__(self, theta: complex):
             super(Rxx, self)
             self.theta = theta
 
@@ -70,7 +71,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             return f"Rxx({self.theta})"
     
     class Rzz(Gate):
-        def __init__(self, theta):
+        def __init__(self, theta: complex):
             super(Rzz, self)
             self.theta = theta
 

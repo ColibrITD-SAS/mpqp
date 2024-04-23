@@ -1,4 +1,3 @@
-import math
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -233,6 +232,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     expected_counts = [int(count) for count in np.round(shots * run(c, state_vector_devices[0]).probabilities)]
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
     batch = run(c, sampling_devices)
+    assert isinstance(batch, BatchResult)
     for result in batch:
         counts = result.counts
         # check if the true value is inside the trust interval
