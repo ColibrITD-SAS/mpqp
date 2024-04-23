@@ -26,9 +26,10 @@ from mpqp.core.instruction.measurement.expectation_value import (
 from mpqp.execution.devices import ATOSDevice
 from mpqp.noise.noise_model import NoiseModel, Depolarizing
 
-from mpqp.tools.errors import QLMRemoteExecutionError
-from mpqp.execution.connection.qlm_connection import get_QLMaaSConnection
-from mpqp.execution import Job, JobStatus, JobType, Result, Sample, StateVector
+from ...tools.errors import QLMRemoteExecutionError
+from ..connection.qlm_connection import get_QLMaaSConnection
+from ..job import Job, JobStatus, JobType
+from ..result import Result, Sample, StateVector
 
 
 @typechecked
