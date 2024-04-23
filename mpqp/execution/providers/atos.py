@@ -157,20 +157,29 @@ def generate_hardware_model(noises: list[NoiseModel]) -> HardwareModel:
     """
     #TODO: comment and implement
     channels = []
-    gate_noise = dict
+    gate_noise = dict()
     for noise in noises:
+        # We transform an mpqp NoiseModel into a myqlm QuantumChannel
+        channel = ...
         if isinstance(noise, Depolarizing):
-
-            channel = ...
+            ...
         else:
             raise NotImplementedError(f"NoiseModel of type {type(noise).__name__} is not handled yet "
                                       f"for noisy runs on the QLM")
 
-
-
+        # For each gate attached to this NoiseModel, we add to each gate key the right channels
+        #TODO: to finish
         if noise.gates:
             for gate in noise.gates:
-                gate_noise["f"] = ...
+                if hasattr(gate, "qlm_aqasm_keyword"):
+                    gate_keywords = gate.qlm_aqasm_keyword
+                    if not isinstance(gate_keywords, list):
+                        gate_keywords = [gate_keywords]
+
+                    for keyword in gate_keywords:
+                        if keyword not in gate_noise:
+                            gate_noise[keyword] = []
+                        gate_noise[keyword].append(channel)
 
             channels.append(channel)
 

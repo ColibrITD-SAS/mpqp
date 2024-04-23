@@ -179,6 +179,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
     ):
         if language == Language.QISKIT:
             return self.qiskit_gate()
+        elif language == Language.MY_QLM:
+            return self.qlm
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
