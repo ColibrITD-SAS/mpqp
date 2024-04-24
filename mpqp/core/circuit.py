@@ -711,17 +711,24 @@ class QCircuit:
         elif language == Language.BRAKET:
             # filling the circuit with identity gates when some qubits don't have any instruction
             used_qubits = set().union(
-                *(inst.connections() for inst in self.instructions if isinstance(inst, Gate))
+                *(
+                    inst.connections()
+                    for inst in self.instructions
+                    if isinstance(inst, Gate)
+                )
             )
             circuit = QCircuit(
-                [Id(qubit) for qubit in range(self.nb_qubits) if qubit not in used_qubits],
-                nb_qubits=self.nb_qubits
+                [
+                    Id(qubit)
+                    for qubit in range(self.nb_qubits)
+                    if qubit not in used_qubits
+                ],
+                nb_qubits=self.nb_qubits,
             ) + deepcopy(self)
 
             # TODO: here call the function ``apply_noise_to_braket_circuit``
             #  to the braket circuit before returning it
             return qasm3_to_braket_Circuit(circuit.to_qasm3())
-
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
@@ -877,9 +884,9 @@ class QCircuit:
 
         if self.noises:
             noise_repr = ", ".join(map(repr, self.noises))
-            return f"QCircuit([{instructions_repr}, {noise_repr}])"
+            return f'QCircuit([{instructions_repr}, {noise_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
         else:
-            return f"QCircuit([{instructions_repr}])"
+            return f'QCircuit([{instructions_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
 
     def variables(self):
         """Returns all the parameters involved in this circuit.

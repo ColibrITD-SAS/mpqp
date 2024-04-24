@@ -76,3 +76,6 @@ class ParametrizedGate(Gate, ABC):
         concrete_gate._numeric_parameters = True
 
         return concrete_gate
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.parameters},{self.targets})"
