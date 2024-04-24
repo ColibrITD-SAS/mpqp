@@ -51,7 +51,8 @@ cx q[1],q[0];
 
 barrier q;"""
 
-print(open_qasm_2_to_3(qasm2_3, path_to_file="mpqp/example"))
+# this exemple should be executed from mpqp root 
+print(open_qasm_2_to_3(qasm2_3, path_to_file="examples/scripts"))
 
 print("-------------------------")
 print("-------------------------")
