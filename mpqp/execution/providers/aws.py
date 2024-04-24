@@ -1,5 +1,5 @@
 import math
-from typing import List, Optional
+from typing import Optional
 
 import numpy as np
 from braket.aws import AwsQuantumTask
@@ -13,6 +13,7 @@ from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
+from mpqp.core.instruction.gates import Gate
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
     ExpectationMeasure,
@@ -28,10 +29,35 @@ from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatib
 
 @typechecked
 def apply_noise_to_braket_circuit(
-    braket_circuit: Circuit, noises: List[NoiseModel]
+    braket_circuit: Circuit,
+    noises: list[NoiseModel],
+    nb_qubits: int,
 ) -> None:
     for noise in noises:
-        braket_circuit.apply_gate_noise(noise.to_other_language(Language.BRAKET))
+        if noise.targets == list(range(nb_qubits)):
+            if noise.gates:
+                braket_circuit.apply_gate_noise(
+                    noise.to_other_language(Language.BRAKET),
+                    target_gates=[
+                        gate.to_other_language(Language.BRAKET) for gate in noise.gates
+                    ],
+                )
+            else:
+                braket_circuit.apply_noise(noise.to_other_language(Language.BRAKET))
+        else:
+            if noise.gates:
+                braket_circuit.apply_gate_noise(
+                    noise.to_other_language(Language.BRAKET),
+                    target_gates=[
+                        gate.to_other_language(Language.BRAKET) for gate in noise.gates
+                    ],
+                    target_qubits=noise.targets,
+                )
+            else:
+                braket_circuit.apply_gate_noise(
+                    noise.to_other_language(Language.BRAKET),
+                    target_qubits=noise.targets,
+                )
 
 
 @typechecked
@@ -91,7 +117,7 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     assert isinstance(braket_circuit, Circuit)
 
     apply_noise_to_braket_circuit(
-        braket_circuit, job.circuit.noises
+        braket_circuit, job.circuit.noises, job.circuit.nb_qubits
     )  # no difference if we have an empty noise list, will run anyway
 
     if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
