@@ -35,6 +35,34 @@ from ..result import Result, Sample, StateVector
 
 
 @typechecked
+def job_pre_processing(job: Job) -> Circuit:
+    """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
+    are coherent.
+
+    Args:
+        job: Mpqp job used to instantiate the myQLM circuit.
+
+    Returns:
+          The myQLM Circuit translated from the circuit of the job in parameter.
+    """
+
+    if (
+        job.job_type == JobType.STATE_VECTOR
+        and job.measure is not None
+        and not isinstance(job.measure, BasisMeasure)
+    ):
+        raise ValueError("`STATE_VECTOR` jobs require basis measure to be run")
+    if job.job_type == JobType.OBSERVABLE and not isinstance(
+        job.measure, ExpectationMeasure
+    ):
+        raise ValueError("`OBSERVABLE` jobs require `ExpectationMeasure` to be run")
+
+    myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
+
+    return myqlm_circuit
+
+
+@typechecked
 def get_local_qpu(device: ATOSDevice) -> QPUHandler:
     """Returns the myQLM local QPU associated with the ATOSDevice given in
     parameter.
@@ -46,10 +74,34 @@ def get_local_qpu(device: ATOSDevice) -> QPUHandler:
         ValueError: If the required backend is a local simulator.
     """
     if device.is_remote():
-        raise ValueError("Excepted a local device, not the remote QLM")
+        raise ValueError(f"Excepted a local device, not the remote QLM device {device}")
     if device == ATOSDevice.MYQLM_PYLINALG:
         return PyLinalg()
     return CLinalg()
+
+@typechecked
+def get_remote_qpu(device: ATOSDevice, is_noisy: bool):
+    #TODO implement, comment and integrate in the code
+
+    if not device.is_remote():
+        raise ValueError(f"Excepted a remote device, but got a local myQLM simulator {device}")
+    if is_noisy:
+        if not device.is_noisy_simulator():
+            raise ValueError(f"Excepted a noisy remote simulator but got {device}")
+
+        if device == ATOSDevice.QLM_NOISY_QPROC:
+            get_QLMaaSConnection()
+            ...
+        elif device == ATOSDevice.QLM_MPO:
+            ...
+        else:
+            raise NotImplementedError()
+    else:
+
+        if device == ATOSDevice.QLM_LINALG:
+            get_QLMaaSConnection()
+            from qlmaas.qpus import LinAlg  # type: ignore
+            return LinAlg()
 
 
 @typechecked
@@ -154,6 +206,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
     Args:
         noises: List of NoiseModel of a QCircuit used to generate a QLM HardwareModel
+        nb_qubits: Number of qubits in the circuit
 
     Returns:
 
@@ -422,34 +475,6 @@ def extract_result(
 
 
 @typechecked
-def job_pre_processing(job: Job) -> Circuit:
-    """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
-    are coherent.
-
-    Args:
-        job: Mpqp job used to instantiate the myQLM circuit.
-
-    Returns:
-          The myQLM Circuit translated from the circuit of the job in parameter.
-    """
-
-    if (
-        job.job_type == JobType.STATE_VECTOR
-        and job.measure is not None
-        and not isinstance(job.measure, BasisMeasure)
-    ):
-        raise ValueError("`STATE_VECTOR` jobs require basis measure to be run")
-    if job.job_type == JobType.OBSERVABLE and not isinstance(
-        job.measure, ExpectationMeasure
-    ):
-        raise ValueError("`OBSERVABLE` jobs require `ExpectationMeasure` to be run")
-
-    myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
-
-    return myqlm_circuit
-
-
-@typechecked
 def run_atos(job: Job) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
@@ -488,6 +513,8 @@ def run_myQLM(job: Job) -> Result:
     qpu = None
 
     myqlm_circuit = job_pre_processing(job)
+
+    #TODO modify generate_XXX_job so it only returns the job, not the QPU, and define another function to return the QPU
 
     if job.job_type == JobType.STATE_VECTOR:
         myqlm_job, qpu = generate_state_vector_job(myqlm_circuit)
@@ -564,7 +591,8 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
         job.status = JobStatus.RUNNING
         async_result = qpu.submit(myqlm_job)
         job_id = async_result.get_info().id
-        job.id = job_id
+        job.id = job_i
+        d
     else:
         raise NotImplementedError(f"Device {job.device} not handled")
 
