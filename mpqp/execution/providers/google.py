@@ -112,7 +112,12 @@ def run_local(job: Job) -> Result:
     if type(job.device) != GOOGLEDevice:
         raise ValueError("Job device must be GOOGLEDevice")
 
-    job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
+    if job.device.is_processor():
+        job_cirq_circuit = job.circuit.to_other_language(
+            Language.CIRQ, processor_id=job.device.value
+        )
+    else:
+        job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
     if not isinstance(job_cirq_circuit, Cirq_circuit):
         raise ValueError("Circuit must be Cirq_circuit")
 
@@ -130,9 +135,20 @@ def run_local(job: Job) -> Result:
 
         if isinstance(job.measure.basis, ComputationalBasis):
             if job.device.is_processor():
-                job_cirq_circuit, sim = circuit_to_processor_cirq_Circuit(
-                    job.device.value, job_cirq_circuit
+                cal = load_median_device_calibration(job.device.value)
+                device = create_device_from_processor_id(job.device.value)
+                # noise_props = noise_properties_from_calibration(cal)
+                # noise_model = NoiseModelFromGoogleNoiseProperties(noise_props)
+                sim = QSimSimulator(noise=None)
+
+                sim_processor = SimulatedLocalProcessor(
+                    processor_id=job.device.value,
+                    sampler=sim,
+                    device=device,
+                    calibrations={cal.timestamp // 1000: cal},
                 )
+                sim = SimulatedLocalEngine([sim_processor])
+
                 result_sim = sim.get_sampler(job.device.value).run(
                     job_cirq_circuit, repetitions=job.measure.shots
                 )
@@ -168,56 +184,6 @@ def run_local(job: Job) -> Result:
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
     return result
-
-
-@typechecked
-def circuit_to_processor_cirq_Circuit(processor_id: str, cirq_circuit: Cirq_circuit):
-    """
-    Converts a Cirq circuit to be suitable for simulation on a specific processor.
-
-    Args:
-        processor_id : Identifier of the processor.
-        cirq_circuit : The Cirq circuit to be converted.
-
-    Returns:
-        The converted Cirq circuit and the simulated local engine.
-
-    Raises:
-        ValueError: If the device metadata is not available for the specified processor.
-
-    Warnings:
-        This function optimizes the input circuit for the target gateset, routes the circuit according to the processor's connectivity,
-        and validates the circuit against the device's constraints before simulation.
-    """
-    cal = load_median_device_calibration(processor_id)
-    # noise_props = noise_properties_from_calibration(cal)
-    # noise_model = NoiseModelFromGoogleNoiseProperties(noise_props)
-    sim = QSimSimulator(noise=None)
-
-    device = create_device_from_processor_id(processor_id)
-
-    if device.metadata is None:
-        raise ValueError(
-            f"Device {device} does not have metadata for processor {processor_id}"
-        )
-
-    router = RouteCQC(device.metadata.nx_graph)
-
-    rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
-
-    fcirc = optimize_for_target_gateset(rcirc, gateset=SqrtIswapTargetGateset())
-
-    device.validate_circuit(fcirc)
-
-    sim_processor = SimulatedLocalProcessor(
-        processor_id=processor_id,
-        sampler=sim,
-        device=device,
-        calibrations={cal.timestamp // 1000: cal},
-    )
-    sim_engine = SimulatedLocalEngine([sim_processor])
-
-    return fcirc, sim_engine
 
 
 def extract_result(
