@@ -43,7 +43,9 @@ def apply_noise_to_braket_circuit(
                     ],
                 )
             else:
-                braket_circuit.apply_noise(noise.to_other_language(Language.BRAKET))
+                braket_circuit.apply_gate_noise(
+                    noise.to_other_language(Language.BRAKET)
+                )
         else:
             if noise.gates:
                 braket_circuit.apply_gate_noise(
