@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_circuit
 
 from typeguard import typechecked
-
+from mpqp.qasm.qasm_remplace_custom_gate import replace_custom_gates
 
 @typechecked
 def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
@@ -29,6 +29,9 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     from cirq.value.duration import Duration
     from cirq.ops.global_phase_op import GlobalPhaseGate
     from cirq.ops.raw_types import Gate
+
+    qasm_str = replace_custom_gates(qasm_str)
+    
 
     """Define a custom single-qubit gate."""
 
@@ -101,10 +104,8 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
                 rz(self.phi).on(q),
             ]
 
-    lines = qasm_str.split("\n")
-
     # Remove the line containing the barrier keyword
-    modified_lines = [line for line in lines if "barrier" not in line]
+    modified_lines = [line for line in qasm_str.split("\n") if "barrier" not in line]
     qasm_str = "\n".join(modified_lines)
 
     qasm_parser = QasmParser()

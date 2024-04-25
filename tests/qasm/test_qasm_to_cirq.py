@@ -28,6 +28,53 @@ from cirq.circuits.circuit import Circuit
                 "CNOT",
             ],
         ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+
+            gate MyGate a, b {
+                h a;
+                cx a, b;
+            }
+
+            qreg q[2];
+            creg c[2];
+
+            MyGate q[0], q[1];
+
+            measure q -> c;""",
+            [
+                "H",
+                "CNOT",
+            ],
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+
+            gate MyGate a, b {
+                h a;
+                cx a, b;
+            }
+
+            gate MyGate2 a, b, c{
+                h a;
+                cx a, c;
+                h c;
+            }
+
+            qreg q[3];
+            creg c[2];
+
+            MyGate q[0], q[1];
+            MyGate2 q[0], q[1], q[3];
+
+            measure q -> c;""",
+            [
+                "H",
+                "CNOT",
+            ],
+        )     
     ],
 )
 def test_qasm2_to_Cirq_Circuit(qasm_code: str, gate_names: list[str]):
