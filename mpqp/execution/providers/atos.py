@@ -180,7 +180,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             raise NotImplementedError(f"NoiseModel of type {type(noise).__name__} is not handled yet "
                                       f"for noisy runs on the QLM")
 
-
         if noise.targets != list(range(nb_qubits)):
             this_noise_all_qubits_target = False
             all_qubits_target = False
@@ -213,9 +212,13 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
         # Otherwise, we add an iddle noise
         else:
-            idle = ...
-
-
+            if this_noise_all_qubits_target:
+                idle_global_lists.append(channel)
+            else:
+                for target in noise.targets:
+                    if target not in idle_dicts:
+                        idle_dicts[target] = []
+                    idle_dicts[target].append(channel)
 
 
     # Only use the lists
@@ -534,6 +537,8 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
     qpu = None
 
     myqlm_circuit = job_pre_processing(job)
+
+    # TODO deal with the NoisyQProc here
 
     if job.device == ATOSDevice.QLM_LINALG:
         if job.job_type == JobType.STATE_VECTOR:
