@@ -13,7 +13,9 @@ from qat.core.wrappers.result import Result as QLM_Result
 from qat.plugins.observable_splitter import ObservableSplitter
 from qat.pylinalg import PyLinalg
 from qat.qlmaas.result import AsyncResult
-from qat.hardware.default import HardwareModel
+from qat.hardware.default import HardwareModel, DefaultGatesSpecification
+from qat.quops.quantum_channels import ParametricGateNoise
+from qat.quops import make_depolarizing_channel
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
@@ -147,7 +149,7 @@ def generate_observable_job(
 
 
 @typechecked
-def generate_hardware_model(noises: list[NoiseModel]) -> HardwareModel:
+def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> HardwareModel:
     """
 
     Args:
@@ -157,19 +159,33 @@ def generate_hardware_model(noises: list[NoiseModel]) -> HardwareModel:
 
     """
     #TODO: comment and implement
-    channels = []
-    gate_noise = dict()
+    all_qubits_target = True
+
+    gate_noise_global_lists = dict() # {"H": [QuantumChannel, ...]}
+    gate_noise_dicts = dict() # {"H": {0: ..., 1: ...}}
+    idle_global_lists = [] # [ Quantum Channel, ...]
+    idle_dicts = dict() # {0: ..., 1: ...}
+
+    # For each noise model
     for noise in noises:
+        this_noise_all_qubits_target = True
+
         # We transform an mpqp NoiseModel into a myqlm QuantumChannel
-        channel = ...
         if isinstance(noise, Depolarizing):
-            ...
+            channel = make_depolarizing_channel(prob=noise.proba,
+                                                nqbits=noise.dimension,
+                                                method_2q='equal_probs',
+                                                depol_type='pauli')
         else:
             raise NotImplementedError(f"NoiseModel of type {type(noise).__name__} is not handled yet "
                                       f"for noisy runs on the QLM")
 
+
+        if noise.targets != list(range(nb_qubits)):
+            this_noise_all_qubits_target = False
+            all_qubits_target = False
+
         # For each gate attached to this NoiseModel, we add to each gate key the right channels
-        #TODO: to finish
         if noise.gates:
             for gate in noise.gates:
                 if hasattr(gate, "qlm_aqasm_keyword"):
@@ -177,14 +193,51 @@ def generate_hardware_model(noises: list[NoiseModel]) -> HardwareModel:
                     if not isinstance(gate_keywords, list):
                         gate_keywords = [gate_keywords]
 
+                    # For each keyword corresponding to the gate
                     for keyword in gate_keywords:
-                        if keyword not in gate_noise:
-                            gate_noise[keyword] = []
-                        gate_noise[keyword].append(channel)
 
-            channels.append(channel)
+                        # If the target are all qubits
+                        if this_noise_all_qubits_target:
+                            if keyword not in gate_noise_global_lists:
+                                gate_noise_global_lists[keyword] = []
+                            gate_noise_global_lists[keyword].append(channel)
 
-    return HardwareModel(gate_noise=gate_noise)
+                        else:
+                            if keyword not in gate_noise_dicts:
+                                gate_noise_dicts[keyword] = dict()
+
+                            for target in noise.targets:
+                                if target not in gate_noise_dicts[keyword]:
+                                    gate_noise_dicts[keyword][target] = []
+                                gate_noise_dicts[keyword][target].append(channel)
+
+        # Otherwise, we add an iddle noise
+        else:
+            idle = ...
+
+
+
+
+    # Only use the lists
+    if all_qubits_target:
+
+        # TODO: For each gate key, add a ParametricGateNoise and put the list from gate_noise_global_lists in list of
+        #  noise channels
+        dict_parametric_gate_noise_list = dict()
+
+
+
+        return HardwareModel(DefaultGatesSpecification(),
+                             gate_noise=dict_parametric_gate_noise_list,
+                             idle_noise=idle_global_lists)
+    # Incorporate the lists into the dict for all qubits
+    else:
+
+        #TODO: merge the lists and dicts
+
+        return HardwareModel(DefaultGatesSpecification(),
+                             gate_noise=gate_noise_dicts,
+                             idle_noise=idle_dicts)
 
 @typechecked
 def extract_state_vector_result(
