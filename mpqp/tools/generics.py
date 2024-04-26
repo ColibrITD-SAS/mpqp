@@ -8,6 +8,7 @@ import numpy.typing as npt
 from typeguard import typechecked
 
 T = TypeVar("T")
+OneOrMany = Union[T, Sequence[T]]
 ListOrSingle = Union[list[T], T]
 """Type alias for both elements of type ``T``, or list of elements of type ``T``."""
 ArbitraryNestedSequence = Union[Sequence["ArbitraryNestedSequence"], T]
