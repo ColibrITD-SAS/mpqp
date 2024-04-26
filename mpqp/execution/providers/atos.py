@@ -80,17 +80,20 @@ def get_local_qpu(device: ATOSDevice) -> QPUHandler:
     return CLinalg()
 
 @typechecked
-def get_remote_qpu(device: ATOSDevice, is_noisy: bool):
+def get_remote_qpu(device: ATOSDevice, job: Job = None):
     #TODO implement, comment and integrate in the code
 
     if not device.is_remote():
         raise ValueError(f"Excepted a remote device, but got a local myQLM simulator {device}")
-    if is_noisy:
+    if job.circuit.noises:
         if not device.is_noisy_simulator():
             raise ValueError(f"Excepted a noisy remote simulator but got {device}")
 
         if device == ATOSDevice.QLM_NOISY_QPROC:
             get_QLMaaSConnection()
+            from qlmaas.qpus import NoisyQProc  # type: ignore
+            hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
+            return NoisyQProc(hw_model, n_samples=job)
             ...
         elif device == ATOSDevice.QLM_MPO:
             ...
@@ -355,6 +358,7 @@ def extract_sample_result(
         A Result containing the result info extracted from the myQLM/QLM sample
         result.
     """
+    # TODO: check what to modify in the noisy case
     if job is None:
         assert isinstance(myqlm_result.qregs[0].length, int)
         nb_qubits = (
@@ -410,6 +414,7 @@ def extract_observable_result(
         A Result containing the result info extracted from the myQLM/QLM
         observable result.
     """
+    # TODO: check what to modify in the noisy case
     if job is None:
         if device.is_remote():
             nb_qubits = myqlm_result.data.qregs[0].length
@@ -454,7 +459,7 @@ def extract_result(
     Returns:
         A Result containing the result info extracted from the myQLM/QLM result.
     """
-
+    # TODO: check what to modify in the noisy case
     if (job is None) or job.device.is_remote():
         if myqlm_result.value is None:
             if list(myqlm_result)[0].amplitude is None:
@@ -591,8 +596,7 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
         job.status = JobStatus.RUNNING
         async_result = qpu.submit(myqlm_job)
         job_id = async_result.get_info().id
-        job.id = job_i
-        d
+        job.id = job_id
     else:
         raise NotImplementedError(f"Device {job.device} not handled")
 

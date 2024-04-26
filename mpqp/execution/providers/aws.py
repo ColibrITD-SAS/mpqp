@@ -33,6 +33,16 @@ def apply_noise_to_braket_circuit(
     noises: list[NoiseModel],
     nb_qubits: int,
 ) -> None:
+    """
+    TODO: comment
+    Args:
+        braket_circuit:
+        noises:
+        nb_qubits:
+
+    Returns:
+
+    """
     for noise in noises:
         if noise.targets == list(range(nb_qubits)):
             if noise.gates:
