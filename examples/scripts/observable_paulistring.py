@@ -23,7 +23,7 @@ obs = Observable(
 
 ps_obs = Observable(1 * I @ Z + 1 * I @ I)
 
-obs = ps_obs.to_matrix()
+obs = ps_obs.matrix
 
 print(obs)
 print(ps_obs)

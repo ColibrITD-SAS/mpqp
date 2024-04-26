@@ -56,5 +56,3 @@ print(results)
 
 plot_results_sample_mode(results)
 plt.show()
-
-# %%

@@ -17,12 +17,10 @@ from cirq.work.observable_measurement_data import ObservableMeasuredResult
 from cirq.sim.state_vector_simulator import StateVectorTrialResult
 from cirq.transformers.optimize_for_target_gateset import optimize_for_target_gateset
 from cirq.value.probability import state_vector_to_probabilities
-from cirq.transformers.routing.route_circuit_cqc import RouteCQC
 from cirq.sim.sparse_simulator import Simulator
 from cirq.circuits.circuit import Circuit as Cirq_circuit
 from cirq.study.result import Result as cirq_result
 from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
-from cirq.transformers.target_gatesets.sqrt_iswap_gateset import SqrtIswapTargetGateset
 from cirq_google.engine.virtual_engine_factory import (
     load_median_device_calibration,
     create_device_from_processor_id,

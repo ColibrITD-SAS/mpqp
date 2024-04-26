@@ -63,7 +63,7 @@ class PauliString:
         return 0 if len(self._monomials) == 0 else self._monomials[0].nb_qubits
 
     def __str__(self):
-        return " + ".join(map(str, self._monomials))
+        return " + ".join(map(str, self.round().monomials))
 
     def __repr__(self):
         return str(self)
@@ -163,6 +163,32 @@ class PauliString:
         if len(res.monomials) == 0:
             res.monomials.append(
                 PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+            )
+        return res
+    
+    def round(self, round_off_till: int = 5) -> PauliString:
+        """Round the coefficients of the PauliString to a specified number of decimal places.
+
+        Example:
+            >>> ps = 0.6875*I@I + 0.415*I@X + 0.1275*I@Z + 1.0*X@I + 1.0*X@X + 0.0375*Z@I + 0.085*Z@X + -0.2225*Z@Z
+            >>> rounded_ps = ps.round(1)
+            >>> print(rounded_ps)
+            -0.2*Z@Z + 1.0*X@X + 0.1*I@Z + 1.0*X@I + 0.1*Z@X + 0.7*I@I + 0.4*I@X
+
+        Args:
+            round_off_till : Number of decimal places to round the coefficients to. Defaults to 5.
+
+        Returns:
+            PauliString: A PauliString with coefficients rounded to the specified number of decimal places.
+        """
+        res = PauliString()
+        for mono in self.monomials:
+            coef = float(round(mono.coef, round_off_till))
+            if coef != 0:
+                res.monomials.append(PauliStringMonomial(coef, mono.atoms))
+            if len(res.monomials) == 0:
+                res.monomials.append(
+                    PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
             )
         return res
 

@@ -54,7 +54,7 @@ def _prep_plot(result: Result):
     plt.xlabel("State")
     plt.ylabel("Counts")
     device = result.job.device
-    plt.title(type(device).__name__ + ", " + device.name)
+    plt.title(type(device).__name__ + "\n" + device.name)
 
 
 @typechecked
