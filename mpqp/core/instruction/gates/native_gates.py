@@ -31,6 +31,7 @@ from qiskit.circuit.library import (
     ZGate,
 )
 from sympy import Expr, pi
+from braket.circuits import gates
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
 # this file :/
@@ -105,7 +106,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
     a single parameter: ``theta``. This class help up factorize this behavior,
-    and simply having to tweak the matricial semantics and qasm translation of
+    and simply having to tweak the matrix semantics and qasm translation of
     the specific gate.
 
     Args:
@@ -114,6 +115,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """
 
     qiskit_gate: type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]
+    braket_gate: type[gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift]
 
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
@@ -141,6 +143,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         theta = float(self.theta) if self._numeric_parameters else self.theta
         if language == Language.QISKIT:
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
+        elif language == Language.BRAKET:
+            # 3M-TODO: handle symbolic parameters for Braket
+            return self.braket_gate(theta)
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -168,6 +173,21 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | CCXGate
         | IGate
     ]
+    braket_gate: type[
+        gates.X
+        | gates.Y
+        | gates.Z
+        | gates.H
+        | gates.T
+        | gates.S
+        | gates.Swap
+        | gates.CNot
+        | gates.CZ
+        | gates.CCNot
+        | gates.I
+    ]
+    qlm_aqasm_keyword: str
+
     """Corresponding ``qiskit``'s gate class."""
     matrix: npt.NDArray[np.complex64]
     """Matricial semantics of the gate."""
@@ -179,8 +199,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
     ):
         if language == Language.QISKIT:
             return self.qiskit_gate()
-        elif language == Language.MY_QLM:
-            return self.qlm
+        elif language == Language.BRAKET:
+            return self.braket_gate()
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -213,6 +233,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = IGate
+    braket_gate = gates.I
     qlm_aqasm_keyword = "I"
     matrix = np.eye(2, dtype=np.complex64)
 
@@ -230,6 +251,7 @@ class X(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = XGate
+    braket_gate = gates.X
     qlm_aqasm_keyword = "X"
     matrix = np.array([[0, 1], [1, 0]])
 
@@ -247,6 +269,7 @@ class Y(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = YGate
+    braket_gate = gates.Y
     qlm_aqasm_keyword = "Y"
     matrix = np.array([[0, -1j], [1j, 0]])
 
@@ -264,6 +287,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = ZGate
+    braket_gate = gates.Z
     qlm_aqasm_keyword = "Z"
     matrix = np.array([[1, 0], [0, -1]])
 
@@ -281,6 +305,7 @@ class H(OneQubitNoParamGate, InvolutionGate):
     """
 
     qiskit_gate = HGate
+    braket_gate = gates.H
     qlm_aqasm_keyword = "H"
     matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
@@ -299,6 +324,7 @@ class P(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = PhaseGate
+    braket_gate = gates.PhaseShift
     qlm_aqasm_keyword = "PH"
 
     def to_matrix(self) -> Matrix:
@@ -319,6 +345,7 @@ class S(OneQubitNoParamGate):
     """
 
     qiskit_gate = SGate
+    braket_gate = gates.S
     qlm_aqasm_keyword = "S"
     matrix = np.array([[1, 0], [0, 1j]])
 
@@ -337,6 +364,7 @@ class T(OneQubitNoParamGate):
     """
 
     qiskit_gate = TGate
+    braket_gate = gates.T
     qlm_aqasm_keyword = "T"
     matrix = np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
 
@@ -357,6 +385,7 @@ class SWAP(InvolutionGate, NoParameterGate):
     """
 
     qiskit_gate = SwapGate
+    braket_gate = gates.Swap
     qlm_aqasm_keyword = "SWAP"
     matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
@@ -411,14 +440,17 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set[Parameter]] = None,
     ):
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
         if language == Language.QISKIT:
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
             return UGate(
                 theta=_qiskit_parameter_adder(self.theta, qiskit_parameters),
                 phi=_qiskit_parameter_adder(self.phi, qiskit_parameters),
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
+        elif language == Language.BRAKET:
+            return gates.U(self.theta, self.phi, self.gamma)
+            # 3M-TODO handle symbolic parameters
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -449,8 +481,8 @@ class Rx(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = RXGate
+    braket_gate = gates.Rx
     qlm_aqasm_keyword = "RX"
-
 
     def to_matrix(self) -> Matrix:
         c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
@@ -471,6 +503,7 @@ class Ry(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = RYGate
+    braket_gate = gates.Ry
     qlm_aqasm_keyword = "RY"
 
     def to_matrix(self) -> Matrix:
@@ -492,6 +525,7 @@ class Rz(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = RZGate
+    braket_gate = gates.Rz
     qlm_aqasm_keyword = "RZ"
 
     def to_matrix(self) -> Matrix:
@@ -515,6 +549,7 @@ class Rk(RotationGate, SingleQubitGate):
     """
 
     qiskit_gate = PhaseGate
+    braket_gate = gates.PhaseShift
     qlm_aqasm_keyword = "PH"
 
     def __init__(self, k: Expr | int, target: int):
@@ -558,6 +593,7 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     qiskit_gate = CXGate
+    braket_gate = gates.CNot
     qlm_aqasm_keyword = "CNOT"
 
     def __init__(self, control: int, target: int):
@@ -585,6 +621,7 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     qiskit_gate = CZGate
+    braket_gate = gates.CZ
     qlm_aqasm_keyword = "CSIGN"
 
     def __init__(self, control: int, target: int):
@@ -615,7 +652,8 @@ class CRk(RotationGate, ControlledGate):
     """
 
     qiskit_gate = CPhaseGate
-    qlm_aqasm_keyword = ["X", "PH"]
+    braket_gate = gates.CPhaseShift
+    qlm_aqasm_keyword = ["CNOT", "PH"]
 
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
@@ -665,6 +703,7 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     qiskit_gate = CCXGate
+    braket_gate = gates.CCNot
     qlm_aqasm_keyword = "CCNOT"
 
     def __init__(self, control: list[int], target: int):

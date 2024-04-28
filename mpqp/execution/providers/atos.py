@@ -79,6 +79,7 @@ def get_local_qpu(device: ATOSDevice) -> QPUHandler:
         return PyLinalg()
     return CLinalg()
 
+
 @typechecked
 def get_remote_qpu(device: ATOSDevice, job: Job = None):
     #TODO implement, comment and integrate in the code

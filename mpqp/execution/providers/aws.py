@@ -49,7 +49,7 @@ def apply_noise_to_braket_circuit(
                 braket_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
-                        gate.to_other_language(Language.BRAKET) for gate in noise.gates
+                        type(gate.to_other_language(Language.BRAKET)) for gate in noise.gates
                     ],
                 )
             else:
@@ -61,7 +61,7 @@ def apply_noise_to_braket_circuit(
                 braket_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
-                        gate.to_other_language(Language.BRAKET) for gate in noise.gates
+                        type(gate.to_other_language(Language.BRAKET)) for gate in noise.gates
                     ],
                     target_qubits=noise.targets,
                 )
