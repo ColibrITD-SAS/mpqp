@@ -112,9 +112,13 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
 
     if not device.is_remote():
         return LocalSimulator()
+    import boto3
 
     try:
-        return AwsDevice(device.get_arn())
+        braket_client = boto3.client("braket", region_name=device.get_region())
+        aws_session = AwsSession(braket_client=braket_client)
+        aws_session.add_braket_user_agent(user_agent="APN/1.0 ColibriTD/1.0 MPQP/1.0")
+        return AwsDevice(device.get_arn(), aws_session=aws_session)
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
             "Failed to retrieve remote AWS device. Please check the arn, or if the "
