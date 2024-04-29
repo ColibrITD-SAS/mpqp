@@ -152,7 +152,10 @@ class AWSDevice(AvailableDevice):
         Returns:
             The arn of the device.
         """
-        return "arn:aws:braket:" + self.get_region() + "::device/" + self.value
+        region = self.get_region()
+        if self.is_simulator():
+            region = ""
+        return "arn:aws:braket:" + region + "::device/" + self.value
 
     def get_region(self) -> str:
         """Retrieve the Aws region from this AWSDevice element.
@@ -168,8 +171,6 @@ class AWSDevice(AvailableDevice):
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
-        if self.is_simulator():
-            return ""
         elif self == AWSDevice.BRAKET_RIGETTI_ASPEN_M_3:
             return "us-west-1"
         elif self == AWSDevice.BRAKET_OQC_LUCY:

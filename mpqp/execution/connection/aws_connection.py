@@ -40,6 +40,8 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     try:
         os.system("aws configure")
         save_env_variable("BRAKET_CONFIGURED", "True")
+        session = AwsSession()
+        save_env_variable("AWS_DEFAULT_REGION", session.region)
         return "Amazon Braket account correctly configured", []
 
     except Exception as e:
