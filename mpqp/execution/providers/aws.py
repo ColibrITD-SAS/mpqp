@@ -43,6 +43,8 @@ def apply_noise_to_braket_circuit(
     Returns:
 
     """
+    # TODO: remove the measurements from the braket circuit and store them somewhere
+
     for noise in noises:
         if noise.targets == list(range(nb_qubits)):
             if noise.gates:
@@ -70,6 +72,8 @@ def apply_noise_to_braket_circuit(
                     noise.to_other_language(Language.BRAKET),
                     target_qubits=noise.targets,
                 )
+
+    # TODO: put back the measurement that we stored
 
 
 @typechecked
