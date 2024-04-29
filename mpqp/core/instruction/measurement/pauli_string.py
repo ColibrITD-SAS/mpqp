@@ -1,5 +1,5 @@
 """Represents Pauli strings, which is linear combinations of
-:class:`PauliMonomial` with is a combination of :class:`PauliAtom`.
+:class:`PauliMonomial` which is a combination of :class:`PauliAtom`.
 :class:`PauliString` objects can be added, subtracted, and multiplied by
 scalars. They also support matrix multiplication with other :class:`PauliString`
 objects.
@@ -48,7 +48,7 @@ class PauliString:
 
     @property
     def monomials(self) -> list[PauliStringMonomial]:
-        """Get the monomials of the PauliString.
+        """Gets the monomials of the PauliString.
 
         Returns:
             The list of monomials in the PauliString.
@@ -57,7 +57,7 @@ class PauliString:
 
     @property
     def nb_qubits(self) -> int:
-        """Get the number of qubits associated with the PauliString.
+        """Gets the number of qubits associated with the PauliString.
 
         Returns:
             The number of qubits associated with the PauliString.
@@ -139,11 +139,11 @@ class PauliString:
         return self.to_dict() == other.to_dict()
 
     def simplify(self, inplace: bool = False) -> PauliString:
-        """Simplify the PauliString by combining like terms and removing terms
+        """Simplifies the PauliString by combining like terms and removing terms
         with zero coefficients.
 
         Args:
-            inplace: If the simplify should change self.
+            inplace: Indicates if ``simplify`` should update self.
 
         Example:
             >>> ps = I @ I - 2 * I @ I + Z @ I - Z @ I
@@ -175,7 +175,7 @@ class PauliString:
         return res
 
     def to_matrix(self) -> Matrix:
-        """Convert the PauliString to a matrix representation.
+        """Converts the PauliString to a matrix representation.
 
         Example:
             >>> ps = I + Z
@@ -195,10 +195,10 @@ class PauliString:
 
     @classmethod
     def from_matrix(cls, matrix: Matrix) -> PauliString:
-        """Construct a PauliString from a matrix.
+        """Constructs a PauliString from a matrix.
 
         Args:
-            Matrix from which the PauliString is generated
+            matrix: Matrix from which the PauliString is generated
 
         Example:
             >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
@@ -206,7 +206,7 @@ class PauliString:
             (1+0j)*I + (1+0j)*X + (-1+0j)*Z
 
         Returns:
-            PauliString: form class PauliString.
+            PauliString: Pauli string decomposition of the matrix in parameter.
 
         Raises:
             ValueError: If the input matrix is not square or its dimensions are not a power of 2.
@@ -238,15 +238,15 @@ class PauliString:
         return pauli_list
 
     def to_dict(self) -> dict[str, float]:
-        """Convert the PauliString object to a dictionary representation.
-
-        Returns:
-            Dictionary representation of the PauliString object.
+        """Converts the PauliString object to a dictionary representation.
 
         Example:
             >>> ps = 1 * I @ Z + 2 * I @ I
             >>> print(ps.to_dict())
             {'II': 2, 'IZ': 1}
+
+        Returns:
+            Dictionary representation of the PauliString object.
         """
         self = self.simplify()
         dict = {}
@@ -383,8 +383,8 @@ class PauliStringAtom(PauliStringMonomial):
     """Represents a single Pauli operator acting on a qubit in a Pauli string.
 
     Args:
-        Label: The label representing the Pauli operator (e.g., 'I', 'X', 'Y', 'Z').
-        Matrix: The matrix representation of the Pauli operator.
+        label: The label representing the Pauli operator (e.g., 'I', 'X', 'Y', 'Z').
+        matrix: The matrix representation of the Pauli operator.
 
     Raises:
         AttributeError: new atoms cannot be created
