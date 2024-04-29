@@ -116,12 +116,12 @@ class ATOSDevice(AvailableDevice):
 
     QLM_LINALG = auto()
     QLM_MPS = auto()
-    QLM_MPS_LEGACY = auto()
+    QLM_MPSLEGACY = auto()
     QLM_MPO = auto()
     QLM_STABS = auto()
     QLM_FEYNMAN = auto()
     QLM_BDD = auto()
-    QLM_NOISY_QPROC = auto()
+    QLM_NOISYQPROC = auto()
     QLM_QPEG = auto()
 
     def is_remote(self):
@@ -136,6 +136,26 @@ class ATOSDevice(AvailableDevice):
     def is_noisy_simulator(self) -> bool:
         # TODO: to check QPUs in QLM, and update this set and the enum
         return self in {ATOSDevice.QLM_NOISY_QPROC, ATOSDevice.QLM_MPO}
+
+    @staticmethod
+    def from_str_remote(name: str):
+        """Returns the right remote ATOSDevice from the name given in parameter.
+
+        Examples:
+            >>> AWSDevice.from_arn('NoisyQProc')
+
+            >>> ATOSDevice.from_str('linalg')
+
+
+        Args:
+            name: A string containing the name of the device.
+
+        """
+        u_name = name.upper()
+        for elem in ATOSDevice:
+            if u_name in elem.name and elem.is_remote():
+                return elem
+        raise ValueError(f"No device found for name `{name}`.")
 
 
 class AWSDevice(AvailableDevice):

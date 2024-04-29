@@ -665,4 +665,7 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
 
     qlm_result: QLM_Result = qlm_job.get_result()
 
-    return extract_result(qlm_result, None, ATOSDevice.QLM_LINALG)
+    qlm_qpu_name = qlm_job.get_info().resources.qpu.split(':')[1]
+
+    # TODO: the device may be different than QLM_LINALG in the noisy case ...
+    return extract_result(qlm_result, None, ATOSDevice.from_str_remote(qlm_qpu_name))
