@@ -183,7 +183,7 @@ class PauliString:
         """
         res = PauliString()
         for mono in self.monomials:
-            coef = float(round(mono.coef, round_off_till))
+            coef = float(np.round(float(mono.coef.real), round_off_till))
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, mono.atoms))
             if len(res.monomials) == 0:
@@ -244,7 +244,7 @@ class PauliString:
 
         pauli_list = PauliString()
         for i, mat in enumerate(basis):
-            coeff = np.trace(mat.to_matrix().dot(matrix)) / (2**num_qubits)
+            coeff = (np.trace(mat.to_matrix().dot(matrix)) / (2**num_qubits)).real
             if not np.isclose(coeff, 0, atol=atol, rtol=rtol):
                 mono = basis[i] * coeff
                 pauli_list += mono

@@ -64,10 +64,10 @@ from cirq.circuits.circuit import Circuit
             }
 
             qreg q[3];
-            creg c[2];
+            creg c[3];
 
             MyGate q[0], q[1];
-            MyGate2 q[0], q[1], q[3];
+            MyGate2 q[0], q[1], q[2];
 
             measure q -> c;""",
             [

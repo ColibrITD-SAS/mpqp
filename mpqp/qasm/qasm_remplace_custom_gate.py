@@ -25,7 +25,9 @@ def parse_custom_gates(qasm_code: str) -> tuple[dict[str, str], str]:
             current_gate_name = line.split()[1]
             current_gate_definition = []
             current_gate_parameters = [
-                elem.replace(",", "") for elem in line.split()[2:][:-1]
+                elem.replace(",", "").replace("{", "")
+                for elem in line.split()[2:]
+                if elem.replace(",", "").replace("{", "")
             ]
             current_gate_definition.append(current_gate_parameters)
             replaced_code = replaced_code.replace(line, "")
@@ -49,7 +51,7 @@ def replace_custom_gates(qasm_code: str) -> str:
 
     Returns:
         str: The QASM code with custom gate calls replaced by their definitions.
-    
+
     Exemple:
         >>> qasm_str = \"\"\"gate MyGate a, b {
                 h a;
@@ -63,7 +65,7 @@ def replace_custom_gates(qasm_code: str) -> str:
 
             measure q -> c;\"\"\"
         >>> print(replace_custom_gates(qasm_str))
-        
+
         qreg q[3];
         creg c[2];
 
