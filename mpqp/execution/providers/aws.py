@@ -27,6 +27,8 @@ from mpqp.tools.errors import DeviceJobIncompatibleError
 
 # TODO: types are messed up here, fix it
 
+# TODO: types are messed up here, fix it
+
 
 @typechecked
 def run_braket(job: Job) -> Result:
