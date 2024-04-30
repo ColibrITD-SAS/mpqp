@@ -679,9 +679,9 @@ class QCircuit:
                     qargs = range(instruction.size)
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
-                assert not isinstance(qiskit_inst, Operator)
 
-                assert not isinstance(qiskit_inst, Operator)
+                if TYPE_CHECKING:
+                    assert not isinstance(qiskit_inst, Operator)
                 new_circ.append(
                     qiskit_inst,
                     qargs,
