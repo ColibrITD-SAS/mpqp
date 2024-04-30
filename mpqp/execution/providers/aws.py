@@ -23,6 +23,8 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
 
+# TODO: types are messed up here, fix it
+
 
 @typechecked
 def run_braket(job: Job) -> Result:

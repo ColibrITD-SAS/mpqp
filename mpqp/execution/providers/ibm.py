@@ -124,7 +124,8 @@ def check_job_compatibility(job: Job):
     ):
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
-            f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead"
+            f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "
+            "type, by for example giving a number of shots to the measure)."
         )
     if job.device == IBMDevice.AER_SIMULATOR_STATEVECTOR:
         if job.job_type == JobType.SAMPLE:

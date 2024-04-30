@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from numbers import Complex
-from textwrap import dedent
 from typing import Optional
 
 import numpy as np
@@ -29,9 +28,9 @@ class StateVector:
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
         >>> print(state_vector)
-        State vector: [ 0.5  0.5  0.5 -0.5]
-        Probabilities: [0.25 0.25 0.25 0.25]
-        Number of qubits: 2
+         State vector: [ 0.5  0.5  0.5 -0.5]
+         Probabilities: [0.25 0.25 0.25 0.25]
+         Number of qubits: 2
 
     """
 
@@ -61,7 +60,12 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f"State vector: {self.vector}\nProbabilities: {self.probabilities}\nNumber of qubits: {self.nb_qubits}"
+        cleaned_vector = str(self.vector).replace("\n", " ")
+        cleaned_probas = str(self.probabilities).replace("\n", " ")
+        return f""" State vector: {cleaned_vector}
+ Probabilities: {cleaned_probas}
+ Number of qubits: {self.nb_qubits}
+"""
 
 
 @typechecked
@@ -169,23 +173,23 @@ class Result:
 
     Examples:
         >>> print(Result(Job(), StateVector(np.array([1, 1, 1, -1])/2, 2), 0, 0))
-        State vector: [ 0.5  0.5  0.5 -0.5]
-        Probabilities: [0.25 0.25 0.25 0.25]
-        Number of qubits: 2
+         State vector: [ 0.5  0.5  0.5 -0.5]
+         Probabilities: [0.25 0.25 0.25 0.25]
+         Number of qubits: 2
 
         >>> print(Result(Job(), [
         ...     Sample(2, index=0, count=250)
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500))
-        Counts: [250, 250]
-        Probabilities: [0.5 0.5]
-        State: 00, Index: 0, Count: 250, Probability: None
-        State: 11, Index: 3, Count: 250, Probability: None
-        Error: 0.034
+         Counts: [250, 250]
+         Probabilities: [0.5 0.5]
+          State: 00, Index: 0, Count: 250, Probability: None
+          State: 11, Index: 3, Count: 250, Probability: None
+         Error: 0.034
 
         >>> print(Result(Job(), -3.09834, 0.021, 2048))
-        Expectation value: -3.09834
-        Error: 0.021
+         Expectation value: -3.09834
+         Error: 0.021
     """
 
     # 3M-TODO: in this class, there is a lot of manual type checking, this is an
@@ -258,7 +262,6 @@ class Result:
                     assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
-                # if is_counts shots != 0
                 assert shots != 0
                 self._probabilities = np.array(counts, dtype=float) / self.shots
                 for sample in self._samples:
@@ -343,27 +346,25 @@ class Result:
 
     def __str__(self):
         header = f"Result: {type(self.device).__name__}, {self.device.name}"
-        
+
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = "\n".join(map(lambda s: f"{' ' * 1}{s}", map(str, self.samples)))
+            samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
             cleaned_probas = str(self._probabilities).replace("\n", " ")
-            return (
-                f"{header}\n"
-                f"Counts: {self._counts}\n"
-                f"Probabilities: {cleaned_probas}\n"
-                f"{samples_str}\n"
-                f"Error: {self.error}\n\n"
-            )
-            
+            return f"""{header}
+ Counts: {self._counts}
+ Probabilities: {cleaned_probas}
+{samples_str}
+ Error: {self.error}
+"""
+
         if self.job.job_type == JobType.STATE_VECTOR:
-            return f"{header}\n{self._state_vector}\n"
-        
+            return header + "\n" + str(self.state_vector)
+
         if self.job.job_type == JobType.OBSERVABLE:
-            return (
-                f"{header}\n"
-                f"Expectation value: {self.expectation_value}\n"
-                f"Error/Variance: {self.error}\n"
-            )
+            return f"""{header}
+ Expectation value: {self.expectation_value}
+ Error/Variance: {self.error}
+"""
 
         raise NotImplementedError(
             f"Job type {self.job.job_type} not implemented for __str__ method"
@@ -404,23 +405,23 @@ class BatchResult:
         >>> print(batch_result)
         BatchResult: 3 results
         Result: ATOSDevice, MYQLM_PYLINALG
-        State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
-                Probabilities: [0.25 0.25 0.25 0.25]
-                Number of qubits: 2
+         State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
+         Probabilities: [0.25 0.25 0.25 0.25]
+         Number of qubits: 2
         Result: ATOSDevice, MYQLM_PYLINALG
-        Counts: [250, 0, 0, 250]
-        Probabilities: [0.5 0.  0.  0.5]
-        State: 00, Index: 0, Count: 250, Probability: 0.5
-        State: 11, Index: 3, Count: 250, Probability: 0.5
-        Error: 0.034
+         Counts: [250, 0, 0, 250]
+         Probabilities: [0.5 0.  0.  0.5]
+          State: 00, Index: 0, Count: 250, Probability: 0.5
+          State: 11, Index: 3, Count: 250, Probability: 0.5
+         Error: 0.034
         Result: ATOSDevice, MYQLM_PYLINALG
-        Expectation value: -3.09834
-        Error/Variance: 0.021
+         Expectation value: -3.09834
+         Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: ATOSDevice, MYQLM_PYLINALG
-            State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
-            Probabilities: [0.25 0.25 0.25 0.25]
-            Number of qubits: 2
+         State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
+         Probabilities: [0.25 0.25 0.25 0.25]
+        Number of qubits: 2
     """
 
     def __init__(self, results: list[Result]):
