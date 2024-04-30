@@ -4,6 +4,7 @@ from typing import Optional
 import numpy as np
 from braket.aws import AwsQuantumTask
 from braket.circuits import Circuit
+from braket.circuits.measure import Measure as BraketMeasure
 from braket.circuits.observables import Hermitian
 from braket.device_schema.ionq import IonqDeviceParameters
 from braket.device_schema.oqc import OqcDeviceParameters
@@ -43,7 +44,17 @@ def apply_noise_to_braket_circuit(
     Returns:
 
     """
-    # TODO: remove the measurements from the braket circuit and store them somewhere
+
+    stored_measurements = []
+    other_instructions = []
+
+    for instr in braket_circuit.instructions:
+        if isinstance(instr.operator, BraketMeasure):
+            stored_measurements.append(instr)
+        else:
+            other_instructions.append(instr)
+
+    braket_circuit = Circuit(other_instructions)
 
     for noise in noises:
         if noise.targets == list(range(nb_qubits)):
@@ -51,7 +62,9 @@ def apply_noise_to_braket_circuit(
                 braket_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
-                        gate.braket_gate for gate in noise.gates if hasattr(gate, "braket_gate")
+                        gate.braket_gate
+                        for gate in noise.gates
+                        if hasattr(gate, "braket_gate")
                     ],
                 )
             else:
@@ -63,7 +76,9 @@ def apply_noise_to_braket_circuit(
                 braket_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
-                        gate.braket_gate for gate in noise.gates if hasattr(gate, "braket_gate")
+                        gate.braket_gate
+                        for gate in noise.gates
+                        if hasattr(gate, "braket_gate")
                     ],
                     target_qubits=noise.targets,
                 )
@@ -73,7 +88,8 @@ def apply_noise_to_braket_circuit(
                     target_qubits=noise.targets,
                 )
 
-    # TODO: put back the measurement that we stored
+    for instr in stored_measurements:
+        braket_circuit.add_instruction(instr)
 
 
 @typechecked
