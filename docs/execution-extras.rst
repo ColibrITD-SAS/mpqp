@@ -10,6 +10,7 @@ for you are most likely:
 - IBM's :func:`get_all_job_ids<mpqp.execution.connection.ibm_connection.get_all_job_ids>`;
 - Eviden's :func:`get_all_job_ids<mpqp.execution.connection.qlm_connection.get_all_job_ids>`;
 - AWS's :func:`get_all_task_ids<mpqp.execution.connection.aws_connection.get_all_task_ids>`;
+- Google's :func:`get_all_task_ids<mpqp.execution.connection.google_connection.get_all_task_ids>`;
 - The :ref:`con-setup` section.
 
 Provider specifics
@@ -49,8 +50,6 @@ __________
 AWS
 ^^^
 
-.. automodule:: mpqp.execution.providers.aws
-
 Connection
 __________
 
@@ -58,6 +57,21 @@ __________
 
 Execution
 __________
+
+.. automodule:: mpqp.execution.providers.aws
+
+Google
+^^^^^^
+
+Connection
+__________
+
+.. automodule:: mpqp.execution.connection.google_connection
+
+Execution
+__________
+
+.. automodule:: mpqp.execution.providers.google
 
 .. _con-setup:
 
@@ -70,3 +84,4 @@ On disk configuration manager
 -----------------------------
 
 .. automodule:: mpqp.execution.connection.env_manager
+

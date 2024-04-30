@@ -7,6 +7,12 @@ from mpqp.execution.connection.env_manager import get_env_variable, save_env_var
 
 
 def test_ionq_connection() -> bool:
+    """
+    Test the connection to the IonQ service.
+    
+    Returns:
+        bool: True if the connection is successful, False otherwise.
+    """
     service = ionq.Service(default_target="simulator")
     try:
         service.list_jobs()
@@ -17,6 +23,12 @@ def test_ionq_connection() -> bool:
 
 
 def config_ionq_account():
+    """
+    Configure the IonQ account by setting the API token.
+    
+    Returns:
+        tuple: A message indicating the result of the configuration and an empty list.
+    """
     was_configured = get_env_variable("GOOGLE_IONQ_CONFIGURED") == "True"
 
     if was_configured:
@@ -46,6 +58,18 @@ def config_ionq_account():
 
 
 def get_google_account_info() -> str:
+    """
+    Get the IonQ API key from the environment variables.
+    
+    Returns:
+        str: A string containing the IonQ API key.
+    """
     ionq_api_key = get_env_variable("IONQ_API_KEY")
 
     return f"""   IONQ_api_key : '{ionq_api_key}'"""
+
+def get_all_job_ids() -> list[str]:
+    # TODO: This function should return a list of all the jobs ids
+
+    #list_jobs : https://quantumai.google/reference/python/cirq_google/engine/Engine#list_jobs
+    return [""]

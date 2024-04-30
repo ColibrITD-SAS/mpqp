@@ -54,24 +54,18 @@ def replace_custom_gates(qasm_code: str) -> str:
 
     Exemple:
         >>> qasm_str = \"\"\"gate MyGate a, b {
-                h a;
-                cx a, b;
-            }
-
-            qreg q[3];
-            creg c[2];
-
-            MyGate q[0], q[1];
-
-            measure q -> c;\"\"\"
+        ...        h a;
+        ...        cx a, b;
+        ...   }
+        ...    qreg q[3];
+        ...    creg c[2];
+        ...    MyGate q[0], q[1];
+        ...    measure q -> c;\"\"\"
         >>> print(replace_custom_gates(qasm_str))
-
         qreg q[3];
         creg c[2];
-
         h q[0];
         cx q[0], q[1];
-
         measure q -> c;
     """
     replaced_code = qasm_code

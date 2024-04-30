@@ -7,4 +7,4 @@ from .open_qasm_2_and_3 import (
     open_qasm_file_conversion_2_to_3,
     open_qasm_hard_includes,
 )
-from .qasm_remplace_custom_gate import replace_custom_gates
+from .remplace_custom_gates import replace_custom_gates

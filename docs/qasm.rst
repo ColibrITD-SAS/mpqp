@@ -130,13 +130,17 @@ OpenQASM 2.0 code. This feature enables users to seamlessly transition
 their quantum circuits from OpenQASM to Cirq, leveraging Cirq's capabilities
 and features.
 
-At present, the Cirq parser lacks native support for certain OpenQASM 2.0 
-operations such as ``cu1``, ``crz``, ``cu3``, ``reset``, and ``u0``. 
+the Cirq parser lacks native support for certain OpenQASM 2.0 operations such as
+``cu1``, ``crz``, ``cu3``, ``reset``, ``u0``, ``p``, ``cp``, ``u``, ``rzz``, 
+``rxx`` and custom ``gate``. 
 To address this limitation, we've temporarily incorporated these gates directly 
-into the parser. This ensures seamless generation of circuits from QASM code 
+into the parser and for the custom gate we replace directly by native gate in 
+the qasm str. This ensures seamless generation of circuits from QASM code 
 using the qasm2_to_cirq_Circuit function.
 
 :func:`qasm2_to_cirq_Circuit<mpqp.qasm.qasm_to_cirq.qasm2_to_cirq_Circuit>` to generate
 the circuit from the qasm code.
 
 .. autofunction:: mpqp.qasm.qasm_to_cirq.qasm2_to_cirq_Circuit
+
+:func:`replace_custom_gates<mpqp.qasm.remplace_custom_gates.replace_custom_gates>` t Replaces instances of custom gates with their definitions in QASM code.
