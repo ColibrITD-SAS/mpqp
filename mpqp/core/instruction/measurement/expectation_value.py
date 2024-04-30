@@ -6,17 +6,23 @@ the measure."""
 from __future__ import annotations
 
 import copy
+from math import prod
 from numbers import Complex
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
 import numpy as np
-from qiskit.circuit import Parameter
 from sympy import Expr
 from typeguard import typechecked
 
 if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
+    from qiskit.quantum_info import Operator
+    from qat.core.wrappers.observable import Observable as QLMObservable
+    from braket.circuits.observables import Hermitian
     from cirq.circuits.circuit import Circuit as Cirq_Circuit
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
@@ -61,7 +67,7 @@ class Observable:
             self.nb_qubits = int(np.log2(len(observable)))
             """Number of qubits of this observable."""
             self._matrix = np.array(observable)
-            
+
             basis_states = 2**self.nb_qubits
             if self.matrix.shape != (basis_states, basis_states):
                 raise ValueError(
@@ -100,12 +106,12 @@ class Observable:
             self._pauli_string = PauliString.from_matrix(self.matrix)
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
-    
+
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
         self._pauli_string = pauli_string
         self._matrix = None
-    
+
     @matrix.setter
     def matrix(self, matrix: Matrix):
         self._matrix = matrix
@@ -126,7 +132,7 @@ class Observable:
 
     def to_other_language(
         self, language: Language, circuit: Optional[Cirq_Circuit] = None
-    ):
+    ) -> Operator | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
         """
         Converts the observable to the representation of another quantum programming language.
 
@@ -137,8 +143,8 @@ class Observable:
             <bound method Observable.to_qiskit_observable of Observable(array([[ 0.7, 0. , 0. , 0. ], [ 0. , -1. , 0. , 0. ], [ 0. , 0. , 1. , 0. ], [ 0. , 0. , 0. , 1. ]]))>
 
         Args:
-            language (str): The target programming language ('qiskit', 'pyquil', 'braket', 'cirq').
-            circuit: The Cirq circuit associated with the observable (required for 'cirq' language).
+            language: The target programming language.
+            circuit: The Cirq circuit associated with the observable (required for ``cirq``).
 
         Returns:
             Depends on the target language.
@@ -148,9 +154,9 @@ class Observable:
 
             return Operator(self.matrix)
         elif language == Language.MY_QLM:
-            from qat.core.wrappers.observable import Observable as QLM_Observable
+            from qat.core.wrappers.observable import Observable as QLMObservable
 
-            return QLM_Observable(self.nb_qubits, matrix=self.matrix)
+            return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
             from braket.circuits.observables import Hermitian
 
@@ -158,33 +164,33 @@ class Observable:
         elif language == Language.CIRQ:
             if circuit is None:
                 raise ValueError("Circuit must be specified for cirq_observable.")
+
             from cirq.ops.identity import I as Cirq_I
-            from cirq.ops.pauli_gates import X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
+            from cirq.ops.pauli_gates import X as Cirq_X
+            from cirq.ops.pauli_gates import Y as Cirq_Y
+            from cirq.ops.pauli_gates import Z as Cirq_Z
 
-            all_qubits = set(
-                q for moment in circuit for op in moment.operations for q in op.qubits
-            )
-            all_qubits_list = sorted(all_qubits)
-
-            cirq_pauli_string = None
-            pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
-            for monomial in self.pauli_string.monomials:
-                cirq_monomial = None
-                for index, atom in enumerate(monomial.atoms):
-                    cirq_atom = pauli_gate_map[atom.label](all_qubits_list[index])
-                    cirq_monomial = (
-                        cirq_atom
-                        if cirq_monomial is None
-                        else cirq_monomial * cirq_atom
-                    )
-                cirq_monomial *= monomial.coef
-                cirq_pauli_string = (
-                    cirq_monomial
-                    if cirq_pauli_string is None
-                    else cirq_pauli_string + cirq_monomial
+            all_qubits = sorted(
+                set(
+                    q
+                    for moment in circuit
+                    for op in moment.operations
+                    for q in op.qubits
                 )
+            )
 
-            return cirq_pauli_string
+            pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
+
+            return sum(
+                monomial.coef
+                * prod(  # pyright: ignore[reportCallIssue]
+                    [  # pyright: ignore[reportArgumentType]
+                        pauli_gate_map[a.label](all_qubits[i])
+                        for i, a in enumerate(monomial.atoms)
+                    ]
+                )
+                for monomial in self.pauli_string.monomials
+            )
         else:
             raise ValueError(f"Unsupported language: {language}")
 
@@ -284,12 +290,12 @@ class ExpectationMeasure(Measure):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> None:
         if qiskit_parameters is None:
             qiskit_parameters = set()
-        #TODO : incoherence here, if the language is Qiskit we raise a NotImplementedError, and otherwise we say that
-        # only qiskit is supported
+        # TODO : incoherence here, if the language is Qiskit we raise a
+        # NotImplementedError, and otherwise we say that only qiskit is supported
         if language == Language.QISKIT:
             raise NotImplementedError(
                 "Qiskit does not implement these kind of measures"

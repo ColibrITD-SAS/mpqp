@@ -333,7 +333,7 @@ class PauliStringMonomial(PauliString):
                 np.eye(1, dtype=np.complex64),
             )
             * self.coef
-        )
+        )  # pyright: ignore[reportReturnType]
 
     def __iadd__(self, other: "PauliString"):
         for mono in other.monomials:
@@ -465,8 +465,8 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other, [self]
-        )  # pyright: ignore[reportArgumentType]
+            1 / other, [self]  # pyright: ignore[reportArgumentType]
+        )
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
         return self * other

@@ -1,13 +1,15 @@
 from getpass import getpass
+from typing import TYPE_CHECKING
 
-from qiskit.providers import QiskitBackendNotFoundError
-from qiskit.providers.backend import BackendV1
 from qiskit_ibm_provider import IBMProvider
 from qiskit_ibm_provider.accounts import AccountNotFoundError
 from qiskit_ibm_provider.api.exceptions import RequestsApiError
-from qiskit_ibm_runtime import QiskitRuntimeService
 from termcolor import colored
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from qiskit.providers.backend import BackendV1
+    from qiskit_ibm_runtime import QiskitRuntimeService
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import IBMDevice
@@ -126,7 +128,7 @@ def get_IBMProvider() -> IBMProvider:
     return Ibm_Provider
 
 
-def get_QiskitRuntimeService() -> QiskitRuntimeService:
+def get_QiskitRuntimeService() -> "QiskitRuntimeService":
     """Returns the QiskitRuntimeService needed for remote connection and
     execution.
 
@@ -143,6 +145,8 @@ def get_QiskitRuntimeService() -> QiskitRuntimeService:
         IBMRemoteExecutionError: When the ``qiskit`` runtime is not configured
             or the configuration cannot be retrieved.
     """
+    from qiskit_ibm_runtime import QiskitRuntimeService
+
     global Runtime_Service
     if Runtime_Service is None:
         if get_env_variable("IBM_CONFIGURED") == "False":
@@ -184,7 +188,7 @@ def get_active_account_info() -> str:
 
 
 @typechecked
-def get_backend(device: IBMDevice) -> BackendV1:
+def get_backend(device: IBMDevice) -> "BackendV1":
     """Retrieves the IBM Q remote device corresponding to the device in
     parameter.
 
@@ -211,12 +215,12 @@ def get_backend(device: IBMDevice) -> BackendV1:
     #       Answer : it takes the default instance attached to the account (the higher plan, usually).
     if not device.is_remote():
         raise ValueError("Expected a remote IBMQ device but got a local simulator.")
+    from qiskit.providers import QiskitBackendNotFoundError
 
     provider = get_IBMProvider()
 
     try:
         backend = provider.get_backend(device.value)
-
     except QiskitBackendNotFoundError as err:
         raise IBMRemoteExecutionError(
             f"Requested device {device} not found. Verify if your instances "
