@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 from numbers import Complex
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
 import numpy as np
@@ -61,7 +61,7 @@ class Observable:
             self.nb_qubits = int(np.log2(len(observable)))
             """Number of qubits of this observable."""
             self._matrix = np.array(observable)
-            
+
             basis_states = 2**self.nb_qubits
             if self.matrix.shape != (basis_states, basis_states):
                 raise ValueError(
@@ -77,12 +77,7 @@ class Observable:
 
     @property
     def matrix(self) -> Matrix:
-        """
-        Returns the matrix representation of the observable.
-
-        Returns:
-            np.ndarray: The matrix representation of the observable.
-        """
+        """The matrix representation of the observable."""
         if self._matrix is None:
             self._matrix = self.pauli_string.to_matrix()
         matrix = copy.deepcopy(self._matrix).astype(np.complex64)
@@ -90,22 +85,17 @@ class Observable:
 
     @property
     def pauli_string(self) -> PauliString:
-        """
-        Returns the PauliString representation of the observable.
-
-        Returns:
-            PauliString: The PauliString representation of the observable.
-        """
+        """Rhe PauliString representation of the observable."""
         if self._pauli_string is None:
             self._pauli_string = PauliString.from_matrix(self.matrix)
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
-    
+
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
         self._pauli_string = pauli_string
         self._matrix = None
-    
+
     @matrix.setter
     def matrix(self, matrix: Matrix):
         self._matrix = matrix
@@ -159,7 +149,9 @@ class Observable:
             if circuit is None:
                 raise ValueError("Circuit must be specified for cirq_observable.")
             from cirq.ops.identity import I as Cirq_I
-            from cirq.ops.pauli_gates import X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
+            from cirq.ops.pauli_gates import X as Cirq_X
+            from cirq.ops.pauli_gates import Y as Cirq_Y
+            from cirq.ops.pauli_gates import Z as Cirq_Z
 
             all_qubits = set(
                 q for moment in circuit for op in moment.operations for q in op.qubits
@@ -288,7 +280,7 @@ class ExpectationMeasure(Measure):
     ) -> None:
         if qiskit_parameters is None:
             qiskit_parameters = set()
-        #TODO : incoherence here, if the language is Qiskit we raise a NotImplementedError, and otherwise we say that
+        # TODO : incoherence here, if the language is Qiskit we raise a NotImplementedError, and otherwise we say that
         # only qiskit is supported
         if language == Language.QISKIT:
             raise NotImplementedError(
