@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import math
+from functools import reduce
 from numbers import Complex, Real
 from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 import sympy as sp
+from qiskit import quantum_info
+from scipy.linalg import inv, sqrtm
 from sympy import Expr, I, pi  # pyright: ignore[reportUnusedImport]
 from typeguard import typechecked
 
@@ -41,7 +45,7 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
 
 @typechecked
 def matrix_eq(lhs: Matrix, rhs: Matrix) -> bool:
-    r"""Checks whether two matrix are element-wise equal, within a tolerance.
+    r"""Checks whether two matrix (including vectors) are element-wise equal, within a tolerance.
 
     For respectively each elements `a` and `b` of both inputs, we check this
     specific condition: `|a - b| \leq (atol + rtol * |b|)`.
@@ -182,3 +186,75 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
         res = sp.exp(angle)
         assert isinstance(res, Expr)
         return res
+
+
+def rand_orthogonal_matrix_seed(size: int, seed: int) -> npt.NDArray[np.complex64]:
+    """Generate a random orthogonal matrix with a given seed.
+
+    Args:
+        size: Size (number of columns, or rows) of the squared matrix to generate.
+        seed: Seed used to control the random generation of the matrix.
+
+    Returns:
+        A random orthogonal Matrix.
+    """
+    # TODO: example
+    np.random.seed(seed)
+    m = np.random.rand(size, size)
+    return m.dot(inv(sqrtm(m.T.dot(m))))
+
+
+def rand_orthogonal_matrix(size: int) -> npt.NDArray[np.complex64]:
+    """Generate a random orthogonal matrix without a given seed"""
+    # TODO: to comment + examples
+    m = np.random.rand(size, size)
+    return m.dot(inv(sqrtm(m.T.dot(m))))
+
+
+def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
+    """Generate a random Clifford matrix"""
+    # TODO: to comment + examples
+    return quantum_info.random_clifford(
+        nb_qubits
+    ).to_matrix()  # pyright: ignore[reportReturnType]
+
+
+def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:
+    """Generate a random one-qubit unitary matrix"""
+    # TODO: to comment + examples
+    theta, phi, gamma = np.random.rand(3) * 2 * math.pi
+    c, s, eg, ep = (
+        np.cos(theta / 2),
+        np.sin(theta / 2),
+        np.exp(gamma * 1j),
+        np.exp(phi * 1j),
+    )
+    return np.array([[c, -eg * s], [eg * s, eg * ep * c]])
+
+
+def rand_product_local_unitaries(nb_qubits: int) -> npt.NDArray[np.complex64]:
+    """
+    Generate a random tensor product of unitary matrices
+
+    Args:
+        nb_qubits: Number of qubits on which the product of unitaries will act.
+    """
+    return reduce(
+        np.kron,
+        [rand_unitary_2x2_matrix() for _ in range(nb_qubits - 1)],
+        np.eye(1, dtype=np.complex64),
+    )
+
+
+def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
+    """Generate a random Hermitian matrix.
+
+    Args:
+        size: Size (number of columns, or rows) of the squared matrix to generate.
+
+    Returns:
+        A random orthogonal Matrix.
+    """
+    # TODO: examples
+    m = np.random.rand(size, size).astype(np.complex64)
+    return m + m.conjugate().transpose()
