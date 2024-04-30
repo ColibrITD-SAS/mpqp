@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
@@ -164,7 +164,8 @@ def run_aer(job: Job):
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
     )
-    assert isinstance(qiskit_circuit, QuantumCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
     check_job_compatibility(job)
@@ -244,7 +245,8 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     check_job_compatibility(job)
 
     qiskit_circuit = job.circuit.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_circuit, QuantumCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
     qiskit_circuit = qiskit_circuit.reverse_bits()
 
     service = get_QiskitRuntimeService()

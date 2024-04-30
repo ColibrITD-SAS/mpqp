@@ -11,17 +11,21 @@ from braket.device_schema.simulators import GateModelSimulatorDeviceParameters
 from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 from typeguard import typechecked
 
-from mpqp import Language, QCircuit
+from mpqp import QCircuit, Language
 from mpqp.core.instruction.measurement import (
-    BasisMeasure,
     ExpectationMeasure,
+    BasisMeasure,
     Observable,
 )
 from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
+from mpqp.tools.errors import AWSBraketRemoteExecutionError
+from mpqp.execution.job import Job, JobType, JobStatus
+from mpqp.tools.errors import DeviceJobIncompatibleError
+
+# TODO: types are messed up here, fix it
 
 # TODO: types are messed up here, fix it
 
@@ -69,8 +73,8 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
-            "State vector cannot be computed using AWS Braket remote simulators and "
-            "devices. Please use the LocalSimulator instead"
+            "State vector cannot be computed using AWS Braket remote simulators"
+            " and devices. Please use the LocalSimulator instead"
         )
 
     # instantiate the device
@@ -113,9 +117,10 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 def extract_result(
     braket_result: GateModelQuantumTaskResult,
     job: Optional[Job] = None,
-    device: AWSDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    device: Optional[AWSDevice] = AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ) -> Result:
-    """Constructs a Result from the result given by the run with Braket.
+    """
+    Constructs a Result from the result given by the run with Braket.
 
     Args:
         braket_result: Result returned by myQLM/QLM after running of the job.
