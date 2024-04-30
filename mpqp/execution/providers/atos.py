@@ -1,3 +1,4 @@
+from __future__ import annotations
 from statistics import mean
 from typing import Optional
 
@@ -86,22 +87,24 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
 
     if not device.is_remote():
         raise ValueError(f"Excepted a remote device, but got a local myQLM simulator {device}")
-    if job.circuit.noises:
+    if job is not None and job.circuit.noises:
         if not device.is_noisy_simulator():
             raise ValueError(f"Excepted a noisy remote simulator but got {device}")
 
+        #TODO finish to deal with noisy devices
         if device == ATOSDevice.QLM_NOISY_QPROC:
             get_QLMaaSConnection()
             from qlmaas.qpus import NoisyQProc  # type: ignore
             hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
-            return NoisyQProc(hw_model, n_samples=job)
-            ...
+            return NoisyQProc(hw_model, n_samples=job.measure.shots)
         elif device == ATOSDevice.QLM_MPO:
-            ...
+            get_QLMaaSConnection()
+            from qlmaas.qpus import MPO  # type: ignore
+            hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
+            return MPO(hw_model, n_samples=job.measure.shots)
         else:
             raise NotImplementedError()
     else:
-
         if device == ATOSDevice.QLM_LINALG:
             get_QLMaaSConnection()
             from qlmaas.qpus import LinAlg  # type: ignore
@@ -125,10 +128,7 @@ def generate_state_vector_job(
     """
 
     if device.is_remote():
-        get_QLMaaSConnection()
-        from qlmaas.qpus import LinAlg  # type: ignore
-
-        qpu = LinAlg()
+        qpu = get_remote_qpu(device)
     else:
         qpu = get_local_qpu(device)
 
@@ -136,7 +136,7 @@ def generate_state_vector_job(
 
 
 @typechecked
-def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUContext]:
+def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUContext | QPUHandler]:
     """Generates a myQLM job from the myQLM circuit and job sample info (target,
     shots, ...), and selects the right myQLM QPU to run on it.
 
@@ -149,6 +149,7 @@ def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUCo
     """
 
     assert job.measure is not None
+    assert isinstance(job.device, ATOSDevice)
 
     myqlm_job = myqlm_circuit.to_job(
         job_type="SAMPLE",
@@ -157,10 +158,7 @@ def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUCo
     )
 
     if job.device.is_remote():
-        get_QLMaaSConnection()
-        from qlmaas.qpus import LinAlg  # type: ignore
-
-        qpu = LinAlg()
+        qpu = get_remote_qpu(job.device, job)
     else:
         assert isinstance(job.device, ATOSDevice)
         qpu = get_local_qpu(job.device)
@@ -184,6 +182,7 @@ def generate_observable_job(
     """
 
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
+    assert isinstance(job.device, ATOSDevice)
 
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
@@ -193,10 +192,7 @@ def generate_observable_job(
         nbshots=job.measure.shots,
     )
     if job.device.is_remote():
-        get_QLMaaSConnection()
-        from qlmaas.qpus import LinAlg  # type: ignore
-
-        qpu = LinAlg()
+        qpu = get_remote_qpu(job.device, job)
     else:
         assert isinstance(job.device, ATOSDevice)
         qpu = ObservableSplitter() | get_local_qpu(job.device)
@@ -277,6 +273,10 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                         idle_dicts[target] = []
                     idle_dicts[target].append(channel)
 
+    print(gate_noise_global_lists)
+    print(gate_noise_dicts)
+    print(idle_global_lists)
+    print(idle_dicts)
 
     # Only use the lists
     if all_qubits_target:
@@ -298,6 +298,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_dicts,
                              idle_noise=idle_dicts)
+
 
 @typechecked
 def extract_state_vector_result(
