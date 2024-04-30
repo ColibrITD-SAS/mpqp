@@ -132,18 +132,14 @@ class Sample:
                 else:
                     raise ValueError(
                         f"The value of bin_str {bin_str} doesn't match with the"
-                        f" index provided {index}"
+                        f" index provided {index}."
                     )
 
     def __str__(self):
-        str1 = "State: " + str(self.bin_str) + ", Index: " + str(self.index)
-        str2 = ", Count: " + str(self.count) + ", Probability: " + str(self.probability)
-        return str1 + str2
+        return f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}, Probability: {self.probability}"
 
     def __repr__(self):
-        str1 = "State: " + str(self.bin_str) + ", Index: " + str(self.index)
-        str2 = ", Count: " + str(self.count) + ", Probability: " + str(self.probability)
-        return str1 + str2
+        return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
 
 
 @typechecked
@@ -353,6 +349,7 @@ class Result:
             return f"""{header}
  Counts: {self._counts}
  Probabilities: {cleaned_probas}
+ Samples:
 {samples_str}
  Error: {self.error}
 """

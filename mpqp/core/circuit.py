@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -837,7 +837,15 @@ class QCircuit:
         )
 
     def __str__(self) -> str:
-        return str(self.to_other_language(Language.QISKIT))
+        qiskit_circ = self.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            from qiskit import QuantumCircuit
+
+            assert isinstance(qiskit_circ, QuantumCircuit)
+        output = str(qiskit_circ.draw(output="text", fold=0))
+        if TYPE_CHECKING:
+            assert isinstance(output, str)
+        return output
 
     def __repr__(self) -> str:
         return f"QCircuit({self.instructions})"
