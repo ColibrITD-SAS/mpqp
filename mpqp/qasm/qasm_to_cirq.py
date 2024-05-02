@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_circuit
 
 from typeguard import typechecked
-from mpqp.qasm.remplace_custom_gates import replace_custom_gates
+from mpqp.qasm.qasm_tools import replace_custom_gates
 
 @typechecked
 def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
@@ -32,9 +32,6 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
 
     qasm_str = replace_custom_gates(qasm_str)
     
-    if "include \"qelib1.inc\";" not in qasm_str:
-        qasm_str = "include \"qelib1.inc\";\n" + qasm_str
-
     class PhaseGate(Gate):
         def __init__(self, theta: complex):
             super(PhaseGate, self)

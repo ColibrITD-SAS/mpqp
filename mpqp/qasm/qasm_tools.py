@@ -22,21 +22,24 @@ def parse_custom_gates(qasm_code: str) -> tuple[dict[str, str], str]:
     for line in lines:
         if line.strip().startswith("gate"):
             in_custom_gate = True
-            current_gate_name = line.split()[1]
+            current_gate_name_parametres = line.split()[1].split("(")
+            current_gate_name = current_gate_name_parametres[0]
+            current_gate_parametres = current_gate_name_parametres[1][:-1].split(",")
             current_gate_definition = []
-            current_gate_parameters = [
-                elem.replace(",", "").replace("{", "")
-                for elem in line.split()[2:]
-                if elem.replace(",", "").replace("{", "")
-            ]
-            current_gate_definition.append(current_gate_parameters)
-            replaced_code = replaced_code.replace(line, "")
+            current_gate_qubits = ""
+            for elem in line.split()[2:]:
+                current_gate_qubits += elem
+            current_gate_qubits = current_gate_qubits.replace("{", "").split(",")
+            
+            current_gate_definition.append(current_gate_parametres)
+            current_gate_definition.append(current_gate_qubits)
+            replaced_code = replaced_code.replace(line + "\n", "")
         elif in_custom_gate:
             if line.strip().endswith("}"):
                 custom_gates[current_gate_name] = current_gate_definition
                 in_custom_gate = False
             else:
-                current_gate_definition.append(line.strip() + "\n")
+                current_gate_definition.append(line.strip())
             replaced_code = replaced_code.replace(line + "\n", "")
 
     return custom_gates, replaced_code
@@ -70,24 +73,40 @@ def replace_custom_gates(qasm_code: str) -> str:
     """
     replaced_code = qasm_code
     custom_gates, replaced_code = parse_custom_gates(qasm_code)
+    print(custom_gates)
 
     for gate_name in custom_gates:
 
         lines = qasm_code.split("\n")
         for line in lines:
-            if line.strip().startswith(gate_name + " "):
-                current_gate_parameters = [
+            if line.strip().startswith(gate_name + " ") or line.strip().startswith(
+                gate_name + "("
+            ):
+                current_gate_qubits = [
                     elem.replace(",", "").replace(";", "") for elem in line.split()[1:]
                 ]
-                all_gate = ""
-                for gate in custom_gates[gate_name][1:]:
-                    all_gate += gate
 
-                for i, parameter in enumerate(custom_gates[gate_name][0]):
+                current_gate_parameters = line.split()[0].split("(")[1][:-1].split(",")
+
+                all_gate = ""
+                for gate in custom_gates[gate_name][2:]:
+                    all_gate += gate + "\n"
+
+                for i, parameter in enumerate(custom_gates[gate_name][1]):
                     all_gate = all_gate.replace(
-                        " " + parameter, " " + current_gate_parameters[i]
+                        "," + parameter + "," , ", " + current_gate_qubits[i] + ","
+                    ).replace(
+                        " " + parameter + ","  , " " + current_gate_qubits[i] + "," 
+                    ).replace(
+                         parameter + ";" , current_gate_qubits[i] + ";"
+                    ).replace(
+                         parameter + " ;" , current_gate_qubits[i] + " ;"
                     )
 
-                replaced_code = replaced_code.replace(line, all_gate)
+
+                for i, parameter in enumerate(custom_gates[gate_name][0]):
+                    all_gate = all_gate.replace(parameter, current_gate_parameters[i])
+
+                replaced_code = replaced_code.replace(line + "\n", all_gate)
 
     return replaced_code

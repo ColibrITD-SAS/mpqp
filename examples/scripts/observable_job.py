@@ -4,9 +4,8 @@ import numpy as np
 from mpqp.gates import H, Rx
 from mpqp import QCircuit
 from mpqp.execution import run
-from mpqp.measures import ExpectationMeasure, Observable
+from mpqp.measures import ExpectationMeasure, Observable, I, Z
 from mpqp.execution.devices import ATOSDevice, IBMDevice, AWSDevice, GOOGLEDevice
-from mpqp.core.instruction.measurement.pauli_string import I, Z
 
 obs = Observable(
     np.array(

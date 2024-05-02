@@ -31,7 +31,6 @@ class StateVector:
          State vector: [ 0.5  0.5  0.5 -0.5]
          Probabilities: [0.25 0.25 0.25 0.25]
          Number of qubits: 2
-
     """
 
     def __init__(
@@ -59,14 +58,23 @@ class StateVector:
         """Return the amplitudes of the state vector"""
         return self.vector
 
+    
     def __str__(self):
-        cleaned_vector = str(self.vector).replace("\n", " ")
-        cleaned_probas = str(self.probabilities).replace("\n", " ")
-        return f""" State vector: {cleaned_vector}
- Probabilities: {cleaned_probas}
+        return f""" State vector: {_clean_array(self.vector)}
+ Probabilities: {_clean_array(self.probabilities)}
  Number of qubits: {self.nb_qubits}
 """
 
+def _clean_array(array): # type: ignore
+    try:
+        cleaned_array = []
+        for element in array:
+            cleaned_element = np.round(element.real if np.imag(element) == 0 else element, 7)
+            cleaned_element = int(cleaned_element) if cleaned_element == int(cleaned_element) else cleaned_element
+            cleaned_array.append(cleaned_element)
+        return str(cleaned_array).replace("(", "").replace(")", "")
+    except:
+        return str(array)
 
 @typechecked
 class Sample:
@@ -173,8 +181,8 @@ class Result:
 
     Examples:
         >>> print(Result(Job(), StateVector(np.array([1, 1, 1, -1])/2, 2), 0, 0))
-         State vector: [ 0.5  0.5  0.5 -0.5]
-         Probabilities: [0.25 0.25 0.25 0.25]
+         State vector: [ 0.5, 0.5, 0.5, -0.5]
+         Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
 
         >>> print(Result(Job(), [
@@ -182,7 +190,7 @@ class Result:
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500))
          Counts: [250, 250]
-         Probabilities: [0.5 0.5]
+         Probabilities: [0.5, 0.5]
           State: 00, Index: 0, Count: 250, Probability: None
           State: 11, Index: 3, Count: 250, Probability: None
          Error: 0.034
@@ -349,10 +357,9 @@ class Result:
 
         if self.job.job_type == JobType.SAMPLE:
             samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
-            cleaned_probas = str(self._probabilities).replace("\n", " ")
             return f"""{header}
  Counts: {self._counts}
- Probabilities: {cleaned_probas}
+ Probabilities: {_clean_array(self.probabilities)}
 {samples_str}
  Error: {self.error}
 """
@@ -405,12 +412,12 @@ class BatchResult:
         >>> print(batch_result)
         BatchResult: 3 results
         Result: ATOSDevice, MYQLM_PYLINALG
-         State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
-         Probabilities: [0.25 0.25 0.25 0.25]
+         State vector: [ 0.5, 0.5, 0.5, -0.5]
+         Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
         Result: ATOSDevice, MYQLM_PYLINALG
          Counts: [250, 0, 0, 250]
-         Probabilities: [0.5 0.  0.  0.5]
+         Probabilities: [0.5, 0, 0, 0.5]
           State: 00, Index: 0, Count: 250, Probability: 0.5
           State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
@@ -419,9 +426,9 @@ class BatchResult:
          Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: ATOSDevice, MYQLM_PYLINALG
-         State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
-         Probabilities: [0.25 0.25 0.25 0.25]
-        Number of qubits: 2
+         State vector: [ 0.5, 0.5, 0.5, -0.5]
+         Probabilities: [0.25, 0.25, 0.25, 0.25]
+         Number of qubits: 2
     """
 
     def __init__(self, results: list[Result]):
