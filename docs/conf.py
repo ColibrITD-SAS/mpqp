@@ -52,6 +52,32 @@ sphinx_github_changelog_token = os.getenv("SPHINX_GITHUB_CHANGELOG_TOKEN")
 if sphinx_github_changelog_token is not None:
     extensions.append("sphinx_github_changelog")
 
+# {% set docname = env.doc2path(env.docname,base=None).replace("\\", "/").split(".")[0].split("/")[-1] + '.ipynb' %}
+
+# .. raw:: html
+
+#     <div class="admonition note">
+#       This page was generated from the notebook
+#       <a class="reference external" href="{{ docname|e }}">{{ docname|e }}</a>.
+#     </div>
+
+nbsphinx_prolog = r"""
+{% set docname = 'examples/notebooks/' + env.doc2path(env.docname,base=None).split("/")[-1].split("\\")[-1].split(".")[0] + '.ipynb' %}
+
+.. raw:: html
+
+    <div class="admonition note">
+      This page was generated from the notebook
+      <a class="reference external" href="https://github.com/ColibrITD-SAS/mpqp/blob/main/{{ docname|e }}">{{ docname|e }}</a>.
+    </div>
+
+.. raw:: latex
+
+    \nbsphinxstartnotebook{\scriptsize\noindent\strut
+    \textcolor{gray}{The following section was generated from the notebook
+    \sphinxcode{\sphinxupquote{\strut {{ docname | escape_latex }}}} \dotfill}}
+"""
+
 # The suffix of source filenames.
 source_suffix = ".rst"
 
