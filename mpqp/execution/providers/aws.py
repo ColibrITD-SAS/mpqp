@@ -11,19 +11,17 @@ from braket.device_schema.simulators import GateModelSimulatorDeviceParameters
 from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 from typeguard import typechecked
 
-from mpqp import QCircuit, Language
+from mpqp import Language, QCircuit
 from mpqp.core.instruction.measurement import (
-    ExpectationMeasure,
     BasisMeasure,
+    ExpectationMeasure,
     Observable,
 )
 from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.tools.errors import AWSBraketRemoteExecutionError
-from mpqp.execution.job import Job, JobType, JobStatus
-from mpqp.tools.errors import DeviceJobIncompatibleError
+from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
 
 # TODO: types are messed up here, fix it
 
@@ -117,7 +115,7 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 def extract_result(
     braket_result: GateModelQuantumTaskResult,
     job: Optional[Job] = None,
-    device: Optional[AWSDevice] = AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    device: AWSDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ) -> Result:
     """
     Constructs a Result from the result given by the run with Braket.

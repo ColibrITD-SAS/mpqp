@@ -26,6 +26,7 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         success, cancelled, or error, ...) and an empty list. The list is
         included for consistency with the existing code structure.
     """
+    from braket.aws import AwsSession
 
     already_configured = get_env_variable("BRAKET_CONFIGURED") == "True"
 
@@ -115,9 +116,9 @@ def get_braket_device(device: AWSDevice) -> "BraketDevice":
         from braket.devices import LocalSimulator
 
         return LocalSimulator()
-    from botocore.exceptions import NoRegionError
-    from braket.aws import AwsDevice
     import boto3
+    from botocore.exceptions import NoRegionError
+    from braket.aws import AwsDevice, AwsSession
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
