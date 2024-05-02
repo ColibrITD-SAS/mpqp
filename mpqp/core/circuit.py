@@ -2,17 +2,17 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
+
+if TYPE_CHECKING:
+    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from braket.circuits import Circuit as braket_Circuit
+    from qiskit.circuit import QuantumCircuit
 
 import numpy as np
 import numpy.typing as npt
-from braket.circuits import Circuit as braket_Circuit
-from cirq.circuits.circuit import Circuit as cirq_Circuit
 from matplotlib.figure import Figure
-from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-from qiskit.circuit import Operation, QuantumCircuit
-from qiskit.circuit.quantumcircuit import CircuitInstruction
-from qiskit.quantum_info import Operator
 from sympy import Basic, Expr
 from typeguard import TypeCheckError, typechecked
 
@@ -629,6 +629,10 @@ class QCircuit:
         """
 
         if language == Language.QISKIT:
+            from qiskit.circuit import Operation, QuantumCircuit
+            from qiskit.circuit.quantumcircuit import CircuitInstruction
+            from qiskit.quantum_info import Operator
+
             # to avoid defining twice the same parameter, we keep trace of the
             # added parameters, and we use those instead of new ones when they
             # are used more than once
@@ -645,15 +649,16 @@ class QCircuit:
                 qiskit_inst = instruction.to_other_language(
                     Language.QISKIT, qiskit_parameters
                 )
-                assert (
-                    isinstance(qiskit_inst, CircuitInstruction)
-                    or isinstance(qiskit_inst, Operation)
-                    or isinstance(qiskit_inst, Operator)
-                )
+                if TYPE_CHECKING:
+                    assert (
+                        isinstance(qiskit_inst, CircuitInstruction)
+                        or isinstance(qiskit_inst, Operation)
+                        or isinstance(qiskit_inst, Operator)
+                    )
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(
+                    new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
                         instruction.to_other_language(),
                         instruction.targets,
                         instruction.label,
@@ -677,8 +682,9 @@ class QCircuit:
                     qargs = range(instruction.size)
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
-                assert not isinstance(qiskit_inst, Operator)
 
+                if TYPE_CHECKING:
+                    assert not isinstance(qiskit_inst, Operator)
                 new_circ.append(
                     qiskit_inst,
                     qargs,
@@ -762,7 +768,8 @@ class QCircuit:
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
         )
-        assert isinstance(qiskit_circ, QuantumCircuit)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circ, QuantumCircuit)
         qasm = qiskit_circ.qasm()
         assert qasm is not None
         return qasm
@@ -865,7 +872,15 @@ class QCircuit:
         )
 
     def __str__(self) -> str:
-        return str(self.to_other_language(Language.QISKIT))
+        qiskit_circ = self.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            from qiskit import QuantumCircuit
+
+            assert isinstance(qiskit_circ, QuantumCircuit)
+        output = str(qiskit_circ.draw(output="text", fold=0))
+        if TYPE_CHECKING:
+            assert isinstance(output, str)
+        return output
 
     def __repr__(self) -> str:
         return f"QCircuit({self.instructions})"
