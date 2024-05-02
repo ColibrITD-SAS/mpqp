@@ -1,11 +1,15 @@
 from __future__ import annotations
+
+import os
+import sys
 from typing import Literal
+
 import dotenv
+from pygments.formatters.latex import LatexFormatter
 
 # Configuration file for the Sphinx documentation builder.
 from sphinx.application import Sphinx
 from sphinx.highlighting import PygmentsBridge
-from pygments.formatters.latex import LatexFormatter
 
 # -- Path setup --------------------------------------------------------------
 
@@ -13,8 +17,6 @@ from pygments.formatters.latex import LatexFormatter
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
-import os
-import sys
 
 sys.path.insert(0, os.path.abspath("../"))
 
@@ -37,6 +39,8 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_rtd_dark_mode",
     "sphinx_copybutton",
+    "nbsphinx",  # requires pandoc ?
+    "nbsphinx_link",
 ]
 default_dark_mode = True
 autodoc_typehints = "description"
@@ -183,7 +187,8 @@ html_use_smartypants = True
 # html_split_index = False
 
 # If true, links to the reST sources are added to the pages.
-# html_show_sourcelink = True
+html_show_sourcelink = True
+html_sourcelink_suffix = ""
 
 # If true, "Created using Sphinx" is shown in the HTML footer. Default is True.
 html_show_sphinx = False
