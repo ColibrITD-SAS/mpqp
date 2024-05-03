@@ -14,7 +14,6 @@ from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
-from mpqp.core.instruction.gates import Gate
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
     ExpectationMeasure,
@@ -33,7 +32,7 @@ def apply_noise_to_braket_circuit(
     braket_circuit: Circuit,
     noises: list[NoiseModel],
     nb_qubits: int,
-) -> None:
+) -> Circuit:
     """
     TODO: comment
     Args:
@@ -54,12 +53,12 @@ def apply_noise_to_braket_circuit(
         else:
             other_instructions.append(instr)
 
-    braket_circuit = Circuit(other_instructions)
-
+    noisy_circuit = Circuit(other_instructions)
+    print("Before adding noise,", noisy_circuit)
     for noise in noises:
         if noise.targets == list(range(nb_qubits)):
             if noise.gates:
-                braket_circuit.apply_gate_noise(
+                noisy_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
                         gate.braket_gate
@@ -68,12 +67,12 @@ def apply_noise_to_braket_circuit(
                     ],
                 )
             else:
-                braket_circuit.apply_gate_noise(
+                noisy_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET)
                 )
         else:
             if noise.gates:
-                braket_circuit.apply_gate_noise(
+                noisy_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
                         gate.braket_gate
@@ -83,13 +82,19 @@ def apply_noise_to_braket_circuit(
                     target_qubits=noise.targets,
                 )
             else:
-                braket_circuit.apply_gate_noise(
+                noisy_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_qubits=noise.targets,
                 )
+    print("Before adding measurements, ", noisy_circuit)
+    # for instr in stored_measurements:
+    #     noisy_circuit.add_instruction(instr)
 
-    for instr in stored_measurements:
-        braket_circuit.add_instruction(instr)
+    # print("After adding measurements, ", noisy_circuit)
+    # TODO: remove prints after checking that we don't need measurement anymore
+    #  maybe if it is not noisy we need to put back the measurements
+
+    return noisy_circuit
 
 
 @typechecked
@@ -148,9 +153,10 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
     assert isinstance(braket_circuit, Circuit)
 
-    apply_noise_to_braket_circuit(
+    braket_circuit = apply_noise_to_braket_circuit(
         braket_circuit, job.circuit.noises, job.circuit.nb_qubits
     )  # no difference if we have an empty noise list, will run anyway
+
 
     if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
         raise ValueError(
