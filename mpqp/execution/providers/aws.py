@@ -94,6 +94,8 @@ def apply_noise_to_braket_circuit(
     # TODO: remove prints after checking that we don't need measurement anymore
     #  maybe if it is not noisy we need to put back the measurements
 
+    #TODO : looks like the dimension of the depolarizing noise is not taken into account TwoQubitDepolarizing needed
+
     return noisy_circuit
 
 
