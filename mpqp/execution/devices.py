@@ -135,7 +135,7 @@ class ATOSDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         # TODO: to check QPUs in QLM, and update this set and the enum
-        return self in {ATOSDevice.QLM_NOISY_QPROC, ATOSDevice.QLM_MPO}
+        return self in {ATOSDevice.QLM_NOISYQPROC, ATOSDevice.QLM_MPO}
 
     @staticmethod
     def from_str_remote(name: str):

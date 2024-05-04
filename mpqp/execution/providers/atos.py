@@ -92,7 +92,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
             raise ValueError(f"Excepted a noisy remote simulator but got {device}")
 
         #TODO finish to deal with noisy devices
-        if device == ATOSDevice.QLM_NOISY_QPROC:
+        if device == ATOSDevice.QLM_NOISYQPROC:
             get_QLMaaSConnection()
             from qlmaas.qpus import NoisyQProc  # type: ignore
             hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
@@ -103,12 +103,16 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
             hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
             return MPO(hw_model, n_samples=job.measure.shots)
         else:
-            raise NotImplementedError()
+            raise NotImplementedError(f"Device {device.name} not handled for the moment for noisy simulations. ")
     else:
+        # TODO: test if all other devices work for non noisy, and remove the useless ones from the list, and remove the
+        # non implemented then ?
         if device == ATOSDevice.QLM_LINALG:
             get_QLMaaSConnection()
             from qlmaas.qpus import LinAlg  # type: ignore
             return LinAlg()
+        else:
+            raise NotImplementedError(f"Device {device.name} not handled for the moment.")
 
 
 @typechecked
@@ -572,35 +576,30 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
 
     myqlm_circuit = job_pre_processing(job)
 
-    # TODO deal with the NoisyQProc here
+    if job.job_type == JobType.STATE_VECTOR:
+        assert isinstance(job.device, ATOSDevice)
+        myqlm_job, qpu = generate_state_vector_job(myqlm_circuit, job.device)
 
-    if job.device == ATOSDevice.QLM_LINALG:
-        if job.job_type == JobType.STATE_VECTOR:
-            assert isinstance(job.device, ATOSDevice)
-            myqlm_job, qpu = generate_state_vector_job(myqlm_circuit, job.device)
-
-        elif job.job_type == JobType.SAMPLE:
-            assert isinstance(job.measure, BasisMeasure)
-            if isinstance(job.measure.basis, ComputationalBasis):
-                myqlm_job, qpu = generate_sample_job(myqlm_circuit, job)
-            else:
-                raise NotImplementedError(
-                    "Does not handle other basis than the ComputationalBasis for the moment"
-                )
-
-        elif job.job_type == JobType.OBSERVABLE:
-            assert isinstance(job.measure, ExpectationMeasure)
-            myqlm_job, qpu = generate_observable_job(myqlm_circuit, job)
-
+    elif job.job_type == JobType.SAMPLE:
+        assert isinstance(job.measure, BasisMeasure)
+        if isinstance(job.measure.basis, ComputationalBasis):
+            myqlm_job, qpu = generate_sample_job(myqlm_circuit, job)
         else:
-            raise ValueError(f"Job type {job.job_type} not handled")
+            raise NotImplementedError(
+                "Does not handle other basis than the ComputationalBasis for the moment"
+            )
 
-        job.status = JobStatus.RUNNING
-        async_result = qpu.submit(myqlm_job)
-        job_id = async_result.get_info().id
-        job.id = job_id
+    elif job.job_type == JobType.OBSERVABLE:
+        assert isinstance(job.measure, ExpectationMeasure)
+        myqlm_job, qpu = generate_observable_job(myqlm_circuit, job)
+
     else:
-        raise NotImplementedError(f"Device {job.device} not handled")
+        raise ValueError(f"Job type {job.job_type} not handled")
+
+    job.status = JobStatus.RUNNING
+    async_result = qpu.submit(myqlm_job)
+    job_id = async_result.get_info().id
+    job.id = job_id
 
     return job_id, async_result
 
