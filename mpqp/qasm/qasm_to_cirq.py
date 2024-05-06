@@ -1,11 +1,11 @@
 """File regrouping all features for translating QASM code to cirq objects """
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit
 
 from typeguard import typechecked
-
 
 
 @typechecked
@@ -21,8 +21,8 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "Circuit":
     """
     from cirq.contrib.qasm_import.qasm import circuit_from_qasm
 
-    if "include \"qelib1.inc\";" not in qasm_str:
-        qasm_str = "include \"qelib1.inc\";\n" + qasm_str
+    if 'include "qelib1.inc";' not in qasm_str:
+        qasm_str = 'include "qelib1.inc";\n' + qasm_str
 
     # NOTE: the cu1 gate is not supported by cirq
-    return circuit_from_qasm(qasm_str)
+    return circuit_from_qasm(qasm=qasm_str)

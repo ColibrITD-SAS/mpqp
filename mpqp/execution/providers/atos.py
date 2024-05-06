@@ -30,8 +30,7 @@ if TYPE_CHECKING:
 
 @typechecked
 def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
-    """
-    Returns the myQLM local QPU associated with the ATOSDevice given in parameter.
+    """Returns the myQLM local QPU associated with the ATOSDevice given in parameter.
 
     Args:
         device: ATOSDevice referring to the myQLM local QPU.

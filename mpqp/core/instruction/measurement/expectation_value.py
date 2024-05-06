@@ -37,23 +37,24 @@ from mpqp.tools.maths import is_hermitian
 class Observable:
     """Class defining an observable, used for evaluating expectation values.
 
-    An observable can be defined by using a Hermitian matrix, or using a combination of operators in a specific
-    basis Pauli.
+    An observable can be defined by using a Hermitian matrix, or using a
+    combination of operators in a specific basis Pauli.
+
+    Args:
+        observable : can be either a Hermitian matrix representing the
+            observable or PauliString representing the observable.
+
+    Raises:
+        ValueError: If the input matrix is not Hermitian or does not have a
+            square shape.
+        NumberQubitsError: If the number of qubits in the input observable does
+            not match the number of target qubits.
 
     Example:
         >>> matrix = np.array([[1, 0], [0, -1]])
         >>> pauli_string = 3 * I @ Z + 4 * X @ Y
         >>> obs = Observable(matrix)
         >>> obs2 = Observable(pauli_string)
-
-    Args:
-        observable : can be either a Hermitian matrix representing the observable or PauliString representing the observable.
-
-    Raises:
-        ValueError: If the input matrix is not Hermitian or does not have a square shape.
-        NumberQubitsError: If the number of qubits in the input observable does
-            not match the number of target qubits.
-
     """
 
     def __init__(self, observable: Matrix | PauliString):
@@ -123,21 +124,22 @@ class Observable:
     def to_other_language(
         self, language: Language, circuit: Optional[Cirq_Circuit] = None
     ) -> Operator | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
-        """
-        Converts the observable to the representation of another quantum programming language.
+        """Converts the observable to the representation of another quantum
+        programming language.
+
+        Args:
+            language: The target programming language.
+            circuit: The Cirq circuit associated with the observable (required
+                for ``cirq``).
+
+        Returns:
+            Depends on the target language.
 
         Example:
             >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> print(obs_qiskit)
             <bound method Observable.to_qiskit_observable of Observable(array([[ 0.7, 0. , 0. , 0. ], [ 0. , -1. , 0. , 0. ], [ 0. , 0. , 1. , 0. ], [ 0. , 0. , 0. , 1. ]]))>
-
-        Args:
-            language: The target programming language.
-            circuit: The Cirq circuit associated with the observable (required for ``cirq``).
-
-        Returns:
-            Depends on the target language.
         """
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator
@@ -195,12 +197,6 @@ class ExpectationMeasure(Measure):
     hardware. The swaps added can be checked out in the ``pre_measure``
     attribute of the :class:`ExpectationMeasure`.
 
-    Example:
-        >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
-        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
-        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value
-        0.85918
-
     Args:
         targets: List of indices referring to the qubits on which the measure
             will be applied.
@@ -213,10 +209,11 @@ class ExpectationMeasure(Measure):
             additional swaps will be needed. This will change the performance of
             your circuit is run on noisy hardware.
 
-    Note:
-        In a future version, we would will also allow you to provide a
-        ``PauliDecomposition``, a decomposition of the observable in the
-        generalized Pauli basis.
+    Example:
+        >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
+        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
+        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value
+        0.85918
     """
 
     def __init__(

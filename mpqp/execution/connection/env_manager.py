@@ -2,7 +2,8 @@
 providers."""
 
 import os
-from dotenv import set_key, load_dotenv
+
+from dotenv import load_dotenv, set_key
 from typeguard import typechecked
 
 MPQP_CONFIG_PATH = os.path.expanduser("~") + "/.mpqp"
@@ -15,7 +16,10 @@ def _create_config_if_needed():
 
 
 def get_existing_config_str() -> str:
-    """Gets the content of the ``.mpqp`` config file
+    """Gets the content of the ``.mpqp`` config file.
+
+    Returns:
+        The string with .mpqp file content.
 
     Example:
         >>> get_existing_config_str()
@@ -25,9 +29,6 @@ def get_existing_config_str() -> str:
         QLM_PASSWD='****************'
         QLM_CONFIGURED='True'
         BRAKET_CONFIGURED='True'
-
-    Returns:
-        The string with .mpqp file content.
     """
     with open(MPQP_CONFIG_PATH, "r") as mpqp:
         file_str = mpqp.read()
@@ -37,6 +38,9 @@ def get_existing_config_str() -> str:
 def load_env_variables() -> bool:
     """Loads the variables stored in the ``.mpqp`` file.
 
+    Returns:
+        ``True`` if the variables are loaded correctly.
+
     Example:
         >>> os.getenv("IBM_CONFIGURED")
 
@@ -44,9 +48,6 @@ def load_env_variables() -> bool:
         True
         >>> os.getenv("IBM_CONFIGURED")
         'True'
-
-    Returns:
-        ``True`` if the variables are loaded correctly.
     """
     load_dotenv(MPQP_CONFIG_PATH, override=True)
     return True
@@ -57,14 +58,14 @@ def get_env_variable(key: str) -> str:
     """Loads the ``.mpqp`` env file and returns the value associated with the key
     in parameter. If the variable does not exist, an empty string is returned.
 
+    Args:
+        key: The key for which we want to get the value.
+
     Example:
         >>> get_env_variable("BRAKET_CONFIGURED")
         'True'
         >>> get_env_variable("RaNdOM")
         ''
-
-    Args:
-        key: The key for which we want to get the value.
     """
     _create_config_if_needed()
     load_env_variables()
@@ -77,6 +78,13 @@ def get_env_variable(key: str) -> str:
 def save_env_variable(key: str, value: str) -> bool:
     """Adds or updates the ``key`` environment variable in ``.mpqp`` file.
 
+    Args:
+        key: Name of the environment variable.
+        value: Value to be saved.
+
+    Returns:
+        ``True`` if the save was successful.
+
     Examples:
         >>> get_env_variable("RaNdOM")
         ''
@@ -84,13 +92,6 @@ def save_env_variable(key: str, value: str) -> bool:
         True
         >>> get_env_variable("RaNdOM")
         'azertyuiop'
-
-    Args:
-        key: Name of the environment variable.
-        value: Value to be saved.
-
-    Returns:
-        ``True`` if the save was successful.
     """
     _create_config_if_needed()
 

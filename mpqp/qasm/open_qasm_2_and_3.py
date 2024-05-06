@@ -1,11 +1,11 @@
 import os
-from pathlib import Path
 import re
-from os.path import splitext
 from enum import Enum
-
-from warnings import warn
+from os.path import splitext
+from pathlib import Path
 from textwrap import dedent
+from warnings import warn
+
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
 
@@ -447,15 +447,6 @@ def open_qasm_hard_includes(
     every instruction in previously included files, directly in the code
     returned.
 
-    Example:
-        >>> examples_folder = "tests/qasm/qasm_examples"
-        >>> filename = examples_folder + "/with_include.qasm"
-        >>> with open(filename) as f:
-        ...     print(open_qasm_hard_includes(f.read(), {filename}).strip("\n"))
-        '''gate csx a, b {
-            ctrl @ sx a, b;
-        }'''
-
     Args:
         code: String containing the OpenQASM code and instructions.
         included_files: The set of files already included, used to avoid
@@ -467,6 +458,15 @@ def open_qasm_hard_includes(
 
     Returns:
         Include-less OpenQASM code.
+
+    Example:
+        >>> examples_folder = "tests/qasm/qasm_examples"
+        >>> filename = examples_folder + "/with_include.qasm"
+        >>> with open(filename) as f:
+        ...     print(open_qasm_hard_includes(f.read(), {filename}).strip("\n"))
+        '''gate csx a, b {
+            ctrl @ sx a, b;
+        }'''
     """
     lines = code.split("\n")
     converted_code = []

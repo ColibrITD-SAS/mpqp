@@ -22,6 +22,13 @@ def remote_result_from_id(job_id: str, device: AvailableDevice) -> Result:
     """Retrieve and parse a remote the result from a job_id and device. If the
     job is still running, it will wait until it is done.
 
+    Args:
+        job_id: Id used to identify the job on the remote device.
+        device: Remote device on which the job was launched.
+
+    Returns:
+        A Result of the remote job identified by the job_id in parameter.
+
     Examples:
         >>> print(remote_result_from_id('Job141933', ATOSDevice.QLM_LINALG))
         Result: ATOSDevice, QLM_LINALG
@@ -48,13 +55,6 @@ def remote_result_from_id(job_id: str, device: AvailableDevice) -> Result:
         Result: AWSDevice, BRAKET_SV1_SIMULATOR
         Expectation value: 1.6635202030411578
         Error/Variance: None
-
-    Args:
-        job_id: Id used to identify the job on the remote device.
-        device: Remote device on which the job was launched.
-
-    Returns:
-        A Result of the remote job identified by the job_id in parameter.
     """
 
     # if the device is not a remote one

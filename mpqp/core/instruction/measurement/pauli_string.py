@@ -145,15 +145,14 @@ class PauliString:
         Args:
             inplace: Indicates if ``simplify`` should update self.
 
+        Returns:
+            A simplified version of the pauli string.
+
         Example:
             >>> ps = I @ I - 2 * I @ I + Z @ I - Z @ I
             >>> simplified_ps = ps.simplify()
             >>> print(simplified_ps)
             -1*I@I
-
-        Returns:
-            PauliString: A simplified version of the PauliString.
-
         """
         res = PauliString()
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
@@ -179,19 +178,22 @@ class PauliString:
         return res
 
     def round(self, round_off_till: int = 4) -> PauliString:
-        """Round the coefficients of the PauliString to a specified number of decimal places.
+        """Round the coefficients of the PauliString to a specified number of
+        decimal places.
+
+        Args:
+            round_off_till: Number of decimal places to round the coefficients
+                to.
+
+        Returns:
+            the pauli string with coefficients rounded to the specified number
+            of decimal places.
 
         Example:
             >>> ps = 0.6875*I@I + 0.415*I@X + 0.1275*I@Z + 1.0*X@I + 1.0*X@X + 0.0375*Z@I + 0.085*Z@X + -0.2225*Z@Z
             >>> rounded_ps = ps.round(1)
             >>> print(rounded_ps)
             -0.2*Z@Z + 1*X@X + 0.1*I@Z + 1*X@I + 0.1*Z@X + 0.7*I@I + 0.4*I@X
-
-        Args:
-            round_off_till : Number of decimal places to round the coefficients to. Defaults to 5.
-
-        Returns:
-            PauliString: A PauliString with coefficients rounded to the specified number of decimal places.
         """
         res = PauliString()
         for mono in self.monomials:
@@ -209,15 +211,15 @@ class PauliString:
     def to_matrix(self) -> Matrix:
         """Converts the PauliString to a matrix representation.
 
+        Returns:
+            Matrix representation of the PauliString.
+
         Example:
             >>> ps = I + Z
             >>> matrix_representation = ps.to_matrix()
             >>> print(matrix_representation)
             [[2.+0.j 0.+0.j]
             [0.+0.j 0.+0.j]]
-
-        Returns:
-            Matrix representation of the PauliString.
         """
         self = self.simplify()
         return sum(
@@ -232,16 +234,17 @@ class PauliString:
         Args:
             matrix: Matrix from which the PauliString is generated
 
-        Example:
-            >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
-            >>> print(ps)
-            (1+0j)*I + (1+0j)*X + (-1+0j)*Z
-
         Returns:
             PauliString: Pauli string decomposition of the matrix in parameter.
 
         Raises:
-            ValueError: If the input matrix is not square or its dimensions are not a power of 2.
+            ValueError: If the input matrix is not square or its dimensions are
+                not a power of 2.
+
+        Example:
+            >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
+            >>> print(ps)
+            (1+0j)*I + (1+0j)*X + (-1+0j)*Z
         """
         if matrix.shape[0] != matrix.shape[1]:
             raise ValueError("Input matrix must be square.")
@@ -272,13 +275,13 @@ class PauliString:
     def to_dict(self) -> dict[str, float]:
         """Converts the PauliString object to a dictionary representation.
 
+        Returns:
+            Dictionary representation of the PauliString object.
+
         Example:
             >>> ps = 1 * I @ Z + 2 * I @ I
             >>> print(ps.to_dict())
             {'II': 2, 'IZ': 1}
-
-        Returns:
-            Dictionary representation of the PauliString object.
         """
         self = self.simplify()
         dict = {}

@@ -31,7 +31,6 @@ class StateVector:
          State vector: [ 0.5  0.5  0.5 -0.5]
          Probabilities: [0.25 0.25 0.25 0.25]
          Number of qubits: 2
-
     """
 
     def __init__(
