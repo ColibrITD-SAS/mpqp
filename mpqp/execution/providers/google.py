@@ -40,7 +40,7 @@ from cirq.devices.line_qubit import LineQubit
 @typechecked
 def run_google(job: Job) -> Result:
     """
-    Execute the job on the right Google device precised in the job in parameter.
+    Executes the job on the right Google device precised in the job in parameter.
     This function is not meant to be used directly, please use ``runner.run(...)`` instead.
 
     Args:
@@ -54,7 +54,20 @@ def run_google(job: Job) -> Result:
 
 @typechecked
 def run_google_remote(job: Job) -> Result:
+    """
+    Executes the job remotely on a Google quantum device. At present, only IonQ devices are supported.
 
+    Args:
+        job: job to be executed.
+
+    Returns:
+        Result: The result after submission and execution of the job.
+
+    Raises:
+        ValueError: If the job's device is not an instance of GOOGLEDevice.
+        NotImplementedError: If the job's device is not supported (only IonQ devices are supported currently).
+        NotImplementedError: If the job type or basis measure is not supported.
+    """
     assert type(job.device) == GOOGLEDevice
 
     job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
@@ -63,7 +76,7 @@ def run_google_remote(job: Job) -> Result:
     if job.device.is_ionq():
         if job.job_type != JobType.SAMPLE:
             raise ValueError(
-                f"{job.device}: job_type must be {JobType.SAMPLE} for job type {job.job_type}"
+                f"{job.device}: job_type must be {JobType.SAMPLE} but go job type {job.job_type}"
             )
         assert isinstance(job.measure, BasisMeasure)
 
@@ -322,7 +335,7 @@ def extract_result_OBSERVABLE(
     Args:
         result : The result of the simulation.
         job : The original job.
-        device (: The device used for the simulation. Defaults to None.
+        device : The device used for the simulation. Defaults to None.
 
     Returns:
         Result: The formatted result.
