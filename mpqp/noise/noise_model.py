@@ -30,6 +30,8 @@ class NoiseModel(ABC):
     Raises:
         ValueError: When target list is empty, or target indices are duplicated
             or negative.
+
+    :noindex:
     """
 
     def __init__(
@@ -76,6 +78,7 @@ class NoiseModel(ABC):
         """
         TODO: doc
         Returns:
+        :noindex:
 
         """
         pass
@@ -87,6 +90,7 @@ class NoiseModel(ABC):
         """
         TODO: doc
         Returns:
+        :noindex
 
         """
         pass
@@ -116,6 +120,8 @@ class Depolarizing(NoiseModel):
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
         gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
+
+    :noindex:
 
     Raises:
         ValueError: when a wrong dimension (negative) or probability (outside of the expected interval) is input.
@@ -150,6 +156,9 @@ class Depolarizing(NoiseModel):
         self.dimension = dimension
 
     def to_kraus_representation(self):
+        """
+        :noindex:
+        """
         # TODO
         # generate Kraus operators for depolarizing noise
         kraus_operators = [...]  # list of Kraus operators
@@ -165,6 +174,9 @@ class Depolarizing(NoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QiskitNoise | QLMNoise:
+        """
+        :noindex:
+        """
         if language == Language.BRAKET:
             return BraketDepolarizing(probability=self.proba)
         else:
