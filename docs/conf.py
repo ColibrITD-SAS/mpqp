@@ -1,11 +1,15 @@
 from __future__ import annotations
+
+import os
+import sys
 from typing import Literal
+
 import dotenv
+from pygments.formatters.latex import LatexFormatter
 
 # Configuration file for the Sphinx documentation builder.
 from sphinx.application import Sphinx
 from sphinx.highlighting import PygmentsBridge
-from pygments.formatters.latex import LatexFormatter
 
 # -- Path setup --------------------------------------------------------------
 
@@ -13,8 +17,6 @@ from pygments.formatters.latex import LatexFormatter
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 
-import os
-import sys
 
 sys.path.insert(0, os.path.abspath("../"))
 
@@ -41,6 +43,7 @@ extensions = [
 default_dark_mode = True
 autodoc_typehints = "description"
 autodoc_type_aliases = {"Matrix": "Matrix", "AvailableDevice": "AvailableDevice"}
+autodoc_mock_imports = ["braket.circuits.measure"]
 simplify_optional_unions = True
 typehints_defaults = "comma"
 dotenv.load_dotenv()
