@@ -41,8 +41,6 @@ class QCircuit:
     list of instructions and noise models applied on specific quantum and/or classical bits.
 
     Example:
-        TODO: add an example with noise model
-
         >>> circuit = QCircuit(2)
         >>> circuit.pretty_print()
         QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 0
@@ -60,6 +58,23 @@ class QCircuit:
         q_3: ┤ Rx(1.23)  ├
              └──────────┘
         q_4: ────────────
+
+        >>> circuit = QCircuit(4, label="NoiseExample")
+        >>> circuit.add([H(0), T(1), CNOT(0,1), S(3)])
+        >>> depolarizing_noise = Depolarizing(prob=0.50, targets=[0, 1]
+        >>> circuit.add(depolarizing_noise)
+        >>> circuit.pretty_print()
+        QCircuit NoiseExample: Size (Qubits,Cbits) = (4, 0), Nb instructions = 4
+        Depolarizing noise: probability 0.5 on qubits [0, 1]
+             ┌───┐
+        q_0: ┤ H ├──■──
+             ├───┤┌─┴─┐
+        q_1: ┤ T ├┤ X ├
+             └───┘└───┘
+        q_2: ──────────
+             ┌───┐
+        q_3: ┤ S ├─────
+             └───┘
 
     Args:
         data: Number of qubits or List of [Instruction or NoiseModel] to initiate the circuit with. If the number of qubits is passed,
