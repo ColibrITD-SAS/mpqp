@@ -139,8 +139,8 @@ class PauliString:
         return self.to_dict() == other.to_dict()
 
     def simplify(self, inplace: bool = False) -> PauliString:
-        """Simplifies the PauliString by combining like terms and removing terms
-        with zero coefficients.
+        """Simplifies the PauliString by combining identical terms and removing
+        terms with null coefficients.
 
         Args:
             inplace: Indicates if ``simplify`` should update self.
