@@ -17,6 +17,7 @@ fluently.
    getting-started
    circuit
    instructions
+   noise
    execution
    execution-extras
    vqa
