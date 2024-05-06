@@ -1,5 +1,5 @@
-Noise
-=====
+Noisy Simulation
+================
 
 .. code-block:: python
 
@@ -9,17 +9,6 @@ Introduction
 ------------
 
 This section provides an overview of noise models in the MPQP library, including their purpose and usage.
-
-Custom Noise
-------------
-
-.. automodule:: mpqp.noise.custom_noise
-    :members:
-
-.. autoclass:: CustomNoise
-    :members:
-    :undoc-members:
-    :show-inheritance:
 
 Noise Models
 ------------
@@ -40,7 +29,3 @@ Depolarizing Noise Model
     .. note::
         The Depolarizing noise model is currently supported in AWS Braket.
 
-Other Noise Models
-------------------
-
-Here you can add documentation for other noise models if available.
