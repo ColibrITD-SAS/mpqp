@@ -65,7 +65,7 @@ class PauliString:
         return 0 if len(self._monomials) == 0 else self._monomials[0].nb_qubits
 
     def __str__(self):
-        return " + ".join(map(str, self.round().simplify()._monomials))
+        return " + ".join(map(str, self.simplify().round()._monomials))
 
     def __repr__(self):
         return " + ".join(map(str, self._monomials))
@@ -157,13 +157,15 @@ class PauliString:
         """
         res = PauliString()
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
-            coef = float(sum(
-                [
-                    mono.coef
-                    for mono in self.monomials
-                    if mono.atoms == list(unique_mono_atoms)
-                ]
-            ).real)
+            coef = float(
+                sum(
+                    [
+                        mono.coef
+                        for mono in self.monomials
+                        if mono.atoms == list(unique_mono_atoms)
+                    ]
+                ).real
+            )
             if coef == int(coef):
                 coef = int(coef)
             if coef != 0:
@@ -175,7 +177,7 @@ class PauliString:
         if inplace:
             self._monomials = res.monomials
         return res
-    
+
     def round(self, round_off_till: int = 4) -> PauliString:
         """Round the coefficients of the PauliString to a specified number of decimal places.
 
@@ -201,7 +203,7 @@ class PauliString:
             if len(res.monomials) == 0:
                 res.monomials.append(
                     PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-            )
+                )
         return res
     
     def round(self, round_off_till: int = 5) -> PauliString:
@@ -359,7 +361,7 @@ class PauliStringMonomial(PauliString):
                 np.eye(1, dtype=np.complex64).tolist(),
             )
             * self.coef
-        )
+        )  # pyright: ignore[reportReturnType]
 
     def __iadd__(self, other: "PauliString"):
         for mono in other.monomials:
