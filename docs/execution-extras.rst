@@ -64,7 +64,7 @@ __________
 Connection setup script 
 -----------------------
 
-.. automodule:: mpqp.execution.connection.setup_connections
+.. automodule:: mpqp_scripts.setup_connections
 
 On disk configuration manager
 -----------------------------
