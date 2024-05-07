@@ -69,8 +69,9 @@ def run_choice_tree(question: QuestionNode):
             if next_question is None:
                 pick(["Press 'Enter' to continue"], prev_message, indicator="")
                 return
-            
+
     except KeyboardInterrupt:
+        print()
         pass
 
 
