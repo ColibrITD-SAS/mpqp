@@ -33,15 +33,19 @@ def apply_noise_to_braket_circuit(
     noises: list[NoiseModel],
     nb_qubits: int,
 ) -> Circuit:
-    """
-    TODO: comment
+    """Apply noise models to a Braket circuit.
+
+    This function applies noise models to a given Braket circuit based on the specified noise models and
+    the number of qubits in the circuit. It modifies the original circuit by adding noise
+    instructions and returns a new circuit with the noise applied.
+
     Args:
-        braket_circuit:
-        noises:
-        nb_qubits:
+        braket_circuit (Circuit): The Braket circuit to apply noise to.
+        noises (list[NoiseModel]): A list of noise models to apply to the circuit.
+        nb_qubits (int): The number of qubits in the circuit.
 
     Returns:
-
+        A new circuit with the noise applied.
     """
 
     stored_measurements = []
@@ -67,9 +71,7 @@ def apply_noise_to_braket_circuit(
                     ],
                 )
             else:
-                noisy_circuit.apply_gate_noise(
-                    noise.to_other_language(Language.BRAKET)
-                )
+                noisy_circuit.apply_gate_noise(noise.to_other_language(Language.BRAKET))
         else:
             if noise.gates:
                 noisy_circuit.apply_gate_noise(
@@ -94,7 +96,7 @@ def apply_noise_to_braket_circuit(
     # TODO: remove prints after checking that we don't need measurement anymore
     #  maybe if it is not noisy we need to put back the measurements
 
-    #TODO : looks like the dimension of the depolarizing noise is not taken into account TwoQubitDepolarizing needed
+    # TODO : looks like the dimension of the depolarizing noise is not taken into account TwoQubitDepolarizing needed
 
     return noisy_circuit
 
@@ -158,7 +160,6 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     braket_circuit = apply_noise_to_braket_circuit(
         braket_circuit, job.circuit.noises, job.circuit.nb_qubits
     )  # no difference if we have an empty noise list, will run anyway
-
 
     if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
         raise ValueError(
