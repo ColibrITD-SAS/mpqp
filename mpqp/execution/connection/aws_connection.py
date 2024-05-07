@@ -26,6 +26,7 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         success, cancelled, or error, ...) and an empty list. The list is
         included for consistency with the existing code structure.
     """
+    from braket.aws import AwsSession
 
     already_configured = get_env_variable("BRAKET_CONFIGURED") == "True"
 
@@ -54,16 +55,15 @@ def get_aws_braket_account_info() -> str:
     """Get AWS Braket credentials information including access key ID,
     obfuscated secret access key, and region.
 
+    Returns:
+        A formatted string containing AWS credentials information with an
+        obfuscated secret access key.
+
     Example:
         >>> get_aws_braket_account_info()
             access_key_id: 'AKIA26NYJ***********'
             secret_access_key: 'sMDad***********************************'
             region: 'us-east-1'
-
-    Returns:
-        A formatted string containing AWS credentials information with an
-        obfuscated secret access key.
-
     """
     if get_env_variable("BRAKET_CONFIGURED") == "False":
         raise AWSBraketRemoteExecutionError(
@@ -96,6 +96,13 @@ def get_aws_braket_account_info() -> str:
 def get_braket_device(device: AWSDevice) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
+    Args:
+        device: AWSDevice element describing which remote/local AwsDevice we want.
+
+    Raises:
+        AWSBraketRemoteExecutionError: If the device or the region could not be
+            retrieved.
+
     Example:
         >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ASPEN_M_3)
         >>> device.properties.action['braket.ir.jaqcd.program'].supportedResultTypes
@@ -103,21 +110,14 @@ def get_braket_device(device: AWSDevice) -> "BraketDevice":
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
-
-    Args:
-        device: AWSDevice element describing which remote/local AwsDevice we want.
-
-    Raises:
-        AWSBraketRemoteExecutionError: If the device or the region could not be
-            retrieved.
     """
     if not device.is_remote():
         from braket.devices import LocalSimulator
 
         return LocalSimulator()
-    from botocore.exceptions import NoRegionError
-    from braket.aws import AwsDevice
     import boto3
+    from botocore.exceptions import NoRegionError
+    from braket.aws import AwsDevice, AwsSession
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())

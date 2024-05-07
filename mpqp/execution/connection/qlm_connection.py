@@ -112,13 +112,13 @@ def setup_qlm_account() -> tuple[str, list[Any]]:
 def get_all_job_ids() -> list[str]:
     """Retrieves from the remote QLM all the job-ids associated with this account.
 
+    Returns:
+        List of all job-ids associated with this account.
+
     Example:
         >>> get_all_job_ids()
         ['Job144361', 'Job144360', 'Job144359', 'Job144358', 'Job144357', 'Job143334', 'Job143333', 'Job143332',
         'Job141862', 'Job141861', 'Job141722', 'Job141720', 'Job141716', 'Job141715', 'Job141712', 'Job19341']
-
-    Returns:
-        List of all job-ids associated with this account.
     """
 
     connection = get_QLMaaSConnection()

@@ -46,16 +46,16 @@ def flatten_generator(lst: ArbitraryNestedSequence[T]) -> Iterator[T]:
 def flatten(lst: ArbitraryNestedSequence[T]) -> list[T]:
     """Flattens an arbitrarily nested list.
 
-    Example:
-        >>> nested_list = [[1, 2, [3, 4]], [5, [6, 7]], 8]
-        >>> flatten(nested_list)
-        [1, 2, 3, 4, 5, 6, 7, 8]
-
     Args:
         lst: The list, or nested list, to be flattened.
 
     Returns:
         A flattened list containing all elements from the input list.
+
+    Example:
+        >>> nested_list = [[1, 2, [3, 4]], [5, [6, 7]], 8]
+        >>> flatten(nested_list)
+        [1, 2, 3, 4, 5, 6, 7, 8]
     """
     return list(flatten_generator(lst))
 
@@ -74,12 +74,6 @@ def one_lined_repr(obj: object):
 def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
     """Finds the first element in the iterable that satisfies the given oracle.
 
-    Example:
-        >>> numbers = [1, 2, 3, 4, 5]
-        >>> is_even = lambda x: x % 2 == 0
-        >>> find(numbers, is_even)
-        2
-
     Args:
         iterable: The iterable to search for the element.
         oracle: A callable function that takes an element and returns ``True``
@@ -90,6 +84,12 @@ def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
 
     Raises:
         ValueError: If no element in the iterable satisfies the given oracle.
+
+    Example:
+        >>> numbers = [1, 2, 3, 4, 5]
+        >>> is_even = lambda x: x % 2 == 0
+        >>> find(numbers, is_even)
+        2
     """
     for item in iterable:
         if oracle(item):

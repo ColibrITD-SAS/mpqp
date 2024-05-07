@@ -223,14 +223,6 @@ def submit(
     parameters are used to do the substitution. Unlike :meth:`run`, for the
     moment, one can only submit a circuit to a single device.
 
-    Example:
-        >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
-        >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG)
-        Logging as user <qlm_user>...
-        Submitted a new batch: Job766
-        >>> print("Status of " +job_id +":", job.job_status)
-        Status of Job766: JobStatus.RUNNING
-
     Args:
         circuit: QCircuit to be run.
         device: Remote device on which the circuit will be submitted.
@@ -238,6 +230,14 @@ def submit(
 
     Returns:
         The job id provided by the remote device after submission of the job.
+
+    Example:
+        >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
+        >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG)
+        Logging as user <qlm_user>...
+        Submitted a new batch: Job766
+        >>> print("Status of " +job_id +":", job.job_status)
+        Status of Job766: JobStatus.RUNNING
     """
     if not device.is_remote():
         raise RemoteExecutionError(

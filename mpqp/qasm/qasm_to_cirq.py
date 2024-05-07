@@ -8,6 +8,7 @@ if TYPE_CHECKING:
 from typeguard import typechecked
 from mpqp.qasm.qasm_tools import replace_custom_gates
 
+
 @typechecked
 def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     """

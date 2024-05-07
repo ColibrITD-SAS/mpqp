@@ -25,6 +25,12 @@ atol = 1e-08
 def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
     """Normalizes an array representing the amplitudes of the state.
 
+    Args:
+        v: The vector to be normalized.
+
+    Returns:
+        The normalized vector.
+
     Examples:
         >>> vector = np.array([1,0,0,1])
         >>> normalize(vector)
@@ -32,12 +38,6 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
         >>> vector = np.array([0,0,0,0])
         >>> normalize(vector)
         array([0, 0, 0, 0])
-
-    Args:
-        v: vector to be normalized
-
-    Returns:
-        The normalized vector.
     """
     norm = np.linalg.norm(v, ord=2)
     return v if norm == 0 else v / norm
@@ -72,7 +72,10 @@ def is_hermitian(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is hermitian.
 
     Args:
-        matrix: matrix for which we want to know if it is hermitian
+        matrix: matrix for which we want to know if it is hermitian.
+
+    Returns:
+        ``True`` if the matrix in parameter is Hermitian.
 
     Examples:
         >>> m1 = np.array([[1,2j,3j],[-2j,4,5j],[-3j,-5j,6]])
@@ -94,9 +97,6 @@ def is_hermitian(matrix: Matrix) -> bool:
         >>> m6 = np.array([[1,x],[-x,2]])
         >>> is_hermitian(m6)
         False
-
-    Returns:
-        ``True`` if the matrix in parameter is Hermitian.
     """
     return matrix_eq(np.array(matrix).transpose().conjugate(), matrix)  # type: ignore
 
@@ -105,18 +105,18 @@ def is_hermitian(matrix: Matrix) -> bool:
 def is_unitary(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is unitary.
 
+    Args:
+        matrix: Matrix for which we want to know if it is unitary.
+
+    Returns:
+        ``True`` if the matrix in parameter is Unitary.
+
     Example:
         >>> a = np.array([[1,1],[1,-1]])
         >>> is_unitary(a)
         False
         >>> is_unitary(a/np.sqrt(2))
         True
-
-    Args:
-        matrix: Matrix for which we want to know if it is unitary.
-
-    Returns:
-        ``True`` if the matrix in parameter is Unitary.
     """
     return matrix_eq(
         np.eye(len(matrix), dtype=np.complex64),
