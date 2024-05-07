@@ -172,16 +172,19 @@ class Observable:
 
             pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
 
-            return sum(
-                monomial.coef
-                * prod(  # pyright: ignore[reportCallIssue]
-                    [  # pyright: ignore[reportArgumentType]
-                        pauli_gate_map[a.label](all_qubits[i])
-                        for i, a in enumerate(monomial.atoms)
-                    ]
-                )
-                for monomial in self.pauli_string.monomials
-            )
+            cirq_pauli_string = None
+
+            for monomial in self.pauli_string.monomials:
+                cirq_monomial = None
+                
+                for index, atom in enumerate(monomial.atoms):
+                    cirq_atom = pauli_gate_map[atom.label](all_qubits[index])
+                    cirq_monomial = cirq_atom if cirq_monomial is None else cirq_monomial * cirq_atom # type: ignore
+                    
+                cirq_monomial *= monomial.coef  # type: ignore
+                cirq_pauli_string = cirq_monomial if cirq_pauli_string is None else cirq_pauli_string + cirq_monomial
+
+            return cirq_pauli_string
         else:
             raise ValueError(f"Unsupported language: {language}")
 

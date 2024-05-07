@@ -43,10 +43,30 @@ import sys
                 BasisMeasure(list(range(3)), shots=0),
             ]
         ),
+        QCircuit(
+            [
+                H(0),
+                Rx(1.76, 1),
+                ExpectationMeasure(
+                    [0, 1],
+                    observable=Observable(
+                        np.array(
+                            [
+                                [0.63, 0.5, 1, 1],
+                                [0.5, 0.82, 1, 1],
+                                [1, 1, 1, 0.33],
+                                [1, 1, 0.33, 0.3],
+                            ],
+                        )
+                    ),
+                    shots=1000,
+                ),
+            ]
+        ),
     ],
 )
 def running_remote_local_cirq(circuit: QCircuit):
-    result = run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+    return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
 if "-l" in sys.argv or "--long" in sys.argv:

@@ -1,6 +1,6 @@
 import pytest
 
-from mpqp.qasm.qasm_to_qiskit import qasm2_to_Qiskit_Circuit
+from mpqp.qasm.qasm_to_qiskit import qasm2_to_QuantumCircuit
 from qiskit import QuantumCircuit
 
 
@@ -30,7 +30,7 @@ from qiskit import QuantumCircuit
     ],
 )
 def test_qasm2_to_Qiskit_Circuit(qasm_code: str, gate_names: list[str]):
-    circ = qasm2_to_Qiskit_Circuit(qasm_code)
+    circ = qasm2_to_QuantumCircuit(qasm_code)
     assert isinstance(circ, QuantumCircuit)
     for instr, expected_gate in zip(circ.data, gate_names):
         assert instr.operation.name == expected_gate

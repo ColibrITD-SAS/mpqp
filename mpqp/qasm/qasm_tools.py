@@ -8,6 +8,20 @@ def parse_custom_gates(qasm_code: str) -> tuple[dict[str, str], str]:
     Returns:
         tuple[dict[str, str], str]: A tuple containing a dictionary of custom gate definitions
         and the QASM code with custom gate definitions removed.
+
+    Exemple:
+        >>> qasm_str = \"\"\"gate rzz(theta) a,b {
+        ...     cx a,b;
+        ...     u1(theta) b;
+        ...     cx a,b;
+        ... }
+        ... qubit[3] q;
+        ... bit[1] c0;
+        ... bit[1] c1;
+        ... rzz(0.2) q[1], q[2];
+        ... c2[0] = measure q[2];\"\"\"
+        >>> print(parse_custom_gates(qasm_str))
+        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, '\nqubit[3] q;\nbit[1] c0;\nbit[1] c1;\nrzz(0.2) q[1], q[2];\nc2[0] = measure q[2];')
     """
     custom_gates = {}
 
@@ -24,13 +38,17 @@ def parse_custom_gates(qasm_code: str) -> tuple[dict[str, str], str]:
             in_custom_gate = True
             current_gate_name_parametres = line.split()[1].split("(")
             current_gate_name = current_gate_name_parametres[0]
-            current_gate_parametres = current_gate_name_parametres[1][:-1].split(",")
+            current_gate_parametres = (
+                current_gate_name_parametres[1][:-1].split(",")
+                if len(current_gate_name_parametres) > 1
+                else ""
+            )
             current_gate_definition = []
             current_gate_qubits = ""
             for elem in line.split()[2:]:
                 current_gate_qubits += elem
             current_gate_qubits = current_gate_qubits.replace("{", "").split(",")
-            
+
             current_gate_definition.append(current_gate_parametres)
             current_gate_definition.append(current_gate_qubits)
             replaced_code = replaced_code.replace(line + "\n", "")
@@ -73,7 +91,6 @@ def replace_custom_gates(qasm_code: str) -> str:
     """
     replaced_code = qasm_code
     custom_gates, replaced_code = parse_custom_gates(qasm_code)
-    print(custom_gates)
 
     for gate_name in custom_gates:
 
@@ -86,23 +103,28 @@ def replace_custom_gates(qasm_code: str) -> str:
                     elem.replace(",", "").replace(";", "") for elem in line.split()[1:]
                 ]
 
-                current_gate_parameters = line.split()[0].split("(")[1][:-1].split(",")
+                current_gate_parameters = line.split()[0].split("(")
+                current_gate_parameters = (
+                    current_gate_parameters[1][:-1].split(",")
+                    if len(current_gate_parameters) > 1
+                    else []
+                )
 
                 all_gate = ""
                 for gate in custom_gates[gate_name][2:]:
                     all_gate += gate + "\n"
 
                 for i, parameter in enumerate(custom_gates[gate_name][1]):
-                    all_gate = all_gate.replace(
-                        "," + parameter + "," , ", " + current_gate_qubits[i] + ","
-                    ).replace(
-                        " " + parameter + ","  , " " + current_gate_qubits[i] + "," 
-                    ).replace(
-                         parameter + ";" , current_gate_qubits[i] + ";"
-                    ).replace(
-                         parameter + " ;" , current_gate_qubits[i] + " ;"
+                    all_gate = (
+                        all_gate.replace(
+                            "," + parameter + ",", ", " + current_gate_qubits[i] + ","
+                        )
+                        .replace(
+                            " " + parameter + ",", " " + current_gate_qubits[i] + ","
+                        )
+                        .replace(parameter + ";", current_gate_qubits[i] + ";")
+                        .replace(parameter + " ;", current_gate_qubits[i] + " ;")
                     )
-
 
                 for i, parameter in enumerate(custom_gates[gate_name][0]):
                     all_gate = all_gate.replace(parameter, current_gate_parameters[i])

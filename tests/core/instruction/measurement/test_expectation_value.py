@@ -14,7 +14,7 @@ from cirq.ops.pauli_string import PauliString as CirqPauliString
 from qat.core.wrappers.observable import Observable as QLMObservable
 from qiskit.quantum_info import Operator
 
-from mpqp.core.instruction.measurement.pauli_string import I
+from mpqp.core.instruction.measurement.pauli_string import I, X
 from mpqp.core.languages import Language
 from mpqp.measures import ExpectationMeasure, Observable
 
@@ -58,7 +58,7 @@ def test_expectation_measure_wrong_targets(
 @pytest.mark.parametrize(
     "obs, translation",
     [
-        (Observable(I @ I), sum(1.0 * Cirq_I(q[0]) * Cirq_I(q[1]) for _ in range(1))),
+        (Observable(I @ I + I @ X), sum(1.0 * Cirq_I(q[0]) * Cirq_I(q[1]) + Cirq_X(q[1]))),
     ],
 )
 def test_to_other_language(

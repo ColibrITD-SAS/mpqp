@@ -76,7 +76,7 @@ def run_google_remote(job: Job) -> Result:
     if job.device.is_ionq():
         if job.job_type != JobType.SAMPLE:
             raise ValueError(
-                f"{job.device}: job_type must be {JobType.SAMPLE} but go job type {job.job_type}"
+                f"{job.device}: job_type must be {JobType.SAMPLE} but got job type {job.job_type}"
             )
         assert isinstance(job.measure, BasisMeasure)
 
@@ -97,10 +97,10 @@ def run_google_remote(job: Job) -> Result:
             )
     else:
         raise NotImplementedError(
-            f" does not handle {job.device} for the moment only ionq is supported"
+            f"{job.device} is not handled for the moment. Only IonQ is supported"
         )
 
-    return extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+    return extract_result(result_sim, job, job.device)
 
 
 @typechecked
@@ -159,7 +159,7 @@ def run_local(job: Job) -> Result:
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
-    return extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+    return extract_result(result_sim, job, job.device)
 
 
 @typechecked
@@ -173,6 +173,8 @@ def run_local_processor(job: Job) -> Result:
     Returns:
         Result: The result after submission and execution of the job.
     """
+    assert type(job.device) == GOOGLEDevice
+    
     calibration = load_median_device_calibration(job.device.value)
     device = create_device_from_processor_id(job.device.value)
 
@@ -214,7 +216,7 @@ def run_local_processor(job: Job) -> Result:
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
-    return extract_result(result_sim, job, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+    return extract_result(result_sim, job, job.device)
 
 
 def extract_result(
@@ -260,7 +262,7 @@ def extract_result(
         elif job.job_type == JobType.OBSERVABLE:
             if isinstance(result, cirq_result):
                 raise ValueError(
-                    f"result: {type(result)}, must be a list[float] | list[ObservableMeasuredResult] for job type {job.job_type}"
+                    f"result: {type(result)}, must be a cirq_result for job type {job.job_type}"
                 )
             return extract_result_OBSERVABLE(result, job, device)
         else:
