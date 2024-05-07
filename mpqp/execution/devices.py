@@ -142,7 +142,6 @@ class AWSDevice(AvailableDevice):
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.
-
         Examples:
             >>> AWSDevice.BRAKET_IONQ_HARMONY.get_arn()
             'arn:aws:braket:us-east-1::device/qpu/ionq/Harmony'
@@ -150,18 +149,32 @@ class AWSDevice(AvailableDevice):
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_arn()
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3'
-
         Returns:
             The arn of the device.
         """
-        if not self.is_remote():
-            raise ValueError("No arn for a local simulator")
+        region = self.get_region()
         if self.is_simulator():
             region = ""
+        return "arn:aws:braket:" + region + "::device/" + self.value
+
+    def get_region(self) -> str:
+        """Retrieve the Aws region from this AWSDevice element.
+        Examples:
+            >>> AWSDevice.BRAKET_IONQ_HARMONY.get_region()
+            'us-east-1'
+            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region()
+            ''
+            >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_region()
+            'us-west-1'
+        Returns:
+            The region of the device.
+        """
+        if not self.is_remote():
+            raise ValueError("No arn for a local simulator")
         elif self == AWSDevice.BRAKET_RIGETTI_ASPEN_M_3:
-            region = "us-west-1"
+            return "us-west-1"
         elif self == AWSDevice.BRAKET_OQC_LUCY:
-            region = "eu-west-2"
+            return "eu-west-2"
         elif self in [
             AWSDevice.BRAKET_IONQ_HARMONY,
             AWSDevice.BRAKET_IONQ_ARIA_1,
@@ -169,10 +182,9 @@ class AWSDevice(AvailableDevice):
             AWSDevice.BRAKET_IONQ_FORTE_1,
             AWSDevice.BRAKET_QUERA_AQUILA,
         ]:
-            region = "us-east-1"
+            return "us-east-1"
         else:
-            region = get_env_variable("AWS_DEFAULT_REGION")
-        return "arn:aws:braket:" + region + "::device/" + self.value
+            return get_env_variable("AWS_DEFAULT_REGION")
 
     @staticmethod
     def from_arn(arn: str):
