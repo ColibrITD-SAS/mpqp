@@ -55,14 +55,13 @@ class QCircuit:
         q_1: ────────────
         q_2: ────────────
              ┌──────────┐
-        q_3: ┤ Rx(1.23)  ├
+        q_3: ┤ Rx(1.23) ├
              └──────────┘
         q_4: ────────────
 
         >>> circuit = QCircuit(4, label="NoiseExample")
         >>> circuit.add([H(0), T(1), CNOT(0,1), S(3)])
-        >>> depolarizing_noise = Depolarizing(prob=0.50, targets=[0, 1]
-        >>> circuit.add(depolarizing_noise)
+        >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()
         QCircuit NoiseExample: Size (Qubits,Cbits) = (4, 0), Nb instructions = 4
         Depolarizing noise: probability 0.5 on qubits [0, 1]
@@ -133,7 +132,7 @@ class QCircuit:
 
         Example:
             TODO add an example with noise model
-            
+
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
             >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
