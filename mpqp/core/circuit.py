@@ -1,3 +1,23 @@
+"""MPQP is focused on gate based quantum computing. As such, the main element of
+a script using MPQP is the quantum circuit, or :class:`QCircuit`. The
+:class:`QCircuit` contains the data of all gates, measures, and noise models you
+want to apply to your qubits. 
+
+The qubits are only referred by their indices, so one could keep track of
+specific registers using python features, for instance
+
+.. code-block:: python
+
+    >>> circ = QCircuit(6)
+    >>> targets = range(3)
+    >>> ancillas = range(3,6)
+    >>> for i in range(3):
+    ...     circ.add(CNOT(targets[i], ancillas[i]))
+    
+could be use to add CNOT gates to your circuit, using the two registers
+``targets`` and ``ancillas``.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
@@ -809,7 +829,7 @@ class QCircuit:
                                └───┘   └───┘           └╥┘         ║  ║
             c: 3/═══════════════════════════════════════╩══════════╩══╩═
                                                         2          0  1
-            >>> print(c.subs({theta: np.py, k: 1}))
+            >>> print(c.subs({theta: np.pi, k: 1}))
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───
                  └───────┘└─┬─┘└───┘┌────────┐ │P(π) └╥┘┌─┐

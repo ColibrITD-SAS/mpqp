@@ -1,3 +1,15 @@
+"""An :class:`AvailableDevice` is a device on which one can run or submit a 
+circuit. While it is an abstract class, all it's concrete implementations are
+enums with a few methods, required by :class:`AvailableDevice`.
+
+Each supported provider has its available devices listed as these enums, which
+you can find bellow:
+
+- :class:`IBMDevice`,
+- :class:`ATOSDevice`,
+- :class:`AWSDevice`.
+"""
+
 from abc import abstractmethod
 from enum import Enum, auto
 
