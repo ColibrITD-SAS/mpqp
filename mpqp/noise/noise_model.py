@@ -50,7 +50,6 @@ class NoiseModel(ABC):
             for gate in gates:
                 nb_qubits = gate.nb_qubits
                 if isinstance(nb_qubits, property):
-                    # TODO: set class attribute for all native gates
                     raise ValueError(
                         "If you want to pass a custom gate class to specify"
                         " the noise target, please add `nb_qubits` to this "
@@ -75,12 +74,7 @@ class NoiseModel(ABC):
 
     @abstractmethod
     def to_kraus_representation(self) -> KrausRepresentation:
-        """
-        TODO: doc
-        Returns:
-        :noindex:
-
-        """
+        """3M-TODO: to be implemented"""
         pass
 
     @abstractmethod

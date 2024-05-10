@@ -186,7 +186,7 @@ class AWSDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         # TODO: to check if all simulators support noise (especially remote ones)
-        # other devices to be figured out
+        #  other devices to be figured out
         #  investigate and then correct the line below
         # return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
         noise_support_devices = {
