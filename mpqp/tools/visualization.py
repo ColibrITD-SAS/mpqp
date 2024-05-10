@@ -4,6 +4,7 @@ histograms, when the ``job_type`` is ``SAMPLE``."""
 import math
 import random
 from typing import Union
+import numpy as np
 
 import matplotlib.pyplot as plt
 from typeguard import typechecked
@@ -80,3 +81,15 @@ def _result_to_array_sample_mode(result: Result) -> tuple[list[str], list[int]]:
     x_array = [f"|{bin(i)[2:].zfill(n)}⟩" for i in range(2**n)]
     y_array = result.counts
     return x_array, y_array
+
+
+def clean_array(array): # type: ignore
+    try:
+        cleaned_array = []
+        for element in array:
+            cleaned_element = np.round(element.real if np.imag(element) == 0 else element, 7)
+            cleaned_element = int(cleaned_element) if cleaned_element == int(cleaned_element) else cleaned_element
+            cleaned_array.append(cleaned_element)
+        return str(cleaned_array).replace("(", "").replace(")", "")
+    except:
+        return str(array)

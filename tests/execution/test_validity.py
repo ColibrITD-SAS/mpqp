@@ -167,7 +167,7 @@ def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: M
     assert isinstance(batch, BatchResult)
     for result in batch:
         if isinstance(result.device, GOOGLEDevice):
-            #TODO : Cirq need atol 1 because result is shit
+            #3M-TODO : Cirq needs atol 1 as some results differ by 0.1
             assert matrix_eq(result.amplitudes, expected_vector, atol=1)
         else:
             assert matrix_eq(result.amplitudes, expected_vector)

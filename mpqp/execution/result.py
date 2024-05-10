@@ -10,6 +10,7 @@ from typeguard import typechecked
 
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.errors import ResultAttributeError
+from mpqp.tools.visualization import clean_array
 
 from .job import Job, JobType
 
@@ -60,21 +61,12 @@ class StateVector:
 
     
     def __str__(self):
-        return f""" State vector: {_clean_array(self.vector)}
- Probabilities: {_clean_array(self.probabilities)}
+        return f""" State vector: {clean_array(self.vector)}
+ Probabilities: {clean_array(self.probabilities)}
  Number of qubits: {self.nb_qubits}
 """
 
-def _clean_array(array): # type: ignore
-    try:
-        cleaned_array = []
-        for element in array:
-            cleaned_element = np.round(element.real if np.imag(element) == 0 else element, 7)
-            cleaned_element = int(cleaned_element) if cleaned_element == int(cleaned_element) else cleaned_element
-            cleaned_array.append(cleaned_element)
-        return str(cleaned_array).replace("(", "").replace(")", "")
-    except:
-        return str(array)
+
 
 @typechecked
 class Sample:
@@ -355,7 +347,7 @@ class Result:
             samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
             return f"""{header}
  Counts: {self._counts}
- Probabilities: {_clean_array(self.probabilities)}
+ Probabilities: {clean_array(self.probabilities)}
  Samples:
 {samples_str}
  Error: {self.error}

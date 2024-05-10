@@ -178,7 +178,7 @@ class PauliString:
         return res
 
     def round(self, round_off_till: int = 4) -> PauliString:
-        """Round the coefficients of the PauliString to a specified number of
+        """Rounds the coefficients of the PauliString to a specified number of
         decimal places.
 
         Args:

@@ -135,7 +135,7 @@ The Cirq parser lacks native support for certain OpenQASM 2.0 operations such as
 ``rxx`` and custom ``gate``. 
 To address this limitation, we've temporarily incorporated these gates directly 
 into the Cirq parser. For the custom gates, we replace directly by native gates 
-in the qasm str. This ensures seamless generation of circuits from QASM code 
+in the qasm string. This ensures seamless generation of circuits from QASM code 
 using the qasm2_to_cirq_Circuit function.
 
 :func:`qasm2_to_cirq_Circuit<mpqp.qasm.qasm_to_cirq.qasm2_to_cirq_Circuit>` to generate
