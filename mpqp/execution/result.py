@@ -10,7 +10,6 @@ from typeguard import typechecked
 
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.errors import ResultAttributeError
-from mpqp.tools.visualization import clean_array
 
 from .job import Job, JobType
 
@@ -434,3 +433,14 @@ class BatchResult:
 
     def __getitem__(self, index: int):
         return self.results[index]
+
+def clean_array(array): # type: ignore
+    try:
+        cleaned_array = []
+        for element in array:
+            cleaned_element = np.round(element.real if np.imag(element) == 0 else element, 7)
+            cleaned_element = int(cleaned_element) if cleaned_element == int(cleaned_element) else cleaned_element
+            cleaned_array.append(cleaned_element)
+        return str(cleaned_array).replace("(", "").replace(")", "")
+    except:
+        return str(array)

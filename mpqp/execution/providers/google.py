@@ -191,7 +191,7 @@ def run_local_processor(job: Job) -> Result:
     simulator = SimulatedLocalEngine([sim_processor])
 
     job_cirq_circuit = job.circuit.to_other_language(
-        Language.CIRQ, processor_id=job.device.value
+        Language.CIRQ, cirq_proc_id=job.device.value
     )
     assert isinstance(job_cirq_circuit, Cirq_circuit)
 
