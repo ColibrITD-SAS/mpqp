@@ -116,13 +116,8 @@ class ATOSDevice(AvailableDevice):
 
     QLM_LINALG = auto()
     QLM_MPS = auto()
-    QLM_MPSLEGACY = auto()
     QLM_MPO = auto()
-    QLM_STABS = auto()
-    QLM_FEYNMAN = auto()
-    QLM_BDD = auto()
     QLM_NOISYQPROC = auto()
-    QLM_QPEG = auto()
 
     def is_remote(self):
         return self.name.startswith("QLM")
@@ -139,16 +134,21 @@ class ATOSDevice(AvailableDevice):
 
     @staticmethod
     def from_str_remote(name: str):
-        """Returns the right remote ATOSDevice from the name given in parameter.
-
-        Examples:
-            >>> AWSDevice.from_arn('NoisyQProc')
-
-            >>> ATOSDevice.from_str('linalg')
-
+        """Returns the first remote ATOSDevice containing the name given in parameter.
 
         Args:
             name: A string containing the name of the device.
+
+        Raises:
+            ValueError
+
+        Examples:
+            >>> ATOSDevice.from_str_remote('NoisyQProc')
+            <ATOSDevice.QLM_NOISYQPROC: 6>
+            >>> ATOSDevice.from_str_remote('linalg')
+            <ATOSDevice.QLM_LINALG: 3>
+            >>> ATOSDevice.from_str_remote('Mps')
+            <ATOSDevice.QLM_MPS: 4>
 
         """
         u_name = name.upper()

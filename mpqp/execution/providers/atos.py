@@ -547,6 +547,9 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
 
     Returns:
         The job_id and the AsyncResult of the submitted job.
+
+    Raises:
+        ValueError: TODO fill
     """
 
     myqlm_job = None
@@ -596,6 +599,9 @@ def run_QLM(job: Job) -> Result:
 
     Returns:
         A Result after submission and execution of the job.
+
+    Raises:
+        ValueError: TODO fill
     """
 
     if not isinstance(job.device, ATOSDevice) or not job.device.is_remote():
@@ -620,7 +626,7 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
         job_id: Id of the remote QLM job.
 
     Raises:
-        QLMRemoteExecutionError
+        QLMRemoteExecutionError: TODO fill
 
     """
     connection = get_QLMaaSConnection()
@@ -648,5 +654,4 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
 
     qlm_qpu_name = qlm_job.get_info().resources.qpu.split(':')[1]
 
-    # TODO: the device may be different than QLM_LINALG in the noisy case ...
     return extract_result(qlm_result, None, ATOSDevice.from_str_remote(qlm_qpu_name))
