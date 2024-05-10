@@ -67,7 +67,7 @@ Connection setup script
 .. automodule:: mpqp_scripts.setup_connections
 
 The details on how to get these information can be found in the section 
-:ref:`Setting up a remote device`.
+:ref:`Remote setup`.
 
 On disk configuration manager
 -----------------------------

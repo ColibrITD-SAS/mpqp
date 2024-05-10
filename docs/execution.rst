@@ -20,6 +20,8 @@ Devices
 
 .. automodule:: mpqp.execution.devices
 
+.. _Remote setup:
+
 Setting up a remote device
 --------------------------
 
