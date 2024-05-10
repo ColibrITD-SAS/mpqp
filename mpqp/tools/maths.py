@@ -25,6 +25,12 @@ atol = 1e-08
 def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
     """Normalizes an array representing the amplitudes of the state.
 
+    Args:
+        v: vector to be normalized
+
+    Returns:
+        The normalized vector.
+
     Examples:
         >>> vector = np.array([1,0,0,1])
         >>> normalize(vector)
@@ -33,11 +39,6 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
         >>> normalize(vector)
         array([0, 0, 0, 0])
 
-    Args:
-        v: vector to be normalized
-
-    Returns:
-        The normalized vector.
     """
     norm = np.linalg.norm(v, ord=2)
     return v if norm == 0 else v / norm
@@ -74,6 +75,9 @@ def is_hermitian(matrix: Matrix) -> bool:
     Args:
         matrix: matrix for which we want to know if it is hermitian
 
+    Returns:
+        ``True`` if the matrix in parameter is Hermitian.
+
     Examples:
         >>> m1 = np.array([[1,2j,3j],[-2j,4,5j],[-3j,-5j,6]])
         >>> is_hermitian(m1)
@@ -95,8 +99,6 @@ def is_hermitian(matrix: Matrix) -> bool:
         >>> is_hermitian(m6)
         False
 
-    Returns:
-        ``True`` if the matrix in parameter is Hermitian.
     """
     return matrix_eq(np.array(matrix).transpose().conjugate(), matrix)  # type: ignore
 

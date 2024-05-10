@@ -129,7 +129,7 @@ class NoiseModules:
             >>> Y = np.array([[0, -1j], [1j, 0]])
             >>> Z = np.array([[1, 0], [0, -1]])
             >>> kraus_ops = [np.sqrt(1-prob)*np.identity(2),
-            >>> np.sqrt(prob/3)*X, np.sqrt(prob/3)*Y, np.sqrt(prob/3)*Z]
+            ... np.sqrt(prob/3)*X, np.sqrt(prob/3)*Y, np.sqrt(prob/3)*Z]
             >>> error = QuantumChannelKraus(kraus_ops)
 
         #How to connect?

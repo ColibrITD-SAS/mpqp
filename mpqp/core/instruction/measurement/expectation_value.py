@@ -34,12 +34,6 @@ class Observable:
     An observable can be defined by using a Hermitian matrix, or using a combination of operators in a specific
     basis Pauli.
 
-    Example:
-        >>> matrix = np.array([[1, 0], [0, -1]])
-        >>> pauli_string = 3 * I @ Z + 4 * X @ Y
-        >>> obs = Observable(matrix)
-        >>> obs2 = Observable(pauli_string)
-
     Args:
         observable : can be either a Hermitian matrix representing the observable or PauliString representing the observable.
 
@@ -47,6 +41,13 @@ class Observable:
         ValueError: If the input matrix is not Hermitian or does not have a square shape.
         NumberQubitsError: If the number of qubits in the input observable does
             not match the number of target qubits.
+
+    Example:
+        >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
+        >>> matrix = np.array([[1, 0], [0, -1]])
+        >>> ps = 3 * I @ Z + 4 * X @ Y
+        >>> obs = Observable(matrix)
+        >>> obs2 = Observable(ps)
 
     """
 
@@ -61,7 +62,7 @@ class Observable:
             self.nb_qubits = int(np.log2(len(observable)))
             """Number of qubits of this observable."""
             self._matrix = np.array(observable)
-            
+
             basis_states = 2**self.nb_qubits
             if self.matrix.shape != (basis_states, basis_states):
                 raise ValueError(
@@ -100,12 +101,12 @@ class Observable:
             self._pauli_string = PauliString.from_matrix(self.matrix)
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
-    
+
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
         self._pauli_string = pauli_string
         self._matrix = None
-    
+
     @matrix.setter
     def matrix(self, matrix: Matrix):
         self._matrix = matrix
@@ -130,18 +131,27 @@ class Observable:
         """
         Converts the observable to the representation of another quantum programming language.
 
-        Example:
-            >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
-            >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
-            >>> print(obs_qiskit)
-            <bound method Observable.to_qiskit_observable of Observable(array([[ 0.7, 0. , 0. , 0. ], [ 0. , -1. , 0. , 0. ], [ 0. , 0. , 1. , 0. ], [ 0. , 0. , 0. , 1. ]]))>
-
         Args:
             language (str): The target programming language ('qiskit', 'pyquil', 'braket', 'cirq').
             circuit: The Cirq circuit associated with the observable (required for 'cirq' language).
 
         Returns:
             Depends on the target language.
+
+        Example:
+            >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
+            >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
+            >>> print(obs_qiskit)
+            Operator([[ 0.69999999+0.j,  0.        +0.j,  0.        +0.j,
+                        0.        +0.j],
+                      [ 0.        +0.j, -1.        +0.j,  0.        +0.j,
+                        0.        +0.j],
+                      [ 0.        +0.j,  0.        +0.j,  1.        +0.j,
+                        0.        +0.j],
+                      [ 0.        +0.j,  0.        +0.j,  0.        +0.j,
+                        1.        +0.j]],
+                    input_dims=(2, 2), output_dims=(2, 2))
+
         """
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator
@@ -199,18 +209,18 @@ class ExpectationMeasure(Measure):
     hardware. The swaps added can be checked out in the ``pre_measure``
     attribute of the :class:`ExpectationMeasure`.
 
-    Example:
-        >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
-        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
-        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value
-        0.85918
-
     Args:
         targets: List of indices referring to the qubits on which the measure
             will be applied.
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
         label: Label used to identify the measure.
+
+    Example:
+        >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
+        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
+        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value
+        0.8617949940353632
 
     Warns:
         UserWarning: If the ``targets`` are not sorted and contiguous, some
@@ -288,7 +298,7 @@ class ExpectationMeasure(Measure):
     ) -> None:
         if qiskit_parameters is None:
             qiskit_parameters = set()
-        #TODO : incoherence here, if the language is Qiskit we raise a NotImplementedError, and otherwise we say that
+        # TODO : incoherence here, if the language is Qiskit we raise a NotImplementedError, and otherwise we say that
         # only qiskit is supported
         if language == Language.QISKIT:
             raise NotImplementedError(

@@ -37,6 +37,7 @@ class Basis:
             [1 0],
             [ 0 -1]
         ]
+
     """
 
     def __init__(
@@ -90,6 +91,7 @@ class Basis:
                 [ 1  0],
                 [ 0 -1]
             ]
+
         """
         joint_vectors = ",\n    ".join(map(str, np.round(self.basis_vectors, 2)))
         print(f"Basis: [\n    {joint_vectors}\n]")
@@ -153,6 +155,7 @@ class ComputationalBasis(VariableSizeBasis):
             [0.+0.j 0.+0.j 1.+0.j 0.+0.j],
             [0.+0.j 0.+0.j 0.+0.j 1.+0.j]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
@@ -183,6 +186,7 @@ class HadamardBasis(VariableSizeBasis):
             [ 0.5+0.j  0.5+0.j -0.5+0.j -0.5+0.j],
             [ 0.5+0.j -0.5+0.j -0.5+0.j  0.5-0.j]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):

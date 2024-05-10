@@ -28,8 +28,8 @@ class StateVector:
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
         >>> print(state_vector)
-         State vector: [ 0.5  0.5  0.5 -0.5]
-         Probabilities: [0.25 0.25 0.25 0.25]
+         State vector: [0.5,  0.5,  0.5, -0.5]
+         Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
 
     """
@@ -91,6 +91,7 @@ class Sample:
 
         >>> print(Sample(5, bin_str="01011", count=1234))
         State: 01011, Index: 11, Count: 1234, Probability: None
+
     """
 
     def __init__(
@@ -172,24 +173,27 @@ class Result:
             value was required).
 
     Examples:
-        >>> print(Result(Job(), StateVector(np.array([1, 1, 1, -1])/2, 2), 0, 0))
+        >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
+        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0))
+        Result: ATOSDevice, MYQLM_CLINALG
          State vector: [ 0.5  0.5  0.5 -0.5]
          Probabilities: [0.25 0.25 0.25 0.25]
          Number of qubits: 2
-
-        >>> print(Result(Job(), [
-        ...     Sample(2, index=0, count=250)
+        >>> print(Result(job, [
+        ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500))
+        Result: ATOSDevice, MYQLM_CLINALG
          Counts: [250, 250]
          Probabilities: [0.5 0.5]
           State: 00, Index: 0, Count: 250, Probability: None
           State: 11, Index: 3, Count: 250, Probability: None
          Error: 0.034
-
-        >>> print(Result(Job(), -3.09834, 0.021, 2048))
+        >>> print(Result(job, -3.09834, 0.021, 2048))
+        Result: ATOSDevice, MYQLM_CLINALG
          Expectation value: -3.09834
-         Error: 0.021
+         Error/Variance: 0.021
+
     """
 
     # 3M-TODO: in this class, there is a lot of manual type checking, this is an
@@ -421,7 +425,8 @@ class BatchResult:
         Result: ATOSDevice, MYQLM_PYLINALG
          State vector: [ 0.5+0.j  0.5+0.j  0.5+0.j -0.5+0.j]
          Probabilities: [0.25 0.25 0.25 0.25]
-        Number of qubits: 2
+         Number of qubits: 2
+
     """
 
     def __init__(self, results: list[Result]):

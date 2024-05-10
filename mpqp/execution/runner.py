@@ -131,6 +131,7 @@ def _run_single(
          State: 00, Index: 0, Count: 512, Probability: 0.512
          State: 11, Index: 3, Count: 488, Probability: 0.488
         Error: None
+
     """
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
@@ -194,6 +195,7 @@ def run(
          State: 00, Index: 0, Count: 462, Probability: 0.462
          State: 11, Index: 3, Count: 538, Probability: 0.538
         Error: 0.015773547629015002
+
     """
 
     if values is None:
@@ -220,6 +222,14 @@ def submit(
     parameters are used to do the substitution. Unlike :meth:`run`, for the
     moment, one can only submit a circuit to a single device.
 
+    Args:
+        circuit: QCircuit to be run.
+        device: Remote device on which the circuit will be submitted.
+        values: Set of values to substitute symbolic variables.
+
+    Returns:
+        The job id provided by the remote device after submission of the job.
+
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
         >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG)
@@ -228,13 +238,6 @@ def submit(
         >>> print("Status of " +job_id +":", job.job_status)
         Status of Job766: JobStatus.RUNNING
 
-    Args:
-        circuit: QCircuit to be run.
-        device: Remote device on which the circuit will be submitted.
-        values: Set of values to substitute symbolic variables.
-
-    Returns:
-        The job id provided by the remote device after submission of the job.
     """
     if not device.is_remote():
         raise RemoteExecutionError(

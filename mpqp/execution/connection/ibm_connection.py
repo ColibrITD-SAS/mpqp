@@ -162,6 +162,9 @@ def get_QiskitRuntimeService() -> QiskitRuntimeService:
 def get_active_account_info() -> str:
     """Returns the information concerning the active IBMQ account.
 
+    Returns:
+        The description containing the account information.
+
     Example:
         >>> print(get_active_account_info())
             Channel: ibm_quantum
@@ -170,8 +173,6 @@ def get_active_account_info() -> str:
             URL: https://auth.quantum-computing.ibm.com/api
             Verify: True
 
-    Returns:
-        The description containing the account information.
     """
     provider = get_IBMProvider()
     account = provider.active_account()
@@ -191,14 +192,14 @@ def get_backend(device: IBMDevice) -> BackendV1:
     Args:
         device: The IBMDevice to get from IBMQ provider.
 
+    Returns:
+        The requested backend.
+
     Example:
         >>> brisbane = get_backend(IBMDevice.IBM_BRISBANE)
         >>> brisbane.properties().gates[0].parameters
         [Nduv(datetime.datetime(2024, 1, 9, 11, 3, 18, tzinfo=tzlocal()), gate_error, , 0.00045619997922344296),
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
-
-    Returns:
-        The requested backend.
 
     Raises:
         ValueError: If the required backend is a local simulator.
@@ -238,6 +239,7 @@ def get_all_job_ids() -> list[str]:
         'cnvw64rb08x0008y3dx0', 'cnvw5z7wsx00008wybcg', 'cmdj3b4nktricigarn8g', 'cmdj3a74mi97k7j7ujv0',
         'cmama29054sir2cq94og', 'cmama14pduldih1q4ktg', 'cm80qmi70abqiof0o170', 'cm80qlkpduldih1k4png',
         'cm80pb1054sir2ck9i3g', 'cm80pa6879ps6bbqg2pg', 'cm7vdugiidfp3m8rg02g', 'cm7vds4pduldih1k1mq0']
+
     """
     all_job_ids = []
 

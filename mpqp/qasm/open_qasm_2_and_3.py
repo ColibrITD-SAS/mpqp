@@ -345,6 +345,7 @@ def open_qasm_2_to_3(
         c[0] = measure q[0];
         c[1] = measure q[1];
         '''
+
     """
 
     header_code = ""
@@ -387,7 +388,7 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
         Converted OpenQASM code in the 3.0 version.
 
     Example:
-        >>> example_dir = "example/qasm_files/"
+        >>> example_dir = "examples/scripts/qasm_files/"
         >>> with open(example_dir + "main.qasm", "r") as f:
         ...     print(f.read())
         '''OPENQASM 2.0;
@@ -429,6 +430,7 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
             u3(0, -pi/2, pi/3) a;
             cz a, b;
         }'''
+
     """
 
     with open(path, "r") as f:
@@ -447,15 +449,6 @@ def open_qasm_hard_includes(
     every instruction in previously included files, directly in the code
     returned.
 
-    Example:
-        >>> examples_folder = "tests/qasm/qasm_examples"
-        >>> filename = examples_folder + "/with_include.qasm"
-        >>> with open(filename) as f:
-        ...     print(open_qasm_hard_includes(f.read(), {filename}).strip("\n"))
-        '''gate csx a, b {
-            ctrl @ sx a, b;
-        }'''
-
     Args:
         code: String containing the OpenQASM code and instructions.
         included_files: The set of files already included, used to avoid
@@ -467,6 +460,16 @@ def open_qasm_hard_includes(
 
     Returns:
         Include-less OpenQASM code.
+
+    Example:
+        >>> examples_folder = "tests/qasm/qasm_examples"
+        >>> filename = examples_folder + "/with_include.qasm"
+        >>> with open(filename) as f:
+        ...     print(open_qasm_hard_includes(f.read(), {filename}).strip("\n"))
+        gate csx a, b {
+            ctrl @ sx a, b;
+        }
+
     """
     lines = code.split("\n")
     converted_code = []

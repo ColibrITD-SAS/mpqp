@@ -46,6 +46,29 @@ def minimize(
     minimize the measured expectation value of observables associated with the given circuit.
     Note that this means that the latter should contain an ``ExpectationMeasure``.
 
+    Args:
+        optimizable: Either the circuit, containing symbols and an expectation
+            measure, or the evaluation function.
+        method: The method used to optimize most of those methods come from
+            ``scipy``. If the choices offered in this package are not
+            covering your needs, you can define your own optimizer. This should be
+            a function taking as input a function representing the circuit, with
+            as many inputs as the circuit has parameters, and any optional
+            initialization parameters, and returning the optimal value reached
+            and the parameters used to reach this value.
+        device: The device on which the circuit should be run.
+        init_params: The optional initialization parameters (the value
+            attributed to the symbols in the first loop of the optimizer).
+        nb_params: Number of variables to input in ``optimizable``. It is only
+            useful if ``optimizable`` is a Callable and if ``init_params`` was
+            not given. If not this argument is not taken into account.
+        optimizer_options: Options used to configure the VQA optimizer (maximum
+            iterations, convergence threshold, etc...). These options are passed
+            as is to the minimizer.
+
+    Returns:
+        The optimal value reached and the parameters corresponding to this value.
+
     Examples:
         >>> alpha, beta = symbols("α β")
         >>> circuit = QCircuit([
@@ -83,28 +106,6 @@ def minimize(
         ... )
         (8.881784197001252e-16, array([0., 0.]))
 
-    Args:
-        optimizable: Either the circuit, containing symbols and an expectation
-            measure, or the evaluation function.
-        method: The method used to optimize most of those methods come from
-            ``scipy``. If the choices offered in this package are not
-            covering your needs, you can define your own optimizer. This should be
-            a function taking as input a function representing the circuit, with
-            as many inputs as the circuit has parameters, and any optional
-            initialization parameters, and returning the optimal value reached
-            and the parameters used to reach this value.
-        device: The device on which the circuit should be run.
-        init_params: The optional initialization parameters (the value
-            attributed to the symbols in the first loop of the optimizer).
-        nb_params: Number of variables to input in ``optimizable``. It is only
-            useful if ``optimizable`` is a Callable and if ``init_params`` was
-            not given. If not this argument is not taken into account.
-        optimizer_options: Options used to configure the VQA optimizer (maximum
-            iterations, convergence threshold, etc...). These options are passed
-            as is to the minimizer.
-
-    Returns:
-        The optimal value reached and the parameters corresponding to this value.
     """
     if isinstance(optimizable, QCircuit):
         if device is None:

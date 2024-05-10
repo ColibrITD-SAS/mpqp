@@ -55,15 +55,15 @@ def get_aws_braket_account_info() -> str:
     """Get AWS Braket credentials information including access key ID,
     obfuscated secret access key, and region.
 
+    Returns:
+        A formatted string containing AWS credentials information with an
+        obfuscated secret access key.
+
     Example:
         >>> get_aws_braket_account_info()
             access_key_id: 'AKIA26NYJ***********'
             secret_access_key: 'sMDad***********************************'
             region: 'us-east-1'
-
-    Returns:
-        A formatted string containing AWS credentials information with an
-        obfuscated secret access key.
 
     """
     if get_env_variable("BRAKET_CONFIGURED") == "False":
@@ -96,6 +96,13 @@ def get_aws_braket_account_info() -> str:
 def get_braket_device(device: AWSDevice) -> BraketDevice:
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
+    Args:
+        device: AWSDevice element describing which remote/local AwsDevice we want.
+
+    Raises:
+        AWSBraketRemoteExecutionError: If the device or the region could not be
+            retrieved.
+
     Example:
         >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ASPEN_M_3)
         >>> device.properties.action['braket.ir.jaqcd.program'].supportedResultTypes
@@ -104,12 +111,6 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
 
-    Args:
-        device: AWSDevice element describing which remote/local AwsDevice we want.
-
-    Raises:
-        AWSBraketRemoteExecutionError: If the device or the region could not be
-            retrieved.
     """
 
     if not device.is_remote():
@@ -145,6 +146,7 @@ def get_all_task_ids() -> list[str]:
          'arn:aws:braket:us-east-1:752542621531:quantum-task/4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
+
     """
     return [
         task["quantumTaskArn"]
@@ -166,5 +168,6 @@ def get_all_partial_ids() -> list[str]:
          '4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
+
     """
     return [id.split("/")[-1] for id in get_all_task_ids()]

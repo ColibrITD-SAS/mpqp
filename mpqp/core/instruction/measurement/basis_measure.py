@@ -38,9 +38,10 @@ class BasisMeasure(Measure):
 
     Examples:
         >>> c1 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c1.add(BasisMeasure([0, 1, 2], shots=1024))
+        >>> c1.add(BasisMeasure([0, 1], shots=1024))
         >>> c2 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c2.add(BasisMeasure([0, 1, 2], shots=1024, basis=HadamardBasis()))
+        >>> c2.add(BasisMeasure([0, 1], shots=1024, basis=HadamardBasis()))
+
     """
 
     def __init__(

@@ -41,6 +41,9 @@ class Gate(Instruction, ABC):
         considering potential column and row permutations needed if the targets
         of the gate are not sorted.
 
+        Returns:
+            A numpy array representing the unitary matrix of the gate.
+
         Example:
             >>> gd = UnitaryMatrix(
             ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
@@ -56,12 +59,13 @@ class Gate(Instruction, ABC):
                    [0, 1, 0, 0],
                    [0, 0, 0, 1]])
 
-        Returns:
-            A numpy array representing the unitary matrix of the gate.
         """
 
     def inverse(self) -> Gate:
         """Computing the inverse of this gate.
+
+        Returns:
+            The gate corresponding to the inverse of this gate.
 
         Example:
             >>> Z(0).inverse()
@@ -70,8 +74,6 @@ class Gate(Instruction, ABC):
             array([[1,  0 ],
                    [0, -1j]])
 
-        Returns:
-            The gate corresponding to the inverse of this gate.
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -88,20 +90,27 @@ class Gate(Instruction, ABC):
         semantics (and thus ignores all other aspects of the gate such as the
         target qubits, the label, etc....)
 
-        Example:
-            >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
-            True
-
         Args:
             other: the gate to test if it is equivalent to this gate
 
         Returns:
             ``True`` if the two gates' matrix semantics are equal.
+
+        Example:
+            >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
+            True
+
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
     def power(self, exponent: float) -> Gate:
         """Compute the exponentiation `G^{exponent}` of this gate G.
+
+        Args:
+            exponent: Number representing the exponent.
+
+        Returns:
+            The gate elevated to the exponent in parameter.
 
         Examples:
             >>> swap_gate = SWAP(0,1)
@@ -125,11 +134,6 @@ class Gate(Instruction, ABC):
                    [0.        +0.j        , 0.        +0.j        ,
                     0.        +0.j        , 1.        +0.j        ]])
 
-        Args:
-            exponent: Number representing the exponent.
-
-        Returns:
-            The gate elevated to the exponent in parameter.
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -144,19 +148,19 @@ class Gate(Instruction, ABC):
     def tensor_product(self, other: Gate) -> Gate:
         """Compute the tensor product of the current gate.
 
-        Example:
-            >>> (X(0).tensor_product(Z(0))).to_matrix()
-            array([[ 0,  0,  1,  0],
-                   [ 0,  0,  0, -1],
-                   [ 1,  0,  0,  0],
-                   [ 0, -1,  0,  0]])
-
         Args:
             other: Second operand of the tensor product.
 
         Returns:
             A Gate representing a tensor product of this gate with the gate in
             parameter.
+
+        Example:
+            >>> (X(0).tensor_product(Z(0))).to_matrix()
+            array([[ 0,  0,  1,  0],
+                   [ 0,  0,  0, -1],
+                   [ 1,  0,  0,  0],
+                   [ 0, -1,  0,  0]])
 
         # 3M-TODO: to be implemented, don't trust the code bellow, it's pure experiments
         """
@@ -186,11 +190,6 @@ class Gate(Instruction, ABC):
     def product(self, other: Gate, targets: Optional[list[int]] = None) -> Gate:
         """Compute the composition of self and the other gate.
 
-        Example:
-            >>> (X(0).product(Z(0))).to_matrix()
-            array([[ 0, -1],
-                   [ 1,  0]])
-
         Args:
             other: Rhs of the product.
             targets: Qubits on which this new gate will operate. If not given,
@@ -199,6 +198,12 @@ class Gate(Instruction, ABC):
 
         Returns:
             The product of the two gates concerned.
+
+        Example:
+            >>> (X(0).product(Z(0))).to_matrix()
+            array([[ 0, -1],
+                   [ 1,  0]])
+
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -212,17 +217,18 @@ class Gate(Instruction, ABC):
         """Multiply this gate by a scalar. It normalizes the subtraction
         to ensure it is unitary.
 
-        Example:
-            >>> (X(0).scalar_product(1j)).to_matrix()
-            array([[0, 1j],
-                   [1j, 0]])
-
         Args:
             scalar: The number to multiply the gate's matrix by.
 
         Returns:
             The result of the multiplication, the targets of the resulting gate
             will be the same as the ones of the initial gate.
+
+        Example:
+            >>> (X(0).scalar_product(1j)).to_matrix()
+            array([[0, 1j],
+                   [1j, 0]])
+
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -236,11 +242,6 @@ class Gate(Instruction, ABC):
         """Compute the subtraction of two gates. It normalizes the subtraction
         to ensure it is unitary.
 
-        Example:
-            >>> (X(0).minus(Z(0))).to_matrix()
-            array([[-0.70710678,  0.70710678],
-                   [ 0.70710678,  0.70710678]])
-
         Args:
             other: The gate to subtract to this gate.
             targets: Qubits on which this new gate will operate. If not given,
@@ -249,6 +250,11 @@ class Gate(Instruction, ABC):
 
         Returns:
             The subtraction of ``self`` and ``other``.
+
+        Example:
+            >>> (X(0).minus(Z(0))).to_matrix()
+            array([[-0.70710678,  0.70710678],
+                   [ 0.70710678,  0.70710678]])
 
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
@@ -264,11 +270,6 @@ class Gate(Instruction, ABC):
         """Compute the sum of two gates. It normalizes the subtraction
         to ensure it is unitary.
 
-        Example:
-            >>> (X(0).plus(Z(0))).to_matrix()
-            array([[ 0.70710678,  0.70710678],
-                   [ 0.70710678, -0.70710678]])
-
         Args:
             other: The gate to add to this gate.
             targets: Qubits on which this new gate will operate. If not given, the targets of the two gates multiplied
@@ -276,6 +277,12 @@ class Gate(Instruction, ABC):
 
         Returns:
             The sum of ``self`` and ``other``.
+
+        Example:
+            >>> (X(0).plus(Z(0))).to_matrix()
+            array([[ 0.70710678,  0.70710678],
+                   [ 0.70710678, -0.70710678]])
+
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 

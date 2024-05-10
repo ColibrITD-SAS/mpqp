@@ -26,7 +26,8 @@ class GateDefinition(ABC):
     Example:
         >>> gate_matrix = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
         >>> gate_definition = UnitaryMatrix(gate_matrix)
-        >>> custom_gate = CustomGate(gate_definition)
+        >>> custom_gate = CustomGate(gate_definition, [0])
+
     """
 
     """ TODO: put this back once we implement the other definitions
@@ -71,6 +72,7 @@ class GateDefinition(ABC):
             >>> d2 = UnitaryMatrix(np.array([[2, 0], [0, -2.0]]) / 2)
             >>> d1.is_equivalent(d2)
             True
+
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
@@ -82,8 +84,8 @@ class GateDefinition(ABC):
 
         Example:
             >>> UnitaryMatrix(np.array([[1, 0], [0, -1]])).inverse()
-            array([[ 1.,  0.],
-                   [-0., -1.]])
+            UnitaryMatrix(array([[ 1., 0.], [-0., -1.]]))
+
         """
         mat = self.to_matrix()
 

@@ -142,6 +142,10 @@ class AWSDevice(AvailableDevice):
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.
+
+        Returns:
+            The arn of the device.
+
         Examples:
             >>> AWSDevice.BRAKET_IONQ_HARMONY.get_arn()
             'arn:aws:braket:us-east-1::device/qpu/ionq/Harmony'
@@ -149,8 +153,7 @@ class AWSDevice(AvailableDevice):
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_arn()
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3'
-        Returns:
-            The arn of the device.
+
         """
         region = self.get_region()
         if self.is_simulator():
@@ -159,6 +162,10 @@ class AWSDevice(AvailableDevice):
 
     def get_region(self) -> str:
         """Retrieve the Aws region from this AWSDevice element.
+
+        Returns:
+            The region of the device.
+
         Examples:
             >>> AWSDevice.BRAKET_IONQ_HARMONY.get_region()
             'us-east-1'
@@ -166,8 +173,7 @@ class AWSDevice(AvailableDevice):
             ''
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_region()
             'us-west-1'
-        Returns:
-            The region of the device.
+
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
@@ -190,14 +196,14 @@ class AWSDevice(AvailableDevice):
     def from_arn(arn: str):
         """Returns the right AWSDevice from the arn given in parameter.
 
+        Args:
+            arn: The AWS arn identifying the AwsDevice.
+
         Examples:
             >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Harmony')
             <AWSDevice.BRAKET_IONQ_HARMONY: 'qpu/ionq/Harmony'>
             >>> AWSDevice.from_arn('arn:aws:braket:::device/quantum-simulator/amazon/sv1')
             <AWSDevice.BRAKET_SV1_SIMULATOR: 'quantum-simulator/amazon/sv1'>
-
-        Args:
-            arn: The AWS arn identifying the AwsDevice.
 
         """
         for elem in AWSDevice:

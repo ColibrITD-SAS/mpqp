@@ -209,6 +209,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
         >>> Id(0).to_matrix()
         array([[1, 0],
                [0, 1]])
+
     """
 
     qiskit_gate = IGate
@@ -225,6 +226,7 @@ class X(OneQubitNoParamGate, InvolutionGate):
         >>> X(0).to_matrix()
         array([[0, 1],
                [1, 0]])
+
     """
 
     qiskit_gate = XGate
@@ -241,6 +243,7 @@ class Y(OneQubitNoParamGate, InvolutionGate):
         >>> Y(0).to_matrix()
         array([[ 0.+0.j, -0.-1.j],
                [ 0.+1.j,  0.+0.j]])
+
     """
 
     qiskit_gate = YGate
@@ -257,6 +260,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
         >>> Z(0).to_matrix()
         array([[ 1,  0],
                [ 0, -1]])
+
     """
 
     qiskit_gate = ZGate
@@ -273,6 +277,7 @@ class H(OneQubitNoParamGate, InvolutionGate):
         >>> H(0).to_matrix()
         array([[ 0.70710678,  0.70710678],
                [ 0.70710678, -0.70710678]])
+
     """
 
     qiskit_gate = HGate
@@ -290,6 +295,7 @@ class P(RotationGate, SingleQubitGate):
         >>> P(np.pi/3, 1).to_matrix()
         array([[1. +0.j       , 0. +0.j       ],
                [0. +0.j       , 0.5+0.8660254j]])
+
     """
 
     qiskit_gate = PhaseGate
@@ -309,6 +315,7 @@ class S(OneQubitNoParamGate):
         >>> S(0).to_matrix()
         array([[1.+0.j, 0.+0.j],
                [0.+0.j, 0.+1.j]])
+
     """
 
     qiskit_gate = SGate
@@ -326,6 +333,7 @@ class T(OneQubitNoParamGate):
         >>> T(0).to_matrix()
         array([[1.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 0.70710678+0.70710678j]])
+
     """
 
     qiskit_gate = TGate
@@ -340,11 +348,12 @@ class SWAP(InvolutionGate, NoParameterGate):
         b: Second target of the swapping operation.
 
     Example:
-        >>> SWAP(0, 1)
+        >>> SWAP(0, 1).to_matrix()
         array([[1, 0, 0, 0],
                [0, 0, 1, 0],
                [0, 1, 0, 0],
                [0, 0, 0, 1]])
+
     """
 
     qiskit_gate = SwapGate
@@ -367,6 +376,7 @@ class U(NativeGate, ParametrizedGate):
         >>> U(np.pi/3, 0, np.pi/4, 0).to_matrix()
         array([[ 0.8660254 +0.j        , -0.35355339-0.35355339j],
                [ 0.5       +0.j        ,  0.61237244+0.61237244j]])
+
     """
 
     def __init__(
@@ -432,6 +442,7 @@ class Rx(RotationGate, SingleQubitGate):
         >>> Rx(np.pi/5, 1).to_matrix()
         array([[0.95105652+0.j        , 0.        -0.30901699j],
                [0.        -0.30901699j, 0.95105652+0.j        ]])
+
     """
 
     qiskit_gate = RXGate
@@ -452,6 +463,7 @@ class Ry(RotationGate, SingleQubitGate):
         >>> Ry(np.pi/5, 1).to_matrix()
         array([[ 0.95105652, -0.30901699],
                [ 0.30901699,  0.95105652]])
+
     """
 
     qiskit_gate = RYGate
@@ -472,6 +484,7 @@ class Rz(RotationGate, SingleQubitGate):
         >>> Rz(np.pi/5, 1).to_matrix()
         array([[0.95105652-0.30901699j, 0.        +0.j        ],
                [0.        +0.j        , 0.95105652-0.30901699j]])
+
     """
 
     qiskit_gate = RZGate
@@ -494,6 +507,7 @@ class Rk(RotationGate, SingleQubitGate):
         >>> Rk(5, 0).to_matrix()
         array([[1.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 0.98078528+0.19509032j]])
+
     """
 
     qiskit_gate = PhaseGate
@@ -536,6 +550,7 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
                [0, 1, 0, 0],
                [0, 0, 0, 1],
                [0, 0, 1, 0]])
+
     """
 
     qiskit_gate = CXGate
@@ -560,6 +575,7 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
                [ 0,  1,  0,  0],
                [ 0,  0,  1,  0],
                [ 0,  0,  0, -1]])
+
     """
 
     qiskit_gate = CZGate
@@ -582,11 +598,12 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CRk(4, 0, 1)
+        >>> CRk(4, 0, 1).to_matrix()
         array([[1.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 1.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 0.        +0.j        , 1.        +0.j        , 1.        +0.j        ],
                [0.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.92387953+0.38268343j]])
+
     """
 
     qiskit_gate = CPhaseGate
@@ -634,6 +651,7 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
                [0, 0, 0, 0, 0, 1, 0, 0],
                [0, 0, 0, 0, 0, 0, 0, 1],
                [0, 0, 0, 0, 0, 0, 1, 0]])
+
     """
 
     qiskit_gate = CCXGate
