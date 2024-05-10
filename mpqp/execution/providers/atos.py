@@ -106,7 +106,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
             raise NotImplementedError(f"Device {device.name} not handled for the moment for noisy simulations. ")
     else:
         # TODO: test if all other devices work for non noisy, and remove the useless ones from the list, and remove the
-        # non implemented then ?
+        #  non implemented then ?
         if device == ATOSDevice.QLM_LINALG:
             get_QLMaaSConnection()
             from qlmaas.qpus import LinAlg  # type: ignore
@@ -117,43 +117,33 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
 
 @typechecked
 def generate_state_vector_job(
-    myqlm_circuit: Circuit, device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG
-) -> tuple[JobQLM, QPUContext]:
-    """Generates a myQLM job from the myQLM circuit and selects the right myQLM
-    QPU to run on it.
+    myqlm_circuit: Circuit
+) -> JobQLM:
+    """Generates a myQLM job from the myQLM circuit.
 
     Args:
         myqlm_circuit: MyQLM circuit of the job.
-        device: ATOSDevice on which the user wants to run the job (to know if
-            the run in local of remote).
 
     Returns:
-        A myQLM Job and the right myQLM QPUHandler on which it will be submitted.
+        A myQLM Job to retrieve the statevector of the circuit.
     """
 
-    if device.is_remote():
-        qpu = get_remote_qpu(device)
-    else:
-        qpu = get_local_qpu(device)
-
-    return myqlm_circuit.to_job(job_type="SAMPLE"), qpu
+    return myqlm_circuit.to_job(job_type="SAMPLE")
 
 
 @typechecked
-def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUContext | QPUHandler]:
-    """Generates a myQLM job from the myQLM circuit and job sample info (target,
-    shots, ...), and selects the right myQLM QPU to run on it.
+def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> JobQLM:
+    """Generates a myQLM job from the myQLM circuit and job sample info (target, shots, ...).
 
     Args:
         myqlm_circuit: MyQLM circuit of the job.
         job: Original mpqp job used to generate the myQLM job.
 
     Returns:
-        A myQLM Job and the right myQLM QPUHandler on which it will be submitted.
+        A myQLM Job for sampling the circuit according to the mpqp Job parameters.
     """
 
     assert job.measure is not None
-    assert isinstance(job.device, ATOSDevice)
 
     myqlm_job = myqlm_circuit.to_job(
         job_type="SAMPLE",
@@ -161,32 +151,24 @@ def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> tuple[JobQLM, QPUCo
         nbshots=job.measure.shots,
     )
 
-    if job.device.is_remote():
-        qpu = get_remote_qpu(job.device, job)
-    else:
-        assert isinstance(job.device, ATOSDevice)
-        qpu = get_local_qpu(job.device)
-
-    return myqlm_job, qpu
+    return myqlm_job
 
 
 @typechecked
 def generate_observable_job(
     myqlm_circuit: Circuit, job: Job
-) -> tuple[JobQLM, QPUContext]:
-    """Generates a myQLM job from the myQLM circuit and observable, and selects
-    the right myQLM QPU to run on it.
+) -> JobQLM:
+    """Generates a myQLM job from the myQLM circuit and observable.
 
     Args:
         myqlm_circuit: MyQLM circuit of the job.
         job: Original mpqp job used to generate the myQLM job.
 
     Returns:
-        A myQLM Job and the right myQLM QPUHandler on which it will be submitted.
+        A myQLM Job for retrieving the expectation value of the observable.
     """
 
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-    assert isinstance(job.device, ATOSDevice)
 
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
@@ -195,13 +177,8 @@ def generate_observable_job(
         ),
         nbshots=job.measure.shots,
     )
-    if job.device.is_remote():
-        qpu = get_remote_qpu(job.device, job)
-    else:
-        assert isinstance(job.device, ATOSDevice)
-        qpu = ObservableSplitter() | get_local_qpu(job.device)
 
-    return myqlm_job, qpu
+    return myqlm_job
 
 
 @typechecked
@@ -525,15 +502,16 @@ def run_myQLM(job: Job) -> Result:
 
     myqlm_circuit = job_pre_processing(job)
 
-    #TODO modify generate_XXX_job so it only returns the job, not the QPU, and define another function to return the QPU
+    assert isinstance(job.device, ATOSDevice)
+    qpu = get_local_qpu(job.device)
 
     if job.job_type == JobType.STATE_VECTOR:
-        myqlm_job, qpu = generate_state_vector_job(myqlm_circuit)
+        myqlm_job = generate_state_vector_job(myqlm_circuit)
 
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
         if isinstance(job.measure.basis, ComputationalBasis):
-            myqlm_job, qpu = generate_sample_job(myqlm_circuit, job)
+            myqlm_job = generate_sample_job(myqlm_circuit, job)
         else:
             raise NotImplementedError(
                 "Does not handle other basis than the ComputationalBasis for the moment"
@@ -541,7 +519,7 @@ def run_myQLM(job: Job) -> Result:
 
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
-        myqlm_job, qpu = generate_observable_job(myqlm_circuit, job)
+        myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
@@ -576,14 +554,17 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
 
     myqlm_circuit = job_pre_processing(job)
 
+    assert isinstance(job.device, ATOSDevice)
+    qpu = get_remote_qpu(job.device)
+
     if job.job_type == JobType.STATE_VECTOR:
         assert isinstance(job.device, ATOSDevice)
-        myqlm_job, qpu = generate_state_vector_job(myqlm_circuit, job.device)
+        myqlm_job = generate_state_vector_job(myqlm_circuit, job.device)
 
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
         if isinstance(job.measure.basis, ComputationalBasis):
-            myqlm_job, qpu = generate_sample_job(myqlm_circuit, job)
+            myqlm_job = generate_sample_job(myqlm_circuit, job)
         else:
             raise NotImplementedError(
                 "Does not handle other basis than the ComputationalBasis for the moment"
@@ -591,7 +572,7 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
 
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
-        myqlm_job, qpu = generate_observable_job(myqlm_circuit, job)
+        myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")

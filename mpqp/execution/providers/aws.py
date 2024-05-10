@@ -149,7 +149,6 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
             "devices. Please use the LocalSimulator instead"
         )
 
-    # FIXME: noises list not updated, circuit is noisy
     is_noisy = bool(job.circuit.noises)
     device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
 

@@ -29,9 +29,7 @@ class NoiseModel(ABC):
 
     Raises:
         ValueError: When target list is empty, or target indices are duplicated
-            or negative.
-
-    :noindex:
+            or negative. TODO list all cases
     """
 
     def __init__(
@@ -89,9 +87,9 @@ class NoiseModel(ABC):
         """
         pass
 
+    # 3M-TODO: implement the possibility of having a parameterized noise
     # @abstractmethod
     # def subs(self):
-    #     #TODO: implement the possibilty of having a parameterized noise
     #     pass
 
 
@@ -150,10 +148,7 @@ class Depolarizing(NoiseModel):
         self.dimension = dimension
 
     def to_kraus_representation(self):
-        """
-        :noindex:
-        """
-        # TODO
+        """3M-TODO"""
         # generate Kraus operators for depolarizing noise
         kraus_operators = [...]  # list of Kraus operators
         return KrausRepresentation(kraus_operators)
@@ -173,9 +168,10 @@ class Depolarizing(NoiseModel):
         """
         if language == Language.BRAKET:
             return BraketDepolarizing(probability=self.proba)
+        elif language == Language.MY_QLM:
+            ...
         else:
-            # TODO: add other providers
-            raise NotImplementedError
+            raise NotImplementedError(f"Conversion of Depolarizing noise for language {language.name} is not supported")
 
 
 class BitFlip(NoiseModel):
