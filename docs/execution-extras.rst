@@ -64,7 +64,7 @@ __________
 Connection setup script 
 -----------------------
 
-.. automodule:: mpqp.execution.connection.setup_connections
+.. automodule:: mpqp_scripts.setup_connections
 
 The details on how to get these information can be found in the section 
 :ref:`Setting up a remote device`.
