@@ -218,8 +218,8 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             this_noise_all_qubits_target = False
             all_qubits_target = False
 
-        # For each gate attached to this NoiseModel, we add to each gate key the right channels
         if noise.gates:
+            # For each gate attached to this NoiseModel, we add to each gate key the right channels
             for gate in noise.gates:
                 if hasattr(gate, "qlm_aqasm_keyword"):
                     gate_keywords = gate.qlm_aqasm_keyword
@@ -228,7 +228,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
                     # For each keyword corresponding to the gate
                     for keyword in gate_keywords:
-
                         # If the target are all qubits
                         if this_noise_all_qubits_target:
                             if keyword not in gate_noise_global_lists:
@@ -262,8 +261,8 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     # Only use the lists
     if all_qubits_target:
 
-        # TODO: For each gate key, add a ParametricGateNoise and put the list from gate_noise_global_lists in list of
-        #  noise channels
+        # TODO: For each gate key, add a ParametricGateNoise and put the list from gate_noise_global_lists
+        #  in list of noise channels. For idle noises, nothing to do, it is already a list
         dict_parametric_gate_noise_list = dict()
 
 
@@ -271,10 +270,19 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=dict_parametric_gate_noise_list,
                              idle_noise=idle_global_lists)
+
     # Incorporate the lists into the dict for all qubits
     else:
 
-        #TODO: merge the lists and dicts
+        # We have lists, that concern all qubits, and we have dictionnaries that concern only some qubits
+
+        # For gates, we take the gate_noise_global_lists and we add the noises to all qubits in the dictionnary
+        # for the right gate key.
+        # Then we will have a big dictionnary, for each gate, each qubit, one or several noise channels in a list.
+        # Do we let this list like this ? Or do we put them all in a ParametricGateNoise ? TODO do some tests in the notebook
+
+        # For iddle, we take the list of idle_global_lists and we add them to the list for each qubit in the dictionnary
+        # and we only put the dictionnary
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_dicts,
