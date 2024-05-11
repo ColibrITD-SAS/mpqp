@@ -16,7 +16,7 @@ from qat.pylinalg import PyLinalg
 from qat.qlmaas.result import AsyncResult
 from qat.hardware.default import HardwareModel, DefaultGatesSpecification
 from qat.quops.quantum_channels import ParametricGateNoise
-from qat.quops import make_depolarizing_channel
+
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
@@ -204,15 +204,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     for noise in noises:
         this_noise_all_qubits_target = True
 
-        # We transform an mpqp NoiseModel into a myqlm QuantumChannel
-        if isinstance(noise, Depolarizing):
-            channel = make_depolarizing_channel(prob=noise.proba,
-                                                nqbits=noise.dimension,
-                                                method_2q='equal_probs',
-                                                depol_type='pauli')
-        else:
-            raise NotImplementedError(f"NoiseModel of type {type(noise).__name__} is not handled yet "
-                                      f"for noisy runs on the QLM")
+        channel = noise.to_other_language(Language.MY_QLM)
 
         if noise.targets != list(range(nb_qubits)):
             this_noise_all_qubits_target = False

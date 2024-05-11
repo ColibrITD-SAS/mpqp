@@ -169,7 +169,11 @@ class Depolarizing(NoiseModel):
         if language == Language.BRAKET:
             return BraketDepolarizing(probability=self.proba)
         elif language == Language.MY_QLM:
-            ...
+            from qat.quops import make_depolarizing_channel
+            return make_depolarizing_channel(prob=self.proba,
+                                                nqbits=self.dimension,
+                                                method_2q='equal_probs',
+                                                depol_type='pauli')
         else:
             raise NotImplementedError(f"Conversion of Depolarizing noise for language {language.name} is not supported")
 
