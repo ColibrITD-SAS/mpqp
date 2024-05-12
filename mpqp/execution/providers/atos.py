@@ -186,8 +186,8 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     """
 
     Args:
-        noises: List of NoiseModel of a QCircuit used to generate a QLM HardwareModel
-        nb_qubits: Number of qubits in the circuit
+        noises: List of NoiseModel of a QCircuit used to generate a QLM HardwareModel.
+        nb_qubits: Number of qubits of the circuit.
 
     Returns:
 
@@ -275,6 +275,10 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
         # For iddle, we take the list of idle_global_lists and we add them to the list for each qubit in the dictionnary
         # and we only put the dictionnary
+
+
+        for qubit in range(nb_qubits):
+            ...
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_dicts,

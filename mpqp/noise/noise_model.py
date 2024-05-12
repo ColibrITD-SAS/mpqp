@@ -169,6 +169,9 @@ class Depolarizing(NoiseModel):
         if language == Language.BRAKET:
             return BraketDepolarizing(probability=self.proba)
         elif language == Language.MY_QLM:
+            if self.dimension > 2:
+                raise NotImplementedError(f"Depolarizing channel is not implemented in the QLM for more than 2 qubits.")
+
             from qat.quops import make_depolarizing_channel
             return make_depolarizing_channel(prob=self.proba,
                                                 nqbits=self.dimension,
