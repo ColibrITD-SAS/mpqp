@@ -145,7 +145,9 @@ class Depolarizing(NoiseModel):
 
         if dimension == 2 and gates is not None:
             if any(gate.nb_qubits != 2 for gate in gates):
-                raise ValueError (f"With dimension {dimension}, specified gates should be two-qubit gates.")
+                raise ValueError(
+                    f"With dimension {dimension}, specified gates should be two-qubit gates."
+                )
 
         nb_targets = len(targets)
         if nb_targets < dimension:
@@ -177,21 +179,24 @@ class Depolarizing(NoiseModel):
         :noindex:
         """
         if language == Language.BRAKET:
-            if (
-                self.dimension == 2
-            ):  # and all(gate.nb_qubits == 2 for gate in self.gates):
+            if self.dimension == 2:
                 return TwoQubitDepolarizing(probability=self.proba)
             else:
                 return BraketDepolarizing(probability=self.proba)
-            return BraketDepolarizing(probability=self.proba)
+
         elif language == Language.MY_QLM:
             from qat.quops import make_depolarizing_channel
-            return make_depolarizing_channel(prob=self.proba,
-                                                nqbits=self.dimension,
-                                                method_2q='equal_probs',
-                                                depol_type='pauli')
+
+            return make_depolarizing_channel(
+                prob=self.proba,
+                nqbits=self.dimension,
+                method_2q="equal_probs",
+                depol_type="pauli",
+            )
         else:
-            raise NotImplementedError(f"Conversion of Depolarizing noise for language {language.name} is not supported")
+            raise NotImplementedError(
+                f"Conversion of Depolarizing noise for language {language.name} is not supported"
+            )
 
 
 class BitFlip(NoiseModel):
