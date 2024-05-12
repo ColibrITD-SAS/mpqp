@@ -623,7 +623,25 @@ class QCircuit:
         """Provides a copy of this circuit with all the noise models removed.
 
         Examples:
-            TODO: add an example with noise model
+            >>> circuit =  QCircuit(2)
+            >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure([0, 1], shots=100)])
+            >>> print(circuit)
+                      ┌─┐
+            q_0: ──■──┤M├───
+                 ┌─┴─┐└╥┘┌─┐
+            q_1: ┤ X ├─╫─┤M├
+                 └───┘ ║ └╥┘
+            c: 2/══════╩══╩═
+                       0  1
+            NoiseModel: Depolarizing(0.4, [0, 1], 1)
+            >>> print(circuit.without_noises())
+                      ┌─┐
+            q_0: ──■──┤M├───
+                 ┌─┴─┐└╥┘┌─┐
+            q_1: ┤ X ├─╫─┤M├
+                 └───┘ ║ └╥┘
+            c: 2/══════╩══╩═
+                       0  1
 
         Returns:
             A copy of this circuit with all the noise models removed.
