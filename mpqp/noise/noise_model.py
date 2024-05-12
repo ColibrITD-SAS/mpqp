@@ -5,8 +5,9 @@ from typing import Optional, Union
 
 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from braket.circuits.noises import Noise as BraketNoise
-from qiskit_aer.noise import NoiseModel as QiskitNoise
+from braket.circuits.noises import TwoQubitDepolarizing
 from qat.quops.class_concepts import QuantumChannel as QLMNoise
+from qiskit_aer.noise import NoiseModel as QiskitNoise
 from sympy import Expr
 
 from mpqp.core.instruction.gates import Gate
@@ -145,6 +146,15 @@ class Depolarizing(NoiseModel):
                 f"Dimension of the depolarizing channel must be strictly greater than 1, but got {dimension} instead."
             )
 
+        if dimension > 2:
+            raise NotImplementedError(
+                f"Depolarizing noise with dimension {dimension} is not supported."
+            )
+
+        if dimension == 2 and gates is not None:
+            if any(gate.nb_qubits != 2 for gate in gates):
+                raise ValueError (f"With dimension {dimension}, specified gates should be two-qubit gates.")
+
         nb_targets = len(targets)
         if nb_targets < dimension:
             raise ValueError(
@@ -173,12 +183,17 @@ class Depolarizing(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QiskitNoise | QLMNoise:
+    ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing:
         """
         :noindex:
         """
         if language == Language.BRAKET:
-            return BraketDepolarizing(probability=self.proba)
+            if (
+                self.dimension == 2
+            ):  # and all(gate.nb_qubits == 2 for gate in self.gates):
+                return TwoQubitDepolarizing(probability=self.proba)
+            else:
+                return BraketDepolarizing(probability=self.proba)
         else:
             # TODO: add other providers
             raise NotImplementedError
