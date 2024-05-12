@@ -30,9 +30,7 @@ class NoiseModel(ABC):
 
     Raises:
         ValueError: When target list is empty, or target indices are duplicated
-            or negative.
-
-    :noindex:
+            or negative. TODO list all cases
     """
 
     def __init__(
@@ -51,7 +49,6 @@ class NoiseModel(ABC):
             for gate in gates:
                 nb_qubits = gate.nb_qubits
                 if isinstance(nb_qubits, property):
-                    # TODO: set class attribute for all native gates
                     raise ValueError(
                         "If you want to pass a custom gate class to specify"
                         " the noise target, please add `nb_qubits` to this "
@@ -76,12 +73,7 @@ class NoiseModel(ABC):
 
     @abstractmethod
     def to_kraus_representation(self) -> KrausRepresentation:
-        """
-        TODO: doc
-        Returns:
-        :noindex:
-
-        """
+        """3M-TODO: to be implemented"""
         pass
 
     @abstractmethod
@@ -96,9 +88,9 @@ class NoiseModel(ABC):
         """
         pass
 
+    # 3M-TODO: implement the possibility of having a parameterized noise
     # @abstractmethod
     # def subs(self):
-    #     #TODO: implement the possibilty of having a parameterized noise
     #     pass
 
 
@@ -166,10 +158,7 @@ class Depolarizing(NoiseModel):
         self.dimension = dimension
 
     def to_kraus_representation(self):
-        """
-        :noindex:
-        """
-        # TODO
+        """3M-TODO"""
         # generate Kraus operators for depolarizing noise
         kraus_operators = [...]  # list of Kraus operators
         return KrausRepresentation(kraus_operators)
@@ -194,9 +183,15 @@ class Depolarizing(NoiseModel):
                 return TwoQubitDepolarizing(probability=self.proba)
             else:
                 return BraketDepolarizing(probability=self.proba)
+            return BraketDepolarizing(probability=self.proba)
+        elif language == Language.MY_QLM:
+            from qat.quops import make_depolarizing_channel
+            return make_depolarizing_channel(prob=self.proba,
+                                                nqbits=self.dimension,
+                                                method_2q='equal_probs',
+                                                depol_type='pauli')
         else:
-            # TODO: add other providers
-            raise NotImplementedError
+            raise NotImplementedError(f"Conversion of Depolarizing noise for language {language.name} is not supported")
 
 
 class BitFlip(NoiseModel):

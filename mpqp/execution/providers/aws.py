@@ -140,6 +140,9 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 
     Returns:
         The task's id and the Task itself.
+
+    Raises:
+        ValueError TODO give more details
     """
 
     # check some compatibility issues
@@ -149,7 +152,6 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
             "devices. Please use the LocalSimulator instead"
         )
 
-    # FIXME: noises list not updated, circuit is noisy
     is_noisy = bool(job.circuit.noises)
     device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
 
@@ -276,6 +278,8 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     Args:
         task_arn: Arn of the remote aws task.
 
+    Raises:
+        AWSBraketRemoteExecutionError: TODO fill
     """
     task: QuantumTask = AwsQuantumTask(task_arn)
     # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
