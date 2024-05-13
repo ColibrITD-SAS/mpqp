@@ -15,7 +15,6 @@ pi = np.pi
 s = np.sqrt
 e = np.exp
 
-# TODO: Add Cirq simulators to the list, when available
 state_vector_devices = [
     IBMDevice.AER_SIMULATOR_STATEVECTOR,
     GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
