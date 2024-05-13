@@ -61,6 +61,8 @@ from .measures import Y as Yop
 from .measures import Z as Zop
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
+# TODO: add here the noise objects import
+
 theta, k = symbols("θ k")  # type: ignore
 obs = Observable(np.array([[0, 1], [1, 0]]))
 circ = QCircuit([P(theta, 0), ExpectationMeasure([0], observable=obs, shots=1000)])
