@@ -20,39 +20,6 @@ Devices
 
 .. automodule:: mpqp.execution.devices
 
-.. _Remote setup:
-
-Setting up a remote device
---------------------------
-
-Installing MPQP gives you access to a script facilitating the setting up of
-remote QPU connections. The three supported providers can be setup from this
-script, called ``setup_connections``. Each of these providers have their own set
-of data needed to setup the connection, summed up here:
-
-- IBM quantum (qiskit): for this provider, you only need your account ``API
-  token``, which you can find in your `account page <https://quantum.ibm.com/account>`_;
-- Atos/Eviden (Qaptiva/QLM): for this provider, several connection methods
-  exist. For now we only support the username/password method. You should have
-  received you username and password by email;
-- AWS (braket): for this provider, you will need more information: all of them can
-  be found in your 
-  `AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
-  In the console go to the ``IAM service``, in the ``Users`` tab, click on your
-  username, in the ``Security credential`` tab, you'll find an ``Access keys`` 
-  section. In this section, you can create a new access key for MPQP, you should
-  save it because you will not be able to get back your secret latter on.
-  This will give you your key and your secret, but for the configuration you also
-  need a region (for example ``us-east-1``).
-  In short, one would need:
-
-  + ``AWS Access Key ID``,
-  + ``AWS Secret Access Key`` and
-  + ``Default region name``.
-
-.. TODO: this is a duplicate from a section in the getting-started page, merge 
-.. the two to keep only what's better.
-
 Run a circuit
 -------------
 
