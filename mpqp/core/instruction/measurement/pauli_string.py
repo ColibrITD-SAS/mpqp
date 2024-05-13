@@ -29,6 +29,11 @@ class PauliString:
     Example:
         >>> I @ Z + 2 * Y @ I + X @ Z
         1*I@Z + 2*Y@I + 1*X@Z
+
+    Note:
+        Pauli atoms are named I, X, Y, and Z. If you have conflicts with ``mpqp.gates import X, Y, Z``, you can:
+         - **Rename Import:** ``from mpqp.core.instruction.measurement.pauli_string import X as Pauli_X``, usage: ``Pauli_X``
+         - **Import Only Pauli String:** ``from mpqp.core.instruction.measurement import pauli_string``, usage: ``pauli_string.X``
     """
 
     def __init__(self, monomials: Optional[list["PauliStringMonomial"]] = None):
@@ -178,7 +183,7 @@ class PauliString:
         return res
 
     def round(self, round_off_till: int = 4) -> PauliString:
-        """Round the coefficients of the PauliString to a specified number of
+        """Rounds the coefficients of the PauliString to a specified number of
         decimal places.
 
         Args:
@@ -190,7 +195,7 @@ class PauliString:
             of decimal places.
 
         Example:
-            >>> ps = 0.6875*I@I + 0.415*I@X + 0.1275*I@Z + 1.0*X@I + 1.0*X@X + 0.0375*Z@I + 0.085*Z@X + -0.2225*Z@Z
+            >>> ps = 0.6875*I @ I + 0.415*I @ X + 0.1275*I @ Z + 1.0*X @ I + 1.0*X @ X + 0.0375*Z @ I + 0.085*Z @ X + -0.2225*Z @ Z
             >>> rounded_ps = ps.round(1)
             >>> print(rounded_ps)
             -0.2*Z@Z + 1*X@X + 0.1*I@Z + 1*X@I + 0.1*Z@X + 0.7*I@I + 0.4*I@X
@@ -261,7 +266,7 @@ class PauliString:
 
         pauli_list = PauliString()
         for i, mat in enumerate(basis):
-            coeff = np.trace(mat.to_matrix().dot(matrix)) / (2**num_qubits)
+            coeff = (np.trace(mat.to_matrix().dot(matrix)) / (2**num_qubits)).real
             if not np.isclose(coeff, 0, atol=atol, rtol=rtol):
                 mono = basis[i] * coeff
                 pauli_list += mono
@@ -335,7 +340,7 @@ class PauliStringMonomial(PauliString):
             reduce(
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
-                np.eye(1, dtype=np.complex64),
+                np.eye(1, dtype=np.complex64).tolist(),
             )
             * self.coef
         )  # pyright: ignore[reportReturnType]
@@ -470,8 +475,8 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other, [self]  # pyright: ignore[reportArgumentType]
-        )
+            1 / other, [self] # pyright: ignore[reportArgumentType]
+        )  
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
         return self * other

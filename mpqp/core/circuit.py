@@ -618,7 +618,9 @@ class QCircuit:
 
         return new_circuit
 
-    def to_other_language(self, language: Language = Language.QISKIT) -> Union[
+    def to_other_language(
+        self, language: Language = Language.QISKIT,  cirq_proc_id: Optional[str] = None
+    ) -> Union[
         QuantumCircuit,
         myQLM_Circuit,
         braket_Circuit,
@@ -637,6 +639,7 @@ class QCircuit:
 
         Args:
             language: Enum representing the target language.
+            cirq_proc_id : Identifier of the processor for cirq.
 
         Returns:
             The corresponding circuit in the target language.
@@ -733,6 +736,31 @@ class QCircuit:
             return qasm3_to_braket_Circuit(circuit.to_qasm3())
         elif language == Language.CIRQ:
             cirq_circuit = qasm2_to_cirq_Circuit(self.to_qasm2())
+            if cirq_proc_id:
+                from cirq.transformers.optimize_for_target_gateset import (
+                    optimize_for_target_gateset,
+                )
+                from cirq_google.engine.virtual_engine_factory import (
+                    create_device_from_processor_id,
+                )
+                from cirq.transformers.routing.route_circuit_cqc import RouteCQC
+                from cirq.transformers.target_gatesets.sqrt_iswap_gateset import (
+                    SqrtIswapTargetGateset,
+                )
+
+                device = create_device_from_processor_id(cirq_proc_id)
+                if device.metadata is None:
+                    raise ValueError(
+                        f"Device {device} does not have metadata for processor {cirq_proc_id}"
+                    )
+
+                router = RouteCQC(device.metadata.nx_graph)
+                rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
+                cirq_circuit = optimize_for_target_gateset(
+                    rcirc, gateset=SqrtIswapTargetGateset()
+                )
+
+                device.validate_circuit(cirq_circuit)
             return cirq_circuit
 
         else:

@@ -49,8 +49,6 @@ __________
 AWS
 ^^^
 
-.. automodule:: mpqp.execution.providers.aws
-
 Connection
 __________
 
@@ -58,6 +56,21 @@ __________
 
 Execution
 __________
+
+.. automodule:: mpqp.execution.providers.aws
+
+Google
+^^^^^^
+
+Connection
+__________
+
+.. automodule:: mpqp.execution.connection.google_connection
+
+Execution
+__________
+
+.. automodule:: mpqp.execution.providers.google
 
 .. _con-setup:
 
@@ -73,3 +86,4 @@ On disk configuration manager
 -----------------------------
 
 .. automodule:: mpqp.execution.connection.env_manager
+
