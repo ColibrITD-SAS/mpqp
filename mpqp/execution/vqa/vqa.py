@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Collection, TypeVar, Union
-from typing import Callable, Optional
-from scipy.optimize import minimize as scipy_minimize, OptimizeResult
-from sympy import Expr
+from typing import Any, Callable, Collection, Optional, TypeVar, Union
+
 import numpy as np
 import numpy.typing as npt
+from scipy.optimize import OptimizeResult
+from scipy.optimize import minimize as scipy_minimize
+from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit

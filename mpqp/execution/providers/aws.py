@@ -69,8 +69,8 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
-            "State vector cannot be computed using AWS Braket remote simulators and "
-            "devices. Please use the LocalSimulator instead"
+            "State vector cannot be computed using AWS Braket remote simulators"
+            " and devices. Please use the LocalSimulator instead"
         )
 
     # instantiate the device
@@ -115,7 +115,8 @@ def extract_result(
     job: Optional[Job] = None,
     device: AWSDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ) -> Result:
-    """Constructs a Result from the result given by the run with Braket.
+    """
+    Constructs a Result from the result given by the run with Braket.
 
     Args:
         braket_result: Result returned by myQLM/QLM after running of the job.

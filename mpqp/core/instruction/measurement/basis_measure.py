@@ -2,15 +2,18 @@
 given :class:`Basis` and returns the corresponding eigenvalue."""
 
 from __future__ import annotations
-from typing import Optional
 
-import qiskit.circuit
-from qiskit.circuit import Parameter
+from typing import TYPE_CHECKING, Optional
+
 from typeguard import typechecked
 
-from .measure import Measure
-from .basis import Basis, ComputationalBasis
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
+
 from mpqp.core.languages import Language
+
+from .basis import Basis, ComputationalBasis
+from .measure import Measure
 
 
 @typechecked
@@ -68,13 +71,15 @@ class BasisMeasure(Measure):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
         if language == Language.QISKIT:
+            from qiskit.circuit import Measure
+
             if isinstance(self.basis, ComputationalBasis):
-                return qiskit.circuit.Measure()
+                return Measure()
             else:
                 raise NotImplementedError(f"{type(self.basis)} not handled")
         else:

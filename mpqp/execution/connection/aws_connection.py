@@ -1,12 +1,11 @@
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from botocore.exceptions import NoRegionError
-from braket.aws import AwsDevice, AwsSession
-from braket.devices import LocalSimulator
-from braket.devices.device import Device as BraketDevice
 from termcolor import colored
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from braket.devices.device import Device as BraketDevice
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
@@ -27,6 +26,7 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         success, cancelled, or error, ...) and an empty list. The list is
         included for consistency with the existing code structure.
     """
+    from braket.aws import AwsSession
 
     already_configured = get_env_variable("BRAKET_CONFIGURED") == "True"
 
@@ -70,6 +70,7 @@ def get_aws_braket_account_info() -> str:
         raise AWSBraketRemoteExecutionError(
             "Error when trying to get AWS credentials. No AWS Braket account configured."
         )
+    from braket.aws import AwsSession
 
     try:
         session = AwsSession()
@@ -93,7 +94,7 @@ def get_aws_braket_account_info() -> str:
 
 
 @typechecked
-def get_braket_device(device: AWSDevice) -> BraketDevice:
+def get_braket_device(device: AWSDevice) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Args:
@@ -112,10 +113,13 @@ def get_braket_device(device: AWSDevice) -> BraketDevice:
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
 
     """
-
     if not device.is_remote():
+        from braket.devices import LocalSimulator
+
         return LocalSimulator()
     import boto3
+    from botocore.exceptions import NoRegionError
+    from braket.aws import AwsDevice, AwsSession
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
@@ -148,6 +152,8 @@ def get_all_task_ids() -> list[str]:
          'arn:aws:braket:us-east-1:752542621531:quantum-task/af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
 
     """
+    from braket.aws import AwsSession
+
     return [
         task["quantumTaskArn"]
         for task in (

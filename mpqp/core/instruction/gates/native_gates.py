@@ -7,30 +7,13 @@ from __future__ import annotations
 
 from abc import ABC
 from numbers import Integral
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
 
 import numpy as np
 import numpy.typing as npt
-from qiskit.circuit import Parameter
-from qiskit.circuit.library import (
-    CCXGate,
-    CPhaseGate,
-    CXGate,
-    CZGate,
-    HGate,
-    IGate,
-    PhaseGate,
-    RXGate,
-    RYGate,
-    RZGate,
-    SGate,
-    SwapGate,
-    TGate,
-    UGate,
-    XGate,
-    YGate,
-    ZGate,
-)
 from sympy import Expr, pi
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
@@ -48,8 +31,8 @@ from mpqp.tools.maths import cos, exp, sin
 
 @typechecked
 def _qiskit_parameter_adder(
-    param: Expr | float, qiskit_parameters: set[Parameter]
-) -> Parameter | float | int:
+    param: Expr | float, qiskit_parameters: set["Parameter"]
+) -> "Parameter | float | int":
     """To avoid having several parameters in qiskit for the same value we keep
     track of them in a set. This function takes care of this, this way you can
     directly call `QiskitGate(_qiskit_parameter_adder(<param>, <q_params_set>))`
@@ -79,6 +62,8 @@ def _qiskit_parameter_adder(
         elif len(previously_set_param) == 1:
             qiskit_param = previously_set_param[0]
         else:
+            from qiskit.circuit import Parameter
+
             qiskit_param = Parameter(name)
             qiskit_parameters.add(qiskit_param)
     else:
@@ -114,6 +99,9 @@ class RotationGate(NativeGate, ParametrizedGate, ABC):
         target: Index referring to the qubits on which the gate will be applied.
     """
 
+    if TYPE_CHECKING:
+        from qiskit.circuit.library import CPhaseGate, PhaseGate, RXGate, RYGate, RZGate
+
     qiskit_gate: type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]
 
     def __init__(self, theta: Expr | float, target: int):
@@ -135,7 +123,7 @@ class RotationGate(NativeGate, ParametrizedGate, ABC):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
@@ -155,6 +143,21 @@ class NoParameterGate(NativeGate, ABC):
             be applied.
         label: Label used to identify the gate.
     """
+
+    if TYPE_CHECKING:
+        from qiskit.circuit.library import (
+            CCXGate,
+            CXGate,
+            CZGate,
+            HGate,
+            IGate,
+            SGate,
+            SwapGate,
+            TGate,
+            XGate,
+            YGate,
+            ZGate,
+        )
 
     qiskit_gate: type[
         XGate
@@ -176,7 +179,7 @@ class NoParameterGate(NativeGate, ABC):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QISKIT:
             return self.qiskit_gate()
@@ -212,8 +215,13 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    qiskit_gate = IGate
-    matrix = np.eye(2, dtype=np.complex64)
+    def __init__(self, target: int):
+        from qiskit.circuit.library import IGate
+
+        super().__init__(target)
+
+        self.qiskit_gate = IGate
+        self.matrix = np.eye(2, dtype=np.complex64)
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
@@ -229,8 +237,13 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    qiskit_gate = XGate
-    matrix = np.array([[0, 1], [1, 0]])
+    def __init__(self, target: int):
+        from qiskit.circuit.library import XGate
+
+        super().__init__(target)
+
+        self.qiskit_gate = XGate
+        self.matrix = np.array([[0, 1], [1, 0]])
 
 
 class Y(OneQubitNoParamGate, InvolutionGate):
@@ -246,7 +259,13 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    qiskit_gate = YGate
+    def __init__(self, target: int):
+        from qiskit.circuit.library import YGate
+
+        super().__init__(target)
+
+        self.qiskit_gate = YGate
+
     matrix = np.array([[0, -1j], [1j, 0]])
 
 
@@ -263,7 +282,13 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    qiskit_gate = ZGate
+    def __init__(self, target: int):
+        from qiskit.circuit.library import ZGate
+
+        super().__init__(target)
+
+        self.qiskit_gate = ZGate
+
     matrix = np.array([[1, 0], [0, -1]])
 
 
@@ -280,7 +305,13 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    qiskit_gate = HGate
+    def __init__(self, target: int):
+        from qiskit.circuit.library import HGate
+
+        super().__init__(target)
+
+        self.qiskit_gate = HGate
+
     matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
 
@@ -298,7 +329,12 @@ class P(RotationGate, SingleQubitGate):
 
     """
 
-    qiskit_gate = PhaseGate
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import PhaseGate
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = PhaseGate
 
     def to_matrix(self) -> Matrix:
         return np.array([[1, 0], [0, exp(self.parameters[0] * 1j)]])  # type:ignore
@@ -318,7 +354,13 @@ class S(OneQubitNoParamGate):
 
     """
 
-    qiskit_gate = SGate
+    def __init__(self, target: int):
+        from qiskit.circuit.library import SGate
+
+        super().__init__(target)
+
+        self.qiskit_gate = SGate
+
     matrix = np.array([[1, 0], [0, 1j]])
 
 
@@ -336,7 +378,13 @@ class T(OneQubitNoParamGate):
 
     """
 
-    qiskit_gate = TGate
+    def __init__(self, target: int):
+        from qiskit.circuit.library import TGate
+
+        super().__init__(target)
+
+        self.qiskit_gate = TGate
+
     matrix = np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
 
 
@@ -356,10 +404,12 @@ class SWAP(InvolutionGate, NoParameterGate):
 
     """
 
-    qiskit_gate = SwapGate
-    matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
-
     def __init__(self, a: int, b: int):
+        from qiskit.circuit.library import SwapGate
+
+        self.qiskit_gate = SwapGate
+
+        self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
         super().__init__([a, b], "SWAP")
 
 
@@ -408,11 +458,13 @@ class U(NativeGate, ParametrizedGate):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
         if language == Language.QISKIT:
+            from qiskit.circuit.library import UGate
+
             return UGate(
                 theta=_qiskit_parameter_adder(self.theta, qiskit_parameters),
                 phi=_qiskit_parameter_adder(self.phi, qiskit_parameters),
@@ -445,7 +497,12 @@ class Rx(RotationGate, SingleQubitGate):
 
     """
 
-    qiskit_gate = RXGate
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import RXGate
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = RXGate
 
     def to_matrix(self) -> Matrix:
         c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
@@ -466,7 +523,12 @@ class Ry(RotationGate, SingleQubitGate):
 
     """
 
-    qiskit_gate = RYGate
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import RYGate
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = RYGate
 
     def to_matrix(self) -> Matrix:
         c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
@@ -487,7 +549,12 @@ class Rz(RotationGate, SingleQubitGate):
 
     """
 
-    qiskit_gate = RZGate
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import RZGate
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = RZGate
 
     def to_matrix(self) -> Matrix:
         e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
@@ -510,9 +577,10 @@ class Rk(RotationGate, SingleQubitGate):
 
     """
 
-    qiskit_gate = PhaseGate
-
     def __init__(self, k: Expr | int, target: int):
+        from qiskit.circuit.library import PhaseGate
+
+        self.qiskit_gate = PhaseGate
         self.parameters = [k]
         definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk")
@@ -553,9 +621,10 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
 
     """
 
-    qiskit_gate = CXGate
-
     def __init__(self, control: int, target: int):
+        from qiskit.circuit.library import CXGate
+
+        self.qiskit_gate = CXGate
         ControlledGate.__init__(self, [control], [target], X(target), "CNOT")
 
     def to_matrix(self) -> Matrix:
@@ -578,9 +647,10 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
 
     """
 
-    qiskit_gate = CZGate
-
     def __init__(self, control: int, target: int):
+        from qiskit.circuit.library import CZGate
+
+        self.qiskit_gate = CZGate
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
 
     def to_matrix(self) -> Matrix:
@@ -606,9 +676,10 @@ class CRk(RotationGate, ControlledGate):
 
     """
 
-    qiskit_gate = CPhaseGate
-
     def __init__(self, k: Expr | int, control: int, target: int):
+        from qiskit.circuit.library import CPhaseGate
+
+        self.qiskit_gate = CPhaseGate
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
         definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
@@ -654,9 +725,10 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
 
     """
 
-    qiskit_gate = CCXGate
-
     def __init__(self, control: list[int], target: int):
+        from qiskit.circuit.library import CCXGate
+
+        self.qiskit_gate = CCXGate
         if len(control) != 2:
             raise ValueError("A Toffoli gate must have exactly 2 control qubits.")
         ControlledGate.__init__(self, control, [target], X(target), "TOF")

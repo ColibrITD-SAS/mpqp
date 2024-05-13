@@ -1,15 +1,15 @@
 from __future__ import annotations
 
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
+from numbers import Complex
 from warnings import warn
 
 import numpy as np
 from sympy import Expr
 from typeguard import typechecked
-from numbers import Complex
 
-from mpqp.tools.maths import is_unitary, matrix_eq
 from mpqp.tools.generics import Matrix, one_lined_repr
+from mpqp.tools.maths import is_unitary, matrix_eq
 
 
 @typechecked
@@ -30,13 +30,12 @@ class GateDefinition(ABC):
 
     """
 
-    """ TODO: put this back once we implement the other definitions
-    This class permit to define a gate in 4 potential ways:
-        1. the unitary matrix defining the gate
-        2. a combination of several other gates
-        3. a combination of Kraus operators
-        4. the decomposition of the gate in the Pauli basis (only possible for LU gates)
-    """
+    # TODO: put this back once we implement the other definitions
+    # This class permit to define a gate in 4 potential ways:
+    #     1. the unitary matrix defining the gate
+    #     2. a combination of several other gates
+    #     3. a combination of Kraus operators
+    #     4. the decomposition of the gate in the Pauli basis (only possible for LU gates)
 
     @abstractmethod
     def to_matrix(self) -> Matrix:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
@@ -77,9 +77,8 @@ def compute_expectation_value(
             "type ExpectationMeasure"
         )
     nb_shots = job.measure.shots
-    qiskit_observable: Operator = job.measure.observable.to_other_language(
-        Language.QISKIT
-    )  # pyright: ignore[reportAssignmentType]
+    qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
+    assert isinstance(qiskit_observable, Operator)
 
     if nb_shots != 0:
         assert ibm_backend is not None
@@ -164,7 +163,8 @@ def run_aer(job: Job):
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
     )
-    assert isinstance(qiskit_circuit, QuantumCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
     check_job_compatibility(job)
@@ -244,7 +244,8 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     check_job_compatibility(job)
 
     qiskit_circuit = job.circuit.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_circuit, QuantumCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
     qiskit_circuit = qiskit_circuit.reverse_bits()
 
     service = get_QiskitRuntimeService()
@@ -253,9 +254,8 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     if job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
-        qiskit_observable: Operator = job.measure.observable.to_other_language(
-            Language.QISKIT
-        )  # pyright: ignore[reportAssignmentType]
+        qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
+        assert isinstance(qiskit_observable, Operator)
 
         ibm_job = estimator.run(
             qiskit_circuit, qiskit_observable, shots=job.measure.shots

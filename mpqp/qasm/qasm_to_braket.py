@@ -3,17 +3,20 @@
 import io
 import warnings
 from logging import StreamHandler, getLogger
+from typing import TYPE_CHECKING
 
-from braket.circuits import Circuit
-from braket.ir.openqasm import Program
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from braket.ir.openqasm import Program
+    from braket.circuits import Circuit
 
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
 @typechecked
-def qasm3_to_braket_Program(qasm3_str: str) -> Program:
+def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
     """Converting a OpenQASM 3.0 code into a Braket Program.
 
     Args:
@@ -22,6 +25,7 @@ def qasm3_to_braket_Program(qasm3_str: str) -> Program:
     Returns:
         A Program equivalent to the QASM code in parameter.
     """
+    from braket.ir.openqasm import Program
 
     # PROBLEM: import and standard gates are not supported by Braket
     # NOTE: however custom OpenQASM 3 gates declaration is supported by Braket,
@@ -34,7 +38,7 @@ def qasm3_to_braket_Program(qasm3_str: str) -> Program:
 
 
 @typechecked
-def qasm3_to_braket_Circuit(qasm3_str: str) -> Circuit:
+def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     """Converting a OpenQASM 3.0 code into a Braket Circuit.
 
     Args:
@@ -51,6 +55,7 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> Circuit:
     # for circuit, only for program
     # SOLUTION: import a specific qasm file with U and gphase redefined with the supported Braket SDK gates, and by
     # removing from this import file the already handled gates
+    from braket.circuits import Circuit
 
     qasm3_str = qasm3_str.replace("stdgates.inc", "braket_custom_include.inc")
 

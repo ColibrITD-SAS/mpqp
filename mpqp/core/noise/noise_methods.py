@@ -1,21 +1,8 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import numpy as np
-import numpy.typing as npt
 
-# MYQLM
-# from qat.lang.AQASM import Program, H, PH, CNOT, SWAP, RX
-from qat.quops.quantum_channels import QuantumChannelKraus
-
-# Import from Qiskit Aer noise module
-from qiskit_aer.noise import depolarizing_error
-
-from mpqp.core.instruction.gates import KrausRepresentation, PauliDecomposition
 from mpqp.core.languages import Language
-
-# QISKIT
 
 
 class GateNoise:
@@ -139,8 +126,12 @@ class NoiseModules:
         # 3M-TODO : finish and comment
 
         if language == Language.QISKIT:
+            from qiskit_aer.noise import depolarizing_error
+
             error = depolarizing_error(param, num_qubits)
         elif language == Language.MY_QLM:
+            from qat.quops.quantum_channels import QuantumChannelKraus
+
             X = np.array([[0, 1], [1, 0]])
             Y = np.array([[0, -1j], [1j, 0]], dtype=complex)
             Z = np.array([[1, 0], [0, -1]])
@@ -165,7 +156,7 @@ class NoiseModules:
         Args:
             error1: ?
             error2:?
-            noise_combi_type: bool
+            is_composed_noise: bool
             etc?
 
 
@@ -175,11 +166,11 @@ class NoiseModules:
         """
 
         # here use mpqp tensor product function?
-        # if noise_combi_type == noise_composition:
+        # if is_composed_noise == noise_composition:
         #     error = error1.compose(error2)
-        # elif noise_combi_type == noise_tensor_product:
+        # elif is_composed_noise == noise_tensor_product:
         #     error = error1.tensor(error2)
-        # elif noise_combi_type == noise_expand_product:
+        # elif is_composed_noise == noise_expand_product:
         #     error = error1.expand(error2)
 
         pass
@@ -187,8 +178,7 @@ class NoiseModules:
     def krauss_error(
         self, language: Language = Language.QISKIT
     ):  # can be also in MYQLM
-        """
-        a general n-qubit CPTP error channel given as a list of Kraus matrices
+        """A general n-qubit CPTP error channel given as a list of Kraus matrices
 
         Args: mpqp_noise_operators (list[matrix]): Kraus matrices.
             ?

@@ -1,18 +1,38 @@
+"""MPQP is focused on gate based quantum computing. As such, the main element of
+a script using MPQP is the quantum circuit, or :class:`QCircuit`. The
+:class:`QCircuit` contains the data of all gates, measures, and noise models you
+want to apply to your qubits. 
+
+The qubits are only referred by their indices, so one could keep track of
+specific registers using python features, for instance
+
+.. code-block:: python
+
+    >>> circ = QCircuit(6)
+    >>> targets = range(3)
+    >>> ancillas = range(3,6)
+    >>> for i in range(3):
+    ...     circ.add(CNOT(targets[i], ancillas[i]))
+    
+could be use to add CNOT gates to your circuit, using the two registers
+``targets`` and ``ancillas``.
+"""
+
 from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
+
+if TYPE_CHECKING:
+    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from braket.circuits import Circuit as braket_Circuit
+    from qiskit.circuit import QuantumCircuit
 
 import numpy as np
 import numpy.typing as npt
-from braket.circuits import Circuit as braket_Circuit
-from cirq.circuits.circuit import Circuit as cirq_Circuit
 from matplotlib.figure import Figure
-from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-from qiskit.circuit import Operation, QuantumCircuit
-from qiskit.circuit.quantumcircuit import CircuitInstruction
-from qiskit.quantum_info import Operator
 from sympy import Basic, Expr
 from typeguard import TypeCheckError, typechecked
 
@@ -41,13 +61,12 @@ class QCircuit:
     list of instructions applied on specific quantum and/or classical bits.
 
     Args:
-        data: Number of qubits or List of instructions to initiate the circuit with. If the number of qubits is passed,
-            it should be a positive int.
-        nb_qubits: Optional number of qubits, in case you input the sequence of instruction and want to hardcode the
-            number of qubits.
+        data: Number of qubits or List of instructions to initiate the circuit
+            with. If the number of qubits is passed, it should be a positive int.
+        nb_qubits: Optional number of qubits, in case you input the sequence of
+            instruction and want to hardcode the number of qubits.
         nb_cbits: Number of classical bits. It should be positive. Defaults to None.
         label: Name of the circuit. Defaults to None.
-
 
     Example:
         >>> circuit = QCircuit(2)
@@ -225,9 +244,17 @@ class QCircuit:
     def tensor(self, other: QCircuit) -> QCircuit:
         """Computes the tensor product of this circuit with the one in parameter.
 
-        In the circuit notation, the upper part of the output circuit will correspond
-        to the first circuit, while the bottom part correspond to the one in
-        parameter.
+        In the circuit notation, the upper part of the output circuit will
+        correspond to the first circuit, while the bottom part correspond to the
+        one in parameter.
+
+        Args:
+            other: QCircuit being the second operand of the tensor product with
+                this circuit.
+
+        Returns:
+            The QCircuit resulting from the tensor product of this circuit with
+            the one in parameter.
 
         Args:
             other: QCircuit being the second operand of the tensor product with this circuit.
@@ -264,6 +291,11 @@ class QCircuit:
 
         For now, this uses the qiskit circuit drawer, so all formats supported
         by qiskit are supported.
+            
+        Args:
+            output: Format of the output, see
+                `docs.quantum.ibm.com/build/circuit-visualization <https://docs.quantum.ibm.com/build/circuit-visualization#alternative-renderers>`_
+                for more information.
 
         Args:
             output: Format of the output, see
@@ -404,13 +436,11 @@ class QCircuit:
         """Optimize the circuit to satisfy some criteria (depth, number of
         qubits, gate restriction) in parameter.
 
-
         Args:
             criteria: String, or list of strings, regrouping the criteria of optimization of the circuit.
 
         Returns:
             the optimized QCircuit
-
 
         Examples:
             >>>
@@ -452,7 +482,6 @@ class QCircuit:
 
         Returns:
             The inverse circuit.
-
 
         Examples:
             >>> c1 = QCircuit([H(0), CNOT(0,1)])
@@ -601,7 +630,6 @@ class QCircuit:
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
-
         """
         new_circuit = QCircuit(self.nb_qubits)
         new_circuit.instructions = [
@@ -610,7 +638,9 @@ class QCircuit:
 
         return new_circuit
 
-    def to_other_language(self, language: Language = Language.QISKIT) -> Union[
+    def to_other_language(
+        self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
+    ) -> Union[
         QuantumCircuit,
         myQLM_Circuit,
         braket_Circuit,
@@ -629,6 +659,7 @@ class QCircuit:
 
         Args:
             language: Enum representing the target language.
+            cirq_proc_id : Identifier of the processor for cirq.
 
         Returns:
             The corresponding circuit in the target language.
@@ -642,6 +673,10 @@ class QCircuit:
         """
 
         if language == Language.QISKIT:
+            from qiskit.circuit import Operation, QuantumCircuit
+            from qiskit.circuit.quantumcircuit import CircuitInstruction
+            from qiskit.quantum_info import Operator
+
             # to avoid defining twice the same parameter, we keep trace of the
             # added parameters, and we use those instead of new ones when they
             # are used more than once
@@ -658,15 +693,16 @@ class QCircuit:
                 qiskit_inst = instruction.to_other_language(
                     Language.QISKIT, qiskit_parameters
                 )
-                assert (
-                    isinstance(qiskit_inst, CircuitInstruction)
-                    or isinstance(qiskit_inst, Operation)
-                    or isinstance(qiskit_inst, Operator)
-                )
+                if TYPE_CHECKING:
+                    assert (
+                        isinstance(qiskit_inst, CircuitInstruction)
+                        or isinstance(qiskit_inst, Operation)
+                        or isinstance(qiskit_inst, Operator)
+                    )
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(
+                    new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
                         instruction.to_other_language(),
                         instruction.targets,
                         instruction.label,
@@ -690,8 +726,9 @@ class QCircuit:
                     qargs = range(instruction.size)
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
-                assert not isinstance(qiskit_inst, Operator)
 
+                if TYPE_CHECKING:
+                    assert not isinstance(qiskit_inst, Operator)
                 new_circ.append(
                     qiskit_inst,
                     qargs,
@@ -720,6 +757,31 @@ class QCircuit:
             return qasm3_to_braket_Circuit(circuit.to_qasm3())
         elif language == Language.CIRQ:
             cirq_circuit = qasm2_to_cirq_Circuit(self.to_qasm2())
+            if cirq_proc_id:
+                from cirq.transformers.optimize_for_target_gateset import (
+                    optimize_for_target_gateset,
+                )
+                from cirq_google.engine.virtual_engine_factory import (
+                    create_device_from_processor_id,
+                )
+                from cirq.transformers.routing.route_circuit_cqc import RouteCQC
+                from cirq.transformers.target_gatesets.sqrt_iswap_gateset import (
+                    SqrtIswapTargetGateset,
+                )
+
+                device = create_device_from_processor_id(cirq_proc_id)
+                if device.metadata is None:
+                    raise ValueError(
+                        f"Device {device} does not have metadata for processor {cirq_proc_id}"
+                    )
+
+                router = RouteCQC(device.metadata.nx_graph)
+                rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
+                cirq_circuit = optimize_for_target_gateset(
+                    rcirc, gateset=SqrtIswapTargetGateset()
+                )
+
+                device.validate_circuit(cirq_circuit)
             return cirq_circuit
 
         else:
@@ -751,7 +813,8 @@ class QCircuit:
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
         )
-        assert isinstance(qiskit_circ, QuantumCircuit)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circ, QuantumCircuit)
         qasm = qiskit_circ.qasm()
         assert qasm is not None
         return qasm
@@ -857,7 +920,15 @@ class QCircuit:
         )
 
     def __str__(self) -> str:
-        return str(self.to_other_language(Language.QISKIT))
+        qiskit_circ = self.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            from qiskit import QuantumCircuit
+
+            assert isinstance(qiskit_circ, QuantumCircuit)
+        output = str(qiskit_circ.draw(output="text", fold=0))
+        if TYPE_CHECKING:
+            assert isinstance(output, str)
+        return output
 
     def __repr__(self) -> str:
         return f"QCircuit({self.instructions})"

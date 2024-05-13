@@ -1,21 +1,23 @@
 #! /usr/bin/env python3
-"""This script helps you configuring the connections for all the supported 
-remote backends. In time, it will also guide you to retrieve the tokens,
-passwords, etc... but for now, it is a prerequisite that you already have these
-credentials to use this script.
+"""The ``setup_connections`` script helps you configuring the connections for
+all the supported remote backends. In time, it will also guide you to retrieve
+the tokens, passwords, etc... but for now, it is a prerequisite that you already
+have these credentials to use this script.
 
-Information concerning which provider is configured and related
-credentials are stored in the ``~/.mpqp`` file."""
+Information concerning which provider is configured and related credentials are
+stored in the ``~/.mpqp`` file."""
 
-import mpqp.execution.connection.aws_connection as awsc
-import mpqp.execution.connection.env_manager as env_m
-import mpqp.execution.connection.ibm_connection as ibmqc
-import mpqp.execution.connection.qlm_connection as qlmc
-from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
-from mpqp.tools.errors import IBMRemoteExecutionError
+import os
+
+os.environ["FOR_DISABLE_CONSOLE_CTRL_HANDLER"] = "1"
 
 
 def print_config_info():
+    import mpqp.execution.connection.aws_connection as awsc
+    import mpqp.execution.connection.env_manager as env_m
+    import mpqp.execution.connection.ibm_connection as ibmqc
+    from mpqp.tools.errors import IBMRemoteExecutionError
+
     """Prints the info concerning each provider's registered account."""
     print("===== IBM Quantum info : ===== ")
     try:
@@ -45,6 +47,10 @@ def print_config_info():
 def main_setup():
     """Function called by the script bellow to setup all connections or to get
     information about the existing ones."""
+    import mpqp.execution.connection.aws_connection as awsc
+    import mpqp.execution.connection.ibm_connection as ibmqc
+    import mpqp.execution.connection.qlm_connection as qlmc
+    from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
@@ -63,4 +69,7 @@ def main_setup():
 
 
 if __name__ == "__main__":
-    main_setup()
+    try:
+        main_setup()
+    except KeyboardInterrupt:
+        exit()

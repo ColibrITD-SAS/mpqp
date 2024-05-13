@@ -2,7 +2,8 @@
 providers."""
 
 import os
-from dotenv import set_key, load_dotenv
+
+from dotenv import load_dotenv, set_key
 from typeguard import typechecked
 
 MPQP_CONFIG_PATH = os.path.expanduser("~") + "/.mpqp"
@@ -15,7 +16,7 @@ def _create_config_if_needed():
 
 
 def get_existing_config_str() -> str:
-    """Gets the content of the ``.mpqp`` config file
+    """Gets the content of the ``.mpqp`` config file.
 
     Returns:
         The string with .mpqp file content.

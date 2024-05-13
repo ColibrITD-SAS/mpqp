@@ -5,12 +5,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
-from typing import Any, Optional
 from numbers import Complex
+from typing import TYPE_CHECKING, Any, Optional
 
 from sympy import Expr
-from qiskit.circuit import Parameter
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import flatten

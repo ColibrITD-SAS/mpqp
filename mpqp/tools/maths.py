@@ -26,7 +26,7 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
     """Normalizes an array representing the amplitudes of the state.
 
     Args:
-        v: vector to be normalized
+        v: The vector to be normalized.
 
     Returns:
         The normalized vector.
@@ -45,7 +45,7 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
 
 
 @typechecked
-def matrix_eq(lhs: Matrix, rhs: Matrix) -> bool:
+def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) -> bool:
     r"""Checks whether two matrix (including vectors) are element-wise equal, within a tolerance.
 
     For respectively each elements `a` and `b` of both inputs, we check this
@@ -73,7 +73,7 @@ def is_hermitian(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is hermitian.
 
     Args:
-        matrix: matrix for which we want to know if it is hermitian
+        matrix: matrix for which we want to know if it is hermitian.
 
     Returns:
         ``True`` if the matrix in parameter is Hermitian.
@@ -107,6 +107,12 @@ def is_hermitian(matrix: Matrix) -> bool:
 def is_unitary(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is unitary.
 
+    Args:
+        matrix: Matrix for which we want to know if it is unitary.
+
+    Returns:
+        ``True`` if the matrix in parameter is Unitary.
+
     Example:
         >>> a = np.array([[1,1],[1,-1]])
         >>> is_unitary(a)
@@ -114,11 +120,6 @@ def is_unitary(matrix: Matrix) -> bool:
         >>> is_unitary(a/np.sqrt(2))
         True
 
-    Args:
-        matrix: Matrix for which we want to know if it is unitary.
-
-    Returns:
-        ``True`` if the matrix in parameter is Unitary.
     """
     return matrix_eq(
         np.eye(len(matrix), dtype=np.complex64),

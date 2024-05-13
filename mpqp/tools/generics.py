@@ -84,14 +84,15 @@ def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
     Returns:
         The first element in the iterable that satisfies the oracle.
 
+    Raises:
+        ValueError: If no element in the iterable satisfies the given oracle.
+
     Example:
         >>> numbers = [1, 2, 3, 4, 5]
         >>> is_even = lambda x: x % 2 == 0
         >>> find(numbers, is_even)
         2
 
-    Raises:
-        ValueError: If no element in the iterable satisfies the given oracle.
     """
     for item in iterable:
         if oracle(item):

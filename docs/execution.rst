@@ -10,28 +10,19 @@ on any hardware without you having to rewrite your circuit in the providers'
 ``sdk``. We introduce here how execution works in ``mpqp``, both in local
 simulator and in remote QPUs.
 
+Languages
+---------
+
+.. automodule:: mpqp.core.languages
+
 Devices
 -------
 
-The abstract class
-:class:`AvailableDevice<mpqp.execution.devices.AvailableDevice>` represents any
-device on which one can run or submit a circuit. Extending the ``Enum`` class,
-it regroups methods common to all providers' devices.
+.. automodule:: mpqp.execution.devices
 
-.. autoclass:: mpqp.execution.devices.AvailableDevice
+.. _Remote setup:
 
-Then, for each supported quantum computer/simulator provider, we create a
-specific subclass enumerating all available devices. When devices are retrieved
-using a given name (a string), we use it to set the value associated with each key
-of the :class:`AvailableDevice<mpqp.execution.devices.AvailableDevice>`.
-Specific device's info and manipulation are handled by additional methods
-(sometimes static).
-
-.. autoclass:: mpqp.execution.devices.IBMDevice
-
-.. autoclass:: mpqp.execution.devices.ATOSDevice
-
-.. autoclass:: mpqp.execution.devices.AWSDevice
+.. autoclass:: mpqp.execution.devices.GOOGLEDevice
 
 Setting up a remote device
 --------------------------

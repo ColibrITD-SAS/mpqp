@@ -1,11 +1,11 @@
 import os
-from pathlib import Path
 import re
-from os.path import splitext
 from enum import Enum
-
-from warnings import warn
+from os.path import splitext
+from pathlib import Path
 from textwrap import dedent
+from warnings import warn
+
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
 
