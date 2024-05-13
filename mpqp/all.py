@@ -57,7 +57,7 @@ from .measures import (
 )
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
-# TODO: add here the noise objects import
+from .noise import Depolarizing
 
 theta, k = symbols("θ k")  # type: ignore
 obs = Observable(np.array([[0, 1], [1, 0]]))
