@@ -129,9 +129,9 @@ class Sample:
                     self.index = index
                     self.bin_str = bin_str
                 else:
-                    raise ValueError(
+                    raise ResultAttributeError(
                         f"The value of bin_str {bin_str} doesn't match with the"
-                        f" index provided {index}"
+                        f" index provided {index} and the number of qubits {self.nb_qubits}"
                     )
 
     def __str__(self):

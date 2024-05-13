@@ -30,7 +30,7 @@ from mpqp.execution.devices import ATOSDevice
 from mpqp.noise.noise_model import NoiseModel, Depolarizing
 from ...core.instruction.gates.native_gates import NoParameterGate, RotationGate, U
 
-from ...tools.errors import QLMRemoteExecutionError
+from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError
 from ..connection.qlm_connection import get_QLMaaSConnection
 from ..job import Job, JobStatus, JobType
 from ..result import Result, Sample, StateVector
@@ -53,11 +53,13 @@ def job_pre_processing(job: Job) -> Circuit:
         and job.measure is not None
         and not isinstance(job.measure, BasisMeasure)
     ):
-        raise ValueError("`STATE_VECTOR` jobs require basis measure to be run")
+        raise ValueError("`STATE_VECTOR` jobs require `BasisMeasure` to be run.")
     if job.job_type == JobType.OBSERVABLE and not isinstance(
         job.measure, ExpectationMeasure
     ):
-        raise ValueError("`OBSERVABLE` jobs require `ExpectationMeasure` to be run")
+        raise ValueError("`OBSERVABLE` jobs require `ExpectationMeasure` to be run.")
+    if job.job_type == JobType.STATE_VECTOR and job.device.is_noisy_simulator():
+        raise DeviceJobIncompatibleError("Noisy simulators cannot be used for `STATE_VECTOR` jobs.")
 
     myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
 
@@ -89,9 +91,8 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
         raise ValueError(f"Excepted a remote device, but got a local myQLM simulator {device}")
     if job is not None and job.circuit.noises:
         if not device.is_noisy_simulator():
-            raise ValueError(f"Excepted a noisy remote simulator but got {device}")
+            raise DeviceJobIncompatibleError(f"Excepted a noisy remote simulator but got {device}")
 
-        #TODO finish to deal with noisy devices
         if device == ATOSDevice.QLM_NOISYQPROC:
             get_QLMaaSConnection()
             from qlmaas.qpus import NoisyQProc  # type: ignore
@@ -101,17 +102,28 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
             get_QLMaaSConnection()
             from qlmaas.qpus import MPO  # type: ignore
             hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
-            return MPO(hw_model, n_samples=job.measure.shots)
+            return MPO(hw_model)
         else:
-            raise NotImplementedError(f"Device {device.name} not handled for the moment for noisy simulations. ")
+            raise DeviceJobIncompatibleError(f"Device {device.name} not handled for noisy simulations. ")
     else:
-        # TODO: test if all other devices work for non noisy, otherwise we can remove the check for LINALG specifically
         if device == ATOSDevice.QLM_LINALG:
             get_QLMaaSConnection()
             from qlmaas.qpus import LinAlg  # type: ignore
             return LinAlg()
+        elif device == ATOSDevice.QLM_MPS:
+            get_QLMaaSConnection()
+            from qlmaas.qpus import MPS  # type: ignore
+            return MPS()
+        elif device == ATOSDevice.QLM_NOISYQPROC:
+            get_QLMaaSConnection()
+            from qlmaas.qpus import NoisyQProc  # type: ignore
+            return NoisyQProc(n_samples=0 if job.measure is None else job.measure.shots)
+        elif device == ATOSDevice.QLM_MPO:
+            get_QLMaaSConnection()
+            from qlmaas.qpus import MPO  # type: ignore
+            return MPO()
         else:
-            raise NotImplementedError(f"Device {device.name} not handled for the moment.")
+            raise DeviceJobIncompatibleError(f"Device {device.name} not handled for noiseless simulations.")
 
 
 @typechecked
@@ -610,11 +622,11 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
     myqlm_circuit = job_pre_processing(job)
 
     assert isinstance(job.device, ATOSDevice)
-    qpu = get_remote_qpu(job.device)
+    qpu = get_remote_qpu(job.device, job)
 
     if job.job_type == JobType.STATE_VECTOR:
         assert isinstance(job.device, ATOSDevice)
-        myqlm_job = generate_state_vector_job(myqlm_circuit, job.device)
+        myqlm_job = generate_state_vector_job(myqlm_circuit)
 
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
