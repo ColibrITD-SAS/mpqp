@@ -22,6 +22,8 @@ Devices
 
 .. _Remote setup:
 
+.. autoclass:: mpqp.execution.devices.GOOGLEDevice
+
 Setting up a remote device
 --------------------------
 

@@ -4,9 +4,8 @@ import numpy as np
 from mpqp.gates import H, Rx
 from mpqp import QCircuit
 from mpqp.execution import run
-from mpqp.measures import ExpectationMeasure, Observable
-from mpqp.execution.devices import ATOSDevice, IBMDevice, AWSDevice
-from mpqp.core.instruction.measurement.pauli_string import I, Z
+from mpqp.measures import ExpectationMeasure, Observable, I, Z
+from mpqp.execution.devices import ATOSDevice, IBMDevice, AWSDevice, GOOGLEDevice
 
 obs = Observable(
     np.array(
@@ -41,6 +40,7 @@ results = run(
     circuit,
     [
         ATOSDevice.MYQLM_PYLINALG,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         IBMDevice.AER_SIMULATOR,
         ATOSDevice.MYQLM_CLINALG,
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
@@ -66,6 +66,7 @@ results = run(
         ATOSDevice.MYQLM_CLINALG,
         IBMDevice.AER_SIMULATOR,
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
     ],
 )
 print(results)

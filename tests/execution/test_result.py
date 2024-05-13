@@ -70,8 +70,8 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                 StateVector(np.ones(4, dtype=np.complex64) / 2),
             ),
             """Result: IBMDevice, AER_SIMULATOR_STATEVECTOR
- State vector: [0.5+0.j 0.5+0.j 0.5+0.j 0.5+0.j]
- Probabilities: [0.25 0.25 0.25 0.25]
+ State vector: [0.5, 0.5, 0.5, 0.5]
+ Probabilities: [0.25, 0.25, 0.25, 0.25]
  Number of qubits: 2
 """,
         ),
@@ -93,7 +93,7 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
             ),
             """Result: IBMDevice, AER_SIMULATOR
  Counts: [135, 226, 8, 231]
- Probabilities: [0.225      0.37666667 0.01333333 0.385     ]
+ Probabilities: [0.225, 0.3766667, 0.0133333, 0.385]
  Samples:
   State: 00, Index: 0, Count: 135, Probability: 0.225
   State: 01, Index: 1, Count: 226, Probability: 0.37666666666666665

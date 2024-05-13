@@ -219,3 +219,36 @@ class AWSDevice(AvailableDevice):
             if elem.value in arn:
                 return elem
         raise ValueError(f"No device found for ARN `{arn}`.")
+
+
+class GOOGLEDevice(AvailableDevice):
+    """Enum regrouping all available devices provided by CIRQ."""
+
+    CIRQ_LOCAL_SIMULATOR = "LocalSimulator"
+    PROCESSOR_RAINBOW = "rainbow"
+    PROCESSOR_WEBER = "weber"
+    IONQ_SIMULATOR = "simulator"
+    IONQ_QPU = "qpu"
+
+    def is_remote(self):
+        if self.name.startswith("IONQ"):
+            return True
+        return False
+
+    def is_ionq(self):
+        return self.name.startswith("IONQ")
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return "SIMULATOR" in self.name
+
+    def is_processor(self) -> bool:
+        """
+        Check if the device is a processor.
+
+        Returns:
+            True if the device is a processor, False otherwise.
+        """
+        return self.name.startswith("PROCESSOR")
