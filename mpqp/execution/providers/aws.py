@@ -58,7 +58,7 @@ def apply_noise_to_braket_circuit(
             other_instructions.append(instr)
 
     noisy_circuit = Circuit(other_instructions)
-    print("Before adding noise,", noisy_circuit)
+
     for noise in noises:
         if noise.targets == list(range(nb_qubits)):
             if noise.gates:
@@ -88,15 +88,6 @@ def apply_noise_to_braket_circuit(
                     noise.to_other_language(Language.BRAKET),
                     target_qubits=noise.targets,
                 )
-    print("Before adding measurements, ", noisy_circuit)
-    # for instr in stored_measurements:
-    #     noisy_circuit.add_instruction(instr)
-
-    # print("After adding measurements, ", noisy_circuit)
-    # TODO: remove prints after checking that we don't need measurement anymore
-    #  maybe if it is not noisy we need to put back the measurements
-
-    # TODO : looks like the dimension of the depolarizing noise is not taken into account TwoQubitDepolarizing needed
 
     return noisy_circuit
 
@@ -107,15 +98,15 @@ def run_braket(job: Job) -> Result:
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
-
     Args:
         job: Job to be executed.
 
     Returns:
         The result of the job.
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.run(...)`` instead.
     """
     _, task = submit_job_braket(job)
     assert isinstance(job.device, AWSDevice)
@@ -131,10 +122,6 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     """Submits the job to the right local/remote device and returns the
     generated task.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.submit(...)`` instead.
-
     Args:
         job: Job to be executed.
 
@@ -143,6 +130,10 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 
     Raises:
         ValueError TODO give more details
+
+    Note:
+        This function is not meant to be used directly, please use
+        ``runner.submit(...)`` instead.
     """
 
     # check some compatibility issues
