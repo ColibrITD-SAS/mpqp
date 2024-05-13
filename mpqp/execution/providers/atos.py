@@ -61,6 +61,10 @@ def job_pre_processing(job: Job) -> Circuit:
     if job.job_type == JobType.STATE_VECTOR and job.device.is_noisy_simulator():
         raise DeviceJobIncompatibleError("Noisy simulators cannot be used for `STATE_VECTOR` jobs.")
 
+    # TODO to check, cauz it sounds weird. Test also with shots=0 and shots>0.
+    if job.job_type == JobType.OBSERVABLE and job.device == ATOSDevice.QLM_NOISYQPROC:
+        raise DeviceJobIncompatibleError("NoisyQProc does not support properly `OBSERVABLE` jobs.")
+
     myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
 
     return myqlm_circuit
@@ -568,6 +572,8 @@ def run_myQLM(job: Job) -> Result:
 
     assert isinstance(job.device, ATOSDevice)
     qpu = get_local_qpu(job.device)
+    if job.job_type == JobType.OBSERVABLE:
+        qpu = ObservableSplitter() | qpu
 
     if job.job_type == JobType.STATE_VECTOR:
         myqlm_job = generate_state_vector_job(myqlm_circuit)
@@ -613,7 +619,7 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
         The job_id and the AsyncResult of the submitted job.
 
     Raises:
-        ValueError: TODO fill
+        ValueError
     """
 
     myqlm_job = None
@@ -665,7 +671,7 @@ def run_QLM(job: Job) -> Result:
         A Result after submission and execution of the job.
 
     Raises:
-        ValueError: TODO fill
+        ValueError: If the device is not a remote QLM device of the enum ATOSDevice.
     """
 
     if not isinstance(job.device, ATOSDevice) or not job.device.is_remote():
@@ -690,7 +696,7 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
         job_id: Id of the remote QLM job.
 
     Raises:
-        QLMRemoteExecutionError: TODO fill
+        QLMRemoteExecutionError: When job not found, or the job is in a non-coherent status (cancelled, deleted, ...)
 
     """
     connection = get_QLMaaSConnection()

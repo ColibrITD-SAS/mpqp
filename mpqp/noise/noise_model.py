@@ -179,9 +179,6 @@ class Depolarizing(NoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing:
-        """
-        :noindex:
-        """
         if language == Language.BRAKET:
             if self.dimension == 2:
                 return TwoQubitDepolarizing(probability=self.proba)
