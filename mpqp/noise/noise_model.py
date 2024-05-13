@@ -34,7 +34,7 @@ class NoiseModel(ABC):
     """
 
     def __init__(
-        self, targets: list[int], gates: Optional[list[Gate | type[Gate]]] = None
+        self, targets: list[int], gates: Optional[list[type[Gate]]] = None
     ):
         if len(targets) == 0:
             raise ValueError("Expected non-empty target list")
@@ -82,8 +82,12 @@ class NoiseModel(ABC):
     ) -> BraketNoise | QiskitNoise | QLMNoise:
         """
         TODO: doc
+
+        Args:
+            language:
+
         Returns:
-        :noindex
+
 
         """
         pass
@@ -102,22 +106,22 @@ class Depolarizing(NoiseModel):
     When the number of qubits in the target is higher than the dimension, the noise will be applied to all possible
     combinations of indices of size ``dimension``.
 
-    Examples:
-        >>> circuit.add(Depolarizing(0.32, list(range(circuit.nb_qubits)))
-        >>> circuit.add(Depolarizing(0.05, [0, 1], dimension=2)
-        >>> circuit.add(Depolarizing(0.05, [0, 1, 2], dimension=2)
-        >>> circuit.add(Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
-
     Args:
         prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
         gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
 
-    :noindex:
-
     Raises:
         ValueError: when a wrong dimension (negative) or probability (outside of the expected interval) is input.
+        TODO list all cases
+
+    Examples:
+        >>> circuit.add(Depolarizing(0.32, list(range(circuit.nb_qubits)))
+        >>> circuit.add(Depolarizing(0.05, [0, 1], dimension=2)
+        >>> circuit.add(Depolarizing(0.05, [0, 1, 2], dimension=2)
+        >>> circuit.add(Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+
     """
 
     def __init__(
@@ -125,7 +129,7 @@ class Depolarizing(NoiseModel):
         prob: Union[float, Expr],
         targets: list[int],
         dimension: int = 1,
-        gates: Optional[list[Gate | type[Gate]]] = None,
+        gates: Optional[list[type[Gate]]] = None,
     ):
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]

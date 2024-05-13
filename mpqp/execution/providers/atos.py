@@ -28,6 +28,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
 )
 from mpqp.execution.devices import ATOSDevice
 from mpqp.noise.noise_model import NoiseModel, Depolarizing
+from ...core.instruction.gates.native_gates import NoParameterGate, RotationGate, U
 
 from ...tools.errors import QLMRemoteExecutionError
 from ..connection.qlm_connection import get_QLMaaSConnection
@@ -83,7 +84,6 @@ def get_local_qpu(device: ATOSDevice) -> QPUHandler:
 
 @typechecked
 def get_remote_qpu(device: ATOSDevice, job: Job = None):
-    #TODO implement, comment and integrate in the code
 
     if not device.is_remote():
         raise ValueError(f"Excepted a remote device, but got a local myQLM simulator {device}")
@@ -105,8 +105,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
         else:
             raise NotImplementedError(f"Device {device.name} not handled for the moment for noisy simulations. ")
     else:
-        # TODO: test if all other devices work for non noisy, and remove the useless ones from the list, and remove the
-        #  non implemented then ?
+        # TODO: test if all other devices work for non noisy, otherwise we can remove the check for LINALG specifically
         if device == ATOSDevice.QLM_LINALG:
             get_QLMaaSConnection()
             from qlmaas.qpus import LinAlg  # type: ignore
@@ -195,10 +194,11 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     #TODO: comment and implement
     all_qubits_target = True
 
-    gate_noise_global_lists = dict() # {"H": [QuantumChannel, ...]}
-    gate_noise_dicts = dict() # {"H": {0: ..., 1: ...}}
+    gate_noise_global = dict() # {"H": QuantumChannel, ...}
+    gate_noise_dicts = dict() # {"H": {0: QuantumChannel, 1: QuantumChannel}}
     idle_global_lists = [] # [ Quantum Channel, ...]
     idle_dicts = dict() # {0: ..., 1: ...}
+    nb_param_keyword = {'PH': 1, 'CNOT': 0}
 
     # For each noise model
     for noise in noises:
@@ -215,16 +215,31 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             for gate in noise.gates:
                 if hasattr(gate, "qlm_aqasm_keyword"):
                     gate_keywords = gate.qlm_aqasm_keyword
+                    was_list = True
                     if not isinstance(gate_keywords, list):
                         gate_keywords = [gate_keywords]
+                        was_list = False
 
                     # For each keyword corresponding to the gate
                     for keyword in gate_keywords:
+                        # Determine the number of parameters of the gate
+                        if not was_list:
+                            if issubclass(gate, NoParameterGate):
+                                nb_param_keyword[keyword] = 0
+                            elif issubclass(gate, RotationGate):
+                                nb_param_keyword[keyword] = 1
+                            elif gate == U:
+                                nb_param_keyword[keyword] = 3
+                            else:
+                                raise ValueError(f"Unknown native gate {gate}. Must be either a NoParameterGate, a "
+                                                 f"RotationGate or the U gate.")
+
                         # If the target are all qubits
                         if this_noise_all_qubits_target:
-                            if keyword not in gate_noise_global_lists:
-                                gate_noise_global_lists[keyword] = []
-                            gate_noise_global_lists[keyword].append(channel)
+                            if keyword not in gate_noise_global:
+                                gate_noise_global[keyword] = channel
+                            else:
+                                gate_noise_global[keyword] *= channel
 
                         else:
                             if keyword not in gate_noise_dicts:
@@ -232,8 +247,9 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
                             for target in noise.targets:
                                 if target not in gate_noise_dicts[keyword]:
-                                    gate_noise_dicts[keyword][target] = []
-                                gate_noise_dicts[keyword][target].append(channel)
+                                    gate_noise_dicts[keyword][target] = channel
+                                else:
+                                    gate_noise_dicts[keyword][target] *= channel
 
         # Otherwise, we add an iddle noise
         else:
@@ -245,22 +261,27 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                         idle_dicts[target] = []
                     idle_dicts[target].append(channel)
 
-    print(gate_noise_global_lists)
+    print(gate_noise_global)
     print(gate_noise_dicts)
     print(idle_global_lists)
     print(idle_dicts)
+    print(nb_param_keyword)
 
     # Only use the lists
     if all_qubits_target:
 
-        # TODO: For each gate key, add a ParametricGateNoise and put the list from gate_noise_global_lists
-        #  in list of noise channels. For idle noises, nothing to do, it is already a list
-        dict_parametric_gate_noise_list = dict()
+        dict_gate_noise_lambdas = dict()
 
-
+        for key in gate_noise_global.keys():
+            # We create a lambda function with as much anonymous parameters as the number of parameters of the gate
+            # related with the keyword, and return the right QuantumChannel
+            dict_gate_noise_lambdas[key] = eval(
+                "lambda " + ", ".join(["_"+str(i) for i in range(nb_param_keyword[key])]) +
+                ": gate_noise_global[key]"
+            )
 
         return HardwareModel(DefaultGatesSpecification(),
-                             gate_noise=dict_parametric_gate_noise_list,
+                             gate_noise=dict_gate_noise_lambdas,
                              idle_noise=idle_global_lists)
 
     # Incorporate the lists into the dict for all qubits
@@ -268,7 +289,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
         # We have lists, that concern all qubits, and we have dictionnaries that concern only some qubits
 
-        # For gates, we take the gate_noise_global_lists and we add the noises to all qubits in the dictionnary
+        # For gates, we take the gate_noise_global and we add the noises to all qubits in the dictionnary
         # for the right gate key.
         # Then we will have a big dictionnary, for each gate, each qubit, one or several noise channels in a list.
         # Do we let this list like this ? Or do we put them all in a ParametricGateNoise ? TODO do some tests in the notebook
