@@ -15,7 +15,6 @@ from qat.plugins.observable_splitter import ObservableSplitter
 from qat.pylinalg import PyLinalg
 from qat.qlmaas.result import AsyncResult
 from qat.hardware.default import HardwareModel, DefaultGatesSpecification
-from qat.quops.quantum_channels import ParametricGateNoise
 
 from typeguard import typechecked
 
@@ -27,7 +26,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
-from mpqp.noise.noise_model import NoiseModel, Depolarizing
+from mpqp.noise.noise_model import NoiseModel
 from ...core.instruction.gates.native_gates import NoParameterGate, RotationGate, U
 
 from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError
@@ -61,9 +60,8 @@ def job_pre_processing(job: Job) -> Circuit:
     if job.job_type == JobType.STATE_VECTOR and job.device.is_noisy_simulator():
         raise DeviceJobIncompatibleError("Noisy simulators cannot be used for `STATE_VECTOR` jobs.")
 
-    # TODO to check, cauz it sounds weird. Test also with shots=0 and shots>0.
-    if job.job_type == JobType.OBSERVABLE and job.device == ATOSDevice.QLM_NOISYQPROC:
-        raise DeviceJobIncompatibleError("NoisyQProc does not support properly `OBSERVABLE` jobs.")
+    if job.job_type == JobType.OBSERVABLE and job.device == ATOSDevice.QLM_NOISYQPROC and job.measure.shots == 0:
+        raise DeviceJobIncompatibleError("NoisyQProc does not support properly ideal `OBSERVABLE` jobs.")
 
     myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
 
@@ -101,7 +99,11 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
             get_QLMaaSConnection()
             from qlmaas.qpus import NoisyQProc  # type: ignore
             hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
-            return NoisyQProc(hw_model, n_samples=job.measure.shots)
+            qpu = NoisyQProc(hw_model, sim_method="stochastic", n_samples=job.measure.shots)
+            if job.job_type == JobType.OBSERVABLE:
+                from qlmaas.plugins import ObservableSplitter # type: ignore
+                qpu = ObservableSplitter() | qpu
+            return qpu
         elif device == ATOSDevice.QLM_MPO:
             get_QLMaaSConnection()
             from qlmaas.qpus import MPO  # type: ignore
@@ -121,7 +123,13 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
         elif device == ATOSDevice.QLM_NOISYQPROC:
             get_QLMaaSConnection()
             from qlmaas.qpus import NoisyQProc  # type: ignore
-            return NoisyQProc(n_samples=0 if job.measure is None else job.measure.shots)
+            # TODO check if we put 0 or None, or if this is relevant
+            qpu = NoisyQProc(sim_method="stochastic", n_samples=job.measure.shots if job.measure is not None else 0)
+            if job.job_type == JobType.OBSERVABLE:
+                from qlmaas.plugins import ObservableSplitter  # type: ignore
+                qpu = ObservableSplitter() | qpu
+            return qpu
+            return
         elif device == ATOSDevice.QLM_MPO:
             get_QLMaaSConnection()
             from qlmaas.qpus import MPO  # type: ignore
