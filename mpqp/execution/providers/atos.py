@@ -196,7 +196,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
     gate_noise_global = dict() # {"H": QuantumChannel, ...}
     gate_noise_dicts = dict() # {"H": {0: QuantumChannel, 1: QuantumChannel}}
-    idle_global_lists = [] # [ Quantum Channel, ...]
+    idle_global_list = [] # [ Quantum Channel, ...]
     idle_dicts = dict() # {0: ..., 1: ...}
     nb_param_keyword = {'PH': 1, 'CNOT': 0}
 
@@ -254,7 +254,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         # Otherwise, we add an iddle noise
         else:
             if this_noise_all_qubits_target:
-                idle_global_lists.append(channel)
+                idle_global_list.append(channel)
             else:
                 for target in noise.targets:
                     if target not in idle_dicts:
@@ -263,7 +263,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
     print(gate_noise_global)
     print(gate_noise_dicts)
-    print(idle_global_lists)
+    print(idle_global_list)
     print(idle_dicts)
     print(nb_param_keyword)
 
@@ -272,37 +272,64 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
         dict_gate_noise_lambdas = dict()
 
-        for key in gate_noise_global.keys():
+        for keyword in gate_noise_global.keys():
             # We create a lambda function with as much anonymous parameters as the number of parameters of the gate
             # related with the keyword, and return the right QuantumChannel
-            dict_gate_noise_lambdas[key] = eval(
-                "lambda " + ", ".join(["_"+str(i) for i in range(nb_param_keyword[key])]) +
-                ": gate_noise_global[key]"
+            dict_gate_noise_lambdas[keyword] = eval(
+                "lambda " + ", ".join(["_"+str(i) for i in range(nb_param_keyword[keyword])]) +
+                ": gate_noise_global[keyword]"
             )
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=dict_gate_noise_lambdas,
-                             idle_noise=idle_global_lists)
+                             idle_noise=idle_global_list)
 
     # Incorporate the lists into the dict for all qubits
     else:
 
         # We have lists, that concern all qubits, and we have dictionnaries that concern only some qubits
+        # For gates, we take the gate_noise_global and for each keyword in it,
+            # If the keyword already exists in the other dict, for each qubit
+                # If the qubit is already existing --> we compose the channels
+                # Otherwise we add the channel to the corresponding qubit
+            # If it doesnt exist, we only add the quantum channel to the key, so for all qubits
 
-        # For gates, we take the gate_noise_global and we add the noises to all qubits in the dictionnary
-        # for the right gate key.
-        # Then we will have a big dictionnary, for each gate, each qubit, one or several noise channels in a list.
-        # Do we let this list like this ? Or do we put them all in a ParametricGateNoise ? TODO do some tests in the notebook
+        for keyword in gate_noise_global.keys():
+            if keyword in gate_noise_dicts:
+                for qubit in range(nb_qubits):
+                    if qubit in gate_noise_dicts[keyword]:
+                        gate_noise_dicts[keyword][qubit] *= gate_noise_global[keyword]
+                    else:
+                        gate_noise_dicts[keyword][qubit] = gate_noise_global[keyword]
+            else:
+                gate_noise_dicts[keyword] = gate_noise_global[keyword]
+
+        # Then we generate the lambda functions
+        dict_gate_noise_lambdas = dict()
+        for keyword in gate_noise_dicts.keys():
+            if isinstance(gate_noise_dicts[keyword], dict):
+                dict_gate_noise_lambdas[keyword] = dict()
+                for qubit in gate_noise_dicts[keyword].keys():
+                    dict_gate_noise_lambdas[keyword][qubit] = eval(
+                        "(lambda " + ", ".join(["_" + str(i) for i in range(nb_param_keyword[keyword])]) +
+                        ": gate_noise_dicts[keyword][qubit])"
+                    )
+            else:
+                dict_gate_noise_lambdas[keyword] = eval(
+                    "lambda " + ", ".join(["_" + str(i) for i in range(nb_param_keyword[keyword])]) +
+                    ": gate_noise_dicts[keyword]"
+                )
 
         # For iddle, we take the list of idle_global_lists and we add them to the list for each qubit in the dictionnary
         # and we only put the dictionnary
-
-
         for qubit in range(nb_qubits):
-            ...
+            if qubit in idle_dicts:
+                idle_dicts[qubit].extend(idle_global_list)
+            else:
+                idle_dicts[qubit] = idle_global_list
 
         return HardwareModel(DefaultGatesSpecification(),
-                             gate_noise=gate_noise_dicts,
+                             gate_noise=dict_gate_noise_lambdas,
                              idle_noise=idle_dicts)
 
 
