@@ -142,13 +142,8 @@ class Depolarizing(NoiseModel):
                 f"Dimension of the depolarizing channel must be strictly greater than 1, but got {dimension} instead."
             )
 
-        if dimension > 2:
-            raise NotImplementedError(
-                f"Depolarizing noise with dimension {dimension} is not supported."
-            )
-
-        if dimension == 2 and gates is not None:
-            if any(gate.nb_qubits != 2 for gate in gates):
+        if gates is not None:
+            if any(gate.nb_qubits != dimension for gate in gates):
                 raise ValueError(
                     f"With dimension {dimension}, specified gates should be two-qubit gates."
                 )
@@ -180,7 +175,9 @@ class Depolarizing(NoiseModel):
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing:
         if language == Language.BRAKET:
-            if self.dimension == 2:
+            if self.dimension > 2:
+                raise NotImplementedError(f"Depolarizing channel is not implemented in Braket for more than 2 qubits.")
+            elif self.dimension == 2:
                 return TwoQubitDepolarizing(probability=self.proba)
             else:
                 return BraketDepolarizing(probability=self.proba)
