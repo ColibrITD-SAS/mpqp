@@ -7,7 +7,8 @@ you can find bellow:
 
 - :class:`IBMDevice`,
 - :class:`ATOSDevice`,
-- :class:`AWSDevice`.
+- :class:`AWSDevice`,
+- :class:`GOOGLEDevice`.
 """
 
 from abc import abstractmethod
