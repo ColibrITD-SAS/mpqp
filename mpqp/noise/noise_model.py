@@ -185,6 +185,8 @@ class Depolarizing(NoiseModel):
         elif language == Language.MY_QLM:
             if self.dimension > 2:
                 raise NotImplementedError(f"Depolarizing channel is not implemented in the QLM for more than 2 qubits.")
+            elif self.dimension == 2 and self.gates is None:
+                raise ValueError("Depolarizing channel of dimension 2 for idle qubits is not supported by the QLM.")
 
             from qat.quops import make_depolarizing_channel
 
