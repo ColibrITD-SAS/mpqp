@@ -15,9 +15,8 @@ The job type affects the data contained in the :class:`Result`. For a given
 - for a job type ``OBSERVABLE`` you can retrieve the expectation value (a 
   ``float``) from ``result.expectation_value``.
 
-When several devices were given to the :func:`run<mpqp.execution.runner.run>` or
-:func:`submit<mpqp.execution.runner.submit>`, the different results are stored
-in a :class:`BatchResult`.
+When several devices are given to :func:`run<mpqp.execution.runner.run>`, the 
+results are stored in a :class:`BatchResult`.
 """
 
 from __future__ import annotations
