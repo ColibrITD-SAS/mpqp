@@ -58,13 +58,11 @@ class StateVector:
         """Return the amplitudes of the state vector"""
         return self.vector
 
-    
     def __str__(self):
         return f""" State vector: {clean_array(self.vector)}
  Probabilities: {clean_array(self.probabilities)}
  Number of qubits: {self.nb_qubits}
 """
-
 
 
 @typechecked
@@ -434,7 +432,9 @@ class BatchResult:
     def __getitem__(self, index: int):
         return self.results[index]
 
-def clean_array(array): # type: ignore
+
+def clean_array(array) -> str:
+    """TODO: doc"""
     try:
         cleaned_array = []
         for element in array:
