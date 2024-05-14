@@ -463,7 +463,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         )
         return np.array([[c, -eg * s], [ep * s, eg * ep * c]])  # type:ignore
 
-    # TODO: to check how it is decomposed, or if we can put directly "U"
     qlm_aqasm_keyword = "U"
 
 

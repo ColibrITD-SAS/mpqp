@@ -519,7 +519,7 @@ class QCircuit:
             >>>
 
         # 3M-TODO check implementation, example and test, this will only work
-        chen circuit.to_matrix will be implemented
+           when circuit.to_matrix() will be implemented
         """
         gate_def = UnitaryMatrix(self.to_matrix())
         return CustomGate(gate_def, list(range(self.nb_qubits)), label=self.label)
@@ -880,7 +880,7 @@ class QCircuit:
         """
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
-            + self.noises,  # TODO: modify this line when noise will be parameterized, to substitute, like we do for inst
+            + self.noises,  # 3M-TODO: modify this line when noise will be parameterized, to substitute, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,

@@ -229,7 +229,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         this_noise_all_qubits_target = True
 
         channel = noise.to_other_language(Language.MY_QLM)
-        print(channel.__dict__)
+
         if noise.targets != list(range(nb_qubits)):
             this_noise_all_qubits_target = False
             all_qubits_target = False
@@ -373,7 +373,6 @@ def extract_sample_result(
         A Result containing the result info extracted from the myQLM/QLM sample
         result.
     """
-    # TODO: check what to modify in the noisy case
     if job is None:
         assert isinstance(myqlm_result.qregs[0].length, int)
         nb_qubits = (
@@ -583,7 +582,8 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
         The job_id and the AsyncResult of the submitted job.
 
     Raises:
-        ValueError
+        ValueError: When job of type different from `STATE_VECTOR`, `OBSERVABLE` or `SAMPLE`
+        NotImplementedError: If the basis given is not the ComputationalBasis
     """
 
     myqlm_job = None
@@ -615,7 +615,6 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
         raise ValueError(f"Job type {job.job_type} not handled")
 
     job.status = JobStatus.RUNNING
-    print("Now submitting")
     async_result = qpu.submit(myqlm_job)
     job_id = async_result.get_info().id
     job.id = job_id
