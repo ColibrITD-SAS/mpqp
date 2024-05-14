@@ -769,9 +769,10 @@ class QCircuit:
             ) + deepcopy(self)
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
-            return apply_noise_to_braket_circuit(qasm3_to_braket_Circuit(circuit.to_qasm3()),
-                                                 self.noises,
-                                                 self.nb_qubits)
+
+            return apply_noise_to_braket_circuit(
+                qasm3_to_braket_Circuit(circuit.to_qasm3()), self.noises, self.nb_qubits
+            )
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
@@ -879,7 +880,7 @@ class QCircuit:
         """
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
-            + self.noises, # TODO: modify this line when noise will be parameterized, to substitute, like we do for inst
+            + self.noises,  # TODO: modify this line when noise will be parameterized, to substitute, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,
@@ -903,14 +904,22 @@ class QCircuit:
             f" Nb instructions = {len(self)}"
         )
 
-        # TODO: When the model.targets are containing all the qubits, don't display "on qubits",
-        #  also add the gates when they are specified "for gates [CNOT, CZ, ...]" for instance
+        qubits = set(range(self.size()[0]))
         if self.noises:
             for model in self.noises:
+                targets = set(model.targets)
                 if isinstance(model, Depolarizing):
-                    print(
-                        f"Depolarizing noise: probability {model.proba} on qubits {model.targets}"
-                    )
+                    if targets == qubits:
+                        print(f"Depolarizing noise: probability {model.proba}", end="")
+                    else:
+                        print(
+                            f"Depolarizing noise: probability {model.proba} on qubits {model.targets}",
+                            end="",
+                        )
+                    if hasattr(model, "gates") and model.gates:
+                        print(f" for gates {model.gates}")
+                    else:
+                        print()
 
         print(f"{self.to_other_language(Language.QISKIT)}")
 
