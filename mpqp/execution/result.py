@@ -1,3 +1,25 @@
+"""Once the computation ended, the :class:`Result` contains all the data from
+the execution.
+
+The job type affects the data contained in the :class:`Result`. For a given 
+``result``, here are how to retrieve the data depending on the job type:
+
+- for a job type ``STATE_VECTOR`` you can retrieve the :class:`StateVector` from 
+  ``result.state_vector``. If you want to directly get the amplitudes of your
+  state vector, you can reach for ``result.amplitudes``;
+- for a job type ``SAMPLE`` you can retrieve the list of :class:`Sample` from 
+  ``result.samples``. For a ``SAMPLE`` job type, you might be interested in
+  results packed in a different shape than a list of :class:`Sample`, even
+  though you could rebuild them from said list, we also provide a few shorthands
+  like ``result.probabilities`` and ``result.counts``;
+- for a job type ``OBSERVABLE`` you can retrieve the expectation value (a 
+  ``float``) from ``result.expectation_value``.
+
+When several devices were given to the :func:`run<mpqp.execution.runner.run>` or
+:func:`submit<mpqp.execution.runner.submit>`, the different results are stored
+in a :class:`BatchResult`.
+"""
+
 from __future__ import annotations
 
 import math
@@ -58,7 +80,6 @@ class StateVector:
         """Return the amplitudes of the state vector"""
         return self.vector
 
-    
     def __str__(self):
         return f""" State vector: {clean_array(self.vector)}
  Probabilities: {clean_array(self.probabilities)}
@@ -66,11 +87,11 @@ class StateVector:
 """
 
 
-
 @typechecked
 class Sample:
-    """Class representing a sample, which contains the result of the experiment
-    concerning a specific basis state of the Hilbert space.
+    """A sample is a partial result of job job with type ``SAMPLE``. It contains
+    the count (and potentially the associated probability) for a given basis
+    state, *i.e.* the number of times this basis state was measured.
 
     Args:
         nb_qubits: Number of qubits of the quantum system of the experiment.
@@ -434,12 +455,19 @@ class BatchResult:
     def __getitem__(self, index: int):
         return self.results[index]
 
-def clean_array(array): # type: ignore
+
+def clean_array(array):  # type: ignore
     try:
         cleaned_array = []
         for element in array:
-            cleaned_element = np.round(element.real if np.imag(element) == 0 else element, 7)
-            cleaned_element = int(cleaned_element) if cleaned_element == int(cleaned_element) else cleaned_element
+            cleaned_element = np.round(
+                element.real if np.imag(element) == 0 else element, 7
+            )
+            cleaned_element = (
+                int(cleaned_element)
+                if cleaned_element == int(cleaned_element)
+                else cleaned_element
+            )
             cleaned_array.append(cleaned_element)
         return str(cleaned_array).replace("(", "").replace(")", "")
     except:

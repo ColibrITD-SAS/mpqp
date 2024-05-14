@@ -71,11 +71,10 @@ their own set of data needed to setup the connection, summed up here:
   `AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
   In the console go to the ``IAM service``, in the ``Users`` tab, click on your
   username, in the ``Security credential`` tab, you'll find an ``Access keys`` 
-  section. In this section, you can create a new access key for MPQP, you should
-  save it because you will not be able to get back your secret latter on.
-  This will give you your key and your secret, but for the configuration you also
-  need a region (for example ``us-east-1``).
-  In short, one would need:
+  section. In this section, you can create a new access key for ``MPQP``, you 
+  should save it because you will not be able to get back your secret latter on.
+  This will give you your key and your secret, but for the configuration you 
+  also need a region (for example ``us-east-1``). In short, one would need:
 
   + ``AWS Access Key ID``,
   + ``AWS Secret Access Key`` and

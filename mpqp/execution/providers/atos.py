@@ -119,7 +119,7 @@ def generate_observable_job(
 
     Args:
         myqlm_circuit: MyQLM circuit of the job.
-        job: Original mpqp job used to generate the myQLM job.
+        job: Original ``MPQP`` job used to generate the myQLM job.
 
     Returns:
         A myQLM Job and the right myQLM QPUHandler on which it will be submitted.
@@ -156,7 +156,7 @@ def extract_state_vector_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -196,7 +196,7 @@ def extract_sample_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -251,7 +251,7 @@ def extract_observable_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -297,7 +297,7 @@ def extract_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -331,7 +331,7 @@ def job_pre_processing(job: Job) -> "Circuit":
     are coherent.
 
     Args:
-        job: Mpqp job used to instantiate the myQLM circuit.
+        job: ``MPQP`` job used to instantiate the myQLM circuit.
 
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
@@ -500,16 +500,19 @@ def run_QLM(job: Job) -> Result:
 
 @typechecked
 def get_result_from_qlm_job_id(job_id: str) -> Result:
-    """Retrieve the result, described by the job_id in parameter, from the
-    remote QLM and convert it into an mpqp result. If the job is still running,
-    we wait (blocking) until it is DONE.
+    """Retrieves the ``QLM`` result, described by the job_id in parameter, from
+    the remote ``QLM`` and converts it in a ``MPQP``
+    :class:`Result<mpqp.execution.result.Result>`. If the job is still running,
+    we wait (blocking) until its status becomes ``DONE``.
 
     Args:
         job_id: Id of the remote QLM job.
 
+    Returns:
+        The converted result.
+
     Raises:
         QLMRemoteExecutionError
-
     """
     from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
     from qat.comm.qlmaas.ttypes import QLMServiceException

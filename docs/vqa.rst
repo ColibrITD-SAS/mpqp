@@ -1,3 +1,5 @@
+.. _VQA:
+
 Variational Quantum Algorithms
 ==============================
 
