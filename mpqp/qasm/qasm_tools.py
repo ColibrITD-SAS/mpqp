@@ -10,7 +10,7 @@ def parse_custom_gates(qasm_code: str) -> tuple[dict[str, str], str]:
         and the QASM code with custom gate definitions removed.
 
     Exemple:
-        >>> qasm_str = \"\"\"gate rzz(theta) a,b {
+        >>> qasm_str = '''gate rzz(theta) a,b {
         ...     cx a,b;
         ...     u1(theta) b;
         ...     cx a,b;
@@ -19,9 +19,10 @@ def parse_custom_gates(qasm_code: str) -> tuple[dict[str, str], str]:
         ... bit[1] c0;
         ... bit[1] c1;
         ... rzz(0.2) q[1], q[2];
-        ... c2[0] = measure q[2];\"\"\"
+        ... c2[0] = measure q[2];'''
         >>> print(parse_custom_gates(qasm_str))
-        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, '\nqubit[3] q;\nbit[1] c0;\nbit[1] c1;\nrzz(0.2) q[1], q[2];\nc2[0] = measure q[2];')
+        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, 'qubit[3] q;\nbit[1] c0;\nbit[1] c1;\nrzz(0.2) q[1], q[2];\nc2[0] = measure q[2];')
+
     """
     custom_gates = {}
 
@@ -74,20 +75,21 @@ def replace_custom_gates(qasm_code: str) -> str:
         str: The QASM code with custom gate calls replaced by their definitions.
 
     Exemple:
-        >>> qasm_str = \"\"\"gate MyGate a, b {
-        ...        h a;
-        ...        cx a, b;
-        ...   }
-        ...    qreg q[3];
-        ...    creg c[2];
-        ...    MyGate q[0], q[1];
-        ...    measure q -> c;\"\"\"
+        >>> qasm_str = '''gate MyGate a, b {
+        ...     h a;
+        ...     cx a, b;
+        ... }
+        ... qreg q[3];
+        ... creg c[2];
+        ... MyGate q[0], q[1];
+        ... measure q -> c;'''
         >>> print(replace_custom_gates(qasm_str))
         qreg q[3];
         creg c[2];
         h q[0];
         cx q[0], q[1];
         measure q -> c;
+
     """
     replaced_code = qasm_code
     custom_gates, replaced_code = parse_custom_gates(qasm_code)

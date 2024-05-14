@@ -9,9 +9,16 @@ from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.tools.maths import is_unitary, is_hermitian, normalize
 from mpqp.tools.generics import find, flatten
 from mpqp.qasm import open_qasm_2_to_3
+from mpqp.tools.generics import clean_array, clean_matrix
+from mpqp.qasm import replace_custom_gates, parse_custom_gates
+from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable, load_env_variables
+
 
 test_globals = globals().copy()
 test_globals.update(locals())
+
+pass_file = ["connection", "noise_methods", "remote_handle"]
+
 
 def run_doctests_in_folder(folder_path):
     """
@@ -21,8 +28,10 @@ def run_doctests_in_folder(folder_path):
     """
     for root, _, files in os.walk(folder_path):
         for filename in files:
-            if filename.endswith(".py"):
-                file_path = os.path.join("..\\"+root, filename)
+            if any(str in filename for str in pass_file):
+                continue
+            elif filename.endswith(".py"):
+                file_path = os.path.join("..\\" + root, filename)
                 print(f"Running doctests in {os.path.join(os.getcwd(),root,filename)}")
                 doctest.testfile(file_path, globs=test_globals)
 

@@ -32,18 +32,18 @@ def remote_result_from_id(job_id: str, device: AvailableDevice) -> Result:
     Examples:
         >>> print(remote_result_from_id('Job141933', ATOSDevice.QLM_LINALG))
         Result: ATOSDevice, QLM_LINALG
-        Counts: [1017, 0, 0, 0, 983, 0, 0, 0]
-        Probabilities: [0.5085 0.     0.     0.     0.4915 0.     0.     0.    ]
-        State: 000, Index: 0, Count: 1017, Probability: 0.5085
-        State: 100, Index: 4, Count: 983, Probability: 0.4915
-        Error: 0.011181519941139355
+         Counts: [1017, 0, 0, 0, 983, 0, 0, 0]
+         Probabilities: [0.5085 0.     0.     0.     0.4915 0.     0.     0.    ]
+          State: 000, Index: 0, Count: 1017, Probability: 0.5085
+          State: 100, Index: 4, Count: 983, Probability: 0.4915
+         Error: 0.011181519941139355
         >>> print(remote_result_from_id(
         ...     'cm80pb1054sir2ck9i3g',
         ...     IBMDevice.IBMQ_QASM_SIMULATOR,
         ... ))
         Result: IBMDevice, IBMQ_QASM_SIMULATOR
-        Expectation value: 1.6410799999999999
-        Error/Variance: 1.24570724535
+         Expectation value: 1.6410799999999999
+         Error/Variance: 1.24570724535
         >>> aws_task_id = (
         ...     'arn:aws:braket:us-east-1:752542621531:quantum-task/'
         ...     '6a46ae9a-d02f-4a23-b46f-eae43471bc22'
@@ -53,8 +53,8 @@ def remote_result_from_id(job_id: str, device: AvailableDevice) -> Result:
         ...     AWSDevice.BRAKET_SV1_SIMULATOR,
         ... ))
         Result: AWSDevice, BRAKET_SV1_SIMULATOR
-        Expectation value: 1.6635202030411578
-        Error/Variance: None
+         Expectation value: 1.6635202030411578
+         Error/Variance: None
 
     """
 

@@ -149,7 +149,7 @@ class Observable:
                         0.        +0.j],
                       [ 0.        +0.j,  0.        +0.j,  0.        +0.j,
                         1.        +0.j]],
-                    input_dims=(2, 2), output_dims=(2, 2))
+                     input_dims=(2, 2), output_dims=(2, 2))
 
         """
         if language == Language.QISKIT:
@@ -225,7 +225,7 @@ class ExpectationMeasure(Measure):
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
-        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value
+        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value # doctest: +SKIP
         0.85918
 
     Warns:

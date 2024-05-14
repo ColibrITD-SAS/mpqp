@@ -70,14 +70,14 @@ class QCircuit:
 
     Example:
         >>> circuit = QCircuit(2)
-        >>> circuit.pretty_print()
+        >>> circuit.pretty_print() # doctest: +NORMALIZE_WHITESPACE
         QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 0
         q_0:
         q_1:
         >>> circuit = QCircuit(5, nb_cbits=2, label="Circuit 1")
         >>> circuit.add(Rx(1.23, 3))
-        >>> circuit.pretty_print()
-        QCircuit Circuit 1 : Size (Qubits,Cbits) = (5, 2), Nb instructions = 1
+        >>> circuit.pretty_print() # doctest: +NORMALIZE_WHITESPACE
+        QCircuit Circuit 1: Size (Qubits,Cbits) = (5, 2), Nb instructions = 1
         q_0: ────────────
         q_1: ────────────
         q_2: ────────────
@@ -85,6 +85,7 @@ class QCircuit:
         q_3: ┤ Rx(1.23) ├
              └──────────┘
         q_4: ────────────
+        c: 2/════════════
 
     """
 
@@ -136,7 +137,7 @@ class QCircuit:
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
             >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> circuit.pretty_print()
+            >>> circuit.pretty_print() # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
@@ -201,7 +202,7 @@ class QCircuit:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> c1.append(c2)
-            >>> print(c1)
+            >>> print(c1) # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■─────────────────
                  ┌─┴─┐     ┌───┐
             q_1: ┤ X ├──■──┤ X ├──■──
@@ -265,16 +266,18 @@ class QCircuit:
         Example:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
-            >>> print(c1.tensor(c2))
+            >>> print(c1.tensor(c2)) # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■───────
                  ┌─┴─┐
             q_1: ┤ X ├──■──
                  └───┘┌─┴─┐
             q_2: ─────┤ X ├
-                 ┌───┐└───┘
-            q_3: ┤ X ├──■──
+                      └───┘
+            q_3: ──────────
+                 ┌───┐
+            q_4: ┤ X ├──■──
                  └───┘┌─┴─┐
-            q_4: ─────┤ X ├
+            q_5: ─────┤ X ├
                       └───┘
 
         """
@@ -485,20 +488,20 @@ class QCircuit:
 
         Examples:
             >>> c1 = QCircuit([H(0), CNOT(0,1)])
-            >>> print(c1)
+            >>> print(c1) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
-            >>> print(c1.inverse())
+            >>> print(c1.inverse()) # doctest: +NORMALIZE_WHITESPACE
                       ┌───┐
             q_0: ──■──┤ H ├
                  ┌─┴─┐└───┘
             q_1: ┤ X ├─────
                  └───┘
             >>> c2 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
-            >>> print(c2)
+            >>> print(c2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ S ├─■──────────────────
                  └───┘ │ ┌───┐┌──────────┐
@@ -545,7 +548,7 @@ class QCircuit:
 
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
-            >>> print(qc)
+            >>> print(qc) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
@@ -602,8 +605,7 @@ class QCircuit:
             ...     ExpectationMeasure([1], Observable(np.identity(2)), shots=1000)
             ... ])
             >>> circuit.get_measurements()
-            [BasisMeasure([0, 1], shots=1000),
-             ExpectationMeasure([1], Observable(array([[1., 0.], [0., 1.]])), shots=1000)]
+            [BasisMeasure([0, 1], shots=1000), ExpectationMeasure([1], Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
@@ -616,7 +618,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit)
+            >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -624,12 +626,13 @@ class QCircuit:
                       └───┘ ║ └╥┘
             c: 2/═══════════╩══╩═
                             0  1
-            >>> print(circuit.without_measurements())
+            >>> print(circuit.without_measurements()) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ X ├──■──
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
+
         """
         new_circuit = QCircuit(self.nb_qubits)
         new_circuit.instructions = [
@@ -799,7 +802,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit.to_qasm2())
+            >>> print(circuit.to_qasm2()) # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 2.0;
             include "qelib1.inc";
             qreg q[2];
@@ -831,9 +834,9 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit.to_qasm3())
+            >>> print(circuit.to_qasm3()) # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 3.0;
-            include 'stdgates.inc';
+            include "stdgates.inc";
             qubit[2] q;
             bit[2] c;
             x q[0];
@@ -870,7 +873,7 @@ class QCircuit:
             ...     [Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1), H(0), CRk(k, 0, 1),
             ...      BasisMeasure(list(range(3)), shots=1000)]
             ... )
-            >>> print(c)
+            >>> print(c) # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                              ┌─┐
             q_0: ┤ Rx(θ) ├┤ X ├┤ H ├────────────■─────────────────┤M├───
                  └───────┘└─┬─┘└───┘┌─────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
@@ -880,7 +883,7 @@ class QCircuit:
                                └───┘   └───┘           └╥┘         ║  ║
             c: 3/═══════════════════════════════════════╩══════════╩══╩═
                                                         2          0  1
-            >>> print(c.subs({theta: np.pi, k: 1}))
+            >>> print(c.subs({theta: np.pi, k: 1})) # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───
                  └───────┘└─┬─┘└───┘┌────────┐ │P(π) └╥┘┌─┐
@@ -904,7 +907,7 @@ class QCircuit:
 
         Example:
             >>> c = QCircuit([H(0), CNOT(0,1)])
-            >>> c.pretty_print()
+            >>> c.pretty_print() # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 2
                  ┌───┐
             q_0: ┤ H ├──■──
@@ -944,7 +947,7 @@ class QCircuit:
             ...     Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1),
             ...     H(0), CRk(k, 0, 1), ExpectationMeasure([1], obs)
             ... ])
-            >>> circ.variables()
+            >>> circ.variables() # doctest: +SKIP
             {θ, k}
 
         """

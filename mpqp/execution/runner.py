@@ -131,13 +131,14 @@ def _run_single(
     Example:
         >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> print(result) # doctest: +SKIP
         Result: IBMDevice, AER_SIMULATOR
-        Counts: [512, 0, 0, 488]
-        Probabilities: [0.512 0.    0.    0.488]
-         State: 00, Index: 0, Count: 512, Probability: 0.512
-         State: 11, Index: 3, Count: 488, Probability: 0.488
-        Error: None
+         Probabilities: [0.523, 0, 0, 0.477]
+         Counts: [523, 0, 0, 477]
+         Samples:
+          State: 00, Index: 0, Count: 523, Probability: 0.523
+          State: 11, Index: 3, Count: 477, Probability: 0.477
+         Error: None
 
     """
     job = generate_job(circuit, device, values)
@@ -179,31 +180,34 @@ def run(
         ...     label="Bell pair",
         ... )
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> print(result) # doctest: +SKIP
         Result: IBMDevice, AER_SIMULATOR
-        Counts: [512, 0, 0, 488]
-        Probabilities: [0.512 0.    0.    0.488]
-         State: 00, Index: 0, Count: 512, Probability: 0.512
-         State: 11, Index: 3, Count: 488, Probability: 0.488
-        Error: None
+         Counts: [497, 0, 0, 503]
+         Probabilities: [0.497, 0, 0, 0.503]
+         Samples:
+          State: 00, Index: 0, Count: 497, Probability: 0.497
+          State: 11, Index: 3, Count: 503, Probability: 0.503
+         Error: None
         >>> batch_result = run(
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
-        >>> print(batch_result)
+        >>> print(batch_result) # doctest: +SKIP
         BatchResult: 2 results
-        Result: AWSDevice, BRAKET_LOCAL_SIMULATOR
-        Counts: [492, 0, 0, 508]
-        Probabilities: [0.492 0.    0.    0.508]
-         State: 00, Index: 0, Count: 492, Probability: 0.492
-         State: 11, Index: 3, Count: 508, Probability: 0.508
-        Error: None
         Result: ATOSDevice, MYQLM_PYLINALG
-        Counts: [462, 0, 0, 538]
-        Probabilities: [0.462 0.    0.    0.538]
-         State: 00, Index: 0, Count: 462, Probability: 0.462
-         State: 11, Index: 3, Count: 538, Probability: 0.538
-        Error: 0.015773547629015002
+         Counts: [499, 0, 0, 501]
+         Probabilities: [0.499, 0, 0, 0.501]
+         Samples:
+          State: 00, Index: 0, Count: 499, Probability: 0.499
+          State: 11, Index: 3, Count: 501, Probability: 0.501
+         Error: 0.01581926829057682
+        Result: AWSDevice, BRAKET_LOCAL_SIMULATOR
+         Counts: [502, 0, 0, 498]
+         Probabilities: [0.502, 0, 0, 0.498]
+         Samples:
+          State: 00, Index: 0, Count: 502, Probability: 0.502
+          State: 11, Index: 3, Count: 498, Probability: 0.498
+         Error: None
 
     """
 
@@ -241,10 +245,10 @@ def submit(
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
-        >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG)
+        >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG) #doctest: +SKIP
         Logging as user <qlm_user>...
         Submitted a new batch: Job766
-        >>> print("Status of " +job_id +":", job.job_status)
+        >>> print("Status of " +job_id +":", job.job_status) #doctest: +SKIP
         Status of Job766: JobStatus.RUNNING
 
     """

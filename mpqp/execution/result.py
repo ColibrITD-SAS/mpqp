@@ -10,6 +10,7 @@ from typeguard import typechecked
 
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.errors import ResultAttributeError
+from mpqp.tools.generics import clean_array
 
 from .job import Job, JobType
 
@@ -27,8 +28,8 @@ class StateVector:
         >>> state_vector = StateVector(np.array([1, 1, 1, -1])/2, 2)
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
-        >>> print(state_vector)
-         State vector: [0.5,  0.5,  0.5, -0.5]
+        >>> print(state_vector) # doctest: +NORMALIZE_WHITESPACE
+         State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
 
@@ -167,22 +168,26 @@ class Result:
             value was required).
 
     Examples:
-        >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
-        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0))
-         State vector: [ 0.5, 0.5, 0.5, -0.5]
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
+        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
+        Result: ATOSDevice, MYQLM_CLINALG
+         State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
+        >>> job = Job(JobType.SAMPLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG, BasisMeasure([0, 1], shots=1000))
         >>> print(Result(job, [
         ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
-        ... ], 0.034, 500))
+        ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         Counts: [250, 250]
-         Probabilities: [0.5, 0.5]
-          State: 00, Index: 0, Count: 250, Probability: None
-          State: 11, Index: 3, Count: 250, Probability: None
+         Counts: [250, 0, 0, 250]
+         Probabilities: [0.5, 0, 0, 0.5]
+         Samples:
+          State: 00, Index: 0, Count: 250, Probability: 0.5
+          State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
-        >>> print(Result(job, -3.09834, 0.021, 2048))
+        >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
+        >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
@@ -399,26 +404,28 @@ class BatchResult:
         ...     2048
         ... )
         >>> batch_result = BatchResult([result1, result2, result3])
-        >>> print(batch_result)
+        >>> print(batch_result) # doctest: +NORMALIZE_WHITESPACE
         BatchResult: 3 results
         Result: ATOSDevice, MYQLM_PYLINALG
-         State vector: [ 0.5, 0.5, 0.5, -0.5]
+         State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
         Result: ATOSDevice, MYQLM_PYLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
+         Samples:
           State: 00, Index: 0, Count: 250, Probability: 0.5
           State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
         Result: ATOSDevice, MYQLM_PYLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
-        >>> print(batch_result[0])
+        >>> print(batch_result[0]) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_PYLINALG
-         State vector: [ 0.5, 0.5, 0.5, -0.5]
+         State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
+
     """
 
     def __init__(self, results: list[Result]):
@@ -435,21 +442,3 @@ class BatchResult:
 
     def __getitem__(self, index: int):
         return self.results[index]
-
-
-def clean_array(array):  # type: ignore
-    try:
-        cleaned_array = []
-        for element in array:
-            cleaned_element = np.round(
-                element.real if np.imag(element) == 0 else element, 7
-            )
-            cleaned_element = (
-                int(cleaned_element)
-                if cleaned_element == int(cleaned_element)
-                else cleaned_element
-            )
-            cleaned_array.append(cleaned_element)
-        return str(cleaned_array).replace("(", "").replace(")", "")
-    except:
-        return str(array)

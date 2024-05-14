@@ -34,7 +34,7 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
     Examples:
         >>> vector = np.array([1,0,0,1])
         >>> normalize(vector)
-        array([0.70710678, 0., 0., 0.70710678])
+        array([0.70710678, 0.        , 0.        , 0.70710678])
         >>> vector = np.array([0,0,0,0])
         >>> normalize(vector)
         array([0, 0, 0, 0])

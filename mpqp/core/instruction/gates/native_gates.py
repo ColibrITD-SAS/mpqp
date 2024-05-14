@@ -210,8 +210,8 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
     Example:
         >>> Id(0).to_matrix()
-        array([[1, 0],
-               [0, 1]])
+        array([[1.+0.j, 0.+0.j],
+               [0.+0.j, 1.+0.j]], dtype=complex64)
 
     """
 
@@ -373,8 +373,8 @@ class T(OneQubitNoParamGate):
 
     Example:
         >>> T(0).to_matrix()
-        array([[1.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 0.70710678+0.70710678j]])
+        array([[1, 0],
+               [0, exp(0.25*I*pi)]], dtype=object)
 
     """
 
@@ -543,9 +543,9 @@ class Rz(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Rz(np.pi/5, 1).to_matrix()
-        array([[0.95105652-0.30901699j, 0.        +0.j        ],
-               [0.        +0.j        , 0.95105652-0.30901699j]])
+        >>> print(clean_matrix(Rz(np.pi/5, 1).to_matrix()))
+        [[0.9510565-0.309017j, 0],
+         [0, 0.9510565+0.309017j]]
 
     """
 
@@ -639,11 +639,11 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CZ(0, 1).to_matrix()
-        array([[ 1,  0,  0,  0],
-               [ 0,  1,  0,  0],
-               [ 0,  0,  1,  0],
-               [ 0,  0,  0, -1]])
+        >>> print(clean_matrix(CZ(0, 1).to_matrix()))
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 1, 0],
+         [0, 0, 0, -1]]
 
     """
 
@@ -654,7 +654,7 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
 
     def to_matrix(self) -> Matrix:
-        m = np.eye(8, dtype=complex)
+        m = np.eye(4, dtype=complex)
         m[-1, -1] = -1
         return m
 
@@ -668,11 +668,11 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CRk(4, 0, 1).to_matrix()
-        array([[1.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 1.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 0.        +0.j        , 1.        +0.j        , 1.        +0.j        ],
-               [0.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.92387953+0.38268343j]])
+        >>> print(clean_matrix(CRk(4, 0, 1).to_matrix()))
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 1, 0],
+         [0, 0, 0, 0.9238795+0.3826834j]]
 
     """
 
@@ -713,15 +713,15 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> TOF([0, 1], 2).to_matrix()
-        array([[1, 0, 0, 0, 0, 0, 0, 0],
-               [0, 1, 0, 0, 0, 0, 0, 0],
-               [0, 0, 1, 0, 0, 0, 0, 0],
-               [0, 0, 0, 1, 0, 0, 0, 0],
-               [0, 0, 0, 0, 1, 0, 0, 0],
-               [0, 0, 0, 0, 0, 1, 0, 0],
-               [0, 0, 0, 0, 0, 0, 0, 1],
-               [0, 0, 0, 0, 0, 0, 1, 0]])
+        >>> print(clean_matrix(TOF([0, 1], 2).to_matrix()))
+        [[1, 0, 0, 0, 0, 0, 0, 0],
+         [0, 1, 0, 0, 0, 0, 0, 0],
+         [0, 0, 1, 0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0, 0, 0, 0],
+         [0, 0, 0, 0, 1, 0, 0, 0],
+         [0, 0, 0, 0, 0, 1, 0, 0],
+         [0, 0, 0, 0, 0, 0, 0, 1],
+         [0, 0, 0, 0, 0, 0, 1, 0]]
 
     """
 

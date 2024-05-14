@@ -71,8 +71,8 @@ class Gate(Instruction, ABC):
             >>> Z(0).inverse()
             Z(0)
             >>> CustomGate(UnitaryMatrix(np.diag([1,1j])),[0]).inverse().to_matrix()
-            array([[1,  0 ],
-                   [0, -1j]])
+            array([[1.-0.j, 0.-0.j],
+                   [0.-0.j, 0.-1.j]])
 
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
@@ -120,10 +120,10 @@ class Gate(Instruction, ABC):
                    [0, 0, 1, 0],
                    [0, 0, 0, 1]])
             >>> (swap_gate.power(-1)).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 0, 1]])
+            array([[1., 0., 0., 0.],
+                   [0., 0., 1., 0.],
+                   [0., 1., 0., 0.],
+                   [0., 0., 0., 1.]])
             >>> (swap_gate.power(0.75)).to_matrix() # not implemented yet
             array([[1.        +0.j        , 0.        +0.j        ,
                     0.        +0.j        , 0.        +0.j        ],
@@ -226,8 +226,8 @@ class Gate(Instruction, ABC):
 
         Example:
             >>> (X(0).scalar_product(1j)).to_matrix()
-            array([[0, 1j],
-                   [1j, 0]])
+            array([[0.+0.j, 0.+1.j],
+                   [0.+1.j, 0.+0.j]])
 
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
