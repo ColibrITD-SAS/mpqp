@@ -2,8 +2,6 @@ from __future__ import annotations
 from statistics import mean
 from typing import Optional
 
-
-
 import numpy as np
 from qat.clinalg.qpu import CLinalg
 from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
@@ -45,6 +43,7 @@ def to_callable(*args, r):
 def my_partial(r):
     """"""
     return partial(to_callable, r=r)
+
 
 @typechecked
 def job_pre_processing(job: Job) -> Circuit:
@@ -230,8 +229,8 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
     gate_noise_global = dict()  # {"H": QuantumChannel, ...}
     gate_noise_local = dict()  # {"H": {0: QuantumChannel, 1: QuantumChannel}}
-    idle_global_list = []  # [ Quantum Channel, ...]
-    idle_local = dict()  # {0: ..., 1: ...}
+    idle_lambda_global = []  # [ Quantum Channel, ...]
+    idle_lambda_local = dict()  # {0: ..., 1: ...}
     nb_param_keyword = {'PH': 1, 'CNOT': 0}
 
     # For each noise model
@@ -239,7 +238,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         this_noise_all_qubits_target = True
 
         channel = noise.to_other_language(Language.MY_QLM)
-
+        print(channel.__dict__)
         if noise.targets != list(range(nb_qubits)):
             this_noise_all_qubits_target = False
             all_qubits_target = False
@@ -288,17 +287,17 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         # Otherwise, we add an iddle noise
         else:
             if this_noise_all_qubits_target:
-                idle_global_list.append(channel)
+                idle_lambda_global.append(my_partial(channel))
             else:
                 for target in noise.targets:
-                    if target not in idle_local:
-                        idle_local[target] = []
-                    idle_local[target].append(channel)
+                    if target not in idle_lambda_local:
+                        idle_lambda_local[target] = []
+                    idle_lambda_local[target].append(my_partial(channel))
 
-    print(gate_noise_global)
-    print(gate_noise_local)
-    print(idle_global_list)
-    print(idle_local)
+    print("Gate noise global", gate_noise_global)
+    print("Gate noise local", gate_noise_local)
+    print("Idle global", idle_lambda_global)
+    print("Idle local", idle_lambda_local)
     print(nb_param_keyword)
 
     # Only use the lists
@@ -312,8 +311,8 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             gate_noise_lambdas[gate_name] = my_partial(gate_noise_global[gate_name])
 
         return HardwareModel(DefaultGatesSpecification(),
-                             gate_noise=gate_noise_lambdas,
-                             idle_noise=idle_global_list)
+                             gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
+                             idle_noise=idle_lambda_global if idle_lambda_global else None)
 
     # Incorporate the lists into the dict for all qubits
     else:
@@ -348,14 +347,14 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         # For iddle, we take the list of idle_global_lists and we add them to the list for each qubit in the dictionnary
         # and we only put the dictionnary
         for qubit in range(nb_qubits):
-            if qubit in idle_local:
-                idle_local[qubit].extend(idle_global_list)
+            if qubit in idle_lambda_local:
+                idle_lambda_local[qubit].extend(idle_lambda_global)
             else:
-                idle_local[qubit] = idle_global_list
+                idle_lambda_local[qubit] = idle_lambda_global
 
         return HardwareModel(DefaultGatesSpecification(),
-                             gate_noise=gate_noise_lambdas,
-                             idle_noise=idle_local)
+                             gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
+                             idle_noise=idle_lambda_local if idle_lambda_local else None)
 
 
 @typechecked
@@ -660,6 +659,7 @@ def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
         raise ValueError(f"Job type {job.job_type} not handled")
 
     job.status = JobStatus.RUNNING
+    print("Now submitting")
     async_result = qpu.submit(myqlm_job)
     job_id = async_result.get_info().id
     job.id = job_id
