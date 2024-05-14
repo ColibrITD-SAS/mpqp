@@ -1,5 +1,5 @@
-from mpqp.gates import *
 from mpqp import QCircuit
+from mpqp.gates import *
 from mpqp.measures import BasisMeasure
 
 # Declaration of the circuit with the right size

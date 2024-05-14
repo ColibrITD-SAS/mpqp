@@ -32,6 +32,11 @@ is not supported, so your milage may vary).
 Your first circuit
 ------------------
 
+A circuit is created by providing :class:`QCircuit<mpqp.core.circuit.QCircuit>`
+a list of :class:`Instruction<mpqp.core.instruction.instruction.Instruction>` 
+(gates and measurement). To run a circuit, you can then use the 
+:func:`run<mpqp.execution.runner.run>` function.
+
 .. code-block:: python
 
     >>> from mpqp import QCircuit
@@ -79,8 +84,13 @@ their own set of data needed to setup the connection, summed up here:
 Execute examples
 ----------------
 
+A few examples are provided in the ``examples`` folder of the repo. To try them
+out, you can either download them individually from `our GitHub repository 
+<https://github.com/ColibrITD-SAS/mpqp>`_ or cloning the repository and
+executing them as follows:
+
 .. code-block:: console
 
-    $ python -m example.scripts.bell_pair
-    $ python -m example.scripts.demonstration
-    $ python -m example.scripts.observable_job
+    $ python -m examples.scripts.bell_pair
+    $ python -m examples.scripts.demonstration
+    $ python -m examples.scripts.observable_job

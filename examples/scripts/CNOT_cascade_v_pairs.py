@@ -1,8 +1,9 @@
-from mpqp.gates import CNOT, H, Rx, Ry, Rz
+import numpy as np
+
 from mpqp import QCircuit
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice
-import numpy as np
+from mpqp.gates import CNOT, H, Rx, Ry, Rz
 
 circuit = QCircuit(5)
 
@@ -38,5 +39,3 @@ circuit2.add(CNOT(3, 4))
 circuit2.add(Ry(np.pi / 3, 4))
 
 print(run(circuit2, ATOSDevice.MYQLM_PYLINALG).state_vector)
-
-

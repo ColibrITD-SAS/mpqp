@@ -1,11 +1,12 @@
 """Example 2: Expectation value of an observable"""
 
 import numpy as np
-from mpqp.gates import H, Rx
+
 from mpqp import QCircuit
 from mpqp.execution import run
-from mpqp.measures import ExpectationMeasure, Observable, I, Z
-from mpqp.execution.devices import ATOSDevice, IBMDevice, AWSDevice, GOOGLEDevice
+from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from mpqp.gates import H, Rx
+from mpqp.measures import ExpectationMeasure, I, Observable, Z
 
 obs = Observable(
     np.array(

@@ -1,12 +1,13 @@
 """Example 1: Building a Bell state"""
 
-from mpqp.gates import H, CNOT
-from mpqp import QCircuit
-from mpqp.measures import BasisMeasure
-from mpqp.execution.devices import IBMDevice, AWSDevice
-from mpqp.execution import run
-from mpqp.tools.visualization import plot_results_sample_mode
 import matplotlib.pyplot as plt
+
+from mpqp import QCircuit
+from mpqp.execution import run
+from mpqp.execution.devices import AWSDevice, IBMDevice
+from mpqp.gates import CNOT, H
+from mpqp.measures import BasisMeasure
+from mpqp.tools.visualization import plot_results_sample_mode
 
 # Declaration of the circuit with the right size
 circuit = QCircuit(2, label="Bell pair")

@@ -1,7 +1,6 @@
 """Examples of OpenQASM conversion from 2.0 to 3.0"""
 
-from mpqp.qasm import open_qasm_2_to_3
-from mpqp.qasm import replace_custom_gates
+from mpqp.qasm import open_qasm_2_to_3, replace_custom_gates
 
 print("-------------------------")
 print("-------------------------")
@@ -74,7 +73,6 @@ cx q[1],q[0];
 barrier q;"""
 
 print(open_qasm_2_to_3(qasm2_4))
-
 
 
 print("-------------------------")
