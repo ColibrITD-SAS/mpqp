@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import math
 from numbers import Complex
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -456,7 +456,8 @@ class BatchResult:
         return self.results[index]
 
 
-def clean_array(array):  # type: ignore
+def clean_array(array: npt.NDArray[Any]) -> str:
+    """TODO: doc"""
     try:
         cleaned_array = []
         for element in array:
