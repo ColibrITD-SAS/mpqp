@@ -130,14 +130,24 @@ class QCircuit:
         Args:
             components : Instruction(s) or NoiseModel(s) to append to the circuit.
 
-        Example:
-            TODO add an example with noise model
-
+        Examples:
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
             >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
             >>> circuit.pretty_print()
             QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
+                 ┌───┐     ┌─┐
+            q_0: ┤ X ├──■──┤M├───
+                 └───┘┌─┴─┐└╥┘┌─┐
+            q_1: ─────┤ X ├─╫─┤M├
+                      └───┘ ║ └╥┘
+            c: 2/═══════════╩══╩═
+                            0  1
+            >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
+            >>> circuit.add([Depolarizing(0.02, [0])])
+            QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
+            Depolarizing noise: probability 0.3 on qubits [0, 1] for gates [CNOT]
+            Depolarizing noise: probability 0.02 on qubits [0]
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -677,9 +687,6 @@ class QCircuit:
             qiskit.circuit.quantumcircuit.QuantumCircuit
         """
 
-        # TODO: NOISE - Add NoiseModel to the exported circuit when it is possible ? Because we don't do it for
-        #  measurement in Braket for example
-
         if language == Language.QISKIT:
             # to avoid defining twice the same parameter, we keep trace of the
             # added parameters, and we use those instead of new ones when they
@@ -761,9 +768,10 @@ class QCircuit:
                 nb_qubits=self.nb_qubits,
             ) + deepcopy(self)
 
-            # TODO: here call the function ``apply_noise_to_braket_circuit``
-            #  to the braket circuit before returning it
-            return qasm3_to_braket_Circuit(circuit.to_qasm3())
+            from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+            return apply_noise_to_braket_circuit(qasm3_to_braket_Circuit(circuit.to_qasm3()),
+                                                 self.noises,
+                                                 self.nb_qubits)
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
@@ -881,7 +889,7 @@ class QCircuit:
     def pretty_print(self):
         """Provides a pretty print of the QCircuit.
 
-        Example:
+        Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
             >>> c.pretty_print()
             QCircuit : Size (Qubits,Cbits) = (2, None), Nb instructions = 2
@@ -895,6 +903,9 @@ class QCircuit:
             f"QCircuit {self.label or ''}: Size (Qubits,Cbits) = {self.size()},"
             f" Nb instructions = {len(self)}"
         )
+
+        # TODO: When the model.targets are containing all the qubits, don't display "on qubits",
+        #  also add the gates when they are specified "for gates [CNOT, CZ, ...]" for instance
         if self.noises:
             for model in self.noises:
                 if isinstance(model, Depolarizing):

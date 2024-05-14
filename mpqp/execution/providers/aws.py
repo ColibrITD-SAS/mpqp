@@ -104,7 +104,7 @@ def run_braket(job: Job) -> Result:
     Returns:
         The result of the job.
 
-    Note:
+    Notes:
         This function is not meant to be used directly, please use
         ``runner.run(...)`` instead.
     """
@@ -129,9 +129,11 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
         The task's id and the Task itself.
 
     Raises:
-        ValueError TODO give more details
+        ValueError: If the job.job_type is not supported for noisy simulations,
+            or if it is of type `OBSERVABLE`but got no ExpectationMeasure
+        NotImplementedError: If the job_type is not STATE_VECTOR, SAMPLE nor OBSERVABLE
 
-    Note:
+    Notes:
         This function is not meant to be used directly, please use
         ``runner.submit(...)`` instead.
     """
@@ -146,13 +148,9 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     is_noisy = bool(job.circuit.noises)
     device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
 
-    # convert job circuit into braket circuit
+    # convert job circuit into braket circuit, and apply the noise
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
     assert isinstance(braket_circuit, Circuit)
-
-    braket_circuit = apply_noise_to_braket_circuit(
-        braket_circuit, job.circuit.noises, job.circuit.nb_qubits
-    )  # no difference if we have an empty noise list, will run anyway
 
     if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
         raise ValueError(
@@ -270,7 +268,7 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
         task_arn: Arn of the remote aws task.
 
     Raises:
-        AWSBraketRemoteExecutionError: TODO fill
+        AWSBraketRemoteExecutionError: When the status of the task is unknown.
     """
     task: QuantumTask = AwsQuantumTask(task_arn)
     # catch an error if the id is not correct (wrong ID, wrong region, ...) ?

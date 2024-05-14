@@ -216,21 +216,26 @@ def generate_observable_job(
 @typechecked
 def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> HardwareModel:
     """
+    Generates the QLM HardwareModel corresponding to the list of NoiseModel in parameter. The algorithm consider the
+    cases when there are gate noise, for all qubits or specific to some, and the same for idle noise.
 
     Args:
         noises: List of NoiseModel of a QCircuit used to generate a QLM HardwareModel.
         nb_qubits: Number of qubits of the circuit.
 
     Returns:
+        The HardwareModel corresponding to the combination of NoiseModels given in parameter.
 
+    Raises:
+        ValueError: If the target gates of one NoiseModel are neither a NoParameterGate, a RotationGate, nor U.
     """
-    #TODO: comment and implement
+    #TODO: finish testing
     all_qubits_target = True
 
-    gate_noise_global = dict()  # {"H": QuantumChannel, ...}
-    gate_noise_local = dict()  # {"H": {0: QuantumChannel, 1: QuantumChannel}}
-    idle_lambda_global = []  # [ Quantum Channel, ...]
-    idle_lambda_local = dict()  # {0: ..., 1: ...}
+    gate_noise_global = dict()
+    gate_noise_local = dict()
+    idle_lambda_global = []
+    idle_lambda_local = dict()
     nb_param_keyword = {'PH': 1, 'CNOT': 0}
 
     # For each noise model
@@ -294,36 +299,24 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                         idle_lambda_local[target] = []
                     idle_lambda_local[target].append(my_partial(channel))
 
+    #TODO to remove
     print("Gate noise global", gate_noise_global)
     print("Gate noise local", gate_noise_local)
     print("Idle global", idle_lambda_global)
     print("Idle local", idle_lambda_local)
     print(nb_param_keyword)
 
-    # Only use the lists
     if all_qubits_target:
-
         gate_noise_lambdas = dict()
 
         for gate_name in gate_noise_global:
-            # We create a lambda function with as much anonymous parameters as the number of parameters of the gate
-            # related with the keyword, and return the right QuantumChannel
             gate_noise_lambdas[gate_name] = my_partial(gate_noise_global[gate_name])
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
                              idle_noise=idle_lambda_global if idle_lambda_global else None)
 
-    # Incorporate the lists into the dict for all qubits
     else:
-
-        # We have lists, that concern all qubits, and we have dictionnaries that concern only some qubits
-        # For gates, we take the gate_noise_global and for each keyword in it,
-            # If the keyword already exists in the other dict, for each qubit
-                # If the qubit is already existing --> we compose the channels
-                # Otherwise we add the channel to the corresponding qubit
-            # If it doesnt exist, we only add the quantum channel to the key, so for all qubits
-
         for gate_name in gate_noise_global:
             if gate_name in gate_noise_local:
                 for qubit in range(nb_qubits):
@@ -334,7 +327,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             else:
                 gate_noise_local[gate_name] = gate_noise_global[gate_name]
 
-        # Then we generate the lambda functions
         gate_noise_lambdas = dict()
         for gate_name in gate_noise_local:
             if isinstance(gate_noise_local[gate_name], dict):
@@ -344,8 +336,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             else:
                 gate_noise_lambdas[gate_name] = my_partial(gate_noise_local[gate_name])
 
-        # For iddle, we take the list of idle_global_lists and we add them to the list for each qubit in the dictionnary
-        # and we only put the dictionnary
         for qubit in range(nb_qubits):
             if qubit in idle_lambda_local:
                 idle_lambda_local[qubit].extend(idle_lambda_global)

@@ -145,7 +145,7 @@ class Depolarizing(NoiseModel):
         if gates is not None:
             if any(gate.nb_qubits != dimension for gate in gates):
                 raise ValueError(
-                    f"With dimension {dimension}, specified gates should be two-qubit gates."
+                    f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
 
         nb_targets = len(targets)
