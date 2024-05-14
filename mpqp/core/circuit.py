@@ -48,7 +48,7 @@ class QCircuit:
         nb_cbits: Number of classical bits. It should be positive. Defaults to None.
         label: Name of the circuit. Defaults to None.
 
-    Example:
+    Examples:
         >>> circuit = QCircuit(2)
         >>> circuit.pretty_print()
         QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 0
@@ -299,7 +299,7 @@ class QCircuit:
                 `docs.quantum.ibm.com/build/circuit-visualization <https://docs.quantum.ibm.com/build/circuit-visualization#alternative-renderers>`_ 
                 for more information.
 
-        Example:
+        Examples:
             >>> theta = symbols("θ")
             >>> circ = QCircuit([
             ...     P(theta, 0),
@@ -355,7 +355,7 @@ class QCircuit:
         Returns:
             Depth of the circuit.
 
-        Example:
+        Examples:
             >>> QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), X(2)]).depth()
             3
             >>> QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), Barrier(), X(2)]).depth()
@@ -635,7 +635,7 @@ class QCircuit:
         Returns:
             A copy of this circuit with all the noise models removed.
 
-        Examples:
+        Example:
             >>> circuit =  QCircuit(2)
             >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure([0, 1], shots=100)])
             >>> print(circuit)
@@ -850,7 +850,7 @@ class QCircuit:
         Returns:
             The circuit with the replaced parameters.
 
-        Example:
+        Examples:
             >>> theta, k = symbols("θ k")
             >>> c = QCircuit(
             ...     [Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1), H(0), CRk(k, 0, 1),
@@ -878,9 +878,8 @@ class QCircuit:
                                                  2    0  1
         """
         return QCircuit(
-            # TODO: modify this line when noise will be parameterized
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
-            + self.noises,
+            + self.noises, # TODO: modify this line when noise will be parameterized, to substitute, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,
