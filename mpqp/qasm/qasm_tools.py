@@ -20,8 +20,8 @@ def parse_custom_gates(qasm_code: str) -> tuple[dict[str, str], str]:
         ... bit[1] c1;
         ... rzz(0.2) q[1], q[2];
         ... c2[0] = measure q[2];'''
-        >>> print(parse_custom_gates(qasm_str))
-        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, 'qubit[3] q;\nbit[1] c0;\nbit[1] c1;\nrzz(0.2) q[1], q[2];\nc2[0] = measure q[2];')
+        >>> parse_custom_gates(qasm_str) # doctest: +NORMALIZE_WHITESPACE
+        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, 'qubit[3] q;\\nbit[1] c0;\\nbit[1] c1;\\nrzz(0.2) q[1], q[2];\\nc2[0] = measure q[2];')
 
     """
     custom_gates = {}

@@ -99,9 +99,7 @@ class Instruction(ABC):
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(
-            (self.targets if isinstance(self.targets, int) else max(self.targets)) + 1
-        )
+        c = QCircuit(max(self.connections()) + 1)
         c.add(self)
         return str(c)
 

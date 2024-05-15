@@ -507,7 +507,13 @@ class QCircuit:
                  └───┘ │ ┌───┐┌──────────┐
             q_1: ──────■─┤ H ├┤ Ry(4.56) ├
                          └───┘└──────────┘
-            >>> print(c2.inverse())
+            >>> print(c2.inverse()) # doctest: +NORMALIZE_WHITESPACE
+                                     ┌───┐
+            q_0: ──────────────────■─┤ S ├
+                 ┌──────────┐┌───┐ │ └───┘
+            q_1: ┤ Ry(4.56) ├┤ H ├─■──────
+                 └──────────┘└───┘
+
 
         # 3M-TODO implement, test, fill second example
         The inverse could be computed in several ways, depending on the
@@ -515,6 +521,8 @@ class QCircuit:
         take the global unitary of the gate and inverse it.
         """
         dagger = QCircuit(self.nb_qubits)
+        for instr in reversed(self.instructions):
+            dagger.add(instr)
         return dagger
 
     def to_gate(self) -> Gate:
