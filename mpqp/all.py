@@ -12,11 +12,12 @@ from .execution import (
     Sample,
     StateVector,
     adjust_measure,
+    get_remote_result,
     run,
     submit,
 )
 from .execution.connection.qlm_connection import get_all_job_ids
-from .execution.devices import ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice
+from .execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
 from .execution.vqa import Optimizer, minimize
 from .gates import (
     CNOT,

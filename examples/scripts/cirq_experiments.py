@@ -1,14 +1,14 @@
 # %%
-from mpqp.execution.connection.google_connection import config_ionq_account
-from mpqp.gates import H, Rx, Ry, Rz
-from mpqp import QCircuit
-from mpqp.measures import BasisMeasure
-from mpqp.execution.devices import GOOGLEDevice, IBMDevice
-from mpqp.execution import run
-from mpqp.core.languages import Language
-
-from mpqp.tools.visualization import plot_results_sample_mode
 import matplotlib.pyplot as plt
+
+from mpqp import QCircuit
+from mpqp.core.languages import Language
+from mpqp.execution import run
+from mpqp.execution.connection.google_connection import config_ionq_account
+from mpqp.execution.devices import GOOGLEDevice, IBMDevice
+from mpqp.gates import H, Rx, Ry, Rz
+from mpqp.measures import BasisMeasure
+from mpqp.tools.visualization import plot_results_sample_mode
 
 # %%
 circuit = QCircuit(3)
@@ -44,7 +44,7 @@ print(f"Cirq circuit:\n{cirq_circuit}\n")
 # %%
 # @title Choose a processor ("rainbow" or "weber")
 processor_id = "rainbow"
-grid_circuit = circuit.to_other_language(Language.CIRQ, processor_id=processor_id)
+grid_circuit = circuit.to_other_language(Language.CIRQ, cirq_proc_id=processor_id)
 print(f"circuit for processor {processor_id}:\n{grid_circuit}\n")
 
 # %%

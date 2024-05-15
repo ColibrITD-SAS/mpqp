@@ -1,3 +1,21 @@
+"""
+Once the circuit is defined, you can to execute it and retrieve the result using
+the function :func:`run`. You can execute said circuit on one or several devices
+(local or remote). The function will wait (blocking) until the job is completed
+and will return a :class:`Result<mpqp.execution.result.Result>` in only one
+device was given or a :class:`BatchResult<mpqp.execution.result.BatchResult>` 
+otherwise (see :ref:`below<Results>`).
+
+Alternatively, when running jobs on a remote device, you could prefer to
+retrieve the result asynchronously, without having to wait and block the
+application until the computation is completed. In that case, you can use the
+:func:`submit` instead. It will submit the job and
+return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
+
+.. note::
+    Unlike :func:`run`, we can only submit on one device at a time.
+"""
+
 from __future__ import annotations
 
 from numbers import Complex
@@ -23,18 +41,23 @@ from mpqp.execution.devices import (
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
-from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
 from mpqp.execution.providers.google import run_google
-from mpqp.execution.result import Result, BatchResult
+from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
+from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.errors import RemoteExecutionError
 from mpqp.tools.generics import OneOrMany
 
 
 @typechecked
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
-    """We allow the measure to not span the entire circuit, but none of our
-    providers allow for that. So we patch the measure with this function, with
-    identities on the qubits that no not interest our user.
+    """We allow the measure to not span the entire circuit, but providers
+    usually don't support this behavior. To make this work we tweak the measure
+    this function to match the expected behavior.
+
+    In order to do this, we add identity measures on the qubits not targeted by
+    the measure. In addition of this, some swaps are automatically added so the
+    the qubits measured are ordered and contiguous (though this is done in
+    :func:`generate_job`)
 
     Args:
         measure: The expectation measure, potentially incomplete.
@@ -63,9 +86,12 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 def generate_job(
     circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
 ) -> Job:
-    """Create a Job from the circuit and the eventual measurements. If the
-    circuit depends on variables, the values given in parameters are used to do
-    the substitution.
+    """Creates the Job of appropriate type and containing the information needed
+    for the execution of the circuit.
+
+    If the circuit contains symbolic variables (see section :ref:`VQA` for more
+    information on them), the ``values`` parameter is used perform the necessary
+    substitutions.
 
     Args:
         circuit: Circuit to be run.
@@ -77,18 +103,16 @@ def generate_job(
     """
     circuit = circuit.subs(values, True)
 
-    # get the measurements of this circuit
     m_list = circuit.get_measurements()
     nb_meas = len(m_list)
 
-    # determine the job type and create the right job
     if nb_meas == 0:
         job = Job(JobType.STATE_VECTOR, circuit, device)
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # 3M-TODO: handle other basis by adding the right rotation (change of basis) before
-            #       measuring in the computational basis
+            # 3M-TODO: handle other basis by adding the right rotation (change
+            # of basis) before measuring in the computational basis
             # 3M-TODO: Muhammad circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
             if measurement.shots <= 0:
                 job = Job(JobType.STATE_VECTOR, circuit, device)
@@ -107,7 +131,8 @@ def generate_job(
             )
     else:
         raise NotImplementedError(
-            "Cannot handle several measurement in the current version"
+            "Current version of MPQP do not support multiple measurement in a "
+            "circuit."
         )
 
     return job
@@ -163,8 +188,11 @@ def run(
     values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Union[Result, BatchResult]:
     """Runs the circuit on the backend, or list of backend, provided in
-    parameter. If the circuit depends on variables, the values given in
-    parameters are used to do the substitution.
+    parameter.
+
+    If the circuit contains symbolic variables (see section :ref:`VQA` for more
+    information on them), the ``values`` parameter is used perform the necessary
+    substitutions.
 
     Args:
         circuit: QCircuit to be run.
@@ -230,10 +258,16 @@ def submit(
     circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
 ) -> tuple[str, Job]:
     """Submit the job related with the circuit on the remote backend provided in
-    parameter. The submission returns a job_id that can be used to retrieve the
-    Result later. If the circuit depends on variables, the values given in
-    parameters are used to do the substitution. Unlike :meth:`run`, for the
-    moment, one can only submit a circuit to a single device.
+    parameter. The submission returns a ``job_id`` that can be used to retrieve
+    the :class:`Result<mpqp.execution.result.Result>` later, using the
+    :func:`get_remote_result<mpqp.execution.remote_handler.get_remote_result>`
+    function.
+
+    If the circuit contains symbolic variables (see section :ref:`VQA` for more
+    information on them), the ``values`` parameter is used perform the necessary
+    substitutions.
+
+    Mind that this function only support single device submissions.
 
     Args:
         circuit: QCircuit to be run.

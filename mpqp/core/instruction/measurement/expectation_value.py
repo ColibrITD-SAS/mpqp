@@ -6,7 +6,6 @@ the measure."""
 from __future__ import annotations
 
 import copy
-from math import prod
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional
 from warnings import warn
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as Cirq_Circuit
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
-
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
@@ -298,15 +296,9 @@ class ExpectationMeasure(Measure):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> None:
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
-        # TODO : incoherence here, if the language is Qiskit we raise a
-        # NotImplementedError, and otherwise we say that only qiskit is supported
-        if language == Language.QISKIT:
-            raise NotImplementedError(
-                "Qiskit does not implement these kind of measures"
-            )
-        else:
-            raise NotImplementedError(
-                "Only Qiskit supported for language export for now"
-            )
+        raise NotImplementedError(
+            "This object should not be exported as is, because other SDKs have "
+            "no equivalent. Instead, this object is used to store the "
+            "appropriate data, and the data in later used in the needed "
+            "locations."
+        )

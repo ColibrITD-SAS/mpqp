@@ -1,9 +1,9 @@
 """Example 3: Using native gates"""
 
-from mpqp.gates import *
 from mpqp import QCircuit
 from mpqp.execution import run
-from mpqp.execution.devices import IBMDevice, AWSDevice, ATOSDevice, GOOGLEDevice
+from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from mpqp.gates import *
 
 # Declaration of the circuit with the right size
 circuit = QCircuit(3, label="Test native gates")
