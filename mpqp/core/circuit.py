@@ -257,12 +257,6 @@ class QCircuit:
             The QCircuit resulting from the tensor product of this circuit with
             the one in parameter.
 
-        Args:
-            other: QCircuit being the second operand of the tensor product with this circuit.
-
-        Returns:
-            The QCircuit resulting from the tensor product of this circuit with the one in parameter.
-
         Example:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
@@ -299,12 +293,6 @@ class QCircuit:
             output: Format of the output, see
                 `docs.quantum.ibm.com/build/circuit-visualization <https://docs.quantum.ibm.com/build/circuit-visualization#alternative-renderers>`_
                 for more information.
-
-        Args:
-            output: Format of the output, see
-                `docs.quantum.ibm.com/build/circuit-visualization <https://docs.quantum.ibm.com/build/circuit-visualization#alternative-renderers>`_
-                for more information.
-        
         
         Examples:
             >>> theta = symbols("θ")

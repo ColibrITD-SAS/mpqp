@@ -190,10 +190,12 @@ class PauliString:
         decimal places.
 
         Args:
-            round_off_till : Number of decimal places to round the coefficients to. Defaults to 4.
+            round_off_till : Number of decimal places to round the coefficients
+                to. Defaults to 4.
 
         Returns:
-            PauliString: A PauliString with coefficients rounded to the specified number of decimal places.
+            PauliString: A PauliString with coefficients rounded to the specified number
+                of decimal places.
 
         Example:
             >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
@@ -495,7 +497,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other, [self]  # pyright: ignore[reportArgumentType]
+            1 / other, [self] # pyright: ignore[reportArgumentType]
         )
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
