@@ -44,8 +44,8 @@ from mpqp.tools.errors import InstructionParsingError
 
 
 class Instr(Enum):
-    """Special instruction of which the definition needs to included in the
-    header of the file."""
+    """Special instruction for which the definition needs to included in the
+    file."""
 
     STD_LIB = 0
     CSX = 1
