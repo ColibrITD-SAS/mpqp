@@ -57,7 +57,7 @@ class NoiseModel(ABC):
                 if nb_qubits > len(targets):  # pyright: ignore[reportOperatorIssue]
                     raise ValueError(
                         "Size mismatch between gate and noise: gate size is "
-                        f"{gate.nb_qubits} but noise size is {len(targets)}"
+                        f"{nb_qubits} but noise size is {len(targets)}"
                     )
 
         self.targets = targets

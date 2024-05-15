@@ -234,7 +234,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             all_qubits_target = False
 
         if noise.gates:
-            print("We are in gate noise")
             # For each gate attached to this NoiseModel, we add to each gate key the right channels
             for gate in noise.gates:
                 if hasattr(gate, "qlm_aqasm_keyword"):
@@ -256,11 +255,15 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                             if keyword not in gate_noise_local:
                                 gate_noise_local[keyword] = dict()
 
-                            for target in noise.targets:
-                                if target not in gate_noise_local[keyword]:
-                                    gate_noise_local[keyword][target] = channel
-                                else:
-                                    gate_noise_local[keyword][target] *= channel
+                            if gate.nb_qubits == 1:
+                                for target in noise.targets:
+                                    if target not in gate_noise_local[keyword]:
+                                        gate_noise_local[keyword][target] = channel
+                                    else:
+                                        gate_noise_local[keyword][target] *= channel
+                            else:
+                                # TODO handle here couples of targets for multi-qubit gates
+
 
         # Otherwise, we add an iddle noise
         else:
@@ -290,11 +293,17 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
         for gate_name in gate_noise_global:
             if gate_name in gate_noise_local:
-                for qubit in range(nb_qubits):
-                    if qubit in gate_noise_local[gate_name]:
-                        gate_noise_local[gate_name][qubit] *= gate_noise_global[gate_name]
-                    else:
-                        gate_noise_local[gate_name][qubit] = gate_noise_global[gate_name]
+                example_elem = list(gate_noise_local[gate_name])[0]
+                if isinstance(example_elem, int):
+                    for qubit in range(nb_qubits):
+                        if qubit in gate_noise_local[gate_name]:
+                            gate_noise_local[gate_name][qubit] *= gate_noise_global[gate_name]
+                        else:
+                            gate_noise_local[gate_name][qubit] = gate_noise_global[gate_name]
+                else:
+                    gate_nb_qubits = len(example_elem)
+                    # TODO handle here couples of targets for multi-qubit gates
+
             else:
                 gate_noise_local[gate_name] = gate_noise_global[gate_name]
 
