@@ -12,7 +12,7 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.execution import BatchResult, remote_result_from_id
+from mpqp.execution import BatchResult
 from mpqp.qasm import open_qasm_2_to_3
 from mpqp.tools.generics import clean_array, clean_matrix
 from mpqp.qasm import replace_custom_gates, parse_custom_gates
@@ -23,7 +23,7 @@ from mpqp.execution.connection.env_manager import (
 )
 
 from mpqp.tools.generics import find, flatten
-from mpqp.tools.maths import is_hermitian, is_unitary, normalize
+from mpqp.tools.maths import is_hermitian, is_unitary, normalize, rand_orthogonal_matrix
 
 test_globals = globals().copy()
 test_globals.update(locals())
