@@ -1,4 +1,31 @@
-"""File regrouping all features for translating QASM code to Amazon Braket objects."""
+"""Amazon Braket made the choice to directly support a subset of OpenQASM 3.0 
+for gate-based devices and simulators. In fact, Braket supports a set of data
+types, statements and pragmas (specific to Braket) for OpenQASM 3.0, sometimes
+with a different syntax.
+
+Braket Circuit parser does not support for the moment the OpenQASM 3.0 native
+operations (``U`` and ``gphase``) but allows to define custom gates using a
+combination of supported standard gates (``rx``, ``ry``, ``rz``, ``cnot``,
+``phaseshift`` for instance). Besides, the inclusion of files is not yet handled
+by Braket library meaning we use a mechanism of *hard* includes (see
+:func:`open_qasm_hard_includes<mpqp.qasm.qasm_to_myqlm.hard-open_qasm_hard_includes>`)
+directly in the OpenQASM 3.0 code, to be sure the parser and interpreter have
+all definitions in there. We also hard-include all included files in the
+OpenQASM 3.0 code inputted for conversion.
+
+.. note::
+    In the custom hard-imported file for native and standard gate redefinitions, 
+    we use ``ggphase`` to define the global phase, instead of the OpenQASM 3.0 
+    keyword ``gphase``, which is already used and protected by Braket.
+
+Braket ``Circuit``s are created using :func:`qasm3_to_braket_Circuit`. If
+needed, you can also generate a Braket ``Program`` from an OpenQASM 3.0 input
+string using the :func:`qasm3_to_braket_Program`. However, in this case, the
+program parser does not need to redefine the native gates, and thus only
+performing a hard import of standard gates and other included file is
+sufficient. However, note that a ``Program`` cannot be used to retrieve the
+statevector and expectation value in Braket.
+"""
 
 import io
 import warnings

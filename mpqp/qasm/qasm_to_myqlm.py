@@ -1,4 +1,8 @@
-"""File regrouping all features for translating QASM code to myQLM objects """
+"""The myQLM library allows the user to instantiate a myQLM ``Circuit`` from an
+OpenQASM 2.0 code. MyQLM is able to parse most of the standard gates, and allows
+us to complete the missing gates by linking them to already defined ones. We
+call the function :func:`qasm2_to_myqlm_Circuit` to generate the circuit from
+the qasm code."""
 
 from typing import TYPE_CHECKING
 

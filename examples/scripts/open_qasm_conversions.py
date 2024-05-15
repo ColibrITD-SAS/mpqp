@@ -1,6 +1,6 @@
 """Examples of OpenQASM conversion from 2.0 to 3.0"""
 
-from mpqp.qasm import open_qasm_2_to_3, replace_custom_gates
+from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 
 print("-------------------------")
 print("-------------------------")
@@ -104,4 +104,4 @@ rxx(0.4) q[0], q[1];
 rzz(0.2) q[1], q[2];
 c2[0] = measure q[2];"""
 
-print(replace_custom_gates(qasm2_4))
+print(remove_user_gates(qasm2_4))

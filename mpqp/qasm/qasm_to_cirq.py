@@ -1,4 +1,17 @@
-"""File regrouping all features for translating QASM code to cirq objects """
+"""The Cirq library allows the user to instantiate a Cirq ``Circuit`` from an
+OpenQASM 2.0 code.
+
+The Cirq parser lacks native support for certain OpenQASM 2.0 operations such as
+``cu1``, ``crz``, ``cu3``, ``reset``, ``u0``, ``p``, ``cp``, ``u``, ``rzz``,
+``rxx`` and custom ``gate``. To address this limitation, we are redefining these
+gates so you can use them on Cirq devices even though Cirq doesn't support it (a
+behavior sometimes called *polyfill*, especially in the browser world). These
+features are handled by :func:`qasm2_to_cirq_Circuit`.
+
+In addition, Cirq does not handle user defined gates. So an important part of
+:func:`qasm2_to_cirq_Circuit` is also a function which might be useful to you:
+:func:`remove_user_gates`.
+"""
 
 from typing import TYPE_CHECKING
 
@@ -6,7 +19,8 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_circuit
 
 from typeguard import typechecked
-from mpqp.qasm.qasm_tools import replace_custom_gates
+
+from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
 
 
 @typechecked
@@ -21,18 +35,19 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
         a Circuit equivalent to the QASM code in parameter
     """
     import numpy as np
-    from cirq.contrib.qasm_import._parser import QasmParser, QasmGateStatement
     from cirq.circuits.qasm_output import QasmUGate
-    from cirq.ops.controlled_gate import ControlledGate
-    from cirq.ops.common_gates import rz, ry
+    from cirq.contrib.qasm_import._parser import QasmGateStatement, QasmParser
     from cirq.ops.common_channels import ResetChannel
-    from cirq.ops.wait_gate import WaitGate
-    from cirq.value.duration import Duration
+    from cirq.ops.common_gates import ry, rz
+    from cirq.ops.controlled_gate import ControlledGate
     from cirq.ops.global_phase_op import GlobalPhaseGate
-    from cirq.ops.raw_types import Gate
+    from cirq.ops.raw_types import Gate, Qid
+    from cirq.ops.wait_gate import WaitGate
+    from cirq.protocols.circuit_diagram_info_protocol import CircuitDiagramInfoArgs
+    from cirq.value.duration import Duration
 
-    qasm_str = replace_custom_gates(qasm_str)
-    
+    qasm_str = remove_user_gates(qasm_str)
+
     class PhaseGate(Gate):
         def __init__(self, theta: complex):
             super(PhaseGate, self)
@@ -43,11 +58,10 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
 
         def _unitary_(self):
             return np.array(
-                [[np.exp(1j * self.theta), 0], 
-                 [0, np.exp(1j * self.theta)]]
+                [[np.exp(1j * self.theta), 0], [0, np.exp(1j * self.theta)]]
             )
 
-        def _circuit_diagram_info_(self, args):
+        def _circuit_diagram_info_(self, args: CircuitDiagramInfoArgs):
             return f"P({self.theta})"
 
     class Rxx(Gate):
@@ -68,9 +82,9 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
                 ]
             )
 
-        def _circuit_diagram_info_(self, args):
+        def _circuit_diagram_info_(self, args: CircuitDiagramInfoArgs):
             return f"Rxx({self.theta})"
-    
+
     class Rzz(Gate):
         def __init__(self, theta: complex):
             super(Rzz, self)
@@ -82,18 +96,18 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
         def _unitary_(self):
             return np.array(
                 [
-                    [np.exp(-1j*self.theta / 2), 0, 0, 0],
-                    [0, np.exp(1j*self.theta / 2), 0, 0],
-                    [0, 0, np.exp(1j*self.theta / 2), 0],
-                    [0, 0, 0, np.exp(-1j*self.theta / 2)],
+                    [np.exp(-1j * self.theta / 2), 0, 0, 0],
+                    [0, np.exp(1j * self.theta / 2), 0, 0],
+                    [0, 0, np.exp(1j * self.theta / 2), 0],
+                    [0, 0, 0, np.exp(-1j * self.theta / 2)],
                 ]
             )
 
-        def _circuit_diagram_info_(self, args):
+        def _circuit_diagram_info_(self, args: CircuitDiagramInfoArgs):
             return f"Rzz({self.theta})"
 
-    class MyQasmUGate(QasmUGate):
-        def _decompose_(self, qubits):
+    class MyQasmUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
+        def _decompose_(self, qubits: tuple[Qid, ...]):
             q = qubits[0]
             return [
                 GlobalPhaseGate(np.exp(1j * (self.lmda + self.phi) / 2)).on(),
