@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from itertools import permutations
 from statistics import mean
 from typing import Optional
 
@@ -27,7 +29,6 @@ from mpqp.core.instruction.measurement.expectation_value import (
 )
 from mpqp.execution.devices import ATOSDevice
 from mpqp.noise.noise_model import NoiseModel
-from ...core.instruction.gates.native_gates import NoParameterGate, RotationGate, U
 
 from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError
 from ..connection.qlm_connection import get_QLMaaSConnection
@@ -262,8 +263,12 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                                     else:
                                         gate_noise_local[keyword][target] *= channel
                             else:
-                                # TODO handle here couples of targets for multi-qubit gates
-
+                                tuples = permutations(noise.targets, gate.nb_qubits)
+                                for t in tuples:
+                                    if t not in gate_noise_local[keyword]:
+                                        gate_noise_local[keyword][t] = channel
+                                    else:
+                                        gate_noise_local[keyword][t] *= channel
 
         # Otherwise, we add an iddle noise
         else:
@@ -302,7 +307,11 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                             gate_noise_local[gate_name][qubit] = gate_noise_global[gate_name]
                 else:
                     gate_nb_qubits = len(example_elem)
-                    # TODO handle here couples of targets for multi-qubit gates
+                    for t in permutations(list(range(nb_qubits)), gate_nb_qubits):
+                        if t in gate_noise_local[gate_name]:
+                            gate_noise_local[gate_name][t] *= gate_noise_global[gate_name]
+                        else:
+                            gate_noise_local[gate_name][t] = gate_noise_global[gate_name]
 
             else:
                 gate_noise_local[gate_name] = gate_noise_global[gate_name]
@@ -311,12 +320,22 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         for gate_name in gate_noise_local:
             if isinstance(gate_noise_local[gate_name], dict):
                 gate_noise_lambdas[gate_name] = dict()
-                for qubit in range(nb_qubits):
-                    if qubit in gate_noise_local[gate_name]:
-                        gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": gate_noise_local[gate_name][qubit]}, {}))
-                    else:
-                        # Identity channel, because it is required that every qubit is filled with a lambda
-                        gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {}))
+                example_elem = list(gate_noise_local[gate_name])[0]
+                if isinstance(example_elem, int):
+                    for qubit in range(nb_qubits):
+                        if qubit in gate_noise_local[gate_name]:
+                            gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": gate_noise_local[gate_name][qubit]}, {}))
+                        else:
+                            # Identity channel, because it is required that every qubit is filled with a lambda
+                            gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {}))
+                else:
+                    gate_nb_qubits = len(example_elem)
+                    for t in permutations(list(range(nb_qubits)), gate_nb_qubits):
+                        if t in gate_noise_local[gate_name]:
+                            gate_noise_lambdas[gate_name][t] = (eval("lambda *_: c", {"c": gate_noise_local[gate_name][t]}, {}))
+                        else:
+                            gate_noise_lambdas[gate_name][t] = (eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0,nqbits=gate_nb_qubits)}, {}))
+
             else:
                 gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_local[gate_name]}, {})
 
