@@ -234,6 +234,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             all_qubits_target = False
 
         if noise.gates:
+            print("We are in gate noise")
             # For each gate attached to this NoiseModel, we add to each gate key the right channels
             for gate in noise.gates:
                 if hasattr(gate, "qlm_aqasm_keyword"):
@@ -263,6 +264,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
         # Otherwise, we add an iddle noise
         else:
+            print("We are in idle noise")
             if this_noise_all_qubits_target:
                 idle_lambda_global.append(eval("lambda *_: c", {"c": channel}, {}))
             else:
@@ -277,13 +279,14 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         for gate_name in gate_noise_global:
             gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_global[gate_name]}, {})
 
-        print("Idle global", idle_lambda_global)
+        print("Gate noise global", gate_noise_lambdas)
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
                              idle_noise=idle_lambda_global if idle_lambda_global else None)
 
     else:
+
         for gate_name in gate_noise_global:
             if gate_name in gate_noise_local:
                 for qubit in range(nb_qubits):
@@ -298,22 +301,27 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
         for gate_name in gate_noise_local:
             if isinstance(gate_noise_local[gate_name], dict):
                 gate_noise_lambdas[gate_name] = dict()
-                for qubit in gate_noise_local[gate_name]:
-                    gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": gate_noise_local[gate_name][qubit]}, {}))
+                for qubit in range(nb_qubits):
+                    if qubit in gate_noise_local[gate_name]:
+                        gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": gate_noise_local[gate_name][qubit]}, {}))
+                    else:
+                        # Identity channel, because it is required that every qubit is filled with a lambda
+                        gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {}))
             else:
                 gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_local[gate_name]}, {})
 
-        for qubit in range(nb_qubits):
-            if qubit in idle_lambda_local:
-                idle_lambda_local[qubit].extend(idle_lambda_global)
-            else:
-                if len(idle_lambda_global) != 0:
-                    idle_lambda_local[qubit] = idle_lambda_global
-                else:
-                    # Identity channel, because it is required that every qubit is filled with a list of channels
-                    idle_lambda_local[qubit] = [eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {})]
+        print("Gate noise local", gate_noise_lambdas)
 
-        print("Idle local", idle_lambda_local)
+        if idle_lambda_global or idle_lambda_global:
+            for qubit in range(nb_qubits):
+                if qubit in idle_lambda_local:
+                    idle_lambda_local[qubit].extend(idle_lambda_global)
+                else:
+                    if len(idle_lambda_global) != 0:
+                        idle_lambda_local[qubit] = idle_lambda_global
+                    else:
+                        # Identity channel, because it is required that every qubit is filled with a list of lambda
+                        idle_lambda_local[qubit] = [eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {})]
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
