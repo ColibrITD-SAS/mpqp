@@ -306,7 +306,7 @@ class QCircuit:
                 for more information.
         
         
-        Example:
+        Examples:
             >>> theta = symbols("θ")
             >>> circ = QCircuit([
             ...     P(theta, 0),
@@ -316,7 +316,7 @@ class QCircuit:
                ┌──────┐
             q: ┤ P(θ) ├
                └──────┘
-            >>> circ.display("latex")
+            >>> print(circ.display("latex_source")) # doctest: +NORMALIZE_WHITESPACE
             \documentclass[border=2px]{standalone}
             \usepackage[braket, qm]{qcircuit}
             \usepackage{graphicx}
