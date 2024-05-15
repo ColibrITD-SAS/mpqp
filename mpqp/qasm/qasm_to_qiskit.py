@@ -1,4 +1,10 @@
-"""File regrouping all features for translating QASM code to Qiskit objects """
+"""The main object used to perform quantum computations in Qiskit is the
+``QuantumCircuit``. Qiskit naturally supports OpenQASM 2.0 to instantiate a
+circuit. One can remark that few remote devices also support OpenQASM 3.0 code,
+this is not generalized yet to the whole library and device. We call the
+function :func:`qasm2_to_Qiskit_Circuit` to generate the circuit from the qasm
+code.
+"""
 
 from typing import TYPE_CHECKING
 

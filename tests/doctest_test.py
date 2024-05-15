@@ -13,9 +13,9 @@ from mpqp.execution.connection.env_manager import (
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import BatchResult
-from mpqp.qasm import open_qasm_2_to_3
+from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
+from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
 from mpqp.tools.generics import clean_array, clean_matrix
-from mpqp.qasm import replace_custom_gates, parse_custom_gates
 from mpqp.execution.connection.env_manager import (
     get_env_variable,
     save_env_variable,
