@@ -104,7 +104,7 @@ class IBMDevice(AvailableDevice):
             IBMDevice.IBMQ_SIMULATOR_MPS: False,
             IBMDevice.IBMQ_QASM_SIMULATOR: True,
         }
-        return self.is_simulator() and noise_support_devices.get(self.value, False)
+        return self in noise_support_devices
 
 
 class ATOSDevice(AvailableDevice):
