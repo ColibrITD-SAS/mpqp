@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from itertools import permutations
 from statistics import mean
 from typing import Optional
@@ -31,7 +32,7 @@ from mpqp.execution.devices import ATOSDevice
 from mpqp.noise.noise_model import NoiseModel, Depolarizing
 from ...core.instruction.gates import CRk, CNOT, Rk
 
-from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError
+from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError, AdditionalGateNoiseWarning
 from ..connection.qlm_connection import get_QLMaaSConnection
 from ..job import Job, JobStatus, JobType
 from ..result import Result, Sample, StateVector
@@ -234,6 +235,9 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             if CNOT not in noise.gates:
                 noise.gates.append(CNOT)
             noises.append(Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk]))
+            warnings.warn("Requested noise on CRk gate will introduce noise on CNOT and Rk (PH) due to its "
+                          "decomposition in my_QLM",
+                          AdditionalGateNoiseWarning)
 
         channel = noise.to_other_language(Language.MY_QLM)
 
