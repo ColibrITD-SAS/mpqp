@@ -425,6 +425,7 @@ class QCircuit:
             True
 
         3M-TODO: will only work once the circuit.to_matrix is implemented
+         Also take into account Noise in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
@@ -920,10 +921,12 @@ class QCircuit:
                             f"Depolarizing noise: probability {model.proba} on qubits {model.targets}",
                             end="",
                         )
-                    if hasattr(model, "gates") and model.gates:
+                    if model.gates:
                         print(f" for gates {model.gates}")
                     else:
                         print()
+                        # TODO I don't like this synthax, construct the string depending on the cases, and print only
+                        #    at the end
 
         print(f"{self.to_other_language(Language.QISKIT)}")
 
