@@ -28,7 +28,8 @@ from mpqp.core.instruction.measurement.expectation_value import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
-from mpqp.noise.noise_model import NoiseModel
+from mpqp.noise.noise_model import NoiseModel, Depolarizing
+from ...core.instruction.gates import CRk, CNOT, Rk
 
 from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError
 from ..connection.qlm_connection import get_QLMaaSConnection
@@ -228,6 +229,12 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     for noise in noises:
         this_noise_all_qubits_target = True
 
+        if CRk in noise.gates:
+            noise.gates.remove(CRk)
+            if CNOT not in noise.gates:
+                noise.gates.append(CNOT)
+            noises.append(Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk]))
+
         channel = noise.to_other_language(Language.MY_QLM)
 
         if noise.targets != list(range(nb_qubits)):
@@ -238,41 +245,35 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             # For each gate attached to this NoiseModel, we add to each gate key the right channels
             for gate in noise.gates:
                 if hasattr(gate, "qlm_aqasm_keyword"):
-                    gate_keywords = gate.qlm_aqasm_keyword
-                    if not isinstance(gate_keywords, list):
-                        gate_keywords = [gate_keywords]
+                    gate_keyword = gate.qlm_aqasm_keyword
 
-                    # For each keyword corresponding to the gate
-                    for keyword in gate_keywords:
-
-                        # If the target are all qubits
-                        if this_noise_all_qubits_target:
-                            if keyword not in gate_noise_global:
-                                gate_noise_global[keyword] = channel
-                            else:
-                                gate_noise_global[keyword] *= channel
-
+                    # If the target are all qubits
+                    if this_noise_all_qubits_target:
+                        if gate_keyword not in gate_noise_global:
+                            gate_noise_global[gate_keyword] = channel
                         else:
-                            if keyword not in gate_noise_local:
-                                gate_noise_local[keyword] = dict()
+                            gate_noise_global[gate_keyword] *= channel
 
-                            if gate.nb_qubits == 1:
-                                for target in noise.targets:
-                                    if target not in gate_noise_local[keyword]:
-                                        gate_noise_local[keyword][target] = channel
-                                    else:
-                                        gate_noise_local[keyword][target] *= channel
-                            else:
-                                tuples = permutations(noise.targets, gate.nb_qubits)
-                                for t in tuples:
-                                    if t not in gate_noise_local[keyword]:
-                                        gate_noise_local[keyword][t] = channel
-                                    else:
-                                        gate_noise_local[keyword][t] *= channel
+                    else:
+                        if gate_keyword not in gate_noise_local:
+                            gate_noise_local[gate_keyword] = dict()
+
+                        if gate.nb_qubits == 1:
+                            for target in noise.targets:
+                                if target not in gate_noise_local[gate_keyword]:
+                                    gate_noise_local[gate_keyword][target] = channel
+                                else:
+                                    gate_noise_local[gate_keyword][target] *= channel
+                        else:
+                            tuples = permutations(noise.targets, gate.nb_qubits)
+                            for t in tuples:
+                                if t not in gate_noise_local[gate_keyword]:
+                                    gate_noise_local[gate_keyword][t] = channel
+                                else:
+                                    gate_noise_local[gate_keyword][t] *= channel
 
         # Otherwise, we add an iddle noise
         else:
-            print("We are in idle noise")
             if this_noise_all_qubits_target:
                 idle_lambda_global.append(eval("lambda *_: c", {"c": channel}, {}))
             else:
@@ -286,9 +287,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
         for gate_name in gate_noise_global:
             gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_global[gate_name]}, {})
-
-        print("Gate noise global", gate_noise_lambdas)
-        print("Idle noise global", idle_lambda_global)
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
@@ -339,8 +337,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
             else:
                 gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_local[gate_name]}, {})
 
-        print("Gate noise local", gate_noise_lambdas)
-
         if idle_lambda_global or idle_lambda_local:
 
             for qubit in range(nb_qubits):
@@ -350,11 +346,8 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                     if len(idle_lambda_global) != 0:
                         idle_lambda_local[qubit] = idle_lambda_global
                     else:
-                        print("Here i should add the identity channel to qubit", qubit)
                         # Identity channel, because it is required that every qubit is filled with a list of lambda
                         idle_lambda_local[qubit] = [eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {})]
-
-        print("Idle noise local", idle_lambda_local)
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,

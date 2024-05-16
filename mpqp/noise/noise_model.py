@@ -173,7 +173,7 @@ class Depolarizing(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing:
+    ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing | QLMNoise:
         if language == Language.BRAKET:
             if self.dimension > 2:
                 raise NotImplementedError(f"Depolarizing channel is not implemented in Braket for more than 2 qubits.")
