@@ -173,6 +173,10 @@ class QCircuit:
             )
 
         if isinstance(components, BasisMeasure):
+            if self.noises and len(components.targets) != self.nb_qubits:
+                raise ValueError(
+                    "In noisy circuits, BasisMeasure must span all qubits in the circuit."
+                )
             # has to be done in two steps, because Pycharm's type checker is
             # unable to understand chained type inference
             if components.c_targets is None:
