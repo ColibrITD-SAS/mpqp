@@ -121,8 +121,10 @@ def get_all_job_ids() -> list[str]:
         'Job141862', 'Job141861', 'Job141722', 'Job141720', 'Job141716', 'Job141715', 'Job141712', 'Job19341']
     """
 
-    connection = get_QLMaaSConnection()
-    return [job_info.id for job_info in connection.get_jobs_info()]
+    if get_env_variable("QLM_CONFIGURED") == "True":
+        connection = get_QLMaaSConnection()
+        return [job_info.id for job_info in connection.get_jobs_info()]
+    return []
 
 
 def get_QLMaaSConnection():

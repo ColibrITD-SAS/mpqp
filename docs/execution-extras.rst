@@ -10,6 +10,7 @@ for you are most likely:
 - IBM's :func:`get_all_job_ids<mpqp.execution.connection.ibm_connection.get_all_job_ids>`;
 - Eviden's :func:`get_all_job_ids<mpqp.execution.connection.qlm_connection.get_all_job_ids>`;
 - AWS's :func:`get_all_task_ids<mpqp.execution.connection.aws_connection.get_all_task_ids>`;
+- CIRQ's :func:`get_all_job_ids<mpqp.execution.connection.cirq_connection.get_all_job_ids>`;
 - The :ref:`con-setup` section.
 
 Provider specifics

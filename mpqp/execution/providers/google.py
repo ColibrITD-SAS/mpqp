@@ -74,6 +74,10 @@ def run_google_remote(job: Job) -> Result:
     assert isinstance(job_cirq_circuit, Cirq_circuit)
 
     if job.device.is_ionq():
+        from mpqp.execution.connection.env_manager import load_env_variables
+
+        load_env_variables()
+
         if job.job_type != JobType.SAMPLE:
             raise ValueError(
                 f"{job.device}: job_type must be {JobType.SAMPLE} but got job type {job.job_type}"
@@ -174,7 +178,7 @@ def run_local_processor(job: Job) -> Result:
         Result: The result after submission and execution of the job.
     """
     assert type(job.device) == GOOGLEDevice
-    
+
     calibration = load_median_device_calibration(job.device.value)
     device = create_device_from_processor_id(job.device.value)
 

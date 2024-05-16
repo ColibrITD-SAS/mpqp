@@ -28,9 +28,7 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     """
     from braket.aws import AwsSession
 
-    already_configured = get_env_variable("BRAKET_CONFIGURED") == "True"
-
-    if already_configured:
+    if get_env_variable("BRAKET_CONFIGURED") == "True":
         decision = input(
             "An Amazon Braket account is already configured. Do you want to update it? [y/N] "
         )
@@ -151,12 +149,16 @@ def get_all_task_ids() -> list[str]:
     """
     from braket.aws import AwsSession
 
-    return [
-        task["quantumTaskArn"]
-        for task in (
-            AwsSession().braket_client.search_quantum_tasks(filters=[])["quantumTasks"]
-        )
-    ]
+    if get_env_variable("BRAKET_CONFIGURED") == "True":
+        return [
+            task["quantumTaskArn"]
+            for task in (
+                AwsSession().braket_client.search_quantum_tasks(filters=[])[
+                    "quantumTasks"
+                ]
+            )
+        ]
+    return []
 
 
 def get_all_partial_ids() -> list[str]:

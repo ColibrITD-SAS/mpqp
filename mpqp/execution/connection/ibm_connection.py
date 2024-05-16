@@ -247,7 +247,8 @@ def get_all_job_ids() -> list[str]:
         'cm80pb1054sir2ck9i3g', 'cm80pa6879ps6bbqg2pg', 'cm7vdugiidfp3m8rg02g', 'cm7vds4pduldih1k1mq0']
     """
     all_job_ids = []
-
+    if get_env_variable("IBM_CONFIGURED") != "True":
+        return all_job_ids
     ibm_provider = get_IBMProvider()  # using IBMProvider
     service = get_QiskitRuntimeService()  # using QiskitRuntimeService
 
