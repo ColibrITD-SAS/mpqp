@@ -3,23 +3,9 @@ Tools
 
 Some additional tools are provided with our library. Even though most of them
 are geared at internal usage, they are all presented here. Amongst them, the
-ones most probable of being of use for you are in:
-
-- the section :ref:`viz` presents visualization tools for several data types.
-  They might be integrated in these types if they are popular enough.
-- the section :ref:`math` presents mathematical tools for linear algebra,
-  functions generalized to more data types, etc...
-
-.. _viz:
-
-Visualization
--------------
-
-.. code-block::python
-
-    from mpqp.tools.visualization import *
-
-.. automodule:: mpqp.tools.visualization
+ones most probable of being of use for you are in the :ref:`math` section,
+presenting mathematical tools for linear algebra, functions generalized to more 
+data types, etc...
 
 .. _math:
 

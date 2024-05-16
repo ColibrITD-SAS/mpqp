@@ -22,11 +22,13 @@ results are stored in a :class:`BatchResult`.
 from __future__ import annotations
 
 import math
+import random
 from numbers import Complex
 from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
+from matplotlib import pyplot as plt
 from typeguard import typechecked
 
 from mpqp.execution.devices import AvailableDevice
@@ -385,6 +387,50 @@ class Result:
             f"Job type {self.job.job_type} not implemented for __str__ method"
         )
 
+    def plot(self, show: bool = True):
+        """Extract sampling info from the result and construct the bar diagram
+        plot.
+
+        Args:
+            show: ``plt.show()`` is only executed if ``show``, useful to batch
+                plots.
+        """
+        if show:
+            plt.figure()
+
+        x_array, y_array = self._to_display_lists()
+        x_axis = range(len(x_array))
+
+        plt.bar(x_axis, y_array, color=(*[random.random() for _ in range(3)], 0.9))
+        plt.xticks(x_axis, x_array, rotation=-60)
+        plt.xlabel("State")
+        plt.ylabel("Counts")
+        device = self.job.device
+        plt.title(type(device).__name__ + "\n" + device.name)
+
+        if show:
+            plt.show()
+
+    def _to_display_lists(self) -> tuple[list[str], list[int]]:
+        """Transform a result into an x and y array containing the string of
+        basis state with the associated counts.
+
+        Returns:
+            The list of each basis state and the corresponding counts.
+        """
+        if self.job.job_type != JobType.SAMPLE:
+            raise NotImplementedError(
+                f"{self.job.job_type} not handled, only {JobType.SAMPLE} is handled for now."
+            )
+        if self.job.measure is None:
+            raise ValueError(
+                f"{self.job=} has no measure, making the counting impossible"
+            )
+        n = self.job.measure.nb_qubits
+        x_array = [f"|{bin(i)[2:].zfill(n)}⟩" for i in range(2**n)]
+        y_array = self.counts
+        return x_array, y_array
+
 
 @typechecked
 class BatchResult:
@@ -453,6 +499,32 @@ class BatchResult:
 
     def __getitem__(self, index: int):
         return self.results[index]
+
+    def plot(self, show: bool = True):
+        """Display the result(s) using ``matplotlib.pyplot``.
+
+        The result(s) must be from a job who's ``job_type`` is ``SAMPLE``. They will
+        be displayed as histograms.
+
+        If a ``BatchResult`` is given, the contained results will be displayed in a
+        grid using subplots.
+
+        Args:
+            show: ``plt.show()`` is only executed if ``show``, useful to batch
+                plots.
+        """
+        n_cols = math.ceil((len(self.results) + 1) // 2)
+        n_rows = math.ceil(len(self.results) / n_cols)
+
+        for index, result in enumerate(self.results):
+            plt.subplot(n_rows, n_cols, index + 1)
+
+            result.plot(show=False)
+
+        plt.tight_layout()
+
+        if show:
+            plt.show()
 
 
 def clean_array(array: npt.NDArray[Any]) -> str:
