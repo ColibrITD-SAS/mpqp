@@ -44,3 +44,7 @@ class UnsupportedBraketFeaturesWarning(UserWarning):
 
 class OpenQASMTranslationWarning(UserWarning):
     """Warning for potential translation error when exporting to OpenQASM."""
+
+
+class AdditionalGateNoiseWarning(UserWarning):
+    """Warning for additional noise on native gate used in the decomposition of noisy gate."""
