@@ -1,3 +1,20 @@
+"""This module contains a collection of generic types and functions needed 
+across the library.
+
+Type aliases :obj:`Matrix`, :obj:`OneOrMany` and :obj:`ArbitraryNestedSequence`
+are used across the library. In particular, :obj:`ArbitraryNestedSequence` is
+used in cases the nesting of the sequence is unknown; and in these cases you
+might want to flatten the list using :func:`flatten`.
+
+On occasion, there is also a need to "flatten" the string representation of an 
+object *i.e.* to display it on one line. In this case :func:`one_line_repr` is
+your friend.
+
+Lastly, we find the default list search mechanism in python a bit too
+restrictive. :func:`find` allow us a much more versatile search using an 
+``oracle``.
+"""
+
 from __future__ import annotations
 
 import re
@@ -8,14 +25,16 @@ import numpy.typing as npt
 from typeguard import typechecked
 
 T = TypeVar("T")
+"""A generic type."""
 OneOrMany = Union[T, Sequence[T]]
-ListOrSingle = Union[list[T], T]
-"""Type alias for both elements of type ``T``, or list of elements of type ``T``."""
-ArbitraryNestedSequence = Union[Sequence["ArbitraryNestedSequence"], T]
-"""Since arbitrarily nested list are defined by recursion, this type allow us to 
-define a base case.
+"""Type alias for single elements of type :obj:`T`, or sequences of such 
+elements."""
+ArbitraryNestedSequence = Union[Sequence["ArbitraryNestedSequence[T]"], T]
+"""This type alias allows us to define heterogeneously nested Sequences of 
+:obj:`T`.
 
 Examples:
+    >>> l: ArbitraryNestedSequence[int]
     >>> l = [[0,1],0,[[0,2],3]]
     >>> l = 1
     >>> l = [2,1,3]
@@ -37,17 +56,19 @@ def flatten_generator(lst: ArbitraryNestedSequence[T]) -> Iterator[T]:
     """
     if isinstance(lst, Sequence):
         for el in lst:
-            yield from flatten_generator(el)  # type: ignore
+            yield from flatten_generator(el)
     else:
         yield lst
 
 
 @typechecked
 def flatten(lst: ArbitraryNestedSequence[T]) -> list[T]:
-    """Flattens an arbitrarily nested list.
+    """Flattens an arbitrarily nested Sequence.
+
+    This is a wrapper around :func:`flatten_generator`.
 
     Args:
-        lst: The list, or nested list, to be flattened.
+        lst: The nested sequence, to be flattened.
 
     Returns:
         A flattened list containing all elements from the input list.

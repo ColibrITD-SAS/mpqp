@@ -12,7 +12,7 @@ data types, etc...
 Useful Maths Operations
 -----------------------
 
-.. code-block::python
+.. code-block:: python
 
     from mpqp.tools.maths import *
 
@@ -21,42 +21,29 @@ Useful Maths Operations
 Generics
 --------
 
-We centralize generic types and associated or general recurrent manipulations in
-a single module.
+.. code-block:: python
+
+    from mpqp.tools.generics import *
 
 .. automodule:: mpqp.tools.generics
 
 Errors
 ------
 
-In order to provide more explicit messages concerning errors that the user can
-encounter while using the library, we introduce custom exceptions. When it is
-relevant, we also append the trace of the error raised by a provider's SDK.
+.. code-block:: python
+
+    from mpqp.tools.errors import *
 
 .. automodule:: mpqp.tools.errors
 
 Choice Tree
 -----------
 
-This module provides functionalities for working with decision trees, allowing for
-seamless navigation and interaction within a tree structure.
+.. code-block:: python
 
-The user defines a :class:`QuestionNode<mpqp.tools.choice_tree.QuestionNode>`,
-containing a question or requesting and answer from the user. Then the user can
-select among a list of possible answers, encoded in
-:class:`AnswerNode<mpqp.tools.choice_tree.AnswerNode>`. For each answer, either
-another question will follow, or an action can be executed.
+    from mpqp.tools.choice_tree import *
 
-
-.. autoclass:: mpqp.tools.choice_tree.AnswerNode
-
-.. autoclass:: mpqp.tools.choice_tree.QuestionNode
-
-To execute the choice tree in a console mode, one has to execute the function
-:func:`run_choice_tree<mpqp.tools.choice_tree.run_choice_tree>` while giving the
-root ``QuestionNode`` in the choice tree.
-
-.. autofunction:: mpqp.tools.choice_tree.run_choice_tree
+.. automodule:: mpqp.tools.choice_tree
 
 Example
 ^^^^^^^
@@ -85,7 +72,7 @@ Example
             ),
             AnswerNode(
                 "Coffee",
-                lambda: ("I get it, ou gotta do what you gota do to stay awake", []),
+                lambda: ("I get it, you gotta do what you gotta do to stay awake", []),
                 QuestionNode(
                     "And how do you like it?",
                     [
