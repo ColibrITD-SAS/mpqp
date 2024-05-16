@@ -1,18 +1,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from copy import deepcopy
 from typing import Optional, Union
 
 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from braket.circuits.noises import Noise as BraketNoise
 from braket.circuits.noises import TwoQubitDepolarizing
-from qat.comm.quops.ttypes import QuantumChannel
 from qat.quops.class_concepts import QuantumChannel as QLMNoise
 from qiskit_aer.noise import NoiseModel as QiskitNoise
 from sympy import Expr
 
-from mpqp.core.instruction.gates import Gate, CRk, CNOT, P, Rk
+from mpqp.core.instruction.gates import Gate
 from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
 
@@ -175,7 +173,7 @@ class Depolarizing(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing | list[QuantumChannel]:
+    ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing | QLMNoise:
         if language == Language.BRAKET:
             if self.dimension > 2:
                 raise NotImplementedError(f"Depolarizing channel is not implemented in Braket for more than 2 qubits.")
@@ -192,18 +190,12 @@ class Depolarizing(NoiseModel):
 
             from qat.quops import make_depolarizing_channel
 
-            if CRk in self.gates:
-                self.gates.remove(CRk)
-                self.gates.append(CNOT)
-                copy_d = Depolarizing(self.proba, self.targets, dimension=1, gates=[Rk])
-                return [self.to_other_language(Language.MY_QLM)[0], copy_d.to_other_language(Language.MY_QLM)[0]]
-            else:
-                return [make_depolarizing_channel(
-                    prob=self.proba,
-                    nqbits=self.dimension,
-                    method_2q="equal_probs",
-                    depol_type="pauli",
-                )]
+            return make_depolarizing_channel(
+                prob=self.proba,
+                nqbits=self.dimension,
+                method_2q="equal_probs",
+                depol_type="pauli",
+            )
         else:
             raise NotImplementedError(
                 f"Conversion of Depolarizing noise for language {language.name} is not supported"

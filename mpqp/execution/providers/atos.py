@@ -28,7 +28,8 @@ from mpqp.core.instruction.measurement.expectation_value import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
-from mpqp.noise.noise_model import NoiseModel
+from mpqp.noise.noise_model import NoiseModel, Depolarizing
+from ...core.instruction.gates import CRk, CNOT, Rk
 
 from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError
 from ..connection.qlm_connection import get_QLMaaSConnection
@@ -228,65 +229,64 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     for noise in noises:
         this_noise_all_qubits_target = True
 
-        channels = noise.to_other_language(Language.MY_QLM)
+        if CRk in noise.gates:
+            noise.gates.remove(CRk)
+            if CNOT not in noise.gates:
+                noise.gates.append(CNOT)
+            noises.append(Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk]))
+
+        channel = noise.to_other_language(Language.MY_QLM)
 
         if noise.targets != list(range(nb_qubits)):
             this_noise_all_qubits_target = False
             all_qubits_target = False
 
-        for channel in channels:
-            if noise.gates:
-                # For each gate attached to this NoiseModel, we add to each gate key the right channels
-                for gate in noise.gates:
-                    if hasattr(gate, "qlm_aqasm_keyword"):
-                        gate_keyword = gate.qlm_aqasm_keyword
+        if noise.gates:
+            # For each gate attached to this NoiseModel, we add to each gate key the right channels
+            for gate in noise.gates:
+                if hasattr(gate, "qlm_aqasm_keyword"):
+                    gate_keyword = gate.qlm_aqasm_keyword
 
-                        # If the target are all qubits
-                        if this_noise_all_qubits_target:
-                            if gate_keyword not in gate_noise_global:
-                                gate_noise_global[gate_keyword] = channel
-                            else:
-                                print("Gauche: ", gate_keyword, gate_noise_global[gate_keyword])
-                                print("Droite: ", channel)
-                                gate_noise_global[gate_keyword] *= channel
-
+                    # If the target are all qubits
+                    if this_noise_all_qubits_target:
+                        if gate_keyword not in gate_noise_global:
+                            gate_noise_global[gate_keyword] = channel
                         else:
-                            if gate_keyword not in gate_noise_local:
-                                gate_noise_local[gate_keyword] = dict()
+                            gate_noise_global[gate_keyword] *= channel
 
-                            if gate.nb_qubits == 1:
-                                for target in noise.targets:
-                                    if target not in gate_noise_local[gate_keyword]:
-                                        gate_noise_local[gate_keyword][target] = channel
-                                    else:
-                                        gate_noise_local[gate_keyword][target] *= channel
-                            else:
-                                tuples = permutations(noise.targets, gate.nb_qubits)
-                                for t in tuples:
-                                    if t not in gate_noise_local[gate_keyword]:
-                                        gate_noise_local[gate_keyword][t] = channel
-                                    else:
-                                        gate_noise_local[gate_keyword][t] *= channel
+                    else:
+                        if gate_keyword not in gate_noise_local:
+                            gate_noise_local[gate_keyword] = dict()
 
-            # Otherwise, we add an iddle noise
+                        if gate.nb_qubits == 1:
+                            for target in noise.targets:
+                                if target not in gate_noise_local[gate_keyword]:
+                                    gate_noise_local[gate_keyword][target] = channel
+                                else:
+                                    gate_noise_local[gate_keyword][target] *= channel
+                        else:
+                            tuples = permutations(noise.targets, gate.nb_qubits)
+                            for t in tuples:
+                                if t not in gate_noise_local[gate_keyword]:
+                                    gate_noise_local[gate_keyword][t] = channel
+                                else:
+                                    gate_noise_local[gate_keyword][t] *= channel
+
+        # Otherwise, we add an iddle noise
+        else:
+            if this_noise_all_qubits_target:
+                idle_lambda_global.append(eval("lambda *_: c", {"c": channel}, {}))
             else:
-                print("We are in idle noise")
-                if this_noise_all_qubits_target:
-                    idle_lambda_global.append(eval("lambda *_: c", {"c": channel}, {}))
-                else:
-                    for target in noise.targets:
-                        if target not in idle_lambda_local:
-                            idle_lambda_local[target] = []
-                        idle_lambda_local[target].append(eval("lambda *_: c", {"c": channel}, {}))
+                for target in noise.targets:
+                    if target not in idle_lambda_local:
+                        idle_lambda_local[target] = []
+                    idle_lambda_local[target].append(eval("lambda *_: c", {"c": channel}, {}))
 
     if all_qubits_target:
         gate_noise_lambdas = dict()
 
         for gate_name in gate_noise_global:
             gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_global[gate_name]}, {})
-
-        print("Gate noise global", gate_noise_lambdas)
-        print("Idle noise global", idle_lambda_global)
 
         return HardwareModel(DefaultGatesSpecification(),
                              gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
@@ -336,8 +336,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
             else:
                 gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_local[gate_name]}, {})
-
-        print("Gate noise local", gate_noise_lambdas)
 
         if idle_lambda_global or idle_lambda_local:
 
