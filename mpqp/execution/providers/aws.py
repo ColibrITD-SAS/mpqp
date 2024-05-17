@@ -60,7 +60,7 @@ def apply_noise_to_braket_circuit(
     noisy_circuit = Circuit(other_instructions)
 
     for noise in noises:
-        if noise.targets == list(range(nb_qubits)):
+        if set(noise.targets) == set(range(nb_qubits)):
             if noise.gates:
                 noisy_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
