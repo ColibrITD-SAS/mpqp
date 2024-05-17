@@ -719,5 +719,5 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
 
 
 NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]
-# TODO : check the possibility to detect when a custom gate can be defined as a native gate, problem with
+# 3M-TODO : check the possibility to detect when a custom gate can be defined as a native gate, problem with
 #  parametrized gates maybe

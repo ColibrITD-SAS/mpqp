@@ -183,17 +183,7 @@ class AWSDevice(AvailableDevice):
         return "SIMULATOR" in self.name
 
     def is_noisy_simulator(self) -> bool:
-        # TODO: to check if all simulators support noise (especially remote ones)
-        #  other devices to be figured out
-        #  investigate and then correct the line below
-        # return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
-        noise_support_devices = {
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            AWSDevice.BRAKET_SV1_SIMULATOR,
-            AWSDevice.BRAKET_DM1_SIMULATOR,
-            AWSDevice.BRAKET_TN1_SIMULATOR,
-        }
-        return self in noise_support_devices
+        return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.

@@ -104,6 +104,7 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> BraketDevice
 
     Args:
         device: AWSDevice element describing which remote/local AwsDevice we want.
+        is_noisy:
 
     Raises:
         AWSBraketRemoteExecutionError: If the device or the region could not be
@@ -111,11 +112,7 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> BraketDevice
     """
 
     if not device.is_remote():
-        # TODO precise the simulator so it returns he noisy simulator when needed. Maybe add a parameter 'is_noisy' that
-        #  is by default False, but will help you select the right device
         if is_noisy:
-            # return noisy simulator
-            # TODO: other noisy simulators
             return LocalSimulator("braket_dm")
         else:
             return LocalSimulator()
