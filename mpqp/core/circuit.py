@@ -41,10 +41,10 @@ class QCircuit:
     list of instructions and noise models applied on specific quantum and/or classical bits.
 
     Args:
-        data: Number of qubits or List of [Instruction or NoiseModel] to initiate the circuit with. If the number of qubits is passed,
-            it should be a positive int.
-        nb_qubits: Optional number of qubits, in case you input the sequence of instructions or noise models and want to hardcode the
-            number of qubits.
+        data: Number of qubits or List of [Instruction or NoiseModel] to initiate the circuit with. If the number of
+            qubits is passed, it should be a positive integer.
+        nb_qubits: Optional number of qubits, in case you input the sequence of instructions or noise models and want
+            to hardcode the number of qubits.
         nb_cbits: Number of classical bits. It should be positive. Defaults to None.
         label: Name of the circuit. Defaults to None.
 
@@ -69,19 +69,23 @@ class QCircuit:
 
         >>> circuit = QCircuit(4, label="NoiseExample")
         >>> circuit.add([H(0), T(1), CNOT(0,1), S(3)])
+        >>> circuit.add(BasisMeasure(list(range(3)), shots=2345))
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()
-        QCircuit NoiseExample: Size (Qubits,Cbits) = (4, 0), Nb instructions = 4
+        QCircuit NoiseExample: Size (Qubits,Cbits) = (4, 3), Nb instructions = 5
         Depolarizing noise: probability 0.5 on qubits [0, 1]
-             ┌───┐
-        q_0: ┤ H ├──■──
-             ├───┤┌─┴─┐
-        q_1: ┤ T ├┤ X ├
-             └───┘└───┘
-        q_2: ──────────
-             ┌───┐
-        q_3: ┤ S ├─────
-             └───┘
+             ┌───┐     ┌─┐
+        q_0: ┤ H ├──■──┤M├───
+             ├───┤┌─┴─┐└╥┘┌─┐
+        q_1: ┤ T ├┤ X ├─╫─┤M├
+             └───┘└┬─┬┘ ║ └╥┘
+        q_2: ──────┤M├──╫──╫─
+             ┌───┐ └╥┘  ║  ║
+        q_3: ┤ S ├──╫───╫──╫─
+             └───┘  ║   ║  ║
+        c: 3/═══════╩═══╩══╩═
+                    2   0  1
+
     """
 
     def __init__(
@@ -124,8 +128,8 @@ class QCircuit:
             self.add(map(deepcopy, data))
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
-        """Adds an instruction or a noise model or a list of either instructions
-        or noise models at the end of the circuit.
+        """Adds an instruction, or a noise model, or a list of either instructions
+        or noise models, at the end of the circuit.
 
         Args:
             components : Instruction(s) or NoiseModel(s) to append to the circuit.
@@ -146,7 +150,7 @@ class QCircuit:
             >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
             QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
-            Depolarizing noise: probability 0.3 on qubits [0, 1] for gates [CNOT]
+            Depolarizing noise: probability 0.3 for gates [CNOT]
             Depolarizing noise: probability 0.02 on qubits [0]
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
@@ -641,7 +645,7 @@ class QCircuit:
             A copy of this circuit with all the noise models removed.
 
         Example:
-            >>> circuit =  QCircuit(2)
+            >>> circuit = QCircuit(2)
             >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure([0, 1], shots=100)])
             >>> print(circuit)
                       ┌─┐
@@ -660,6 +664,7 @@ class QCircuit:
                  └───┘ ║ └╥┘
             c: 2/══════╩══╩═
                        0  1
+
         """
         new_circuit = deepcopy(self)
         new_circuit.noises = []
@@ -679,17 +684,32 @@ class QCircuit:
         method will be used only for complex objects that are not tractable by
         OpenQASM (like hybrid structures).
 
+        If the language is ``BRAKET`` and the circuit is noisy, the corresponding
+        noisy AWS Braket Circuit will be returned.
+
         Args:
             language: Enum representing the target language.
 
         Returns:
             The corresponding circuit in the target language.
 
-        Example:
+        Examples:
             >>> circuit = QCircuit([X(0), CNOT(0, 1)])
             >>> qc = circuit.to_other_language()
             >>> type(qc)
             qiskit.circuit.quantumcircuit.QuantumCircuit
+            >>> circuit2 = QCircuit([H(0), CZ(0,1), Depolarizing(0.6, [0])])
+            >>> braket_circuit = circuit2.to_other_language(Language.BRAKET)
+            >>> print(braket_circuit)
+            T  : │         0         │         1         │
+                  ┌───┐ ┌───────────┐       ┌───────────┐
+            q0 : ─┤ H ├─┤ DEPO(0.6) ├───●───┤ DEPO(0.6) ├─
+                  └───┘ └───────────┘   │   └───────────┘
+                                      ┌─┴─┐
+            q1 : ─────────────────────┤ Z ├───────────────
+                                      └───┘
+            T  : │         0         │         1         │
+
         """
 
         if language == Language.QISKIT:
