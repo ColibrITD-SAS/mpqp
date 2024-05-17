@@ -218,7 +218,6 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     Returns:
         The HardwareModel corresponding to the combination of NoiseModels given in parameter.
     """
-    #TODO: finish testing
     all_qubits_target = True
 
     gate_noise_global = dict()

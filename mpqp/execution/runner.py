@@ -120,6 +120,10 @@ def _run_single(
     Returns:
         The Result containing information about the measurement required.
 
+    Raises:
+        DeviceJobIncompatibleError: if a non noisy simulator is given in parameter and the circuit contains noise
+        NotImplementedError: If the device is not handled for noisy simulation or other submissions.
+
     Example:
         >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
@@ -138,6 +142,10 @@ def _run_single(
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
+            )
+        elif not (isinstance(device, ATOSDevice) or isinstance(device, AWSDevice)):
+            raise NotImplementedError(
+                f"Noisy simulations are not yet available on devices of type {type(device).name}."
             )
 
     if isinstance(device, IBMDevice):
