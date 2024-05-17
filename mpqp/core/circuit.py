@@ -933,20 +933,12 @@ class QCircuit:
         if self.noises:
             for model in self.noises:
                 targets = set(model.targets)
-                if isinstance(model, Depolarizing):
-                    if targets == qubits:
-                        print(f"Depolarizing noise: probability {model.proba}", end="")
-                    else:
-                        print(
-                            f"Depolarizing noise: probability {model.proba} on qubits {model.targets}",
-                            end="",
-                        )
-                    if model.gates:
-                        print(f" for gates {model.gates}")
-                    else:
-                        print()
-                        # TODO I don't like this synthax, construct the string depending on the cases, and print only
-                        #    at the end
+                noise_info = f"{type(model).__name__} noise: probability {model.proba}"
+                if targets != qubits:
+                    noise_info += f" on qubits {model.targets}"
+                if model.gates:
+                    noise_info += f" for gates {model.gates}"
+                print(noise_info)
 
         print(f"{self.to_other_language(Language.QISKIT)}")
 
