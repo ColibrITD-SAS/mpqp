@@ -7,7 +7,6 @@ from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from braket.circuits.noises import Noise as BraketNoise
 from braket.circuits.noises import TwoQubitDepolarizing
 from qat.quops.class_concepts import QuantumChannel as QLMNoise
-from qiskit_aer.noise import NoiseModel as QiskitNoise
 from sympy import Expr
 
 from mpqp.core.instruction.gates import Gate
@@ -30,7 +29,8 @@ class NoiseModel(ABC):
 
     Raises:
         ValueError: When target list is empty, or target indices are duplicated
-            or negative. TODO list all cases
+            or negative. When a custom gate does not have a class attribute ``nb_qubits``.
+            When the size of the gate is higher than the number of target qubits.
     """
 
     def __init__(
@@ -78,17 +78,18 @@ class NoiseModel(ABC):
 
     @abstractmethod
     def to_other_language(
-        self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QiskitNoise | QLMNoise:
-        """
-        TODO: doc
+        self, language: Language
+    ) -> BraketNoise | QLMNoise:
+        """Transforms this noise model into the corresponding object in the
+        language specified in the ``language`` arg.
+
+        In the current version, only Braket and my_QLM are available for conversion.
 
         Args:
-            language:
+            language: Enum representing the target language.
 
         Returns:
-
-
+            The corresponding noise model (or channel) in the target language.
         """
         pass
 
@@ -113,14 +114,14 @@ class Depolarizing(NoiseModel):
         gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
 
     Raises:
-        ValueError: when a wrong dimension (negative) or probability (outside of the expected interval) is input.
-        TODO list all cases
+        ValueError: When a wrong dimension (negative) or probability (outside of the expected interval) is input.
+        When the size of the specified gates is not coherent with the number of targets or the dimension.
 
     Examples:
         >>> circuit.add(Depolarizing(0.32, list(range(circuit.nb_qubits)))
         >>> circuit.add(Depolarizing(0.05, [0, 1], dimension=2)
-        >>> circuit.add(Depolarizing(0.05, [0, 1, 2], dimension=2)
         >>> circuit.add(Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+        >>> circuit.add(Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
 
     """
 
@@ -173,7 +174,30 @@ class Depolarizing(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QiskitNoise | TwoQubitDepolarizing | QLMNoise:
+    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise:
+        """See documentation of this method in abstract mother class ``NoiseModel``.
+
+        Examples:
+            >>> braket_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
+            >>> braket_depo
+            Depolarizing('probability': 0.3, 'qubit_count': 1)
+            >>> type(braket_depo)
+            braket.circuits.noises.Depolarizing
+            >>> qlm_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
+            >>> print(qlm_depo)
+            Depolarizing channel, p = 0.3:
+            [[0.83666003 0.        ]
+             [0.         0.83666003]]
+            [[0.        +0.j 0.31622777+0.j]
+             [0.31622777+0.j 0.        +0.j]]
+            [[0.+0.j         0.-0.31622777j]
+             [0.+0.31622777j 0.+0.j        ]]
+            [[ 0.31622777+0.j  0.        +0.j]
+             [ 0.        +0.j -0.31622777+0.j]]
+            >>> type(qlm_depo)
+            qat.quops.quantum_channels.QuantumChannelKraus
+
+        """
         if language == Language.BRAKET:
             if self.dimension > 2:
                 raise NotImplementedError(f"Depolarizing channel is not implemented in Braket for more than 2 qubits.")
