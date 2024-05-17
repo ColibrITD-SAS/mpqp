@@ -46,7 +46,7 @@ def print_config_info():
     try:
         print(cirqc.get_google_account_info())
     except Exception as err:
-            print("Error occurred when getting Cirq account info.")
+        print("Error occurred when getting Cirq account info.")
     input("Press 'Enter' to continue")
     return "", []
 
@@ -64,7 +64,7 @@ def main_setup():
 
     def return_action():
         return "", []
-    
+
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
         [
@@ -80,7 +80,7 @@ def main_setup():
         "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
         [
             AnswerNode("↩", return_action),
-            AnswerNode("Ionq configuration", cirqc.config_ionq_account),
+            AnswerNode("Ionq configuration", cirqc.config_ionq_key),
         ],
     )
 
@@ -97,6 +97,7 @@ def main_setup():
             answer.next_question = cirq_setup_tree
 
     run_choice_tree(setup_tree)
+
 
 if __name__ == "__main__":
     try:

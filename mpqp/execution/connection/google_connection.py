@@ -22,7 +22,7 @@ def test_ionq_connection() -> bool:
         return False
 
 
-def config_ionq_account():
+def config_ionq_key():
     """
     Configure the IonQ account by setting the API token.
 
@@ -33,7 +33,7 @@ def config_ionq_account():
 
     if was_configured:
         decision = input(
-            "An IONQ account is already configured. Do you want to update it? [y/N]"
+            "An IONQ key is already configured. Do you want to update it? [y/N]"
         )
         if decision.lower().strip() != "y":
             return "Canceled.", []
@@ -47,7 +47,7 @@ def config_ionq_account():
     save_env_variable("IONQ_API_KEY", token)
     if test_ionq_connection():
         save_env_variable("GOOGLE_IONQ_CONFIGURED", "True")
-        return "IONQ account correctly configured", []
+        return "IONQ key correctly configured", []
     else:
         if was_configured:
             save_env_variable("IONQ_API_KEY", old_token)
