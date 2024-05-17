@@ -6,6 +6,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from copy import deepcopy
 from numbers import Complex
+from pickle import dumps
 from typing import TYPE_CHECKING, Any, Optional
 
 from sympy import Expr
@@ -95,6 +96,9 @@ class Instruction(ABC):
             language
         """
         pass
+
+    def __eq__(self, value: object) -> bool:
+        return dumps(self) == dumps(value)
 
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit

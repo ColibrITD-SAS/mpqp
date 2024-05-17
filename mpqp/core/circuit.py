@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
+from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
 if TYPE_CHECKING:
@@ -123,6 +124,9 @@ class QCircuit:
             else:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
+
+    def __eq__(self, value: object) -> bool:
+        return dumps(self) == dumps(value)
 
     def add(self, instruction: Instruction | Iterable[Instruction]):
         """Adds one instruction or a list of instructions at the end of the
@@ -427,7 +431,7 @@ class QCircuit:
             >>>
             >>>
 
-        # 6M-TODO implement, example and test, can be an internship
+        # 6M-TODO implement, example and test
         """
         # ideas: a circuit can be optimized
         # - to reduce the depth of the circuit (combine gates, simplify some sequences)
@@ -619,7 +623,7 @@ class QCircuit:
         return new_circuit
 
     def to_other_language(
-        self, language: Language = Language.QISKIT,  cirq_proc_id: Optional[str] = None
+        self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
     ) -> Union[
         QuantumCircuit,
         myQLM_Circuit,
@@ -740,12 +744,12 @@ class QCircuit:
                 from cirq.transformers.optimize_for_target_gateset import (
                     optimize_for_target_gateset,
                 )
-                from cirq_google.engine.virtual_engine_factory import (
-                    create_device_from_processor_id,
-                )
                 from cirq.transformers.routing.route_circuit_cqc import RouteCQC
                 from cirq.transformers.target_gatesets.sqrt_iswap_gateset import (
                     SqrtIswapTargetGateset,
+                )
+                from cirq_google.engine.virtual_engine_factory import (
+                    create_device_from_processor_id,
                 )
 
                 device = create_device_from_processor_id(cirq_proc_id)

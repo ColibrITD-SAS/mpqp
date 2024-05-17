@@ -12,10 +12,6 @@ from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools.generics import OneOrMany, one_lined_repr
 
-# 3M-TODO: a lot of these tests use str to test circuit equivalence, it would be
-# preferable to define a __eq__ in the QCircuit class, or at least an
-# `equivalent` method
-
 
 @pytest.mark.parametrize(
     "init_param, printed_result_filename",
