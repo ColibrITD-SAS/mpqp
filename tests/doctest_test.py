@@ -1,8 +1,7 @@
-import doctest
 import importlib
 import os
-
 import numpy as np
+import pytest
 
 
 from mpqp.all import *
@@ -30,6 +29,7 @@ test_globals.update(locals())
 
 pass_file = ["connection", "noise_methods", "remote_handle"]
 saf_file = ["env"]
+folder_path = "mpqp"
 
 from doctest import DocTestFinder, DocTestRunner
 from dotenv import dotenv_values, unset_key, set_key
@@ -48,7 +48,9 @@ class SafeRunner:
         val = dotenv_values(MPQP_CONFIG_PATH)
         for key in val.keys():
             set_key(MPQP_CONFIG_PATH, key, "")
-        load_env_variables()
+            load_env_variables()
+            if os.getenv(key) != None:
+                del os.environ[key]
 
         # Write the content to the backup file
         open(MPQP_CONFIG_PATH + "_tmp", "w").write(env)
@@ -60,7 +62,11 @@ class SafeRunner:
         # Unset keys from the .env file
         val = dotenv_values(MPQP_CONFIG_PATH)
         for key in val.keys():
+            print(key)
             set_key(MPQP_CONFIG_PATH, key, "")
+            load_env_variables()
+            if os.getenv(key) != None:
+                del os.environ[key]
         load_env_variables()
 
         # Reload configuration from backup file
@@ -68,25 +74,33 @@ class SafeRunner:
         load_env_variables()
 
 
-folder_path = "mpqp"
-for root, _, files in os.walk(folder_path):
-    for filename in files:
-        if any(str in filename for str in pass_file):
-            continue
-        elif filename.endswith(".py"):
-            print(f"Running doctests in {os.path.join(os.getcwd(),root,filename)}")
-            my_module = importlib.import_module(
-                os.path.join(root, filename).replace(".py", "").replace("\\", ".")
-            )
-            saf = any(str in filename for str in saf_file)
-            for test in finder.find(my_module, "mpqp", globs=test_globals):
-                if (
-                    test.docstring
-                    and "3M-TODO" not in test.docstring
-                    and "6M-TODO" not in test.docstring
-                ):
-                    if saf:
-                        with SafeRunner():
-                            runner.run(test)
-                    else:
-                        runner.run(test)
+def run_doctests(folder_path: str):
+    for root, _, files in os.walk(folder_path):
+        for filename in files:
+            if any(str in filename for str in pass_file):
+                continue
+            elif filename.endswith(".py"):
+                print(f"Running doctests in {os.path.join(os.getcwd(),root,filename)}")
+                my_module = importlib.import_module(
+                    os.path.join(root, filename).replace(".py", "").replace("\\", ".")
+                )
+                saf = any(str in filename for str in saf_file)
+                for test in finder.find(my_module, "mpqp", globs=test_globals):
+                    if (
+                        test.docstring
+                        and "3M-TODO" not in test.docstring
+                        and "6M-TODO" not in test.docstring
+                    ):
+                        if saf:
+                            with SafeRunner():
+                                if "PYTEST_CURRENT_TEST" not in os.environ:
+                                    assert runner.run(test).failed == 0
+                        else:
+                            assert runner.run(test).failed == 0
+
+
+run_doctests(folder_path)
+
+
+def test_doctest():
+    run_doctests(folder_path)
