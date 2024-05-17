@@ -23,7 +23,7 @@ from __future__ import annotations
 
 import math
 from numbers import Complex
-from typing import Any, Optional
+from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -49,7 +49,7 @@ class StateVector:
         >>> state_vector = StateVector(np.array([1, 1, 1, -1])/2, 2)
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
-        >>> print(state_vector) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(state_vector)
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
@@ -84,8 +84,7 @@ class StateVector:
     def __str__(self):
         return f""" State vector: {clean_array(self.vector)}
  Probabilities: {clean_array(self.probabilities)}
- Number of qubits: {self.nb_qubits}
-"""
+ Number of qubits: {self.nb_qubits}"""
 
 
 @typechecked
@@ -378,8 +377,7 @@ class Result:
  Probabilities: {clean_array(self.probabilities)}
  Samples:
 {samples_str}
- Error: {self.error}
-"""
+ Error: {self.error}"""
 
         if self.job.job_type == JobType.STATE_VECTOR:
             return header + "\n" + str(self.state_vector)
@@ -387,8 +385,7 @@ class Result:
         if self.job.job_type == JobType.OBSERVABLE:
             return f"""{header}
  Expectation value: {self.expectation_value}
- Error/Variance: {self.error}
-"""
+ Error/Variance: {self.error}"""
 
         raise NotImplementedError(
             f"Job type {self.job.job_type} not implemented for __str__ method"
@@ -426,7 +423,7 @@ class BatchResult:
         ...     2048
         ... )
         >>> batch_result = BatchResult([result1, result2, result3])
-        >>> print(batch_result) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(batch_result)
         BatchResult: 3 results
         Result: ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
@@ -442,7 +439,7 @@ class BatchResult:
         Result: ATOSDevice, MYQLM_PYLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
-        >>> print(batch_result[0]) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(batch_result[0])
         Result: ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
@@ -456,7 +453,7 @@ class BatchResult:
 
     def __str__(self):
         header = f"BatchResult: {len(self.results)} results\n"
-        body = "".join(map(str, self.results))
+        body = "\n".join(map(str, self.results))
         return header + body
 
     def __repr__(self):

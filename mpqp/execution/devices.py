@@ -182,8 +182,8 @@ class AWSDevice(AvailableDevice):
         Examples:
             >>> AWSDevice.BRAKET_IONQ_HARMONY.get_region()
             'us-east-1'
-            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region()
-            ''
+            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
+            True
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_region()
             'us-west-1'
 
