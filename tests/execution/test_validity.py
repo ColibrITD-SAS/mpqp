@@ -4,8 +4,8 @@ import pytest
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.execution import ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, run
-from mpqp.execution.result import BatchResult
+from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, run
+from mpqp.execution.result import BatchResult, Result
 from mpqp.gates import *
 from mpqp.measures import ExpectationMeasure, Observable
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
@@ -165,7 +165,7 @@ def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: M
     assert isinstance(batch, BatchResult)
     for result in batch:
         if isinstance(result.device, GOOGLEDevice):
-            # 3M-TODO : Cirq needs atol 1 as some results differ by 0.1
+            # TODO : Cirq needs atol 1 as some results differ by 0.1
             assert matrix_eq(result.amplitudes, expected_vector, atol=1)
         else:
             assert matrix_eq(result.amplitudes, expected_vector)
@@ -227,10 +227,9 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     shots = 500000
     err_rate = 0.1
     err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
-    expected_counts = [
-        int(count)
-        for count in np.round(shots * run(c, state_vector_devices[0]).probabilities)
-    ]
+    res = run(c, state_vector_devices[0])
+    assert isinstance(res, Result)
+    expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
     batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)

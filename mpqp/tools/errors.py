@@ -1,3 +1,8 @@
+"""You will find here the custom exceptions we created in order to provide 
+clearer errors. When relevant, we also append the trace of the error raised by a
+provider's SDK."""
+
+
 class InstructionParsingError(ValueError):
     """Raised when an QASM instruction encountered by the parser is malformed."""
 
