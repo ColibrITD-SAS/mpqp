@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
+from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
 if TYPE_CHECKING:
@@ -125,6 +126,9 @@ class QCircuit:
             else:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
+
+    def __eq__(self, value: object) -> bool:
+        return dumps(self) == dumps(value)
 
     def add(self, instruction: Instruction | Iterable[Instruction]):
         """Adds one instruction or a list of instructions at the end of the
@@ -438,7 +442,7 @@ class QCircuit:
             >>>
             >>>
 
-        # 6M-TODO implement, example and test, can be an internship
+        # 6M-TODO implement, example and test
         """
         # ideas: a circuit can be optimized
         # - to reduce the depth of the circuit (combine gates, simplify some sequences)

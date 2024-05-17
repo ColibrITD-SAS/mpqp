@@ -1,3 +1,6 @@
+"""Mathematical tools for linear algebra, functions generalized to more data 
+types, etc…"""
+
 from __future__ import annotations
 
 import math

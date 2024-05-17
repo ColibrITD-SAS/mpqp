@@ -113,7 +113,7 @@ def generate_job(
         if isinstance(measurement, BasisMeasure):
             # 3M-TODO: handle other basis by adding the right rotation (change
             # of basis) before measuring in the computational basis
-            # 3M-TODO: Muhammad circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
+            # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
             if measurement.shots <= 0:
                 job = Job(JobType.STATE_VECTOR, circuit, device)
             else:

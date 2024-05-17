@@ -365,8 +365,10 @@ class S(OneQubitNoParamGate):
 
 
 class T(OneQubitNoParamGate):
-    """One qubit T gate. It consists in applying a phase of Pi/4.
-    The T gate can be defined as the fourth-root of the Z (Pauli) gate.
+    r"""One qubit T gate. It is also referred to as the `\pi/4` gate because it
+    consists in applying the phase gate with a phase of `\pi/4`.
+
+    The T gate can also be defined as the fourth-root of the Z (Pauli) gate.
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.

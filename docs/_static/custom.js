@@ -43,7 +43,11 @@ window.onload = () => {
   // move the constants of a module to appear first in the module
   document.querySelectorAll(".target").forEach((moduleMarker) => {
     if (moduleMarker.id.startsWith("module-")) {
-      appendAfter = moduleMarker;
+      module_description =
+        moduleMarker.parentElement.querySelectorAll(".target ~ p");
+      if (module_description.length != 0)
+        appendAfter = module_description[module_description.length - 1];
+      else appendAfter = moduleMarker;
       sibling = moduleMarker.nextSibling;
       for (; sibling; ) {
         next = sibling.nextSibling;
