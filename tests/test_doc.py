@@ -1,41 +1,31 @@
+# pyright: reportUnusedImport=false
 import importlib
 import os
-import numpy as np
-import pytest
+import sys
+from doctest import DocTestFinder, DocTestRunner, Example
+from types import TracebackType
+from typing import Optional, Type
 
+import numpy as np
+from dotenv import dotenv_values, set_key, unset_key
+
+sys.path.insert(0, os.path.abspath("."))
 
 from mpqp.all import *
-from mpqp.execution.connection.env_manager import (
-    get_existing_config_str,
-    MPQP_CONFIG_PATH,
-)
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import BatchResult
+from mpqp.execution.connection.env_manager import (
+    MPQP_CONFIG_PATH,
+    get_env_variable,
+    get_existing_config_str,
+    load_env_variables,
+    save_env_variable,
+)
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
-from mpqp.tools.generics import clean_array, clean_matrix
-from mpqp.execution.connection.env_manager import (
-    get_env_variable,
-    save_env_variable,
-    load_env_variables,
-)
-
-from mpqp.tools.generics import find, flatten
+from mpqp.tools.generics import clean_array, clean_matrix, find, flatten
 from mpqp.tools.maths import is_hermitian, is_unitary, normalize, rand_orthogonal_matrix
-
-test_globals = globals().copy()
-test_globals.update(locals())
-
-pass_file = ["connection", "noise_methods", "remote_handle"]
-saf_file = ["env"]
-folder_path = "mpqp"
-
-from doctest import DocTestFinder, DocTestRunner
-from dotenv import dotenv_values, unset_key, set_key
-
-finder = DocTestFinder()
-runner = DocTestRunner()
 
 
 class SafeRunner:
@@ -56,25 +46,38 @@ class SafeRunner:
         open(MPQP_CONFIG_PATH + "_tmp", "w").write(env)
         open(MPQP_CONFIG_PATH, "w").close()
 
-    def __exit__(self, exc_type, exc_value, exc_tb):
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ):
         backup_env = open(MPQP_CONFIG_PATH + "_tmp", "r").read()
 
         # Unset keys from the .env file
         val = dotenv_values(MPQP_CONFIG_PATH)
         for key in val.keys():
-            print(key)
             set_key(MPQP_CONFIG_PATH, key, "")
             load_env_variables()
             if os.getenv(key) != None:
                 del os.environ[key]
-        load_env_variables()
 
         # Reload configuration from backup file
         open(MPQP_CONFIG_PATH, "w").write(backup_env)
         load_env_variables()
 
 
-def run_doctests(folder_path: str):
+def test_documentation():
+    test_globals = globals().copy()
+    test_globals.update(locals())
+
+    pass_file = ["connection", "noise_methods", "remote_handle"]
+    saf_file = ["env"]
+
+    finder = DocTestFinder()
+    runner = DocTestRunner()
+
+    folder_path = "mpqp"
     for root, _, files in os.walk(folder_path):
         for filename in files:
             if any(str in filename for str in pass_file):
@@ -99,8 +102,3 @@ def run_doctests(folder_path: str):
                             assert runner.run(test).failed == 0
 
 
-run_doctests(folder_path)
-
-
-def test_doctest():
-    run_doctests(folder_path)

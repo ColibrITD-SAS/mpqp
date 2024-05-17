@@ -43,7 +43,7 @@ def get_remote_result(
           State: 000, Index: 0, Count: 1017, Probability: 0.5085
           State: 100, Index: 4, Count: 983, Probability: 0.4915
          Error: 0.011181519941139355
-        >>> print(remote_result_from_id(
+        >>> print(get_remote_result(
         ...     'cm80pb1054sir2ck9i3g',
         ...     IBMDevice.IBMQ_QASM_SIMULATOR,
         ... ))

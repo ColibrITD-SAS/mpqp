@@ -100,7 +100,7 @@ def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
     raise ValueError("No objects satisfies the given oracle")
 
 
-def clean_array(array):  # type: ignore
+def clean_array(array: list[complex] | npt.NDArray[np.complex64 | np.float32]):
     """Cleans and formats elements of an array.
     This function rounds the real parts of complex numbers in the array to 7 decimal places
     and formats them as integers if they are whole numbers. It returns a string representation
@@ -165,6 +165,6 @@ def clean_matrix(matrix: Matrix):
          [1, 2, 3]]
 
     """
+    # TODO: add an option to align cols
     cleaned_matrix = [clean_array(row) for row in matrix]
-    return "[" +",\n ".join(cleaned_matrix) +"]"
-
+    return "[" + ",\n ".join(cleaned_matrix) + "]"
