@@ -643,7 +643,7 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CRk(4, 0, 1)
+        >>> CRk(0, 1, 1).to_matrix()
         array([[1.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 1.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 0.        +0.j        , 1.        +0.j        , 1.        +0.j        ],
