@@ -88,6 +88,9 @@ class StateVector:
  Probabilities: {clean_array(self.probabilities)}
  Number of qubits: {self.nb_qubits}"""
 
+    def __repr__(self) -> str:
+        return f"StateVector({clean_array(self.vector)})"
+
 
 @typechecked
 class Sample:
@@ -238,6 +241,7 @@ class Result:
         """See parameter description."""
         self.error = error
         """See parameter description."""
+        self._data = data
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
@@ -390,7 +394,14 @@ class Result:
  Error/Variance: {self.error}"""
 
         raise NotImplementedError(
-            f"Job type {self.job.job_type} not implemented for __str__ method"
+            f"I don't know how to represent results of {self.job.job_type} jobs"
+            " as a string."
+        )
+
+    def __repr__(self) -> str:
+        return (
+            f"Result({repr(self.job)}, {repr(self._data)}, {repr(self.error)}, "
+            f"{repr(self.shots)})"
         )
 
     def plot(self, show: bool = True):
@@ -503,7 +514,7 @@ class BatchResult:
         return header + body
 
     def __repr__(self):
-        return str(self)
+        return f"BatchResult({self.results})"
 
     def __getitem__(self, index: int):
         return self.results[index]
