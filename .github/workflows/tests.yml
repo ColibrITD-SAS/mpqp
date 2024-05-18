@@ -9,6 +9,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: test
+        run: pwd
       - name: Checkout Repository
         uses: actions/checkout@v4
       - name: Cache pip install
@@ -19,6 +21,4 @@ jobs:
       - name: Install Dependencies
         run: pip install -r requirements-dev.txt
       - name: Run test
-        run: |
-          pwd
-          python -m pytest
+        run: python -m pytest
