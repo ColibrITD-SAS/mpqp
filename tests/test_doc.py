@@ -68,6 +68,8 @@ class SafeRunner:
 
 
 def test_documentation():
+    print(os.getcwd())
+
     test_globals = globals().copy()
     test_globals.update(locals())
 
@@ -100,5 +102,3 @@ def test_documentation():
                                     assert runner.run(test).failed == 0
                         else:
                             assert runner.run(test).failed == 0
-
-

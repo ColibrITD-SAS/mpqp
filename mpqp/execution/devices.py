@@ -9,6 +9,11 @@ you can find bellow:
 - :class:`ATOSDevice`,
 - :class:`AWSDevice`,
 - :class:`GOOGLEDevice`.
+
+Not all combinations of :class:`AvailableDevice` and 
+:class:`JobType<mpqp.execution.job.JobType>` are possible, for each device 
+listed bellow, ``S`` means if supports the ``SAMPLE`` job type, ``SV`` the
+``STATE_VECTOR`` one and ``O`` the ``OBSERVABLE`` one.
 """
 
 from abc import abstractmethod
@@ -52,7 +57,9 @@ class IBMDevice(AvailableDevice):
     PULSE_SIMULATOR = "pulse_simulator"
 
     AER_SIMULATOR = "aer_simulator"
+    """``S``"""
     AER_SIMULATOR_STATEVECTOR = "aer_simulator_statevector"
+    """``SV``"""
     AER_SIMULATOR_DENSITY_MATRIX = "aer_simulator_density_matrix"
     AER_SIMULATOR_STABILIZER = "aer_simulator_stabilizer"
     AER_SIMULATOR_MATRIX_PRODUCT_STATE = "aer_simulator_matrix_product_state"
