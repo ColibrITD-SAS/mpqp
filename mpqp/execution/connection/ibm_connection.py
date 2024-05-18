@@ -106,6 +106,7 @@ def get_IBMProvider() -> IBMProvider:
          <IBMBackend('ibm_brisbane')>,
          <IBMBackend('ibm_kyoto')>,
          <IBMBackend('ibm_osaka')>]
+
     """
     global Ibm_Provider
     if Ibm_Provider is None:
@@ -144,6 +145,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
          <RuntimeJob('cmama29054sir2cq94og', 'estimator')>,
          <RuntimeJob('cmama14pduldih1q4ktg', 'sampler')>,
          <RuntimeJob('cm7vds4pduldih1k1mq0', 'sampler')>]
+
     """
     from qiskit_ibm_runtime import QiskitRuntimeService
 
@@ -176,6 +178,7 @@ def get_active_account_info() -> str:
             Token: bf5e5*****
             URL: https://auth.quantum-computing.ibm.com/api
             Verify: True
+
     """
     provider = get_IBMProvider()
     account = provider.active_account()
@@ -198,15 +201,15 @@ def get_backend(device: IBMDevice) -> "BackendV1":
     Returns:
         The requested backend.
 
-    Raises:
-        ValueError: If the required backend is a local simulator.
-        IBMRemoteExecutionError: If the device was not found.
-
     Example:
         >>> brisbane = get_backend(IBMDevice.IBM_BRISBANE)
         >>> brisbane.properties().gates[0].parameters
         [Nduv(datetime.datetime(2024, 1, 9, 11, 3, 18, tzinfo=tzlocal()), gate_error, , 0.00045619997922344296),
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
+
+    Raises:
+        ValueError: If the required backend is a local simulator.
+        IBMRemoteExecutionError: If the device was not found.
     """
     # NOTE:
     #       Question : when a backend is present in several IBMQ instances, which instance does it use to submit jobs
@@ -245,6 +248,7 @@ def get_all_job_ids() -> list[str]:
         'cnvw64rb08x0008y3dx0', 'cnvw5z7wsx00008wybcg', 'cmdj3b4nktricigarn8g', 'cmdj3a74mi97k7j7ujv0',
         'cmama29054sir2cq94og', 'cmama14pduldih1q4ktg', 'cm80qmi70abqiof0o170', 'cm80qlkpduldih1k4png',
         'cm80pb1054sir2ck9i3g', 'cm80pa6879ps6bbqg2pg', 'cm7vdugiidfp3m8rg02g', 'cm7vds4pduldih1k1mq0']
+
     """
     all_job_ids = []
 

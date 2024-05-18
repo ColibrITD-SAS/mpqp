@@ -119,6 +119,7 @@ def get_all_job_ids() -> list[str]:
         >>> get_all_job_ids()
         ['Job144361', 'Job144360', 'Job144359', 'Job144358', 'Job144357', 'Job143334', 'Job143333', 'Job143332',
         'Job141862', 'Job141861', 'Job141722', 'Job141720', 'Job141716', 'Job141715', 'Job141712', 'Job19341']
+
     """
 
     connection = get_QLMaaSConnection()

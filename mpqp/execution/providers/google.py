@@ -174,7 +174,7 @@ def run_local_processor(job: Job) -> Result:
         Result: The result after submission and execution of the job.
     """
     assert type(job.device) == GOOGLEDevice
-    
+
     calibration = load_median_device_calibration(job.device.value)
     device = create_device_from_processor_id(job.device.value)
 

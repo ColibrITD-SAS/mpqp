@@ -39,8 +39,7 @@ def get_remote_result(
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
         Result: ATOSDevice, QLM_LINALG
          Counts: [1017, 0, 0, 0, 983, 0, 0, 0]
-         Probabilities: [0.5085, 0, 0, 0, 0.4915, 0, 0, 0]
-         Samples:
+         Probabilities: [0.5085 0.     0.     0.     0.4915 0.     0.     0.    ]
           State: 000, Index: 0, Count: 1017, Probability: 0.5085
           State: 100, Index: 4, Count: 983, Probability: 0.4915
          Error: 0.011181519941139355

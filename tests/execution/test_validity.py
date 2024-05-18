@@ -23,7 +23,6 @@ state_vector_devices = [
     AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ]
 
-
 sampling_devices = [
     GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
     IBMDevice.AER_SIMULATOR,

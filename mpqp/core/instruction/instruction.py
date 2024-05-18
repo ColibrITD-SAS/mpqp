@@ -103,9 +103,7 @@ class Instruction(ABC):
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(
-            (self.targets if isinstance(self.targets, int) else max(self.targets)) + 1
-        )
+        c = QCircuit(max(self.connections()) + 1)
         c.add(self)
         return str(c)
 
@@ -123,7 +121,8 @@ class Instruction(ABC):
 
         Example:
             >>> CNOT(0,1).connections()
-            [0, 1]
+            {0, 1}
+
         """
         from mpqp.core.instruction.gates import ControlledGate
 
@@ -157,5 +156,6 @@ class Instruction(ABC):
                ┌───────┐
             q: ┤ Rx(π) ├
                └───────┘
+
         """
         return deepcopy(self)

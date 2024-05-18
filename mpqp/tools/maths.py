@@ -37,10 +37,11 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
     Examples:
         >>> vector = np.array([1,0,0,1])
         >>> normalize(vector)
-        array([0.70710678, 0., 0., 0.70710678])
+        array([0.70710678, 0.        , 0.        , 0.70710678])
         >>> vector = np.array([0,0,0,0])
         >>> normalize(vector)
         array([0, 0, 0, 0])
+
     """
     norm = np.linalg.norm(v, ord=2)
     return v if norm == 0 else v / norm
@@ -100,6 +101,7 @@ def is_hermitian(matrix: Matrix) -> bool:
         >>> m6 = np.array([[1,x],[-x,2]])
         >>> is_hermitian(m6)
         False
+
     """
     return matrix_eq(np.array(matrix).transpose().conjugate(), matrix)  # type: ignore
 
@@ -120,6 +122,7 @@ def is_unitary(matrix: Matrix) -> bool:
         False
         >>> is_unitary(a/np.sqrt(2))
         True
+
     """
     return matrix_eq(
         np.eye(len(matrix), dtype=np.complex64),

@@ -210,8 +210,9 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
     Example:
         >>> Id(0).to_matrix()
-        array([[1, 0],
-               [0, 1]])
+        array([[1.+0.j, 0.+0.j],
+               [0.+0.j, 1.+0.j]], dtype=complex64)
+
     """
 
     def __init__(self, target: int):
@@ -233,6 +234,7 @@ class X(OneQubitNoParamGate, InvolutionGate):
         >>> X(0).to_matrix()
         array([[0, 1],
                [1, 0]])
+
     """
 
     def __init__(self, target: int):
@@ -254,6 +256,7 @@ class Y(OneQubitNoParamGate, InvolutionGate):
         >>> Y(0).to_matrix()
         array([[ 0.+0.j, -0.-1.j],
                [ 0.+1.j,  0.+0.j]])
+
     """
 
     def __init__(self, target: int):
@@ -276,6 +279,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
         >>> Z(0).to_matrix()
         array([[ 1,  0],
                [ 0, -1]])
+
     """
 
     def __init__(self, target: int):
@@ -298,6 +302,7 @@ class H(OneQubitNoParamGate, InvolutionGate):
         >>> H(0).to_matrix()
         array([[ 0.70710678,  0.70710678],
                [ 0.70710678, -0.70710678]])
+
     """
 
     def __init__(self, target: int):
@@ -321,6 +326,7 @@ class P(RotationGate, SingleQubitGate):
         >>> P(np.pi/3, 1).to_matrix()
         array([[1. +0.j       , 0. +0.j       ],
                [0. +0.j       , 0.5+0.8660254j]])
+
     """
 
     def __init__(self, theta: Expr | float, target: int):
@@ -345,6 +351,7 @@ class S(OneQubitNoParamGate):
         >>> S(0).to_matrix()
         array([[1.+0.j, 0.+0.j],
                [0.+0.j, 0.+1.j]])
+
     """
 
     def __init__(self, target: int):
@@ -368,8 +375,9 @@ class T(OneQubitNoParamGate):
 
     Example:
         >>> T(0).to_matrix()
-        array([[1.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 0.70710678+0.70710678j]])
+        array([[1, 0],
+               [0, exp(0.25*I*pi)]], dtype=object)
+
     """
 
     def __init__(self, target: int):
@@ -390,11 +398,12 @@ class SWAP(InvolutionGate, NoParameterGate):
         b: Second target of the swapping operation.
 
     Example:
-        >>> SWAP(0, 1)
+        >>> SWAP(0, 1).to_matrix()
         array([[1, 0, 0, 0],
                [0, 0, 1, 0],
                [0, 1, 0, 0],
                [0, 0, 0, 1]])
+
     """
 
     def __init__(self, a: int, b: int):
@@ -419,6 +428,7 @@ class U(NativeGate, ParametrizedGate):
         >>> U(np.pi/3, 0, np.pi/4, 0).to_matrix()
         array([[ 0.8660254 +0.j        , -0.35355339-0.35355339j],
                [ 0.5       +0.j        ,  0.61237244+0.61237244j]])
+
     """
 
     def __init__(
@@ -486,6 +496,7 @@ class Rx(RotationGate, SingleQubitGate):
         >>> Rx(np.pi/5, 1).to_matrix()
         array([[0.95105652+0.j        , 0.        -0.30901699j],
                [0.        -0.30901699j, 0.95105652+0.j        ]])
+
     """
 
     def __init__(self, theta: Expr | float, target: int):
@@ -511,6 +522,7 @@ class Ry(RotationGate, SingleQubitGate):
         >>> Ry(np.pi/5, 1).to_matrix()
         array([[ 0.95105652, -0.30901699],
                [ 0.30901699,  0.95105652]])
+
     """
 
     def __init__(self, theta: Expr | float, target: int):
@@ -533,9 +545,10 @@ class Rz(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Rz(np.pi/5, 1).to_matrix()
-        array([[0.95105652-0.30901699j, 0.        +0.j        ],
-               [0.        +0.j        , 0.95105652-0.30901699j]])
+        >>> print(clean_matrix(Rz(np.pi/5, 1).to_matrix()))
+        [[0.9510565-0.309017j, 0],
+         [0, 0.9510565+0.309017j]]
+
     """
 
     def __init__(self, theta: Expr | float, target: int):
@@ -563,6 +576,7 @@ class Rk(RotationGate, SingleQubitGate):
         >>> Rk(5, 0).to_matrix()
         array([[1.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 0.98078528+0.19509032j]])
+
     """
 
     def __init__(self, k: Expr | int, target: int):
@@ -606,6 +620,7 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
                [0, 1, 0, 0],
                [0, 0, 0, 1],
                [0, 0, 1, 0]])
+
     """
 
     def __init__(self, control: int, target: int):
@@ -626,11 +641,12 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CZ(0, 1).to_matrix()
-        array([[ 1,  0,  0,  0],
-               [ 0,  1,  0,  0],
-               [ 0,  0,  1,  0],
-               [ 0,  0,  0, -1]])
+        >>> print(clean_matrix(CZ(0, 1).to_matrix()))
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 1, 0],
+         [0, 0, 0, -1]]
+
     """
 
     def __init__(self, control: int, target: int):
@@ -640,7 +656,7 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
 
     def to_matrix(self) -> Matrix:
-        m = np.eye(8, dtype=complex)
+        m = np.eye(4, dtype=complex)
         m[-1, -1] = -1
         return m
 
@@ -654,11 +670,12 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CRk(4, 0, 1)
-        array([[1.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 1.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 0.        +0.j        , 1.        +0.j        , 1.        +0.j        ],
-               [0.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.92387953+0.38268343j]])
+        >>> print(clean_matrix(CRk(4, 0, 1).to_matrix()))
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 1, 0],
+         [0, 0, 0, 0.9238795+0.3826834j]]
+
     """
 
     def __init__(self, k: Expr | int, control: int, target: int):
@@ -698,15 +715,16 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> TOF([0, 1], 2).to_matrix()
-        array([[1, 0, 0, 0, 0, 0, 0, 0],
-               [0, 1, 0, 0, 0, 0, 0, 0],
-               [0, 0, 1, 0, 0, 0, 0, 0],
-               [0, 0, 0, 1, 0, 0, 0, 0],
-               [0, 0, 0, 0, 1, 0, 0, 0],
-               [0, 0, 0, 0, 0, 1, 0, 0],
-               [0, 0, 0, 0, 0, 0, 0, 1],
-               [0, 0, 0, 0, 0, 0, 1, 0]])
+        >>> print(clean_matrix(TOF([0, 1], 2).to_matrix()))
+        [[1, 0, 0, 0, 0, 0, 0, 0],
+         [0, 1, 0, 0, 0, 0, 0, 0],
+         [0, 0, 1, 0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0, 0, 0, 0],
+         [0, 0, 0, 0, 1, 0, 0, 0],
+         [0, 0, 0, 0, 0, 1, 0, 0],
+         [0, 0, 0, 0, 0, 0, 0, 1],
+         [0, 0, 0, 0, 0, 0, 1, 0]]
+
     """
 
     def __init__(self, control: list[int], target: int):

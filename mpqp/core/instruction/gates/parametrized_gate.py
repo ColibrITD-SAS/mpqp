@@ -43,7 +43,8 @@ class ParametrizedGate(Gate, ABC):
         >>> theta = np.pi/3
         >>> c, s = np.cos(theta / 2), np.sin(theta / 2)
         >>> gate_def = UnitaryMatrix(np.array([[c, s], [-s, c]]))
-        >>> parametrized = ParametrizedGate(gate_def, 3, theta)
+        >>> parametrized = ParametrizedGate(gate_def, [3], [theta])
+
     """
 
     def __init__(

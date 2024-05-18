@@ -106,6 +106,7 @@ def minimize(
         ...     optimizer_options={"maxiter":50},
         ... )
         (8.881784197001252e-16, array([0., 0.]))
+
     """
     if isinstance(optimizable, QCircuit):
         if device is None:

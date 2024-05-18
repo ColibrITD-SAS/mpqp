@@ -64,6 +64,7 @@ def get_aws_braket_account_info() -> str:
             access_key_id: 'AKIA26NYJ***********'
             secret_access_key: 'sMDad***********************************'
             region: 'us-east-1'
+
     """
     if get_env_variable("BRAKET_CONFIGURED") == "False":
         raise AWSBraketRemoteExecutionError(
@@ -110,6 +111,7 @@ def get_braket_device(device: AWSDevice) -> "BraketDevice":
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
+
     """
     if not device.is_remote():
         from braket.devices import LocalSimulator
@@ -148,6 +150,7 @@ def get_all_task_ids() -> list[str]:
          'arn:aws:braket:us-east-1:752542621531:quantum-task/4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
+
     """
     from braket.aws import AwsSession
 
@@ -171,5 +174,6 @@ def get_all_partial_ids() -> list[str]:
          '4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
+
     """
     return [id.split("/")[-1] for id in get_all_task_ids()]

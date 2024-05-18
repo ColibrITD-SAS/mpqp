@@ -58,7 +58,10 @@ def test_expectation_measure_wrong_targets(
 @pytest.mark.parametrize(
     "obs, translation",
     [
-        (Observable(I @ I + I @ X), sum(1.0 * Cirq_I(q[0]) * Cirq_I(q[1]) + Cirq_X(q[1]))),
+        (
+            Observable(I @ I + I @ X),
+            sum(1.0 * Cirq_I(q[0]) * Cirq_I(q[1]) + Cirq_X(q[1])),
+        ),
     ],
 )
 def test_to_other_language(

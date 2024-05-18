@@ -22,14 +22,23 @@ def get_existing_config_str() -> str:
         The string with .mpqp file content.
 
     Example:
-        >>> get_existing_config_str()
-        IBM_TOKEN='e7c9*************'
-        IBM_CONFIGURED='True'
+        >>> save_env_variable('QLM_USER', 'hjaffali')
+        True
+        >>> save_env_variable('QLM_PASSWD', '****************')
+        True
+        >>> save_env_variable('QLM_CONFIGURED', 'True')
+        True
+        >>> save_env_variable('BRAKET_CONFIGURED', 'True')
+        True
+        >>> print(get_existing_config_str()) # doctest: +NORMALIZE_WHITESPACE
         QLM_USER='hjaffali'
         QLM_PASSWD='****************'
         QLM_CONFIGURED='True'
         BRAKET_CONFIGURED='True'
+
     """
+    if not os.path.exists(MPQP_CONFIG_PATH):
+        return ""
     with open(MPQP_CONFIG_PATH, "r") as mpqp:
         file_str = mpqp.read()
     return file_str
@@ -43,11 +52,14 @@ def load_env_variables() -> bool:
 
     Example:
         >>> os.getenv("IBM_CONFIGURED")
-
+        >>> open(os.path.expanduser("~") + "/.mpqp", "w").write("IBM_CONFIGURED='True'\\n")
+        22
+        >>> os.getenv("IBM_CONFIGURED")
         >>> load_env_variables()
         True
         >>> os.getenv("IBM_CONFIGURED")
         'True'
+
     """
     load_dotenv(MPQP_CONFIG_PATH, override=True)
     return True
@@ -62,10 +74,13 @@ def get_env_variable(key: str) -> str:
         key: The key for which we want to get the value.
 
     Example:
+        >>> save_env_variable("BRAKET_CONFIGURED", 'True')
+        True
         >>> get_env_variable("BRAKET_CONFIGURED")
         'True'
         >>> get_env_variable("RaNdOM")
         ''
+
     """
     _create_config_if_needed()
     load_env_variables()
@@ -92,6 +107,7 @@ def save_env_variable(key: str, value: str) -> bool:
         True
         >>> get_env_variable("RaNdOM")
         'azertyuiop'
+
     """
     _create_config_if_needed()
 

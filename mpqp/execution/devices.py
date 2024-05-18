@@ -166,6 +166,7 @@ class AWSDevice(AvailableDevice):
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_arn()
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3'
+
         """
         region = self.get_region()
         if self.is_simulator():
@@ -181,10 +182,11 @@ class AWSDevice(AvailableDevice):
         Examples:
             >>> AWSDevice.BRAKET_IONQ_HARMONY.get_region()
             'us-east-1'
-            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region()
-            ''
+            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
+            True
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_region()
             'us-west-1'
+
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
@@ -215,6 +217,7 @@ class AWSDevice(AvailableDevice):
             <AWSDevice.BRAKET_IONQ_HARMONY: 'qpu/ionq/Harmony'>
             >>> AWSDevice.from_arn('arn:aws:braket:::device/quantum-simulator/amazon/sv1')
             <AWSDevice.BRAKET_SV1_SIMULATOR: 'quantum-simulator/amazon/sv1'>
+
         """
         for elem in AWSDevice:
             if elem.value in arn:
