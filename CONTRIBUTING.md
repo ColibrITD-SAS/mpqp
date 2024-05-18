@@ -41,6 +41,18 @@ etc... included), use pip:
 pip install -r requirements-dev.txt
 ```
 
+The last (optinal) step is to setup a github personal access tokens to enable
+the sphinx automatic changelog generation. This step is only important if you
+want to preview this changelog generation on your personal comuter. Not being
+able to generati it will not affect the rest of the documentation, and even less
+the rest of the library.
+
+In order to generate the token, you can read about it on
+[this page](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-personal-access-token-classic).
+The only scope you need for this token is the `public_repo` one. Once you
+generated it, duplicate the `.env.example` file at the root of this repository,
+and rename it to `.env`, the replace `...` by your token and your all set!
+
 ### Our tech stack
 
 Here are the pieces of software useful to know to work on our library:
