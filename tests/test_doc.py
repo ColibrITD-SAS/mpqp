@@ -87,7 +87,10 @@ def test_documentation():
             elif filename.endswith(".py"):
                 print(f"Running doctests in {os.path.join(os.getcwd(),root,filename)}")
                 my_module = importlib.import_module(
-                    os.path.join(root, filename).replace(".py", "").replace("\\", ".")
+                    os.path.join(root, filename)
+                    .replace(".py", "")
+                    .replace("\\", ".")
+                    .replace("/", ".")
                 )
                 saf = any(str in filename for str in saf_file)
                 for test in finder.find(my_module, "mpqp", globs=test_globals):
