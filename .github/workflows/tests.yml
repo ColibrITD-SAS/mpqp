@@ -19,4 +19,6 @@ jobs:
       - name: Install Dependencies
         run: pip install -r requirements-dev.txt
       - name: Run test
-        run: python -m pytest
+        run:
+          - pwd
+          - python -m pytest
