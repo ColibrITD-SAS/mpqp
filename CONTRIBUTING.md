@@ -12,9 +12,9 @@ When contributing to `MPQP`, whether on GitHub or in other community spaces:
 ### Prerequisites
 
 In order to not waste your time implementing a change that has already been
-declined, or is generally not needed, start by [opening an
-issue](https://github.com/ColibrITD-SAS/mpqp/issues/new/choose) describing the
-problem you would like to solve.
+declined, or is generally not needed, start by
+[opening an issue](https://github.com/ColibrITD-SAS/mpqp/issues/new/choose)
+describing the problem you would like to solve.
 
 ### Setup your environment locally
 
@@ -48,8 +48,9 @@ Here are the pieces of software useful to know to work on our library:
 - All the code of the Library is in [Python](https://www.python.org).
 - We run our tests using [pytest](https://docs.pytest.org).
 - We generate our documentation using [Sphinx](https://www.sphinx-doc.org).
-- We format the code using [black](https://black.readthedocs.io), but this is not
-  configured yet.
+- We format the code using [black](https://black.readthedocs.io) and
+  [isort](https://pycqa.github.io/isort), but this is not configured in our ci
+  yet.
 - We check our types using [Pyright](https://microsoft.github.io/pyright), but
   this is not configured yet.
 - The documentation is automatically deployed on new versions with
@@ -83,19 +84,35 @@ Here are some useful scripts for when you are developing:
 
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)
-guidelines, i.e. prepending the message with `feat:`, `fix:`, `doc:`, etc...
-You can use `git status` to double check which files have not yet been staged
-for commit:
+guidelines, i.e. prepending the message with `feat:`, `fix:`, `doc:`, etc... You
+can use `git status` to double check which files have not yet been staged for
+commit:
 
 ```bash
 git add <file> && git commit -m "feat/fix/doc: commit message"
 ```
 
+Note that our docstrings follow broadly the
+[Google format](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings).
+One example is worth one thousand words so you can also have a look of
+[the Sphinx examples](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html)
+for guidance. Types are not needed in the documentation as we use type hints
+(and so should be included to avoid data duplication). In addition, because of
+our automatic web documentation generation, the order of sections has to be the
+following (even though each of these sections is optional):
+
+1. `Args`
+2. `Returns`
+3. `Raises`
+4. `Example(s)`
+5. `Notes`
+6. `Warnings`
+
 ### When you're done
 
-We would like you to format your code using `black`, and check that your type
-hints are coherent using `Pyright`, but there are not configured yet. This
-should be dealt with shortly.
+We would like you to format your code using `black` and `isort`, and check that
+your type hints are coherent using `Pyright`, but there are not configured yet.
+This should be dealt with shortly.
 
 Please make sure your changes are working as expected (and that you didn't break
 any previous feature) by making manual, running the automated tests and adding
