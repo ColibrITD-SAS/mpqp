@@ -9,12 +9,12 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
       - name: test
         run: |
           pwd
           ls
-      - name: Checkout Repository
-        uses: actions/checkout@v4
       - name: Cache pip install
         uses: actions/setup-python@v5
         with:
