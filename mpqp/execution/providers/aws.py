@@ -78,6 +78,9 @@ def apply_noise_to_braket_circuit(
                 noisy_circuit.apply_gate_noise(noise.to_other_language(Language.BRAKET))
         else:
             if noise.gates:
+                if CRk in noise.gates:
+                    raise NotImplementedError("Cannot simulate noisy circuit with CRk gate due to "
+                                              "an error on AWS Braket side.")
                 noisy_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
