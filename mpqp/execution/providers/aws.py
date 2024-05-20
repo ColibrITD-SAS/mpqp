@@ -14,6 +14,7 @@ from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
+from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
     ExpectationMeasure,
@@ -62,6 +63,9 @@ def apply_noise_to_braket_circuit(
     for noise in noises:
         if set(noise.targets) == set(range(nb_qubits)):
             if noise.gates:
+                if CRk in noise.gates:
+                    raise NotImplementedError("Cannot simulate noisy circuit with CRk gate due to "
+                                              "an error on AWS Braket side.")
                 noisy_circuit.apply_gate_noise(
                     noise.to_other_language(Language.BRAKET),
                     target_gates=[
