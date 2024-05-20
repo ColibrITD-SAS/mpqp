@@ -101,7 +101,7 @@ class NoiseModel(ABC):
     #     pass
 
 
-@typecheked
+@typechecked
 class Depolarizing(NoiseModel):
     """Class representing the depolarizing noise channel, which maps a state onto a linear combination of itself and
     the maximally mixed state. It can applied to a single or multiple qubits, and depends on a single parameter
