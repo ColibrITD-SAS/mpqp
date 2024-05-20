@@ -11,11 +11,13 @@ you can find bellow:
 - :class:`GOOGLEDevice`.
 
 Not all combinations of :class:`AvailableDevice` and 
-:class:`JobType<mpqp.execution.job.JobType>` are possible, for each device 
-listed bellow, ``S`` means it supports the ``SAMPLE`` job type, ``SV`` the
-``STATE_VECTOR`` one and ``O`` the ``OBSERVABLE`` one. A variation of the
-``OBSERVABLE`` job type is the ideal case (when ``shots=0``), this one is denoted
-``Oi``.
+:class:`JobType<mpqp.execution.job.JobType>` are possible. Here is the list of
+compatible jobs types and devices.
+
+.. csv-table:: Job/Device Compatibility Matrix
+   :file: ../../docs/resources/job-device_compat.csv
+   :widths: 7, 25, 7, 10, 10, 15
+   :header-rows: 1
 """
 
 from abc import abstractmethod
@@ -66,9 +68,7 @@ class IBMDevice(AvailableDevice):
     # PULSE_SIMULATOR = "pulse_simulator"
 
     AER_SIMULATOR = "aer_simulator"
-    """``S`` ``O`` ``Oi``"""
     AER_SIMULATOR_STATEVECTOR = "aer_simulator_statevector"
-    """``SV`` ``O``"""
     # TODO: many devices are no longer working, explore why
     # AER_SIMULATOR_DENSITY_MATRIX = "aer_simulator_density_matrix"
     # AER_SIMULATOR_STABILIZER = "aer_simulator_stabilizer"
@@ -84,47 +84,27 @@ class IBMDevice(AvailableDevice):
     # IBMQ_QASM_SIMULATOR = "ibmq_qasm_simulator"
 
     IBM_BRISBANE = "ibm_brisbane"
-    """``S`` ``O``"""
     IBM_OSAKA = "ibm_osaka"
-    """``S`` ``O``"""
     IBM_KYOTO = "ibm_kyoto"
-    """``S`` ``O``"""
 
     IBM_SHERBROOKE = "ibm_sherbrooke"
-    """``S`` ``O``"""
     IBM_KYIV = "ibm_kyiv"
-    """``S`` ``O``"""
     IBM_NAZCA = "ibm_nazca"
-    """``S`` ``O``"""
     IBM_CUSCO = "ibm_cusco"
-    """``S`` ``O``"""
     IBM_ITHACA = "ibm_ithaca"
-    """``S`` ``O``"""
     IBM_TORINO = "ibm_torino"
-    """``S`` ``O``"""
     IBM_QUEBEC = "ibm_quebec"
-    """``S`` ``O``"""
     IBM_KAWASAKI = "ibm_kawasaki"
-    """``S`` ``O``"""
     IBM_CLEVELAND = "ibm_cleveland"
-    """``S`` ``O``"""
     IBM_CAIRO = "ibm_cairo"
-    """``S`` ``O``"""
     IBM_HANOI = "ibm_hanoi"
-    """``S`` ``O``"""
     IBM_ALGIERS = "ibm_algiers"
-    """``S`` ``O``"""
     IBM_KOLKATA = "ibm_kolkata"
-    """``S`` ``O``"""
     IBM_MUMBAI = "ibm_mumbai"
-    """``S`` ``O``"""
     IBM_PEEKSKILL = "ibm_peekskill"
-    """``S`` ``O``"""
 
     IBM_RANDOM_SMALL_DEVICE = "ibm_small_device"
-    """``S`` ``O``"""
     IBM_SMALL_DEVICES_LEAST_BUSY = "ibm_least_busy"
-    """``S`` ``O``"""
 
     def is_remote(self) -> bool:
         return self.name.startswith("IBM")
@@ -141,22 +121,16 @@ class ATOSDevice(AvailableDevice):
     """Enum regrouping all available devices provided by ATOS."""
 
     MYQLM_PYLINALG = auto()
-    """``S`` ``SV`` ``O`` ``Oi``"""
     MYQLM_CLINALG = auto()
-    """``S`` ``SV`` ``O`` ``Oi``"""
 
     QLM_LINALG = auto()
-    """``S`` ``SV`` ``O`` ``Oi``"""
     QLM_MPS = auto()
-    """``S`` ``SV`` ``Oi``"""
     QLM_MPS_LEGACY = auto()
     QLM_MPO = auto()
-    """``S`` ``Oi``"""
     QLM_STABS = auto()
     QLM_FEYNMAN = auto()
     QLM_BDD = auto()
     QLM_NOISY_QPROC = auto()
-    """``S`` ``O`` ``Oi``"""
     QLM_SQA = auto()
     QLM_QPEG = auto()
     QLM_CLASSICAL_QPU = auto()
@@ -175,27 +149,18 @@ class AWSDevice(AvailableDevice):
     """Enum regrouping all available devices provided by AWS Braket."""
 
     BRAKET_LOCAL_SIMULATOR = "LocalSimulator"
-    """``S`` ``SV`` ``O`` ``Oi``"""
 
     BRAKET_SV1_SIMULATOR = "quantum-simulator/amazon/sv1"
-    """``SV`` ``Oi``"""
     BRAKET_DM1_SIMULATOR = "quantum-simulator/amazon/dm1"
     BRAKET_TN1_SIMULATOR = "quantum-simulator/amazon/tn1"
 
     BRAKET_IONQ_HARMONY = "qpu/ionq/Harmony"
-    """``S`` ``O``"""
     BRAKET_IONQ_ARIA_1 = "qpu/ionq/Aria-1"
-    """``S`` ``O``"""
     BRAKET_IONQ_ARIA_2 = "qpu/ionq/Aria-2"
-    """``S`` ``O``"""
     BRAKET_IONQ_FORTE_1 = "qpu/ionq/Forte-1"
-    """``S`` ``O``"""
     BRAKET_OQC_LUCY = "qpu/oqc/Lucy"
-    """``S`` ``O``"""
     BRAKET_QUERA_AQUILA = "qpu/quera/Aquila"
-    """``S`` ``O``"""
     BRAKET_RIGETTI_ASPEN_M_3 = "qpu/rigetti/Aspen-M-3"
-    """``S`` ``O``"""
 
     def is_remote(self):
         return self != AWSDevice.BRAKET_LOCAL_SIMULATOR
@@ -282,15 +247,10 @@ class GOOGLEDevice(AvailableDevice):
     """Enum regrouping all available devices provided by CIRQ."""
 
     CIRQ_LOCAL_SIMULATOR = "LocalSimulator"
-    """``S`` ``SV`` ``O`` ``Oi``"""
     PROCESSOR_RAINBOW = "rainbow"
-    """``S``"""
     PROCESSOR_WEBER = "weber"
-    """``S``"""
     IONQ_SIMULATOR = "simulator"
-    """``S``"""
     IONQ_QPU = "qpu"
-    """``S``"""
 
     def is_remote(self):
         if self.name.startswith("IONQ"):
