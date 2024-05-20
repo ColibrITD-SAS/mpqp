@@ -28,7 +28,9 @@ Atos     ,QLM_MPS                      ,✓      ,✓            ,           ,�
 Atos     ,QLM_MPO                      ,✓      ,             ,           ,✓
 Atos     ,QLM_NOISY_QPROC              ,✓      ,             ,✓          ,✓
 AWS      ,BRAKET_LOCAL_SIMULATOR       ,✓      ,✓            ,✓          ,✓
-AWS      ,BRAKET_SV1_SIMULATOR         ,✓      ,             ,✓          ,
+AWS      ,BRAKET_SV1_SIMULATOR         ,✓      ,✓            ,✓          ,
+AWS      ,BRAKET_DM1_SIMULATOR         ,✓      ,             ,✓          ,
+AWS      ,BRAKET_TN1_SIMULATOR         ,✓      ,             ,✓          ,✓
 AWS      ,BRAKET_IONQ_HARMONY          ,✓      ,             ,✓          , 
 AWS      ,BRAKET_IONQ_ARIA_1           ,✓      ,             ,✓          , 
 AWS      ,BRAKET_IONQ_ARIA_2           ,✓      ,             ,✓          , 
