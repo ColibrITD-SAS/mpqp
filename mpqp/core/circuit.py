@@ -17,7 +17,7 @@ from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.gates import ControlledGate, Gate, Id
+from mpqp.core.instruction.gates import ControlledGate, Gate, Id, CRk
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
@@ -801,9 +801,15 @@ class QCircuit:
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
-            return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(circuit.to_qasm3()), self.noises, self.nb_qubits
-            )
+            if self.noises:
+                if any([isinstance(instr, CRk) for instr in self.instructions]):
+                    raise NotImplementedError("Cannot simulate noisy circuit with CRk gate due to "
+                                              "an error on AWS Braket side.")
+                return apply_noise_to_braket_circuit(
+                    qasm3_to_braket_Circuit(circuit.to_qasm3()), self.noises, self.nb_qubits
+                )
+            else:
+                return qasm3_to_braket_Circuit(circuit.to_qasm3())
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
