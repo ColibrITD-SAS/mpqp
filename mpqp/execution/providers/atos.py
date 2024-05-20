@@ -66,6 +66,9 @@ def job_pre_processing(job: Job) -> Circuit:
     if job.job_type == JobType.OBSERVABLE and job.device == ATOSDevice.QLM_NOISYQPROC and job.measure.shots == 0:
         raise DeviceJobIncompatibleError("NoisyQProc does not support properly ideal `OBSERVABLE` jobs.")
 
+    if job.job_type == JobType.OBSERVABLE and job.device == ATOSDevice.QLM_MPO and job.measure.shots != 0:
+        raise DeviceJobIncompatibleError("`OBSERVABLE` jobs with shots!=0 are disabled for MPO.")
+
     myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
 
     return myqlm_circuit
