@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Optional, Union
+from typeguard import typechecked
 
 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from braket.circuits.noises import Noise as BraketNoise
@@ -14,6 +15,7 @@ from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
 
 
+@typechecked
 class NoiseModel(ABC):
     """Abstract class used to represent a generic noise model, specifying
     criteria for applying different noise type to a quantum circuit, or some of
@@ -99,6 +101,7 @@ class NoiseModel(ABC):
     #     pass
 
 
+@typecheked
 class Depolarizing(NoiseModel):
     """Class representing the depolarizing noise channel, which maps a state onto a linear combination of itself and
     the maximally mixed state. It can applied to a single or multiple qubits, and depends on a single parameter
