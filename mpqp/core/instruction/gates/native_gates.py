@@ -531,8 +531,11 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         elif language == Language.BRAKET:
             from braket.circuits import gates
 
-            return gates.U(self.theta, self.phi, self.gamma)
             # 3M-TODO handle symbolic parameters
+            if any([not isinstance(par, float) for par in self.parameters]):
+                raise NotImplementedError("Symbolic gate U in Braket is not implemented yet.")
+
+            return gates.U(self.theta, self.phi, self.gamma)
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
