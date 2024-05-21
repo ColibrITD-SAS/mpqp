@@ -148,7 +148,7 @@ class Depolarizing(NoiseModel):
 
     def __init__(
         self,
-        prob: Union[float, Expr],
+        prob: float,
         targets: list[int],
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
@@ -159,6 +159,7 @@ class Depolarizing(NoiseModel):
                 f" than 1, but got {dimension} instead."
             )
 
+        # 3M-TODO: implement the possibility of having a parameterized noise, param: Union[float, Expr]
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]
             print(dimension, prob, prob_upper_bound)
@@ -246,7 +247,7 @@ class Depolarizing(NoiseModel):
                 raise NotImplementedError(
                     f"Depolarizing channel is not implemented in the QLM for more than 2 qubits."
                 )
-            elif self.dimension == 2 and self.gates is None:
+            elif self.dimension == 2 and len(self.gates) == 0:
                 raise ValueError(
                     "Depolarizing channel of dimension 2 for idle qubits is not supported by the QLM."
                 )

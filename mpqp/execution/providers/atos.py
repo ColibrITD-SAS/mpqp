@@ -92,7 +92,7 @@ def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
         device: ATOSDevice referring to the myQLM local QPU.
 
     Raises:
-        ValueError: If the required backend is a local simulator.
+        ValueError: If the required backend is a remote simulator.
     """
     from qat.clinalg.qpu import CLinalg
     from qat.pylinalg import PyLinalg
@@ -106,7 +106,15 @@ def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
 
 @typechecked
 def get_remote_qpu(device: ATOSDevice, job: Optional[Job] = None):
+    """Returns the QLM remote QPU associated with the ATOSDevice given in parameter.
 
+    Args:
+        device: ATOSDevice referring to the QLM remote QPU.
+        job: MPQP job containing all info about the execution.
+
+    Raises:
+        ValueError: If the required backend is a local simulator.
+    """
     if not device.is_remote():
         raise ValueError(
             f"Excepted a remote device, but got a local myQLM simulator {device}"
@@ -254,9 +262,7 @@ def generate_hardware_model(
         The HardwareModel corresponding to the combination of NoiseModels given in parameter.
     """
     from qat.hardware.default import DefaultGatesSpecification, HardwareModel
-    from qat.quops import (
-        make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
-    )
+    from qat.quops import make_depolarizing_channel  # pyright: ignore[reportAttributeAccessIssue]
 
     all_qubits_target = True
 
@@ -322,7 +328,11 @@ def generate_hardware_model(
                                     gate_noise_local[gate_keyword][t] = channel
                                 else:
                                     gate_noise_local[gate_keyword][t] *= channel
-
+                else:
+                    warnings.warn(f"The gate {gate} has no attribute 'qlm_aqasm_keyword', and is "
+                                  f"ignored in the definition of the noise model. Please add `qlm_aqasm_keyword` "
+                                  f"to the gate class as a class attribute.",
+                                  UserWarning)
         # Otherwise, we add an iddle noise
         else:
             if this_noise_all_qubits_target:
