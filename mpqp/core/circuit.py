@@ -805,11 +805,10 @@ class QCircuit:
                 if any([isinstance(instr, CRk) for instr in self.instructions]):
                     raise NotImplementedError("Cannot simulate noisy circuit with CRk gate due to "
                                               "an error on AWS Braket side.")
-                return apply_noise_to_braket_circuit(
-                    qasm3_to_braket_Circuit(circuit.to_qasm3()), self.noises, self.nb_qubits
-                )
-            else:
-                return qasm3_to_braket_Circuit(circuit.to_qasm3())
+
+            return apply_noise_to_braket_circuit(
+                qasm3_to_braket_Circuit(circuit.to_qasm3()), self.noises, self.nb_qubits
+            )
 
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
