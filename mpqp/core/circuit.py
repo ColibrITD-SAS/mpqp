@@ -62,7 +62,7 @@ class QCircuit:
 
     A circuit is composed of instructions and noise models applied on
     quantum and/or classical bits. These elements (instructions and noise
-    models will be called ``components`` hereafter.
+    models) will be called ``components`` hereafter.
 
     Args:
         data: Number of qubits or list of ``components`` to initialize the circuit
@@ -154,7 +154,7 @@ class QCircuit:
         return dumps(self) == dumps(value)
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
-        """Adds an ``component`` or a list of ``component`` at the end of the circuit.
+        """Adds a ``component`` or a list of ``component`` at the end of the circuit.
 
         Args:
             components : Instruction(s) or NoiseModel(s) to append to the circuit.
