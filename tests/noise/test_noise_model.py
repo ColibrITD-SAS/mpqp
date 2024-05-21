@@ -28,10 +28,10 @@ def test_depolarizing_wrong_prob(prob: float):
 @pytest.mark.parametrize(
     "args, error",
     [
-        (-0.1, [0], 1, "Invalid probability: -0.1 must have been between 0 and 1"),
-        (1.5, [0], 1, "Invalid probability: 1.5 must have been between 0 and 1"),
-        (0.1, [0], 2, "Invalid probability: -0.1 must have been between 0 and 1"),
-        (0.1, [0], 0, "Invalid probability: -0.1 must have been between 0 and 1"),
+        ((-0.1, [0], 1), "Invalid probability: -0.1 must have been between 0 and 1"),
+        ((1.5, [0], 1), "Invalid probability: 1.5 must have been between 0 and 1"),
+        ((-0.1, [0], 2), "Invalid probability: -0.1 must have been between 0 and 1"),
+        ((0.1, [0], 0), "Invalid probability: -0.1 must have been between 0 and 1"),
     ],
 )
 def test_depolarizing_wrong_params(args: tuple[float, list[int], int], error: str):

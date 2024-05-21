@@ -26,10 +26,10 @@ from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatib
 
 @typechecked
 def apply_noise_to_braket_circuit(
-    braket_circuit: Circuit,
+    braket_circuit: "Circuit",
     noises: list[NoiseModel],
     nb_qubits: int,
-) -> Circuit:
+) -> "Circuit":
     """Apply noise models to a Braket circuit.
 
     This function applies noise models to a given Braket circuit based on the specified noise models and
@@ -148,7 +148,7 @@ def run_braket(job: Job) -> Result:
 
 
 @typechecked
-def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
+def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
 
@@ -219,7 +219,7 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
 
 @typechecked
 def extract_result(
-    braket_result: GateModelQuantumTaskResult,
+    braket_result: "GateModelQuantumTaskResult",
     job: Optional[Job] = None,
     device: AWSDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ) -> Result:

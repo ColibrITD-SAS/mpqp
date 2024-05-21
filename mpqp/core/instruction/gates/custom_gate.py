@@ -6,11 +6,7 @@ if TYPE_CHECKING:
     from qiskit.circuit import Parameter
 
 from mpqp.core.instruction.gates.gate import Gate
-from mpqp.core.instruction.gates.gate_definition import (
-    KrausRepresentation,
-    PauliDecomposition,
-    UnitaryMatrix,
-)
+from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 
 
