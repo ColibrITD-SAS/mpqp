@@ -92,22 +92,20 @@ class QCircuit:
         q_4: ────────────
         c: 2/════════════
 
-        >>> circuit = QCircuit(4, label="NoiseExample")
-        >>> circuit.add([H(0), T(1), CNOT(0,1), S(3)])
+        >>> circuit = QCircuit(3, label="NoiseExample")
+        >>> circuit.add([H(0), T(1), CNOT(0,1), S(2)])
         >>> circuit.add(BasisMeasure(list(range(3)), shots=2345))
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
-        >>> circuit.pretty_print() +NORMALIZE_WHITESPACE
-        QCircuit NoiseExample: Size (Qubits,Cbits) = (4, 3), Nb instructions = 5
+        >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
+        QCircuit NoiseExample: Size (Qubits,Cbits) = (3, 3), Nb instructions = 5
         Depolarizing noise: probability 0.5 on qubits [0, 1]
              ┌───┐     ┌─┐
         q_0: ┤ H ├──■──┤M├───
              ├───┤┌─┴─┐└╥┘┌─┐
         q_1: ┤ T ├┤ X ├─╫─┤M├
-             └───┘└┬─┬┘ ║ └╥┘
-        q_2: ──────┤M├──╫──╫─
-             ┌───┐ └╥┘  ║  ║
-        q_3: ┤ S ├──╫───╫──╫─
-             └───┘  ║   ║  ║
+             ├───┤└┬─┬┘ ║ └╥┘
+        q_2: ┤ S ├─┤M├──╫──╫─
+             └───┘ └╥┘  ║  ║
         c: 3/═══════╩═══╩══╩═
                     2   0  1
 
@@ -177,6 +175,7 @@ class QCircuit:
 
             >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
+            >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
             Depolarizing noise: probability 0.3 for gates [CNOT]
             Depolarizing noise: probability 0.02 on qubits [0]
@@ -708,7 +707,7 @@ class QCircuit:
         Example:
             >>> circuit = QCircuit(2)
             >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit)
+            >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
                       ┌─┐
             q_0: ──■──┤M├───
                  ┌─┴─┐└╥┘┌─┐
@@ -717,7 +716,7 @@ class QCircuit:
             c: 2/══════╩══╩═
                        0  1
             NoiseModel: Depolarizing(0.4, [0, 1], 1)
-            >>> print(circuit.without_noises())
+            >>> print(circuit.without_noises())  # doctest: +NORMALIZE_WHITESPACE
                       ┌─┐
             q_0: ──■──┤M├───
                  ┌─┴─┐└╥┘┌─┐
@@ -770,7 +769,7 @@ class QCircuit:
             <class 'qiskit.circuit.quantumcircuit.QuantumCircuit'>
             >>> circuit2 = QCircuit([H(0), CZ(0,1), Depolarizing(0.6, [0])])
             >>> braket_circuit = circuit2.to_other_language(Language.BRAKET)
-            >>> print(braket_circuit)
+            >>> print(braket_circuit)  # doctest: +NORMALIZE_WHITESPACE
             T  : │         0         │         1         │
                   ┌───┐ ┌───────────┐       ┌───────────┐
             q0 : ─┤ H ├─┤ DEPO(0.6) ├───●───┤ DEPO(0.6) ├─
@@ -1071,11 +1070,10 @@ class QCircuit:
         output = str(qiskit_circ.draw(output="text", fold=0))
         if TYPE_CHECKING:
             assert isinstance(output, str)
-        output += (
-            "\nNoiseModel: " + "".join(str(noise) for noise in self.noises)
-            if self.noises
-            else ""
-        )
+        if len(self.noises) != 0:
+            output += "\nNoiseModel:\n    " + "\n    ".join(
+                str(noise) for noise in self.noises
+            )
         return output
 
     def __repr__(self) -> str:

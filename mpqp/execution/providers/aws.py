@@ -44,7 +44,7 @@ def apply_noise_to_braket_circuit(
     Returns:
         A new circuit with the noise applied.
     """
-    from braket.circuits import Circuit
+    from braket.circuits import Circuit, Noise
     from braket.circuits.measure import Measure
 
     stored_measurements = []
@@ -60,8 +60,8 @@ def apply_noise_to_braket_circuit(
 
     for noise in noises:
         # TODO: it looks like `type` is needed here, why ?
-        braket_noise = type(noise.to_other_language(Language.BRAKET))
-        # assert isinstance(braket_noise, Noise)
+        braket_noise = noise.to_other_language(Language.BRAKET)
+        assert isinstance(braket_noise, Noise)
         if set(noise.targets) == set(range(nb_qubits)):
             if noise.gates:
                 if CRk in noise.gates:
@@ -69,17 +69,11 @@ def apply_noise_to_braket_circuit(
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
-                for gate in noise.gates:
-                    if not hasattr(gate, "braket_gate"):
-                        raise ValueError(
-                            "If you created a custom gate, please specify its "
-                            "translation to braket for this operation. For "
-                            "instance, you could do something like:\n"
-                            "    from braket.circuits import gates\n"
-                            "    gate.braket_gate = gates.X"
-                        )
+                # The following pyright ignore is needed because the type hints
+                # from braket are wrong.
+                # TODO: create an issue on their github ?
                 noisy_circuit.apply_gate_noise(
-                    braket_noise,
+                    braket_noise,  # pyright: ignore[reportArgumentType]
                     target_gates=[
                         gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
                         for gate in noise.gates
@@ -87,7 +81,9 @@ def apply_noise_to_braket_circuit(
                     ],
                 )
             else:
-                noisy_circuit.apply_gate_noise(braket_noise)
+                noisy_circuit.apply_gate_noise(
+                    braket_noise  # pyright: ignore[reportArgumentType]
+                )
         else:
             if noise.gates:
                 if CRk in noise.gates:
@@ -95,17 +91,8 @@ def apply_noise_to_braket_circuit(
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
-                for gate in noise.gates:
-                    if not hasattr(gate, "braket_gate"):
-                        raise ValueError(
-                            "If you created a custom gate, please specify its "
-                            "translation to braket for this operation. For "
-                            "instance, you could do something like:\n"
-                            "    from braket.circuits import gates\n"
-                            "    gate.braket_gate = gates.X"
-                        )
                 noisy_circuit.apply_gate_noise(
-                    braket_noise,
+                    braket_noise,  # pyright: ignore[reportArgumentType]
                     target_gates=[
                         gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
                         for gate in noise.gates
@@ -115,7 +102,8 @@ def apply_noise_to_braket_circuit(
                 )
             else:
                 noisy_circuit.apply_gate_noise(
-                    braket_noise, target_qubits=noise.targets
+                    braket_noise,  # pyright: ignore[reportArgumentType]
+                    target_qubits=noise.targets,
                 )
 
     return noisy_circuit

@@ -8,30 +8,31 @@ from mpqp.noise import Depolarizing
 from mpqp.noise.noise_model import NoiseModel
 
 
-def f():
-    assert True
-
-
-def test_depolarizing_valid_prob():
+def test_depolarizing_valid_params():
     noise = Depolarizing(0.1, [0])
     assert noise.proba == 0.1
-
-
-@pytest.mark.parametrize("prob", [-0.1, 1.5])
-def test_depolarizing_wrong_prob(prob: float):
-    with pytest.raises(
-        ValueError, match=f"Invalid probability: {prob} must have been between 0 and 1"
-    ):
-        Depolarizing(prob, [0], dimension=1)
 
 
 @pytest.mark.parametrize(
     "args, error",
     [
-        ((-0.1, [0], 1), "Invalid probability: -0.1 must have been between 0 and 1"),
-        ((1.5, [0], 1), "Invalid probability: 1.5 must have been between 0 and 1"),
-        ((-0.1, [0], 2), "Invalid probability: -0.1 must have been between 0 and 1"),
-        ((0.1, [0], 0), "Invalid probability: -0.1 must have been between 0 and 1"),
+        (
+            (-0.1, [0], 1),
+            "Invalid probability: -0.1 but should have been between 0 and 1.",
+        ),
+        (
+            (1.5, [0], 1),
+            "Invalid probability: 1.5 but should have been between 0 and 1.",
+        ),
+        (
+            (0.1, [0], 2),
+            "Number of target qubits 1 should be higher than the dimension 2.",
+        ),
+        (
+            (0.1, [0], 0),
+            "Dimension of the depolarizing channel must be strictly greater "
+            "than 1, but got 0 instead.",
+        ),
     ],
 )
 def test_depolarizing_wrong_params(args: tuple[float, list[int], int], error: str):

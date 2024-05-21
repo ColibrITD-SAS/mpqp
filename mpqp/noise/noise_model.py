@@ -101,28 +101,48 @@ class NoiseModel(ABC):
 
 @typechecked
 class Depolarizing(NoiseModel):
-    """Class representing the depolarizing noise channel, which maps a state onto a linear combination of itself and
-    the maximally mixed state. It can applied to a single or multiple qubits, and depends on a single parameter
+    """Class representing the depolarizing noise channel, which maps a state
+    onto a linear combination of itself and the maximally mixed state. It can
+    applied to a single or multiple qubits, and depends on a single parameter
     (probability or error rate).
 
-    When the number of qubits in the target is higher than the dimension, the noise will be applied to all possible
-    combinations of indices of size ``dimension``.
+    When the number of qubits in the target is higher than the dimension, the
+    noise will be applied to all possible combinations of indices of size
+    ``dimension``.
 
     Args:
         prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>` affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise.
 
     Raises:
-        ValueError: When a wrong dimension (negative) or probability (outside of the expected interval) is input.
-            When the size of the specified gates is not coherent with the number of targets or the dimension.
+        ValueError: When a wrong dimension (negative) or probability (outside of
+            the expected interval) is input.
+        ValueError: When the size of the specified gates is not coherent with
+            the number of targets or the dimension.
 
     Examples:
-        >>> circuit.add(Depolarizing(0.32, list(range(circuit.nb_qubits)))
-        >>> circuit.add(Depolarizing(0.05, [0, 1], dimension=2)
-        >>> circuit.add(Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
-        >>> circuit.add(Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
+        >>> circuit = QCircuit([H(i) for i in range(3)])
+        >>> d1 = Depolarizing(0.32, list(range(circuit.nb_qubits)))
+        >>> d2 = Depolarizing(0.05, [0, 1], dimension=2)
+        >>> d3 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+        >>> d4 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
+        >>> circuit.add([d1, d2, d3, d4])
+        >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├
+                 ├───┤
+            q_1: ┤ H ├
+                 ├───┤
+            q_2: ┤ H ├
+                 └───┘
+            NoiseModel:
+                Depolarizing(0.32, [0, 1, 2], 1)
+                Depolarizing(0.05, [0, 1], 2)
+                Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
+                Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
 
     """
 
@@ -133,15 +153,18 @@ class Depolarizing(NoiseModel):
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
     ):
-        prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
-        if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]
-            raise ValueError(
-                f"Invalid probability: {prob} must have been between 0 and {prob_upper_bound}"
-            )
-
         if dimension <= 0:
             raise ValueError(
-                f"Dimension of the depolarizing channel must be strictly greater than 1, but got {dimension} instead."
+                "Dimension of the depolarizing channel must be strictly greater"
+                f" than 1, but got {dimension} instead."
+            )
+
+        prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
+        if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]
+            print(dimension, prob, prob_upper_bound)
+            raise ValueError(
+                f"Invalid probability: {prob} but should have been between 0 "
+                f"and {prob_upper_bound}."
             )
 
         if gates is not None:
@@ -157,7 +180,7 @@ class Depolarizing(NoiseModel):
         nb_targets = len(targets)
         if nb_targets < dimension:
             raise ValueError(
-                f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}. "
+                f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}."
             )
 
         super().__init__(targets, gates)
@@ -192,9 +215,9 @@ class Depolarizing(NoiseModel):
             >>> braket_depo
             Depolarizing('probability': 0.3, 'qubit_count': 1)
             >>> type(braket_depo)
-            braket.circuits.noises.Depolarizing
+            <class 'braket.circuits.noises.Depolarizing'>
             >>> qlm_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
-            >>> print(qlm_depo)
+            >>> print(qlm_depo)  # doctest: +NORMALIZE_WHITESPACE
             Depolarizing channel, p = 0.3:
             [[0.83666003 0.        ]
              [0.         0.83666003]]
@@ -205,7 +228,7 @@ class Depolarizing(NoiseModel):
             [[ 0.31622777+0.j  0.        +0.j]
              [ 0.        +0.j -0.31622777+0.j]]
             >>> type(qlm_depo)
-            qat.quops.quantum_channels.QuantumChannelKraus
+            <class 'qat.quops.quantum_channels.QuantumChannelKraus'>
 
         """
         if language == Language.BRAKET:
