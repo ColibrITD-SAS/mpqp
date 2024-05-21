@@ -16,7 +16,6 @@ from mpqp.core.instruction.measurement import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution.devices import ATOSDevice
 from mpqp.gates import CNOT, CRk, Rk
 from mpqp.noise.noise_model import Depolarizing, NoiseModel
 
@@ -56,7 +55,7 @@ def job_pre_processing(job: Job) -> "Circuit":
         and job.measure is not None
         and not isinstance(job.measure, BasisMeasure)
     ):
-        raise ValueError("`STATE_VECTOR` jobs require `BasisMeasure` to be run.")
+        raise ValueError(f"`STATE_VECTOR` jobs require measure of type `BasisMeasure` to be run, but got {job.measure}.")
     if job.job_type == JobType.OBSERVABLE and not isinstance(
         job.measure, ExpectationMeasure
     ):
@@ -65,6 +64,10 @@ def job_pre_processing(job: Job) -> "Circuit":
         raise DeviceJobIncompatibleError(
             "QLM Noisy simulators cannot be used for `STATE_VECTOR` jobs."
         )
+
+    if job.job_type == JobType.SAMPLE:
+        if job.measure is None:
+            raise ValueError("An `SAMPLE` job should be defined with a measure.")
 
     if job.job_type == JobType.OBSERVABLE:
         if job.measure is None:
@@ -105,7 +108,7 @@ def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
 
 
 @typechecked
-def get_remote_qpu(device: ATOSDevice, job: Optional[Job] = None):
+def get_remote_qpu(device: ATOSDevice, job: Optional[Job]):
     """Returns the QLM remote QPU associated with the ATOSDevice given in parameter.
 
     Args:
@@ -119,7 +122,7 @@ def get_remote_qpu(device: ATOSDevice, job: Optional[Job] = None):
         raise ValueError(
             f"Excepted a remote device, but got a local myQLM simulator {device}"
         )
-    if job is not None and len(job.circuit.noises) > 0:
+    if len(job.circuit.noises) > 0:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
                 f"Excepted a noisy remote simulator but got {device}"
@@ -133,7 +136,7 @@ def get_remote_qpu(device: ATOSDevice, job: Optional[Job] = None):
                 job.circuit.noises, job.circuit.nb_qubits
             )
             qpu = NoisyQProc(
-                hw_model, sim_method="stochastic", n_samples=job.measure.shots
+                hw_model, sim_method="stochastic", n_samples=job.measure.shots if job.measure is not None else 0
             )
             if job.job_type == JobType.OBSERVABLE:
                 from qlmaas.plugins import ObservableSplitter  # type: ignore
