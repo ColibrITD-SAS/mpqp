@@ -19,7 +19,7 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 from __future__ import annotations
 
 from numbers import Complex
-from typing import Optional, Sequence, Union
+from typing import Iterable, Optional, Union
 
 import numpy as np
 from sympy import Expr
@@ -35,8 +35,8 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
+    IBMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -44,7 +44,7 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
 from mpqp.execution.result import BatchResult, Result
-from mpqp.tools.errors import RemoteExecutionError
+from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany
 
 

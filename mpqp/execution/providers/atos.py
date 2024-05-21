@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 from typeguard import typechecked
 
+from mpqp import Language
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
@@ -16,26 +17,30 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.execution.devices import ATOSDevice
-from mpqp.noise.noise_model import NoiseModel, Depolarizing
-from ...core.instruction.gates import CRk, CNOT, Rk
+from mpqp.gates import CNOT, CRk, Rk
+from mpqp.noise.noise_model import Depolarizing, NoiseModel
 
-from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError, AdditionalGateNoiseWarning
+from ...tools.errors import (
+    AdditionalGateNoiseWarning,
+    DeviceJobIncompatibleError,
+    QLMRemoteExecutionError,
+)
 from ..connection.qlm_connection import get_QLMaaSConnection
 from ..devices import ATOSDevice
 from ..job import Job, JobStatus, JobType
 from ..result import Result, Sample, StateVector
 
 if TYPE_CHECKING:
-    from qat.core.contexts import QPUContext
     from qat.core.qpu.qpu import QPUHandler
     from qat.core.wrappers.circuit import Circuit
     from qat.core.wrappers.job import Job as JobQLM
     from qat.core.wrappers.result import Result as QLM_Result
+    from qat.hardware.default import HardwareModel
     from qat.qlmaas.result import AsyncResult
 
 
 @typechecked
-def job_pre_processing(job: Job) -> Circuit:
+def job_pre_processing(job: Job) -> "Circuit":
     """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
     are coherent.
 
@@ -57,13 +62,21 @@ def job_pre_processing(job: Job) -> Circuit:
     ):
         raise ValueError("`OBSERVABLE` jobs require `ExpectationMeasure` to be run.")
     if job.job_type == JobType.STATE_VECTOR and job.device.is_noisy_simulator():
-        raise DeviceJobIncompatibleError("QLM Noisy simulators cannot be used for `STATE_VECTOR` jobs.")
+        raise DeviceJobIncompatibleError(
+            "QLM Noisy simulators cannot be used for `STATE_VECTOR` jobs."
+        )
 
-    if job.job_type == JobType.OBSERVABLE and job.device == ATOSDevice.QLM_NOISYQPROC and job.measure.shots == 0:
-        raise DeviceJobIncompatibleError("NoisyQProc does not support properly ideal `OBSERVABLE` jobs.")
-
-    if job.job_type == JobType.OBSERVABLE and job.device == ATOSDevice.QLM_MPO and job.measure.shots != 0:
-        raise DeviceJobIncompatibleError("`OBSERVABLE` jobs with shots!=0 are disabled for MPO.")
+    if job.job_type == JobType.OBSERVABLE:
+        if job.measure is None:
+            raise ValueError("An `OBSERVABLE` job should be defined with a measure.")
+        if job.device == ATOSDevice.QLM_NOISYQPROC and job.measure.shots == 0:
+            raise DeviceJobIncompatibleError(
+                "NoisyQProc does not support properly ideal `OBSERVABLE` jobs."
+            )
+        if job.device == ATOSDevice.QLM_MPO and job.measure.shots != 0:
+            raise DeviceJobIncompatibleError(
+                "`OBSERVABLE` jobs with shots!=0 are disabled for MPO."
+            )
 
     myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
 
@@ -92,59 +105,82 @@ def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
 
 
 @typechecked
-def get_remote_qpu(device: ATOSDevice, job: Job = None):
+def get_remote_qpu(device: ATOSDevice, job: Optional[Job] = None):
 
     if not device.is_remote():
-        raise ValueError(f"Excepted a remote device, but got a local myQLM simulator {device}")
-    if job is not None and job.circuit.noises:
+        raise ValueError(
+            f"Excepted a remote device, but got a local myQLM simulator {device}"
+        )
+    if job is not None and len(job.circuit.noises) > 0:
         if not device.is_noisy_simulator():
-            raise DeviceJobIncompatibleError(f"Excepted a noisy remote simulator but got {device}")
+            raise DeviceJobIncompatibleError(
+                f"Excepted a noisy remote simulator but got {device}"
+            )
 
         if device == ATOSDevice.QLM_NOISYQPROC:
             get_QLMaaSConnection()
             from qlmaas.qpus import NoisyQProc  # type: ignore
-            hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
-            qpu = NoisyQProc(hw_model, sim_method="stochastic", n_samples=job.measure.shots)
+
+            hw_model = generate_hardware_model(
+                job.circuit.noises, job.circuit.nb_qubits
+            )
+            qpu = NoisyQProc(
+                hw_model, sim_method="stochastic", n_samples=job.measure.shots
+            )
             if job.job_type == JobType.OBSERVABLE:
-                from qlmaas.plugins import ObservableSplitter # type: ignore
+                from qlmaas.plugins import ObservableSplitter  # type: ignore
+
                 qpu = ObservableSplitter() | qpu
             return qpu
         elif device == ATOSDevice.QLM_MPO:
             get_QLMaaSConnection()
             from qlmaas.qpus import MPO  # type: ignore
-            hw_model = generate_hardware_model(job.circuit.noises, job.circuit.nb_qubits)
+
+            hw_model = generate_hardware_model(
+                job.circuit.noises, job.circuit.nb_qubits
+            )
             return MPO(hw_model)
         else:
-            raise DeviceJobIncompatibleError(f"Device {device.name} not handled for noisy simulations. ")
+            raise DeviceJobIncompatibleError(
+                f"Device {device.name} not handled for noisy simulations. "
+            )
     else:
         if device == ATOSDevice.QLM_LINALG:
             get_QLMaaSConnection()
             from qlmaas.qpus import LinAlg  # type: ignore
+
             return LinAlg()
         elif device == ATOSDevice.QLM_MPS:
             get_QLMaaSConnection()
             from qlmaas.qpus import MPS  # type: ignore
+
             return MPS()
         elif device == ATOSDevice.QLM_NOISYQPROC:
             get_QLMaaSConnection()
             from qlmaas.qpus import NoisyQProc  # type: ignore
-            qpu = NoisyQProc(sim_method="stochastic", n_samples=job.measure.shots if job.measure is not None else 0)
+
+            qpu = NoisyQProc(
+                sim_method="stochastic",
+                n_samples=job.measure.shots if job.measure is not None else 0,
+            )
             if job.job_type == JobType.OBSERVABLE:
                 from qlmaas.plugins import ObservableSplitter  # type: ignore
+
                 qpu = ObservableSplitter() | qpu
             return qpu
         elif device == ATOSDevice.QLM_MPO:
             get_QLMaaSConnection()
             from qlmaas.qpus import MPO  # type: ignore
+
             return MPO()
         else:
-            raise DeviceJobIncompatibleError(f"Device {device.name} not handled for noiseless simulations.")
+            raise DeviceJobIncompatibleError(
+                f"Device {device.name} not handled for noiseless simulations."
+            )
 
 
 @typechecked
-def generate_state_vector_job(
-    myqlm_circuit: "Circuit"
-) -> "JobQLM":
+def generate_state_vector_job(myqlm_circuit: "Circuit") -> "JobQLM":
     """Generates a myQLM job from the myQLM circuit.
 
     Args:
@@ -181,9 +217,7 @@ def generate_sample_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
 
 
 @typechecked
-def generate_observable_job(
-    myqlm_circuit: "Circuit", job: Job
-) -> "JobQLM":
+def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     """Generates a myQLM job from the myQLM circuit and observable.
 
     Args:
@@ -193,8 +227,6 @@ def generate_observable_job(
     Returns:
         A myQLM Job for retrieving the expectation value of the observable.
     """
-    from qat.plugins.observable_splitter import ObservableSplitter
-
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
     qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
@@ -207,7 +239,9 @@ def generate_observable_job(
 
 
 @typechecked
-def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> HardwareModel:
+def generate_hardware_model(
+    noises: list[NoiseModel], nb_qubits: int
+) -> "HardwareModel":
     """
     Generates the QLM HardwareModel corresponding to the list of NoiseModel in parameter. The algorithm consider the
     cases when there are gate noise, for all qubits or specific to some, and the same for idle noise.
@@ -219,6 +253,11 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
     Returns:
         The HardwareModel corresponding to the combination of NoiseModels given in parameter.
     """
+    from qat.hardware.default import DefaultGatesSpecification, HardwareModel
+    from qat.quops import (
+        make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
+    )
+
     all_qubits_target = True
 
     gate_noise_global = dict()
@@ -228,16 +267,22 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
     # For each noise model
     for noise in noises:
+        if not isinstance(noise, Depolarizing):
+            raise NotImplementedError("So far, only depolarizing noise is supported.")
         this_noise_all_qubits_target = True
 
         if CRk in noise.gates:
             noise.gates.remove(CRk)
             if CNOT not in noise.gates:
                 noise.gates.append(CNOT)
-            noises.append(Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk]))
-            warnings.warn("Requested noise on CRk gate will introduce noise on CNOT and Rk (PH) due to its "
-                          "decomposition in my_QLM",
-                          AdditionalGateNoiseWarning)
+            noises.append(
+                Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk])
+            )
+            warnings.warn(
+                "Requested noise on CRk gate will introduce noise on CNOT and Rk (PH) due to its "
+                "decomposition in my_QLM",
+                AdditionalGateNoiseWarning,
+            )
 
         channel = noise.to_other_language(Language.MY_QLM)
 
@@ -262,14 +307,16 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                         if gate_keyword not in gate_noise_local:
                             gate_noise_local[gate_keyword] = dict()
 
-                        if gate.nb_qubits == 1:
+                        gate_size = gate.nb_qubits
+                        assert isinstance(gate_size, int)
+                        if gate_size == 1:
                             for target in noise.targets:
                                 if target not in gate_noise_local[gate_keyword]:
                                     gate_noise_local[gate_keyword][target] = channel
                                 else:
                                     gate_noise_local[gate_keyword][target] *= channel
                         else:
-                            tuples = permutations(noise.targets, gate.nb_qubits)
+                            tuples = permutations(noise.targets, gate_size)
                             for t in tuples:
                                 if t not in gate_noise_local[gate_keyword]:
                                     gate_noise_local[gate_keyword][t] = channel
@@ -284,17 +331,23 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                 for target in noise.targets:
                     if target not in idle_lambda_local:
                         idle_lambda_local[target] = []
-                    idle_lambda_local[target].append(eval("lambda *_: c", {"c": channel}, {}))
+                    idle_lambda_local[target].append(
+                        eval("lambda *_: c", {"c": channel}, {})
+                    )
 
     if all_qubits_target:
         gate_noise_lambdas = dict()
 
         for gate_name in gate_noise_global:
-            gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_global[gate_name]}, {})
+            gate_noise_lambdas[gate_name] = eval(
+                "lambda *_: c", {"c": gate_noise_global[gate_name]}, {}
+            )
 
-        return HardwareModel(DefaultGatesSpecification(),
-                             gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
-                             idle_noise=idle_lambda_global if idle_lambda_global else None)
+        return HardwareModel(
+            DefaultGatesSpecification(),
+            gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
+            idle_noise=idle_lambda_global if idle_lambda_global else None,
+        )
 
     else:
 
@@ -304,16 +357,24 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                 if isinstance(example_elem, int):
                     for qubit in range(nb_qubits):
                         if qubit in gate_noise_local[gate_name]:
-                            gate_noise_local[gate_name][qubit] *= gate_noise_global[gate_name]
+                            gate_noise_local[gate_name][qubit] *= gate_noise_global[
+                                gate_name
+                            ]
                         else:
-                            gate_noise_local[gate_name][qubit] = gate_noise_global[gate_name]
+                            gate_noise_local[gate_name][qubit] = gate_noise_global[
+                                gate_name
+                            ]
                 else:
                     gate_nb_qubits = len(example_elem)
                     for t in permutations(list(range(nb_qubits)), gate_nb_qubits):
                         if t in gate_noise_local[gate_name]:
-                            gate_noise_local[gate_name][t] *= gate_noise_global[gate_name]
+                            gate_noise_local[gate_name][t] *= gate_noise_global[
+                                gate_name
+                            ]
                         else:
-                            gate_noise_local[gate_name][t] = gate_noise_global[gate_name]
+                            gate_noise_local[gate_name][t] = gate_noise_global[
+                                gate_name
+                            ]
 
             else:
                 gate_noise_local[gate_name] = gate_noise_global[gate_name]
@@ -326,20 +387,42 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                 if isinstance(example_elem, int):
                     for qubit in range(nb_qubits):
                         if qubit in gate_noise_local[gate_name]:
-                            gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": gate_noise_local[gate_name][qubit]}, {}))
+                            gate_noise_lambdas[gate_name][qubit] = eval(
+                                "lambda *_: c",
+                                {"c": gate_noise_local[gate_name][qubit]},
+                                {},
+                            )
                         else:
                             # Identity channel, because it is required that every qubit is filled with a lambda
-                            gate_noise_lambdas[gate_name][qubit] = (eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {}))
+                            gate_noise_lambdas[gate_name][qubit] = eval(
+                                "lambda *_: c",
+                                {"c": make_depolarizing_channel(prob=0.0)},
+                                {},
+                            )
                 else:
                     gate_nb_qubits = len(example_elem)
                     for t in permutations(list(range(nb_qubits)), gate_nb_qubits):
                         if t in gate_noise_local[gate_name]:
-                            gate_noise_lambdas[gate_name][t] = (eval("lambda *_: c", {"c": gate_noise_local[gate_name][t]}, {}))
+                            gate_noise_lambdas[gate_name][t] = eval(
+                                "lambda *_: c",
+                                {"c": gate_noise_local[gate_name][t]},
+                                {},
+                            )
                         else:
-                            gate_noise_lambdas[gate_name][t] = (eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0,nqbits=gate_nb_qubits)}, {}))
+                            gate_noise_lambdas[gate_name][t] = eval(
+                                "lambda *_: c",
+                                {
+                                    "c": make_depolarizing_channel(
+                                        prob=0.0, nqbits=gate_nb_qubits
+                                    )
+                                },
+                                {},
+                            )
 
             else:
-                gate_noise_lambdas[gate_name] = eval("lambda *_: c", {"c": gate_noise_local[gate_name]}, {})
+                gate_noise_lambdas[gate_name] = eval(
+                    "lambda *_: c", {"c": gate_noise_local[gate_name]}, {}
+                )
 
         if idle_lambda_global or idle_lambda_local:
 
@@ -351,11 +434,19 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
                         idle_lambda_local[qubit] = idle_lambda_global
                     else:
                         # Identity channel, because it is required that every qubit is filled with a list of lambda
-                        idle_lambda_local[qubit] = [eval("lambda *_: c", {"c": make_depolarizing_channel(prob=0.0)}, {})]
+                        idle_lambda_local[qubit] = [
+                            eval(
+                                "lambda *_: c",
+                                {"c": make_depolarizing_channel(prob=0.0)},
+                                {},
+                            )
+                        ]
 
-        return HardwareModel(DefaultGatesSpecification(),
-                             gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
-                             idle_noise=idle_lambda_local if idle_lambda_local else None)
+        return HardwareModel(
+            DefaultGatesSpecification(),
+            gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
+            idle_noise=idle_lambda_local if idle_lambda_local else None,
+        )
 
 
 @typechecked
@@ -538,34 +629,6 @@ def extract_result(
 
 
 @typechecked
-def job_pre_processing(job: Job) -> "Circuit":
-    """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
-    are coherent.
-
-    Args:
-        job: ``MPQP`` job used to instantiate the myQLM circuit.
-
-    Returns:
-          The myQLM Circuit translated from the circuit of the job in parameter.
-    """
-
-    if (
-        job.job_type == JobType.STATE_VECTOR
-        and job.measure is not None
-        and not isinstance(job.measure, BasisMeasure)
-    ):
-        raise ValueError("`STATE_VECTOR` jobs require basis measure to be run")
-    if job.job_type == JobType.OBSERVABLE and not isinstance(
-        job.measure, ExpectationMeasure
-    ):
-        raise ValueError("`OBSERVABLE` jobs require `ExpectationMeasure` to be run")
-
-    myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
-
-    return myqlm_circuit
-
-
-@typechecked
 def run_atos(job: Job) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
@@ -608,6 +671,8 @@ def run_myQLM(job: Job) -> Result:
     assert isinstance(job.device, ATOSDevice)
     qpu = get_local_qpu(job.device)
     if job.job_type == JobType.OBSERVABLE:
+        from qat.plugins.observable_splitter import ObservableSplitter
+
         qpu = ObservableSplitter() | qpu
 
     if job.job_type == JobType.STATE_VECTOR:
@@ -764,6 +829,6 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
 
     qlm_result: "QLM_Result" = qlm_job.get_result()
 
-    qlm_qpu_name = qlm_job.get_info().resources.qpu.split(':')[1]
+    qlm_qpu_name = qlm_job.get_info().resources.qpu.split(":")[1]
 
     return extract_result(qlm_result, None, ATOSDevice.from_str_remote(qlm_qpu_name))

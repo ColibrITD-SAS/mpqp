@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import Optional, Union
-from typeguard import typechecked
 
 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from braket.circuits.noises import Noise as BraketNoise
 from braket.circuits.noises import TwoQubitDepolarizing
 from qat.quops.class_concepts import QuantumChannel as QLMNoise
 from sympy import Expr
+from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
 from mpqp.core.languages import Language
@@ -35,9 +35,7 @@ class NoiseModel(ABC):
             When the size of the gate is higher than the number of target qubits.
     """
 
-    def __init__(
-        self, targets: list[int], gates: Optional[list[type[Gate]]] = None
-    ):
+    def __init__(self, targets: list[int], gates: Optional[list[type[Gate]]] = None):
         if len(targets) == 0:
             raise ValueError("Expected non-empty target list")
 
@@ -81,9 +79,7 @@ class NoiseModel(ABC):
         pass
 
     @abstractmethod
-    def to_other_language(
-        self, language: Language
-    ) -> BraketNoise | QLMNoise:
+    def to_other_language(self, language: Language) -> BraketNoise | QLMNoise:
         """Transforms this noise model into the corresponding object in the
         language specified in the ``language`` arg.
 
@@ -149,7 +145,11 @@ class Depolarizing(NoiseModel):
             )
 
         if gates is not None:
-            if any(gate.nb_qubits != dimension for gate in gates):
+            if any(
+                gate.nb_qubits
+                != dimension  # pyright: ignore[reportUnnecessaryComparison]
+                for gate in gates
+            ):
                 raise ValueError(
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
@@ -210,7 +210,9 @@ class Depolarizing(NoiseModel):
         """
         if language == Language.BRAKET:
             if self.dimension > 2:
-                raise NotImplementedError(f"Depolarizing channel is not implemented in Braket for more than 2 qubits.")
+                raise NotImplementedError(
+                    f"Depolarizing channel is not implemented in Braket for more than 2 qubits."
+                )
             elif self.dimension == 2:
                 return TwoQubitDepolarizing(probability=self.proba)
             else:
@@ -218,11 +220,17 @@ class Depolarizing(NoiseModel):
 
         elif language == Language.MY_QLM:
             if self.dimension > 2:
-                raise NotImplementedError(f"Depolarizing channel is not implemented in the QLM for more than 2 qubits.")
+                raise NotImplementedError(
+                    f"Depolarizing channel is not implemented in the QLM for more than 2 qubits."
+                )
             elif self.dimension == 2 and self.gates is None:
-                raise ValueError("Depolarizing channel of dimension 2 for idle qubits is not supported by the QLM.")
+                raise ValueError(
+                    "Depolarizing channel of dimension 2 for idle qubits is not supported by the QLM."
+                )
 
-            from qat.quops import make_depolarizing_channel
+            from qat.quops import (
+                make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
+            )
 
             return make_depolarizing_channel(
                 prob=self.proba,

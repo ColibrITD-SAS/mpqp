@@ -39,7 +39,7 @@ from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.gates import ControlledGate, Gate, Id, CRk
+from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
@@ -60,8 +60,8 @@ from mpqp.tools.maths import matrix_eq
 class QCircuit:
     """This class models a quantum circuit.
 
-    A circuit is composed of instructions and noise models applied on 
-    quantum and/or classical bits. These elements (instructions and noise 
+    A circuit is composed of instructions and noise models applied on
+    quantum and/or classical bits. These elements (instructions and noise
     models will be called ``components`` hereafter.
 
     Args:
@@ -150,7 +150,7 @@ class QCircuit:
                     self.nb_qubits = max(connections) + 1
             else:
                 self.nb_qubits = nb_qubits
-            self.add(map(deepcopy, data))
+            self.add(list(map(deepcopy, data)))
 
     def __eq__(self, value: object) -> bool:
         return dumps(self) == dumps(value)
@@ -224,7 +224,9 @@ class QCircuit:
             components.size = self.nb_qubits
 
         if isinstance(components, NoiseModel):
-            basisMs = [instr for instr in self.instructions if isinstance(instr, BasisMeasure)]
+            basisMs = [
+                instr for instr in self.instructions if isinstance(instr, BasisMeasure)
+            ]
             if basisMs and all([len(bm.targets) != self.nb_qubits for bm in basisMs]):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
@@ -748,8 +750,11 @@ class QCircuit:
         method will be used only for complex objects that are not tractable by
         OpenQASM (like hybrid structures).
 
-        If the language is ``BRAKET`` and the circuit is noisy, the corresponding
-        noisy AWS Braket Circuit will be returned.
+        Note:
+            Most providers take noise into account at the job level. A notable
+            exception is Braket, where the noise is contained in the circuit
+            object. For this reason you find the noise included in the Braket
+            circuits.
 
         Args:
             language: Enum representing the target language.
@@ -868,8 +873,10 @@ class QCircuit:
 
             if self.noises:
                 if any([isinstance(instr, CRk) for instr in self.instructions]):
-                    raise NotImplementedError("Cannot simulate noisy circuit with CRk gate due to "
-                                              "an error on AWS Braket side.")
+                    raise NotImplementedError(
+                        "Cannot simulate noisy circuit with CRk gate due to "
+                        "an error on AWS Braket side."
+                    )
 
             return apply_noise_to_braket_circuit(
                 qasm3_to_braket_Circuit(circuit.to_qasm3()), self.noises, self.nb_qubits
@@ -1040,13 +1047,17 @@ class QCircuit:
 
         qubits = set(range(self.size()[0]))
         if self.noises:
-            for model in self.noises:
-                targets = set(model.targets)
-                noise_info = f"{type(model).__name__} noise: probability {model.proba}"
+            for noise in self.noises:
+                if not isinstance(noise, Depolarizing):
+                    raise NotImplementedError(
+                        "For now, only depolarizing noise is supported."
+                    )
+                targets = set(noise.targets)
+                noise_info = f"{type(noise).__name__} noise: probability {noise.proba}"
                 if targets != qubits:
-                    noise_info += f" on qubits {model.targets}"
-                if model.gates:
-                    noise_info += f" for gates {model.gates}"
+                    noise_info += f" on qubits {noise.targets}"
+                if noise.gates:
+                    noise_info += f" for gates {noise.gates}"
                 print(noise_info)
 
         print(f"{self.to_other_language(Language.QISKIT)}")

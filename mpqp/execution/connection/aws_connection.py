@@ -117,6 +117,10 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
         AWSBraketRemoteExecutionError: If the device or the region could not be
             retrieved.
     """
+    import boto3
+    from botocore.exceptions import NoRegionError
+    from braket.aws import AwsDevice, AwsSession
+    from braket.devices import LocalSimulator
 
     if not device.is_remote():
         if is_noisy:

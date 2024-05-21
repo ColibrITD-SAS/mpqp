@@ -99,11 +99,13 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """
 
     if TYPE_CHECKING:
-        from qiskit.circuit.library import CPhaseGate, PhaseGate, RXGate, RYGate, RZGate
         from braket.circuits import gates
+        from qiskit.circuit.library import CPhaseGate, PhaseGate, RXGate, RYGate, RZGate
 
     qiskit_gate: type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]
-    braket_gate: type[gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift]
+    braket_gate: type[
+        gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift
+    ]
 
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
@@ -149,6 +151,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
     """
 
     if TYPE_CHECKING:
+        from braket.circuits import gates
         from qiskit.circuit.library import (
             CCXGate,
             CXGate,
@@ -162,7 +165,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             YGate,
             ZGate,
         )
-        from braket.circuits import gates
 
     qiskit_gate: type[
         XGate
@@ -238,8 +240,8 @@ class Id(OneQubitNoParamGate, InvolutionGate):
     """
 
     def __init__(self, target: int):
-        from qiskit.circuit.library import IGate
         from braket.circuits import gates
+        from qiskit.circuit.library import IGate
 
         super().__init__(target)
 
@@ -263,8 +265,8 @@ class X(OneQubitNoParamGate, InvolutionGate):
     """
 
     def __init__(self, target: int):
-        from qiskit.circuit.library import XGate
         from braket.circuits import gates
+        from qiskit.circuit.library import XGate
 
         super().__init__(target)
 
@@ -288,8 +290,8 @@ class Y(OneQubitNoParamGate, InvolutionGate):
     """
 
     def __init__(self, target: int):
-        from qiskit.circuit.library import YGate
         from braket.circuits import gates
+        from qiskit.circuit.library import YGate
 
         super().__init__(target)
 
@@ -314,8 +316,8 @@ class Z(OneQubitNoParamGate, InvolutionGate):
     """
 
     def __init__(self, target: int):
-        from qiskit.circuit.library import ZGate
         from braket.circuits import gates
+        from qiskit.circuit.library import ZGate
 
         super().__init__(target)
 
@@ -340,8 +342,8 @@ class H(OneQubitNoParamGate, InvolutionGate):
     """
 
     def __init__(self, target: int):
-        from qiskit.circuit.library import HGate
         from braket.circuits import gates
+        from qiskit.circuit.library import HGate
 
         super().__init__(target)
 
@@ -367,8 +369,8 @@ class P(RotationGate, SingleQubitGate):
     """
 
     def __init__(self, theta: Expr | float, target: int):
-        from qiskit.circuit.library import PhaseGate
         from braket.circuits import gates
+        from qiskit.circuit.library import PhaseGate
 
         super().__init__(theta, target)
 
@@ -395,8 +397,8 @@ class S(OneQubitNoParamGate):
     """
 
     def __init__(self, target: int):
-        from qiskit.circuit.library import SGate
         from braket.circuits import gates
+        from qiskit.circuit.library import SGate
 
         super().__init__(target)
 
@@ -424,8 +426,8 @@ class T(OneQubitNoParamGate):
     """
 
     def __init__(self, target: int):
-        from qiskit.circuit.library import TGate
         from braket.circuits import gates
+        from qiskit.circuit.library import TGate
 
         super().__init__(target)
 
@@ -453,8 +455,8 @@ class SWAP(InvolutionGate, NoParameterGate):
     """
 
     def __init__(self, a: int, b: int):
-        from qiskit.circuit.library import SwapGate
         from braket.circuits import gates
+        from qiskit.circuit.library import SwapGate
 
         self.qiskit_gate = SwapGate
         self.braket_gate = gates.Swap
@@ -463,7 +465,9 @@ class SWAP(InvolutionGate, NoParameterGate):
         self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
         super().__init__([a, b], "SWAP")
 
-    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        2
+    )
 
 
 class U(NativeGate, ParametrizedGate, SingleQubitGate):
@@ -481,6 +485,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                [ 0.5       +0.j        ,  0.61237244+0.61237244j]])
 
     """
+
     def __init__(
         self,
         theta: Expr | float,
@@ -514,6 +519,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
     ):
         if language == Language.QISKIT:
             from qiskit.circuit.library import UGate
+
             if qiskit_parameters is None:
                 qiskit_parameters = set()
 
@@ -524,6 +530,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             )
         elif language == Language.BRAKET:
             from braket.circuits import gates
+
             return gates.U(self.theta, self.phi, self.gamma)
             # 3M-TODO handle symbolic parameters
         else:
@@ -556,8 +563,8 @@ class Rx(RotationGate, SingleQubitGate):
     """
 
     def __init__(self, theta: Expr | float, target: int):
-        from qiskit.circuit.library import RXGate
         from braket.circuits import gates
+        from qiskit.circuit.library import RXGate
 
         super().__init__(theta, target)
 
@@ -585,8 +592,8 @@ class Ry(RotationGate, SingleQubitGate):
     """
 
     def __init__(self, theta: Expr | float, target: int):
-        from qiskit.circuit.library import RYGate
         from braket.circuits import gates
+        from qiskit.circuit.library import RYGate
 
         super().__init__(theta, target)
 
@@ -614,8 +621,8 @@ class Rz(RotationGate, SingleQubitGate):
     """
 
     def __init__(self, theta: Expr | float, target: int):
-        from qiskit.circuit.library import RZGate
         from braket.circuits import gates
+        from qiskit.circuit.library import RZGate
 
         super().__init__(theta, target)
 
@@ -645,8 +652,8 @@ class Rk(RotationGate, SingleQubitGate):
     """
 
     def __init__(self, k: Expr | int, target: int):
-        from qiskit.circuit.library import PhaseGate
         from braket.circuits import gates
+        from qiskit.circuit.library import PhaseGate
 
         self.qiskit_gate = PhaseGate
         self.braket_gate = gates.PhaseShift
@@ -693,8 +700,8 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     def __init__(self, control: int, target: int):
-        from qiskit.circuit.library import CXGate
         from braket.circuits import gates
+        from qiskit.circuit.library import CXGate
 
         self.qiskit_gate = CXGate
         self.braket_gate = gates.CNot
@@ -704,7 +711,9 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     def to_matrix(self) -> Matrix:
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
-    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        2
+    )
 
 
 class CZ(InvolutionGate, NoParameterGate, ControlledGate):
@@ -724,8 +733,8 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     def __init__(self, control: int, target: int):
-        from qiskit.circuit.library import CZGate
         from braket.circuits import gates
+        from qiskit.circuit.library import CZGate
 
         self.qiskit_gate = CZGate
         self.braket_gate = gates.CZ
@@ -737,7 +746,9 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         m[-1, -1] = -1
         return m
 
-    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        2
+    )
 
 
 class CRk(RotationGate, ControlledGate):
@@ -758,8 +769,8 @@ class CRk(RotationGate, ControlledGate):
     """
 
     def __init__(self, k: Expr | int, control: int, target: int):
-        from qiskit.circuit.library import CPhaseGate
         from braket.circuits import gates
+        from qiskit.circuit.library import CPhaseGate
 
         self.qiskit_gate = CPhaseGate
         self.braket_gate = gates.CPhaseShift
@@ -788,7 +799,9 @@ class CRk(RotationGate, ControlledGate):
     def __repr__(self):
         return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
 
-    nb_qubits = 2  # pyright: ignore[reportAssignmentType]
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        2
+    )
 
 
 class TOF(InvolutionGate, NoParameterGate, ControlledGate):
@@ -812,8 +825,8 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
     """
 
     def __init__(self, control: list[int], target: int):
-        from qiskit.circuit.library import CCXGate
         from braket.circuits import gates
+        from qiskit.circuit.library import CCXGate
 
         self.qiskit_gate = CCXGate
         self.braket_gate = gates.CCNot
@@ -827,7 +840,9 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         m[-2:, -2:] = np.ones(2) - np.identity(2)
         return m
 
-    nb_qubits = 3  # pyright: ignore[reportAssignmentType]
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        3
+    )
 
 
 NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]

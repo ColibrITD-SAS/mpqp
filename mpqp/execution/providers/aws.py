@@ -1,16 +1,12 @@
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-from braket.aws import AwsQuantumTask
-from braket.circuits import Circuit
-from braket.circuits.measure import Measure as BraketMeasure
-from braket.circuits.observables import Hermitian
-from braket.device_schema.ionq import IonqDeviceParameters
-from braket.device_schema.oqc import OqcDeviceParameters
-from braket.device_schema.rigetti import RigettiDeviceParameters
-from braket.device_schema.simulators import GateModelSimulatorDeviceParameters
-from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+
+if TYPE_CHECKING:
+    from braket.circuits import Circuit
+    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
@@ -48,12 +44,14 @@ def apply_noise_to_braket_circuit(
     Returns:
         A new circuit with the noise applied.
     """
+    from braket.circuits import Circuit
+    from braket.circuits.measure import Measure
 
     stored_measurements = []
     other_instructions = []
 
     for instr in braket_circuit.instructions:
-        if isinstance(instr.operator, BraketMeasure):
+        if isinstance(instr.operator, Measure):
             stored_measurements.append(instr)
         else:
             other_instructions.append(instr)
@@ -61,30 +59,55 @@ def apply_noise_to_braket_circuit(
     noisy_circuit = Circuit(other_instructions)
 
     for noise in noises:
+        # TODO: it looks like `type` is needed here, why ?
+        braket_noise = type(noise.to_other_language(Language.BRAKET))
+        # assert isinstance(braket_noise, Noise)
         if set(noise.targets) == set(range(nb_qubits)):
             if noise.gates:
                 if CRk in noise.gates:
-                    raise NotImplementedError("Cannot simulate noisy circuit with CRk gate due to "
-                                              "an error on AWS Braket side.")
+                    raise NotImplementedError(
+                        "Cannot simulate noisy circuit with CRk gate due to "
+                        "an error on AWS Braket side."
+                    )
+                for gate in noise.gates:
+                    if not hasattr(gate, "braket_gate"):
+                        raise ValueError(
+                            "If you created a custom gate, please specify its "
+                            "translation to braket for this operation. For "
+                            "instance, you could do something like:\n"
+                            "    from braket.circuits import gates\n"
+                            "    gate.braket_gate = gates.X"
+                        )
                 noisy_circuit.apply_gate_noise(
-                    noise.to_other_language(Language.BRAKET),
+                    braket_noise,
                     target_gates=[
-                        gate.braket_gate
+                        gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
                         for gate in noise.gates
                         if hasattr(gate, "braket_gate")
                     ],
                 )
             else:
-                noisy_circuit.apply_gate_noise(noise.to_other_language(Language.BRAKET))
+                noisy_circuit.apply_gate_noise(braket_noise)
         else:
             if noise.gates:
                 if CRk in noise.gates:
-                    raise NotImplementedError("Cannot simulate noisy circuit with CRk gate due to "
-                                              "an error on AWS Braket side.")
+                    raise NotImplementedError(
+                        "Cannot simulate noisy circuit with CRk gate due to "
+                        "an error on AWS Braket side."
+                    )
+                for gate in noise.gates:
+                    if not hasattr(gate, "braket_gate"):
+                        raise ValueError(
+                            "If you created a custom gate, please specify its "
+                            "translation to braket for this operation. For "
+                            "instance, you could do something like:\n"
+                            "    from braket.circuits import gates\n"
+                            "    gate.braket_gate = gates.X"
+                        )
                 noisy_circuit.apply_gate_noise(
-                    noise.to_other_language(Language.BRAKET),
+                    braket_noise,
                     target_gates=[
-                        gate.braket_gate
+                        gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
                         for gate in noise.gates
                         if hasattr(gate, "braket_gate")
                     ],
@@ -92,8 +115,7 @@ def apply_noise_to_braket_circuit(
                 )
             else:
                 noisy_circuit.apply_gate_noise(
-                    noise.to_other_language(Language.BRAKET),
-                    target_qubits=noise.targets,
+                    braket_noise, target_qubits=noise.targets
                 )
 
     return noisy_circuit
@@ -115,10 +137,11 @@ def run_braket(job: Job) -> Result:
         This function is not meant to be used directly, please use
         ``runner.run(...)`` instead.
     """
+    from braket.tasks import GateModelQuantumTaskResult
+
     _, task = submit_job_braket(job)
     assert isinstance(job.device, AWSDevice)
     res = task.result()
-
     assert isinstance(res, GateModelQuantumTaskResult)
 
     return extract_result(res, job, job.device)
@@ -144,6 +167,7 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
         This function is not meant to be used directly, please use
         ``runner.submit(...)`` instead.
     """
+    from braket.circuits import Circuit
 
     # check some compatibility issues
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
@@ -211,6 +235,11 @@ def extract_result(
     Returns:
         The ``braket`` result converted to our format.
     """
+    from braket.device_schema.ionq import IonqDeviceParameters
+    from braket.device_schema.oqc import OqcDeviceParameters
+    from braket.device_schema.rigetti import RigettiDeviceParameters
+    from braket.device_schema.simulators import GateModelSimulatorDeviceParameters
+
     if job is None:
         if len(braket_result.values) == 0:
             job_type = JobType.SAMPLE
@@ -278,6 +307,9 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     Raises:
         AWSBraketRemoteExecutionError: When the status of the task is unknown.
     """
+    from braket.aws import AwsQuantumTask
+    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+
     task: QuantumTask = AwsQuantumTask(task_arn)
     # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
 
