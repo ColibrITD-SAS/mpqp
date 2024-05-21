@@ -1,3 +1,13 @@
+"""This module provides functionalities for working with decision trees, 
+allowing for seamless navigation and interaction within a tree structure.
+
+You can define a :class:`QuestionNode`, containing your question and options.
+Each option (:class:`AnswerNode`) contains the description of the option
+together with optional actions and follow up question.
+
+To run your choice tree, just run :func:`run_choice_tree` on your root question.
+"""
+
 from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Optional, TypeVar
 
@@ -11,8 +21,8 @@ T = TypeVar("T")
 
 @dataclass
 class AnswerNode:
-    """Represents a node in a decision tree corresponding to an answer to a question. An answer can lead to an action,
-    or to another question.
+    """Represents a node in a decision tree corresponding to an answer to a
+    question. An answer can lead to an action, or to another question.
 
     Args:
         label: See attribute description.
@@ -23,7 +33,12 @@ class AnswerNode:
     label: str
     """The label or text associated with the answer."""
     action: Callable[..., tuple[str, Iterable[Any]]]
-    """A callable representing an action function linked to an answer."""
+    """A callable representing an action function linked to an answer. The
+    return value of the action is composed of the text to display after it ran 
+    (something like "Success", "Failure", or "You're a wonderful human being"),
+    and the parameters to pass to the next action to be executed. These
+    parameters to be passed between actions are useful to keep memory of the
+    previous actions for instance."""
     next_question: Optional["QuestionNode"] = None
     """An optional reference to the next question node."""
 
@@ -50,24 +65,28 @@ def run_choice_tree(question: QuestionNode):
     Args:
         question: Root question from which the choice tree will start
     """
-    # 3M-TODO: allow exit with Ctrl+C and Q
     prev_args = []
     prev_message = ""
     next_question = question
-    while True:
-        option, _ = pick(
-            list(map(lambda a: a.label, next_question.answers)) + ["Exit"],
-            prev_message + "\n\n" + next_question.label,
-            indicator="=>",
-        )
-        if option == "Exit":
-            return
-        selected_answer = find(next_question.answers, lambda a: a.label == option)
-        prev_message, prev_args = selected_answer.action(*prev_args)
-        next_question = selected_answer.next_question
-        if next_question is None:
-            pick(["Press 'Enter' to continue"], prev_message, indicator="")
-            return
+    try:
+        while True:
+            option, _ = pick(
+                list(map(lambda a: a.label, next_question.answers)) + ["Exit"],
+                prev_message + "\n\n" + next_question.label,
+                indicator="=>",
+            )
+            if option == "Exit":
+                return
+            selected_answer = find(next_question.answers, lambda a: a.label == option)
+            prev_message, prev_args = selected_answer.action(*prev_args)
+            next_question = selected_answer.next_question
+            if next_question is None:
+                pick(["Press 'Enter' to continue"], prev_message, indicator="")
+                return
+
+    except KeyboardInterrupt:
+        print()
+        pass
 
 
 # Example:

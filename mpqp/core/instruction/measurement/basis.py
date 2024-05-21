@@ -19,6 +19,7 @@ import numpy.typing as npt
 from typeguard import typechecked
 
 from mpqp.tools.maths import atol, matrix_eq
+from mpqp.tools.generics import clean_array
 
 
 @typechecked
@@ -34,9 +35,10 @@ class Basis:
     Example:
         >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
         Basis: [
-            [1 0],
-            [ 0 -1]
+            [1, 0],
+            [0, -1]
         ]
+
     """
 
     def __init__(
@@ -87,11 +89,12 @@ class Basis:
         Example:
             >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
             Basis: [
-                [ 1  0],
-                [ 0 -1]
+                [1, 0],
+                [0, -1]
             ]
+
         """
-        joint_vectors = ",\n    ".join(map(str, np.round(self.basis_vectors, 2)))
+        joint_vectors = ",\n    ".join(map(clean_array, self.basis_vectors))
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
@@ -136,24 +139,25 @@ class ComputationalBasis(VariableSizeBasis):
     Examples:
         >>> ComputationalBasis(3).pretty_print()
         Basis: [
-            [1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j]
+            [1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1]
         ]
         >>> b = ComputationalBasis()
         >>> b.set_size(2)
         >>> b.pretty_print()
         Basis: [
-            [1.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 1.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 1.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 1.+0.j]
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
@@ -179,11 +183,12 @@ class HadamardBasis(VariableSizeBasis):
     Example:
         >>> HadamardBasis(2).pretty_print()
         Basis: [
-            [0.5+0.j 0.5+0.j 0.5+0.j 0.5+0.j],
-            [ 0.5+0.j -0.5+0.j  0.5+0.j -0.5+0.j],
-            [ 0.5+0.j  0.5+0.j -0.5+0.j -0.5+0.j],
-            [ 0.5+0.j -0.5+0.j -0.5+0.j  0.5-0.j]
+            [0.5, 0.5, 0.5, 0.5],
+            [0.5, -0.5, 0.5, -0.5],
+            [0.5, 0.5, -0.5, -0.5],
+            [0.5, -0.5, -0.5, 0.5]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):

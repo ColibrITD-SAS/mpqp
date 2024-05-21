@@ -6,32 +6,14 @@ a lot of gates. Feel free to use them for your own custom gates!"""
 from __future__ import annotations
 
 from numbers import Integral
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
 
 import numpy as np
 import numpy.typing as npt
-from qiskit.circuit import Parameter
-from qiskit.circuit.library import (
-    CCXGate,
-    CPhaseGate,
-    CXGate,
-    CZGate,
-    HGate,
-    IGate,
-    PhaseGate,
-    RXGate,
-    RYGate,
-    RZGate,
-    SGate,
-    SwapGate,
-    TGate,
-    UGate,
-    XGate,
-    YGate,
-    ZGate,
-)
 from sympy import Expr, pi
-from braket.circuits import gates
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
 # this file :/
@@ -48,8 +30,8 @@ from mpqp.tools.maths import cos, exp, sin
 
 @typechecked
 def _qiskit_parameter_adder(
-    param: Expr | float, qiskit_parameters: set[Parameter]
-) -> Parameter | float | int:
+    param: Expr | float, qiskit_parameters: set["Parameter"]
+) -> "Parameter | float | int":
     """To avoid having several parameters in qiskit for the same value we keep
     track of them in a set. This function takes care of this, this way you can
     directly call `QiskitGate(_qiskit_parameter_adder(<param>, <q_params_set>))`
@@ -79,6 +61,8 @@ def _qiskit_parameter_adder(
         elif len(previously_set_param) == 1:
             qiskit_param = previously_set_param[0]
         else:
+            from qiskit.circuit import Parameter
+
             qiskit_param = Parameter(name)
             qiskit_parameters.add(qiskit_param)
     else:
@@ -114,6 +98,10 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         target: Index referring to the qubits on which the gate will be applied.
     """
 
+    if TYPE_CHECKING:
+        from qiskit.circuit.library import CPhaseGate, PhaseGate, RXGate, RYGate, RZGate
+        from braket.circuits import gates
+
     qiskit_gate: type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]
     braket_gate: type[gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift]
 
@@ -136,7 +124,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
@@ -159,6 +147,22 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             be applied.
         label: Label used to identify the gate.
     """
+
+    if TYPE_CHECKING:
+        from qiskit.circuit.library import (
+            CCXGate,
+            CXGate,
+            CZGate,
+            HGate,
+            IGate,
+            SGate,
+            SwapGate,
+            TGate,
+            XGate,
+            YGate,
+            ZGate,
+        )
+        from braket.circuits import gates
 
     qiskit_gate: type[
         XGate
@@ -195,7 +199,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QISKIT:
             return self.qiskit_gate()
@@ -228,14 +232,21 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
     Example:
         >>> Id(0).to_matrix()
-        array([[1, 0],
-               [0, 1]])
+        array([[1.+0.j, 0.+0.j],
+               [0.+0.j, 1.+0.j]], dtype=complex64)
+
     """
 
-    qiskit_gate = IGate
-    braket_gate = gates.I
-    qlm_aqasm_keyword = "I"
-    matrix = np.eye(2, dtype=np.complex64)
+    def __init__(self, target: int):
+        from qiskit.circuit.library import IGate
+        from braket.circuits import gates
+
+        super().__init__(target)
+
+        self.qiskit_gate = IGate
+        self.braket_gate = gates.I
+        self.qlm_aqasm_keyword = "I"
+        self.matrix = np.eye(2, dtype=np.complex64)
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
@@ -248,12 +259,19 @@ class X(OneQubitNoParamGate, InvolutionGate):
         >>> X(0).to_matrix()
         array([[0, 1],
                [1, 0]])
+
     """
 
-    qiskit_gate = XGate
-    braket_gate = gates.X
-    qlm_aqasm_keyword = "X"
-    matrix = np.array([[0, 1], [1, 0]])
+    def __init__(self, target: int):
+        from qiskit.circuit.library import XGate
+        from braket.circuits import gates
+
+        super().__init__(target)
+
+        self.qiskit_gate = XGate
+        self.braket_gate = gates.X
+        self.qlm_aqasm_keyword = "X"
+        self.matrix = np.array([[0, 1], [1, 0]])
 
 
 class Y(OneQubitNoParamGate, InvolutionGate):
@@ -266,11 +284,19 @@ class Y(OneQubitNoParamGate, InvolutionGate):
         >>> Y(0).to_matrix()
         array([[ 0.+0.j, -0.-1.j],
                [ 0.+1.j,  0.+0.j]])
+
     """
 
-    qiskit_gate = YGate
-    braket_gate = gates.Y
-    qlm_aqasm_keyword = "Y"
+    def __init__(self, target: int):
+        from qiskit.circuit.library import YGate
+        from braket.circuits import gates
+
+        super().__init__(target)
+
+        self.qiskit_gate = YGate
+        self.braket_gate = gates.Y
+        self.qlm_aqasm_keyword = "Y"
+
     matrix = np.array([[0, -1j], [1j, 0]])
 
 
@@ -284,11 +310,19 @@ class Z(OneQubitNoParamGate, InvolutionGate):
         >>> Z(0).to_matrix()
         array([[ 1,  0],
                [ 0, -1]])
+
     """
 
-    qiskit_gate = ZGate
-    braket_gate = gates.Z
-    qlm_aqasm_keyword = "Z"
+    def __init__(self, target: int):
+        from qiskit.circuit.library import ZGate
+        from braket.circuits import gates
+
+        super().__init__(target)
+
+        self.qiskit_gate = ZGate
+        self.braket_gate = gates.Z
+        self.qlm_aqasm_keyword = "Z"
+
     matrix = np.array([[1, 0], [0, -1]])
 
 
@@ -302,11 +336,19 @@ class H(OneQubitNoParamGate, InvolutionGate):
         >>> H(0).to_matrix()
         array([[ 0.70710678,  0.70710678],
                [ 0.70710678, -0.70710678]])
+
     """
 
-    qiskit_gate = HGate
-    braket_gate = gates.H
-    qlm_aqasm_keyword = "H"
+    def __init__(self, target: int):
+        from qiskit.circuit.library import HGate
+        from braket.circuits import gates
+
+        super().__init__(target)
+
+        self.qiskit_gate = HGate
+        self.braket_gate = gates.H
+        self.qlm_aqasm_keyword = "H"
+
     matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
 
@@ -321,11 +363,18 @@ class P(RotationGate, SingleQubitGate):
         >>> P(np.pi/3, 1).to_matrix()
         array([[1. +0.j       , 0. +0.j       ],
                [0. +0.j       , 0.5+0.8660254j]])
+
     """
 
-    qiskit_gate = PhaseGate
-    braket_gate = gates.PhaseShift
-    qlm_aqasm_keyword = "PH"
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import PhaseGate
+        from braket.circuits import gates
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = PhaseGate
+        self.braket_gate = gates.PhaseShift
+        self.qlm_aqasm_keyword = "PH"
 
     def to_matrix(self) -> Matrix:
         return np.array([[1, 0], [0, exp(self.parameters[0] * 1j)]])  # type:ignore
@@ -342,30 +391,48 @@ class S(OneQubitNoParamGate):
         >>> S(0).to_matrix()
         array([[1.+0.j, 0.+0.j],
                [0.+0.j, 0.+1.j]])
+
     """
 
-    qiskit_gate = SGate
-    braket_gate = gates.S
-    qlm_aqasm_keyword = "S"
+    def __init__(self, target: int):
+        from qiskit.circuit.library import SGate
+        from braket.circuits import gates
+
+        super().__init__(target)
+
+        self.qiskit_gate = SGate
+        self.braket_gate = gates.S
+        self.qlm_aqasm_keyword = "S"
+
     matrix = np.array([[1, 0], [0, 1j]])
 
 
 class T(OneQubitNoParamGate):
-    """One qubit T gate. It consists in applying a phase of Pi/4.
-    The T gate can be defined as the fourth-root of the Z (Pauli) gate.
+    r"""One qubit T gate. It is also referred to as the `\pi/4` gate because it
+    consists in applying the phase gate with a phase of `\pi/4`.
+
+    The T gate can also be defined as the fourth-root of the Z (Pauli) gate.
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
         >>> T(0).to_matrix()
-        array([[1.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 0.70710678+0.70710678j]])
+        array([[1, 0],
+               [0, exp(0.25*I*pi)]], dtype=object)
+
     """
 
-    qiskit_gate = TGate
-    braket_gate = gates.T
-    qlm_aqasm_keyword = "T"
+    def __init__(self, target: int):
+        from qiskit.circuit.library import TGate
+        from braket.circuits import gates
+
+        super().__init__(target)
+
+        self.qiskit_gate = TGate
+        self.braket_gate = gates.T
+        self.qlm_aqasm_keyword = "T"
+
     matrix = np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
 
 
@@ -377,19 +444,23 @@ class SWAP(InvolutionGate, NoParameterGate):
         b: Second target of the swapping operation.
 
     Example:
-        >>> SWAP(0, 1)
+        >>> SWAP(0, 1).to_matrix()
         array([[1, 0, 0, 0],
                [0, 0, 1, 0],
                [0, 1, 0, 0],
                [0, 0, 0, 1]])
+
     """
 
-    qiskit_gate = SwapGate
-    braket_gate = gates.Swap
-    qlm_aqasm_keyword = "SWAP"
-    matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
-
     def __init__(self, a: int, b: int):
+        from qiskit.circuit.library import SwapGate
+        from braket.circuits import gates
+
+        self.qiskit_gate = SwapGate
+        self.braket_gate = gates.Swap
+        self.qlm_aqasm_keyword = "SWAP"
+
+        self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
         super().__init__([a, b], "SWAP")
 
     nb_qubits = 2  # pyright: ignore[reportAssignmentType]
@@ -408,6 +479,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         >>> U(np.pi/3, 0, np.pi/4, 0).to_matrix()
         array([[ 0.8660254 +0.j        , -0.35355339-0.35355339j],
                [ 0.5       +0.j        ,  0.61237244+0.61237244j]])
+
     """
     def __init__(
         self,
@@ -438,17 +510,20 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QISKIT:
+            from qiskit.circuit.library import UGate
             if qiskit_parameters is None:
                 qiskit_parameters = set()
+
             return UGate(
                 theta=_qiskit_parameter_adder(self.theta, qiskit_parameters),
                 phi=_qiskit_parameter_adder(self.phi, qiskit_parameters),
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
         elif language == Language.BRAKET:
+            from braket.circuits import gates
             return gates.U(self.theta, self.phi, self.gamma)
             # 3M-TODO handle symbolic parameters
         else:
@@ -477,11 +552,18 @@ class Rx(RotationGate, SingleQubitGate):
         >>> Rx(np.pi/5, 1).to_matrix()
         array([[0.95105652+0.j        , 0.        -0.30901699j],
                [0.        -0.30901699j, 0.95105652+0.j        ]])
+
     """
 
-    qiskit_gate = RXGate
-    braket_gate = gates.Rx
-    qlm_aqasm_keyword = "RX"
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import RXGate
+        from braket.circuits import gates
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = RXGate
+        self.braket_gate = gates.Rx
+        self.qlm_aqasm_keyword = "RX"
 
     def to_matrix(self) -> Matrix:
         c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
@@ -499,11 +581,18 @@ class Ry(RotationGate, SingleQubitGate):
         >>> Ry(np.pi/5, 1).to_matrix()
         array([[ 0.95105652, -0.30901699],
                [ 0.30901699,  0.95105652]])
+
     """
 
-    qiskit_gate = RYGate
-    braket_gate = gates.Ry
-    qlm_aqasm_keyword = "RY"
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import RYGate
+        from braket.circuits import gates
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = RYGate
+        self.braket_gate = gates.Ry
+        self.qlm_aqasm_keyword = "RY"
 
     def to_matrix(self) -> Matrix:
         c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
@@ -518,14 +607,21 @@ class Rz(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Rz(np.pi/5, 1).to_matrix()
-        array([[0.95105652-0.30901699j, 0.        +0.j        ],
-               [0.        +0.j        , 0.95105652-0.30901699j]])
+        >>> print(clean_matrix(Rz(np.pi/5, 1).to_matrix()))
+        [[0.9510565-0.309017j, 0],
+         [0, 0.9510565+0.309017j]]
+
     """
 
-    qiskit_gate = RZGate
-    braket_gate = gates.Rz
-    qlm_aqasm_keyword = "RZ"
+    def __init__(self, theta: Expr | float, target: int):
+        from qiskit.circuit.library import RZGate
+        from braket.circuits import gates
+
+        super().__init__(theta, target)
+
+        self.qiskit_gate = RZGate
+        self.braket_gate = gates.Rz
+        self.qlm_aqasm_keyword = "RZ"
 
     def to_matrix(self) -> Matrix:
         e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
@@ -545,13 +641,17 @@ class Rk(RotationGate, SingleQubitGate):
         >>> Rk(5, 0).to_matrix()
         array([[1.        +0.j        , 0.        +0.j        ],
                [0.        +0.j        , 0.98078528+0.19509032j]])
+
     """
 
-    qiskit_gate = PhaseGate
-    braket_gate = gates.PhaseShift
-    qlm_aqasm_keyword = "PH"
-
     def __init__(self, k: Expr | int, target: int):
+        from qiskit.circuit.library import PhaseGate
+        from braket.circuits import gates
+
+        self.qiskit_gate = PhaseGate
+        self.braket_gate = gates.PhaseShift
+        self.qlm_aqasm_keyword = "PH"
+
         self.parameters = [k]
         definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk")
@@ -589,13 +689,16 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
                [0, 1, 0, 0],
                [0, 0, 0, 1],
                [0, 0, 1, 0]])
+
     """
 
-    qiskit_gate = CXGate
-    braket_gate = gates.CNot
-    qlm_aqasm_keyword = "CNOT"
-
     def __init__(self, control: int, target: int):
+        from qiskit.circuit.library import CXGate
+        from braket.circuits import gates
+
+        self.qiskit_gate = CXGate
+        self.braket_gate = gates.CNot
+        self.qlm_aqasm_keyword = "CNOT"
         ControlledGate.__init__(self, [control], [target], X(target), "CNOT")
 
     def to_matrix(self) -> Matrix:
@@ -612,22 +715,25 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CZ(0, 1).to_matrix()
-        array([[ 1,  0,  0,  0],
-               [ 0,  1,  0,  0],
-               [ 0,  0,  1,  0],
-               [ 0,  0,  0, -1]])
+        >>> print(clean_matrix(CZ(0, 1).to_matrix()))
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 1, 0],
+         [0, 0, 0, -1]]
+
     """
 
-    qiskit_gate = CZGate
-    braket_gate = gates.CZ
-    qlm_aqasm_keyword = "CSIGN"
-
     def __init__(self, control: int, target: int):
+        from qiskit.circuit.library import CZGate
+        from braket.circuits import gates
+
+        self.qiskit_gate = CZGate
+        self.braket_gate = gates.CZ
+        self.qlm_aqasm_keyword = "CSIGN"
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
 
     def to_matrix(self) -> Matrix:
-        m = np.eye(8, dtype=complex)
+        m = np.eye(4, dtype=complex)
         m[-1, -1] = -1
         return m
 
@@ -643,18 +749,21 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> CRk(0, 1, 1).to_matrix()
-        array([[1.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 1.        +0.j        , 0.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 0.        +0.j        , 1.        +0.j        , 1.        +0.j        ],
-               [0.        +0.j        , 0.        +0.j        , 0.        +0.j        , 0.92387953+0.38268343j]])
+        >>> print(clean_matrix(CRk(4, 0, 1).to_matrix()))
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 1, 0],
+         [0, 0, 0, 0.9238795+0.3826834j]]
+
     """
 
-    qiskit_gate = CPhaseGate
-    braket_gate = gates.CPhaseShift
-    qlm_aqasm_keyword = ["CNOT", "PH"]
-
     def __init__(self, k: Expr | int, control: int, target: int):
+        from qiskit.circuit.library import CPhaseGate
+        from braket.circuits import gates
+
+        self.qiskit_gate = CPhaseGate
+        self.braket_gate = gates.CPhaseShift
+        self.qlm_aqasm_keyword = ["CNOT", "PH"]
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
         definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
@@ -690,22 +799,25 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> TOF([0, 1], 2).to_matrix()
-        array([[1, 0, 0, 0, 0, 0, 0, 0],
-               [0, 1, 0, 0, 0, 0, 0, 0],
-               [0, 0, 1, 0, 0, 0, 0, 0],
-               [0, 0, 0, 1, 0, 0, 0, 0],
-               [0, 0, 0, 0, 1, 0, 0, 0],
-               [0, 0, 0, 0, 0, 1, 0, 0],
-               [0, 0, 0, 0, 0, 0, 0, 1],
-               [0, 0, 0, 0, 0, 0, 1, 0]])
+        >>> print(clean_matrix(TOF([0, 1], 2).to_matrix()))
+        [[1, 0, 0, 0, 0, 0, 0, 0],
+         [0, 1, 0, 0, 0, 0, 0, 0],
+         [0, 0, 1, 0, 0, 0, 0, 0],
+         [0, 0, 0, 1, 0, 0, 0, 0],
+         [0, 0, 0, 0, 1, 0, 0, 0],
+         [0, 0, 0, 0, 0, 1, 0, 0],
+         [0, 0, 0, 0, 0, 0, 0, 1],
+         [0, 0, 0, 0, 0, 0, 1, 0]]
+
     """
 
-    qiskit_gate = CCXGate
-    braket_gate = gates.CCNot
-    qlm_aqasm_keyword = "CCNOT"
-
     def __init__(self, control: list[int], target: int):
+        from qiskit.circuit.library import CCXGate
+        from braket.circuits import gates
+
+        self.qiskit_gate = CCXGate
+        self.braket_gate = gates.CCNot
+        self.qlm_aqasm_keyword = "CCNOT"
         if len(control) != 2:
             raise ValueError("A Toffoli gate must have exactly 2 control qubits.")
         ControlledGate.__init__(self, control, [target], X(target), "TOF")

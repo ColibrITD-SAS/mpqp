@@ -1,13 +1,26 @@
+"""
+When you call :func:`run<mpqp.execution.runner.run>` or
+:func:`submit<mpqp.execution.runner.submit>`, a :class:`Job` is created by 
+:func:`generate_job<mpqp.execution.runner.generate_job>`. This job contains all
+the needed information to configure the execution, and eventually retrieve
+remote results.
+
+A :class:`Job` can be of three types, given by the :class:`JobType` enum. In 
+addition, it has a status, given by the :class:`JobStatus` enum.
+
+As described above, a :class:`Job` is generated on circuit submission so you
+would in principle never need to instantiate one yourself.
+"""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias
+from typeguard import typechecked
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
-from typeguard import typechecked
-
 if TYPE_CHECKING:
     from enum import Enum
 
@@ -89,6 +102,7 @@ class Job:
         ...     IBMDevice.AER_SIMULATOR,
         ...     circuit.get_measurements()[0],
         ... )
+
     """
 
     # 6M-TODO: decide, when there are several measurements, if we define a

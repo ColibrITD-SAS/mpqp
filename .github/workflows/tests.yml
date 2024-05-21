@@ -11,8 +11,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+      - name: Cache pip install
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+          cache: "pip"
       - name: Install Dependencies
-        run: |
-          pip install -r requirements-dev.txt
-      - name: Test
+        run: pip install -r requirements-dev.txt
+      - name: Run test
         run: python -m pytest

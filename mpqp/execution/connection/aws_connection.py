@@ -1,12 +1,11 @@
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from botocore.exceptions import NoRegionError
-from braket.aws import AwsDevice, AwsSession
-from braket.devices import LocalSimulator
-from braket.devices.device import Device as BraketDevice
 from termcolor import colored
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from braket.devices.device import Device as BraketDevice
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
@@ -27,6 +26,7 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         success, cancelled, or error, ...) and an empty list. The list is
         included for consistency with the existing code structure.
     """
+    from braket.aws import AwsSession
 
     already_configured = get_env_variable("BRAKET_CONFIGURED") == "True"
 
@@ -40,6 +40,8 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     try:
         os.system("aws configure")
         save_env_variable("BRAKET_CONFIGURED", "True")
+        session = AwsSession()
+        save_env_variable("AWS_DEFAULT_REGION", session.region)
         return "Amazon Braket account correctly configured", []
 
     except Exception as e:
@@ -53,21 +55,22 @@ def get_aws_braket_account_info() -> str:
     """Get AWS Braket credentials information including access key ID,
     obfuscated secret access key, and region.
 
+    Returns:
+        A formatted string containing AWS credentials information with an
+        obfuscated secret access key.
+
     Example:
         >>> get_aws_braket_account_info()
             access_key_id: 'AKIA26NYJ***********'
             secret_access_key: 'sMDad***********************************'
             region: 'us-east-1'
 
-    Returns:
-        A formatted string containing AWS credentials information with an
-        obfuscated secret access key.
-
     """
     if get_env_variable("BRAKET_CONFIGURED") == "False":
         raise AWSBraketRemoteExecutionError(
             "Error when trying to get AWS credentials. No AWS Braket account configured."
         )
+    from braket.aws import AwsSession
 
     try:
         session = AwsSession()
@@ -91,8 +94,16 @@ def get_aws_braket_account_info() -> str:
 
 
 @typechecked
-def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> BraketDevice:
+def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
+
+    Args:
+        device: AWSDevice element describing which remote/local AwsDevice we want.
+        is_noisy: If the expected device is noisy or not.
+
+    Raises:
+        AWSBraketRemoteExecutionError: If the device or the region could not be
+            retrieved.
 
     Example:
         >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ASPEN_M_3)
@@ -101,10 +112,6 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> BraketDevice
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
-
-    Args:
-        device: AWSDevice element describing which remote/local AwsDevice we want.
-        is_noisy:
 
     Raises:
         AWSBraketRemoteExecutionError: If the device or the region could not be
@@ -118,7 +125,10 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> BraketDevice
             return LocalSimulator()
 
     try:
-        return AwsDevice(device.get_arn())
+        braket_client = boto3.client("braket", region_name=device.get_region())
+        aws_session = AwsSession(braket_client=braket_client)
+        aws_session.add_braket_user_agent(user_agent="APN/1.0 ColibriTD/1.0 MPQP/1.0")
+        return AwsDevice(device.get_arn(), aws_session=aws_session)
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
             "Failed to retrieve remote AWS device. Please check the arn, or if the "
@@ -143,7 +153,10 @@ def get_all_task_ids() -> list[str]:
          'arn:aws:braket:us-east-1:752542621531:quantum-task/4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'arn:aws:braket:us-east-1:752542621531:quantum-task/af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
+
     """
+    from braket.aws import AwsSession
+
     return [
         task["quantumTaskArn"]
         for task in (
@@ -164,5 +177,6 @@ def get_all_partial_ids() -> list[str]:
          '4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
          'edc094aa-23e8-4a8c-87be-f2e09281d79d',
          'af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
+
     """
     return [id.split("/")[-1] for id in get_all_task_ids()]

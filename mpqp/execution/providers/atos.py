@@ -3,28 +3,15 @@ from __future__ import annotations
 import warnings
 from itertools import permutations
 from statistics import mean
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-from qat.clinalg.qpu import CLinalg
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
-from qat.core.qpu.qpu import QPUHandler
-from qat.core.wrappers.circuit import Circuit
-from qat.core.wrappers.job import Job as JobQLM
-from qat.core.wrappers.observable import Observable as QLM_Observable
-from qat.core.wrappers.result import Result as QLM_Result
-from qat.plugins.observable_splitter import ObservableSplitter
-from qat.pylinalg import PyLinalg
-from qat.qlmaas.result import AsyncResult
-from qat.hardware.default import HardwareModel, DefaultGatesSpecification
-from qat.quops import make_depolarizing_channel
-
 from typeguard import typechecked
 
-from mpqp import Language, QCircuit
-from mpqp.core.instruction.measurement import ComputationalBasis
-from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.core.instruction.measurement.expectation_value import (
+from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.measurement import (
+    BasisMeasure,
+    ComputationalBasis,
     ExpectationMeasure,
     Observable,
 )
@@ -34,8 +21,17 @@ from ...core.instruction.gates import CRk, CNOT, Rk
 
 from ...tools.errors import QLMRemoteExecutionError, DeviceJobIncompatibleError, AdditionalGateNoiseWarning
 from ..connection.qlm_connection import get_QLMaaSConnection
+from ..devices import ATOSDevice
 from ..job import Job, JobStatus, JobType
 from ..result import Result, Sample, StateVector
+
+if TYPE_CHECKING:
+    from qat.core.contexts import QPUContext
+    from qat.core.qpu.qpu import QPUHandler
+    from qat.core.wrappers.circuit import Circuit
+    from qat.core.wrappers.job import Job as JobQLM
+    from qat.core.wrappers.result import Result as QLM_Result
+    from qat.qlmaas.result import AsyncResult
 
 
 @typechecked
@@ -75,7 +71,7 @@ def job_pre_processing(job: Job) -> Circuit:
 
 
 @typechecked
-def get_local_qpu(device: ATOSDevice) -> QPUHandler:
+def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
     """Returns the myQLM local QPU associated with the ATOSDevice given in
     parameter.
 
@@ -85,6 +81,9 @@ def get_local_qpu(device: ATOSDevice) -> QPUHandler:
     Raises:
         ValueError: If the required backend is a local simulator.
     """
+    from qat.clinalg.qpu import CLinalg
+    from qat.pylinalg import PyLinalg
+
     if device.is_remote():
         raise ValueError(f"Excepted a local device, not the remote QLM device {device}")
     if device == ATOSDevice.MYQLM_PYLINALG:
@@ -144,8 +143,8 @@ def get_remote_qpu(device: ATOSDevice, job: Job = None):
 
 @typechecked
 def generate_state_vector_job(
-    myqlm_circuit: Circuit
-) -> JobQLM:
+    myqlm_circuit: "Circuit"
+) -> "JobQLM":
     """Generates a myQLM job from the myQLM circuit.
 
     Args:
@@ -159,7 +158,7 @@ def generate_state_vector_job(
 
 
 @typechecked
-def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> JobQLM:
+def generate_sample_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     """Generates a myQLM job from the myQLM circuit and job sample info (target, shots, ...).
 
     Args:
@@ -183,25 +182,24 @@ def generate_sample_job(myqlm_circuit: Circuit, job: Job) -> JobQLM:
 
 @typechecked
 def generate_observable_job(
-    myqlm_circuit: Circuit, job: Job
-) -> JobQLM:
+    myqlm_circuit: "Circuit", job: Job
+) -> "JobQLM":
     """Generates a myQLM job from the myQLM circuit and observable.
 
     Args:
         myqlm_circuit: MyQLM circuit of the job.
-        job: Original mpqp job used to generate the myQLM job.
+        job: Original ``MPQP`` job used to generate the myQLM job.
 
     Returns:
         A myQLM Job for retrieving the expectation value of the observable.
     """
+    from qat.plugins.observable_splitter import ObservableSplitter
 
     assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-
+    qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
-        observable=QLM_Observable(
-            job.measure.nb_qubits, matrix=job.measure.observable.matrix
-        ),
+        observable=qlm_obs,
         nbshots=job.measure.shots,
     )
 
@@ -362,7 +360,7 @@ def generate_hardware_model(noises: list[NoiseModel], nb_qubits: int) -> Hardwar
 
 @typechecked
 def extract_state_vector_result(
-    myqlm_result: QLM_Result,
+    myqlm_result: "QLM_Result",
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
@@ -371,7 +369,7 @@ def extract_state_vector_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -402,7 +400,7 @@ def extract_state_vector_result(
 
 @typechecked
 def extract_sample_result(
-    myqlm_result: QLM_Result,
+    myqlm_result: "QLM_Result",
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
@@ -411,7 +409,7 @@ def extract_sample_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -457,7 +455,7 @@ def extract_sample_result(
 
 @typechecked
 def extract_observable_result(
-    myqlm_result: QLM_Result,
+    myqlm_result: "QLM_Result",
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
@@ -466,7 +464,7 @@ def extract_observable_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -498,12 +496,13 @@ def extract_observable_result(
             raise NotImplementedError("We cannot handle job without measure for now")
         nb_shots = job.measure.shots
 
-    return Result(job, myqlm_result.value, myqlm_result.error, nb_shots)
+    error = None if myqlm_result.error is None else abs(myqlm_result.error)
+    return Result(job, myqlm_result.value, error, nb_shots)
 
 
 @typechecked
 def extract_result(
-    myqlm_result: QLM_Result,
+    myqlm_result: "QLM_Result",
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
@@ -511,7 +510,7 @@ def extract_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -536,6 +535,34 @@ def extract_result(
         return extract_sample_result(myqlm_result, job, device)
     else:
         return extract_observable_result(myqlm_result, job, device)
+
+
+@typechecked
+def job_pre_processing(job: Job) -> "Circuit":
+    """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
+    are coherent.
+
+    Args:
+        job: ``MPQP`` job used to instantiate the myQLM circuit.
+
+    Returns:
+          The myQLM Circuit translated from the circuit of the job in parameter.
+    """
+
+    if (
+        job.job_type == JobType.STATE_VECTOR
+        and job.measure is not None
+        and not isinstance(job.measure, BasisMeasure)
+    ):
+        raise ValueError("`STATE_VECTOR` jobs require basis measure to be run")
+    if job.job_type == JobType.OBSERVABLE and not isinstance(
+        job.measure, ExpectationMeasure
+    ):
+        raise ValueError("`OBSERVABLE` jobs require `ExpectationMeasure` to be run")
+
+    myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
+
+    return myqlm_circuit
 
 
 @typechecked
@@ -613,7 +640,7 @@ def run_myQLM(job: Job) -> Result:
 
 
 @typechecked
-def submit_QLM(job: Job) -> tuple[str, AsyncResult]:
+def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
     """Submits the job on the remote QLM machine.
 
     Note:
@@ -697,17 +724,23 @@ def run_QLM(job: Job) -> Result:
 
 @typechecked
 def get_result_from_qlm_job_id(job_id: str) -> Result:
-    """Retrieve the result, described by the job_id in parameter, from the
-    remote QLM and convert it into an mpqp result. If the job is still running,
-    we wait (blocking) until it is DONE.
+    """Retrieves the ``QLM`` result, described by the job_id in parameter, from
+    the remote ``QLM`` and converts it in a ``MPQP``
+    :class:`Result<mpqp.execution.result.Result>`. If the job is still running,
+    we wait (blocking) until its status becomes ``DONE``.
 
     Args:
         job_id: Id of the remote QLM job.
 
+    Returns:
+        The converted result.
+
     Raises:
         QLMRemoteExecutionError: When job not found, or the job is in a non-coherent status (cancelled, deleted, ...)
-
     """
+    from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+    from qat.comm.qlmaas.ttypes import QLMServiceException
+
     connection = get_QLMaaSConnection()
 
     try:
@@ -729,7 +762,7 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
     elif status in [QLM_JobStatus.WAITING, QLM_JobStatus.RUNNING]:
         qlm_job.join()
 
-    qlm_result: QLM_Result = qlm_job.get_result()
+    qlm_result: "QLM_Result" = qlm_job.get_result()
 
     qlm_qpu_name = qlm_job.get_info().resources.qpu.split(':')[1]
 

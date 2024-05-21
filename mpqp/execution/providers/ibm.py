@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
@@ -77,7 +77,8 @@ def compute_expectation_value(
             "type ExpectationMeasure"
         )
     nb_shots = job.measure.shots
-    qiskit_observable = Operator(job.measure.observable.matrix)
+    qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
+    assert isinstance(qiskit_observable, Operator)
 
     if nb_shots != 0:
         assert ibm_backend is not None
@@ -123,7 +124,8 @@ def check_job_compatibility(job: Job):
     ):
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
-            f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead"
+            f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "
+            "type, by for example giving a number of shots to the measure)."
         )
     if job.device == IBMDevice.AER_SIMULATOR_STATEVECTOR:
         if job.job_type == JobType.SAMPLE:
@@ -161,7 +163,8 @@ def run_aer(job: Job):
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
     )
-    assert isinstance(qiskit_circuit, QuantumCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
     check_job_compatibility(job)
@@ -241,7 +244,8 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     check_job_compatibility(job)
 
     qiskit_circuit = job.circuit.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_circuit, QuantumCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
     qiskit_circuit = qiskit_circuit.reverse_bits()
 
     service = get_QiskitRuntimeService()
@@ -250,7 +254,8 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     if job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
-        qiskit_observable = Operator(job.measure.observable.matrix)
+        qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
+        assert isinstance(qiskit_observable, Operator)
 
         ibm_job = estimator.run(
             qiskit_circuit, qiskit_observable, shots=job.measure.shots
@@ -296,14 +301,13 @@ def extract_result(
     device: IBMDevice = IBMDevice.AER_SIMULATOR,
     ibm_job: Optional[IBMJob | RuntimeJob] = None,
 ) -> Result:
-    """Parses a result from IBM execution (remote or local) into an ``mpqp``
-    Result. Depending on which service you run the job (local/remote backend,
-    Estimator, Sampler), you retrieve a different result.
+    """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
+    :class:`Result<mpqp.execution.result.Result>`.
 
     Args:
         result: Result returned by IBM after running of the job.
-        job: Original mpqp job used to generate the run. Used to retrieve more
-            easily info to instantiate the result.
+        job: ``MPQP`` job used to generate the run. Enables a more complete
+            result.
         device: IBMDevice on which the job was submitted. Used to know if the
             run was remote or local
         ibm_job: IBM or Runtime job used to retrieve info about the circuit and

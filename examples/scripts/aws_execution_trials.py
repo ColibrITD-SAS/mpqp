@@ -1,13 +1,12 @@
+import numpy as np
+from braket.devices import LocalSimulator
+
 from mpqp import QCircuit
-from mpqp.core.instruction.measurement import Observable, ExpectationMeasure
-from mpqp.execution.devices import AWSDevice, ATOSDevice
+from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
+from mpqp.execution import run
+from mpqp.execution.devices import ATOSDevice, AWSDevice
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
-from mpqp.execution import Sample, run
-from mpqp.qasm import qasm3_to_braket_Program, open_qasm_2_to_3
-from braket.devices import LocalSimulator
-from braket.tasks import GateModelQuantumTaskResult
-import numpy as np
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
 device = LocalSimulator()
@@ -93,5 +92,3 @@ circuit.add(Rz(1.987, 0))
 # Running the computation on myQLM and on Aer simulator, then retrieving the results
 result = run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 print(result)
-
-

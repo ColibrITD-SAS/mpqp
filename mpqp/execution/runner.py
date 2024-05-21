@@ -1,7 +1,25 @@
+"""
+Once the circuit is defined, you can to execute it and retrieve the result using
+the function :func:`run`. You can execute said circuit on one or several devices
+(local or remote). The function will wait (blocking) until the job is completed
+and will return a :class:`Result<mpqp.execution.result.Result>` in only one
+device was given or a :class:`BatchResult<mpqp.execution.result.BatchResult>` 
+otherwise (see :ref:`below<Results>`).
+
+Alternatively, when running jobs on a remote device, you could prefer to
+retrieve the result asynchronously, without having to wait and block the
+application until the computation is completed. In that case, you can use the
+:func:`submit` instead. It will submit the job and
+return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
+
+.. note::
+    Unlike :func:`run`, we can only submit on one device at a time.
+"""
+
 from __future__ import annotations
 
 from numbers import Complex
-from typing import Iterable, Optional, Union
+from typing import Optional, Sequence, Union
 
 import numpy as np
 from sympy import Expr
@@ -13,20 +31,33 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from mpqp.execution.devices import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    IBMDevice,
+    GOOGLEDevice,
+)
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
+from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
 from mpqp.execution.result import BatchResult, Result
-from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
+from mpqp.tools.errors import RemoteExecutionError
+from mpqp.tools.generics import OneOrMany
 
 
 @typechecked
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
-    """We allow the measure to not span the entire circuit, but none of our
-    providers allow for that. So we patch the measure with this function, with
-    identities on the qubits that no not interest our user.
+    """We allow the measure to not span the entire circuit, but providers
+    usually don't support this behavior. To make this work we tweak the measure
+    this function to match the expected behavior.
+
+    In order to do this, we add identity measures on the qubits not targeted by
+    the measure. In addition of this, some swaps are automatically added so the
+    the qubits measured are ordered and contiguous (though this is done in
+    :func:`generate_job`)
 
     Args:
         measure: The expectation measure, potentially incomplete.
@@ -55,9 +86,12 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 def generate_job(
     circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
 ) -> Job:
-    """Create a Job from the circuit and the eventual measurements. If the
-    circuit depends on variables, the values given in parameters are used to do
-    the substitution.
+    """Creates the Job of appropriate type and containing the information needed
+    for the execution of the circuit.
+
+    If the circuit contains symbolic variables (see section :ref:`VQA` for more
+    information on them), the ``values`` parameter is used perform the necessary
+    substitutions.
 
     Args:
         circuit: Circuit to be run.
@@ -69,19 +103,17 @@ def generate_job(
     """
     circuit = circuit.subs(values, True)
 
-    # get the measurements of this circuit
     m_list = circuit.get_measurements()
     nb_meas = len(m_list)
 
-    # determine the job type and create the right job
     if nb_meas == 0:
         job = Job(JobType.STATE_VECTOR, circuit, device)
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # 3M-TODO: handle other basis by adding the right rotation (change of basis) before
-            #       measuring in the computational basis
-            # 3M-TODO: Muhammad circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
+            # 3M-TODO: handle other basis by adding the right rotation (change
+            # of basis) before measuring in the computational basis
+            # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
             if measurement.shots <= 0:
                 job = Job(JobType.STATE_VECTOR, circuit, device)
             else:
@@ -99,7 +131,8 @@ def generate_job(
             )
     else:
         raise NotImplementedError(
-            "Cannot handle several measurement in the current version"
+            "Current version of MPQP do not support multiple measurement in a "
+            "circuit."
         )
 
     return job
@@ -127,13 +160,15 @@ def _run_single(
     Example:
         >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> print(result) # doctest: +SKIP
         Result: IBMDevice, AER_SIMULATOR
-        Counts: [512, 0, 0, 488]
-        Probabilities: [0.512 0.    0.    0.488]
-        State: 00, Index: 0, Count: 512, Probability: 0.512
-        State: 11, Index: 3, Count: 488, Probability: 0.488
-        Error: None
+         Probabilities: [0.523, 0, 0, 0.477]
+         Counts: [523, 0, 0, 477]
+         Samples:
+          State: 00, Index: 0, Count: 523, Probability: 0.523
+          State: 11, Index: 3, Count: 477, Probability: 0.477
+         Error: None
+
     """
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
@@ -154,6 +189,8 @@ def _run_single(
         return run_atos(job)
     elif isinstance(device, AWSDevice):
         return run_braket(job)
+    elif isinstance(device, GOOGLEDevice):
+        return run_google(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -161,12 +198,15 @@ def _run_single(
 @typechecked
 def run(
     circuit: QCircuit,
-    device: AvailableDevice | list[AvailableDevice],
+    device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Union[Result, BatchResult]:
     """Runs the circuit on the backend, or list of backend, provided in
-    parameter. If the circuit depends on variables, the values given in
-    parameters are used to do the substitution.
+    parameter.
+
+    If the circuit contains symbolic variables (see section :ref:`VQA` for more
+    information on them), the ``values`` parameter is used perform the necessary
+    substitutions.
 
     Args:
         circuit: QCircuit to be run.
@@ -182,31 +222,35 @@ def run(
         ...     label="Bell pair",
         ... )
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> print(result) # doctest: +SKIP
         Result: IBMDevice, AER_SIMULATOR
-        Counts: [512, 0, 0, 488]
-        Probabilities: [0.512 0.    0.    0.488]
-        State: 00, Index: 0, Count: 512, Probability: 0.512
-        State: 11, Index: 3, Count: 488, Probability: 0.488
-        Error: None
+         Counts: [497, 0, 0, 503]
+         Probabilities: [0.497, 0, 0, 0.503]
+         Samples:
+          State: 00, Index: 0, Count: 497, Probability: 0.497
+          State: 11, Index: 3, Count: 503, Probability: 0.503
+         Error: None
         >>> batch_result = run(
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
-        >>> print(batch_result)
+        >>> print(batch_result) # doctest: +SKIP
         BatchResult: 2 results
-        Result: AWSDevice, BRAKET_LOCAL_SIMULATOR
-        Counts: [492, 0, 0, 508]
-        Probabilities: [0.492 0.    0.    0.508]
-        State: 00, Index: 0, Count: 492, Probability: 0.492
-        State: 11, Index: 3, Count: 508, Probability: 0.508
-        Error: None
         Result: ATOSDevice, MYQLM_PYLINALG
-        Counts: [462, 0, 0, 538]
-        Probabilities: [0.462 0.    0.    0.538]
-        State: 00, Index: 0, Count: 462, Probability: 0.462
-        State: 11, Index: 3, Count: 538, Probability: 0.538
-        Error: 0.015773547629015002
+         Counts: [499, 0, 0, 501]
+         Probabilities: [0.499, 0, 0, 0.501]
+         Samples:
+          State: 00, Index: 0, Count: 499, Probability: 0.499
+          State: 11, Index: 3, Count: 501, Probability: 0.501
+         Error: 0.01581926829057682
+        Result: AWSDevice, BRAKET_LOCAL_SIMULATOR
+         Counts: [502, 0, 0, 498]
+         Probabilities: [0.502, 0, 0, 0.498]
+         Samples:
+          State: 00, Index: 0, Count: 502, Probability: 0.502
+          State: 11, Index: 3, Count: 498, Probability: 0.498
+         Error: None
+
     """
 
     if values is None:
@@ -223,18 +267,16 @@ def submit(
     circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
 ) -> tuple[str, Job]:
     """Submit the job related with the circuit on the remote backend provided in
-    parameter. The submission returns a job_id that can be used to retrieve the
-    Result later. If the circuit depends on variables, the values given in
-    parameters are used to do the substitution. Unlike :meth:`run`, for the
-    moment, one can only submit a circuit to a single device.
+    parameter. The submission returns a ``job_id`` that can be used to retrieve
+    the :class:`Result<mpqp.execution.result.Result>` later, using the
+    :func:`get_remote_result<mpqp.execution.remote_handler.get_remote_result>`
+    function.
 
-    Example:
-        >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
-        >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG)
-        Logging as user <qlm_user>...
-        Submitted a new batch: Job766
-        >>> print("Status of " +job_id +":", job.job_status)
-        Status of Job766: JobStatus.RUNNING
+    If the circuit contains symbolic variables (see section :ref:`VQA` for more
+    information on them), the ``values`` parameter is used perform the necessary
+    substitutions.
+
+    Mind that this function only support single device submissions.
 
     Args:
         circuit: QCircuit to be run.
@@ -243,6 +285,15 @@ def submit(
 
     Returns:
         The job id provided by the remote device after submission of the job.
+
+    Example:
+        >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
+        >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG) #doctest: +SKIP
+        Logging as user <qlm_user>...
+        Submitted a new batch: Job766
+        >>> print("Status of " +job_id +":", job.job_status) #doctest: +SKIP
+        Status of Job766: JobStatus.RUNNING
+
     """
     if not device.is_remote():
         raise RemoteExecutionError(

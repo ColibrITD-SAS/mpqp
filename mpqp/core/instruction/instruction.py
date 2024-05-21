@@ -6,11 +6,14 @@ from __future__ import annotations
 from abc import abstractmethod
 from copy import deepcopy
 from numbers import Complex
-from typing import Any, Optional
+from pickle import dumps
+from typing import TYPE_CHECKING, Any, Optional
 
-from qiskit.circuit import Parameter
 from sympy import Expr
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
@@ -96,12 +99,13 @@ class Instruction(SimpleClassReprABC):
         """
         pass
 
+    def __eq__(self, value: object) -> bool:
+        return dumps(self) == dumps(value)
+
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(
-            (self.targets if isinstance(self.targets, int) else max(self.targets)) + 1
-        )
+        c = QCircuit(max(self.connections()) + 1)
         c.add(self)
         return str(c)
 
@@ -114,12 +118,13 @@ class Instruction(SimpleClassReprABC):
     def connections(self) -> set[int]:
         """Returns the indices of the qubits connected to the instruction.
 
-        Example:
-            >>> CNOT(0,1).connections()
-            [0, 1]
-
         Returns:
             The qubits ordered connected to instruction.
+
+        Example:
+            >>> CNOT(0,1).connections()
+            {0, 1}
+
         """
         from mpqp.core.instruction.gates import ControlledGate
 
@@ -139,13 +144,6 @@ class Instruction(SimpleClassReprABC):
         Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
 
-        Example:
-            >>> theta = symbols("θ")
-            >>> print(Rx(theta, 0).subs({theta: np.pi}))
-               ┌───────┐
-            q: ┤ Rx(π) ├
-               └───────┘
-
         Args:
             values: Mapping between the variables and the replacing values.
             remove_symbolic: If symbolic values should be replaced by their
@@ -153,5 +151,13 @@ class Instruction(SimpleClassReprABC):
 
         Returns:
             The circuit with the replaced parameters.
+
+        Example:
+            >>> theta = symbols("θ")
+            >>> print(Rx(theta, 0).subs({theta: np.pi}))
+               ┌───────┐
+            q: ┤ Rx(π) ├
+               └───────┘
+
         """
         return deepcopy(self)

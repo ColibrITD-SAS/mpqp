@@ -12,11 +12,12 @@ from .execution import (
     Sample,
     StateVector,
     adjust_measure,
+    get_remote_result,
     run,
     submit,
 )
 from .execution.connection.qlm_connection import get_all_job_ids
-from .execution.devices import ATOSDevice, AWSDevice, IBMDevice
+from .execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
 from .execution.vqa import Optimizer, minimize
 from .gates import (
     CNOT,
@@ -51,10 +52,12 @@ from .measures import (
     ComputationalBasis,
     ExpectationMeasure,
     HadamardBasis,
-    Measure,
-    Observable,
-    VariableSizeBasis,
 )
+from .measures import I as Iop
+from .measures import Measure, Observable, VariableSizeBasis
+from .measures import X as Xop
+from .measures import Y as Yop
+from .measures import Z as Zop
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
 from .noise import Depolarizing
