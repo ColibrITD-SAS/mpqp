@@ -63,7 +63,9 @@ class NoiseModel(ABC):
                     )
 
         self.targets = targets
+        """List of target qubits that will be affected by this noise model."""
         self.gates = gates if gates is not None else []
+        """List of specific gates after which this noise model will be applied."""
 
     def connections(self) -> set[int]:
         """Returns the indices of the qubits connected to the noise model (affected by the noise).
@@ -114,11 +116,11 @@ class Depolarizing(NoiseModel):
         prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>` affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>` affected by this noise.
 
     Raises:
         ValueError: When a wrong dimension (negative) or probability (outside of the expected interval) is input.
-        When the size of the specified gates is not coherent with the number of targets or the dimension.
+            When the size of the specified gates is not coherent with the number of targets or the dimension.
 
     Examples:
         >>> circuit.add(Depolarizing(0.32, list(range(circuit.nb_qubits)))
@@ -160,7 +162,9 @@ class Depolarizing(NoiseModel):
 
         super().__init__(targets, gates)
         self.proba = prob
+        """Probability, or error rate, of the depolarizing noise model."""
         self.dimension = dimension
+        """Dimension of the depolarizing noise model."""
 
     def to_kraus_representation(self):
         """3M-TODO"""
@@ -178,7 +182,10 @@ class Depolarizing(NoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise:
-        """See documentation of this method in abstract mother class ``NoiseModel``.
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
+
+        Args:
+            language: Enum representing the target language.
 
         Examples:
             >>> braket_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
