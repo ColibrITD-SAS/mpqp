@@ -124,8 +124,6 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
         raise ValueError(
             f"Excepted a remote device, but got a local myQLM simulator {device}"
         )
-    if job is None:
-        raise ValueError("Expected a Job as second argument but got None.")
 
     if len(job.circuit.noises) > 0:
         if not device.is_noisy_simulator():
@@ -297,8 +295,8 @@ def generate_hardware_model(
                 Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk])
             )
             warnings.warn(
-                "Requested noise on CRk gate will introduce noise on CNOT and Rk (PH) due to its "
-                "decomposition in my_QLM",
+                "Requested noise on CRk gate will introduce noise on CNOT and "
+                "Rk (PH) due to its decomposition in my_QLM",
                 AdditionalGateNoiseWarning,
             )
 
@@ -312,7 +310,9 @@ def generate_hardware_model(
             # For each gate attached to this NoiseModel, we add to each gate key the right channels
             for gate in noise.gates:
                 if hasattr(gate, "qlm_aqasm_keyword"):
-                    gate_keyword = gate.qlm_aqasm_keyword
+                    gate_keyword = (
+                        gate.qlm_aqasm_keyword  # pyright: ignore[reportAttributeAccessIssue]
+                    )
 
                     # If the target are all qubits
                     if this_noise_all_qubits_target:
@@ -342,9 +342,10 @@ def generate_hardware_model(
                                     gate_noise_local[gate_keyword][t] *= channel
                 else:
                     warnings.warn(
-                        f"The gate {gate} has no attribute 'qlm_aqasm_keyword', and is "
-                        f"ignored in the definition of the noise model. Please add `qlm_aqasm_keyword` "
-                        f"to the gate class as a class attribute.",
+                        f"The gate {gate} has no attribute 'qlm_aqasm_keyword',"
+                        " and is ignored in the definition of the noise model. "
+                        "Please add `qlm_aqasm_keyword` to the gate class as a "
+                        "class attribute.",
                         UserWarning,
                     )
         # Otherwise, we add an iddle noise
