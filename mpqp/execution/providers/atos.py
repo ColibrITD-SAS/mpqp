@@ -55,7 +55,9 @@ def job_pre_processing(job: Job) -> "Circuit":
         and job.measure is not None
         and not isinstance(job.measure, BasisMeasure)
     ):
-        raise ValueError(f"`STATE_VECTOR` jobs require measure of type `BasisMeasure` to be run, but got {job.measure}.")
+        raise ValueError(
+            f"`STATE_VECTOR` jobs require measure of type `BasisMeasure` to be run, but got {job.measure}."
+        )
     if job.job_type == JobType.OBSERVABLE and not isinstance(
         job.measure, ExpectationMeasure
     ):
@@ -136,7 +138,9 @@ def get_remote_qpu(device: ATOSDevice, job: Optional[Job]):
                 job.circuit.noises, job.circuit.nb_qubits
             )
             qpu = NoisyQProc(
-                hw_model, sim_method="stochastic", n_samples=job.measure.shots if job.measure is not None else 0
+                hw_model,
+                sim_method="stochastic",
+                n_samples=job.measure.shots if job.measure is not None else 0,
             )
             if job.job_type == JobType.OBSERVABLE:
                 from qlmaas.plugins import ObservableSplitter  # type: ignore
@@ -265,7 +269,9 @@ def generate_hardware_model(
         The HardwareModel corresponding to the combination of NoiseModels given in parameter.
     """
     from qat.hardware.default import DefaultGatesSpecification, HardwareModel
-    from qat.quops import make_depolarizing_channel  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.quops import (
+        make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
+    )
 
     all_qubits_target = True
 
@@ -332,10 +338,12 @@ def generate_hardware_model(
                                 else:
                                     gate_noise_local[gate_keyword][t] *= channel
                 else:
-                    warnings.warn(f"The gate {gate} has no attribute 'qlm_aqasm_keyword', and is "
-                                  f"ignored in the definition of the noise model. Please add `qlm_aqasm_keyword` "
-                                  f"to the gate class as a class attribute.",
-                                  UserWarning)
+                    warnings.warn(
+                        f"The gate {gate} has no attribute 'qlm_aqasm_keyword', and is "
+                        f"ignored in the definition of the noise model. Please add `qlm_aqasm_keyword` "
+                        f"to the gate class as a class attribute.",
+                        UserWarning,
+                    )
         # Otherwise, we add an iddle noise
         else:
             if this_noise_all_qubits_target:
