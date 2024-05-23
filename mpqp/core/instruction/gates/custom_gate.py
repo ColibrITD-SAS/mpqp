@@ -6,11 +6,7 @@ if TYPE_CHECKING:
     from qiskit.circuit import Parameter
 
 from mpqp.core.instruction.gates.gate import Gate
-from mpqp.core.instruction.gates.gate_definition import (
-    KrausRepresentation,
-    PauliDecomposition,
-    UnitaryMatrix,
-)
+from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 
 
@@ -53,33 +49,3 @@ class CustomGate(Gate):
         from mpqp.core.circuit import QCircuit
 
         return QCircuit(self.nb_qubits)
-
-
-@typechecked
-class KrausGate(CustomGate):
-    """6M-TODO"""
-
-    def __init__(
-        self,
-        definition: KrausRepresentation,
-        targets: list[int],
-        label: Optional[str] = None,
-    ):
-        self.kraus_representation = definition
-        """See parameter description."""
-        CustomGate.__init__(self, UnitaryMatrix(definition.to_matrix()), targets, label)
-
-
-@typechecked
-class PauliDecompositionGate(CustomGate):
-    """6M-TODO"""
-
-    def __init__(
-        self,
-        definition: PauliDecomposition,
-        targets: list[int],
-        label: Optional[str] = None,
-    ):
-        self.pauli_decomposition = definition
-        """See parameter description."""
-        CustomGate.__init__(self, UnitaryMatrix(definition.to_matrix()), targets, label)

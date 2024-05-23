@@ -1,17 +1,18 @@
-"""Add ``-l`` or ``--long`` to the cli args to run this test (disable by default 
-because too slow)"""
+"""Add ``--long`` to the cli args to run this test (disabled by default because 
+too slow)"""
+
+import sys
 
 # 3M-TODO test everything
 import numpy as np
 import pytest
-from mpqp.core.instruction.measurement import Observable, ExpectationMeasure
-from mpqp.gates import *
+
 from mpqp import QCircuit
-from mpqp.measures import BasisMeasure
+from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
 from mpqp.execution import run
 from mpqp.execution.devices import IBMDevice
-
-import sys
+from mpqp.gates import *
+from mpqp.measures import BasisMeasure
 
 
 @pytest.mark.parametrize(
@@ -54,8 +55,11 @@ import sys
     ],
 )
 def running_remote_IBM_without_error(circuit: QCircuit):
-    run(circuit, IBMDevice.IBMQ_QASM_SIMULATOR)
+    run(circuit, IBMDevice.AER_SIMULATOR)
 
 
-if "-l" in sys.argv or "--long" in sys.argv:
+if "--long" in sys.argv:
+    # in fact this is not slow anymore, because IBM disabled their remote
+    # simulator, so this is a local one. Because of this, this test is not super
+    # useful anymore. TODO: can we do better ?
     test_running_remote_IBM_without_error = running_remote_IBM_without_error
