@@ -60,6 +60,7 @@ def main_setup():
     import mpqp.execution.connection.ibm_connection as ibmqc
     import mpqp.execution.connection.qlm_connection as qlmc
     import mpqp.execution.connection.google_connection as cirqc
+    import mpqp.execution.connection.key_connection as keyc
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     def return_action():
@@ -71,7 +72,8 @@ def main_setup():
             AnswerNode("IBM configuration", ibmqc.setup_ibm_account),
             AnswerNode("QLM configuration", qlmc.setup_qlm_account),
             AnswerNode("Amazon Braket configuration", awsc.setup_aws_braket_account),
-            AnswerNode("Cirq configuration", return_action),
+            AnswerNode("Ionq configuration", keyc.config_ionq_key),
+            #AnswerNode("Cirq configuration", return_action),
             AnswerNode("Config information", print_config_info),
         ],
     )
@@ -80,7 +82,6 @@ def main_setup():
         "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
         [
             AnswerNode("↩", return_action),
-            AnswerNode("Ionq configuration", cirqc.config_ionq_key),
         ],
     )
 
