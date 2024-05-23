@@ -78,7 +78,7 @@ def apply_noise_to_braket_circuit(
                 else None
             ),
             target_qubits=(
-                noise.targets if set(noise.targets) == set(range(nb_qubits)) else None
+                noise.targets if set(noise.targets) != set(range(nb_qubits)) else None
             ),
         )
 
