@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional, Union
+from typing import Optional
 
 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from braket.circuits.noises import Noise as BraketNoise
 from braket.circuits.noises import TwoQubitDepolarizing
 from qat.quops.class_concepts import QuantumChannel as QLMNoise
-from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
