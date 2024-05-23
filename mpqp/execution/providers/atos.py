@@ -110,7 +110,7 @@ def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
 
 
 @typechecked
-def get_remote_qpu(device: ATOSDevice, job: Optional[Job]):
+def get_remote_qpu(device: ATOSDevice, job: Job):
     """Returns the QLM remote QPU associated with the ATOSDevice given in parameter.
 
     Args:
@@ -124,6 +124,9 @@ def get_remote_qpu(device: ATOSDevice, job: Optional[Job]):
         raise ValueError(
             f"Excepted a remote device, but got a local myQLM simulator {device}"
         )
+    if job is None:
+        raise ValueError("Expected a Job as second argument but got None.")
+
     if len(job.circuit.noises) > 0:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
