@@ -12,6 +12,7 @@ from mpqp.core.instruction.measurement import (
 from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run
 from mpqp.gates import *
 from mpqp.noise import Depolarizing
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
 @pytest.fixture
@@ -57,7 +58,8 @@ def test_noisy_expectation_value_execution_without_error(
         )
     )
     circuit.add(Depolarizing(0.23, [0, 1]))
-    run(circuit, devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        run(circuit, devices)
     assert True
 
 
@@ -67,7 +69,8 @@ def test_all_native_gates_global_noise_execution_without_error(
     circuit.add(BasisMeasure([0, 1, 2], shots=1023))
     circuit.add(Depolarizing(0.23, [0, 1]))
     circuit.add(Depolarizing(0.23, [0, 1, 2], dimension=2, gates=[SWAP, CNOT, CZ]))
-    run(circuit, devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        run(circuit, devices)
     assert True
 
 
@@ -79,5 +82,6 @@ def test_all_native_gates_local_noise(
         Depolarizing(0.23, [0, 2], gates=[H, X, Y, Z, S, T, Rx, Ry, Rz, Rk, P, U])
     )
     circuit.add(Depolarizing(0.23, [0, 1], dimension=2, gates=[SWAP, CNOT, CZ]))
-    run(circuit, devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        run(circuit, devices)
     assert True
