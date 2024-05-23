@@ -1,3 +1,6 @@
+"""Add ``--long`` to the cli args to run this test (disabled by default because 
+too slow)"""
+
 import sys
 
 import numpy as np
@@ -42,7 +45,7 @@ def circuit():
 @pytest.fixture
 def devices():
     devices: list[AvailableDevice] = [AWSDevice.BRAKET_LOCAL_SIMULATOR]
-    if "-l" in sys.argv or "--long" in sys.argv:
+    if "--long" in sys.argv:
         devices.append(ATOSDevice.QLM_NOISYQPROC)
     return devices
 

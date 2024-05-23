@@ -1,19 +1,18 @@
-"""add -l or --long to the cli args to run this test (disabled by default 
-because too slow)"""
+"""Add ``--long`` to the cli args to run this test (disabled by default because 
+too slow)"""
+
+import sys
 
 # 3M-TODO test everything
 import numpy as np
 import pytest
 
-from mpqp.core.instruction.measurement import Observable, ExpectationMeasure
-from mpqp.gates import *
 from mpqp import QCircuit
-from mpqp.measures import BasisMeasure
+from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
 from mpqp.execution import run
-from mpqp.execution.devices import GOOGLEDevice
-from mpqp.qasm import qasm2_to_cirq_Circuit
-
-import sys
+from mpqp.execution.devices import ATOSDevice
+from mpqp.gates import *
+from mpqp.measures import BasisMeasure
 
 
 @pytest.mark.parametrize(
@@ -43,6 +42,7 @@ import sys
                 BasisMeasure(list(range(3)), shots=0),
             ]
         ),
+        # OBSERVABLE JOB
         QCircuit(
             [
                 H(0),
@@ -65,24 +65,9 @@ import sys
         ),
     ],
 )
-def running_remote_local_cirq(circuit: QCircuit):
-    return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+def running_remote_QLM_without_error(circuit: QCircuit):
+    run(circuit, ATOSDevice.QLM_LINALG)
 
 
-if "-l" in sys.argv or "--long" in sys.argv:
-    test_running_local_cirq_without = running_remote_local_cirq
-
-
-@pytest.mark.parametrize(
-    "qasm2_filename",
-    [
-        "all",
-    ],
-)
-def test_qasm2_to_cirq_Circuit(qasm_filename: str):
-    with open(
-        f"tests/execution/providers/{qasm_filename}.qasm2",
-        "r",
-        encoding="utf-8",
-    ) as f:
-        assert qasm2_to_cirq_Circuit(f.read()).to_qasm() == f.read()
+if "--long" in sys.argv:
+    test_running_remote_QLM_without_error = running_remote_QLM_without_error
