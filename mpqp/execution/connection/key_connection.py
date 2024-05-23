@@ -79,5 +79,25 @@ def config_aqt_key():
     """
     configuration_name = 'AQT'
     key_name = 'AQT_TOKEN'
-    return config_key(key_name, configuration_name, test_ionq_connection)
+    return config_key(key_name, configuration_name, test_aqt_connection)
+
+
+def test_aqt_connection() -> bool:
+    """
+    Test the connection to the AQT service.
+
+    Returns:
+        bool: True if the connection is successful, False otherwise.
+    """
+    from qiskit_aqt_provider import AQTProvider
+    from qiskit_aqt_provider.aqt_provider import NoTokenWarning
+
+    
+    try:
+        AQTProvider()
+        return True
+    except NoTokenWarning:
+        print(colored("Wrong credentials", "red"))
+        return False
+
 

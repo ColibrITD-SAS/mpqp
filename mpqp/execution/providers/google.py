@@ -129,7 +129,7 @@ def run_local(job: Job) -> Result:
     job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
     assert isinstance(job_cirq_circuit, Cirq_circuit)
 
-    simulator = Simulator()
+    simulator = Simulator(noise=None)
 
     if job.job_type == JobType.STATE_VECTOR:
         result_sim = simulator.simulate(job_cirq_circuit)

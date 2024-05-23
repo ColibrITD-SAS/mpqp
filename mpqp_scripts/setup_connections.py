@@ -69,12 +69,13 @@ def main_setup():
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
         [
-            AnswerNode("IBM configuration", ibmqc.setup_ibm_account),
-            AnswerNode("QLM configuration", qlmc.setup_qlm_account),
-            AnswerNode("Amazon Braket configuration", awsc.setup_aws_braket_account),
-            AnswerNode("Ionq configuration", keyc.config_ionq_key),
+            AnswerNode("IBM", ibmqc.setup_ibm_account),
+            AnswerNode("QLM", qlmc.setup_qlm_account),
+            AnswerNode("Amazon", awsc.setup_aws_braket_account),
+            AnswerNode("IonQ", keyc.config_ionq_key),
+            AnswerNode("AQT", keyc.config_aqt_key),
             #AnswerNode("Cirq configuration", return_action),
-            AnswerNode("Config information", print_config_info),
+            AnswerNode("Recap", print_config_info),
         ],
     )
 
@@ -86,7 +87,7 @@ def main_setup():
     )
 
     for answer in setup_tree.answers:
-        if answer.label == "Cirq configuration":
+        if answer.label == "Cirq":
             answer.next_question = cirq_setup_tree
         else:
             answer.next_question = setup_tree
