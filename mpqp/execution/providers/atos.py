@@ -56,7 +56,8 @@ def job_pre_processing(job: Job) -> "Circuit":
         and not isinstance(job.measure, BasisMeasure)
     ):
         raise ValueError(
-            f"`STATE_VECTOR` jobs require measure of type `BasisMeasure` to be run, but got {job.measure}."
+            "`STATE_VECTOR` jobs require a measure of type `BasisMeasure` to be"
+            f" run, but got {job.measure}."
         )
     if job.job_type == JobType.OBSERVABLE and not isinstance(
         job.measure, ExpectationMeasure
