@@ -362,8 +362,7 @@ def open_qasm_2_to_3(
         Converted OpenQASM code in the 3.0 version.
 
     Example:
-        >>> qasm2_str = '''\\
-        ... OPENQASM 2.0;
+        >>> qasm2_str = '''OPENQASM 2.0;
         ... qreg q[2];
         ... creg c[2];
         ... h q[0];
@@ -371,16 +370,17 @@ def open_qasm_2_to_3(
         ... measure q[0] -> c[0];
         ... measure q[1] -> c[1];
         ... '''
-        >>> open_qasm_2_to_3(qasm2_str)
-        '''OPENQASM 3.0;
-        include 'stdgates.inc';
+        >>> print(open_qasm_2_to_3(qasm2_str)) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        include "stdgates.inc";
         qubit[2] q;
         bit[2] c;
         h q[0];
         cx q[0],q[1];
         c[0] = measure q[0];
         c[1] = measure q[1];
-        '''
+
+
     """
 
     header_code = ""
@@ -422,11 +422,11 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
     Returns:
         Converted OpenQASM code in the 3.0 version.
 
-    Example:
-        >>> example_dir = "example/qasm_files/"
+    Examples:
+        >>> example_dir = "examples/scripts/qasm_files/"
         >>> with open(example_dir + "main.qasm", "r") as f:
-        ...     print(f.read())
-        '''OPENQASM 2.0;
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 2.0;
         include "include1.qasm";
         include "include2.qasm";
         qreg q[2];
@@ -436,12 +436,12 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
         gate2 q[0];
         gate3 q[0], q[1];
         measure q[0] -> c[0];
-        measure q[1] -> c[1];'''
-        >>> print(open_qasm_file_conversion_2_to_3(example_dir + "main.qasm"))
-        '''OPENQASM 3.0;
+        measure q[1] -> c[1];
+        >>> print(open_qasm_file_conversion_2_to_3(example_dir + "main.qasm")) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
         include 'include1_converted.qasm';
         include 'include2_converted.qasm';
-        include 'stdgates.inc';
+        include "stdgates.inc";
         qubit[2] q;
         bit[2] c;
         h q[0];
@@ -449,22 +449,23 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
         gate2 q[0];
         gate3 q[0], q[1];
         c[0] = measure q[0];
-        c[1] = measure q[1];'''
+        c[1] = measure q[1];
         >>> with open(example_dir + "include1_converted.qasm", "r") as f:
-        ...     print(f.read())
-        '''OPENQASM 3.0;
-        include 'stdgates.inc';
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        include "stdgates.inc";
         gate gate2 a {
             u3(pi, -pi/2, pi/2) a;
-        }'''
+        }
         >>> with open(example_dir + "include2_converted.qasm", "r") as f:
-        ...     print(f.read())
-        '''OPENQASM 3.0;
-        include 'stdgates.inc';
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        include "stdgates.inc";
         gate gate3 a, b {
             u3(0, -pi/2, pi/3) a;
             cz a, b;
-        }'''
+        }
+
     """
 
     with open(path, "r") as f:
@@ -500,9 +501,10 @@ def open_qasm_hard_includes(
         >>> filename = examples_folder + "/with_include.qasm"
         >>> with open(filename) as f:
         ...     print(open_qasm_hard_includes(f.read(), {filename}).strip("\n"))
-        '''gate csx a, b {
+        gate csx a, b {
             ctrl @ sx a, b;
-        }'''
+        }
+
     """
     lines = code.split("\n")
     converted_code = []
@@ -563,7 +565,7 @@ def parse_user_gates(qasm_code: str) -> tuple[dict[str, str], str]:
         ... rzz(0.2) q[1], q[2];
         ... c2[0] = measure q[2];'''
         >>> print(parse_user_gates(qasm_str))
-        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, '\nqubit[3] q;\nbit[1] c0;\nbit[1] c1;\nrzz(0.2) q[1], q[2];\nc2[0] = measure q[2];')
+        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, 'qubit[3] q;\nbit[1] c0;\nbit[1] c1;\nrzz(0.2) q[1], q[2];\nc2[0] = measure q[2];')
     """
     # TODO: for cleaner gate definitions, they could be objects instead of lists
     user_gate_definitions = {}
@@ -618,14 +620,14 @@ def remove_user_gates(qasm_code: str) -> str:
         The QASM code with user gate calls replaced by their definitions.
 
     Example:
-        >>> qasm_str = \"\"\"gate MyGate a, b {
-        ...        h a;
-        ...        cx a, b;
-        ...   }
-        ...    qreg q[3];
-        ...    creg c[2];
-        ...    MyGate q[0], q[1];
-        ...    measure q -> c;\"\"\"
+        >>> qasm_str = '''gate MyGate a, b {
+        ...      h a;
+        ...      cx a, b;
+        ... }
+        ... qreg q[3];
+        ... creg c[2];
+        ... MyGate q[0], q[1];
+        ... measure q -> c;'''
         >>> print(remove_user_gates(qasm_str))
         qreg q[3];
         creg c[2];

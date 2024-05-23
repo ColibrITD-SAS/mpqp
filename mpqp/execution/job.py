@@ -102,6 +102,7 @@ class Job:
         ...     IBMDevice.AER_SIMULATOR,
         ...     circuit.get_measurements()[0],
         ... )
+
     """
 
     # 6M-TODO: decide, when there are several measurements, if we define a

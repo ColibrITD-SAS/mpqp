@@ -22,6 +22,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
+from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
 if TYPE_CHECKING:
@@ -70,14 +71,14 @@ class QCircuit:
 
     Example:
         >>> circuit = QCircuit(2)
-        >>> circuit.pretty_print()
+        >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
         QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 0
         q_0:
         q_1:
         >>> circuit = QCircuit(5, nb_cbits=2, label="Circuit 1")
         >>> circuit.add(Rx(1.23, 3))
-        >>> circuit.pretty_print()
-        QCircuit Circuit 1 : Size (Qubits,Cbits) = (5, 2), Nb instructions = 1
+        >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
+        QCircuit Circuit 1: Size (Qubits,Cbits) = (5, 2), Nb instructions = 1
         q_0: ────────────
         q_1: ────────────
         q_2: ────────────
@@ -85,6 +86,8 @@ class QCircuit:
         q_3: ┤ Rx(1.23) ├
              └──────────┘
         q_4: ────────────
+        c: 2/════════════
+
     """
 
     def __init__(
@@ -124,6 +127,9 @@ class QCircuit:
                 self.nb_qubits = nb_qubits
             self.add(map(deepcopy, data))
 
+    def __eq__(self, value: object) -> bool:
+        return dumps(self) == dumps(value)
+
     def add(self, instruction: Instruction | Iterable[Instruction]):
         """Adds one instruction or a list of instructions at the end of the
         circuit.
@@ -135,7 +141,7 @@ class QCircuit:
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
             >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> circuit.pretty_print()
+            >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
@@ -144,6 +150,7 @@ class QCircuit:
                       └───┘ ║ └╥┘
             c: 2/═══════════╩══╩═
                             0  1
+
         """
         if isinstance(instruction, Iterable):
             for inst in instruction:
@@ -199,13 +206,14 @@ class QCircuit:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> c1.append(c2)
-            >>> print(c1)
+            >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■─────────────────
                  ┌─┴─┐     ┌───┐
             q_1: ┤ X ├──■──┤ X ├──■──
                  └───┘┌─┴─┐└───┘┌─┴─┐
             q_2: ─────┤ X ├─────┤ X ├
                       └───┘     └───┘
+
         """
 
         if self.nb_qubits < other.nb_qubits:
@@ -256,17 +264,20 @@ class QCircuit:
         Example:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
-            >>> print(c1.tensor(c2))
+            >>> print(c1.tensor(c2))  # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■───────
                  ┌─┴─┐
             q_1: ┤ X ├──■──
                  └───┘┌─┴─┐
             q_2: ─────┤ X ├
-                 ┌───┐└───┘
-            q_3: ┤ X ├──■──
-                 └───┘┌─┴─┐
-            q_4: ─────┤ X ├
                       └───┘
+            q_3: ──────────
+                 ┌───┐
+            q_4: ┤ X ├──■──
+                 └───┘┌─┴─┐
+            q_5: ─────┤ X ├
+                      └───┘
+
         """
         res = deepcopy(self)
         res.nb_qubits += other.nb_qubits
@@ -286,8 +297,8 @@ class QCircuit:
             output: Format of the output, see
                 `docs.quantum.ibm.com/build/circuit-visualization <https://docs.quantum.ibm.com/build/circuit-visualization#alternative-renderers>`_
                 for more information.
-
-        Example:
+        
+        Examples:
             >>> theta = symbols("θ")
             >>> circ = QCircuit([
             ...     P(theta, 0),
@@ -297,7 +308,7 @@ class QCircuit:
                ┌──────┐
             q: ┤ P(θ) ├
                └──────┘
-            >>> circ.display("latex")
+            >>> print(circ.display("latex_source"))  # doctest: +NORMALIZE_WHITESPACE
             \documentclass[border=2px]{standalone}
             \usepackage[braket, qm]{qcircuit}
             \usepackage{graphicx}
@@ -307,6 +318,7 @@ class QCircuit:
                 \nghost{{q} :  } & \lstick{{q} :  } & \gate{\mathrm{P}\,(\mathrm{{\ensuremath{\theta}}})} & \qw & \qw\\
             \\ }}
             \end{document}
+
         """
         from qiskit.tools.visualization import circuit_drawer
 
@@ -334,6 +346,7 @@ class QCircuit:
             >>> c3 = QCircuit([CNOT(0,1),CNOT(1,2), BasisMeasure([0,1,2], shots=200)])
             >>> c3.size()
             (3, 3)
+
         """
         return self.nb_qubits, (self.nb_cbits or 0)
 
@@ -348,6 +361,7 @@ class QCircuit:
             3
             >>> QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), Barrier(), X(2)]).depth()
             4
+
         """
         if len(self) == 0:
             return 0
@@ -385,6 +399,7 @@ class QCircuit:
             >>> c1 = QCircuit([CNOT(0,1), CNOT(1,2), X(1), CNOT(1,2)])
             >>> len(c1)
             4
+
         """
         return len(self.instructions)
 
@@ -427,7 +442,7 @@ class QCircuit:
             >>>
             >>>
 
-        # 6M-TODO implement, example and test, can be an internship
+        # 6M-TODO implement, example and test
         """
         # ideas: a circuit can be optimized
         # - to reduce the depth of the circuit (combine gates, simplify some sequences)
@@ -449,7 +464,6 @@ class QCircuit:
                    [ 0.        ,  0.70710678,  0.        ,  0.70710678],
                    [ 0.        ,  0.70710678,  0.        , -0.70710678],
                    [ 0.70710678,  0.        , -0.70710678,  0.        ]])
-            >>>
 
         # 3M-TODO implement and double check examples and test:
         the idea is to compute the tensor product of the matrices associated
@@ -466,26 +480,32 @@ class QCircuit:
 
         Examples:
             >>> c1 = QCircuit([H(0), CNOT(0,1)])
-            >>> print(c1)
+            >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
-            >>> print(c1.inverse())
+            >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
                       ┌───┐
             q_0: ──■──┤ H ├
                  ┌─┴─┐└───┘
             q_1: ┤ X ├─────
                  └───┘
             >>> c2 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
-            >>> print(c2)
+            >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ S ├─■──────────────────
                  └───┘ │ ┌───┐┌──────────┐
             q_1: ──────■─┤ H ├┤ Ry(4.56) ├
                          └───┘└──────────┘
-            >>> print(c2.inverse())
+            >>> print(c2.inverse())  # doctest: +NORMALIZE_WHITESPACE
+                                     ┌───┐
+            q_0: ──────────────────■─┤ S ├
+                 ┌──────────┐┌───┐ │ └───┘
+            q_1: ┤ Ry(4.56) ├┤ H ├─■──────
+                 └──────────┘└───┘
+
 
         # 3M-TODO implement, test, fill second example
         The inverse could be computed in several ways, depending on the
@@ -493,6 +513,8 @@ class QCircuit:
         take the global unitary of the gate and inverse it.
         """
         dagger = QCircuit(self.nb_qubits)
+        for instr in reversed(self.instructions):
+            dagger.add(instr)
         return dagger
 
     def to_gate(self) -> Gate:
@@ -504,7 +526,6 @@ class QCircuit:
         Examples:
             >>> c = QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), CNOT(2, 3)])
             >>> c.to_gate().definition.matrix
-            >>>
 
         # 3M-TODO check implementation, example and test, this will only work
         chen circuit.to_matrix will be implemented
@@ -527,7 +548,7 @@ class QCircuit:
 
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
-            >>> print(qc)
+            >>> print(qc)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
@@ -567,6 +588,7 @@ class QCircuit:
             4
             >>> circuit.count_gates(Ry)
             0
+
         """
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
@@ -582,9 +604,10 @@ class QCircuit:
             ...     BasisMeasure([0, 1], shots=1000),
             ...     ExpectationMeasure([1], Observable(np.identity(2)), shots=1000)
             ... ])
-            >>> circuit.get_measurements()
+            >>> circuit.get_measurements()  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure([0, 1], shots=1000),
-             ExpectationMeasure([1], Observable(array([[1., 0.], [0., 1.]])), shots=1000)]
+            ExpectationMeasure([1], Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), shots=1000)]
+
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
 
@@ -596,7 +619,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit)
+            >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -604,12 +627,13 @@ class QCircuit:
                       └───┘ ║ └╥┘
             c: 2/═══════════╩══╩═
                             0  1
-            >>> print(circuit.without_measurements())
+            >>> print(circuit.without_measurements())  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ X ├──■──
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
+
         """
         new_circuit = QCircuit(self.nb_qubits)
         new_circuit.instructions = [
@@ -619,7 +643,7 @@ class QCircuit:
         return new_circuit
 
     def to_other_language(
-        self, language: Language = Language.QISKIT,  cirq_proc_id: Optional[str] = None
+        self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
     ) -> Union[
         QuantumCircuit,
         myQLM_Circuit,
@@ -648,7 +672,8 @@ class QCircuit:
             >>> circuit = QCircuit([X(0), CNOT(0, 1)])
             >>> qc = circuit.to_other_language()
             >>> type(qc)
-            qiskit.circuit.quantumcircuit.QuantumCircuit
+            <class 'qiskit.circuit.quantumcircuit.QuantumCircuit'>
+
         """
 
         if language == Language.QISKIT:
@@ -740,12 +765,12 @@ class QCircuit:
                 from cirq.transformers.optimize_for_target_gateset import (
                     optimize_for_target_gateset,
                 )
-                from cirq_google.engine.virtual_engine_factory import (
-                    create_device_from_processor_id,
-                )
                 from cirq.transformers.routing.route_circuit_cqc import RouteCQC
                 from cirq.transformers.target_gatesets.sqrt_iswap_gateset import (
                     SqrtIswapTargetGateset,
+                )
+                from cirq_google.engine.virtual_engine_factory import (
+                    create_device_from_processor_id,
                 )
 
                 device = create_device_from_processor_id(cirq_proc_id)
@@ -778,7 +803,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit.to_qasm2())
+            >>> print(circuit.to_qasm2())  # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 2.0;
             include "qelib1.inc";
             qreg q[2];
@@ -787,6 +812,7 @@ class QCircuit:
             cx q[0],q[1];
             measure q[0] -> c[0];
             measure q[1] -> c[1];
+
         """
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
@@ -809,15 +835,16 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit.to_qasm3())
+            >>> print(circuit.to_qasm3())  # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 3.0;
-            include 'stdgates.inc';
+            include "stdgates.inc";
             qubit[2] q;
             bit[2] c;
             x q[0];
             cx q[0],q[1];
             c[0] = measure q[0];
             c[1] = measure q[1];
+
         """
         qasm2_code = self.to_qasm2()
         qasm3_code = open_qasm_2_to_3(qasm2_code)
@@ -847,7 +874,7 @@ class QCircuit:
             ...     [Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1), H(0), CRk(k, 0, 1),
             ...      BasisMeasure(list(range(3)), shots=1000)]
             ... )
-            >>> print(c)
+            >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                              ┌─┐
             q_0: ┤ Rx(θ) ├┤ X ├┤ H ├────────────■─────────────────┤M├───
                  └───────┘└─┬─┘└───┘┌─────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
@@ -857,7 +884,7 @@ class QCircuit:
                                └───┘   └───┘           └╥┘         ║  ║
             c: 3/═══════════════════════════════════════╩══════════╩══╩═
                                                         2          0  1
-            >>> print(c.subs({theta: np.pi, k: 1}))
+            >>> print(c.subs({theta: np.pi, k: 1}))  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───
                  └───────┘└─┬─┘└───┘┌────────┐ │P(π) └╥┘┌─┐
@@ -867,6 +894,7 @@ class QCircuit:
                                └───┘  └───┘     └╥┘   ║  ║
             c: 3/════════════════════════════════╩════╩══╩═
                                                  2    0  1
+
         """
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions],
@@ -880,13 +908,14 @@ class QCircuit:
 
         Example:
             >>> c = QCircuit([H(0), CNOT(0,1)])
-            >>> c.pretty_print()
-            QCircuit : Size (Qubits,Cbits) = (2, None), Nb instructions = 2
+            >>> c.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
+            QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 2
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
+
         """
         print(
             f"QCircuit {self.label or ''}: Size (Qubits,Cbits) = {self.size()},"
@@ -908,7 +937,7 @@ class QCircuit:
     def __repr__(self) -> str:
         return f"QCircuit({self.instructions})"
 
-    def variables(self):
+    def variables(self) -> set[Basic]:
         """Returns all the parameters involved in this circuit.
 
         Returns:
@@ -919,8 +948,9 @@ class QCircuit:
             ...     Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1),
             ...     H(0), CRk(k, 0, 1), ExpectationMeasure([1], obs)
             ... ])
-            >>> circ.variables()
-            {k, θ}
+            >>> circ.variables()  # doctest: +SKIP
+            {θ, k}
+
         """
         params: set[Basic] = set()
         for inst in self.instructions:

@@ -1,6 +1,4 @@
 # %%
-import matplotlib.pyplot as plt
-
 from mpqp import QCircuit
 from mpqp.core.languages import Language
 from mpqp.execution import run
@@ -8,7 +6,6 @@ from mpqp.execution.connection.google_connection import config_ionq_key
 from mpqp.execution.devices import GOOGLEDevice, IBMDevice
 from mpqp.gates import H, Rx, Ry, Rz
 from mpqp.measures import BasisMeasure
-from mpqp.tools.visualization import plot_results_sample_mode
 
 # %%
 circuit = QCircuit(3)
@@ -34,8 +31,7 @@ results = run(
 )
 print(results)
 
-plot_results_sample_mode(results)
-plt.show()
+results.plot()
 
 # %%
 cirq_circuit = circuit.to_other_language(Language.CIRQ)
@@ -54,5 +50,4 @@ config_ionq_key()
 results = run(circuit, [GOOGLEDevice.IONQ_SIMULATOR])
 print(results)
 
-plot_results_sample_mode(results)
-plt.show()
+results.plot()

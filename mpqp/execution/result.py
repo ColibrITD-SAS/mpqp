@@ -22,15 +22,18 @@ results are stored in a :class:`BatchResult`.
 from __future__ import annotations
 
 import math
+import random
 from numbers import Complex
-from typing import Any, Optional
+from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
+from matplotlib import pyplot as plt
 from typeguard import typechecked
 
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.errors import ResultAttributeError
+from mpqp.tools.generics import clean_array
 
 from .job import Job, JobType
 
@@ -49,9 +52,10 @@ class StateVector:
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
         >>> print(state_vector)
-         State vector: [ 0.5  0.5  0.5 -0.5]
-         Probabilities: [0.25 0.25 0.25 0.25]
+         State vector: [0.5, 0.5, 0.5, -0.5]
+         Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
+
     """
 
     def __init__(
@@ -82,8 +86,10 @@ class StateVector:
     def __str__(self):
         return f""" State vector: {clean_array(self.vector)}
  Probabilities: {clean_array(self.probabilities)}
- Number of qubits: {self.nb_qubits}
-"""
+ Number of qubits: {self.nb_qubits}"""
+
+    def __repr__(self) -> str:
+        return f"StateVector({clean_array(self.vector)})"
 
 
 @typechecked
@@ -110,6 +116,7 @@ class Sample:
 
         >>> print(Sample(5, bin_str="01011", count=1234))
         State: 01011, Index: 11, Count: 1234, Probability: None
+
     """
 
     def __init__(
@@ -187,24 +194,30 @@ class Result:
             value was required).
 
     Examples:
-        >>> print(Result(Job(), StateVector(np.array([1, 1, 1, -1])/2, 2), 0, 0))
-         State vector: [ 0.5, 0.5, 0.5, -0.5]
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
+        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
+        Result: ATOSDevice, MYQLM_CLINALG
+         State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
-
-        >>> print(Result(Job(), [
-        ...     Sample(2, index=0, count=250)
+        >>> job = Job(JobType.SAMPLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG, BasisMeasure([0, 1], shots=1000))
+        >>> print(Result(job, [
+        ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
-        ... ], 0.034, 500))
-         Counts: [250, 250]
-         Probabilities: [0.5, 0.5]
-          State: 00, Index: 0, Count: 250, Probability: None
-          State: 11, Index: 3, Count: 250, Probability: None
+        ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
+        Result: ATOSDevice, MYQLM_CLINALG
+         Counts: [250, 0, 0, 250]
+         Probabilities: [0.5, 0, 0, 0.5]
+         Samples:
+          State: 00, Index: 0, Count: 250, Probability: 0.5
+          State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
-
-        >>> print(Result(Job(), -3.09834, 0.021, 2048))
+        >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
+        >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
+        Result: ATOSDevice, MYQLM_CLINALG
          Expectation value: -3.09834
-         Error: 0.021
+         Error/Variance: 0.021
+
     """
 
     # 3M-TODO: in this class, there is a lot of manual type checking, this is an
@@ -228,6 +241,7 @@ class Result:
         """See parameter description."""
         self.error = error
         """See parameter description."""
+        self._data = data
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
@@ -369,8 +383,7 @@ class Result:
  Probabilities: {clean_array(self.probabilities)}
  Samples:
 {samples_str}
- Error: {self.error}
-"""
+ Error: {self.error}"""
 
         if self.job.job_type == JobType.STATE_VECTOR:
             return header + "\n" + str(self.state_vector)
@@ -378,12 +391,62 @@ class Result:
         if self.job.job_type == JobType.OBSERVABLE:
             return f"""{header}
  Expectation value: {self.expectation_value}
- Error/Variance: {self.error}
-"""
+ Error/Variance: {self.error}"""
 
         raise NotImplementedError(
-            f"Job type {self.job.job_type} not implemented for __str__ method"
+            f"I don't know how to represent results of {self.job.job_type} jobs"
+            " as a string."
         )
+
+    def __repr__(self) -> str:
+        return (
+            f"Result({repr(self.job)}, {repr(self._data)}, {repr(self.error)}, "
+            f"{repr(self.shots)})"
+        )
+
+    def plot(self, show: bool = True):
+        """Extract sampling info from the result and construct the bar diagram
+        plot.
+
+        Args:
+            show: ``plt.show()`` is only executed if ``show``, useful to batch
+                plots.
+        """
+        if show:
+            plt.figure()
+
+        x_array, y_array = self._to_display_lists()
+        x_axis = range(len(x_array))
+
+        plt.bar(x_axis, y_array, color=(*[random.random() for _ in range(3)], 0.9))
+        plt.xticks(x_axis, x_array, rotation=-60)
+        plt.xlabel("State")
+        plt.ylabel("Counts")
+        device = self.job.device
+        plt.title(type(device).__name__ + "\n" + device.name)
+
+        if show:
+            plt.show()
+
+    def _to_display_lists(self) -> tuple[list[str], list[int]]:
+        """Transform a result into an x and y array containing the string of
+        basis state with the associated counts.
+
+        Returns:
+            The list of each basis state and the corresponding counts.
+        """
+        if self.job.job_type != JobType.SAMPLE:
+            raise NotImplementedError(
+                f"{self.job.job_type} not handled, only {JobType.SAMPLE} is handled for now."
+            )
+        if self.job.measure is None:
+            raise ValueError(
+                f"{self.job=} has no measure, making the counting impossible"
+            )
+        n = self.job.measure.nb_qubits
+        x_array = [f"|{bin(i)[2:].zfill(n)}⟩" for i in range(2**n)]
+        y_array = self.counts
+        return x_array, y_array
 
 
 @typechecked
@@ -420,12 +483,13 @@ class BatchResult:
         >>> print(batch_result)
         BatchResult: 3 results
         Result: ATOSDevice, MYQLM_PYLINALG
-         State vector: [ 0.5, 0.5, 0.5, -0.5]
+         State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
         Result: ATOSDevice, MYQLM_PYLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
+         Samples:
           State: 00, Index: 0, Count: 250, Probability: 0.5
           State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
@@ -434,9 +498,10 @@ class BatchResult:
          Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: ATOSDevice, MYQLM_PYLINALG
-         State vector: [ 0.5, 0.5, 0.5, -0.5]
+         State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
+
     """
 
     def __init__(self, results: list[Result]):
@@ -445,30 +510,37 @@ class BatchResult:
 
     def __str__(self):
         header = f"BatchResult: {len(self.results)} results\n"
-        body = "".join(map(str, self.results))
+        body = "\n".join(map(str, self.results))
         return header + body
 
     def __repr__(self):
-        return str(self)
+        return f"BatchResult({self.results})"
 
     def __getitem__(self, index: int):
         return self.results[index]
 
+    def plot(self, show: bool = True):
+        """Display the result(s) using ``matplotlib.pyplot``.
 
-def clean_array(array: npt.NDArray[Any]) -> str:
-    """TODO: doc"""
-    try:
-        cleaned_array = []
-        for element in array:
-            cleaned_element = np.round(
-                element.real if np.imag(element) == 0 else element, 7
-            )
-            cleaned_element = (
-                int(cleaned_element)
-                if cleaned_element == int(cleaned_element)
-                else cleaned_element
-            )
-            cleaned_array.append(cleaned_element)
-        return str(cleaned_array).replace("(", "").replace(")", "")
-    except:
-        return str(array)
+        The result(s) must be from a job who's ``job_type`` is ``SAMPLE``. They will
+        be displayed as histograms.
+
+        If a ``BatchResult`` is given, the contained results will be displayed in a
+        grid using subplots.
+
+        Args:
+            show: ``plt.show()`` is only executed if ``show``, useful to batch
+                plots.
+        """
+        n_cols = math.ceil((len(self.results) + 1) // 2)
+        n_rows = math.ceil(len(self.results) / n_cols)
+
+        for index, result in enumerate(self.results):
+            plt.subplot(n_rows, n_cols, index + 1)
+
+            result.plot(show=False)
+
+        plt.tight_layout()
+
+        if show:
+            plt.show()

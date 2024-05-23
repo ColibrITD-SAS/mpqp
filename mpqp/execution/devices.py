@@ -9,6 +9,15 @@ you can find bellow:
 - :class:`ATOSDevice`,
 - :class:`AWSDevice`,
 - :class:`GOOGLEDevice`.
+
+Not all combinations of :class:`AvailableDevice` and 
+:class:`JobType<mpqp.execution.job.JobType>` are possible. Here is the list of
+compatible jobs types and devices.
+
+.. csv-table:: Job/Device Compatibility Matrix
+   :file: ../../docs/resources/job-device_compat.csv
+   :widths: 7, 25, 7, 10, 10, 15
+   :header-rows: 1
 """
 
 from abc import abstractmethod
@@ -47,24 +56,32 @@ class AvailableDevice(Enum):
 
 
 class IBMDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by IBM Quantum."""
+    """Enum regrouping all available devices provided by IBM Quantum.
 
-    PULSE_SIMULATOR = "pulse_simulator"
+    Warning:
+        Since previous version, many devices were disabled by IBM. This may
+        affect your code. We are currently investigating the issue to check if a
+        workaround is possible for some of them (like replacing a simulator by
+        an equivalent one for instance).
+    """
+
+    # PULSE_SIMULATOR = "pulse_simulator"
 
     AER_SIMULATOR = "aer_simulator"
     AER_SIMULATOR_STATEVECTOR = "aer_simulator_statevector"
-    AER_SIMULATOR_DENSITY_MATRIX = "aer_simulator_density_matrix"
-    AER_SIMULATOR_STABILIZER = "aer_simulator_stabilizer"
-    AER_SIMULATOR_MATRIX_PRODUCT_STATE = "aer_simulator_matrix_product_state"
-    AER_SIMULATOR_EXTENDED_STABILIZER = "aer_simulator_extended_stabilizer"
-    AER_SIMULATOR_UNITARY = "aer_simulator_unitary"
-    AER_SIMULATOR_SUPEROP = "aer_simulator_superop"
+    # TODO: many devices are no longer working, explore why
+    # AER_SIMULATOR_DENSITY_MATRIX = "aer_simulator_density_matrix"
+    # AER_SIMULATOR_STABILIZER = "aer_simulator_stabilizer"
+    # AER_SIMULATOR_MATRIX_PRODUCT_STATE = "aer_simulator_matrix_product_state"
+    # AER_SIMULATOR_EXTENDED_STABILIZER = "aer_simulator_extended_stabilizer"
+    # AER_SIMULATOR_UNITARY = "aer_simulator_unitary"
+    # AER_SIMULATOR_SUPEROP = "aer_simulator_superop"
 
-    IBMQ_SIMULATOR_STATEVECTOR = "simulator_statevector"
-    IBMQ_SIMULATOR_STABILIZER = "simulator_stabilizer"
-    IBMQ_SIMULATOR_EXTENDED_STABILIZER = "simulator_extended_stabilizer"
-    IBMQ_SIMULATOR_MPS = "simulator_mps"
-    IBMQ_QASM_SIMULATOR = "ibmq_qasm_simulator"
+    # IBMQ_SIMULATOR_STATEVECTOR = "simulator_statevector"
+    # IBMQ_SIMULATOR_STABILIZER = "simulator_stabilizer"
+    # IBMQ_SIMULATOR_EXTENDED_STABILIZER = "simulator_extended_stabilizer"
+    # IBMQ_SIMULATOR_MPS = "simulator_mps"
+    # IBMQ_QASM_SIMULATOR = "ibmq_qasm_simulator"
 
     IBM_BRISBANE = "ibm_brisbane"
     IBM_OSAKA = "ibm_osaka"
@@ -93,7 +110,8 @@ class IBMDevice(AvailableDevice):
         return self.name.startswith("IBM")
 
     def is_gate_based(self) -> bool:
-        return self != IBMDevice.PULSE_SIMULATOR
+        return True
+        # return self != IBMDevice.PULSE_SIMULATOR
 
     def is_simulator(self) -> bool:
         return "simulator" in self.value
@@ -166,6 +184,7 @@ class AWSDevice(AvailableDevice):
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_arn()
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3'
+
         """
         region = self.get_region()
         if self.is_simulator():
@@ -181,10 +200,11 @@ class AWSDevice(AvailableDevice):
         Examples:
             >>> AWSDevice.BRAKET_IONQ_HARMONY.get_region()
             'us-east-1'
-            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region()
-            ''
+            >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
+            True
             >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_region()
             'us-west-1'
+
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
@@ -215,6 +235,7 @@ class AWSDevice(AvailableDevice):
             <AWSDevice.BRAKET_IONQ_HARMONY: 'qpu/ionq/Harmony'>
             >>> AWSDevice.from_arn('arn:aws:braket:::device/quantum-simulator/amazon/sv1')
             <AWSDevice.BRAKET_SV1_SIMULATOR: 'quantum-simulator/amazon/sv1'>
+
         """
         for elem in AWSDevice:
             if elem.value in arn:

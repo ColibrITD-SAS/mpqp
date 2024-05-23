@@ -74,7 +74,7 @@ from cirq.circuits.circuit import Circuit
                 "H",
                 "CNOT",
             ],
-        )     
+        ),
     ],
 )
 def test_qasm2_to_Cirq_Circuit(qasm_code: str, gate_names: list[str]):

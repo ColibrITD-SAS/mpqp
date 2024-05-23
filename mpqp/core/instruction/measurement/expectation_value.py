@@ -43,17 +43,18 @@ class Observable:
         observable : can be either a Hermitian matrix representing the
             observable or PauliString representing the observable.
 
+    Example:
+        >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
+        >>> matrix = np.array([[1, 0], [0, -1]])
+        >>> ps = 3 * I @ Z + 4 * X @ Y
+        >>> obs = Observable(matrix)
+        >>> obs2 = Observable(ps)
+
     Raises:
         ValueError: If the input matrix is not Hermitian or does not have a
             square shape.
         NumberQubitsError: If the number of qubits in the input observable does
             not match the number of target qubits.
-
-    Example:
-        >>> matrix = np.array([[1, 0], [0, -1]])
-        >>> pauli_string = 3 * I @ Z + 4 * X @ Y
-        >>> obs = Observable(matrix)
-        >>> obs2 = Observable(pauli_string)
     """
 
     def __init__(self, observable: Matrix | PauliString):
@@ -91,7 +92,7 @@ class Observable:
 
     @property
     def pauli_string(self) -> PauliString:
-        """Rhe PauliString representation of the observable."""
+        """The PauliString representation of the observable."""
         if self._pauli_string is None:
             self._pauli_string = PauliString.from_matrix(self.matrix)
         pauli_string = copy.deepcopy(self._pauli_string)
@@ -138,7 +139,16 @@ class Observable:
             >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> print(obs_qiskit)
-            <bound method Observable.to_qiskit_observable of Observable(array([[ 0.7, 0. , 0. , 0. ], [ 0. , -1. , 0. , 0. ], [ 0. , 0. , 1. , 0. ], [ 0. , 0. , 0. , 1. ]]))>
+            Operator([[ 0.69999999+0.j,  0.        +0.j,  0.        +0.j,
+                        0.        +0.j],
+                      [ 0.        +0.j, -1.        +0.j,  0.        +0.j,
+                        0.        +0.j],
+                      [ 0.        +0.j,  0.        +0.j,  1.        +0.j,
+                        0.        +0.j],
+                      [ 0.        +0.j,  0.        +0.j,  0.        +0.j,
+                        1.        +0.j]],
+                     input_dims=(2, 2), output_dims=(2, 2))
+
         """
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator
@@ -210,16 +220,17 @@ class ExpectationMeasure(Measure):
         shots: Number of shots to be performed.
         label: Label used to identify the measure.
 
+    Example:
+        >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
+        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
+        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value # doctest: +SKIP
+        0.85918
+
     Warns:
         UserWarning: If the ``targets`` are not sorted and contiguous, some
             additional swaps will be needed. This will change the performance of
             your circuit is run on noisy hardware.
 
-    Example:
-        >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
-        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([0,1], observable=obs, shots=10000)])
-        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value
-        0.85918
     """
 
     def __init__(
