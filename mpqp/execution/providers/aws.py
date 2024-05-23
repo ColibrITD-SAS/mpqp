@@ -37,9 +37,9 @@ def apply_noise_to_braket_circuit(
     instructions and returns a new circuit with the noise applied.
 
     Args:
-        braket_circuit (Circuit): The Braket circuit to apply noise to.
-        noises (list[NoiseModel]): A list of noise models to apply to the circuit.
-        nb_qubits (int): The number of qubits in the circuit.
+        braket_circuit: The Braket circuit to apply noise to.
+        noises: A list of noise models to apply to the circuit.
+        nb_qubits: The number of qubits in the circuit.
 
     Returns:
         A new circuit with the noise applied.

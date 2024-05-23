@@ -870,8 +870,8 @@ class QCircuit:
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
-            if self.noises:
-                if any([isinstance(instr, CRk) for instr in self.instructions]):
+            if len(self.noises) != 0:
+                if any(isinstance(instr, CRk) for instr in self.instructions):
                     raise NotImplementedError(
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
