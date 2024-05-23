@@ -134,7 +134,12 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         if language == Language.QISKIT:
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
-            # 3M-TODO: handle symbolic parameters for Braket
+            # TODO: handle symbolic parameters for Braket
+            if isinstance(theta, Expr):
+                raise NotImplementedError(
+                    "Symbolic expressions are not yet supported for braket "
+                    "export, this feature is coming very soon!"
+                )
             return self.braket_gate(theta)
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
@@ -532,8 +537,15 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             from braket.circuits import gates
 
             # 3M-TODO handle symbolic parameters
-            if any([not isinstance(par, float) for par in self.parameters]):
-                raise NotImplementedError("Symbolic gate U in Braket is not implemented yet.")
+            if (
+                isinstance(self.theta, Expr)
+                or isinstance(self.phi, Expr)
+                or isinstance(self.gamma, Expr)
+            ):
+                raise NotImplementedError(
+                    "Symbolic expressions are not yet supported for braket "
+                    "export, this feature is coming very soon!"
+                )
 
             return gates.U(self.theta, self.phi, self.gamma)
         else:
