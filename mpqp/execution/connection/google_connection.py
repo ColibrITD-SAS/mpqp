@@ -16,15 +16,13 @@ def get_google_account_info() -> str:
 
 def get_all_job_ids() -> list[str]:
     """
-    Retrieves all job IDs associated with IonQ jobs.
+    Retrieves all job IDs associated with google jobs.
 
     Returns:
         A list of job IDs.
+    
+    #TODO-3M: get job of google
     """
-    ionq_job_ids = []
-    if get_env_variable("IONQ_API_KEY") == "True":
-        import cirq_ionq as ionq
+    return []
 
-        service = ionq.Service()
-        ionq_job_ids = [job.job_id() for job in service.list_jobs()]
-    return ionq_job_ids
+

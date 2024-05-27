@@ -101,3 +101,35 @@ def test_aqt_connection() -> bool:
         return False
 
 
+def get_ionq_job_ids() -> list[str]:
+    """
+    Retrieves ionq job IDs associated with IonQ jobs.
+
+    Returns:
+        A list of job IDs.
+    """
+    ionq_job_ids = []
+    if get_env_variable("IONQ_API_KEY") == "True":
+        import cirq_ionq as ionq
+
+        service = ionq.Service()
+        ionq_job_ids = [job.job_id() for job in service.list_jobs()]
+    return ionq_job_ids
+
+def get_all_job_ids() -> list[str]:
+    """
+    Retrieves all job IDs associated with AQT jobs.
+
+    Returns:
+        A list of job IDs.
+    #TODO-3M 
+    """
+    from qiskit_aqt_provider import AQTProvider, aqt_job
+    from qiskit_aqt_provider.primitives import AQTSampler
+    
+    provider = AQTProvider()
+    aqt_job_ids = []
+    if get_env_variable("AQT_API_KEY") == "True":
+        return aqt_job_ids
+        aqt_job_ids = [job.job_id() for job in service.list_jobs()]
+    return aqt_job_ids
