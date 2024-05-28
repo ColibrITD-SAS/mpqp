@@ -1,10 +1,10 @@
 from getpass import getpass
-from typing import Callable
+from typing import Callable, Optional
 from termcolor import colored
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 
-def config_key(key_name :str, configuration_name: str, test_connection:  Callable[[], bool]):
+def config_key(key_name :str, configuration_name: str, test_connection:  Callable[[str], bool]):
     """
     Configure a key by setting the API token.
 
@@ -25,15 +25,12 @@ def config_key(key_name :str, configuration_name: str, test_connection:  Callabl
         print(colored("Empty credentials", "red"))
         getpass("Press 'Enter' to continue")
         return "", []
-    old_token = get_env_variable(f"{key_name}")
-    save_env_variable(f"{key_name}", token)
-    if test_connection():
+    if test_connection(token):
+        save_env_variable(f"{key_name}", token)
         save_env_variable(f"{configuration_name}_CONFIGURED", "True")
         return f"{configuration_name} key correctly configured", []
     else:
-        if was_configured:
-            save_env_variable(f"{key_name}", old_token)
-        else:
+        if not was_configured:
             save_env_variable(f"{configuration_name}_CONFIGURED", "False")
         getpass("Press 'Enter' to continue")
         return "", []
@@ -51,7 +48,7 @@ def config_ionq_key():
     return config_key(key_name, configuration_name, test_ionq_connection)
 
 
-def test_ionq_connection() -> bool:
+def test_ionq_connection(key: Optional[str] = None) -> bool:
     """
     Test the connection to the IonQ service.
 
@@ -61,7 +58,7 @@ def test_ionq_connection() -> bool:
     from cirq_ionq.ionq_exceptions import IonQException
     import cirq_ionq as ionq
 
-    service = ionq.Service(default_target="simulator")
+    service = ionq.Service(api_key=key,default_target="simulator")
     try:
         service.list_jobs()
         return True
@@ -82,7 +79,7 @@ def config_aqt_key():
     return config_key(key_name, configuration_name, test_aqt_connection)
 
 
-def test_aqt_connection() -> bool:
+def test_aqt_connection(key: Optional[str] = None) -> bool:
     """
     Test the connection to the AQT service.
 
@@ -94,7 +91,7 @@ def test_aqt_connection() -> bool:
 
     
     try:
-        AQTProvider()
+        AQTProvider(access_token=key)
         return True
     except NoTokenWarning:
         print(colored("Wrong credentials", "red"))
