@@ -17,7 +17,8 @@ def print_config_info():
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.env_manager as env_m
     import mpqp.execution.connection.ibm_connection as ibmqc
-    import mpqp.execution.connection.google_connection as cirqc
+    import mpqp.execution.connection.key_connection as keyc
+    import mpqp.execution.connection.azure_connection as azuc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
     """Prints the info concerning each provider's registered account."""
@@ -42,11 +43,25 @@ def print_config_info():
             print("Account not configured")
         else:
             print("Error occurred when getting AWS account info.")
-    print("===== Cirq info : ===== ")
+    print("===== IonQ info : ===== ")
     try:
-        print(cirqc.get_google_account_info())
+        pass
+        #print(keyc.get_ionq_info())
     except Exception as err:
-        print("Error occurred when getting Cirq account info.")
+        print("Error occurred when getting IonQ account info.")
+    print("===== AQT info : ===== ")
+    try:
+        pass
+        #print(keyc.get_aqt_info())
+    except Exception as err:
+        print("Error occurred when getting AQT account info.")
+    print("===== Azure info : ===== ")
+    try:
+        pass
+        #print(azuc.get_azure_account_info())
+    except Exception as err:
+        print("Error occurred when getting Azure account info.")
+
     input("Press 'Enter' to continue")
     return "", []
 
@@ -61,6 +76,7 @@ def main_setup():
     import mpqp.execution.connection.qlm_connection as qlmc
     import mpqp.execution.connection.google_connection as cirqc
     import mpqp.execution.connection.key_connection as keyc
+    import mpqp.execution.connection.azure_connection as azuc
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     def return_action():
@@ -73,6 +89,7 @@ def main_setup():
             AnswerNode("QLM", qlmc.setup_qlm_account),
             AnswerNode("Amazon", awsc.setup_aws_braket_account),
             AnswerNode("IonQ", keyc.config_ionq_key),
+            AnswerNode("Azure", azuc.config_azure_account),
             #AnswerNode("AQT", keyc.config_aqt_key),
             #AnswerNode("Cirq configuration", return_action),
             AnswerNode("Recap", print_config_info),

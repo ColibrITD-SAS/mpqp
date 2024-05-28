@@ -31,6 +31,7 @@ def config_key(key_name :str, configuration_name: str, test_connection:  Callabl
         return f"{configuration_name} key correctly configured", []
     else:
         if not was_configured:
+            save_env_variable(f"{key_name}", token)
             save_env_variable(f"{configuration_name}_CONFIGURED", "False")
         getpass("Press 'Enter' to continue")
         return "", []
@@ -113,7 +114,7 @@ def get_ionq_job_ids() -> list[str]:
         ionq_job_ids = [job.job_id() for job in service.list_jobs()]
     return ionq_job_ids
 
-def get_all_job_ids() -> list[str]:
+def get_aqt_job_ids() -> list[str]:
     """
     Retrieves all job IDs associated with AQT jobs.
 
