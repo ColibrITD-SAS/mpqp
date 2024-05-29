@@ -79,6 +79,9 @@ def submit_job_braket(job: Job) -> tuple[str, QuantumTask]:
     assert isinstance(braket_circuit, Circuit)
 
     if job.job_type == JobType.STATE_VECTOR:
+        job.circuit = job.circuit.without_measurements()
+        braket_circuit = job.circuit.to_other_language(Language.BRAKET)
+        assert isinstance(braket_circuit, Circuit)
         braket_circuit.state_vector()  # type: ignore
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=0, inputs=None)
