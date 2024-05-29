@@ -19,7 +19,7 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 from __future__ import annotations
 
 from numbers import Complex
-from typing import Optional, Sequence, Union
+from typing import Iterable, Optional, Union
 
 import numpy as np
 from sympy import Expr
@@ -35,8 +35,8 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
+    IBMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -44,7 +44,7 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
 from mpqp.execution.result import BatchResult, Result
-from mpqp.tools.errors import RemoteExecutionError
+from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany
 
 
@@ -153,6 +153,10 @@ def _run_single(
     Returns:
         The Result containing information about the measurement required.
 
+    Raises:
+        DeviceJobIncompatibleError: if a non noisy simulator is given in parameter and the circuit contains noise
+        NotImplementedError: If the device is not handled for noisy simulation or other submissions.
+
     Example:
         >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
@@ -168,6 +172,16 @@ def _run_single(
     """
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
+
+    if circuit.noises:
+        if not device.is_noisy_simulator():
+            raise DeviceJobIncompatibleError(
+                f"Device {device} cannot simulate circuits containing NoiseModels."
+            )
+        elif not (isinstance(device, ATOSDevice) or isinstance(device, AWSDevice)):
+            raise NotImplementedError(
+                f"Noisy simulations are not yet available on devices of type {type(device).name}."
+            )
 
     if isinstance(device, IBMDevice):
         return run_ibm(job)
@@ -242,13 +256,8 @@ def run(
     if values is None:
         values = {}
 
-    if isinstance(device, Sequence):
-        # Duplicate devices are removed
-        set_device = list(set(device))
-        if len(set_device) == 1:
-            return _run_single(circuit, set_device[0], values)
-
-        return BatchResult([_run_single(circuit, dev, values) for dev in set_device])
+    if isinstance(device, Iterable):
+        return BatchResult([_run_single(circuit, dev, values) for dev in set(device)])
 
     return _run_single(circuit, device, values)
 

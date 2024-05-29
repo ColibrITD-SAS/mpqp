@@ -54,6 +54,15 @@ class AvailableDevice(Enum):
             ``True`` if this device is a simulator."""
         pass
 
+    @abstractmethod
+    def is_noisy_simulator(self) -> bool:
+        """Indicates whether a device can simulate noise or not.
+
+        Returns:
+            ``True`` if this device can simulate noise.
+        """
+        pass
+
 
 class IBMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by IBM Quantum.
@@ -116,6 +125,18 @@ class IBMDevice(AvailableDevice):
     def is_simulator(self) -> bool:
         return "simulator" in self.value
 
+    def is_noisy_simulator(self) -> bool:
+        raise NotImplementedError()
+        # 3M-TODO: determine which devices can simulate noise or not for Qiskit remote, or local
+        noise_support_devices = {
+            IBMDevice.IBMQ_SIMULATOR_STATEVECTOR: True,
+            IBMDevice.AER_SIMULATOR_STABILIZER: True,
+            IBMDevice.IBMQ_SIMULATOR_EXTENDED_STABILIZER: False,
+            IBMDevice.IBMQ_SIMULATOR_MPS: False,
+            IBMDevice.IBMQ_QASM_SIMULATOR: True,
+        }
+        return self in noise_support_devices
+
 
 class ATOSDevice(AvailableDevice):
     """Enum regrouping all available devices provided by ATOS."""
@@ -125,15 +146,8 @@ class ATOSDevice(AvailableDevice):
 
     QLM_LINALG = auto()
     QLM_MPS = auto()
-    QLM_MPS_LEGACY = auto()
     QLM_MPO = auto()
-    QLM_STABS = auto()
-    QLM_FEYNMAN = auto()
-    QLM_BDD = auto()
-    QLM_NOISY_QPROC = auto()
-    QLM_SQA = auto()
-    QLM_QPEG = auto()
-    QLM_CLASSICAL_QPU = auto()
+    QLM_NOISYQPROC = auto()
 
     def is_remote(self):
         return self.name.startswith("QLM")
@@ -143,6 +157,34 @@ class ATOSDevice(AvailableDevice):
 
     def is_simulator(self) -> bool:
         return True
+
+    def is_noisy_simulator(self) -> bool:
+        return self in {ATOSDevice.QLM_NOISYQPROC, ATOSDevice.QLM_MPO}
+
+    @staticmethod
+    def from_str_remote(name: str):
+        """Returns the first remote ATOSDevice containing the name given in parameter.
+
+        Args:
+            name: A string containing the name of the device.
+
+        Raises:
+            ValueError
+
+        Examples:
+            >>> ATOSDevice.from_str_remote('NoisyQProc')
+            <ATOSDevice.QLM_NOISYQPROC: 6>
+            >>> ATOSDevice.from_str_remote('linalg')
+            <ATOSDevice.QLM_LINALG: 3>
+            >>> ATOSDevice.from_str_remote('Mps')
+            <ATOSDevice.QLM_MPS: 4>
+
+        """
+        u_name = name.upper()
+        for elem in ATOSDevice:
+            if u_name in elem.name and elem.is_remote():
+                return elem
+        raise ValueError(f"No device found for name `{name}`.")
 
 
 class AWSDevice(AvailableDevice):
@@ -170,6 +212,9 @@ class AWSDevice(AvailableDevice):
 
     def is_simulator(self) -> bool:
         return "SIMULATOR" in self.name
+
+    def is_noisy_simulator(self) -> bool:
+        return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.

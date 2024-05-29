@@ -94,11 +94,12 @@ def get_aws_braket_account_info() -> str:
 
 
 @typechecked
-def get_braket_device(device: AWSDevice) -> "BraketDevice":
+def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Args:
         device: AWSDevice element describing which remote/local AwsDevice we want.
+        is_noisy: If the expected device is noisy or not.
 
     Raises:
         AWSBraketRemoteExecutionError: If the device or the region could not be
@@ -112,14 +113,20 @@ def get_braket_device(device: AWSDevice) -> "BraketDevice":
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
 
+    Raises:
+        AWSBraketRemoteExecutionError: If the device or the region could not be
+            retrieved.
     """
-    if not device.is_remote():
-        from braket.devices import LocalSimulator
-
-        return LocalSimulator()
     import boto3
     from botocore.exceptions import NoRegionError
     from braket.aws import AwsDevice, AwsSession
+    from braket.devices import LocalSimulator
+
+    if not device.is_remote():
+        if is_noisy:
+            return LocalSimulator("braket_dm")
+        else:
+            return LocalSimulator()
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
