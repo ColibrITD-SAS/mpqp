@@ -16,8 +16,8 @@ def print_config_info():
     """Displays the information stored for each provider."""
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.env_manager as env_m
-    import mpqp.execution.connection.ibm_connection as ibmqc
     import mpqp.execution.connection.google_connection as cirqc
+    import mpqp.execution.connection.ibm_connection as ibmqc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
     """Prints the info concerning each provider's registered account."""
@@ -56,11 +56,10 @@ def main_setup():
     you through the steps needed to configure each provider access. This
     function has to be executed from a terminal like environment, allowing you
     to type tokens and alike."""
-    import mpqp.execution.connection.aws_connection as awsc
-    import mpqp.execution.connection.ibm_connection as ibmqc
-    import mpqp.execution.connection.qlm_connection as qlmc
-    import mpqp.execution.connection.google_connection as cirqc
-    import mpqp.execution.connection.key_connection as keyc
+    from mpqp.execution.connection.aws_connection import setup_aws_braket_account
+    from mpqp.execution.connection.ibm_connection import setup_ibm_account
+    from mpqp.execution.connection.key_connection import config_ionq_key
+    from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     def return_action():
@@ -69,12 +68,10 @@ def main_setup():
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
         [
-            AnswerNode("IBM", ibmqc.setup_ibm_account),
-            AnswerNode("QLM", qlmc.setup_qlm_account),
-            AnswerNode("Amazon Braket", awsc.setup_aws_braket_account),
-            AnswerNode("IonQ", keyc.config_ionq_key),
-            #AnswerNode("AQT", keyc.config_aqt_key),
-            #AnswerNode("Cirq configuration", return_action),
+            AnswerNode("IBM", setup_ibm_account),
+            AnswerNode("QLM", setup_qlm_account),
+            AnswerNode("Amazon Braket", setup_aws_braket_account),
+            AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Recap", print_config_info),
         ],
     )

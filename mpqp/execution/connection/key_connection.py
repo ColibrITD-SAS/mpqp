@@ -1,11 +1,14 @@
 from getpass import getpass
 from typing import Callable, Optional
+
 from termcolor import colored
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 
 
-def config_key(key_name: str, configuration_name: str, test_connection:  Callable[[str], bool]):
+def config_key(
+    key_name: str, configuration_name: str, test_connection: Callable[[str], bool]
+):
     """
     Configure a key by setting the API token.
 
@@ -35,7 +38,7 @@ def config_key(key_name: str, configuration_name: str, test_connection:  Callabl
             save_env_variable(f"{configuration_name}_CONFIGURED", "False")
         getpass("Press 'Enter' to continue")
         return "", []
-    
+
 
 def config_ionq_key():
     """
@@ -44,8 +47,8 @@ def config_ionq_key():
     Returns:
         tuple: A message indicating the result of the configuration and an empty list.
     """
-    configuration_name = 'IONQ'
-    key_name = 'IONQ_API_KEY'
+    configuration_name = "IONQ"
+    key_name = "IONQ_API_KEY"
     return config_key(key_name, configuration_name, test_ionq_connection)
 
 
@@ -56,10 +59,10 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
     Returns:
         bool: True if the connection is successful, False otherwise.
     """
-    from cirq_ionq.ionq_exceptions import IonQException
     import cirq_ionq as ionq
+    from cirq_ionq.ionq_exceptions import IonQException
 
-    service = ionq.Service(api_key=key,default_target="simulator")
+    service = ionq.Service(api_key=key, default_target="simulator")
     try:
         service.list_jobs()
         return True
@@ -76,8 +79,8 @@ def config_aqt_key():
     Returns:
         tuple: A message indicating the result of the configuration and an empty list.
     """
-    configuration_name = 'AQT'
-    key_name = 'AQT_TOKEN'
+    configuration_name = "AQT"
+    key_name = "AQT_TOKEN"
     return config_key(key_name, configuration_name, test_aqt_connection)
 
 
@@ -89,10 +92,10 @@ def test_aqt_connection(key: Optional[str] = None) -> bool:
     Returns:
         bool: True if the connection is successful, False otherwise.
     """
+    raise NotImplementedError
     from qiskit_aqt_provider import AQTProvider
     from qiskit_aqt_provider.aqt_provider import NoTokenWarning
 
-    
     try:
         AQTProvider(access_token=key)
         return True
@@ -116,17 +119,19 @@ def get_ionq_job_ids() -> list[str]:
         ionq_job_ids = [job.job_id() for job in service.list_jobs()]
     return ionq_job_ids
 
+
 def get_aqt_job_ids() -> list[str]:
     """
-    # 3M-TODO 
+    # 3M-TODO
     Retrieves all job IDs associated with AQT jobs.
 
     Returns:
         A list of job IDs.
     """
+    raise NotImplementedError
     from qiskit_aqt_provider import AQTProvider, aqt_job
     from qiskit_aqt_provider.primitives import AQTSampler
-    
+
     provider = AQTProvider()
     aqt_job_ids = []
     if get_env_variable("AQT_API_KEY") == "True":

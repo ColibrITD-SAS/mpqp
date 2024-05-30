@@ -2,7 +2,7 @@
 from mpqp import QCircuit
 from mpqp.core.languages import Language
 from mpqp.execution import run
-from mpqp.execution.connection.google_connection import config_ionq_key
+from mpqp.execution.connection.key_connection import config_ionq_key
 from mpqp.execution.devices import GOOGLEDevice, IBMDevice
 from mpqp.gates import H, Rx, Ry, Rz
 from mpqp.measures import BasisMeasure
