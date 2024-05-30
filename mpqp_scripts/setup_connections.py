@@ -16,6 +16,7 @@ def print_config_info():
     """Displays the information stored for each provider."""
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.env_manager as env_m
+    import mpqp.execution.connection.google_connection as cirqc
     import mpqp.execution.connection.ibm_connection as ibmqc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
@@ -41,6 +42,8 @@ def print_config_info():
             print("Account not configured")
         else:
             print("Error occurred when getting AWS account info.")
+    print("===== Cirq info : ===== ")
+    print(cirqc.get_google_account_info())
     input("Press 'Enter' to continue")
     return "", []
 
@@ -50,23 +53,44 @@ def main_setup():
     you through the steps needed to configure each provider access. This
     function has to be executed from a terminal like environment, allowing you
     to type tokens and alike."""
-    import mpqp.execution.connection.aws_connection as awsc
-    import mpqp.execution.connection.ibm_connection as ibmqc
-    import mpqp.execution.connection.qlm_connection as qlmc
+    from mpqp.execution.connection.aws_connection import setup_aws_braket_account
+    from mpqp.execution.connection.ibm_connection import setup_ibm_account
+    from mpqp.execution.connection.key_connection import config_ionq_key
+    from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
+
+    def no_op():
+        return "", []
 
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
         [
-            AnswerNode("IBM configuration", ibmqc.setup_ibm_account),
-            AnswerNode("QLM configuration", qlmc.setup_qlm_account),
-            AnswerNode("Amazon Braket configuration", awsc.setup_aws_braket_account),
-            AnswerNode("Config information", print_config_info),
+            AnswerNode("IBM", setup_ibm_account),
+            AnswerNode("QLM", setup_qlm_account),
+            AnswerNode("Amazon Braket", setup_aws_braket_account),
+            AnswerNode("IonQ", config_ionq_key),
+            AnswerNode("Recap", print_config_info),
+            AnswerNode(
+                "Cirq",
+                no_op,
+                next_question=QuestionNode(
+                    "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
+                    [
+                        AnswerNode("↩", no_op),
+                    ],
+                ),
+            ),
         ],
     )
 
+    # TODO: to avoid having to manually set that, we could add this as an option
+    # to the run choice tree
     for answer in setup_tree.answers:
-        answer.next_question = setup_tree
+        if answer.label == "Cirq" and answer.next_question is not None:
+            for answer in answer.next_question.answers:
+                answer.next_question = setup_tree
+        else:
+            answer.next_question = setup_tree
 
     run_choice_tree(setup_tree)
 

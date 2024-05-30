@@ -122,8 +122,10 @@ def get_all_job_ids() -> list[str]:
 
     """
 
-    connection = get_QLMaaSConnection()
-    return [job_info.id for job_info in connection.get_jobs_info()]
+    if get_env_variable("QLM_CONFIGURED") == "True":
+        connection = get_QLMaaSConnection()
+        return [job_info.id for job_info in connection.get_jobs_info()]
+    return []
 
 
 def get_QLMaaSConnection():

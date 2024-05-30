@@ -16,7 +16,7 @@ from .execution import (
     run,
     submit,
 )
-from .execution.connection.qlm_connection import get_all_job_ids
+from .execution.remote_handler import get_all_job_ids
 from .execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
 from .execution.vqa import Optimizer, minimize
 from .gates import (

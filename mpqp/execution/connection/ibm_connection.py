@@ -251,9 +251,10 @@ def get_all_job_ids() -> list[str]:
 
     """
     all_job_ids = []
-
-    ibm_provider = get_IBMProvider()  # using IBMProvider
-    service = get_QiskitRuntimeService()  # using QiskitRuntimeService
+    if get_env_variable("IBM_CONFIGURED") != "True":
+        return all_job_ids
+    ibm_provider = get_IBMProvider()
+    service = get_QiskitRuntimeService()
 
     if ibm_provider:
         all_job_ids.extend([job.job_id() for job in ibm_provider.jobs()])
