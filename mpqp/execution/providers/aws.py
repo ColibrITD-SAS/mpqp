@@ -123,9 +123,11 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         The task's id and the Task itself.
 
     Raises:
-        ValueError: If the job.job_type is not supported for noisy simulations,
-            or if it is of type `OBSERVABLE`but got no ExpectationMeasure
-        NotImplementedError: If the job_type is not STATE_VECTOR, SAMPLE nor OBSERVABLE
+        ValueError: If the job type is not supported for noisy simulations,
+            or if it is of type ``OBSERVABLE`` but got no
+            ``ExpectationMeasure``.
+        NotImplementedError: If the job type is not ``STATE_VECTOR``, ``SAMPLE``
+            or ``OBSERVABLE``.
 
     Notes:
         This function is not meant to be used directly, please use

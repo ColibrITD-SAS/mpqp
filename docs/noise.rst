@@ -8,9 +8,10 @@ crucial in the direction of achieving any advantage on current NISQ machines.
 This section provides an overview on how to instantiate noise models, how to
 specify target qubits and gates, and what are the predefined noise models.
 
-We strongly encourage the user to have a look at the dedicated notebook, where
-all the details about the manipulation, usage, and simulation of noise models
-are presented (:download:`Download here<notebooks/6_Noise_Simulation.ipynb>`).
+We strongly encourage the user to have a look at the 
+:doc:`dedicated notebook <notebooks/6_Noise_Simulation>`, where all the 
+details about the manipulation, usage, and simulation of noise models are 
+presented.
 
 .. code-block:: python
 
