@@ -95,15 +95,15 @@ def test_aqt_connection(key: Optional[str] = None) -> bool:
         bool: True if the connection is successful, False otherwise.
     """
     raise NotImplementedError
-    from qiskit_aqt_provider import AQTProvider
-    from qiskit_aqt_provider.aqt_provider import NoTokenWarning
+    # from qiskit_aqt_provider import AQTProvider
+    # from qiskit_aqt_provider.aqt_provider import NoTokenWarning
 
-    try:
-        AQTProvider(access_token=key)
-        return True
-    except NoTokenWarning:
-        print(colored("Wrong credentials", "red"))
-        return False
+    # try:
+    #     AQTProvider(access_token=key)
+    #     return True
+    # except NoTokenWarning:
+    #     print(colored("Wrong credentials", "red"))
+    #     return False
 
 
 def get_ionq_job_ids() -> list[str]:
@@ -131,12 +131,12 @@ def get_aqt_job_ids() -> list[str]:
         A list of job IDs.
     """
     raise NotImplementedError
-    from qiskit_aqt_provider import AQTProvider, aqt_job
-    from qiskit_aqt_provider.primitives import AQTSampler
+    # from qiskit_aqt_provider import AQTProvider, aqt_job
+    # from qiskit_aqt_provider.primitives import AQTSampler
 
-    provider = AQTProvider()
-    aqt_job_ids = []
-    if get_env_variable("AQT_API_KEY") == "True":
-        return aqt_job_ids
-        aqt_job_ids = [job.job_id() for job in service.list_jobs()]
-    return aqt_job_ids
+    # provider = AQTProvider()
+    # aqt_job_ids = []
+    # if get_env_variable("AQT_API_KEY") == "True":
+    #     return aqt_job_ids
+    #     aqt_job_ids = [job.job_id() for job in service.list_jobs()]
+    # return aqt_job_ids
