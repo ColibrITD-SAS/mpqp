@@ -19,8 +19,8 @@ jobs:
       - name: Build Document
         run: |
           pip install -r requirements-dev.txt
-          apt update
-          apt install -y pandoc
+          sudo apt update
+          sudo apt install -y pandoc
           touch .env
           echo "SPHINX_GITHUB_CHANGELOG_TOKEN=${{secrets.DOC_GH_API_TOKEN}}" > .env
           sphinx-build -b html docs build
