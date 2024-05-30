@@ -13,7 +13,6 @@ def get_google_account_info() -> str:
     return f"""   IONQ_API_KEY : '{ionq_api_key}'"""
 
 
-
 def get_all_job_ids() -> list[str]:
     """
     Retrieves all job IDs associated with google jobs.

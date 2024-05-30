@@ -4,7 +4,8 @@ from termcolor import colored
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 
-def config_key(key_name :str, configuration_name: str, test_connection:  Callable[[str], bool]):
+
+def config_key(key_name: str, configuration_name: str, test_connection:  Callable[[str], bool]):
     """
     Configure a key by setting the API token.
 
