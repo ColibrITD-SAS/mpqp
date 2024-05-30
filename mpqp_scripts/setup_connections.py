@@ -59,8 +59,8 @@ def main_setup():
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
-    def no_op():
-        return "", []
+    # def no_op():
+    #     return "", []
 
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
@@ -70,16 +70,16 @@ def main_setup():
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Recap", print_config_info),
-            AnswerNode(
-                "Cirq",
-                no_op,
-                next_question=QuestionNode(
-                    "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
-                    [
-                        AnswerNode("↩", no_op),
-                    ],
-                ),
-            ),
+            # AnswerNode(
+            #     "Cirq",
+            #     no_op,
+            #     next_question=QuestionNode(
+            #         "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
+            #         [
+            #             AnswerNode("↩ Return", no_op),
+            #         ],
+            #     ),
+            # ),
         ],
     )
 
