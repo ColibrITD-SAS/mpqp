@@ -31,10 +31,8 @@ from .gates import (
     GateDefinition,
     H,
     Id,
-    KrausRepresentation,
     P,
     ParametrizedGate,
-    PauliDecomposition,
     Rk,
     Rx,
     Ry,
@@ -61,6 +59,8 @@ from .measures import X as Xop
 from .measures import Y as Yop
 from .measures import Z as Zop
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
+
+from .noise import Depolarizing
 
 theta, k = symbols("θ k")  # type: ignore
 obs = Observable(np.array([[0, 1], [1, 0]]))

@@ -18,6 +18,7 @@ restrictive. :func:`find` allow us a much more versatile search using an
 from __future__ import annotations
 
 import re
+from abc import ABCMeta
 from typing import Callable, Iterable, Iterator, Sequence, TypeVar, Union
 
 import numpy as np
@@ -189,3 +190,19 @@ def clean_matrix(matrix: Matrix):
     # TODO: add an option to align cols
     cleaned_matrix = [clean_array(row) for row in matrix]
     return "[" + ",\n ".join(cleaned_matrix) + "]"
+
+class SimpleClassReprMeta(type):
+    """Metaclass used to change the repr of the class (not the instances) to
+    display the name of the class only (instead of the usual
+    <class mpqp.path.ClassName>)"""
+
+    def __repr__(cls):
+        return cls.__name__
+
+
+class SimpleClassReprABCMeta(SimpleClassReprMeta, ABCMeta):
+    pass
+
+
+class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
+    pass

@@ -18,9 +18,9 @@ describing the problem you would like to solve.
 
 ### Setup your environment locally
 
-_Some commands will assume you have the Github CLI installed, if you haven't,
+_Some commands will assume you have the GitHub CLI installed, if you haven't,
 consider [installing it](https://github.com/cli/cli#installation), but you can
-always use the Web UI if you prefer that instead._
+always use the Web UI if you prefer that instead.
 
 In order to contribute to this project, you will need to fork the repository:
 
@@ -41,10 +41,10 @@ etc... included), use pip:
 pip install -r requirements-dev.txt
 ```
 
-The last (optinal) step is to setup a github personal access tokens to enable
+The last (optinal) step is to setup a GitHub personal access tokens to enable
 the sphinx automatic changelog generation. This step is only important if you
-want to preview this changelog generation on your personal comuter. Not being
-able to generati it will not affect the rest of the documentation, and even less
+want to preview this changelog generation on your personal computer. Not being
+able to generate it will not affect the rest of the documentation, and even less
 the rest of the library.
 
 In order to generate the token, you can read about it on
@@ -61,13 +61,13 @@ Here are the pieces of software useful to know to work on our library:
 - We run our tests using [pytest](https://docs.pytest.org).
 - We generate our documentation using [Sphinx](https://www.sphinx-doc.org).
 - We format the code using [black](https://black.readthedocs.io) and
-  [isort](https://pycqa.github.io/isort), but this is not configured in our ci
+  [isort](https://pycqa.github.io/isort), but this is not configured in our CI
   yet.
 - We check our types using [Pyright](https://microsoft.github.io/pyright), but
   this is not configured yet.
 - The documentation is automatically deployed on new versions with
-  [GitHub Actions](https://docs.github.com/en/actions). (As well as a few other
-  bits and bobs)
+  [GitHub Actions](https://docs.github.com/en/actions) (as well as a few other
+  bits and bobs).
 
 ### Implement your changes
 
@@ -78,7 +78,7 @@ This project is organized as such:
   documentation will require you to also get comfortable with the source code,
   since the biggest part of the documentation is as docstrings in the library
   source code (using the `autodoc` Sphinx extension);
-- all the source files requiring testing are mirrored from `mpqp\` to `tests\`.
+- all the source files requiring testing are mirrored from `mpqp/` to `tests/`.
   We do not consider all code need to be tested, but the "tricky" (error prone)
   code should be covered a minimum amount (we are actively trying to improve the
   state of testing in our library currently).
@@ -92,7 +92,7 @@ Here are some useful scripts for when you are developing:
 | --------------------------------- | ------------------------ |
 | `sphinx-build -b html docs build` | Builds the documentation |
 | `python -m pytest`                | Runs the test suite      |
-| `python -m pytest -l`             | Runs the long tests too  |
+| `python -m pytest --long`         | Runs the long tests too  |
 
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)
@@ -140,7 +140,7 @@ and fill out the title and body appropriately.
 
 ## Translations
 
-For now, we only support the english language. If you would like to start a
+For now, we only support the English language. If you would like to start a
 translation of the documentation, get in touch with us so we set it up together!
 
 ## Credits

@@ -107,6 +107,7 @@ class VariableSizeBasis(Basis):
 
     @abstractmethod
     def __init__(self, nb_qubits: Optional[int] = None):
+        super().__init__([], nb_qubits)
         pass
 
     @abstractmethod
