@@ -9,8 +9,12 @@ def get_google_account_info() -> str:
         str: A string containing the IonQ API key.
     """
     ionq_api_key = get_env_variable("IONQ_API_KEY")
+    if ionq_api_key == "":
+        display = "Not configured"
+    else:
+        display = ionq_api_key[:5] + "*****"
 
-    return f"""   IONQ_API_KEY : '{ionq_api_key}'"""
+    return "   IONQ_API_KEY: " + display
 
 
 def get_all_job_ids() -> list[str]:
@@ -19,9 +23,7 @@ def get_all_job_ids() -> list[str]:
 
     Returns:
         A list of job IDs.
-    
+
     #3M-TODO: get job of google
     """
     return []
-
-

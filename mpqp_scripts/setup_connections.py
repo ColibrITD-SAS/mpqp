@@ -43,10 +43,7 @@ def print_config_info():
         else:
             print("Error occurred when getting AWS account info.")
     print("===== Cirq info : ===== ")
-    try:
-        print(cirqc.get_google_account_info())
-    except Exception as err:
-        print("Error occurred when getting Cirq account info.")
+    print(cirqc.get_google_account_info())
     input("Press 'Enter' to continue")
     return "", []
 
