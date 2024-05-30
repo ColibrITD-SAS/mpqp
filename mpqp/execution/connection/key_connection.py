@@ -69,6 +69,7 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
 
 def config_aqt_key():
     """
+    #3M-TODO add aqt in list of provider
     Configure the AQT account by setting the API token.
 
     Returns:
@@ -81,6 +82,7 @@ def config_aqt_key():
 
 def test_aqt_connection(key: Optional[str] = None) -> bool:
     """
+    #3M-TODO install qiskit_aqt_provider by updating qiskit to 1.0.0
     Test the connection to the AQT service.
 
     Returns:
@@ -113,13 +115,13 @@ def get_ionq_job_ids() -> list[str]:
         ionq_job_ids = [job.job_id() for job in service.list_jobs()]
     return ionq_job_ids
 
-def get_all_job_ids() -> list[str]:
+def get_aqt_job_ids() -> list[str]:
     """
+    #3M-TODO 
     Retrieves all job IDs associated with AQT jobs.
 
     Returns:
         A list of job IDs.
-    #TODO-3M 
     """
     from qiskit_aqt_provider import AQTProvider, aqt_job
     from qiskit_aqt_provider.primitives import AQTSampler
