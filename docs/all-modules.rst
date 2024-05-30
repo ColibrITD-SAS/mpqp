@@ -11,6 +11,7 @@ mpqp
     circuit
     gates
     measures
+    noise
     execution
     qasm
     tools

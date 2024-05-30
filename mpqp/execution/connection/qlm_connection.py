@@ -1,16 +1,16 @@
 from __future__ import annotations
+
+import os
+from getpass import getpass
 from typing import Any
 
-from typeguard import typechecked
-from getpass import getpass
-import os
-
 from termcolor import colored
+from typeguard import typechecked
 
 from mpqp.execution.connection.env_manager import (
-    save_env_variable,
     get_env_variable,
     load_env_variables,
+    save_env_variable,
 )
 from mpqp.tools.errors import QLMRemoteExecutionError
 
@@ -28,7 +28,7 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
             outside MPQP.
 
     Raises:
-        QLMRemoteExecutionError
+        QLMRemoteExecutionError: TODO
     """
     # store the username and password in environment variables QLM_USER and QLM_PASSWD in .mpqp
     prev_user = get_env_variable("QLM_USER")
@@ -112,17 +112,20 @@ def setup_qlm_account() -> tuple[str, list[Any]]:
 def get_all_job_ids() -> list[str]:
     """Retrieves from the remote QLM all the job-ids associated with this account.
 
+    Returns:
+        List of all job-ids associated with this account.
+
     Example:
         >>> get_all_job_ids()
         ['Job144361', 'Job144360', 'Job144359', 'Job144358', 'Job144357', 'Job143334', 'Job143333', 'Job143332',
         'Job141862', 'Job141861', 'Job141722', 'Job141720', 'Job141716', 'Job141715', 'Job141712', 'Job19341']
 
-    Returns:
-        List of all job-ids associated with this account.
     """
 
-    connection = get_QLMaaSConnection()
-    return [job_info.id for job_info in connection.get_jobs_info()]
+    if get_env_variable("QLM_CONFIGURED") == "True":
+        connection = get_QLMaaSConnection()
+        return [job_info.id for job_info in connection.get_jobs_info()]
+    return []
 
 
 def get_QLMaaSConnection():

@@ -3,21 +3,24 @@ common methods to all of them."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from copy import deepcopy
-from typing import Any, Optional
 from numbers import Complex
+from pickle import dumps
+from typing import TYPE_CHECKING, Any, Optional
 
 from sympy import Expr
-from qiskit.circuit import Parameter
 from typeguard import typechecked
 
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
+
 from mpqp.core.languages import Language
-from mpqp.tools.generics import flatten
+from mpqp.tools.generics import SimpleClassReprABC, flatten
 
 
 @typechecked
-class Instruction(ABC):
+class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 
     An Instruction is the elementary component of a
@@ -33,8 +36,8 @@ class Instruction(ABC):
 
     Args:
         targets: List of indices referring to the qubits on which the
-            instruction will be applied
-        label: label used to identify the instruction
+            instruction will be applied.
+        label: Label used to identify the instruction.
     """
 
     def __init__(
@@ -42,6 +45,8 @@ class Instruction(ABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
+        if len(targets) == 0:
+            raise ValueError("Expected non-empty target list")
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate registers in targets: {targets}")
         if not all([t >= 0 for t in targets]):
@@ -53,12 +58,12 @@ class Instruction(ABC):
 
     @property
     def nb_qubits(self) -> int:
-        """Number of qubits of this instruction"""
+        """Number of qubits of this instruction."""
         return len(self.connections())
 
     @property
     def nb_cbits(self) -> int:
-        """Number of cbits of this instruction"""
+        """Number of cbits of this instruction."""
         from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 
         if isinstance(self, BasisMeasure):
@@ -83,23 +88,24 @@ class Instruction(ABC):
         OpenQASM (like hybrid structures).
 
         Args:
-            language: enum representing the target language.
+            language: Enum representing the target language.
             qiskit_parameters: We need to keep track of the parameters
                 passed to qiskit in order not to define twice the same
                 parameter. Defaults to ``set()``.
 
         Returns:
             The corresponding instruction (gate or measure) in the target
-            language
+            language.
         """
         pass
+
+    def __eq__(self, value: object) -> bool:
+        return dumps(self) == dumps(value)
 
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(
-            (self.targets if isinstance(self.targets, int) else max(self.targets)) + 1
-        )
+        c = QCircuit(max(self.connections()) + 1)
         c.add(self)
         return str(c)
 
@@ -112,12 +118,13 @@ class Instruction(ABC):
     def connections(self) -> set[int]:
         """Returns the indices of the qubits connected to the instruction.
 
-        Example:
-            >>> CNOT(0,1).connections()
-            [0, 1]
-
         Returns:
             The qubits ordered connected to instruction.
+
+        Example:
+            >>> CNOT(0,1).connections()
+            {0, 1}
+
         """
         from mpqp.core.instruction.gates import ControlledGate
 
@@ -137,13 +144,6 @@ class Instruction(ABC):
         Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
 
-        Example:
-            >>> theta = symbols("θ")
-            >>> print(Rx(theta, 0).subs({theta: np.pi}))
-               ┌───────┐
-            q: ┤ Rx(π) ├
-               └───────┘
-
         Args:
             values: Mapping between the variables and the replacing values.
             remove_symbolic: If symbolic values should be replaced by their
@@ -151,5 +151,13 @@ class Instruction(ABC):
 
         Returns:
             The circuit with the replaced parameters.
+
+        Example:
+            >>> theta = symbols("θ")
+            >>> print(Rx(theta, 0).subs({theta: np.pi}))
+               ┌───────┐
+            q: ┤ Rx(π) ├
+               └───────┘
+
         """
         return deepcopy(self)

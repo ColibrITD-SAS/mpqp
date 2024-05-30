@@ -1,4 +1,5 @@
 import pytest
+
 from mpqp.qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
 qasm_folder = "tests/qasm/qasm_examples/"
@@ -31,7 +32,7 @@ def test_circular_dependency_detection():
     assert "Circular dependency" in str(e.value)
 
 
-def test_circular_dependency_detection_2():
+def test_circular_dependency_detection_false_positive():
     try:
         open_qasm_file_conversion_2_to_3(
             qasm_folder + "circular_dep_a.qasm",

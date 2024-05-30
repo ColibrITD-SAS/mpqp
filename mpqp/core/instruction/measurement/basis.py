@@ -9,6 +9,7 @@ On the other hand, some common basis are available for you to use:
 :class:`ComputationalBasis` and :class:`HadamardBasis`."""
 
 from __future__ import annotations
+
 from abc import abstractmethod
 from functools import reduce
 from typing import Optional
@@ -17,7 +18,8 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
-from mpqp.tools.maths import matrix_eq, atol
+from mpqp.tools.maths import atol, matrix_eq
+from mpqp.tools.generics import clean_array
 
 
 @typechecked
@@ -33,9 +35,10 @@ class Basis:
     Example:
         >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
         Basis: [
-            [1 0],
-            [ 0 -1]
+            [1, 0],
+            [0, -1]
         ]
+
     """
 
     def __init__(
@@ -86,11 +89,12 @@ class Basis:
         Example:
             >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
             Basis: [
-                [ 1  0],
-                [ 0 -1]
+                [1, 0],
+                [0, -1]
             ]
+
         """
-        joint_vectors = ",\n    ".join(map(str, np.round(self.basis_vectors, 2)))
+        joint_vectors = ",\n    ".join(map(clean_array, self.basis_vectors))
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
@@ -103,12 +107,12 @@ class VariableSizeBasis(Basis):
 
     @abstractmethod
     def __init__(self, nb_qubits: Optional[int] = None):
+        super().__init__([], nb_qubits)
         pass
 
     @abstractmethod
     def set_size(self, nb_qubits: int):
-        """
-        To allow the user to use a basis without having to specify the size
+        """To allow the user to use a basis without having to specify the size
         (because implicitly the size should be the number of qubits of the
         circuit), we use this method, that will only be called once the
         circuit's size is definitive (i.e. at the last moment before the circuit
@@ -135,24 +139,25 @@ class ComputationalBasis(VariableSizeBasis):
     Examples:
         >>> ComputationalBasis(3).pretty_print()
         Basis: [
-            [1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j]
+            [1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1]
         ]
         >>> b = ComputationalBasis()
         >>> b.set_size(2)
         >>> b.pretty_print()
         Basis: [
-            [1.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 1.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 1.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 1.+0.j]
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
@@ -178,11 +183,12 @@ class HadamardBasis(VariableSizeBasis):
     Example:
         >>> HadamardBasis(2).pretty_print()
         Basis: [
-            [0.5+0.j 0.5+0.j 0.5+0.j 0.5+0.j],
-            [ 0.5+0.j -0.5+0.j  0.5+0.j -0.5+0.j],
-            [ 0.5+0.j  0.5+0.j -0.5+0.j -0.5+0.j],
-            [ 0.5+0.j -0.5+0.j -0.5+0.j  0.5-0.j]
+            [0.5, 0.5, 0.5, 0.5],
+            [0.5, -0.5, 0.5, -0.5],
+            [0.5, 0.5, -0.5, -0.5],
+            [0.5, -0.5, -0.5, 0.5]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):

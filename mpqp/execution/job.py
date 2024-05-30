@@ -1,25 +1,41 @@
+"""
+When you call :func:`run<mpqp.execution.runner.run>` or
+:func:`submit<mpqp.execution.runner.submit>`, a :class:`Job` is created by 
+:func:`generate_job<mpqp.execution.runner.generate_job>`. This job contains all
+the needed information to configure the execution, and eventually retrieve
+remote results.
+
+A :class:`Job` can be of three types, given by the :class:`JobType` enum. In 
+addition, it has a status, given by the :class:`JobStatus` enum.
+
+As described above, a :class:`Job` is generated on circuit submission so you
+would in principle never need to instantiate one yourself.
+"""
+
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
+
+from typing import TYPE_CHECKING, Optional
+
 from aenum import Enum, NoAlias
+from typeguard import typechecked
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
-from typeguard import typechecked
-
 if TYPE_CHECKING:
     from enum import Enum
 
-from mpqp.core.instruction.measurement import Measure, ExpectationMeasure, BasisMeasure
+from braket.aws import AwsQuantumTask
+from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+from qat.comm.qlmaas.ttypes import QLMServiceException
+from qiskit.providers import JobStatus as IBM_JobStatus
+
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
+
+from ..core.circuit import QCircuit
+from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.ibm_connection import get_IBMProvider, get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
-from ..core.circuit import QCircuit
-from .devices import AvailableDevice, IBMDevice, AWSDevice, ATOSDevice
-
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
-from qiskit.providers import JobStatus as IBM_JobStatus
-from braket.aws import AwsQuantumTask
-
-from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
+from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 
 
 class JobStatus(Enum):
@@ -40,8 +56,7 @@ class JobStatus(Enum):
 
 
 class JobType(Enum):
-    """
-    Possible types of Job to execute.
+    """Possible types of Job to execute.
 
     Each type of job is restricted to some measures (and to some backends, but
     this is tackled by the backends themselves).
@@ -61,8 +76,7 @@ class JobType(Enum):
 
 @typechecked
 class Job:
-    """
-    Representation of a job, an object regrouping all the information about
+    """Representation of a job, an object regrouping all the information about
     the submission of a computation/measure of a quantum circuit on a
     specific hardware.
 
@@ -88,6 +102,7 @@ class Job:
         ...     IBMDevice.AER_SIMULATOR,
         ...     circuit.get_measurements()[0],
         ... )
+
     """
 
     # 6M-TODO: decide, when there are several measurements, if we define a

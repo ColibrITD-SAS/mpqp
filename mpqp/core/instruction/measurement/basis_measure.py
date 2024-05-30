@@ -2,15 +2,18 @@
 given :class:`Basis` and returns the corresponding eigenvalue."""
 
 from __future__ import annotations
-from typing import Optional
 
-import qiskit.circuit
-from qiskit.circuit import Parameter
+from typing import TYPE_CHECKING, Optional
+
 from typeguard import typechecked
 
-from .measure import Measure
-from .basis import Basis, ComputationalBasis
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
+
 from mpqp.core.languages import Language
+
+from .basis import Basis, ComputationalBasis
+from .measure import Measure
 
 
 @typechecked
@@ -38,9 +41,10 @@ class BasisMeasure(Measure):
 
     Examples:
         >>> c1 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c1.add(BasisMeasure([0, 1, 2], shots=1024))
+        >>> c1.add(BasisMeasure([0, 1], shots=1024))
         >>> c2 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c2.add(BasisMeasure([0, 1, 2], shots=1024, basis=HadamardBasis()))
+        >>> c2.add(BasisMeasure([0, 1], shots=1024, basis=HadamardBasis()))
+
     """
 
     def __init__(
@@ -67,13 +71,15 @@ class BasisMeasure(Measure):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
         if language == Language.QISKIT:
+            from qiskit.circuit import Measure
+
             if isinstance(self.basis, ComputationalBasis):
-                return qiskit.circuit.Measure()
+                return Measure()
             else:
                 raise NotImplementedError(f"{type(self.basis)} not handled")
         else:

@@ -30,97 +30,124 @@ div.document {
 
 /* *** fix for rtd dark *** */
 
+html[data-theme="dark"] div.nboutput.container div.output_area.stderr {
+  background: rgb(103, 23, 23);
+}
+
 html[data-theme="dark"] .sig > .sig-name > .pre {
-    color: white;
+  color: white;
 }
 
 html[data-theme="dark"] .highlight > pre > span.go {
-    color: rgb(173, 173, 173);
+  color: rgb(173, 173, 173);
 }
 
-html[data-theme="dark"].writer-html5 .rst-content 
-dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) 
-dl:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) > dt {
-    background-color: #0f0f0f;
-    color: #959595;
-    border-color: #2b2b2b;
+html[data-theme="dark"].writer-html5
+  .rst-content
+  dl[class]:not(.option-list):not(.field-list):not(.footnote):not(
+    .citation
+  ):not(.glossary):not(.simple)
+  dl:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(
+    .glossary
+  ):not(.simple)
+  > dt {
+  background-color: #0f0f0f;
+  color: #959595;
+  border-color: #2b2b2b;
 }
 
-html[data-theme="dark"].writer-html5 
-.rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not( .glossary ):not(.simple) 
-dl:not(.field-list) > dt {
-    color: #c6c6c6!important;
+html[data-theme="dark"].writer-html5
+  .rst-content
+  dl[class]:not(.option-list):not(.field-list):not(.footnote):not(
+    .glossary
+  ):not(.simple)
+  dl:not(.field-list)
+  > dt {
+  color: #c6c6c6 !important;
 }
 
 html[data-theme="dark"] .highlight > pre > span.n {
-    color: #80cb53;
+  color: #80cb53;
 }
 
 html[data-theme="dark"] .highlight > pre > span.o {
-    color: #cbcbcb;
+  color: #cbcbcb;
 }
 
 html[data-theme="dark"] .highlight > pre > span.nf,
 html[data-theme="dark"] .viewcode-block > span.nf {
-    color: #9975ec;
+  color: #9975ec;
 }
 
 html[data-theme="dark"] .highlight > .copybtn {
-    background-color: transparent;
-    color: aliceblue;
-    border: 1px solid aliceblue;
+  background-color: transparent;
+  color: aliceblue;
+  border: 1px solid aliceblue;
 }
 
 html[data-theme="dark"] .highlight > pre {
-    font-size: medium;
+  font-size: medium;
 }
 
 .wy-nav-content {
-    max-width: 1200px;
+  max-width: 1200px;
 }
 
-.class.enum > dd > dl:not(.method) .sig-name ~ *:not(:last-child):not(:nth-last-child(2)),
+.class.enum
+  > dd
+  > dl:not(.method)
+  .sig-name
+  ~ *:not(:last-child):not(:nth-last-child(2)),
 .class.enum > dd > .attribute > dt > .property,
 .attribute .sig-name ~ * {
-    display: none!important;
+  display: none !important;
 }
 
-
-[role='contentinfo'] {
-    float: right
+[role="contentinfo"] {
+  float: right;
 }
 
-html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) .py.attribute,
-html.writer-html5 .rst-content dl[class]:not(.option-list):not(.field-list):not(.footnote):not(.citation):not(.glossary):not(.simple) .py.property {
-    display: block;
-    margin-inline-end: 2em;
+html.writer-html5
+  .rst-content
+  dl[class]:not(.option-list):not(.field-list):not(.footnote):not(
+    .citation
+  ):not(.glossary):not(.simple)
+  .py.attribute,
+html.writer-html5
+  .rst-content
+  dl[class]:not(.option-list):not(.field-list):not(.footnote):not(
+    .citation
+  ):not(.glossary):not(.simple)
+  .py.property {
+  display: block;
+  margin-inline-end: 2em;
 }
 
 .class:not(.enum) .py.attribute .sig-name::before {
-    content: 'attribute ';
-    font-style: italic;
-    color: #c6c6c6;
+  content: "attribute ";
+  font-style: italic;
+  color: #c6c6c6;
 }
 
 .wy-nav-side {
-    padding-bottom: 0;
+  padding-bottom: 0;
 }
 
 .class.enum > dd > .attribute,
 .class.enum > dd > .attribute * {
-    margin-bottom: 5px!important;
+  margin-bottom: 5px !important;
 }
 
 html[data-theme="dark"] .wy-nav-content > a {
-    color: #80cb53;
+  color: #80cb53;
 }
 
 html[data-theme="dark"] .wy-menu-vertical > p.caption {
-    color: #80cb53;
+  color: #80cb53;
 }
 
 html[data-theme="dark"] .wy-side-nav-search {
-    background-color: #0d0d0d;
+  background-color: #0d0d0d;
 }
 
 /*html[data-theme="dark"] .rst-content .admonition .admonition-title,
