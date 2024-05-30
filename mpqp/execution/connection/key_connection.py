@@ -40,6 +40,8 @@ def config_key(
         return "", []
 
 
+# TODO: move the providers specific keys to their own file ? and the
+# `config_key` to the env_manager ?
 def config_ionq_key():
     """
     Configure the IonQ account by setting the API token.
