@@ -43,6 +43,12 @@ class Observable:
         observable : can be either a Hermitian matrix representing the
             observable or PauliString representing the observable.
 
+    Raises:
+        ValueError: If the input matrix is not Hermitian or does not have a
+            square shape.
+        NumberQubitsError: If the number of qubits in the input observable does
+            not match the number of target qubits.
+
     Example:
         >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
         >>> matrix = np.array([[1, 0], [0, -1]])
@@ -50,11 +56,6 @@ class Observable:
         >>> obs = Observable(matrix)
         >>> obs2 = Observable(ps)
 
-    Raises:
-        ValueError: If the input matrix is not Hermitian or does not have a
-            square shape.
-        NumberQubitsError: If the number of qubits in the input observable does
-            not match the number of target qubits.
     """
 
     def __init__(self, observable: Matrix | PauliString):

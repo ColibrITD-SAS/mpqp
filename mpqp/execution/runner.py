@@ -154,8 +154,10 @@ def _run_single(
         The Result containing information about the measurement required.
 
     Raises:
-        DeviceJobIncompatibleError: if a non noisy simulator is given in parameter and the circuit contains noise
-        NotImplementedError: If the device is not handled for noisy simulation or other submissions.
+        DeviceJobIncompatibleError: if a non noisy simulator is given in
+            parameter and the circuit contains noise
+        NotImplementedError: If the device is not handled for noisy simulation
+            or other submissions.
 
     Example:
         >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")

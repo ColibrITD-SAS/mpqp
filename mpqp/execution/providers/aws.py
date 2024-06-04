@@ -97,9 +97,9 @@ def run_braket(job: Job) -> Result:
     Returns:
         The result of the job.
 
-    Notes:
+    Note:
         This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     from braket.tasks import GateModelQuantumTaskResult
 
@@ -129,9 +129,9 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         NotImplementedError: If the job type is not ``STATE_VECTOR``, ``SAMPLE``
             or ``OBSERVABLE``.
 
-    Notes:
+    Note:
         This function is not meant to be used directly, please use
-        ``runner.submit(...)`` instead.
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     from braket.circuits import Circuit
 

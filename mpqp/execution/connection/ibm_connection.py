@@ -201,15 +201,16 @@ def get_backend(device: IBMDevice) -> "BackendV1":
     Returns:
         The requested backend.
 
+    Raises:
+        ValueError: If the required backend is a local simulator.
+        IBMRemoteExecutionError: If the device was not found.
+
     Example:
         >>> brisbane = get_backend(IBMDevice.IBM_BRISBANE)
         >>> brisbane.properties().gates[0].parameters
         [Nduv(datetime.datetime(2024, 1, 9, 11, 3, 18, tzinfo=tzlocal()), gate_error, , 0.00045619997922344296),
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
 
-    Raises:
-        ValueError: If the required backend is a local simulator.
-        IBMRemoteExecutionError: If the device was not found.
     """
     # NOTE:
     #       Question : when a backend is present in several IBMQ instances, which instance does it use to submit jobs
