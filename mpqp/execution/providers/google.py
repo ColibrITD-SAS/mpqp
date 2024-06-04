@@ -1,53 +1,54 @@
 from __future__ import annotations
+
 from typing import Optional
 
+import cirq_ionq as ionq
+from cirq.circuits.circuit import Circuit as Cirq_circuit
+from cirq.devices.line_qubit import LineQubit
+from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+from cirq.sim.sparse_simulator import Simulator
+from cirq.sim.state_vector_simulator import StateVectorTrialResult
+from cirq.study.result import Result as cirq_result
+from cirq.transformers.optimize_for_target_gateset import optimize_for_target_gateset
+from cirq.value.probability import state_vector_to_probabilities
+from cirq.work.observable_measurement import (
+    RepetitionsStoppingCriteria,
+    measure_observables,
+)
+from cirq.work.observable_measurement_data import ObservableMeasuredResult
+from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
+from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
+from cirq_google.engine.virtual_engine_factory import (
+    create_device_from_processor_id,
+    load_median_device_calibration,
+)
+from cirq_ionq.ionq_gateset import IonQTargetGateset
+from qsimcirq.qsim_simulator import QSimSimulator
 from typeguard import typechecked
 
-from mpqp.execution.devices import GOOGLEDevice
-from mpqp.execution.job import JobType, Job
-from mpqp.execution.result import Result, Sample, StateVector
-
+from mpqp import Language
 from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
-
-from mpqp import Language
-
-from cirq.work.observable_measurement_data import ObservableMeasuredResult
-from cirq.sim.state_vector_simulator import StateVectorTrialResult
-from cirq.transformers.optimize_for_target_gateset import optimize_for_target_gateset
-from cirq.value.probability import state_vector_to_probabilities
-from cirq.sim.sparse_simulator import Simulator
-from cirq.circuits.circuit import Circuit as Cirq_circuit
-from cirq.study.result import Result as cirq_result
-from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
-from cirq_google.engine.virtual_engine_factory import (
-    load_median_device_calibration,
-    create_device_from_processor_id,
-)
-from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
-from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
-from qsimcirq.qsim_simulator import QSimSimulator
-from cirq.work.observable_measurement import (
-    measure_observables,
-    RepetitionsStoppingCriteria,
-)
-import cirq_ionq as ionq
-from cirq_ionq.ionq_gateset import IonQTargetGateset
-from cirq.devices.line_qubit import LineQubit
+from mpqp.execution.devices import GOOGLEDevice
+from mpqp.execution.job import Job, JobType
+from mpqp.execution.result import Result, Sample, StateVector
 
 
 @typechecked
 def run_google(job: Job) -> Result:
-    """
-    Executes the job on the right Google device precised in the job in parameter.
-    This function is not meant to be used directly, please use ``runner.run(...)`` instead.
+    """Executes the job on the right Google device precised in the job in
+    parameter.
 
     Args:
         job: Job to be executed.
 
     Returns:
         A Result after submission and execution of the job.
+        Note:
+
+    This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     return run_local(job) if not job.device.is_remote() else run_google_remote(job)
 
@@ -65,7 +66,8 @@ def run_google_remote(job: Job) -> Result:
 
     Raises:
         ValueError: If the job's device is not an instance of GOOGLEDevice.
-        NotImplementedError: If the job's device is not supported (only IonQ devices are supported currently).
+        NotImplementedError: If the job's device is not supported (only IonQ
+            devices are supported currently).
         NotImplementedError: If the job type or basis measure is not supported.
     """
     assert type(job.device) == GOOGLEDevice
@@ -233,8 +235,8 @@ def extract_result(
     job: Optional[Job] = None,
     device: Optional[GOOGLEDevice] = None,
 ) -> Result:
-    """
-    Extracts the result from the simulation and formats it into an mpqp Result object.
+    """Extracts the needed data from ``cirq`` result and packages it into a
+    ``MPQP`` :class:`Result<mpqp.execution.result.Result>`.
 
     Args:
         result : The result of the simulation.
@@ -246,7 +248,8 @@ def extract_result(
 
     Raises:
         NotImplementedError: If the job is None or the type is not supported.
-        ValueError: If the result type does not match the expected type for the job type.
+        ValueError: If the result type does not match the expected type for the
+            job type.
     """
     if job is None:
         raise NotImplementedError("result from job None is not implemented")

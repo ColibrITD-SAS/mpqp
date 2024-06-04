@@ -659,15 +659,15 @@ def run_atos(job: Job) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
-
     Args:
         job: Job to be executed.
 
     Returns:
         A Result after submission and execution of the job.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     return run_myQLM(job) if not job.device.is_remote() else run_QLM(job)
 
@@ -676,15 +676,15 @@ def run_atos(job: Job) -> Result:
 def run_myQLM(job: Job) -> Result:
     """Executes the job on the local myQLM simulator.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
-
     Args:
         job: Job to be executed.
 
     Returns:
         A Result after submission and execution of the job.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
 
     result = None
@@ -734,10 +734,6 @@ def run_myQLM(job: Job) -> Result:
 def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
     """Submits the job on the remote QLM machine.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.submit(...)`` instead.
-
     Args:
         job: Job to be executed.
 
@@ -747,6 +743,10 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
     Raises:
         ValueError: When job of type different from `STATE_VECTOR`, `OBSERVABLE` or `SAMPLE`
         NotImplementedError: If the basis given is not the ComputationalBasis
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
 
     myqlm_job = None
@@ -787,9 +787,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
 @typechecked
 def run_QLM(job: Job) -> Result:
-    """Submits the job on the remote QLM machine and waits for it to be done. This
-    function is not meant to be used directly, please use ``runner.run(...)``
-    instead.
+    """Submits the job on the remote QLM machine and waits for it to be done.
 
     Args:
         job: Job to be executed.
@@ -799,6 +797,10 @@ def run_QLM(job: Job) -> Result:
 
     Raises:
         ValueError: If the device is not a remote QLM device of the enum ATOSDevice.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
 
     if not isinstance(job.device, ATOSDevice) or not job.device.is_remote():
@@ -827,7 +829,9 @@ def get_result_from_qlm_job_id(job_id: str) -> Result:
         The converted result.
 
     Raises:
-        QLMRemoteExecutionError: When job not found, or the job is in a non-coherent status (cancelled, deleted, ...)
+        QLMRemoteExecutionError: When the job cannot be found.
+        QLMRemoteExecutionError: When the job has a non-accessible status
+            (cancelled, deleted, ...).
     """
     from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
     from qat.comm.qlmaas.ttypes import QLMServiceException

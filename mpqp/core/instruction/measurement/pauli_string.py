@@ -37,6 +37,8 @@ class PauliString:
          - **Import Only Pauli String:** ``from mpqp.core.instruction.measurement import pauli_string``, usage: ``pauli_string.X``
     """
 
+    # TODO: reformulate ?
+
     def __init__(self, monomials: Optional[list["PauliStringMonomial"]] = None):
         self._monomials: list[PauliStringMonomial] = []
 
@@ -261,15 +263,15 @@ class PauliString:
         Returns:
             PauliString: Pauli string decomposition of the matrix in parameter.
 
+        Raises:
+            ValueError: If the input matrix is not square or its dimensions are
+                not a power of 2.
 
         Example:
             >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
             >>> print(ps)
             1*I + 1*X + -1*Z
-
-        Raises:
-            ValueError: If the input matrix is not square or its dimensions are
-                not a power of 2.
+            
         """
         if matrix.shape[0] != matrix.shape[1]:
             raise ValueError("Input matrix must be square.")
@@ -497,7 +499,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other, [self] # pyright: ignore[reportArgumentType]
+            1 / other, [self]  # pyright: ignore[reportArgumentType]
         )
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:

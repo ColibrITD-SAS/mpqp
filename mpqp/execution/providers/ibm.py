@@ -39,15 +39,15 @@ def run_ibm(job: Job) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
-
     Args:
         job: Job to be executed.
 
     Returns:
         The result of the job.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     return run_aer(job) if not job.device.is_remote() else run_ibmq(job)
 
@@ -59,10 +59,6 @@ def compute_expectation_value(
     """Configures observable job and run it locally, and returns the
     corresponding Result.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
-
     Args:
         ibm_circuit: QuantumCircuit (already reversed bits)
         ibm_backend: The IBM backend (local of remote) on which we execute the job.
@@ -70,6 +66,10 @@ def compute_expectation_value(
 
     Returns:
         The result of the job.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     if not isinstance(job.measure, ExpectationMeasure):
         raise ValueError(
@@ -148,15 +148,15 @@ def run_aer(job: Job):
     """Executes the job on the right AER local simulator precised in the job in
     parameter.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
-
     Args:
         job: Job to be executed.
 
     Returns:
         the result of the job.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     qiskit_circuit = (
         job.circuit.without_measurements().to_other_language(Language.QISKIT)
@@ -214,15 +214,15 @@ def run_aer(job: Job):
 def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.submit(...)`` instead.
-
     Args:
         job: Job to be executed.
 
     Returns:
         IBM's job id and the ``qiskit`` job itself.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     if job.job_type == JobType.STATE_VECTOR:
         raise DeviceJobIncompatibleError(
@@ -277,15 +277,15 @@ def run_ibmq(job: Job) -> Result:
     """Submits the job on the right IBMQ remote device, precised in the job in
     parameter, and waits until the job is completed.
 
-    Note:
-        This function is not meant to be used directly, please use
-        ``runner.run(...)`` instead.
-
     Args:
         job: Job to be executed.
 
     Returns:
         A Result after submission and execution of the job.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:``run<mpqp.execution.runner.run>`` instead.
     """
     _, remote_job = submit_ibmq(job)
     ibm_result = remote_job.result()

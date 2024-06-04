@@ -111,9 +111,6 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
          ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
 
-    Raises:
-        AWSBraketRemoteExecutionError: If the device or the region could not be
-            retrieved.
     """
     import boto3
     from botocore.exceptions import NoRegionError
