@@ -1,7 +1,7 @@
 """Native gates is the set of all gates natively supported in OpenQASM. Since we
 rely on this standard, all of them are indeed implemented. In addition, this
 module contains a few abstract classes used to factorize the behaviors common to
-a lot of gates. Feel free to use them for your own custom gates!"""
+a lot of gates."""
 
 from __future__ import annotations
 
