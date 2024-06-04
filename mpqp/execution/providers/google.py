@@ -21,6 +21,7 @@ from cirq.sim.sparse_simulator import Simulator
 from cirq.circuits.circuit import Circuit as Cirq_circuit
 from cirq.study.result import Result as cirq_result
 from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+from cirq.ops.pauli_string import PauliString as Cirq_PauliString
 from cirq_google.engine.virtual_engine_factory import (
     load_median_device_calibration,
     create_device_from_processor_id,
@@ -147,7 +148,7 @@ def run_local(job: Job) -> Result:
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=job_cirq_circuit
         )
-        assert type(cirq_obs) == Cirq_PauliSum
+        assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
 
         if job.measure.shots == 0:
             result_sim = simulator.simulate_expectation_values(
@@ -204,8 +205,16 @@ def run_local_processor(job: Job) -> Result:
             f"Does not handle {job.job_type} for processor for the moment"
         )
     elif job.job_type == JobType.OBSERVABLE:
-        raise NotImplementedError(
-            f"Does not handle {job.job_type} for processor for the moment"
+        assert isinstance(job.measure, ExpectationMeasure)
+
+        cirq_obs = job.measure.observable.to_other_language(
+            language=Language.CIRQ, circuit=job_cirq_circuit
+        )
+        assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
+
+        shots = 1000 if job.measure.shots == 0 else job.measure.shots
+        result_sim = simulator.get_sampler(job.device.value).sample_expectation_values(
+            job_cirq_circuit, observables=cirq_obs, num_samples=shots
         )
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
@@ -356,4 +365,6 @@ def extract_result_OBSERVABLE(
         if isinstance(result1, ObservableMeasuredResult):
             mean += result1.mean
             # 3M-TODO variance not supported variance += result1.variance
+        elif isinstance(result1, list):
+            mean += sum(result1)/len(result1)
     return Result(job, mean, variance, job.measure.shots)
