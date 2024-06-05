@@ -132,3 +132,27 @@ function whenCondition(action, condition) {
 
   interval = setInterval(watcher, 50);
 }
+
+function generateListOfNativeGates() {
+  ngTarget = document.querySelector("span#native-gates");
+
+  if (ngTarget) {
+    ngSection = ngTarget.parentElement;
+    ul = document.createElement("ul");
+    ngClasses = ngSection.querySelectorAll("dl.py.class");
+    ngClasses.forEach(function (c) {
+      className = c.querySelector("span.descname").innerText;
+      classLink = c.querySelector("dt.sig.sig-object.py").id;
+      li = document.createElement("li");
+      a = document.createElement("a");
+      a.href = "#" + classLink;
+      a.innerText = className;
+      li.appendChild(a);
+      ul.appendChild(li);
+    });
+    ngTarget.appendChild(ul);
+  }
+}
+window.onload = generateListOfNativeGates;
+
+
