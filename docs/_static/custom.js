@@ -141,6 +141,11 @@ function generateListOfNativeGates() {
   if (ngTitle) {
       ul = document.createElement("ul");
       ngClasses = ngSection.querySelectorAll("dl.py.class");
+
+      ul.style.display = "flex";
+      ul.style.listStyleType = "none"; 
+      ul.style.flexWrap = "wrap"; 
+
       ngClasses.forEach(function (c) {
           className = c.querySelector("span.descname").innerText;
           classLink = c.querySelector("dt.sig.sig-object.py").id;
