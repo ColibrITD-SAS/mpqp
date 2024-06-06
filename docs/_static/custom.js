@@ -134,7 +134,7 @@ function whenCondition(action, condition) {
 }
 
 function generateListOfNativeGates() {
-  ngTitleSpan = document.querySelector("span#native-gates")
+  ngTitleSpan = document.querySelector("span#native-gates");
   ngTitle = ngTitleSpan.nextElementSibling;
   ngSection = ngTitle.parentElement;
 
@@ -148,7 +148,12 @@ function generateListOfNativeGates() {
 
       ngClasses.forEach(function (c) {
           className = c.querySelector("span.descname").innerText;
+          classDefinition = c.textContent;
           classLink = c.querySelector("dt.sig.sig-object.py").id;
+
+          if (classDefinition.includes("ABC")) {
+              return;
+          }
 
           li = document.createElement("li");
           a = document.createElement("a");
@@ -157,9 +162,33 @@ function generateListOfNativeGates() {
           li.appendChild(a);
           ul.appendChild(li);
       });
-      ngTitle.parentNode.insertBefore(ul, ngTitle.nextSibling);
+
+      textParagraph = document.createElement("p");
+      textParagraph.innerText = "Here is the list of the supported native gates:";
+
+      textElement = ngSection.querySelector("p");
+
+      if (textElement) {
+          textElement.parentNode.insertBefore(ul, textElement.nextSibling);
+          textElement.parentNode.insertBefore(textParagraph, ul);
+      }
   }
 }
+
 window.onload = generateListOfNativeGates;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
