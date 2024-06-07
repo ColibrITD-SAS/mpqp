@@ -1,6 +1,7 @@
 import os
 from typing import TYPE_CHECKING, Any
 
+import pkg_resources
 from termcolor import colored
 from typeguard import typechecked
 
@@ -126,7 +127,10 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
-        aws_session.add_braket_user_agent(user_agent="APN/1.0 ColibriTD/1.0 MPQP/1.0")
+        mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
+        aws_session.add_braket_user_agent(
+            user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
+        )
         return AwsDevice(device.get_arn(), aws_session=aws_session)
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
