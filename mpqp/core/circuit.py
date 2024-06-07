@@ -940,9 +940,11 @@ class QCircuit:
         )
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
-        qasm = qiskit_circ.qasm()
-        assert qasm is not None
-        return qasm
+
+        from qiskit import qasm2
+        qasm_str = qasm2.dumps(qiskit_circ)
+        assert qasm_str is not None
+        return qasm_str
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.
