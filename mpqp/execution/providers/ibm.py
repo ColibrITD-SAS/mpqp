@@ -14,9 +14,9 @@ from qiskit.quantum_info import Operator
 from qiskit.result import Result as QiskitResult
 from qiskit_aer import Aer, AerSimulator
 from qiskit_ibm_provider.job import IBMJob
-from qiskit_ibm_runtime import Estimator as Runtime_Estimator
+from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 from qiskit_ibm_runtime import RuntimeJob
-from qiskit_ibm_runtime import Sampler as Runtime_Sampler
+from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 from qiskit_ibm_runtime import Session
 from typeguard import typechecked
 
