@@ -6,7 +6,8 @@ on:
       - closed
     branches:
       - main
-
+  release:
+    types: [published]
 jobs:
   build_publish_docs:
     # Deploy to cloudflare
@@ -18,6 +19,8 @@ jobs:
       - name: Build Document
         run: |
           pip install -r requirements-dev.txt
+          sudo apt update
+          sudo apt install -y pandoc
           touch .env
           echo "SPHINX_GITHUB_CHANGELOG_TOKEN=${{secrets.DOC_GH_API_TOKEN}}" > .env
           sphinx-build -b html docs build
