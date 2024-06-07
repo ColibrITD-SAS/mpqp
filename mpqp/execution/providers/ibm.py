@@ -3,6 +3,7 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Optional
 
+import numpy as np
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
 from qiskit.primitives import BackendEstimator
@@ -15,7 +16,7 @@ from qiskit.result import Result as QiskitResult
 from qiskit_aer import Aer, AerSimulator
 from qiskit_ibm_provider.job import IBMJob
 from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
-from qiskit_ibm_runtime import RuntimeJob
+from qiskit_ibm_runtime import RuntimeJobV2 as RuntimeJob
 from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 from qiskit_ibm_runtime import Session
 from typeguard import typechecked
@@ -49,7 +50,7 @@ def run_ibm(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
-    return run_aer(job) if not job.device.is_remote() else run_ibmq(job)
+    return run_aer(job) if not job.device.is_remote() else run_remote_ibm(job)
 
 
 @typechecked
@@ -211,7 +212,7 @@ def run_aer(job: Job):
 
 
 @typechecked
-def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
+def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
     Args:
@@ -257,13 +258,17 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
         qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_observable, Operator)
 
+        precision = 1/np.sqrt(job.measure.shots)
+        # TODO: check if this trick will indeed generate the right number of shots
+        #  from their code, it seems that shots = int(np.ceil(1.0 / precision**2))
+        #  we need to check in the metadata of the Result they return if shots is correct
         ibm_job = estimator.run(
-            qiskit_circuit, qiskit_observable, shots=job.measure.shots
+            [(qiskit_circuit, qiskit_observable)], precision=precision
         )
     elif job.job_type == JobType.SAMPLE:
-        assert job.measure is not None
+        assert isinstance(job.measure, BasisMeasure)
         sampler = Runtime_Sampler(session=session)
-        ibm_job = sampler.run(qiskit_circuit, shots=job.measure.shots)
+        ibm_job = sampler.run([qiskit_circuit], shots=job.measure.shots)
     else:
         raise NotImplementedError(f"{job.job_type} not handled.")
 
@@ -273,8 +278,8 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
 
 
 @typechecked
-def run_ibmq(job: Job) -> Result:
-    """Submits the job on the right IBMQ remote device, precised in the job in
+def run_remote_ibm(job: Job) -> Result:
+    """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
     Args:
@@ -287,7 +292,7 @@ def run_ibmq(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
-    _, remote_job = submit_ibmq(job)
+    _, remote_job = submit_remote_ibm(job)
     ibm_result = remote_job.result()
 
     assert isinstance(job.device, IBMDevice)
@@ -316,7 +321,7 @@ def extract_result(
     Returns:
         The ``qiskit`` result converted to our format.
     """
-
+    #TODO: check this extraction of result
     if job is not None and (
         isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
     ):
@@ -438,6 +443,7 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     # search for job id in the connector given in parameter first
     # if not found, try with IBMProvider, then QiskitRuntimeService
     # if not found, raise an error
+    # TODO: check this if it still works with IBMProvider
     connector = get_IBMProvider()
     ibm_job = (
         connector.retrieve_job(job_id)
