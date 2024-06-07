@@ -76,6 +76,22 @@ window.onload = () => {
       }
     }
   });
+
+  // in the native gates section, add the list of native gates
+  ngListLocation = document.getElementById("native-gates-list");
+  if (ngListLocation) {
+    ngSection = ngListLocation.parentElement;
+    ngClasses = ngSection.querySelectorAll("dl.py.class");
+    ngLinks = "";
+
+    ngClasses.forEach(function (c) {
+      if (c.textContent.includes("ABC")) return;
+      ngLinks += `<a href="#${c.querySelector("dt.sig.sig-object.py").id}">
+        ${c.querySelector("span.descname").innerText}
+      </a>`;
+    });
+    ngListLocation.innerHTML = ngLinks;
+  }
 };
 
 // const themeButton = document.querySelector('themeSwitcher')

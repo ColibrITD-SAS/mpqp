@@ -2,6 +2,7 @@ QASM converter
 ==================
 
 .. code-block:: python
+    :class: import
 
     from mpqp.qasm import *
 

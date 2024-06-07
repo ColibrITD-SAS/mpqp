@@ -14,6 +14,7 @@ details about the manipulation, usage, and simulation of noise models are
 presented.
 
 .. code-block:: python
+    :class: import
 
     from mpqp.noise import *
 

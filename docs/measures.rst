@@ -2,6 +2,7 @@ Measurements
 ============
 
 .. code-block:: python
+    :class: import
 
     from mpqp.measures import *
 

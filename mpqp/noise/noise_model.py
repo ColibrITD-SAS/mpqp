@@ -30,8 +30,7 @@ class NoiseModel(ABC):
 
     Raises:
         ValueError: When target list is empty, or target indices are duplicated
-            or negative. When a custom gate does not have a class attribute ``nb_qubits``.
-            When the size of the gate is higher than the number of target qubits.
+        or negative. When the size of the gate is higher than the number of target qubits.
     """
 
     def __init__(self, targets: list[int], gates: Optional[list[type[Gate]]] = None):
