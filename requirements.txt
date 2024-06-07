@@ -10,6 +10,8 @@ myqlm-interop==1.9.3
 cvxpy==1.4.3
 qiskit==1.1.0
 qiskit-ibm-runtime==0.23.0
+qiskit_ibm_provider==0.11.0
+qiskit-aer==0.14.2
 python_dotenv==1.0.0
 jsonschema>=4.17.3
 typeguard>=4.2.1
