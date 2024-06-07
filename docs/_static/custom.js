@@ -85,9 +85,7 @@ window.onload = () => {
     ngLinks = "";
 
     ngClasses.forEach(function (c) {
-      if (c.textContent.includes("ABC")) {
-        return;
-      }
+      if (c.textContent.includes("ABC")) return;
       ngLinks += `<a href="#${c.querySelector("dt.sig.sig-object.py").id}">
         ${c.querySelector("span.descname").innerText}
       </a>`;

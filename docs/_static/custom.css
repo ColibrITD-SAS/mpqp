@@ -185,6 +185,7 @@ html[data-theme="dark"] .highlight-python.import {
 
 #native-gates-list {
   display: flex;
+  flex-wrap: wrap;
   gap: 2em;
   padding-block-end: 1em;
 }
