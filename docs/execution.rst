@@ -2,6 +2,7 @@ Execution
 =========
 
 .. code-block:: python
+    :class: import
 
     from mpqp.execution import *
 

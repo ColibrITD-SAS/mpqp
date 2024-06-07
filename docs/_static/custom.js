@@ -76,6 +76,24 @@ window.onload = () => {
       }
     }
   });
+
+  // in the native gates section, add the list of native gates
+  ngListLocation = document.getElementById("native-gates-list");
+  if (ngListLocation) {
+    ngSection = ngListLocation.parentElement;
+    ngClasses = ngSection.querySelectorAll("dl.py.class");
+    ngLinks = "";
+
+    ngClasses.forEach(function (c) {
+      if (c.textContent.includes("ABC")) {
+        return;
+      }
+      ngLinks += `<a href="#${c.querySelector("dt.sig.sig-object.py").id}">
+        ${c.querySelector("span.descname").innerText}
+      </a>`;
+    });
+    ngListLocation.innerHTML = ngLinks;
+  }
 };
 
 // const themeButton = document.querySelector('themeSwitcher')
@@ -132,63 +150,3 @@ function whenCondition(action, condition) {
 
   interval = setInterval(watcher, 50);
 }
-
-function generateListOfNativeGates() {
-  ngTitleSpan = document.querySelector("span#native-gates");
-  ngTitle = ngTitleSpan.nextElementSibling;
-  ngSection = ngTitle.parentElement;
-
-  if (ngTitle) {
-      ul = document.createElement("ul");
-      ngClasses = ngSection.querySelectorAll("dl.py.class");
-
-      ul.style.display = "flex";
-      ul.style.listStyleType = "none"; 
-      ul.style.flexWrap = "wrap"; 
-
-      ngClasses.forEach(function (c) {
-          className = c.querySelector("span.descname").innerText;
-          classDefinition = c.textContent;
-          classLink = c.querySelector("dt.sig.sig-object.py").id;
-
-          if (classDefinition.includes("ABC")) {
-              return;
-          }
-
-          li = document.createElement("li");
-          a = document.createElement("a");
-          a.href = "#" + classLink;
-          a.innerText = className;
-          li.appendChild(a);
-          ul.appendChild(li);
-      });
-
-      textParagraph = document.createElement("p");
-      textParagraph.innerText = "Here is the list of the supported native gates:";
-
-      textElement = ngSection.querySelector("p");
-
-      if (textElement) {
-          textElement.parentNode.insertBefore(ul, textElement.nextSibling);
-          textElement.parentNode.insertBefore(textParagraph, ul);
-      }
-  }
-}
-
-window.onload = generateListOfNativeGates;
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

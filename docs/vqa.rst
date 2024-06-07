@@ -4,6 +4,7 @@ Variational Quantum Algorithms
 ==============================
 
 .. code-block:: python
+    :class: import
 
     from mpqp.execution.vqa import *
 
