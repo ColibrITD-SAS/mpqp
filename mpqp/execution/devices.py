@@ -86,12 +86,6 @@ class IBMDevice(AvailableDevice):
     # AER_SIMULATOR_UNITARY = "aer_simulator_unitary"
     # AER_SIMULATOR_SUPEROP = "aer_simulator_superop"
 
-    # IBMQ_SIMULATOR_STATEVECTOR = "simulator_statevector"
-    # IBMQ_SIMULATOR_STABILIZER = "simulator_stabilizer"
-    # IBMQ_SIMULATOR_EXTENDED_STABILIZER = "simulator_extended_stabilizer"
-    # IBMQ_SIMULATOR_MPS = "simulator_mps"
-    # IBMQ_QASM_SIMULATOR = "ibmq_qasm_simulator"
-
     IBM_BRISBANE = "ibm_brisbane"
     IBM_OSAKA = "ibm_osaka"
     IBM_KYOTO = "ibm_kyoto"
@@ -112,8 +106,7 @@ class IBMDevice(AvailableDevice):
     IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
-    IBM_RANDOM_SMALL_DEVICE = "ibm_small_device"
-    IBM_SMALL_DEVICES_LEAST_BUSY = "ibm_least_busy"
+    IBM_LEAST_BUSY = "ibm_least_busy"
 
     def is_remote(self) -> bool:
         return self.name.startswith("IBM")
@@ -129,11 +122,7 @@ class IBMDevice(AvailableDevice):
         raise NotImplementedError()
         # 3M-TODO: determine which devices can simulate noise or not for Qiskit remote, or local
         noise_support_devices = {
-            IBMDevice.IBMQ_SIMULATOR_STATEVECTOR: True,
             IBMDevice.AER_SIMULATOR_STABILIZER: True,
-            IBMDevice.IBMQ_SIMULATOR_EXTENDED_STABILIZER: False,
-            IBMDevice.IBMQ_SIMULATOR_MPS: False,
-            IBMDevice.IBMQ_QASM_SIMULATOR: True,
         }
         return self in noise_support_devices
 
