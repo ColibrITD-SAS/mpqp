@@ -29,7 +29,7 @@ def config_ibm_account(token: str):
     Raises:
         IBMRemoteExecutionError
     """
-
+    # TODO check this function after migration
     try:
         IBMProvider.save_account(token=token, overwrite=True)
         save_env_variable("IBM_CONFIGURED", "True")
@@ -44,6 +44,7 @@ def config_ibm_account(token: str):
 
 def setup_ibm_account():
     """Setups and updates the IBM Q account using the existing configuration and by asking for the token ."""
+    # TODO check this function after migration
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
     if was_configured:
@@ -77,6 +78,7 @@ def test_connection() -> bool:
     Returns:
         ``False`` if login failed.
     """
+    # TODO check this function after migration
     try:
         IBMProvider()
     except RequestsApiError as err:
@@ -108,6 +110,7 @@ def get_IBMProvider() -> IBMProvider:
          <IBMBackend('ibm_osaka')>]
 
     """
+    # TODO check this function after migration
     global Ibm_Provider
     if Ibm_Provider is None:
         if get_env_variable("IBM_CONFIGURED") == "False":
@@ -147,6 +150,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
          <RuntimeJob('cm7vds4pduldih1k1mq0', 'sampler')>]
 
     """
+    # TODO check this function after migration
     from qiskit_ibm_runtime import QiskitRuntimeService
 
     global Runtime_Service
@@ -180,6 +184,7 @@ def get_active_account_info() -> str:
             Verify: True
 
     """
+    # TODO check this function after migration
     provider = get_IBMProvider()
     account = provider.active_account()
     assert account is not None
@@ -212,6 +217,7 @@ def get_backend(device: IBMDevice) -> "BackendV1":
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
 
     """
+    # TODO check this function after migration
     # NOTE:
     #       Question : when a backend is present in several IBMQ instances, which instance does it use to submit jobs
     # on this backend ? Typically if with colibritd instance i have more priority and by default it uses ibmq
@@ -251,6 +257,7 @@ def get_all_job_ids() -> list[str]:
         'cm80pb1054sir2ck9i3g', 'cm80pa6879ps6bbqg2pg', 'cm7vdugiidfp3m8rg02g', 'cm7vds4pduldih1k1mq0']
 
     """
+    # TODO check this function after migration
     all_job_ids = []
     if get_env_variable("IBM_CONFIGURED") != "True":
         return all_job_ids

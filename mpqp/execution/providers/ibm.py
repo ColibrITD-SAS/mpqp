@@ -10,7 +10,8 @@ from qiskit.primitives import BackendEstimator
 from qiskit.primitives import Estimator as Qiskit_Estimator
 from qiskit.primitives import EstimatorResult, SamplerResult
 from qiskit.providers import BackendV1, BackendV2
-from qiskit.providers import JobStatus as IBM_JobStatus
+#from qiskit.providers import JobStatus as IBM_JobStatus
+# TODO:  remove ibm job status and replace it everywhere by the string of the RuntimeJobV2.status()
 from qiskit.quantum_info import Operator
 from qiskit.result import Result as QiskitResult
 from qiskit_aer import Aer, AerSimulator

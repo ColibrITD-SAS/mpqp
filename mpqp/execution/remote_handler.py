@@ -78,6 +78,7 @@ def get_remote_result(
          Number of qubits: 2
 
     """
+    #TODO : check if still working after qiskit migration
     if isinstance(job_data, Job):
         if job_data.id is None:
             raise ValueError("Can't retrieve remote result for a job whose id is None.")
@@ -116,6 +117,7 @@ def get_all_job_ids() -> dict[type[AvailableDevice], list[str]]:
         A dictionary of job-ids indexed by the correspond AvailableDevice
         (ATOSDevice, AWSDevice, IBMDevice, ...).
     """
+    # TODO : check if still working after qiskit migration
     job_ids: dict[type[AvailableDevice], list[str]] = {
         AWSDevice: aws_ids(),
         ATOSDevice: qlm_ids(),

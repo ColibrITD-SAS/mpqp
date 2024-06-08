@@ -25,5 +25,5 @@ def qasm2_to_Qiskit_Circuit(qasm_str: str) -> "QuantumCircuit":
         A QuantumCircuit equivalent to the QASM code in parameter.
     """
     from qiskit import QuantumCircuit
-
+    # TODO : check if still working after qiskit migration
     return QuantumCircuit.from_qasm_str(qasm_str)
