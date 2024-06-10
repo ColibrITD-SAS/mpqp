@@ -86,9 +86,10 @@ def compute_expectation_value(
     else:
         estimator = Qiskit_Estimator()
 
-    # 6M-TODO : think of the possibility to compute several expectation values at the same time when the circuit is
-    #  the same apparently the estimator.run() can take several circuits and observables at the same time,
-    #  to verify if putting them all together increases the performance
+    # 3M-TODO: think of the possibility to compute several expectation values at
+    # the same time when the circuit is the same apparently the estimator.run()
+    # can take several circuits and observables at the same time, to verify if
+    # putting them all together increases the performance
 
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run(

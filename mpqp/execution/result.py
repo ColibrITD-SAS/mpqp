@@ -220,7 +220,7 @@ class Result:
 
     """
 
-    # 3M-TODO: in this class, there is a lot of manual type checking, this is an
+    # TODO: in this class, there is a lot of manual type checking, this is an
     #  anti-pattern in my opinion, it should probably be fixed using subclasses
 
     def __init__(

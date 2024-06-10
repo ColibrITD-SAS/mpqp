@@ -124,7 +124,8 @@ def qasm_code(instr: Instr) -> str:
         OpenQASM definition of ``instr``.
     """
 
-    # 3M-TODO: if run from outside the mpqp folder, the following line will fuck things up, fix it
+    # FIXME: if run from outside the mpqp folder, the following line will fuck
+    # things up
     headers_folder = os.path.dirname(__file__) + "/header_codes/"
     special_file_names = {
         Instr.OQASM2_ALL_STDGATES: "qelib1.inc",
@@ -155,7 +156,7 @@ def parse_openqasm_2_file(code: str) -> list[str]:
         we do not check for correct syntax, it is assumed that the code is well
         formed.
     """
-    # 6M-TODO: deal with comments, for the moment we remove them all
+    # 3M-TODO: deal with comments, for the moment we remove them all
 
     # removing comment
     cleaned_code = "".join([loc.split("//")[0] for loc in code.split("\n")])

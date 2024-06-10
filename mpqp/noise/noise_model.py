@@ -158,7 +158,8 @@ class Depolarizing(NoiseModel):
                 f" than 1, but got {dimension} instead."
             )
 
-        # 3M-TODO: implement the possibility of having a parameterized noise, param: Union[float, Expr]
+        # 3M-TODO: implement the possibility of having a parameterized noise,
+        # param: Union[float, Expr]
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]
             print(dimension, prob, prob_upper_bound)

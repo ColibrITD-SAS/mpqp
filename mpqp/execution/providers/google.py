@@ -358,5 +358,5 @@ def extract_result_OBSERVABLE(
             mean += abs(result1)
         if isinstance(result1, ObservableMeasuredResult):
             mean += result1.mean
-            # 3M-TODO variance not supported variance += result1.variance
+            # TODO variance not supported variance += result1.variance
     return Result(job, mean, variance, job.measure.shots)

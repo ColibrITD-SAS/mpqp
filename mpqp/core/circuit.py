@@ -481,7 +481,7 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        3M-TODO: will only work once the circuit.to_matrix is implemented
+        TODO: will only work once the circuit.to_matrix is implemented
          Also take into account Noise in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
@@ -524,7 +524,7 @@ class QCircuit:
                    [ 0.        ,  0.70710678,  0.        , -0.70710678],
                    [ 0.70710678,  0.        , -0.70710678,  0.        ]])
 
-        # 3M-TODO implement and double check examples and test:
+        # TODO implement and double check examples and test:
         the idea is to compute the tensor product of the matrices associated
         with the gates of the circuit in a clever way (to minimize the number of
         multiplications) and then return the big matrix
@@ -565,7 +565,7 @@ class QCircuit:
             q_1: ┤ Ry(4.56) ├┤ H ├─■──────
                  └──────────┘└───┘
 
-        # 3M-TODO implement, test, fill second example
+        # TODO implement, test, fill second example
         The inverse could be computed in several ways, depending on the
         definition of the circuit. One can inverse each gate in the circuit, or
         take the global unitary of the gate and inverse it.
@@ -585,7 +585,7 @@ class QCircuit:
             >>> c = QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), CNOT(2, 3)])
             >>> c.to_gate().definition.matrix
 
-        # 3M-TODO check implementation, example and test, this will only work
+        # TODO check implementation, example and test, this will only work
            when circuit.to_matrix() will be implemented
         """
         gate_def = UnitaryMatrix(self.to_matrix())
@@ -612,8 +612,8 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
 
-        # 3M-TODO : to implement --> a first sort term way could be to reuse the
-        # qiskit QuantumCircuit feature qc.initialize()
+        # 3M-TODO : to implement --> a first short term way could be to reuse
+        # the qiskit QuantumCircuit feature qc.initialize()
         """
         size = int(np.log2(len(state)))
         if 2**size != len(state):
@@ -817,8 +817,9 @@ class QCircuit:
                         instruction.targets,
                         instruction.label,
                     )
-                    # FIXME: minus sign appearing when it should not, seems there a phase added somewhere, check u gate
-                    #  in OpenQASM translation.
+                    # FIXME: minus sign appearing when it should not, seems
+                    # there a phase added somewhere, check u gate in OpenQASM
+                    # translation.
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
@@ -827,8 +828,9 @@ class QCircuit:
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
-                    # TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
-                    # the condition to have only computational basis
+                    # TODO muhammad/henri, for custom basis, check if something
+                    # should be changed here, otherwise remove the condition to
+                    # have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
@@ -1020,7 +1022,8 @@ class QCircuit:
         """
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
-            + self.noises,  # 3M-TODO: modify this line when noise will be parameterized, to substitute, like we do for inst
+            + self.noises,  # 3M-TODO: modify this line when noise will be
+            # parameterized, to substitute, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,

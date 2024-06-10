@@ -105,7 +105,7 @@ class Job:
 
     """
 
-    # 6M-TODO: decide, when there are several measurements, if we define a
+    # 3M-TODO: decide, when there are several measurements, if we define a
     #  multi-measure job, or if we need several jobs. For the moment, a Job can
     #  handle only one measurement
 
