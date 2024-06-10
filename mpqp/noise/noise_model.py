@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from braket.circuits.noises import Depolarizing as BraketDepolarizing
-from braket.circuits.noises import Noise as BraketNoise
-from braket.circuits.noises import TwoQubitDepolarizing
-from qat.quops.class_concepts import QuantumChannel as QLMNoise
+if TYPE_CHECKING:
+    from braket.circuits.noises import Noise as BraketNoise
+    from braket.circuits.noises import TwoQubitDepolarizing
+    from qat.quops.class_concepts import QuantumChannel as QLMNoise
+
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
@@ -236,8 +237,12 @@ class Depolarizing(NoiseModel):
                     f"Depolarizing channel is not implemented in Braket for more than 2 qubits."
                 )
             elif self.dimension == 2:
+                from braket.circuits.noises import TwoQubitDepolarizing
+
                 return TwoQubitDepolarizing(probability=self.proba)
             else:
+                from braket.circuits.noises import Depolarizing as BraketDepolarizing
+
                 return BraketDepolarizing(probability=self.proba)
 
         elif language == Language.MY_QLM:

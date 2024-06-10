@@ -30,11 +30,10 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from braket.circuits import Circuit as braket_Circuit
     from qiskit.circuit import QuantumCircuit
+    from sympy import Basic, Expr
 
 import numpy as np
 import numpy.typing as npt
-from matplotlib.figure import Figure
-from sympy import Basic, Expr
 from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
@@ -377,10 +376,12 @@ class QCircuit:
             \end{document}
 
         """
+        from matplotlib.figure import Figure
         from qiskit.tools.visualization import circuit_drawer
 
         qc = self.to_other_language(language=Language.QISKIT)
         fig = circuit_drawer(qc, output=output, style={"backgroundcolor": "#EEEEEE"})
+
         if isinstance(fig, Figure):
             fig.show()
         return fig
@@ -1101,6 +1102,8 @@ class QCircuit:
             {θ, k}
 
         """
+        from sympy import Expr
+
         params: set[Basic] = set()
         for inst in self.instructions:
             if isinstance(inst, ParametrizedGate):

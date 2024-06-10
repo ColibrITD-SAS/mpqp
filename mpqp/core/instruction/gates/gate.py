@@ -348,4 +348,6 @@ class SingleQubitGate(Gate, ABC):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.targets[0]})"
 
-    nb_qubits = 1  # pyright: ignore[reportAssignmentType]
+    nb_qubits = (  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+        1
+    )

@@ -11,9 +11,11 @@ from __future__ import annotations
 from abc import ABC
 from copy import deepcopy
 from numbers import Complex
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from sympy import Expr, symbols  # pyright: ignore [reportUnusedImport]
+if TYPE_CHECKING:
+    from sympy import Expr
+
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates.gate import Gate
@@ -64,6 +66,8 @@ class ParametrizedGate(Gate, ABC):
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> ParametrizedGate:
+        from sympy import Expr
+
         concrete_gate = deepcopy(self)
         options = getattr(self, "native_gate_options", {})
         concrete_gate.definition = concrete_gate.definition.subs(

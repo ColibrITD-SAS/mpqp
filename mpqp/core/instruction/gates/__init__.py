@@ -23,4 +23,4 @@ from .native_gates import (
     Y,
     Z,
 )
-from .parametrized_gate import ParametrizedGate, symbols
+from .parametrized_gate import ParametrizedGate

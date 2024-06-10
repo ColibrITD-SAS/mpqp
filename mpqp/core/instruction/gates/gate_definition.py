@@ -2,10 +2,13 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from numbers import Complex
+from typing import TYPE_CHECKING
 from warnings import warn
 
+if TYPE_CHECKING:
+    from sympy import Expr
+
 import numpy as np
-from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.tools.generics import Matrix, one_lined_repr
@@ -96,6 +99,8 @@ class UnitaryMatrix(GateDefinition):
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
+        from sympy import Expr
+
         if any(isinstance(elt, Expr) for _, elt in np.ndenumerate(definition)):
             if not disable_symbol_warn:
                 # 3M-TODO: can we improve this situation ?
@@ -134,6 +139,7 @@ class UnitaryMatrix(GateDefinition):
                 argument disables this check because in some contexts, it is
                 undesired. Defaults to False.
         """
+        from sympy import Expr
 
         def mapping(val: Expr | Complex) -> Expr | Complex:
             def caster(v: Expr | Complex) -> Expr | Complex:
@@ -165,4 +171,3 @@ class UnitaryMatrix(GateDefinition):
 
     def __repr__(self) -> str:
         return f"UnitaryMatrix({one_lined_repr(getattr(self, 'matrix', ''))})"
-

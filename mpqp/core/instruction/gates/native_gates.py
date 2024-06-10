@@ -17,11 +17,11 @@ from numbers import Integral
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
+    from sympy import Expr
     from qiskit.circuit import Parameter
 
 import numpy as np
 import numpy.typing as npt
-from sympy import Expr, pi
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
 # this file :/
@@ -34,6 +34,8 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC
 from mpqp.tools.maths import cos, exp, sin
+
+# from sympy import Expr, pi
 
 
 @typechecked
@@ -55,6 +57,8 @@ def _qiskit_parameter_adder(
     Returns:
         The memoized parameter
     """
+    from sympy import Expr
+
     if isinstance(param, Expr):
         name = str(param)
         previously_set_param = list(
@@ -142,6 +146,8 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         if language == Language.QISKIT:
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
+            from sympy import Expr
+
             # TODO: handle symbolic parameters for Braket
             if isinstance(theta, Expr):
                 raise NotImplementedError(
@@ -392,7 +398,17 @@ class P(RotationGate, SingleQubitGate):
         self.qlm_aqasm_keyword = "PH"
 
     def to_matrix(self) -> Matrix:
-        return np.array([[1, 0], [0, exp(self.parameters[0] * 1j)]])  # type:ignore
+        return np.array(  # pyright: ignore[reportCallIssue]
+            [
+                [1, 0],
+                [
+                    0,
+                    exp(
+                        self.parameters[0] * 1j  # pyright: ignore[reportOperatorIssue]
+                    ),
+                ],
+            ]
+        )
 
 
 class S(OneQubitNoParamGate):
@@ -448,7 +464,10 @@ class T(OneQubitNoParamGate):
         self.braket_gate = gates.T
         self.qlm_aqasm_keyword = "T"
 
-    matrix = np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
+    def to_matrix(self) -> Matrix:
+        from sympy import pi
+
+        return np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
 
 
 class SWAP(InvolutionGate, NoParameterGate):
@@ -543,6 +562,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             )
         elif language == Language.BRAKET:
             from braket.circuits import gates
+            from sympy import Expr
 
             # 3M-TODO handle symbolic parameters
             if (
@@ -561,12 +581,17 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     def to_matrix(self) -> Matrix:
         c, s, eg, ep = (
-            cos(self.theta / 2),  # type:ignore
-            sin(self.theta / 2),  # type:ignore
-            exp(self.gamma * 1j),  # type:ignore
-            exp(self.phi * 1j),  # type:ignore
+            cos(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
+            sin(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
+            exp(self.gamma * 1j),  # pyright: ignore[reportOperatorIssue]
+            exp(self.phi * 1j),  # pyright: ignore[reportOperatorIssue]
         )
-        return np.array([[c, -eg * s], [ep * s, eg * ep * c]])  # type:ignore
+        return np.array(  # pyright: ignore[reportCallIssue]
+            [
+                [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
+                [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
+            ]
+        )
 
     qlm_aqasm_keyword = "U"
 
@@ -596,8 +621,11 @@ class Rx(RotationGate, SingleQubitGate):
         self.qlm_aqasm_keyword = "RX"
 
     def to_matrix(self) -> Matrix:
-        c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
-        return np.array([[c, -1j * s], [-1j * s, c]])  # type:ignore
+        c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+        s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+        return np.array(  # pyright: ignore[reportCallIssue]
+            [[c, -1j * s], [-1j * s, c]]  # pyright: ignore[reportOperatorIssue]
+        )
 
 
 class Ry(RotationGate, SingleQubitGate):
@@ -625,7 +653,8 @@ class Ry(RotationGate, SingleQubitGate):
         self.qlm_aqasm_keyword = "RY"
 
     def to_matrix(self) -> Matrix:
-        c, s = cos(self.parameters[0] / 2), sin(self.parameters[0] / 2)  # type:ignore
+        c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+        s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         return np.array([[c, -s], [s, c]])
 
 
@@ -654,7 +683,9 @@ class Rz(RotationGate, SingleQubitGate):
         self.qlm_aqasm_keyword = "RZ"
 
     def to_matrix(self) -> Matrix:
-        e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+        e = exp(
+            -1j * self.parameters[0] / 2  # pyright: ignore[reportOperatorIssue]
+        )  # pyright: ignore[reportArgumentType]
         return np.array(  # pyright: ignore[reportCallIssue]
             [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
         )
@@ -690,7 +721,9 @@ class Rk(RotationGate, SingleQubitGate):
     def theta(self) -> Expr | float:
         r"""Value of the rotation angle, parametrized by ``k`` with the relation
         `\theta = \frac{\pi}{2^{k-1}}`."""
-        return pi / 2 ** (self.k - 1)  # type:ignore
+        from sympy import pi
+
+        return pi / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
 
     @property
     def k(self) -> Expr | float:
@@ -698,8 +731,10 @@ class Rk(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_matrix(self) -> Matrix:
+        from sympy import pi
+
         p = np.pi if isinstance(self.k, Integral) else pi
-        e = exp(p * 1j / 2 ** (self.k - 1))  # type:ignore
+        e = exp(p * 1j / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0], [0, e]])
 
     def __repr__(self):
@@ -807,8 +842,10 @@ class CRk(RotationGate, ControlledGate):
     def theta(self) -> Expr | float:
         r"""Value of the rotation angle, parametrized by ``k`` with the relation
         `\theta = \frac{\pi}{2^{k-1}}`."""
+        from sympy import pi
+
         p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)  # type:ignore
+        return p / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
 
     @property
     def k(self) -> Expr | float:
@@ -816,7 +853,7 @@ class CRk(RotationGate, ControlledGate):
         return self.parameters[0]
 
     def to_matrix(self) -> Matrix:
-        e = exp(self.theta * 1j)  # type:ignore
+        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def __repr__(self):
