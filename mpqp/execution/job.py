@@ -33,7 +33,7 @@ from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, 
 
 from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
-from .connection.ibm_connection import get_IBMProvider, get_QiskitRuntimeService
+from .connection.ibm_connection import get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
 from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 
@@ -203,18 +203,13 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
-    # test with QiskitRuntimeService
     if job_id in [e.job_id() for e in get_QiskitRuntimeService().jobs()]:
         ibm_job = get_QiskitRuntimeService().job(job_id)
-
-    # if not, test with IBMProvider
-    elif job_id in [e.job_id() for e in get_IBMProvider().jobs()]:
-        ibm_job = get_IBMProvider().retrieve_job(job_id)
-
     else:
         raise IBMRemoteExecutionError(
             f"Could not find job with id {job_id} on IBM/QiskitRuntime provider"
         )
+    # TODO: change how status are compared, and update import, we should check strings only if RuntimeJob V2
     status = ibm_job.status()
     if status == IBM_JobStatus.ERROR:
         return JobStatus.ERROR

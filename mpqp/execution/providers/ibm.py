@@ -8,14 +8,13 @@ from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
 from qiskit.primitives import BackendEstimator
 from qiskit.primitives import Estimator as Qiskit_Estimator
-from qiskit.primitives import EstimatorResult, SamplerResult
+from qiskit.primitives import PubResult
 from qiskit.providers import BackendV1, BackendV2
 #from qiskit.providers import JobStatus as IBM_JobStatus
 # TODO:  remove ibm job status and replace it everywhere by the string of the RuntimeJobV2.status()
 from qiskit.quantum_info import Operator
 from qiskit.result import Result as QiskitResult
 from qiskit_aer import Aer, AerSimulator
-from qiskit_ibm_provider.job import IBMJob
 from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 from qiskit_ibm_runtime import RuntimeJobV2 as RuntimeJob
 from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
@@ -26,10 +25,7 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.execution.connection.ibm_connection import (
-    get_IBMProvider,
-    get_QiskitRuntimeService,
-)
+from mpqp.execution.connection.ibm_connection import get_QiskitRuntimeService, get_backend
 from mpqp.execution.devices import IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
@@ -213,7 +209,7 @@ def run_aer(job: Job):
 
 
 @typechecked
-def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
+def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJob]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
     Args:
@@ -249,10 +245,11 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
     qiskit_circuit = qiskit_circuit.reverse_bits()
-
     service = get_QiskitRuntimeService()
-    backend_str = job.device.value
-    session = Session(service=service, backend=backend_str)
+    backend = get_backend(job.device.value)
+    session = Session(service=service, backend=backend)
+    qiskit_circuit = transpile(qiskit_circuit, backend)
+
     if job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
@@ -302,10 +299,10 @@ def run_remote_ibm(job: Job) -> Result:
 
 @typechecked
 def extract_result(
-    result: QiskitResult | EstimatorResult | SamplerResult,
+    result: QiskitResult | PubResult,
     job: Optional[Job] = None,
-    device: IBMDevice = IBMDevice.AER_SIMULATOR,
-    ibm_job: Optional[IBMJob | RuntimeJob] = None,
+    device: Optional[IBMDevice] = IBMDevice.AER_SIMULATOR,
+    ibm_job: Optional[RuntimeJob] = None,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`Result<mpqp.execution.result.Result>`.
@@ -316,19 +313,29 @@ def extract_result(
             result.
         device: IBMDevice on which the job was submitted. Used to know if the
             run was remote or local
-        ibm_job: IBM or Runtime job used to retrieve info about the circuit and
+        ibm_job: Runtime job (V2) used to retrieve info about the circuit and
             the submitted job (in the remote case).
 
     Returns:
         The ``qiskit`` result converted to our format.
     """
-    #TODO: check this extraction of result
+    # TODO: check this extraction of result
+
+    # If this is a PubResult from primitives V2
+    if isinstance(result, PubResult):
+        # If we are in observable mode
+        if result.data.evs ???
+
+
+
+
+##################################################
     if job is not None and (
         isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
     ):
         raise ValueError(
             "Mismatch between job type and result type: either the result is an"
-            " `EstimatorResult` and the job is od type of both those assertions"
+            " `EstimatorResult` and the job is of type of both those assertions"
             " are false."
         )
 
@@ -406,9 +413,9 @@ def extract_result(
                     )
 
         if job.job_type == JobType.STATE_VECTOR:
-            vector = result.get_statevector()
+            vector = np.array(result.get_statevector())
             state_vector = StateVector(
-                vector.data,  # pyright: ignore[reportArgumentType]
+                vector,  # pyright: ignore[reportArgumentType]
                 job.circuit.nb_qubits,
             )
             return Result(job, state_vector, 0, 0)
@@ -445,26 +452,21 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     # if not found, try with IBMProvider, then QiskitRuntimeService
     # if not found, raise an error
     # TODO: check this if it still works with IBMProvider
-    connector = get_IBMProvider()
+
+    connector = get_QiskitRuntimeService()
     ibm_job = (
-        connector.retrieve_job(job_id)
+        connector.job(job_id)
         if job_id in [job.job_id() for job in connector.jobs()]
         else None
     )
-    if ibm_job is None:
-        connector = get_QiskitRuntimeService()
-        ibm_job = (
-            connector.job(job_id)
-            if job_id in [job.job_id() for job in connector.jobs()]
-            else None
-        )
+
     if ibm_job is None:
         raise IBMRemoteExecutionError(
             f"Job with id {job_id} was not found on this account."
         )
 
     status = ibm_job.status()
-    if status in [IBM_JobStatus.CANCELLED, IBM_JobStatus.ERROR]:
+    if status in ["CANCELLED", "ERROR"]:
         raise IBMRemoteExecutionError(
             f"Trying to retrieve an IBM result for a job in status {status.name}"
         )

@@ -1,22 +1,20 @@
 from getpass import getpass
 from typing import TYPE_CHECKING
 
-from qiskit_ibm_provider import IBMProvider
-from qiskit_ibm_provider.accounts import AccountNotFoundError
-from qiskit_ibm_provider.api.exceptions import RequestsApiError
 from termcolor import colored
 from typeguard import typechecked
 
 if TYPE_CHECKING:
-    from qiskit.providers.backend import BackendV1
+    from qiskit.providers.backend import BackendV2
     from qiskit_ibm_runtime import QiskitRuntimeService
+    from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import IBMDevice
 from mpqp.tools.errors import IBMRemoteExecutionError
 
-Ibm_Provider = None
 Runtime_Service = None
+# TODO remove all references to IBMProvider cauz it is deprecated
 
 
 @typechecked
@@ -29,9 +27,8 @@ def config_ibm_account(token: str):
     Raises:
         IBMRemoteExecutionError
     """
-    # TODO check this function after migration
     try:
-        IBMProvider.save_account(token=token, overwrite=True)
+        QiskitRuntimeService.save_account(channel="ibm_quantum", token=token, overwrite=True)
         save_env_variable("IBM_CONFIGURED", "True")
         save_env_variable("IBM_TOKEN", token)
     except Exception as err:
@@ -54,7 +51,7 @@ def setup_ibm_account():
         if decision.lower().strip() != "y":
             return "Canceled.", []
 
-    token = getpass("Enter your IBM token (hidden): ")
+    token = getpass("Enter your IBMQ token (hidden): ")
     if token == "":
         print(colored("Empty credentials", "red"))
         getpass("Press 'Enter' to continue")
@@ -62,7 +59,7 @@ def setup_ibm_account():
     old_token = get_env_variable("IBM_TOKEN")
     config_ibm_account(token)
     if test_connection():
-        return "IBM Q account correctly configured", []
+        return "IBMQ account correctly configured", []
     else:
         if was_configured:
             config_ibm_account(old_token)
@@ -78,58 +75,16 @@ def test_connection() -> bool:
     Returns:
         ``False`` if login failed.
     """
-    # TODO check this function after migration
+    global Runtime_Service
     try:
-        IBMProvider()
-    except RequestsApiError as err:
+        Runtime_Service = QiskitRuntimeService(channel="ibm_quantum")
+    except IBMNotAuthorizedError as err:
         if "Login failed" in str(err):
             print(colored("Wrong credentials", "red"))
             return False
         else:
             raise err
     return True
-
-
-def get_IBMProvider() -> IBMProvider:
-    """Returns the IBMProvider needed to get one or several backends for
-    execution.
-
-    Raises:
-        IBMRemoteExecutionError
-
-    Example:
-        >>> instance = get_IBMProvider()
-        >>> instance.backends()
-        [<IBMBackend('ibmq_qasm_simulator')>,
-         <IBMBackend('simulator_extended_stabilizer')>,
-         <IBMBackend('simulator_mps')>,
-         <IBMBackend('simulator_stabilizer')>,
-         <IBMBackend('simulator_statevector')>,
-         <IBMBackend('ibm_brisbane')>,
-         <IBMBackend('ibm_kyoto')>,
-         <IBMBackend('ibm_osaka')>]
-
-    """
-    # TODO check this function after migration
-    global Ibm_Provider
-    if Ibm_Provider is None:
-        if get_env_variable("IBM_CONFIGURED") == "False":
-            raise IBMRemoteExecutionError(
-                "Error when instantiating IBM Provider. No IBM Q account configured."
-            )
-        try:
-            Ibm_Provider = IBMProvider()
-        except RequestsApiError as err:
-            raise IBMRemoteExecutionError(
-                "Error when instantiating IBM Provider (probably wrong token saved "
-                "in the account).\nTrace: " + str(err)
-            )
-        except AccountNotFoundError as err:
-            raise IBMRemoteExecutionError(
-                "Error when instantiating IBM Provider. No IBM Q account configured.\nTrace: "
-                + str(err)
-            )
-    return Ibm_Provider
 
 
 def get_QiskitRuntimeService() -> "QiskitRuntimeService":
@@ -160,7 +115,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
                 "Error when instantiating QiskitRuntimeService. No IBM account configured."
             )
         try:
-            Runtime_Service = QiskitRuntimeService()
+            Runtime_Service = QiskitRuntimeService(channel="ibm_quantum")
         except Exception as err:
             raise IBMRemoteExecutionError(
                 "Error when instantiating QiskitRuntimeService (probably wrong token saved "
@@ -184,19 +139,17 @@ def get_active_account_info() -> str:
             Verify: True
 
     """
-    # TODO check this function after migration
-    provider = get_IBMProvider()
-    account = provider.active_account()
+    service = get_QiskitRuntimeService()
+    account = service.active_account()
     assert account is not None
     return f"""    Channel: {account["channel"]}
-    Instance: {account["instance"]}
     Token: {account["token"][:5]}*****
     URL: {account["url"]}
     Verify: {account["verify"]}"""
 
 
 @typechecked
-def get_backend(device: IBMDevice) -> "BackendV1":
+def get_backend(device: IBMDevice) -> "BackendV2":
     """Retrieves the IBM Q remote device corresponding to the device in
     parameter.
 
@@ -218,19 +171,14 @@ def get_backend(device: IBMDevice) -> "BackendV1":
 
     """
     # TODO check this function after migration
-    # NOTE:
-    #       Question : when a backend is present in several IBMQ instances, which instance does it use to submit jobs
-    # on this backend ? Typically if with colibritd instance i have more priority and by default it uses ibmq
-    # instance, then i lose something here.
-    #       Answer : it takes the default instance attached to the account (the higher plan, usually).
     if not device.is_remote():
         raise ValueError("Expected a remote IBMQ device but got a local simulator.")
-    from qiskit.providers import QiskitBackendNotFoundError
+    from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
-    provider = get_IBMProvider()
+    service = get_QiskitRuntimeService()
 
     try:
-        backend = provider.get_backend(device.value)
+        backend = service.get_backend(device.value)
     except QiskitBackendNotFoundError as err:
         raise IBMRemoteExecutionError(
             f"Requested device {device} not found. Verify if your instances "
@@ -257,17 +205,11 @@ def get_all_job_ids() -> list[str]:
         'cm80pb1054sir2ck9i3g', 'cm80pa6879ps6bbqg2pg', 'cm7vdugiidfp3m8rg02g', 'cm7vds4pduldih1k1mq0']
 
     """
-    # TODO check this function after migration
     all_job_ids = []
-    if get_env_variable("IBM_CONFIGURED") != "True":
-        return all_job_ids
-    ibm_provider = get_IBMProvider()
-    service = get_QiskitRuntimeService()
+    if get_env_variable("IBM_CONFIGURED") == "True":
+        service = get_QiskitRuntimeService()
 
-    if ibm_provider:
-        all_job_ids.extend([job.job_id() for job in ibm_provider.jobs()])
-
-    if service:
-        all_job_ids.extend([job.job_id() for job in service.jobs()])
+        if service:
+            all_job_ids.extend([job.job_id() for job in service.jobs()])
 
     return all_job_ids
