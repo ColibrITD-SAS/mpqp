@@ -564,7 +564,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             from braket.circuits import gates
             from sympy import Expr
 
-            # 3M-TODO handle symbolic parameters
+            # TODO handle symbolic parameters
             if (
                 isinstance(self.theta, Expr)
                 or isinstance(self.phi, Expr)
