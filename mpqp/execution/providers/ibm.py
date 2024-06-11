@@ -8,7 +8,7 @@ from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
 from qiskit.primitives import BackendEstimator
 from qiskit.primitives import Estimator as Qiskit_Estimator
-from qiskit.primitives import PubResult
+from qiskit.primitives import PubResult, EstimatorResult, SamplerResult
 from qiskit.providers import BackendV1, BackendV2
 #from qiskit.providers import JobStatus as IBM_JobStatus
 # TODO:  remove ibm job status and replace it everywhere by the string of the RuntimeJobV2.status()
@@ -16,7 +16,7 @@ from qiskit.quantum_info import Operator
 from qiskit.result import Result as QiskitResult
 from qiskit_aer import Aer, AerSimulator
 from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
-from qiskit_ibm_runtime import RuntimeJobV2 as RuntimeJob
+from qiskit_ibm_runtime import RuntimeJobV2 , RuntimeJob
 from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 from qiskit_ibm_runtime import Session
 from typeguard import typechecked
@@ -209,7 +209,7 @@ def run_aer(job: Job):
 
 
 @typechecked
-def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJob]:
+def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
     Args:
@@ -299,10 +299,10 @@ def run_remote_ibm(job: Job) -> Result:
 
 @typechecked
 def extract_result(
-    result: QiskitResult | PubResult,
+    result: QiskitResult | EstimatorResult | SamplerResult | PubResult,
     job: Optional[Job] = None,
     device: Optional[IBMDevice] = IBMDevice.AER_SIMULATOR,
-    ibm_job: Optional[RuntimeJob] = None,
+    ibm_job: Optional[RuntimeJob | RuntimeJobV2] = None,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`Result<mpqp.execution.result.Result>`.
@@ -324,116 +324,127 @@ def extract_result(
     # If this is a PubResult from primitives V2
     if isinstance(result, PubResult):
         # If we are in observable mode
-        if result.data.evs ???
-
-
-
-
-##################################################
-    if job is not None and (
-        isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
-    ):
-        raise ValueError(
-            "Mismatch between job type and result type: either the result is an"
-            " `EstimatorResult` and the job is of type of both those assertions"
-            " are false."
-        )
-
-    if isinstance(result, EstimatorResult):
-        if job is None:
-            job = Job(JobType.OBSERVABLE, QCircuit(0), device)
-        shots = 0 if len(result.metadata[0]) == 0 else result.metadata[0]["shots"]
-        variance = (
-            None if len(result.metadata[0]) == 0 else result.metadata[0]["variance"]
-        )
-        return Result(job, result.values[0], variance, shots)
-
-    elif isinstance(result, SamplerResult):
-        shots = result.metadata[0]["shots"]
-        probas = result.quasi_dists[0]
-        if job is None:
-            if ibm_job is None:
-                #  If we don't have access to the remote Sampler RuntimeJob, we determine the number of qubits by taking
-                #  the max index in the counts and take the upper power of two. Of course this is not a clean way and
-                #  can lead to a lower number of qubit than the real one. We asked IBM support, apparently there is no
-                #  way to retrieve the right nb_qubits with SamplerResult only. That is why we encourage to input the
-                #  ibm_job to this function
-                max_index = max(list(probas.keys()))
-                nb_qubits = math.ceil(math.log2(max_index + 1))
-            else:
-                if isinstance(ibm_job, RuntimeJob):
-                    nb_qubits = len(ibm_job.inputs["circuits"][0].qubits)
-                else:
-                    raise ValueError(
-                        f"Expected a RuntimeJob as optional parameter but got an {type(ibm_job)} instead"
-                    )
+        if hasattr(result.data, "evs"): #TODO check that
+            ...
+        # If we are in sample mode
+        else:
+            shots = result[0].data.meas.num_shots
+            nb_qubits = result[0].data.meas.num_bits
             job = Job(
                 JobType.SAMPLE,
                 QCircuit(nb_qubits),
                 device,
                 BasisMeasure(list(range(nb_qubits)), shots=shots),
+    )
+
+    else:
+
+
+        ############# PREVIOUS CODE ############################
+        if job is not None and (
+            isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
+        ):
+            raise ValueError(
+                "Mismatch between job type and result type: either the result is an"
+                " `EstimatorResult` and the job is of type of both those assertions"
+                " are false."
             )
 
-        data = [
-            Sample(
-                index=item, probability=probas[item], nb_qubits=job.circuit.nb_qubits
+        elif isinstance(result, EstimatorResult):
+            if job is None:
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+            shots = 0 if len(result.metadata[0]) == 0 else result.metadata[0]["shots"]
+            variance = (
+                None if len(result.metadata[0]) == 0 else result.metadata[0]["variance"]
             )
-            for item in probas
-        ]
-        return Result(job, data, None, shots)
+            return Result(job, result.values[0], variance, shots)
 
-    elif isinstance(
-        result, QiskitResult
-    ):  # pyright: ignore[reportUnnecessaryIsInstance]
-        if job is None:
-            job_data = result.data()
-            if "statevector" in job_data:
-                job_type = JobType.STATE_VECTOR
-                nb_qubits = int(math.log(len(result.get_statevector()), 2))
-                job = Job(job_type, QCircuit(nb_qubits), device)
-            elif "counts" in job_data:
-                job_type = JobType.SAMPLE
-                nb_qubits = len(list(result.get_counts())[0])
-                shots = result.results[0].shots
+        elif isinstance(result, SamplerResult):
+            shots = result.metadata[0]["shots"]
+            probas = result.quasi_dists[0]
+            if job is None:
+                if ibm_job is None:
+                    #  If we don't have access to the remote Sampler RuntimeJob, we determine the number of qubits by taking
+                    #  the max index in the counts and take the upper power of two. Of course this is not a clean way and
+                    #  can lead to a lower number of qubit than the real one. We asked IBM support, apparently there is no
+                    #  way to retrieve the right nb_qubits with SamplerResult only. That is why we encourage to input the
+                    #  ibm_job to this function
+                    max_index = max(list(probas.keys()))
+                    nb_qubits = math.ceil(math.log2(max_index + 1))
+                else:
+                    if isinstance(ibm_job, RuntimeJob):
+                        nb_qubits = len(ibm_job.inputs["circuits"][0].qubits)
+                    else:
+                        raise ValueError(
+                            f"Expected a RuntimeJob as optional parameter but got an {type(ibm_job)} instead"
+                        )
                 job = Job(
-                    job_type,
+                    JobType.SAMPLE,
                     QCircuit(nb_qubits),
                     device,
                     BasisMeasure(list(range(nb_qubits)), shots=shots),
                 )
-            else:
-                if len(result.data()) == 0:
-                    raise ValueError(
-                        "Result data is empty, cannot extract anything. Check "
-                        "if the associated job was successfully completed."
-                    )
-                else:
-                    raise ValueError(
-                        f"Data with keys {result.data().keys()} in result not handled."
-                    )
 
-        if job.job_type == JobType.STATE_VECTOR:
-            vector = np.array(result.get_statevector())
-            state_vector = StateVector(
-                vector,  # pyright: ignore[reportArgumentType]
-                job.circuit.nb_qubits,
-            )
-            return Result(job, state_vector, 0, 0)
-        elif job.job_type == JobType.SAMPLE:
-            assert job.measure is not None
-            counts = result.get_counts()
             data = [
                 Sample(
-                    bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits
+                    index=item, probability=probas[item], nb_qubits=job.circuit.nb_qubits
                 )
-                for item in counts
+                for item in probas
             ]
-            return Result(job, data, None, job.measure.shots)
-        else:
-            raise NotImplementedError(f"{job.job_type} not handled.")
+            return Result(job, data, None, shots)
 
-    else:
-        raise NotImplementedError(f"Result type {type(result)} not handled")
+        elif isinstance(
+            result, QiskitResult
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
+            if job is None:
+                job_data = result.data()
+                if "statevector" in job_data:
+                    job_type = JobType.STATE_VECTOR
+                    nb_qubits = int(math.log(len(result.get_statevector()), 2))
+                    job = Job(job_type, QCircuit(nb_qubits), device)
+                elif "counts" in job_data:
+                    job_type = JobType.SAMPLE
+                    nb_qubits = len(list(result.get_counts())[0])
+                    shots = result.results[0].shots
+                    job = Job(
+                        job_type,
+                        QCircuit(nb_qubits),
+                        device,
+                        BasisMeasure(list(range(nb_qubits)), shots=shots),
+                    )
+                else:
+                    if len(result.data()) == 0:
+                        raise ValueError(
+                            "Result data is empty, cannot extract anything. Check "
+                            "if the associated job was successfully completed."
+                        )
+                    else:
+                        raise ValueError(
+                            f"Data with keys {result.data().keys()} in result not handled."
+                        )
+
+            if job.job_type == JobType.STATE_VECTOR:
+                vector = np.array(result.get_statevector())
+                state_vector = StateVector(
+                    vector,  # pyright: ignore[reportArgumentType]
+                    job.circuit.nb_qubits,
+                )
+                return Result(job, state_vector, 0, 0)
+            elif job.job_type == JobType.SAMPLE:
+                assert job.measure is not None
+                counts = result.get_counts()
+                data = [
+                    Sample(
+                        bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits
+                    )
+                    for item in counts
+                ]
+                return Result(job, data, None, job.measure.shots)
+            else:
+                raise NotImplementedError(f"{job.job_type} not handled.")
+
+        else:
+            raise NotImplementedError(f"Result type {type(result)} not handled")
 
 
 @typechecked
