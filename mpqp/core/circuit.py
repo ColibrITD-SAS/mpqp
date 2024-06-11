@@ -481,7 +481,7 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        TODO: will only work once the circuit.to_matrix is implemented
+        3M-TODO: will only work once the circuit.to_matrix is implemented
          Also take into account Noise in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
@@ -524,7 +524,7 @@ class QCircuit:
                    [ 0.        ,  0.70710678,  0.        , -0.70710678],
                    [ 0.70710678,  0.        , -0.70710678,  0.        ]])
 
-        # TODO implement and double check examples and test:
+        # 3M-TODO implement and double check examples and test:
         the idea is to compute the tensor product of the matrices associated
         with the gates of the circuit in a clever way (to minimize the number of
         multiplications) and then return the big matrix
@@ -585,7 +585,7 @@ class QCircuit:
             >>> c = QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), CNOT(2, 3)])
             >>> c.to_gate().definition.matrix
 
-        # TODO check implementation, example and test, this will only work
+        # 3M-TODO check implementation, example and test, this will only work
            when circuit.to_matrix() will be implemented
         """
         gate_def = UnitaryMatrix(self.to_matrix())
