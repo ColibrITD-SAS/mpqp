@@ -16,7 +16,7 @@ from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
-    from qiskit.quantum_info import Operator
+    from qiskit.quantum_info import Operator, SparsePauliOp
     from qat.core.wrappers.observable import Observable as QLMObservable
     from braket.circuits.observables import Hermitian
     from cirq.circuits.circuit import Circuit as Cirq_Circuit
@@ -124,7 +124,7 @@ class Observable:
 
     def to_other_language(
         self, language: Language, circuit: Optional[Cirq_Circuit] = None
-    ) -> Operator | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
+    ) -> SparsePauliOp | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
         """Converts the observable to the representation of another quantum
         programming language.
 
@@ -152,9 +152,8 @@ class Observable:
 
         """
         if language == Language.QISKIT:
-            from qiskit.quantum_info import Operator
-
-            return Operator(self.matrix)
+            from qiskit.quantum_info import Operator, SparsePauliOp
+            return SparsePauliOp.from_operator(Operator(self.matrix))
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Observable as QLMObservable
 

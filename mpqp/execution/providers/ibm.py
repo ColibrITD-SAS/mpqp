@@ -4,6 +4,11 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+
+if TYPE_CHECKING:
+    ... # TODO fill with right imports here
+
+
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
 from qiskit.primitives import BackendEstimator
@@ -254,15 +259,13 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
         assert isinstance(job.measure, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
         qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
-        assert isinstance(qiskit_observable, Operator)
+        assert isinstance(qiskit_observable, Operator) # TODO: apparently Operator is not accepted as observable type
 
         precision = 1/np.sqrt(job.measure.shots)
         # TODO: check if this trick will indeed generate the right number of shots
         #  from their code, it seems that shots = int(np.ceil(1.0 / precision**2))
         #  we need to check in the metadata of the Result they return if shots is correct
-        ibm_job = estimator.run(
-            [(qiskit_circuit, qiskit_observable)], precision=precision
-        )
+        ibm_job = estimator.run([(qiskit_circuit, qiskit_observable)], precision=precision)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
         sampler = Runtime_Sampler(session=session)
@@ -323,19 +326,32 @@ def extract_result(
 
     # If this is a PubResult from primitives V2
     if isinstance(result, PubResult):
+        res_data = result[0].data
         # If we are in observable mode
-        if hasattr(result.data, "evs"): #TODO check that
+        if hasattr(res_data, "evs"): #TODO check that
             ...
+
+            expectation = res_data.evs
+            error = res_data.stds
         # If we are in sample mode
         else:
-            shots = result[0].data.meas.num_shots
-            nb_qubits = result[0].data.meas.num_bits
-            job = Job(
-                JobType.SAMPLE,
-                QCircuit(nb_qubits),
-                device,
-                BasisMeasure(list(range(nb_qubits)), shots=shots),
-    )
+            if job is None:
+                shots = res_data.meas.num_shots
+                nb_qubits = res_data.meas.num_bits
+                job = Job(
+                    JobType.SAMPLE,
+                    QCircuit(nb_qubits),
+                    device,
+                    BasisMeasure(list(range(nb_qubits)), shots=shots),
+                )
+            counts = res_data.meas.get_counts()
+            data=[
+                Sample(
+                    bin_str=item, probability=counts[item], nb_qubits=job.circuit.nb_qubits
+                )
+                for item in counts
+            ]
+            return Result(job, data, None, job.measure.shots)
 
     else:
 
