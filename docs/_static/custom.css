@@ -171,6 +171,11 @@ html[data-theme="dark"] .highlight-python.import {
   box-shadow: 0px 0px 10px 0px #595959;
 }
 
+html[data-theme="dark"] .rst-content .highlighted {
+  background: #7e6500;
+  box-shadow: 0 0 0 2px #7e6500;
+}
+
 #native-gates-list > * {
   position: relative;
 }
