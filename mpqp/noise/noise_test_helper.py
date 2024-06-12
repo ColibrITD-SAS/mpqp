@@ -55,7 +55,7 @@ def run_experiment(initial_state, gates, noise_proba, shots):
             elif gate == "X":
                 state = apply_gate(state, X, qubit, num_qubits)
             elif gate == "CNOT":
-                state = apply_cnot(state, qubit[0], qubit[1], num_qubits)
+                state = apply_cnot(state, qubit[0], qubit[1])
 
         density_matrix = np.outer(state, np.conj(state))
 
@@ -73,11 +73,15 @@ def run_experiment(initial_state, gates, noise_proba, shots):
 
 def results_to_dict(measurement_results, num_qubits):
     counter = Counter(measurement_results)
+    max_value = max(map(int, counter.keys()))
+    width = max(num_qubits, len(bin(max_value)) - 2)
+
     results_dict = {}
-    for state, count in sorted(counter.items(), key=lambda x: int(x[0], 2)):
-        binary_str = format(int(state), f"0{num_qubits}b")
-        results_dict[binary_str][num_qubits:] = count
-    return results_dict
+    for x, count in counter.items():
+        binary_str = format(int(x), f"0{width}b")
+        results_dict[binary_str[-num_qubits:]] = count
+    sorted_results = sorted(results_dict.items(), key=lambda x: int(x[0], 2))
+    return dict(sorted_results)
 
 
 def plot_results(measurement_results, num_qubits):
