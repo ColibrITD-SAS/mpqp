@@ -169,7 +169,8 @@ class ATOSDevice(AvailableDevice):
             name: A string containing the name of the device.
 
         Raises:
-            ValueError
+            ValueError: If no device corresponding to the given name could be
+                found.
 
         Examples:
             >>> ATOSDevice.from_str_remote('NoisyQProc')
