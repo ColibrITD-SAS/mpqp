@@ -90,11 +90,12 @@ def plot_results(measurement_results, num_qubits):
     sorted_results = sorted(results_dict.items(), key=lambda x: int(x[0], 2))
     states, counts = zip(*sorted_results)
 
-    x = np.arange(len(states))  # to plot the counts for each state
+    x = np.arange(len(states))  # plot the counts for each state
+    states = [f"|{state}>" for state in states]  # |00>, |01>, |10>, |11>
 
-    plt.bar(x, counts, align="center", width=0.4)
+    plt.bar(x, counts, align="center", width=0.6)
     plt.xticks(x, states)
     plt.xlabel("States")
     plt.ylabel("Counts")
-    plt.title("Measurement Results")
+    plt.title("Results without SDK")
     plt.show()
