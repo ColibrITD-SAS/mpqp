@@ -7,17 +7,12 @@ import numpy as np
 
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
-from qiskit.primitives import BackendEstimator, PrimitiveResult
-from qiskit.primitives import Estimator as Qiskit_Estimator
-from qiskit.primitives import PubResult, EstimatorResult
+from qiskit.primitives import BackendEstimator, PrimitiveResult, EstimatorResult, Estimator as Qiskit_Estimator
 from qiskit.providers import BackendV1, BackendV2
 from qiskit.quantum_info import SparsePauliOp, Pauli
 from qiskit.result import Result as QiskitResult
 from qiskit_aer import Aer, AerSimulator
-from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
-from qiskit_ibm_runtime import RuntimeJobV2
-from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
-from qiskit_ibm_runtime import Session
+from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator, SamplerV2 as Runtime_Sampler, RuntimeJobV2, Session
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
@@ -117,19 +112,18 @@ def check_job_compatibility(job: Job):
         )
     if (
         job.job_type == JobType.STATE_VECTOR
-        and job.device != IBMDevice.AER_SIMULATOR_STATEVECTOR
+        and job.device not in {IBMDevice.AER_SIMULATOR_STATEVECTOR,
+                               IBMDevice.AER_SIMULATOR,
+                               IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+                               IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,}
     ):
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
             f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "
-            "type, by for example giving a number of shots to the measure)."
+            "type, by for example giving a number of shots to a BasisMeasure)."
         )
     if job.device == IBMDevice.AER_SIMULATOR_STATEVECTOR:
-        if job.job_type == JobType.SAMPLE:
-            raise DeviceJobIncompatibleError(
-                "Cannot use sample mode with the statevector simulator."
-            )
-        if job.job_type == JobType.OBSERVABLE:
+        if job.job_type == JobType.OBSERVABLE: # TODO: to check if this is still true
             assert job.measure is not None
             if job.measure.shots > 0:
                 raise DeviceJobIncompatibleError(
@@ -165,43 +159,35 @@ def run_aer(job: Job):
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
     check_job_compatibility(job)
+    backend_sim = AerSimulator(job.device.value)
+    run_input = transpile(qiskit_circuit, backend_sim)
 
-    # define backend simulator
-    if job.device == IBMDevice.AER_SIMULATOR:
-        backend_sim = AerSimulator()
-        if job.job_type == JobType.SAMPLE:
-            assert job.measure is not None
-            run_input = transpile(qiskit_circuit, backend_sim)
-            job.status = JobStatus.RUNNING
-            job_sim = backend_sim.run(run_input, shots=job.measure.shots)
-            result_sim = job_sim.result()
-            result = extract_result(result_sim, job, IBMDevice.AER_SIMULATOR)
-        elif job.job_type == JobType.OBSERVABLE:
-            result = compute_expectation_value(qiskit_circuit, backend_sim, job)
-        else:
-            raise ValueError(f"Job type {job.job_type} not handled on {job.device}")
+    if job.job_type == JobType.STATE_VECTOR:
+        # the save_statevector method is patched on qiskit_aer load, meaning
+        # the type checker can't find it. I hate it but it is what it is.
+        # this explains the `type: ignore`. This method is needed to get a
+        # statevector our of the statevector simulator...
+        qiskit_circuit.save_statevector()  # type: ignore
+        job.status = JobStatus.RUNNING
+        job_sim = backend_sim.run(qiskit_circuit, shots=0)
+        result_sim = job_sim.result()
+        assert isinstance(job.device, IBMDevice)
+        result = extract_result(result_sim, job, job.device)
 
-    elif job.device == IBMDevice.AER_SIMULATOR_STATEVECTOR:
-        if job.job_type == JobType.STATE_VECTOR:
-            backend_sim = Aer.get_backend(job.device.value)  # TODO: this is deprecated, to change
-            # the save_statevector method is patched on qiskit_aer load, meaning
-            # the type checker can't find it. I hate it but it is what it is.
-            # this explains the `type: ignore`. This method is needed to get a
-            # statevector our of the statevector simulator...
-            qiskit_circuit.save_statevector()  # type: ignore
-            job.status = JobStatus.RUNNING
-            job_sim = backend_sim.run(qiskit_circuit, shots=0)
-            result_sim = job_sim.result()
-            result = extract_result(
-                result_sim, job, IBMDevice.AER_SIMULATOR_STATEVECTOR
-            )
-        elif job.job_type == JobType.OBSERVABLE:
-            result = compute_expectation_value(qiskit_circuit, None, job)
-        else:
-            raise ValueError(f"job type {job.job_type} not handled on {job.device}")
+    elif job.job_type == JobType.SAMPLE:
+        assert job.measure is not None
+
+        job.status = JobStatus.RUNNING
+        job_sim = backend_sim.run(run_input, shots=job.measure.shots)
+        result_sim = job_sim.result()
+        assert isinstance(job.device, IBMDevice)
+        result = extract_result(result_sim, job, job.device)
+
+    elif job.job_type == JobType.OBSERVABLE:
+        result = compute_expectation_value(qiskit_circuit, None, job)
 
     else:
-        raise ValueError(f"job device {job.device} not handled yet")
+        raise ValueError(f"Job type {job.job_type} not handled.")
 
     job.status = JobStatus.DONE
     return result
@@ -321,7 +307,6 @@ def extract_result(
     Returns:
         The ``qiskit`` result converted to our format.
     """
-    # TODO: check this extraction of result
 
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
@@ -372,41 +357,6 @@ def extract_result(
                 None if len(result.metadata[0]) == 0 else result.metadata[0]["variance"]
             )
             return Result(job, result.values[0], variance, shots)
-
-        ############# PREVIOUS CODE ############################
-        # elif isinstance(result, SamplerResult):
-        #     shots = result.metadata[0]["shots"]
-        #     probas = result.quasi_dists[0]
-        #     if job is None:
-        #         if ibm_job is None:
-        #             #  If we don't have access to the remote Sampler RuntimeJob, we determine the number of qubits by taking
-        #             #  the max index in the counts and take the upper power of two. Of course this is not a clean way and
-        #             #  can lead to a lower number of qubit than the real one. We asked IBM support, apparently there is no
-        #             #  way to retrieve the right nb_qubits with SamplerResult only. That is why we encourage to input the
-        #             #  ibm_job to this function
-        #             max_index = max(list(probas.keys()))
-        #             nb_qubits = math.ceil(math.log2(max_index + 1))
-        #         else:
-        #             if isinstance(ibm_job, RuntimeJob):
-        #                 nb_qubits = len(ibm_job.inputs["circuits"][0].qubits)
-        #             else:
-        #                 raise ValueError(
-        #                     f"Expected a RuntimeJob as optional parameter but got an {type(ibm_job)} instead"
-        #                 )
-        #         job = Job(
-        #             JobType.SAMPLE,
-        #             QCircuit(nb_qubits),
-        #             device,
-        #             BasisMeasure(list(range(nb_qubits)), shots=shots),
-        #         )
-        #
-        #     data = [
-        #         Sample(
-        #             index=item, probability=probas[item], nb_qubits=job.circuit.nb_qubits
-        #         )
-        #         for item in probas
-        #     ]
-        #     return Result(job, data, None, shots)
 
         elif isinstance(
             result, QiskitResult
@@ -474,10 +424,6 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     Returns:
         The result converted to our format.
     """
-    # search for job id in the connector given in parameter first
-    # if not found, try with IBMProvider, then QiskitRuntimeService
-    # if not found, raise an error
-    # TODO: check this if it still works with IBMProvider
 
     connector = get_QiskitRuntimeService()
     ibm_job = (

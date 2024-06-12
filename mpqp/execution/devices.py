@@ -76,15 +76,15 @@ class IBMDevice(AvailableDevice):
 
     # PULSE_SIMULATOR = "pulse_simulator"
 
-    AER_SIMULATOR = "aer_simulator"
-    AER_SIMULATOR_STATEVECTOR = "aer_simulator_statevector"
-    # TODO: many devices are no longer working, explore why
-    # AER_SIMULATOR_DENSITY_MATRIX = "aer_simulator_density_matrix"
-    # AER_SIMULATOR_STABILIZER = "aer_simulator_stabilizer"
-    # AER_SIMULATOR_MATRIX_PRODUCT_STATE = "aer_simulator_matrix_product_state"
-    # AER_SIMULATOR_EXTENDED_STABILIZER = "aer_simulator_extended_stabilizer"
-    # AER_SIMULATOR_UNITARY = "aer_simulator_unitary"
-    # AER_SIMULATOR_SUPEROP = "aer_simulator_superop"
+    AER_SIMULATOR = "automatic"
+    AER_SIMULATOR_STATEVECTOR = "statevector"
+    # TODO: check that those devices indeed are working
+    AER_SIMULATOR_DENSITY_MATRIX = "density_matrix"
+    AER_SIMULATOR_STABILIZER = "stabilizer"
+    AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
+    AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
+    AER_SIMULATOR_UNITARY = "unitary"
+    AER_SIMULATOR_SUPEROP = "superop"
 
     IBM_BRISBANE = "ibm_brisbane"
     IBM_OSAKA = "ibm_osaka"
