@@ -34,9 +34,9 @@ class NoiseModel(ABC):
         or negative. When the size of the gate is higher than the number of target qubits.
     """
 
-    def __init__(self, targets: list[int], gates: Optional[list[type[Gate]]] = None):
-        if len(targets) == 0:
-            raise ValueError("Expected non-empty target list")
+    def __init__(
+        self, targets: list[int] = [], gates: Optional[list[type[Gate]]] = None
+    ):
 
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
@@ -53,7 +53,9 @@ class NoiseModel(ABC):
                         " the noise target, please add `nb_qubits` to this "
                         "class as a class attribute."
                     )
-                if nb_qubits > len(targets):  # pyright: ignore[reportOperatorIssue]
+                if len(targets) != 0 and nb_qubits > len(
+                    targets
+                ):  # pyright: ignore[reportOperatorIssue]
                     raise ValueError(
                         "Size mismatch between gate and noise: gate size is "
                         f"{nb_qubits} but noise size is {len(targets)}"
@@ -125,30 +127,32 @@ class Depolarizing(NoiseModel):
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
         >>> d1 = Depolarizing(0.32, list(range(circuit.nb_qubits)))
-        >>> d2 = Depolarizing(0.05, [0, 1], dimension=2)
-        >>> d3 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
-        >>> d4 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
-        >>> circuit.add([d1, d2, d3, d4])
+        >>> d2 = Depolarizing(0.01)
+        >>> d3 = Depolarizing(0.05, [0, 1], dimension=2)
+        >>> d4 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+        >>> d5 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
+        >>> circuit.add([d1, d2, d3, d4, d5])
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐
-            q_0: ┤ H ├
-                 ├───┤
-            q_1: ┤ H ├
-                 ├───┤
-            q_2: ┤ H ├
-                 └───┘
-            NoiseModel:
-                Depolarizing(0.32, [0, 1, 2], 1)
-                Depolarizing(0.05, [0, 1], 2)
-                Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
-                Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            Depolarizing(0.32, [0, 1, 2], 1)
+            Depolarizing(0.01, [0, 1, 2], 1)
+            Depolarizing(0.05, [0, 1], 2)
+            Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
+            Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
 
     """
 
     def __init__(
         self,
         prob: float,
-        targets: list[int],
+        targets: list[int] = [],
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -179,7 +183,7 @@ class Depolarizing(NoiseModel):
                 )
 
         nb_targets = len(targets)
-        if nb_targets < dimension:
+        if nb_targets != 0 and nb_targets < dimension:
             raise ValueError(
                 f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}."
             )
