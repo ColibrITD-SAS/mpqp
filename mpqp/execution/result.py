@@ -28,7 +28,6 @@ from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
-from matplotlib import pyplot as plt
 from typeguard import typechecked
 
 from mpqp.execution.devices import AvailableDevice
@@ -412,6 +411,8 @@ class Result:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
         """
+        from matplotlib import pyplot as plt
+
         if show:
             plt.figure()
 
@@ -532,6 +533,8 @@ class BatchResult:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
         """
+        from matplotlib import pyplot as plt
+
         n_cols = math.ceil((len(self.results) + 1) // 2)
         n_rows = math.ceil(len(self.results) / n_cols)
 

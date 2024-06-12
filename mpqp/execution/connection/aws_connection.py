@@ -1,7 +1,6 @@
 import os
 from typing import TYPE_CHECKING, Any
 
-import pkg_resources
 from termcolor import colored
 from typeguard import typechecked
 
@@ -113,9 +112,6 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
 
     """
-    import boto3
-    from botocore.exceptions import NoRegionError
-    from braket.aws import AwsDevice, AwsSession
     from braket.devices import LocalSimulator
 
     if not device.is_remote():
@@ -123,6 +119,11 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
             return LocalSimulator("braket_dm")
         else:
             return LocalSimulator()
+
+    import boto3
+    import pkg_resources
+    from botocore.exceptions import NoRegionError
+    from braket.aws import AwsDevice, AwsSession
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())

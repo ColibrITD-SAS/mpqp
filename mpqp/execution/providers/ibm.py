@@ -3,21 +3,14 @@ from __future__ import annotations
 import math
 from typing import TYPE_CHECKING, Optional
 
-from qiskit import QuantumCircuit
-from qiskit.compiler import transpile
-from qiskit.primitives import BackendEstimator
-from qiskit.primitives import Estimator as Qiskit_Estimator
-from qiskit.primitives import EstimatorResult, SamplerResult
-from qiskit.providers import BackendV1, BackendV2
-from qiskit.providers import JobStatus as IBM_JobStatus
-from qiskit.quantum_info import Operator
-from qiskit.result import Result as QiskitResult
-from qiskit_aer import Aer, AerSimulator
-from qiskit_ibm_provider.job import IBMJob
-from qiskit_ibm_runtime import Estimator as Runtime_Estimator
-from qiskit_ibm_runtime import RuntimeJob
-from qiskit_ibm_runtime import Sampler as Runtime_Sampler
-from qiskit_ibm_runtime import Session
+if TYPE_CHECKING:
+    from qiskit import QuantumCircuit
+    from qiskit.primitives import EstimatorResult, SamplerResult
+    from qiskit.providers import BackendV1, BackendV2
+    from qiskit.result import Result as QiskitResult
+    from qiskit_ibm_provider.job import IBMJob
+    from qiskit_ibm_runtime import RuntimeJob
+
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
@@ -71,6 +64,10 @@ def compute_expectation_value(
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    from qiskit.primitives import BackendEstimator
+    from qiskit.primitives import Estimator as Qiskit_Estimator
+    from qiskit.quantum_info import Operator
+
     if not isinstance(job.measure, ExpectationMeasure):
         raise ValueError(
             "Cannot compute expectation value if measure used in job is not of "
@@ -159,6 +156,10 @@ def run_aer(job: Job):
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    from qiskit import QuantumCircuit
+    from qiskit.compiler import transpile
+    from qiskit_aer import Aer, AerSimulator
+
     qiskit_circuit = (
         job.circuit.without_measurements().to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
@@ -225,6 +226,12 @@ def submit_ibmq(job: Job) -> tuple[str, RuntimeJob | IBMJob]:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    from qiskit import QuantumCircuit
+    from qiskit.quantum_info import Operator
+    from qiskit_ibm_runtime import Estimator as Runtime_Estimator
+    from qiskit_ibm_runtime import Sampler as Runtime_Sampler
+    from qiskit_ibm_runtime import Session
+
     if job.job_type == JobType.STATE_VECTOR:
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using IBM remote simulators and"
@@ -317,6 +324,9 @@ def extract_result(
     Returns:
         The ``qiskit`` result converted to our format.
     """
+    from qiskit.primitives import EstimatorResult, SamplerResult
+    from qiskit.result import Result as QiskitResult
+    from qiskit_ibm_runtime import RuntimeJob
 
     if job is not None and (
         isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
@@ -436,9 +446,13 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     Returns:
         The result converted to our format.
     """
+    from qiskit.providers import BackendV1, BackendV2
+    from qiskit.providers import JobStatus as IBM_JobStatus
+
     # search for job id in the connector given in parameter first
     # if not found, try with IBMProvider, then QiskitRuntimeService
     # if not found, raise an error
+
     connector = get_IBMProvider()
     ibm_job = (
         connector.retrieve_job(job_id)

@@ -1,13 +1,11 @@
 from getpass import getpass
 from typing import TYPE_CHECKING
 
-from qiskit_ibm_provider import IBMProvider
-from qiskit_ibm_provider.accounts import AccountNotFoundError
-from qiskit_ibm_provider.api.exceptions import RequestsApiError
 from termcolor import colored
 from typeguard import typechecked
 
 if TYPE_CHECKING:
+    from qiskit_ibm_provider import IBMProvider
     from qiskit.providers.backend import BackendV1
     from qiskit_ibm_runtime import QiskitRuntimeService
 
@@ -29,6 +27,7 @@ def config_ibm_account(token: str):
     Raises:
         IBMRemoteExecutionError
     """
+    from qiskit_ibm_provider import IBMProvider
 
     try:
         IBMProvider.save_account(token=token, overwrite=True)
@@ -77,6 +76,9 @@ def test_connection() -> bool:
     Returns:
         ``False`` if login failed.
     """
+    from qiskit_ibm_provider import IBMProvider
+    from qiskit_ibm_provider.api.exceptions import RequestsApiError
+
     try:
         IBMProvider()
     except RequestsApiError as err:
@@ -88,7 +90,7 @@ def test_connection() -> bool:
     return True
 
 
-def get_IBMProvider() -> IBMProvider:
+def get_IBMProvider() -> "IBMProvider":
     """Returns the IBMProvider needed to get one or several backends for
     execution.
 
@@ -108,6 +110,10 @@ def get_IBMProvider() -> IBMProvider:
          <IBMBackend('ibm_osaka')>]
 
     """
+    from qiskit_ibm_provider import IBMProvider
+    from qiskit_ibm_provider.accounts import AccountNotFoundError
+    from qiskit_ibm_provider.api.exceptions import RequestsApiError
+
     global Ibm_Provider
     if Ibm_Provider is None:
         if get_env_variable("IBM_CONFIGURED") == "False":

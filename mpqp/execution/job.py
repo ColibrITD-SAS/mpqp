@@ -24,11 +24,6 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from enum import Enum
 
-from braket.aws import AwsQuantumTask
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
-from qat.comm.qlmaas.ttypes import QLMServiceException
-from qiskit.providers import JobStatus as IBM_JobStatus
-
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
 from ..core.circuit import QCircuit
@@ -171,6 +166,9 @@ def get_qlm_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
+    from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+    from qat.comm.qlmaas.ttypes import QLMServiceException
+
     try:
         qlm_status = get_QLMaaSConnection().get_status(job_id)
     except QLMServiceException as e:
@@ -203,6 +201,8 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
+    from qiskit.providers import JobStatus as IBM_JobStatus
+
     # test with QiskitRuntimeService
     if job_id in [e.job_id() for e in get_QiskitRuntimeService().jobs()]:
         ibm_job = get_QiskitRuntimeService().job(job_id)
@@ -237,6 +237,8 @@ def get_aws_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
+    from braket.aws import AwsQuantumTask
+
     task = AwsQuantumTask(job_id)
     state = task.state()
     if state == "FAILED":
