@@ -195,7 +195,7 @@ class Result:
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
-        Result: ATOSDevice, MYQLM_CLINALG
+        Result: None, ATOSDevice, MYQLM_CLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
@@ -204,7 +204,7 @@ class Result:
         ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
-        Result: ATOSDevice, MYQLM_CLINALG
+        Result: None, ATOSDevice, MYQLM_CLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
          Samples:
@@ -213,7 +213,7 @@ class Result:
          Error: 0.034
         >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
-        Result: ATOSDevice, MYQLM_CLINALG
+        Result: None, ATOSDevice, MYQLM_CLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
 
@@ -373,7 +373,9 @@ class Result:
         return self._counts
 
     def __str__(self):
-        header = f"Result: {type(self.device).__name__}, {self.device.name}"
+        header = (
+            f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
+        )
 
         if self.job.job_type == JobType.SAMPLE:
             samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
@@ -483,22 +485,22 @@ class BatchResult:
         >>> batch_result = BatchResult([result1, result2, result3])
         >>> print(batch_result)
         BatchResult: 3 results
-        Result: ATOSDevice, MYQLM_PYLINALG
+        Result: None, ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
-        Result: ATOSDevice, MYQLM_PYLINALG
+        Result: None, ATOSDevice, MYQLM_PYLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
          Samples:
           State: 00, Index: 0, Count: 250, Probability: 0.5
           State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
-        Result: ATOSDevice, MYQLM_PYLINALG
+        Result: None, ATOSDevice, MYQLM_PYLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
         >>> print(batch_result[0])
-        Result: ATOSDevice, MYQLM_PYLINALG
+        Result: None, ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
