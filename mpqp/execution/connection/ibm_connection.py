@@ -26,6 +26,7 @@ def config_ibm_account(token: str):
     Raises:
         IBMRemoteExecutionError
     """
+    from qiskit_ibm_runtime import QiskitRuntimeService
     try:
         QiskitRuntimeService.save_account(channel="ibm_quantum", token=token, overwrite=True)
         save_env_variable("IBM_CONFIGURED", "True")
@@ -40,7 +41,6 @@ def config_ibm_account(token: str):
 
 def setup_ibm_account():
     """Setups and updates the IBM Q account using the existing configuration and by asking for the token ."""
-    # TODO check this function after migration
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
     if was_configured:
@@ -74,6 +74,7 @@ def test_connection() -> bool:
     Returns:
         ``False`` if login failed.
     """
+    from qiskit_ibm_runtime import QiskitRuntimeService
     global Runtime_Service
     try:
         Runtime_Service = QiskitRuntimeService(channel="ibm_quantum")

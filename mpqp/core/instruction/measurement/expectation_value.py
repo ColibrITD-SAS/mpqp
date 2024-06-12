@@ -139,9 +139,8 @@ class Observable:
         Example:
             >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
-            >>> print(obs_qiskit)
-            SparsePauliOp(['II', 'IZ', 'ZI', 'ZZ'],
-              coeffs=[ 0.425+0.j,  0.425+0.j, -0.575+0.j,  0.425+0.j])
+            >>> obs_qiskit.to_list()
+            [('II', (0.42499999701976776+0j)), ('IZ', (0.42499999701976776+0j)), ('ZI', (-0.5750000029802322+0j)), ('ZZ', (0.42499999701976776+0j))]
 
         """
         if language == Language.QISKIT:
