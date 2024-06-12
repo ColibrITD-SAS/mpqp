@@ -2,6 +2,7 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import chisquare
 
 I = np.eye(2)
 H = np.array([[1 / np.sqrt(2), 1 / np.sqrt(2)], [1 / np.sqrt(2), -1 / np.sqrt(2)]])
@@ -100,3 +101,29 @@ def plot_results(measurement_results, num_qubits):
     plt.ylabel("Counts")
     plt.title("Results without SDK")
     plt.show()
+
+
+def chisquare_test(mpqp_counts, theoretical_counts, shots, alpha=0.05):
+    theoretical_probabilities = [count / shots for count in theoretical_counts]
+    total_shots = sum(theoretical_counts)
+
+    #mpqp_counts = []  # mpqp experiement
+
+    expected_counts = [int(tp * total_shots) for tp in theoretical_probabilities]
+
+    chisquare_stat, p_value = chisquare(mpqp_counts, expected_counts)
+
+    # visualize statistics
+    print("Expected Counts:", expected_counts)
+    print("MPQP Counts:", mpqp_counts)
+    print(f"Chi-square Statistic: {chisquare_stat:.4f}")
+    print(f"P-value: {p_value:.4f}")
+
+    if p_value < alpha:  # alpha: significance level
+        print(
+            "The difference between the two distributions is statistically significant (reject H0)."
+        )
+    else:
+        print(
+            "The difference between the two distributions is not statistically significant (fail to reject H0)."
+        )
