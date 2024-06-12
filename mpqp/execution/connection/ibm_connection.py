@@ -25,7 +25,7 @@ def config_ibm_account(token: str):
         token: IBM Quantum API token.
 
     Raises:
-        IBMRemoteExecutionError
+        IBMRemoteExecutionError: If the account could not be saved.
     """
     from qiskit_ibm_provider import IBMProvider
 
@@ -95,7 +95,8 @@ def get_IBMProvider() -> "IBMProvider":
     execution.
 
     Raises:
-        IBMRemoteExecutionError
+        IBMRemoteExecutionError: In the account was not properly configured
+            previously.
 
     Example:
         >>> instance = get_IBMProvider()
@@ -124,13 +125,13 @@ def get_IBMProvider() -> "IBMProvider":
             Ibm_Provider = IBMProvider()
         except RequestsApiError as err:
             raise IBMRemoteExecutionError(
-                "Error when instantiating IBM Provider (probably wrong token saved "
-                "in the account).\nTrace: " + str(err)
+                "Error when instantiating IBM Provider (probably wrong token "
+                "saved in the account).\nTrace: " + str(err)
             )
         except AccountNotFoundError as err:
             raise IBMRemoteExecutionError(
-                "Error when instantiating IBM Provider. No IBM Q account configured.\nTrace: "
-                + str(err)
+                "Error when instantiating IBM Provider. No IBM Q account "
+                "configured.\nTrace: " + str(err)
             )
     return Ibm_Provider
 

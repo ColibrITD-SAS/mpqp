@@ -28,7 +28,7 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
             outside MPQP.
 
     Raises:
-        QLMRemoteExecutionError
+        QLMRemoteExecutionError: If the account could not be saved.
     """
     # store the username and password in environment variables QLM_USER and QLM_PASSWD in .mpqp
     prev_user = get_env_variable("QLM_USER")

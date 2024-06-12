@@ -458,14 +458,16 @@ class PauliStringAtom(PauliStringMonomial):
     """Represents a single Pauli operator acting on a qubit in a Pauli string.
 
     Args:
-        label: The label representing the Pauli operator (e.g., 'I', 'X', 'Y', 'Z').
+        label: The label representing the Pauli operator.
         matrix: The matrix representation of the Pauli operator.
 
     Raises:
-        AttributeError: new atoms cannot be created
+        RuntimeError: New atoms cannot be created, you should use the available
+            ones.
 
     Note:
-        All the atoms are already initialized. Available atoms are ('I', 'X', 'Y', 'Z').
+        All the atoms are already initialized. Available atoms are (``I``,
+        ``X``, ``Y``, ``Z``).
     """
 
     __is_mutable = True
@@ -476,8 +478,9 @@ class PauliStringAtom(PauliStringMonomial):
             self.matrix = matrix
             self.__is_mutable = False
         else:
-            raise AttributeError(
-                "New atoms cannot be created, just use the given I, X, Y and Z"
+            raise RuntimeError(
+                "New atoms cannot be created, just use the given `I`, `X`, `Y` "
+                "and `Z`"
             )
 
     @property
