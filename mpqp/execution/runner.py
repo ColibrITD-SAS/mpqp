@@ -237,18 +237,18 @@ def run(
         ... )
         >>> print(batch_result)
         BatchResult: 2 results
-        Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
-         Error: None
         Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
           State: 11, Index: 3, Count: 1000, Probability: 1.0
          Error: 0.0
+        Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
+         Samples:
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
+         Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
@@ -275,12 +275,12 @@ def run(
 
     if isinstance(circuit, Iterable):
         if isinstance(device, Iterable):
-            return BatchResult([_run_single(circ, device, values) for circ in circuit for device in set(device)])
+            return BatchResult([_run_single(circ, dev, values) for circ in circuit for dev in device])
         else:
             return BatchResult([_run_single(circ, device, values) for circ in circuit])
     else:
         if isinstance(device, Iterable):
-            return BatchResult([_run_single(circuit, device, values) for device in set(device)])
+            return BatchResult([_run_single(circuit, dev, values) for dev in device])
         else:
             return _run_single(circuit, device, values)
 
