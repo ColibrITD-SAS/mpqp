@@ -149,6 +149,9 @@ def run_aer(job: Job):
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    check_job_compatibility(job)
+
+
     qiskit_circuit = (
         job.circuit.without_measurements().to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
@@ -158,8 +161,7 @@ def run_aer(job: Job):
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
-    check_job_compatibility(job)
-    backend_sim = AerSimulator(job.device.value)
+    backend_sim = AerSimulator(method=job.device.value)
     run_input = transpile(qiskit_circuit, backend_sim)
 
     if job.job_type == JobType.STATE_VECTOR:
@@ -397,7 +399,7 @@ def extract_result(
                 return Result(job, state_vector, 0, 0)
             elif job.job_type == JobType.SAMPLE:
                 assert job.measure is not None
-                counts = result.get_counts()
+                counts = result.get_counts(0)
                 data = [
                     Sample(
                         bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits

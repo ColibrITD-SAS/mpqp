@@ -83,8 +83,8 @@ class IBMDevice(AvailableDevice):
     AER_SIMULATOR_STABILIZER = "stabilizer"
     AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
-    AER_SIMULATOR_UNITARY = "unitary"
-    AER_SIMULATOR_SUPEROP = "superop"
+    # AER_SIMULATOR_UNITARY = "unitary"
+    # AER_SIMULATOR_SUPEROP = "superop"
 
     IBM_BRISBANE = "ibm_brisbane"
     IBM_OSAKA = "ibm_osaka"
