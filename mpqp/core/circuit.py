@@ -222,6 +222,9 @@ class QCircuit:
             components.size = self.nb_qubits
 
         if isinstance(components, NoiseModel):
+            if len(components.targets) == 0:
+                components.targets = [target for target in range(self.nb_qubits)]
+                
             basisMs = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
             ]

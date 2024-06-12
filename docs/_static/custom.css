@@ -29,6 +29,9 @@ div.document {
 } */
 
 /* *** fix for rtd dark *** */
+html[data-theme="dark"] .theme-switcher {
+  box-shadow: 0px 1px 14px 2px rgb(255 255 255 / 20%);
+}
 
 html[data-theme="dark"] div.nboutput.container div.output_area.stderr {
   background: rgb(103, 23, 23);
