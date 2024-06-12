@@ -14,7 +14,6 @@ from mpqp.execution.devices import IBMDevice
 from mpqp.tools.errors import IBMRemoteExecutionError
 
 Runtime_Service = None
-# TODO remove all references to IBMProvider cauz it is deprecated
 
 
 @typechecked
@@ -98,7 +97,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
     Example:
         >>> service = get_QiskitRuntimeService()
         >>> service.jobs()
-        [<RuntimeJob('cmdj3b4nktricigarn8g', 'estimator')>,
+        [<RuntimeJobV2('cmdj3b4nktricigarn8g', 'estimator')>,
          <RuntimeJob('cmdj3a74mi97k7j7ujv0', 'sampler')>,
          <RuntimeJob('cmama29054sir2cq94og', 'estimator')>,
          <RuntimeJob('cmama14pduldih1q4ktg', 'sampler')>,

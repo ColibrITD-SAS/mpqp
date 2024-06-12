@@ -5,23 +5,17 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-if TYPE_CHECKING:
-    ... # TODO fill with right imports here
-
-
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
 from qiskit.primitives import BackendEstimator
 from qiskit.primitives import Estimator as Qiskit_Estimator
-from qiskit.primitives import PubResult, EstimatorResult, SamplerResult
+from qiskit.primitives import PubResult, EstimatorResult
 from qiskit.providers import BackendV1, BackendV2
-#from qiskit.providers import JobStatus as IBM_JobStatus
-# TODO:  remove ibm job status and replace it everywhere by the string of the RuntimeJobV2.status()
-from qiskit.quantum_info import Operator
+from qiskit.quantum_info import SparsePauliOp, Pauli
 from qiskit.result import Result as QiskitResult
 from qiskit_aer import Aer, AerSimulator
 from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
-from qiskit_ibm_runtime import RuntimeJobV2 , RuntimeJob
+from qiskit_ibm_runtime import RuntimeJobV2
 from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 from qiskit_ibm_runtime import Session
 from typeguard import typechecked
@@ -81,7 +75,7 @@ def compute_expectation_value(
         )
     nb_shots = job.measure.shots
     qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_observable, Operator)
+    assert isinstance(qiskit_observable, SparsePauliOp)
 
     if nb_shots != 0:
         assert ibm_backend is not None
@@ -189,7 +183,7 @@ def run_aer(job: Job):
 
     elif job.device == IBMDevice.AER_SIMULATOR_STATEVECTOR:
         if job.job_type == JobType.STATE_VECTOR:
-            backend_sim = Aer.get_backend(job.device.value)
+            backend_sim = Aer.get_backend(job.device.value)  # TODO: this is deprecated, to change
             # the save_statevector method is patched on qiskit_aer load, meaning
             # the type checker can't find it. I hate it but it is what it is.
             # this explains the `type: ignore`. This method is needed to get a
@@ -259,12 +253,18 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
         assert isinstance(job.measure, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
         qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
-        assert isinstance(qiskit_observable, Operator) # TODO: apparently Operator is not accepted as observable type
+        assert isinstance(qiskit_observable, SparsePauliOp)
+
+        # Fills the Pauli strings with identities to make the observable size match the circuit size
+        qiskit_observable = SparsePauliOp(
+            [pauli._pauli_list[0].tensor(Pauli("I"*(qiskit_circuit.num_qubits - job.measure.observable.nb_qubits)))
+             for pauli in qiskit_observable],
+            coeffs=qiskit_observable.coeffs
+        )
 
         precision = 1/np.sqrt(job.measure.shots)
-        # TODO: check if this trick will indeed generate the right number of shots
-        #  from their code, it seems that shots = int(np.ceil(1.0 / precision**2))
-        #  we need to check in the metadata of the Result they return if shots is correct
+        # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
+        #  Tried once with shots=1234, but got shots=1280 with the real experiment
         ibm_job = estimator.run([(qiskit_circuit, qiskit_observable)], precision=precision)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
@@ -302,10 +302,9 @@ def run_remote_ibm(job: Job) -> Result:
 
 @typechecked
 def extract_result(
-    result: QiskitResult | EstimatorResult | SamplerResult | PubResult,
+    result: QiskitResult | EstimatorResult | PubResult,
     job: Optional[Job] = None,
     device: Optional[IBMDevice] = IBMDevice.AER_SIMULATOR,
-    ibm_job: Optional[RuntimeJob | RuntimeJobV2] = None,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`Result<mpqp.execution.result.Result>`.
@@ -328,11 +327,13 @@ def extract_result(
     if isinstance(result, PubResult):
         res_data = result[0].data
         # If we are in observable mode
-        if hasattr(res_data, "evs"): #TODO check that
-            ...
-
+        if hasattr(res_data, "evs"):
+            if job is None:
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
             expectation = res_data.evs
             error = res_data.stds
+            shots = result[0].metadata['shots']
+            return Result(job, expectation, error, shots)
         # If we are in sample mode
         else:
             if job is None:
@@ -355,18 +356,15 @@ def extract_result(
 
     else:
 
-
-        ############# PREVIOUS CODE ############################
         if job is not None and (
             isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
         ):
             raise ValueError(
-                "Mismatch between job type and result type: either the result is an"
-                " `EstimatorResult` and the job is of type of both those assertions"
-                " are false."
+                "Mismatch between job type and result type: if the result is an"
+                " `EstimatorResult` the job must be of type `OBSERVABLE` but here was not."
             )
 
-        elif isinstance(result, EstimatorResult):
+        if isinstance(result, EstimatorResult):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
             shots = 0 if len(result.metadata[0]) == 0 else result.metadata[0]["shots"]
@@ -375,39 +373,40 @@ def extract_result(
             )
             return Result(job, result.values[0], variance, shots)
 
-        elif isinstance(result, SamplerResult):
-            shots = result.metadata[0]["shots"]
-            probas = result.quasi_dists[0]
-            if job is None:
-                if ibm_job is None:
-                    #  If we don't have access to the remote Sampler RuntimeJob, we determine the number of qubits by taking
-                    #  the max index in the counts and take the upper power of two. Of course this is not a clean way and
-                    #  can lead to a lower number of qubit than the real one. We asked IBM support, apparently there is no
-                    #  way to retrieve the right nb_qubits with SamplerResult only. That is why we encourage to input the
-                    #  ibm_job to this function
-                    max_index = max(list(probas.keys()))
-                    nb_qubits = math.ceil(math.log2(max_index + 1))
-                else:
-                    if isinstance(ibm_job, RuntimeJob):
-                        nb_qubits = len(ibm_job.inputs["circuits"][0].qubits)
-                    else:
-                        raise ValueError(
-                            f"Expected a RuntimeJob as optional parameter but got an {type(ibm_job)} instead"
-                        )
-                job = Job(
-                    JobType.SAMPLE,
-                    QCircuit(nb_qubits),
-                    device,
-                    BasisMeasure(list(range(nb_qubits)), shots=shots),
-                )
-
-            data = [
-                Sample(
-                    index=item, probability=probas[item], nb_qubits=job.circuit.nb_qubits
-                )
-                for item in probas
-            ]
-            return Result(job, data, None, shots)
+        ############# PREVIOUS CODE ############################
+        # elif isinstance(result, SamplerResult):
+        #     shots = result.metadata[0]["shots"]
+        #     probas = result.quasi_dists[0]
+        #     if job is None:
+        #         if ibm_job is None:
+        #             #  If we don't have access to the remote Sampler RuntimeJob, we determine the number of qubits by taking
+        #             #  the max index in the counts and take the upper power of two. Of course this is not a clean way and
+        #             #  can lead to a lower number of qubit than the real one. We asked IBM support, apparently there is no
+        #             #  way to retrieve the right nb_qubits with SamplerResult only. That is why we encourage to input the
+        #             #  ibm_job to this function
+        #             max_index = max(list(probas.keys()))
+        #             nb_qubits = math.ceil(math.log2(max_index + 1))
+        #         else:
+        #             if isinstance(ibm_job, RuntimeJob):
+        #                 nb_qubits = len(ibm_job.inputs["circuits"][0].qubits)
+        #             else:
+        #                 raise ValueError(
+        #                     f"Expected a RuntimeJob as optional parameter but got an {type(ibm_job)} instead"
+        #                 )
+        #         job = Job(
+        #             JobType.SAMPLE,
+        #             QCircuit(nb_qubits),
+        #             device,
+        #             BasisMeasure(list(range(nb_qubits)), shots=shots),
+        #         )
+        #
+        #     data = [
+        #         Sample(
+        #             index=item, probability=probas[item], nb_qubits=job.circuit.nb_qubits
+        #         )
+        #         for item in probas
+        #     ]
+        #     return Result(job, data, None, shots)
 
         elif isinstance(
             result, QiskitResult

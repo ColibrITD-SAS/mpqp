@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 from braket.aws import AwsQuantumTask
 from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
 from qat.comm.qlmaas.ttypes import QLMServiceException
-from qiskit.providers import JobStatus as IBM_JobStatus
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
@@ -207,22 +206,24 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
         ibm_job = get_QiskitRuntimeService().job(job_id)
     else:
         raise IBMRemoteExecutionError(
-            f"Could not find job with id {job_id} on IBM/QiskitRuntime provider"
+            f"Could not find job with id {job_id} on QiskitRuntime service."
         )
-    # TODO: change how status are compared, and update import, we should check strings only if RuntimeJob V2
+
     status = ibm_job.status()
-    if status == IBM_JobStatus.ERROR:
+    if status == 'ERROR':
         return JobStatus.ERROR
-    elif status == IBM_JobStatus.CANCELLED:
+    elif status == 'CANCELLED':
         return JobStatus.CANCELLED
-    elif status in [IBM_JobStatus.QUEUED, IBM_JobStatus.VALIDATING]:
+    elif status == 'QUEUED':
         return JobStatus.QUEUED
-    elif status == IBM_JobStatus.INITIALIZING:
+    elif status == 'INITIALIZING':
         return JobStatus.INIT
-    elif status == IBM_JobStatus.RUNNING:
+    elif status == 'RUNNING':
         return JobStatus.RUNNING
-    else:
+    elif status == 'DONE':
         return JobStatus.DONE
+    else:
+        raise ValueError(f"Unexpected IBM job status: {status}")
 
 
 def get_aws_job_status(job_id: str) -> JobStatus:

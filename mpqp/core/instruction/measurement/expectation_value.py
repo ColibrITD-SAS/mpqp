@@ -99,15 +99,15 @@ class Observable:
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
 
-    @pauli_string.setter
-    def pauli_string(self, pauli_string: PauliString):
-        self._pauli_string = pauli_string
-        self._matrix = None
-
     @matrix.setter
     def matrix(self, matrix: Matrix):
         self._matrix = matrix
         self._pauli_string = None
+
+    @pauli_string.setter
+    def pauli_string(self, pauli_string: PauliString):
+        self._pauli_string = pauli_string
+        self._matrix = None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
@@ -140,15 +140,8 @@ class Observable:
             >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> print(obs_qiskit)
-            Operator([[ 0.69999999+0.j,  0.        +0.j,  0.        +0.j,
-                        0.        +0.j],
-                      [ 0.        +0.j, -1.        +0.j,  0.        +0.j,
-                        0.        +0.j],
-                      [ 0.        +0.j,  0.        +0.j,  1.        +0.j,
-                        0.        +0.j],
-                      [ 0.        +0.j,  0.        +0.j,  0.        +0.j,
-                        1.        +0.j]],
-                     input_dims=(2, 2), output_dims=(2, 2))
+            SparsePauliOp(['II', 'IZ', 'ZI', 'ZZ'],
+              coeffs=[ 0.425+0.j,  0.425+0.j, -0.575+0.j,  0.425+0.j])
 
         """
         if language == Language.QISKIT:

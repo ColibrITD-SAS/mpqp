@@ -377,7 +377,7 @@ class QCircuit:
             \end{document}
 
         """
-        from qiskit.tools.visualization import circuit_drawer
+        from qiskit.visualization import circuit_drawer
 
         qc = self.to_other_language(language=Language.QISKIT)
         fig = circuit_drawer(qc, output=output, style={"backgroundcolor": "#EEEEEE"})
