@@ -36,13 +36,6 @@ def depolarizing_noise(density_matrix, p):
     return (1 - p) * density_matrix + p / d * identity
 
 
-def measure_state(state):
-    probabilities = np.abs(state) ** 2
-    cumulative_prob = np.cumsum(probabilities)
-    random_number = np.random.rand()
-    return np.searchsorted(cumulative_prob, random_number)
-
-
 def run_experiment(initial_state, gates, noise_proba, shots):
     num_qubits = int(np.log2(len(initial_state)))
     measurement_results = []
@@ -71,7 +64,7 @@ def run_experiment(initial_state, gates, noise_proba, shots):
     return measurement_results
 
 
-def results_to_dict(measurement_results, num_qubits):
+def results_to_dict(measurement_results, num_qubits, shots):
     counter = Counter(measurement_results)
     max_value = max(map(int, counter.keys()))
     width = max(num_qubits, len(bin(max_value)) - 2)
@@ -80,12 +73,20 @@ def results_to_dict(measurement_results, num_qubits):
     for x, count in counter.items():
         binary_str = format(int(x), f"0{width}b")
         results_dict[binary_str[-num_qubits:]] = count
+
+    total_counts = sum(results_dict.values())
+    for state in results_dict:
+        results_dict[state] = round(results_dict[state] * shots / total_counts)
+
+    max_count_state = max(results_dict, key=results_dict.get)
+    results_dict[max_count_state] += shots - sum(results_dict.values())
+
     sorted_results = sorted(results_dict.items(), key=lambda x: int(x[0], 2))
     return dict(sorted_results)
 
 
 def plot_results(measurement_results, num_qubits):
-    results_dict = results_to_dict(measurement_results, num_qubits)
+    results_dict = results_to_dict(measurement_results, num_qubits, shots)
 
     sorted_results = sorted(results_dict.items(), key=lambda x: int(x[0], 2))
     states, counts = zip(*sorted_results)
