@@ -7,7 +7,7 @@ import numpy as np
 
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
-from qiskit.primitives import BackendEstimator
+from qiskit.primitives import BackendEstimator, PrimitiveResult
 from qiskit.primitives import Estimator as Qiskit_Estimator
 from qiskit.primitives import PubResult, EstimatorResult
 from qiskit.providers import BackendV1, BackendV2
@@ -302,7 +302,7 @@ def run_remote_ibm(job: Job) -> Result:
 
 @typechecked
 def extract_result(
-    result: QiskitResult | EstimatorResult | PubResult,
+    result: QiskitResult | EstimatorResult | PrimitiveResult,
     job: Optional[Job] = None,
     device: Optional[IBMDevice] = IBMDevice.AER_SIMULATOR,
 ) -> Result:
@@ -324,14 +324,14 @@ def extract_result(
     # TODO: check this extraction of result
 
     # If this is a PubResult from primitives V2
-    if isinstance(result, PubResult):
+    if isinstance(result, PrimitiveResult):
         res_data = result[0].data
         # If we are in observable mode
         if hasattr(res_data, "evs"):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
-            expectation = res_data.evs
-            error = res_data.stds
+            expectation = float(res_data.evs)
+            error = float(res_data.stds)
             shots = result[0].metadata['shots']
             return Result(job, expectation, error, shots)
         # If we are in sample mode
@@ -348,7 +348,7 @@ def extract_result(
             counts = res_data.meas.get_counts()
             data=[
                 Sample(
-                    bin_str=item, probability=counts[item], nb_qubits=job.circuit.nb_qubits
+                    bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits
                 )
                 for item in counts
             ]
@@ -503,4 +503,4 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     assert isinstance(backend, (BackendV1, BackendV2))
     ibm_device = IBMDevice(backend.name)
 
-    return extract_result(result, None, ibm_device, ibm_job)
+    return extract_result(result, None, ibm_device)

@@ -8,6 +8,5 @@ def pytest_addoption(parser: Parser):
 
 
 def pytest_generate_tests(metafunc: Metafunc):
-    print("ho")
     if metafunc.config.option.long:
         os.environ["LONG_TESTS"] = "True"
