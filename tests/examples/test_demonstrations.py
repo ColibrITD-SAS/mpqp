@@ -177,7 +177,7 @@ def test_statevector_demo_stab():
     assert True
 
 
-@pytest.mark.parametrize("shots", [(0), (1000)])
+@pytest.mark.parametrize("shots", [0, 1000])
 def test_observable_demo(shots: int):
     obs = Observable(
         np.array(
@@ -199,7 +199,19 @@ def test_observable_demo(shots: int):
     circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    run(circuit, [ATOSDevice.MYQLM_PYLINALG, IBMDevice.AER_SIMULATOR, IBMDevice.AER_SIMULATOR_STATEVECTOR])
+    runner = lambda: run(circuit, [
+        ATOSDevice.MYQLM_PYLINALG,
+        ATOSDevice.MYQLM_CLINALG,
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        IBMDevice.AER_SIMULATOR,
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+    ])
+
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     assert True
 
