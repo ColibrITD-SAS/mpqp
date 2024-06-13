@@ -18,7 +18,7 @@ describing the problem you would like to solve.
 
 ### Setup your environment locally
 
-_Some commands will assume you have the GitHub CLI installed, if you haven't,
+\_Some commands will assume you have the GitHub CLI installed, if you haven't,
 consider [installing it](https://github.com/cli/cli#installation), but you can
 always use the Web UI if you prefer that instead.
 
@@ -40,6 +40,13 @@ etc... included), use pip:
 ```bash
 pip install -r requirements-dev.txt
 ```
+
+In the documentation, some notebooks are rendered to HTML, this process is done
+using [Pandoc](https://pandoc.org/). Unfortunately, this software cannot be
+installed from the pip repository, so you need to install it separately. You can
+check [their documentation](https://pandoc.org/installing.html) to see how to
+install it on your OS (you can find it on most package manager: `apt`,
+`yum`, `pacman`, `choco`, `winget`, `brew` and more... )
 
 The last (optinal) step is to setup a GitHub personal access tokens to enable
 the sphinx automatic changelog generation. This step is only important if you
