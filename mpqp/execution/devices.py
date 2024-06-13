@@ -81,8 +81,8 @@ class IBMDevice(AvailableDevice):
     # TODO: check that those devices indeed are working
     AER_SIMULATOR_DENSITY_MATRIX = "density_matrix"
     AER_SIMULATOR_STABILIZER = "stabilizer"
-    AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
+    AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
     # AER_SIMULATOR_UNITARY = "unitary"
     # AER_SIMULATOR_SUPEROP = "superop"
 
