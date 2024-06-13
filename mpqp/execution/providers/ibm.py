@@ -7,7 +7,7 @@ import numpy as np
 
 from qiskit import QuantumCircuit
 from qiskit.compiler import transpile
-from qiskit.primitives import BackendEstimator, PrimitiveResult, EstimatorResult, Estimator as Qiskit_Estimator
+from qiskit.primitives import PrimitiveResult, EstimatorResult, Estimator
 from qiskit.providers import BackendV1, BackendV2
 from qiskit.quantum_info import SparsePauliOp, Pauli
 from qiskit.result import Result as QiskitResult
@@ -69,11 +69,7 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
     qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
     assert isinstance(qiskit_observable, SparsePauliOp)
 
-    #TODO rework this part
-    if nb_shots != 0:
-        estimator = BackendEstimator(backend=...)
-    else:
-        estimator = Qiskit_Estimator()
+    estimator = Estimator()
 
     # 6M-TODO : think of the possibility to compute several expectation values at the same time when the circuit is
     #  the same apparently the estimator.run() can take several circuits and observables at the same time,
@@ -119,16 +115,12 @@ def check_job_compatibility(job: Job):
             f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "
             "type, by for example giving a number of shots to a BasisMeasure)."
         )
-    if job.device == IBMDevice.AER_SIMULATOR_STATEVECTOR:
-        if job.job_type == JobType.OBSERVABLE: # TODO: to check if this is still true
-            assert job.measure is not None
-            if job.measure.shots > 0:
-                raise DeviceJobIncompatibleError(
-                    "Cannot compute expectation values with non-zero shots"
-                    f" with {IBMDevice.AER_SIMULATOR_STATEVECTOR}.\nSet the"
-                    " shots to zero to get the exact value, or select "
-                    "another device instead"
-                )
+    if job.device == IBMDevice.AER_SIMULATOR_STABILIZER:
+        # TODO check that in the circuit there are only gates that are compatible with stabilizer
+        ...
+    elif job.device == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
+        # TODO check that in the circuit there are only gates that are compatible with extended_stabilizer
+        ...
 
 
 @typechecked
@@ -351,10 +343,8 @@ def extract_result(
         if isinstance(result, EstimatorResult):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
-            shots = 0 if len(result.metadata[0]) == 0 else result.metadata[0]["shots"]
-            variance = (
-                None if len(result.metadata[0]) == 0 else result.metadata[0]["variance"]
-            )
+            shots = result.metadata[0]["shots"] if 'shots' in result.metadata[0] else 0
+            variance = result.metadata[0]["variance"] if 'variance' in result.metadata[0] else None
             return Result(job, result.values[0], variance, shots)
 
         elif isinstance(
