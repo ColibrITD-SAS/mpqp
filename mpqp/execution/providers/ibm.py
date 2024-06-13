@@ -16,6 +16,7 @@ from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator, SamplerV2 as Ru
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates import CRk, P, Rk, Rx, Ry, Rz, T, TOF, U
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
@@ -116,11 +117,14 @@ def check_job_compatibility(job: Job):
             "type, by for example giving a number of shots to a BasisMeasure)."
         )
     if job.device == IBMDevice.AER_SIMULATOR_STABILIZER:
-        # TODO check that in the circuit there are only gates that are compatible with stabilizer
+        for inst in job.circuit.instructions:
+            if type(inst) in {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}:
+                raise ValueError(f"Gate {inst} cannot be simulated with `IBMDevice.AER_SIMULATOR_STABILIZER`.")
         ...
     elif job.device == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
-        # TODO check that in the circuit there are only gates that are compatible with extended_stabilizer
-        ...
+        for inst in job.circuit.instructions:
+            if type(inst) in {Rx, Rz}:
+                raise ValueError(f"Gate {inst} cannot be simulated with `IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER`.")
 
 
 @typechecked

@@ -105,7 +105,6 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
          <RuntimeJob('cm7vds4pduldih1k1mq0', 'sampler')>]
 
     """
-    # TODO check this function after migration
     from qiskit_ibm_runtime import QiskitRuntimeService
 
     global Runtime_Service
@@ -170,7 +169,6 @@ def get_backend(device: IBMDevice) -> "BackendV2":
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
 
     """
-    # TODO check this function after migration
     if not device.is_remote():
         raise ValueError("Expected a remote IBMQ device but got a local simulator.")
     from qiskit.providers.exceptions import QiskitBackendNotFoundError
