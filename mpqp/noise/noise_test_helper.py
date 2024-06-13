@@ -2,6 +2,7 @@ from collections import Counter
 
 import matplotlib.pyplot as plt
 import numpy as np
+from scipy.stats import chisquare
 
 I = np.eye(2)
 H = np.array([[1 / np.sqrt(2), 1 / np.sqrt(2)], [1 / np.sqrt(2), -1 / np.sqrt(2)]])
@@ -115,3 +116,18 @@ def plot_results(measurement_results, num_qubits):
     plt.ylabel("Counts")
     plt.title("Results without SDK")
     plt.show()
+
+
+def chisquare_test(mpqp_counts, theoretical_counts, shots, alpha=0.05):
+
+    theoretical_probabilities = [count / shots for count in theoretical_counts]
+    expected_counts = [int(tp * shots) for tp in theoretical_probabilities]
+
+    chisquare_stat, p_value = chisquare(mpqp_counts, expected_counts)
+
+    return {
+        "expected_counts": expected_counts,
+        "chisquare_stat": chisquare_stat,
+        "p_value": p_value,
+        "significant": p_value < alpha,
+    }
