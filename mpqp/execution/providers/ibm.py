@@ -11,7 +11,7 @@ from qiskit.primitives import BackendEstimator, PrimitiveResult, EstimatorResult
 from qiskit.providers import BackendV1, BackendV2
 from qiskit.quantum_info import SparsePauliOp, Pauli
 from qiskit.result import Result as QiskitResult
-from qiskit_aer import Aer, AerSimulator
+from qiskit_aer import AerSimulator
 from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator, SamplerV2 as Runtime_Sampler, RuntimeJobV2, Session
 from typeguard import typechecked
 
@@ -45,15 +45,12 @@ def run_ibm(job: Job) -> Result:
 
 
 @typechecked
-def compute_expectation_value(
-    ibm_circuit: QuantumCircuit, ibm_backend: Optional[BackendV1 | BackendV2], job: Job
-) -> Result:
+def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
     """Configures observable job and run it locally, and returns the
     corresponding Result.
 
     Args:
         ibm_circuit: QuantumCircuit (already reversed bits)
-        ibm_backend: The IBM backend (local of remote) on which we execute the job.
         job: Mpqp job describing the observable job to run.
 
     Returns:
@@ -72,9 +69,9 @@ def compute_expectation_value(
     qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
     assert isinstance(qiskit_observable, SparsePauliOp)
 
+    #TODO rework this part
     if nb_shots != 0:
-        assert ibm_backend is not None
-        estimator = BackendEstimator(backend=ibm_backend)
+        estimator = BackendEstimator(backend=...)
     else:
         estimator = Qiskit_Estimator()
 
@@ -186,7 +183,7 @@ def run_aer(job: Job):
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:
-        result = compute_expectation_value(qiskit_circuit, None, job)
+        result = compute_expectation_value(qiskit_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled.")
