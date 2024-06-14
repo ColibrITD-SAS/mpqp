@@ -78,7 +78,6 @@ class IBMDevice(AvailableDevice):
 
     AER_SIMULATOR = "automatic"
     AER_SIMULATOR_STATEVECTOR = "statevector"
-    # TODO: check that those devices indeed are working
     AER_SIMULATOR_DENSITY_MATRIX = "density_matrix"
     AER_SIMULATOR_STABILIZER = "stabilizer"
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"

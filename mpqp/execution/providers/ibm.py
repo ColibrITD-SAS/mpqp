@@ -243,9 +243,10 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
             coeffs=qiskit_observable.coeffs
         )
 
-        precision = 1/np.sqrt(job.measure.shots)
         # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
-        #  Tried once with shots=1234, but got shots=1280 with the real experiment
+        #  https://github.com/Qiskit/qiskit-ibm-runtime/blob/ed71c5bf8d4fa23c26a0a26c6d45373263e5ecde/qiskit_ibm_runtime/qiskit/primitives/backend_estimator_v2.py#L154
+        #  Tried once with shots=1234, but got shots=1280 with the real experiment, looks like the decimal part of precision is truncated
+        precision = 1/np.sqrt(job.measure.shots)
         ibm_job = estimator.run([(qiskit_circuit, qiskit_observable)], precision=precision)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
