@@ -74,8 +74,6 @@ class IBMDevice(AvailableDevice):
         an equivalent one for instance).
     """
 
-    # PULSE_SIMULATOR = "pulse_simulator"
-
     AER_SIMULATOR = "automatic"
     AER_SIMULATOR_STATEVECTOR = "statevector"
     AER_SIMULATOR_DENSITY_MATRIX = "density_matrix"

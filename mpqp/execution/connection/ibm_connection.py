@@ -98,7 +98,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
     Example:
         >>> service = get_QiskitRuntimeService()
         >>> service.jobs()
-        [<RuntimeJobV2('cmdj3b4nktricigarn8g', 'estimator')>,
+        [<RuntimeJob('cmdj3b4nktricigarn8g', 'estimator')>,
          <RuntimeJob('cmdj3a74mi97k7j7ujv0', 'sampler')>,
          <RuntimeJob('cmama29054sir2cq94og', 'estimator')>,
          <RuntimeJob('cmama14pduldih1q4ktg', 'sampler')>,
