@@ -176,15 +176,15 @@ def get_backend(device: IBMDevice) -> "BackendV2":
     service = get_QiskitRuntimeService()
 
     try:
-        backend = service.get_backend(device.value)
+        if device == IBMDevice.IBM_LEAST_BUSY:
+            return service.least_busy(operational=True)
+        return service.get_backend(device.value)
     except QiskitBackendNotFoundError as err:
         raise IBMRemoteExecutionError(
             f"Requested device {device} not found. Verify if your instances "
             "allows to access this machine, or the device's name.\n"
             f"Trace: {err}"
         )
-
-    return backend
 
 
 def get_all_job_ids() -> list[str]:
