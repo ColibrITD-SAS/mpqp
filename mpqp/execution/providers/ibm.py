@@ -226,7 +226,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
         assert isinstance(qiskit_circuit, QuantumCircuit)
     qiskit_circuit = qiskit_circuit.reverse_bits()
     service = get_QiskitRuntimeService()
-    backend = get_backend(job.device.value)
+    assert isinstance(job.device, IBMDevice)
+    backend = get_backend(job.device)
     session = Session(service=service, backend=backend)
     qiskit_circuit = transpile(qiskit_circuit, backend)
 
@@ -246,6 +247,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
         # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
         #  https://github.com/Qiskit/qiskit-ibm-runtime/blob/ed71c5bf8d4fa23c26a0a26c6d45373263e5ecde/qiskit_ibm_runtime/qiskit/primitives/backend_estimator_v2.py#L154
         #  Tried once with shots=1234, but got shots=1280 with the real experiment, looks like the decimal part of precision is truncated
+        #  The problem is on the IBM side, an issue has been published : https://github.com/Qiskit/qiskit-ibm-runtime/issues/1749
         precision = 1/np.sqrt(job.measure.shots)
         ibm_job = estimator.run([(qiskit_circuit, qiskit_observable)], precision=precision)
     elif job.job_type == JobType.SAMPLE:

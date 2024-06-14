@@ -7,7 +7,6 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from qiskit.providers.backend import BackendV2
     from qiskit_ibm_runtime import QiskitRuntimeService
-    from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import IBMDevice
@@ -75,6 +74,7 @@ def test_connection() -> bool:
         ``False`` if login failed.
     """
     from qiskit_ibm_runtime import QiskitRuntimeService
+    from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError
     global Runtime_Service
     try:
         Runtime_Service = QiskitRuntimeService(channel="ibm_quantum")
