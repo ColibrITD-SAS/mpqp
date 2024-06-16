@@ -4,31 +4,59 @@ import matplotlib.pyplot as plt
 import numpy as np
 from scipy.stats import chisquare
 
-I = np.eye(2)
-H = np.array([[1 / np.sqrt(2), 1 / np.sqrt(2)], [1 / np.sqrt(2), -1 / np.sqrt(2)]])
-X = np.array([[0, 1], [1, 0]])
-CNOT = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
+from mpqp.all import *
 
 noise_proba = 0.7
 shots = 1024
 
 
-def apply_gate(state, gate, qubit, num_qubits):
-    gate_matrix = np.eye(1)
-    for i in range(num_qubits):
-        gate_matrix = np.kron(gate_matrix, gate if i == qubit else I)
-    return gate_matrix @ state
+def process_qcircuit(circuit: QCircuit):
+
+    # gate_classes = [
+    #     type(instr) for instr in circuit.instructions if isinstance(instr, Gate)
+    # ]
+    gate_operations = [
+        instr for instr in circuit.instructions if issubclass(type(instr), Gate)
+    ]
+
+    gate_map = {gate.label: gate.to_matrix() for gate in gate_operations}
+
+    gates = [
+        (
+            (gate.label, gate.controls + gate.targets)
+            if gate.label == "CNOT"
+            else (gate.label, gate.targets)
+        )
+        for gate in gate_operations
+    ]
+
+    return gate_map, gates
 
 
-def apply_cnot(state, control, target):
-    control_mask = 1 << control
-    target_mask = 1 << target
-    new_state = state.copy()
-    for i in range(len(state)):
-        if (i & control_mask) and not (i & target_mask):
-            j = i ^ target_mask
-            new_state[i], new_state[j] = new_state[j], new_state[i]
-    return new_state
+def apply_gate(state, gate, qubits, num_qubits):
+
+    if len(qubits) == 1:
+        qubit = qubits[0]
+        gate_matrix = np.eye(1)
+        for i in range(num_qubits):
+            gate_matrix = np.kron(gate_matrix, gate if i == qubit else np.eye(2))
+        return gate_matrix @ state
+    elif len(qubits) == 2:
+        full_gate = np.eye(1 << num_qubits, dtype=complex)
+        control, target = qubits
+        for i in range(1 << num_qubits):
+            for j in range(1 << num_qubits):
+                bin_i = format(i, f"0{num_qubits}b")
+                bin_j = format(j, f"0{num_qubits}b")
+                if all(
+                    bin_i[k] == bin_j[k] for k in range(num_qubits) if k not in qubits
+                ):
+                    sub_i = int("".join(bin_i[k] for k in qubits), 2)
+                    sub_j = int("".join(bin_j[k] for k in qubits), 2)
+                    full_gate[i, j] = gate[sub_i, sub_j]
+        return full_gate @ state
+    else:
+        raise ValueError("Only single-qubit and two-qubit gates are supported.")
 
 
 def depolarizing_noise(density_matrix, p):
@@ -37,27 +65,25 @@ def depolarizing_noise(density_matrix, p):
     return (1 - p) * density_matrix + p / d * identity
 
 
-def run_experiment(initial_state, gates, noise_proba, shots):
+def run_experiment(initial_state, gates, gate_map, noise_proba, shots):
     num_qubits = int(np.log2(len(initial_state)))
     measurement_results = []
 
     for _ in range(shots):
         state = np.array(initial_state, dtype=complex)
-        for gate, qubit in gates:
-            if gate == "H":
-                state = apply_gate(state, H, qubit, num_qubits)
-            elif gate == "X":
-                state = apply_gate(state, X, qubit, num_qubits)
-            elif gate == "CNOT":
-                state = apply_cnot(state, qubit[0], qubit[1])
+        for gate, qubits in gates:
+            if gate in gate_map:
+                state = apply_gate(state, gate_map[gate], qubits, num_qubits)
 
         density_matrix = np.outer(state, np.conj(state))
 
         noisy_density_matrix = depolarizing_noise(density_matrix, noise_proba)
 
-        # collapse to state vector for measurement
         probabilities = np.abs(noisy_density_matrix.flatten()) ** 2
         probabilities /= np.sum(probabilities)
+
+        probabilities = np.asarray(probabilities, dtype=np.float64)
+
         state = np.random.choice(len(probabilities), p=probabilities)
         measured_state = format(state, f"0{num_qubits}b")
         measurement_results.append(measured_state)
@@ -108,7 +134,7 @@ def plot_results(measurement_results, num_qubits):
     states, counts = zip(*sorted_results)
 
     x = np.arange(len(states))  # plot the counts for each state
-    states = [f"|{state}>" for state in states]  # |00>, |01>, |10>, |11>
+    states = [f"|{state}>" for state in states]  # "|00>", "|01>", "|10>", "|11>"
 
     plt.bar(x, counts, align="center", width=0.6)
     plt.xticks(x, states)
