@@ -146,6 +146,14 @@ def plot_results(measurement_results, num_qubits):
 
 def chisquare_test(mpqp_counts, theoretical_counts, shots, alpha=0.05):
 
+    if not mpqp_counts or not theoretical_counts:
+        return {
+            "expected_counts": [],
+            "chisquare_stat": np.nan,
+            "p_value": 1.0,
+            "significant": False,
+        }
+
     theoretical_probabilities = [count / shots for count in theoretical_counts]
     expected_counts = [int(tp * shots) for tp in theoretical_probabilities]
 
