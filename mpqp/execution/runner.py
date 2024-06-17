@@ -19,6 +19,7 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 from __future__ import annotations
 
 from numbers import Complex
+from textwrap import indent
 from typing import Iterable, Optional, Union
 
 import numpy as np
@@ -44,8 +45,9 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
 from mpqp.execution.result import BatchResult, Result
+from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
-from mpqp.tools.generics import OneOrMany
+from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 
 @typechecked
@@ -140,7 +142,10 @@ def generate_job(
 
 @typechecked
 def _run_single(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex]
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: dict[Expr | str, Complex],
+    display_breakpoints: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -149,6 +154,9 @@ def _run_single(
         circuit: QCircuit to be run.
         device: Device, on which the circuit will be run.
         values: Set of values to substitute symbolic variables. Defaults to ``{}``.
+        display_breakpoints: If ``False``, breakpoints will be disabled. Each
+            breakpoint adds an execution of the circuit(s), so you may use this
+            option for performance if need be.
 
     Returns:
         The Result containing information about the measurement required.
@@ -172,6 +180,10 @@ def _run_single(
          Error: None
 
     """
+    if display_breakpoints:
+        for k in range(len(circuit.breakpoints)):
+            display_kth_breakpoint(circuit, k)
+
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
@@ -202,6 +214,7 @@ def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
 ) -> Union[Result, BatchResult]:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -211,9 +224,12 @@ def run(
     substitutions.
 
     Args:
-        circuit: QCircuit to be run.
+        circuit: Circuit, or list of circuits, to be run.
         device: Device, or list of devices, on which the circuit will be run.
         values: Set of values to substitute symbolic variables. Defaults to ``{}``.
+        display_breakpoints: If ``False``, breakpoints will be disabled. Each
+            breakpoint adds an execution of the circuit(s), so you may use this
+            option for performance if need be.
 
     Returns:
         The Result containing information about the measurement required.
@@ -273,16 +289,17 @@ def run(
     if values is None:
         values = {}
 
-    if isinstance(circuit, Iterable):
-        if isinstance(device, Iterable):
-            return BatchResult([_run_single(circ, dev, values) for circ in circuit for dev in device])
-        else:
-            return BatchResult([_run_single(circ, device, values) for circ in circuit])
+    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+        return BatchResult(
+            [
+                _run_single(circ, dev, values, display_breakpoints)
+                for circ in flatten(circuit)
+                for dev in flatten(device)
+            ]
+        )
     else:
-        if isinstance(device, Iterable):
-            return BatchResult([_run_single(circuit, dev, values) for dev in device])
-        else:
-            return _run_single(circuit, device, values)
+        return _run_single(circuit, device, values, display_breakpoints)
+
 
 @typechecked
 def submit(
@@ -335,3 +352,24 @@ def submit(
         raise NotImplementedError(f"Device {device} not handled")
 
     return job_id, job
+
+
+def display_kth_breakpoint(circuit: QCircuit, k: int):
+    """Prints to the standard output the state vector corresponding to the state
+    of the system when it encounters the `k^{th}` breakpoint.
+
+    Args:
+        circuit: The circuit to be examined.
+        k: The state desired is met at the `k^{th}` breakpoint.
+    """
+    bp = circuit.breakpoints[k]
+    if bp.enabled:
+        name_part = "" if bp.label is None else f", at breakpoint `{bp.label}`"
+        bp_instructions_index = find_index(circuit.instructions, lambda i: i is bp)
+        copy = QCircuit(circuit.instructions[:bp_instructions_index])
+        res = _run_single(copy, ATOSDevice.MYQLM_CLINALG, {}, False)
+        print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
+        print("       " + state_vector_ket_shape(res.amplitudes))
+        if bp.draw_circuit:
+            print("       and circuit is")
+            print(indent(str(circuit), "       "))

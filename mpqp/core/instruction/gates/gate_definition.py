@@ -11,7 +11,8 @@ if TYPE_CHECKING:
 import numpy as np
 from typeguard import typechecked
 
-from mpqp.tools.generics import Matrix, one_lined_repr
+from mpqp.tools.display import one_lined_repr
+from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_unitary, matrix_eq
 
 

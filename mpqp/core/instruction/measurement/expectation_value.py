@@ -27,8 +27,9 @@ from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.core.languages import Language
+from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
-from mpqp.tools.generics import Matrix, one_lined_repr
+from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_hermitian
 
 

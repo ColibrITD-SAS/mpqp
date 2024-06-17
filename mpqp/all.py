@@ -4,7 +4,7 @@ from sympy import symbols
 
 from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 
-from . import Barrier, Instruction, Language, QCircuit
+from . import Barrier, Breakpoint, Instruction, Language, QCircuit
 from .execution import (
     Job,
     JobStatus,
