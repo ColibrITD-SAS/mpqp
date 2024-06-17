@@ -48,12 +48,12 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
             # if file doesn't exist, create it, or overwrite the credentials in the ~/.netrc file
             with open(netrc_path, "w") as file:
                 file.write(
-                    "machine qlm35e.neasqc.eu\nlogin "
-                    + username
-                    + "\npassword "
-                    + password
+                    f"""\
+machine qlm35e.neasqc.eu
+login {username}
+password {password}"""
                 )
-            # Set the permissions to '0600' (equivalent to 'chmod og-rw')
+            # Set the permissions to read and right for user only
             os.chmod(netrc_path, 0o600)
 
         from qat.qlmaas import QLMaaSConnection  # type: ignore
