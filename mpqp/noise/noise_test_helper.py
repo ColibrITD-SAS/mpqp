@@ -11,12 +11,8 @@ shots = 1024
 
 
 def process_qcircuit(circuit: QCircuit):
-
-    # gate_classes = [
-    #     type(instr) for instr in circuit.instructions if isinstance(instr, Gate)
-    # ]
     gate_operations = [
-        instr for instr in circuit.instructions if issubclass(type(instr), Gate)
+        instr for instr in circuit.instructions if isinstance(instr, Gate)
     ]
 
     gate_map = {gate.label: gate.to_matrix() for gate in gate_operations}
@@ -76,13 +72,10 @@ def run_experiment(initial_state, gates, gate_map, noise_proba, shots):
                 state = apply_gate(state, gate_map[gate], qubits, num_qubits)
 
         density_matrix = np.outer(state, np.conj(state))
-
         noisy_density_matrix = depolarizing_noise(density_matrix, noise_proba)
 
         probabilities = np.abs(noisy_density_matrix.flatten()) ** 2
         probabilities /= np.sum(probabilities)
-
-        probabilities = np.asarray(probabilities, dtype=np.float64)
 
         state = np.random.choice(len(probabilities), p=probabilities)
         measured_state = format(state, f"0{num_qubits}b")
