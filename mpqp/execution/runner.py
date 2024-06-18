@@ -274,6 +274,10 @@ def run(
         values = {}
 
     if isinstance(circuit, Iterable):
+        for i, circ in enumerate(circuit):
+            if circ.label is None:
+                circ.label = f"circuit {i}"
+
         if isinstance(device, Iterable):
             return BatchResult([_run_single(circ, dev, values) for circ in circuit for dev in device])
         else:

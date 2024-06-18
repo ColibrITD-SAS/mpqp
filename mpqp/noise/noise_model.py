@@ -22,7 +22,8 @@ class NoiseModel(ABC):
     its qubits.
 
     It allows to specify which qubits (targets) and which gates of the circuit
-    will be affected with this noise model.
+    will be affected with this noise model. If you don't specify a target, the
+    operation will apply to all qubits.
 
     Args:
         targets: List of qubit indices affected by this noise.
@@ -35,9 +36,12 @@ class NoiseModel(ABC):
     """
 
     def __init__(
-        self, targets: list[int] = [], gates: Optional[list[type[Gate]]] = None
+        self,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[Gate]]] = None,
     ):
-
+        if targets is None:
+            targets = []
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
 
@@ -152,7 +156,7 @@ class Depolarizing(NoiseModel):
     def __init__(
         self,
         prob: float,
-        targets: list[int] = [],
+        targets: Optional[list[int]] = None,
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -182,10 +186,9 @@ class Depolarizing(NoiseModel):
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
 
-        nb_targets = len(targets)
-        if nb_targets != 0 and nb_targets < dimension:
+        if targets and len(targets) < dimension:
             raise ValueError(
-                f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}."
+                f"Number of target qubits {len(targets)} should be higher than the dimension {dimension}."
             )
 
         super().__init__(targets, gates)

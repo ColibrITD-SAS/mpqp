@@ -26,7 +26,8 @@ class BasisMeasure(Measure):
 
     The number of shots indicates the number of time the measure is repeated.
     When shots is equal to 0 (by default), the simulator is used to produce
-    exact value of the amplitudes/probabilities.
+    exact value of the amplitudes/probabilities. If you don't specify a target,
+    the operation will apply to all qubits.
 
     Args:
         targets: List of indices referring to the qubits on which the measure
@@ -49,12 +50,14 @@ class BasisMeasure(Measure):
 
     def __init__(
         self,
-        targets: list[int],
+        targets: Optional[list[int]] = None,
         c_targets: Optional[list[int]] = None,
         shots: int = 0,
         basis: Optional[Basis] = None,
         label: Optional[str] = None,
     ):
+        if targets is None:
+            targets = []
         if basis is None:
             basis = ComputationalBasis()
         # 3M-TODO: implement basis thing
