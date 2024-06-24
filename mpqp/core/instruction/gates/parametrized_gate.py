@@ -31,8 +31,10 @@ from mpqp.core.instruction.gates.gate_definition import GateDefinition
 
 @typechecked
 class ParametrizedGate(Gate, ABC):
-    """Abstract class to factorize behavior of parametrized gate. Since it's an
-    abstract class, do not instantiate one yourself.
+    """Abstract class to factorize behavior of parametrized gate.
+
+    .. note::
+        This class is abstract and should not be instantiated directly.
 
     Args:
         definition: Provide a definition of the gate (matrix, gate combination,
