@@ -335,7 +335,10 @@ class InvolutionGate(Gate, ABC):
 
 @typechecked
 class SingleQubitGate(Gate, ABC):
-    """Gates operating on a single qubit.
+    """Abstract class for gates operating on a single qubit.
+
+    .. note::
+        This class is abstract and should not be instantiated directly.
 
     Args:
         target: Index or referring to the qubit on which the gate will be applied.
