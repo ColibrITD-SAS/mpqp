@@ -4,12 +4,15 @@ from typing import Optional, Sequence
 
 import numpy as np
 import pytest
-from qiskit import QuantumCircuit
+from braket.circuits import Circuit as BraketCircuit
+from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
 
 from mpqp import Barrier, Instruction, Language, QCircuit
 from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
+from mpqp.noise.noise_model import Depolarizing
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.generics import OneOrMany, one_lined_repr
 
 
@@ -206,7 +209,7 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         (
             QCircuit([X(0), CNOT(0, 1)]),
             (),
-            QuantumCircuit,
+            QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
                 " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 0),),"
@@ -215,14 +218,84 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
                 " 'q'), 0), Qubit(QuantumRegister(2, 'q'), 1)), clbits=())]"
             ),
         ),
+        (
+            QCircuit([X(0), CNOT(0, 1)]),
+            (Language.QISKIT,),
+            QiskitCircuit,
+            (
+                "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
+                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 0),),"
+                " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
+                " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
+                " 'q'), 0), Qubit(QuantumRegister(2, 'q'), 1)), clbits=())]"
+            ),
+        ),
+        (
+            QCircuit([CNOT(0, 1), Depolarizing(0.5)]),
+            (Language.BRAKET,),
+            BraketCircuit,
+            (
+                """\
+T  : │         0         │
+            ┌───────────┐ 
+q0 : ───●───┤ DEPO(0.5) ├─
+        │   └───────────┘ 
+      ┌─┴─┐ ┌───────────┐ 
+q1 : ─┤ X ├─┤ DEPO(0.5) ├─
+      └───┘ └───────────┘ 
+T  : │         0         │"""
+            ),
+        ),
+        (
+            QCircuit([CNOT(0, 1), Depolarizing(0.5, dimension=2)]),
+            (Language.BRAKET,),
+            BraketCircuit,
+            (
+                """\
+T  : │         0         │
+            ┌───────────┐ 
+q0 : ───●───┤ DEPO(0.5) ├─
+        │   └─────┬─────┘ 
+      ┌─┴─┐ ┌─────┴─────┐ 
+q1 : ─┤ X ├─┤ DEPO(0.5) ├─
+      └───┘ └───────────┘ 
+T  : │         0         │"""
+            ),
+        ),
+        (
+            QCircuit([CNOT(0, 1), Depolarizing(0.5, dimension=2, gates=[CNOT])]),
+            (Language.BRAKET,),
+            BraketCircuit,
+            (
+                """\
+T  : │         0         │
+            ┌───────────┐ 
+q0 : ───●───┤ DEPO(0.5) ├─
+        │   └─────┬─────┘ 
+      ┌─┴─┐ ┌─────┴─────┐ 
+q1 : ─┤ X ├─┤ DEPO(0.5) ├─
+      └───┘ └───────────┘ 
+T  : │         0         │"""
+            ),
+        ),
     ],
 )
 def test_to_other_language(
     circuit: QCircuit, args: tuple[Language], result_type: type, result_repr: str
 ):
-    qiskit_circuit = circuit.to_other_language(*args)
-    assert type(qiskit_circuit) == QuantumCircuit
-    assert repr(qiskit_circuit.data) == result_repr
+    language = Language.QISKIT if len(args) == 0 else args[0]
+    # TODO: test other languages
+    if language == Language.BRAKET:
+        with pytest.warns(UnsupportedBraketFeaturesWarning) as record:
+            converted_circuit = circuit.to_other_language(*args)
+        assert len(record) == 1
+    else:
+        converted_circuit = circuit.to_other_language(*args)
+    assert type(converted_circuit) == result_type
+    if isinstance(converted_circuit, QiskitCircuit):
+        assert repr(converted_circuit.data) == result_repr
+    if isinstance(converted_circuit, BraketCircuit):
+        assert str(converted_circuit) == result_repr
 
 
 @pytest.mark.parametrize(
