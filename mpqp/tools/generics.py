@@ -19,7 +19,7 @@ from __future__ import annotations
 
 import re
 from abc import ABCMeta
-from typing import Callable, Iterable, Iterator, Sequence, TypeVar, Union
+from typing import Any, Callable, Iterable, Iterator, Sequence, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -191,6 +191,7 @@ def clean_matrix(matrix: Matrix):
     cleaned_matrix = [clean_array(row) for row in matrix]
     return "[" + ",\n ".join(cleaned_matrix) + "]"
 
+
 class SimpleClassReprMeta(type):
     """Metaclass used to change the repr of the class (not the instances) to
     display the name of the class only (instead of the usual
@@ -206,3 +207,11 @@ class SimpleClassReprABCMeta(SimpleClassReprMeta, ABCMeta):
 
 class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
     pass
+
+
+class classproperty:
+    def __init__(self, func: Callable[..., Any]):
+        self.fget = func
+
+    def __get__(self, instance: object, owner: object):
+        return self.fget(owner)

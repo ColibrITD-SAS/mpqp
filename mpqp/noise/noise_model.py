@@ -152,7 +152,7 @@ class Depolarizing(NoiseModel):
     def __init__(
         self,
         prob: float,
-        targets: list[int] = [],
+        targets: Optional[list[int]] = None,
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -161,6 +161,9 @@ class Depolarizing(NoiseModel):
                 "Dimension of the depolarizing channel must be strictly greater"
                 f" than 1, but got {dimension} instead."
             )
+
+        if targets is None:
+            targets = []
 
         # 3M-TODO: implement the possibility of having a parameterized noise,
         # param: Union[float, Expr]
