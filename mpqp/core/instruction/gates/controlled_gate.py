@@ -13,6 +13,9 @@ class ControlledGate(Gate, ABC):
     """Abstract class representing a controlled gate, that can be controlled by
     one or several qubits.
 
+    .. note::
+        This class is abstract and should not be instantiated directly.
+
     Args:
         controls: List of indices referring to the qubits used to control the gate.
         targets: List of indices referring to the qubits on which the gate will be applied.
