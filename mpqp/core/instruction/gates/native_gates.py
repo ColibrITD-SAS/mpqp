@@ -105,6 +105,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     and simply having to tweak the matrix semantics and qasm translation of
     the specific gate.
 
+    .. note::
+        This class is abstract and should not be instantiated directly.
+
     Args:
         theta: Angle of the rotation.
         target: Index referring to the qubits on which the gate will be applied.
@@ -235,7 +238,10 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
 
 @typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
-    """Class describing one-qubit native gates that do not depend on parameters.
+    """Abstract Class describing one-qubit native gates that do not depend on parameters.
+
+    .. note::
+        This class is abstract and should not be instantiated directly.
 
     Args:
         target: Index referring to the qubits on which the gate will be applied.
