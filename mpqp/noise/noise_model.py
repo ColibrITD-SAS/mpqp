@@ -152,7 +152,7 @@ class Depolarizing(NoiseModel):
     def __init__(
         self,
         prob: float,
-        targets: list[int] = [],
+        targets: Optional[list[int]] = None,
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -279,14 +279,46 @@ class Depolarizing(NoiseModel):
 class BitFlip(NoiseModel):
     """3M-TODO"""
 
-    # def __init__(
-    #     self,
-    #     proba: Union[float, Expr],
-    #     targets: List[int],
-    #     dimension: int = 1,
-    #     gates: List[Gate] = None):
+    def __init__(
+        self,
+        prob: float,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[Gate]]] = None,
+    ):
+        if not (0 <= prob <= 1):
+            raise ValueError(
+                f"Invalid probability: {prob} but should be between 0 and 1."
+            )
 
-    #     super().__init__(proba, targets, dimension, gates)
+        if gates is not None:
+            if any(gate.nb_qubits != 1 for gate in gates):
+                raise ValueError("BitFlip noise is only valid for single-qubit gates.")
+
+        nb_targets = len(targets)
+        if nb_targets < 1:
+            raise ValueError("Number of target qubits should be at least 1.")
+
+        super().__init__(targets, gates)
+        self.proba = prob
+        """Probability, or error rate, of the bit-flip noise model."""
+
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}({self.proba}, {self.targets}"
+            + (", " + str(self.gates) if self.gates else "")
+            + ")"
+        )
+
+    def to_other_language(self, language: Language = Language.QISKIT) -> BraketNoise:
+
+        if language == Language.BRAKET:
+            from braket.circuits.noises import BitFlip
+
+            return BitFlip(probability=self.proba)
+        else:
+            raise NotImplementedError(
+                f"Conversion of BitFlip noise for language {language.name} is not supported"
+            )
 
     def to_kraus_representation(self) -> KrausRepresentation:
         # generate Kraus operators for bit flip noise
