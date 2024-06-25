@@ -42,12 +42,3 @@ print(f"Cirq circuit:\n{cirq_circuit}\n")
 processor_id = "rainbow"
 grid_circuit = circuit.to_other_language(Language.CIRQ, cirq_proc_id=processor_id)
 print(f"circuit for processor {processor_id}:\n{grid_circuit}\n")
-
-# %%
-config_ionq_key()
-
-# %%
-results = run(circuit, [GOOGLEDevice.IONQ_SIMULATOR])
-print(results)
-
-results.plot()
