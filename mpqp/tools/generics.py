@@ -256,6 +256,9 @@ class MessageEnum(Enum):
         >>> A.VALUE1.message
         'member VALUE2'
 
+    Warning:
+        This implementation is not very robust, in particular, in case some
+        members are not documented, it will mess things up.
     """
 
     message: str
