@@ -100,6 +100,7 @@ Here are some useful scripts for when you are developing:
 | `sphinx-build -b html docs build` | Builds the documentation |
 | `python -m pytest`                | Runs the test suite      |
 | `python -m pytest --long`         | Runs the long tests too  |
+| `python -m pytest --longlocal`    | Runs the long tests local|
 
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)

@@ -4,6 +4,7 @@ too slow)"""
 import sys
 
 # 3M-TODO test everything
+import cirq
 import numpy as np
 import pytest
 
@@ -65,25 +66,33 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
         ),
     ],
 )
-def running_remote_local_cirq(circuit: QCircuit):
+def test_running_remote_local_cirq(circuit: QCircuit):
     return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
-if "--long" in sys.argv:
-    test_running_local_cirq_without = running_remote_local_cirq
-
-
 @pytest.mark.parametrize(
-    "qasm_filename",
+    "circuit, qasm_filename",
     [
-        "all",
+        (
+            cirq.Circuit(
+                cirq.X(cirq.NamedQubit("q_0")),
+                cirq.CNOT(cirq.NamedQubit("q_0"), cirq.NamedQubit("q_1")),
+                cirq.measure(
+                    cirq.NamedQubit("q_1"), key="c_1"
+                ),
+                cirq.measure(
+                    cirq.NamedQubit("q_0"), key="c_0"
+                ),
+            ),
+            "all",
+        )
     ],
 )
-def _test_qasm2_to_cirq_Circuit(qasm_filename: str):
-    # TODO: this test does not pass, fix it
+def test_qasm2_to_cirq_Circuit(circuit: QCircuit, qasm_filename: str):
     with open(
         f"tests/core/test_circuit/{qasm_filename}.qasm2",
         "r",
         encoding="utf-8",
     ) as f:
-        assert qasm2_to_cirq_Circuit(f.read()).to_qasm() == f.read()
+        qasm_circuit = f.read()
+        assert qasm2_to_cirq_Circuit(qasm_circuit) == circuit
