@@ -4,40 +4,57 @@ on:
   push:
     branches:
       - dev
+      - main
   workflow_dispatch:
     inputs:
       python_v:
-        description: 'python version'
+        description: "python version"
         required: true
-        default: '3.9'
+        default: "3.9"
         type: choice
         options:
-          - '3.9'
-          - '3.10'
-          - '3.11'
+          - "3.9"
+          - "3.10"
+          - "3.11"
       commit_ref:
         description: Specific ref (branch, tag or SHA)
-        default: ''
+        default: ""
         type: string
         required: false
-
+      long:
+        description: "Run long tests"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up Python ${{ github.event.inputs.python_v || '3.9' }}
+      - name: Set up python ${{ github.event.inputs.python_v || '3.9' }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ github.event.inputs.python_v || '3.9' }}
           cache: "pip"
-      - name: Install Dependencies
+      - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements-dev.txt
-      - name: Run test
-        run: python -m pytest
+      - name: Install long dedendencies
+        if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
+        run: |
+          pip install .
+          sudo apt-get update
+          sudo apt install -y poppler-utils
+          sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra
+      - name: Run tests
+        run: |
+          if [ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]; then
+            python -m pytest --long-local
+          else
+            python -m pytest
+          fi
