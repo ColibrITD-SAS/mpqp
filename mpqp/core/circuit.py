@@ -1047,8 +1047,8 @@ class QCircuit:
 
         """
         print(
-            f"QCircuit {self.label or ''}: Size ({'Qubit' if self.size()[0] <= 1 else 'Qubits'}, {'Cbit' if self.size()[1] <= 1 else 'Cbits'}) = {self.size()},"
-            f" Nb instruction{'s' if len(self) > 1 else ''} = {len(self)}"
+            f"QCircuit {self.label or ''}: Size (Qubits, Cbits) = {self.size()},"
+            f" Nb instructions = {len(self)}"
         )
 
         qubits = set(range(self.size()[0]))
@@ -1061,9 +1061,15 @@ class QCircuit:
                 targets = set(noise.targets)
                 noise_info = f"{type(noise).__name__} noise: probability {noise.proba}"
                 if targets != qubits:
-                    noise_info += f" on {'qubit' if len(noise.targets) <= 1 else 'qubits'} {noise.targets[0] if len(noise.targets) == 1 else noise.targets}"
+                    noise_info += (
+                        f" on qubit{'s' if len(noise.targets) > 1 else ''} "
+                        f"{noise.targets[0] if len(noise.targets) == 1 else noise.targets}"
+                    )
                 if noise.gates:
-                    noise_info += f" for {'gate' if len(noise.gates) == 1 else 'gates'} {noise.gates[0] if len(noise.gates) == 1 else noise.gates}"
+                    noise_info += (
+                        f" for gate{'s' if len(noise.gates) > 1 else ''} "
+                        f"{noise.gates[0] if len(noise.gates) == 1 else noise.gates}"
+                    )
                 print(noise_info)
 
         print(f"{self.to_other_language(Language.QISKIT)}")
