@@ -113,5 +113,5 @@ def documentation():
                                 assert runner.run(test).failed == 0
 
 
-if "--longlocal" in sys.argv or "--long" in sys.argv:
+if "--long-local" in sys.argv or "--long" in sys.argv:
     test_notebooks = documentation

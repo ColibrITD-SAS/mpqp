@@ -1,11 +1,14 @@
-
-import cirq
 import numpy as np
 import pytest
+from cirq.circuits.circuit import Circuit
+from cirq.ops.common_gates import CNOT as CirqCNOT
+from cirq.ops.measure_util import measure
+from cirq.ops.named_qubit import NamedQubit
+from cirq.ops.pauli_gates import X as CirqX
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
-from mpqp.execution import run, GOOGLEDevice
+from mpqp.execution import GOOGLEDevice, run
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
 from mpqp.qasm import qasm2_to_cirq_Circuit
@@ -69,15 +72,11 @@ def test_running_local_cirq(circuit: QCircuit):
     "circuit, qasm_filename",
     [
         (
-            cirq.Circuit(
-                cirq.X(cirq.NamedQubit("q_0")),
-                cirq.CNOT(cirq.NamedQubit("q_0"), cirq.NamedQubit("q_1")),
-                cirq.measure(
-                    cirq.NamedQubit("q_1"), key="c_1"
-                ),
-                cirq.measure(
-                    cirq.NamedQubit("q_0"), key="c_0"
-                ),
+            Circuit(
+                CirqX(NamedQubit("q_0")),
+                CirqCNOT(NamedQubit("q_0"), NamedQubit("q_1")),
+                measure(NamedQubit("q_1"), key="c_1"),
+                measure(NamedQubit("q_0"), key="c_0"),
             ),
             "all",
         )
