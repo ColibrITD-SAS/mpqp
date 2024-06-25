@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - dev
+      - main
   workflow_dispatch:
     inputs:
       python_v:
@@ -20,6 +21,11 @@ on:
         default: ''
         type: string
         required: false
+      long:
+        description: 'Run long tests'
+        required: false
+        default: false
+        type: boolean
 
 
 jobs:
@@ -39,5 +45,17 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements-dev.txt
-      - name: Run test
-        run: python -m pytest
+          pip install .
+      - name: Install pdflatex
+        if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
+        run: |
+          sudo apt-get update
+          sudo apt install -y poppler-utils
+          sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra 
+      - name: Run Tests
+        run: |
+          if [ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]; then
+            python -m pytest --long
+          else
+            python -m pytest
+          fi
