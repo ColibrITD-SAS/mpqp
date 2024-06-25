@@ -247,21 +247,23 @@ class MessageEnum(Enum):
     enum through the ``message`` property.
 
     Example:
-        >>> class A(MessageEnum):
+        >>> class A(MessageEnum):  # doctest: +SKIP
         ...     '''an enum'''
         ...     VALUE1 = auto()
         ...     '''member VALUE1'''
         ...     VALUE2 = auto()
         ...     '''member VALUE2'''
-        >>> A.VALUE1.message
+        >>> A.VALUE1.message  # doctest: +SKIP
         'member VALUE2'
 
     Warning:
         This implementation is not very robust, in particular, in case some
-        members are not documented, it will mess things up.
+        members are not documented, it will mess things up. In addition, this
+        can only work for code in file, and will not work in the interpreter.
     """
 
     message: str
+    """Each of the members of the eum will have the ``message`` attribute."""
 
     def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
         super().__init__(*args, **kwds)
