@@ -70,7 +70,7 @@ class SafeRunner:
         load_env_variables()
 
 
-def test_documentation():
+def documentation():
     print(os.getcwd())
 
     test_globals = globals().copy()
@@ -111,3 +111,7 @@ def test_documentation():
                                         assert runner.run(test).failed == 0
                             else:
                                 assert runner.run(test).failed == 0
+
+
+if "--longlocal" in sys.argv or "--long" in sys.argv:
+    test_notebooks = documentation

@@ -55,7 +55,7 @@ jobs:
       - name: Run Tests
         run: |
           if [ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]; then
-            python -m pytest --long
+            python -m pytest --longlocal
           else
             python -m pytest
           fi

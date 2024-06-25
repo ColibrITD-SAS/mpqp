@@ -30,6 +30,6 @@ def generate_tests_for_python_scripts():
         globals()[test_name] = make_test_func(py_file)
 
 
-if "--long" in sys.argv:
+if "--longlocal" in sys.argv or "--long" in sys.argv:
     generate_tests_for_python_scripts()
     test_notebooks = run_notebooks
