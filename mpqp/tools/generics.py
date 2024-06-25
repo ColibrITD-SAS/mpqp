@@ -254,7 +254,7 @@ class MessageEnum(Enum):
         ...     VALUE2 = auto()
         ...     '''member VALUE2'''
         >>> A.VALUE1.message  # doctest: +SKIP
-        'member VALUE2'
+        'member VALUE1'
 
     Warning:
         This implementation is not very robust, in particular, in case some
