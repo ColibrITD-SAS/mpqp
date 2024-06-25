@@ -1,17 +1,11 @@
-"""Add ``--long`` to the cli args to run this test (disabled by default because 
-too slow)"""
 
-import sys
-
-# 3M-TODO test everything
 import cirq
 import numpy as np
 import pytest
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
-from mpqp.execution import run
-from mpqp.execution.devices import GOOGLEDevice
+from mpqp.execution import run, GOOGLEDevice
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
 from mpqp.qasm import qasm2_to_cirq_Circuit
@@ -44,6 +38,7 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
                 BasisMeasure(list(range(3)), shots=0),
             ]
         ),
+        # OBSERVABLE JOB
         QCircuit(
             [
                 H(0),
@@ -66,7 +61,7 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
         ),
     ],
 )
-def test_running_remote_local_cirq(circuit: QCircuit):
+def test_running_local_cirq(circuit: QCircuit):
     return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
@@ -89,10 +84,10 @@ def test_running_remote_local_cirq(circuit: QCircuit):
     ],
 )
 def test_qasm2_to_cirq_Circuit(circuit: QCircuit, qasm_filename: str):
+    # 3M-TODO test everything
     with open(
         f"tests/core/test_circuit/{qasm_filename}.qasm2",
         "r",
         encoding="utf-8",
     ) as f:
-        qasm_circuit = f.read()
-        assert qasm2_to_cirq_Circuit(qasm_circuit) == circuit
+        assert qasm2_to_cirq_Circuit(f.read()) == circuit
