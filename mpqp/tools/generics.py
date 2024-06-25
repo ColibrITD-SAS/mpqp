@@ -19,7 +19,24 @@ from __future__ import annotations
 
 import re
 from abc import ABCMeta
-from typing import Any, Callable, Iterable, Iterator, Sequence, TypeVar, Union
+from inspect import getsource
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Sequence,
+    TypeVar,
+    Union,
+)
+
+from aenum import Enum
+
+# This is needed because for some reason pyright does not understand that Enum
+# is a class (probably because Enum does weird things to the Enum class)
+if TYPE_CHECKING:
+    from enum import Enum
 
 import numpy as np
 import numpy.typing as npt
@@ -215,3 +232,35 @@ class classproperty:
 
     def __get__(self, instance: object, owner: object):
         return self.fget(owner)
+
+
+def _get_doc(enum: type[Any], member: str):
+    src = getsource(enum)
+    member_pointer = src.find(member)
+    docstr_start = member_pointer + src[member_pointer:].find('"""') + 3
+    docstr_end = docstr_start + src[docstr_start:].find('"""')
+    return src[docstr_start:docstr_end]
+
+
+class MessageEnum(Enum):
+    """Enum subclass allowing you to access the docstring of the members of your
+    enum through the ``message`` property.
+
+    Example:
+        >>> class A(MessageEnum):
+        ...     '''an enum'''
+        ...     VALUE1 = auto()
+        ...     '''member VALUE1'''
+        ...     VALUE2 = auto()
+        ...     '''member VALUE2'''
+        >>> A.VALUE1.message
+        'member VALUE2'
+
+    """
+
+    message: str
+
+    def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
+        super().__init__(*args, **kwds)
+        for member in type(self).__members__:
+            type(self).__members__[member].message = _get_doc(type(self), member)
