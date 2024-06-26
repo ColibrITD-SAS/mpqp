@@ -312,22 +312,15 @@ class BitFlip(NoiseModel):
     def to_other_language(self, language: Language = Language.QISKIT) -> BraketNoise:
 
         if language == Language.BRAKET:
-            from braket.circuits.noises import BitFlip
+            from braket.circuits.noises import BitFlip as BraketBitFlip
 
-            return BitFlip(probability=self.proba)
+            return BraketBitFlip(probability=self.proba)
         else:
             raise NotImplementedError(
                 f"Conversion of BitFlip noise for language {language.name} is not supported"
             )
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        # generate Kraus operators for bit flip noise
-        # kraus_operators = [
-        #     np.sqrt(1 - self.proba) * np.array([[1, 0], [0, 1]]),  # Identity
-        #     np.sqrt(self.proba) * np.array([[0, 1], [1, 0]])      # Bit flip
-        # ]
-        # return KrausRepresentation(kraus_operators)
-        ...
+    def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
 class Pauli(NoiseModel):
