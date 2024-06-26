@@ -125,8 +125,8 @@ following (even though each of these sections is optional):
 2. `Returns`
 3. `Raises`
 4. `Example(s)`
-5. `Notes`
-6. `Warnings`
+5. `Note`
+6. `Warning`
 
 ### When you're done
 
