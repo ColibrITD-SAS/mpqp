@@ -101,7 +101,7 @@ window.onload = () => {
       template = document.createElement("template");
       template.innerHTML = `
       <div class="admonition note">
-        <p class="admonition-title"><span class="highlighted">Note</span></p>
+        <p class="admonition-title"><span>Note</span></p>
         <p>
           Abstract classes (ABCs) are not meant to be instantiated as is. See 
           classes that inherite from this one to check how to instantiate it.
