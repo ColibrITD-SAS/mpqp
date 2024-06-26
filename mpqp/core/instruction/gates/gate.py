@@ -337,9 +337,6 @@ class InvolutionGate(Gate, ABC):
 class SingleQubitGate(Gate, ABC):
     """Abstract class for gates operating on a single qubit.
 
-    .. note::
-        This class is abstract and should not be instantiated directly.
-
     Args:
         target: Index or referring to the qubit on which the gate will be applied.
         label: Label used to identify the gate.

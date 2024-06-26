@@ -86,7 +86,7 @@ def _qiskit_parameter_adder(
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
-    This class represent all those gates supported by default.
+    This abstract class represent all those gates supported by default.
 
     Args:
         targets: List of indices referring to the qubits on which the gate will
@@ -101,12 +101,9 @@ class NativeGate(Gate, SimpleClassReprABC):
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
-    a single parameter: ``theta``. This class help up factorize this behavior,
-    and simply having to tweak the matrix semantics and qasm translation of
-    the specific gate.
-
-    .. note::
-        This class is abstract and should not be instantiated directly.
+    a single parameter: ``theta``. This abstract class helps up factorize this
+    behavior, and simply having to tweak the matrix semantics and qasm
+    translation of the specific gate.
 
     Args:
         theta: Angle of the rotation.
@@ -164,7 +161,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
 @typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
-    """Class describing native gates that do not depend on parameters.
+    """Abstract class describing native gates that do not depend on parameters.
 
     Args:
         targets: List of indices referring to the qubits on which the gate will
@@ -238,10 +235,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
 
 @typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
-    """Abstract Class describing one-qubit native gates that do not depend on parameters.
-
-    .. note::
-        This class is abstract and should not be instantiated directly.
+    """Abstract Class describing one-qubit native gates that do not depend on
+    parameters.
 
     Args:
         target: Index referring to the qubits on which the gate will be applied.

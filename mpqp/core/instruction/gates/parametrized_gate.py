@@ -33,9 +33,6 @@ from mpqp.core.instruction.gates.gate_definition import GateDefinition
 class ParametrizedGate(Gate, ABC):
     """Abstract class to factorize behavior of parametrized gate.
 
-    .. note::
-        This class is abstract and should not be instantiated directly.
-
     Args:
         definition: Provide a definition of the gate (matrix, gate combination,
             ...).
