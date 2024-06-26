@@ -112,9 +112,6 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
 
     """
-    import boto3
-    from botocore.exceptions import NoRegionError
-    from braket.aws import AwsDevice, AwsSession
     from braket.devices import LocalSimulator
 
     if not device.is_remote():
@@ -123,10 +120,18 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
         else:
             return LocalSimulator()
 
+    import boto3
+    import pkg_resources
+    from botocore.exceptions import NoRegionError
+    from braket.aws import AwsDevice, AwsSession
+
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
-        aws_session.add_braket_user_agent(user_agent="APN/1.0 ColibriTD/1.0 MPQP/1.0")
+        mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
+        aws_session.add_braket_user_agent(
+            user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
+        )
         return AwsDevice(device.get_arn(), aws_session=aws_session)
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(

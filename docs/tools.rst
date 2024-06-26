@@ -13,6 +13,7 @@ Useful Maths Operations
 -----------------------
 
 .. code-block:: python
+    :class: import
 
     from mpqp.tools.maths import *
 
@@ -22,6 +23,7 @@ Generics
 --------
 
 .. code-block:: python
+    :class: import
 
     from mpqp.tools.generics import *
 
@@ -31,6 +33,7 @@ Errors
 ------
 
 .. code-block:: python
+    :class: import
 
     from mpqp.tools.errors import *
 
@@ -40,6 +43,7 @@ Choice Tree
 -----------
 
 .. code-block:: python
+    :class: import
 
     from mpqp.tools.choice_tree import *
 

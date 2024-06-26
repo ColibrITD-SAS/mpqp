@@ -9,9 +9,9 @@ RUN pip3 install --upgrade pip && \
 
 FROM python:3.9
 
-RUN apt-get update && \
-    apt-get install -y pandoc && \
-    apt-get clean && \
+RUN apt update && \
+    apt install -y pandoc && \
+    apt clean && \
     rm -rf /var/lib/apt/lists/*
 
 WORKDIR /usr/src/app/mpqp

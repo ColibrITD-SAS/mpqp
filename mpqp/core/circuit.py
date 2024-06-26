@@ -30,11 +30,10 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from braket.circuits import Circuit as braket_Circuit
     from qiskit.circuit import QuantumCircuit
+    from sympy import Basic, Expr
 
 import numpy as np
 import numpy.typing as npt
-from matplotlib.figure import Figure
-from sympy import Basic, Expr
 from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
@@ -75,14 +74,14 @@ class QCircuit:
     Examples:
         >>> circuit = QCircuit(2)
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-        QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 0
+        QCircuit : Size (Qubits, Cbits) = (2, 0), Nb instructions = 0
         q_0:
         q_1:
 
         >>> circuit = QCircuit(5, nb_cbits=2, label="Circuit 1")
         >>> circuit.add(Rx(1.23, 3))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-        QCircuit Circuit 1: Size (Qubits,Cbits) = (5, 2), Nb instructions = 1
+        QCircuit Circuit 1: Size (Qubits, Cbits) = (5, 2), Nb instructions = 1
         q_0: ────────────
         q_1: ────────────
         q_2: ────────────
@@ -97,7 +96,7 @@ class QCircuit:
         >>> circuit.add(BasisMeasure(list(range(3)), shots=2345))
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-        QCircuit NoiseExample: Size (Qubits,Cbits) = (3, 3), Nb instructions = 5
+        QCircuit NoiseExample: Size (Qubits, Cbits) = (3, 3), Nb instructions = 5
         Depolarizing noise: probability 0.5 on qubits [0, 1]
              ┌───┐     ┌─┐
         q_0: ┤ H ├──■──┤M├───
@@ -164,7 +163,7 @@ class QCircuit:
             >>> circuit.add(X(0))
             >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-            QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
+            QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -176,9 +175,9 @@ class QCircuit:
             >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-            QCircuit : Size (Qubits,Cbits) = (2, 2), Nb instructions = 3
-            Depolarizing noise: probability 0.3 for gates [CNOT]
-            Depolarizing noise: probability 0.02 on qubits [0]
+            QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
+            Depolarizing noise: probability 0.3 for gate CNOT
+            Depolarizing noise: probability 0.02 on qubit 0
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -223,10 +222,12 @@ class QCircuit:
             components.size = self.nb_qubits
 
         if isinstance(components, NoiseModel):
-            basisMs = [
+            basis_measure = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
             ]
-            if basisMs and all([len(bm.targets) != self.nb_qubits for bm in basisMs]):
+            if basis_measure and all(
+                [len(bm.targets) != self.nb_qubits for bm in basis_measure]
+            ):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
@@ -377,10 +378,12 @@ class QCircuit:
             \end{document}
 
         """
+        from matplotlib.figure import Figure
         from qiskit.tools.visualization import circuit_drawer
 
         qc = self.to_other_language(language=Language.QISKIT)
         fig = circuit_drawer(qc, output=output, style={"backgroundcolor": "#EEEEEE"})
+
         if isinstance(fig, Figure):
             fig.show()
         return fig
@@ -564,7 +567,7 @@ class QCircuit:
             q_1: ┤ Ry(4.56) ├┤ H ├─■──────
                  └──────────┘└───┘
 
-        # 3M-TODO implement, test, fill second example
+        # TODO implement, test, fill second example
         The inverse could be computed in several ways, depending on the
         definition of the circuit. One can inverse each gate in the circuit, or
         take the global unitary of the gate and inverse it.
@@ -611,8 +614,8 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
 
-        # 3M-TODO : to implement --> a first sort term way could be to reuse the
-        # qiskit QuantumCircuit feature qc.initialize()
+        # 3M-TODO : to implement --> a first short term way could be to reuse
+        # the qiskit QuantumCircuit feature qc.initialize()
         """
         size = int(np.log2(len(state)))
         if 2**size != len(state):
@@ -816,8 +819,9 @@ class QCircuit:
                         instruction.targets,
                         instruction.label,
                     )
-                    # FIXME: minus sign appearing when it should not, seems there a phase added somewhere, check u gate
-                    #  in OpenQASM translation.
+                    # FIXME: minus sign appearing when it should not, seems
+                    # there a phase added somewhere, check u gate in OpenQASM
+                    # translation.
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
@@ -826,8 +830,9 @@ class QCircuit:
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
-                    # TODO muhammad/henri, for custom basis, check if something should be changed here, otherwise remove
-                    # the condition to have only computational basis
+                    # TODO muhammad/henri, for custom basis, check if something
+                    # should be changed here, otherwise remove the condition to
+                    # have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
@@ -1019,7 +1024,8 @@ class QCircuit:
         """
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
-            + self.noises,  # 3M-TODO: modify this line when noise will be parameterized, to substitute, like we do for inst
+            + self.noises,  # 3M-TODO: modify this line when noise will be
+            # parameterized, to substitute, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,
@@ -1031,7 +1037,7 @@ class QCircuit:
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
             >>> c.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-            QCircuit : Size (Qubits,Cbits) = (2, 0), Nb instructions = 2
+            QCircuit : Size (Qubits, Cbits) = (2, 0), Nb instructions = 2
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
@@ -1040,7 +1046,7 @@ class QCircuit:
 
         """
         print(
-            f"QCircuit {self.label or ''}: Size (Qubits,Cbits) = {self.size()},"
+            f"QCircuit {self.label or ''}: Size (Qubits, Cbits) = {self.size()},"
             f" Nb instructions = {len(self)}"
         )
 
@@ -1054,9 +1060,15 @@ class QCircuit:
                 targets = set(noise.targets)
                 noise_info = f"{type(noise).__name__} noise: probability {noise.proba}"
                 if targets != qubits:
-                    noise_info += f" on qubits {noise.targets}"
+                    noise_info += (
+                        f" on qubit{'s' if len(noise.targets) > 1 else ''} "
+                        f"{noise.targets[0] if len(noise.targets) == 1 else noise.targets}"
+                    )
                 if noise.gates:
-                    noise_info += f" for gates {noise.gates}"
+                    noise_info += (
+                        f" for gate{'s' if len(noise.gates) > 1 else ''} "
+                        f"{noise.gates[0] if len(noise.gates) == 1 else noise.gates}"
+                    )
                 print(noise_info)
 
         print(f"{self.to_other_language(Language.QISKIT)}")
@@ -1101,6 +1113,8 @@ class QCircuit:
             {θ, k}
 
         """
+        from sympy import Expr
+
         params: set[Basic] = set()
         for inst in self.instructions:
             if isinstance(inst, ParametrizedGate):

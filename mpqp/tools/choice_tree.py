@@ -68,6 +68,12 @@ def run_choice_tree(question: QuestionNode):
     prev_args = []
     prev_message = ""
     next_question = question
+
+    # TODO: add the following to pick once my PR is merged
+    # KEY_CTRL_C = 3
+    # KEY_ESCAPE = 27
+    # KEYS_QUIT = (KEY_CTRL_C, KEY_ESCAPE, ord("q"))
+
     try:
         while True:
             option, _ = pick(

@@ -32,12 +32,23 @@ class PauliString:
         1*I@Z + 2*Y@I + 1*X@Z
 
     Note:
-        Pauli atoms are named I, X, Y, and Z. If you have conflicts with ``mpqp.gates import X, Y, Z``, you can:
-         - **Rename Import:** ``from mpqp.core.instruction.measurement.pauli_string import X as Pauli_X``, usage: ``Pauli_X``
-         - **Import Only Pauli String:** ``from mpqp.core.instruction.measurement import pauli_string``, usage: ``pauli_string.X``
-    """
+        Pauli atoms are named ``I``, ``X``, ``Y``, and ``Z``. If you have
+        conflicts with the gates of the same name, you could:
 
-    # TODO: reformulate ?
+        - Rename the Pauli atoms:
+
+        .. code-block:: python
+
+            from mpqp.measures import X as Pauli_X,  Y as Pauli_Y
+            ps = Pauli_X + Pauli_Y/2
+
+        - Import the Pauli atoms directly from the module:
+
+        .. code-block:: python
+
+            from mpqp.measures import pauli_string
+            ps = pauli_string.X + pauli_string.Y/2
+    """
 
     def __init__(self, monomials: Optional[list["PauliStringMonomial"]] = None):
         self._monomials: list[PauliStringMonomial] = []
@@ -271,7 +282,7 @@ class PauliString:
             >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
             >>> print(ps)
             1*I + 1*X + -1*Z
-            
+
         """
         if matrix.shape[0] != matrix.shape[1]:
             raise ValueError("Input matrix must be square.")
@@ -447,14 +458,16 @@ class PauliStringAtom(PauliStringMonomial):
     """Represents a single Pauli operator acting on a qubit in a Pauli string.
 
     Args:
-        label: The label representing the Pauli operator (e.g., 'I', 'X', 'Y', 'Z').
+        label: The label representing the Pauli operator.
         matrix: The matrix representation of the Pauli operator.
 
     Raises:
-        AttributeError: new atoms cannot be created
+        RuntimeError: New atoms cannot be created, you should use the available
+            ones.
 
     Note:
-        All the atoms are already initialized. Available atoms are ('I', 'X', 'Y', 'Z').
+        All the atoms are already initialized. Available atoms are (``I``,
+        ``X``, ``Y``, ``Z``).
     """
 
     __is_mutable = True
@@ -465,8 +478,9 @@ class PauliStringAtom(PauliStringMonomial):
             self.matrix = matrix
             self.__is_mutable = False
         else:
-            raise AttributeError(
-                "New atoms cannot be created, just use the given I, X, Y and Z"
+            raise RuntimeError(
+                "New atoms cannot be created, just use the given `I`, `X`, `Y` "
+                "and `Z`"
             )
 
     @property

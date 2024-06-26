@@ -111,7 +111,7 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # 3M-TODO: handle other basis by adding the right rotation (change
+            # TODO: handle other basis by adding the right rotation (change
             # of basis) before measuring in the computational basis
             # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
             if measurement.shots <= 0:
@@ -199,7 +199,7 @@ def _run_single(
 
 @typechecked
 def run(
-    circuit: QCircuit,
+    circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Union[Result, BatchResult]:
@@ -220,49 +220,69 @@ def run(
 
     Examples:
         >>> c = QCircuit(
-        ...     [H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
-        ...     label="Bell pair",
+        ...     [X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
+        ...     label="X CNOT circuit",
         ... )
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result) # doctest: +SKIP
-        Result: IBMDevice, AER_SIMULATOR
-         Counts: [497, 0, 0, 503]
-         Probabilities: [0.497, 0, 0, 0.503]
+        >>> print(result)
+        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 00, Index: 0, Count: 497, Probability: 0.497
-          State: 11, Index: 3, Count: 503, Probability: 0.503
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
          Error: None
         >>> batch_result = run(
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
-        >>> print(batch_result) # doctest: +SKIP
+        >>> print(batch_result)
         BatchResult: 2 results
-        Result: ATOSDevice, MYQLM_PYLINALG
-         Counts: [499, 0, 0, 501]
-         Probabilities: [0.499, 0, 0, 0.501]
+        Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 00, Index: 0, Count: 499, Probability: 0.499
-          State: 11, Index: 3, Count: 501, Probability: 0.501
-         Error: 0.01581926829057682
-        Result: AWSDevice, BRAKET_LOCAL_SIMULATOR
-         Counts: [502, 0, 0, 498]
-         Probabilities: [0.502, 0, 0, 0.498]
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
+         Error: 0.0
+        Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 00, Index: 0, Count: 502, Probability: 0.502
-          State: 11, Index: 3, Count: 498, Probability: 0.498
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
+         Error: None
+        >>> c2 = QCircuit(
+        ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
+        ...     label="X circuit",
+        ... )
+        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
+        >>> print(result)
+        BatchResult: 2 results
+        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
+         Samples:
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
+         Error: None
+        Result: X circuit, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
+         Samples:
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
          Error: None
 
     """
-
     if values is None:
         values = {}
 
-    if isinstance(device, Iterable):
-        return BatchResult([_run_single(circuit, dev, values) for dev in set(device)])
-
-    return _run_single(circuit, device, values)
-
+    if isinstance(circuit, Iterable):
+        if isinstance(device, Iterable):
+            return BatchResult([_run_single(circ, dev, values) for circ in circuit for dev in device])
+        else:
+            return BatchResult([_run_single(circ, device, values) for circ in circuit])
+    else:
+        if isinstance(device, Iterable):
+            return BatchResult([_run_single(circuit, dev, values) for dev in device])
+        else:
+            return _run_single(circuit, device, values)
 
 @typechecked
 def submit(

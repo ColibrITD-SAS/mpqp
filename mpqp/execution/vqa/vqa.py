@@ -22,10 +22,10 @@ OptimizerCallable = Callable[
     [OptimizableFunc, Optional[OptimizerInput]], tuple[float, OptimizerInput]
 ]
 
-# 3M-TODO: all those functions with almost or exactly the same signature look like
+# TODO: all those functions with almost or exactly the same signature look like
 #  a code smell to me.
 
-# 3M-TODO: test the minimizer options
+# TODO: test the minimizer options
 
 
 def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
@@ -114,7 +114,7 @@ def minimize(
         optimizer = _minimize_remote if device.is_remote() else _minimize_local
         return optimizer(optimizable, method, device, init_params, nb_params)
     else:
-        # 3M-TODO: find a way to know if the job is remote or local from the function
+        # TODO: find a way to know if the job is remote or local from the function
         return _minimize_local(
             optimizable, method, device, init_params, nb_params, optimizer_options
         )
@@ -157,7 +157,7 @@ def _minimize_remote(
     Returns:
         The optimal value reached and the parameters used to reach this value.
 
-    3M-TODO to implement on QLM first
+    TODO to implement on QLM first
     """
     raise NotImplementedError()
 

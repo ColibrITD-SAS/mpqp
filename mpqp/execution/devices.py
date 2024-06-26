@@ -127,7 +127,7 @@ class IBMDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         raise NotImplementedError()
-        # 3M-TODO: determine which devices can simulate noise or not for Qiskit remote, or local
+        # TODO: determine which devices can simulate noise or not for Qiskit remote, or local
         noise_support_devices = {
             IBMDevice.IBMQ_SIMULATOR_STATEVECTOR: True,
             IBMDevice.AER_SIMULATOR_STABILIZER: True,
@@ -169,7 +169,8 @@ class ATOSDevice(AvailableDevice):
             name: A string containing the name of the device.
 
         Raises:
-            ValueError
+            ValueError: If no device corresponding to the given name could be
+                found.
 
         Examples:
             >>> ATOSDevice.from_str_remote('NoisyQProc')
@@ -214,7 +215,10 @@ class AWSDevice(AvailableDevice):
         return "SIMULATOR" in self.name
 
     def is_noisy_simulator(self) -> bool:
-        return self in [AWSDevice.BRAKET_LOCAL_SIMULATOR, AWSDevice.BRAKET_DM1_SIMULATOR]
+        return self in [
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            AWSDevice.BRAKET_DM1_SIMULATOR,
+        ]
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.
