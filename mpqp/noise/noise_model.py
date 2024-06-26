@@ -35,7 +35,9 @@ class NoiseModel(ABC):
     """
 
     def __init__(
-        self, targets: Optional[list[int]] = None, gates: Optional[list[type[Gate]]] = None
+        self,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[Gate]]] = None,
     ):
         if targets is None:
             targets = []
@@ -322,6 +324,40 @@ class PhaseFlip(NoiseModel):
 
 class AmplitudeDamping(NoiseModel):
     """3M-TODO"""
+
+    def __init__(
+        self,
+        gamma: float,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[Gate]]] = None,
+    ):
+        if not (0 <= gamma <= 1):
+            raise ValueError(
+                f"Invalid decaying rate: {gamma}. It should be between 0 and 1."
+            )
+
+        nb_targets = len(targets) if targets else 0
+        if nb_targets < 1:
+            raise ValueError("Number of target qubits should be at least 1.")
+
+        super().__init__(targets, gates)
+        self.gamma = gamma
+        """Decaying rate of the amplitude damping noise model."""
+
+    def __repr__(self):
+        return (
+            f"{type(self).__name__}({self.gamma}, {self.targets}"
+            + (", " + str(self.gates) if self.gates else "")
+            + ")"
+        )
+
+    def to_other_language(self, language: Language = Language.QISKIT) -> BraketNoise:
+        if language == Language.BRAKET:
+            from braket.circuits.noises import (
+                AmplitudeDamping as BraketAmplitudeDamping,
+            )
+
+        return BraketAmplitudeDamping(self.gamma)
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
