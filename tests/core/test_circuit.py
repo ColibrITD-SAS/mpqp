@@ -231,7 +231,7 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             ),
         ),
         (
-            QCircuit([CNOT(0, 1), Depolarizing(0.5)]),
+            QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             (Language.BRAKET,),
             BraketCircuit,
             (
@@ -247,7 +247,7 @@ T  : │         0         │"""
             ),
         ),
         (
-            QCircuit([CNOT(0, 1), Depolarizing(0.5, dimension=2)]),
+            QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             (Language.BRAKET,),
             BraketCircuit,
             (
@@ -263,7 +263,9 @@ T  : │         0         │"""
             ),
         ),
         (
-            QCircuit([CNOT(0, 1), Depolarizing(0.5, dimension=2, gates=[CNOT])]),
+            QCircuit(
+                [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
+            ),
             (Language.BRAKET,),
             BraketCircuit,
             (

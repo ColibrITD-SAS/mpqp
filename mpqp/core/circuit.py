@@ -222,21 +222,15 @@ class QCircuit:
             components.size = self.nb_qubits
 
         if isinstance(components, NoiseModel):
-            if len(components.targets) == 0:
-                components.targets = [target for target in range(self.nb_qubits)]
-
-            basisMs = [
+            basis_measure = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
             ]
-            if basisMs and all([len(bm.targets) != self.nb_qubits for bm in basisMs]):
+            if basis_measure and all(
+                [len(bm.targets) != self.nb_qubits for bm in basis_measure]
+            ):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
-            
-            if isinstance(components, Depolarizing) and len(components.targets) < components.dimension:
-                 raise ValueError(
-                f"Number of target qubits {len(components.targets)} should be higher than the dimension {components.dimension}."
-            )
 
             self.noises.append(components)
         else:
