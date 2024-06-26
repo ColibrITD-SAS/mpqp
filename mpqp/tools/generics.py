@@ -227,6 +227,8 @@ class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
 
 
 class classproperty:
+    """Decorator yo unite the ``classmethod`` and ``property`` decorators."""
+
     def __init__(self, func: Callable[..., Any]):
         self.fget = func
 
