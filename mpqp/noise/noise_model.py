@@ -35,9 +35,10 @@ class NoiseModel(ABC):
     """
 
     def __init__(
-        self, targets: list[int] = [], gates: Optional[list[type[Gate]]] = None
+        self, targets: Optional[list[int]] = None, gates: Optional[list[type[Gate]]] = None
     ):
-
+        if targets is None:
+            targets = []
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
 

@@ -19,7 +19,24 @@ from __future__ import annotations
 
 import re
 from abc import ABCMeta
-from typing import Any, Callable, Iterable, Iterator, Sequence, TypeVar, Union
+from inspect import getsource
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Sequence,
+    TypeVar,
+    Union,
+)
+
+from aenum import Enum
+
+# This is needed because for some reason pyright does not understand that Enum
+# is a class (probably because Enum does weird things to the Enum class)
+if TYPE_CHECKING:
+    from enum import Enum
 
 import numpy as np
 import numpy.typing as npt
@@ -215,3 +232,40 @@ class classproperty:
 
     def __get__(self, instance: object, owner: object):
         return self.fget(owner)
+
+
+def _get_doc(enum: type[Any], member: str):
+    src = getsource(enum)
+    member_pointer = src.find(member)
+    docstr_start = member_pointer + src[member_pointer:].find('"""') + 3
+    docstr_end = docstr_start + src[docstr_start:].find('"""')
+    return src[docstr_start:docstr_end]
+
+
+class MessageEnum(Enum):
+    """Enum subclass allowing you to access the docstring of the members of your
+    enum through the ``message`` property.
+
+    Example:
+        >>> class A(MessageEnum):  # doctest: +SKIP
+        ...     '''an enum'''
+        ...     VALUE1 = auto()
+        ...     '''member VALUE1'''
+        ...     VALUE2 = auto()
+        ...     '''member VALUE2'''
+        >>> A.VALUE1.message  # doctest: +SKIP
+        'member VALUE1'
+
+    Warning:
+        This implementation is not very robust, in particular, in case some
+        members are not documented, it will mess things up. In addition, this
+        can only work for code in file, and will not work in the interpreter.
+    """
+
+    message: str
+    """Each of the members of the eum will have the ``message`` attribute."""
+
+    def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
+        super().__init__(*args, **kwds)
+        for member in type(self).__members__:
+            type(self).__members__[member].message = _get_doc(type(self), member)

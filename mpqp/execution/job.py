@@ -16,8 +16,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from aenum import Enum, NoAlias
+from aenum import Enum, NoAlias, auto
 from typeguard import typechecked
+
+from mpqp.tools.generics import MessageEnum
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
@@ -33,20 +35,20 @@ from .connection.qlm_connection import get_QLMaaSConnection
 from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 
 
-class JobStatus(Enum):
+class JobStatus(MessageEnum):
     """Possible states of a Job."""
 
-    INIT = "initializing the job"
+    INIT = auto()
     """Initializing the job."""
-    QUEUED = "the job is in the queue"
+    QUEUED = auto()
     """The job is in the queue."""
-    RUNNING = "the job is currently running"
+    RUNNING = auto()
     """The job is currently running."""
-    CANCELLED = "the job is cancelled"
+    CANCELLED = auto()
     """The job is cancelled."""
-    ERROR = "an error occurred with the job"
+    ERROR = auto()
     """An error occurred with the job."""
-    DONE = "the job is successfully done"
+    DONE = auto()
     """The job is successfully done."""
 
 
