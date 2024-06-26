@@ -96,7 +96,6 @@ window.onload = () => {
   // we add a note for abstract classes to remind that they cannot be
   // implemented directly
   document.querySelectorAll(".class").forEach((class_elt) => {
-    console.log("hi");
     if (isABC(class_elt)) {
       parents = class_elt.querySelector("dd > p:first-child");
       template = document.createElement("template");
