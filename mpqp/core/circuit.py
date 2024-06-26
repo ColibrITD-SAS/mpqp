@@ -217,10 +217,12 @@ class QCircuit:
                     self._nb_cbits + i for i in range(len(components.targets))
                 ]
                 self._nb_cbits += len(components.c_targets)
- 
+
         if isinstance(components, NoiseModel):
             basisMs = [
-                instr for instr in self._instructions if isinstance(instr, BasisMeasure) and len(instr.targets) != 0
+                instr
+                for instr in self._instructions
+                if isinstance(instr, BasisMeasure) and len(instr.targets) != 0
             ]
             if basisMs and all([len(bm.targets) != self.nb_qubits for bm in basisMs]):
                 raise ValueError(
@@ -231,7 +233,7 @@ class QCircuit:
             self._instructions.append(components)
 
     @property
-    def instructions(self) :
+    def instructions(self):
         instructions = deepcopy(self._instructions)
         for instruction in instructions:
             if isinstance(instruction, Barrier):
@@ -253,22 +255,29 @@ class QCircuit:
         return instructions
 
     @property
-    def nb_cbits(self) :
+    def nb_cbits(self):
         nb_cbits = deepcopy(self._nb_cbits)
         for instruction in self._instructions:
             if isinstance(instruction, BasisMeasure):
-                if len(instruction.targets) == 0 and instruction.c_targets is None :
+                if len(instruction.targets) == 0 and instruction.c_targets is None:
                     if nb_cbits is None:
                         nb_cbits = 0
                     nb_cbits += self.nb_qubits
         return nb_cbits
 
     @property
-    def noises(self) :
+    def noises(self):
         noises = deepcopy(self._noises)
         for noise in noises:
             if len(noise.targets) == 0:
                 noise.targets = [target for target in range(self.nb_qubits)]
+                if (
+                    isinstance(noise, Depolarizing)
+                    and len(noise.targets) < noise.dimension
+                ):
+                    raise ValueError(
+                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
+                    )
         return noises
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
