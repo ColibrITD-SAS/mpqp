@@ -87,7 +87,7 @@ def main_setup():
         [
             AnswerNode("IBM", ibmqc.setup_ibm_account),
             AnswerNode("QLM", qlmc.setup_qlm_account),
-            AnswerNode("Amazon", awsc.setup_aws_braket_account),
+            AnswerNode("Amazon Braket", awsc.setup_aws_braket_account),
             AnswerNode("IonQ", keyc.config_ionq_key),
             AnswerNode("Azure", azuc.config_azure_account),
             #AnswerNode("AQT", keyc.config_aqt_key),

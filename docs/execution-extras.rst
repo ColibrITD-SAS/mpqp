@@ -75,6 +75,14 @@ __________
 
 .. _con-setup:
 
+Connection setup
+^^^^^^^^^^^^^^^^
+
+key Connection
+______________
+
+.. automodule:: mpqp.execution.connection.key_connection
+
 Connection setup script 
 -----------------------
 
