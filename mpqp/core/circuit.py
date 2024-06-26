@@ -232,6 +232,11 @@ class QCircuit:
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
+            
+            if isinstance(components, Depolarizing) and len(components.targets) < components.dimension:
+                 raise ValueError(
+                f"Number of target qubits {len(components.targets)} should be higher than the dimension {components.dimension}."
+            )
 
             self.noises.append(components)
         else:
