@@ -74,14 +74,14 @@ class QCircuit:
     Examples:
         >>> circuit = QCircuit(2)
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-        QCircuit : Size (Qubits, Cbit) = (2, 0), Nb instruction = 0
+        QCircuit : Size (Qubits, Cbits) = (2, 0), Nb instructions = 0
         q_0:
         q_1:
 
         >>> circuit = QCircuit(5, nb_cbits=2, label="Circuit 1")
         >>> circuit.add(Rx(1.23, 3))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-        QCircuit Circuit 1: Size (Qubits, Cbits) = (5, 2), Nb instruction = 1
+        QCircuit Circuit 1: Size (Qubits, Cbits) = (5, 2), Nb instructions = 1
         q_0: ────────────
         q_1: ────────────
         q_2: ────────────
@@ -1038,7 +1038,7 @@ class QCircuit:
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
             >>> c.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-            QCircuit : Size (Qubits, Cbit) = (2, 0), Nb instructions = 2
+            QCircuit : Size (Qubits, Cbits) = (2, 0), Nb instructions = 2
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
