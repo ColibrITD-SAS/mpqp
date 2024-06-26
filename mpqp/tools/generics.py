@@ -223,6 +223,11 @@ class SimpleClassReprABCMeta(SimpleClassReprMeta, ABCMeta):
 
 
 class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
+    """This class is the equivalent of ABC (it signifies that it's subclass
+    isn't meant to be instantiated directly), but it adds the small feature of
+    setting the ``repr`` to be the class name, which is for instance useful for
+    gates."""
+
     pass
 
 
