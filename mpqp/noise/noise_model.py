@@ -328,6 +328,8 @@ class AmplitudeDamping(NoiseModel):
     def __init__(
         self,
         gamma: float,
+        # TODO: implement the work for GeneralizedAmplitudeDamping
+        # prop: float -> probability of the system being excited by the environment
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -336,15 +338,19 @@ class AmplitudeDamping(NoiseModel):
                 f"Invalid decaying rate: {gamma}. It should be between 0 and 1."
             )
 
+        # TODO: add the condition to validate the excitation probability
+
         nb_targets = len(targets) if targets else 0
         if nb_targets < 1:
             raise ValueError("Number of target qubits should be at least 1.")
 
         super().__init__(targets, gates)
+        # TODO: modify here
         self.gamma = gamma
         """Decaying rate of the amplitude damping noise model."""
 
     def __repr__(self):
+        # TODO: __repr__ modify for prop
         return (
             f"{type(self).__name__}({self.gamma}, {self.targets}"
             + (", " + str(self.gates) if self.gates else "")
@@ -352,6 +358,7 @@ class AmplitudeDamping(NoiseModel):
         )
 
     def to_other_language(self, language: Language = Language.QISKIT) -> BraketNoise:
+        # TODO: add the GeneralizedAmplitudeDamping
         if language == Language.BRAKET:
             from braket.circuits.noises import (
                 AmplitudeDamping as BraketAmplitudeDamping,
