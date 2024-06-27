@@ -104,7 +104,7 @@ window.onload = () => {
         <p class="admonition-title"><span>Note</span></p>
         <p>
           Abstract classes (ABCs) are not meant to be instantiated as is. See 
-          classes that inherite from this one to check how to instantiate it.
+          classes that inherits from this one to check how to instantiate it.
         </p>
       </div>`;
       parents.insertAdjacentElement("afterend", template.content.children[0]);
