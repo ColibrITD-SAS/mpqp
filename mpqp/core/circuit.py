@@ -532,7 +532,16 @@ class QCircuit:
         with the gates of the circuit in a clever way (to minimize the number of
         multiplications) and then return the big matrix
         """
-        ...
+        from qiskit import QuantumCircuit
+        from qiskit.quantum_info.operators import Operator
+
+        qiskit_circuit = self.to_other_language(Language.QISKIT)
+        assert isinstance(qiskit_circuit, QuantumCircuit)
+
+        matrix = Operator.from_circuit(qiskit_circuit).data
+        assert isinstance(matrix, np.ndarray)
+
+        return matrix
 
     def inverse(self) -> QCircuit:
         """Generate the inverse (dagger) of this circuit.
