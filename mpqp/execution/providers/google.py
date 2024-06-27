@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
-    from cirq.study.result import Result as cirq_result
+    from cirq.study.result import Result as CirqResult
     from cirq.work.observable_measurement_data import ObservableMeasuredResult
 
 from typeguard import typechecked
@@ -39,8 +39,8 @@ def run_google(job: Job) -> Result:
 
 @typechecked
 def run_google_remote(job: Job) -> Result:
-    """
-    Executes the job remotely on a Google quantum device. At present, only IonQ devices are supported.
+    """Executes the job remotely on a Google quantum device. At present, only
+    IonQ devices are supported.
 
     Args:
         job: job to be executed.
@@ -55,7 +55,7 @@ def run_google_remote(job: Job) -> Result:
         NotImplementedError: If the job type or basis measure is not supported.
     """
     import cirq_ionq as ionq
-    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.devices.line_qubit import LineQubit
     from cirq.transformers.optimize_for_target_gateset import (
         optimize_for_target_gateset,
@@ -64,8 +64,8 @@ def run_google_remote(job: Job) -> Result:
 
     assert type(job.device) == GOOGLEDevice
 
-    job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(job_cirq_circuit, Cirq_circuit)
+    job_CirqCircuit = job.circuit.to_other_language(Language.CIRQ)
+    assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.device.is_ionq():
         from mpqp.execution.connection.env_manager import load_env_variables
@@ -80,14 +80,14 @@ def run_google_remote(job: Job) -> Result:
 
         if isinstance(job.measure.basis, ComputationalBasis):
             service = ionq.Service(default_target=job.device.value)
-            job_cirq_circuit = optimize_for_target_gateset(
-                job_cirq_circuit, gateset=IonQTargetGateset()
+            job_CirqCircuit = optimize_for_target_gateset(
+                job_CirqCircuit, gateset=IonQTargetGateset()
             )
-            job_cirq_circuit = job_cirq_circuit.transform_qubits(
-                {qb: LineQubit(i) for i, qb in enumerate(job_cirq_circuit.all_qubits())}
+            job_CirqCircuit = job_CirqCircuit.transform_qubits(
+                {qb: LineQubit(i) for i, qb in enumerate(job_CirqCircuit.all_qubits())}
             )
-            result_sim = service.run(
-                circuit=job_cirq_circuit, repetitions=job.measure.shots
+            return extract_result_SAMPLE(
+                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
             )
         else:
             raise NotImplementedError(
@@ -97,8 +97,6 @@ def run_google_remote(job: Job) -> Result:
         raise NotImplementedError(
             f"{job.device} is not handled for the moment. Only IonQ is supported"
         )
-
-    return extract_result(result_sim, job, job.device)
 
 
 @typechecked
@@ -115,7 +113,7 @@ def run_local(job: Job) -> Result:
     Raises:
         ValueError: If the job device is not GOOGLEDevice.
     """
-    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
     from cirq.sim.sparse_simulator import Simulator
     from cirq.work.observable_measurement import (
@@ -128,44 +126,47 @@ def run_local(job: Job) -> Result:
     if job.device.is_processor():
         return run_local_processor(job)
 
-    job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(job_cirq_circuit, Cirq_circuit)
+    cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
+    assert isinstance(cirq_circuit, CirqCircuit)
 
     simulator = Simulator(noise=None)
 
     if job.job_type == JobType.STATE_VECTOR:
-        result_sim = simulator.simulate(job_cirq_circuit)
+        return extract_result_STATE_VECTOR(simulator.simulate(cirq_circuit), job)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
         if isinstance(job.measure.basis, ComputationalBasis):
-            result_sim = simulator.run(job_cirq_circuit, repetitions=job.measure.shots)
+            return extract_result_SAMPLE(
+                simulator.run(cirq_circuit, repetitions=job.measure.shots), job
+            )
         else:
             raise NotImplementedError(
                 "Does not handle other basis than the ComputationalBasis for the moment"
             )
+
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
 
         cirq_obs = job.measure.observable.to_other_language(
-            language=Language.CIRQ, circuit=job_cirq_circuit
+            language=Language.CIRQ, circuit=cirq_circuit
         )
         assert type(cirq_obs) == Cirq_PauliSum
 
         if job.measure.shots == 0:
             result_sim = simulator.simulate_expectation_values(
-                job_cirq_circuit, observables=cirq_obs
+                cirq_circuit, observables=cirq_obs
             )
         else:
             result_sim = measure_observables(
-                job_cirq_circuit,
-                cirq_obs,  # type: ignore[reportArgumentType]
-                simulator,
+                cirq_circuit,
+                observables=cirq_obs,  # type: ignore[reportArgumentType]
+                sampler=simulator,
                 stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
             )
+
+        return extract_result_OBSERVABLE(result_sim, job)
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
-
-    return extract_result(result_sim, job, job.device)
 
 
 @typechecked
@@ -179,7 +180,7 @@ def run_local_processor(job: Job) -> Result:
     Returns:
         Result: The result after submission and execution of the job.
     """
-    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
     from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
     from cirq_google.engine.virtual_engine_factory import (
@@ -205,10 +206,10 @@ def run_local_processor(job: Job) -> Result:
     )
     simulator = SimulatedLocalEngine([sim_processor])
 
-    job_cirq_circuit = job.circuit.to_other_language(
+    job_CirqCircuit = job.circuit.to_other_language(
         Language.CIRQ, cirq_proc_id=job.device.value
     )
-    assert isinstance(job_cirq_circuit, Cirq_circuit)
+    assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.job_type == JobType.STATE_VECTOR:
         raise NotImplementedError(
@@ -221,8 +222,11 @@ def run_local_processor(job: Job) -> Result:
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
         if isinstance(job.measure.basis, ComputationalBasis):
-            result_sim = simulator.get_sampler(job.device.value).run(
-                job_cirq_circuit, repetitions=job.measure.shots
+            return extract_result_SAMPLE(
+                simulator.get_sampler(job.device.value).run(
+                    job_CirqCircuit, repetitions=job.measure.shots
+                ),
+                job,
             )
         else:
             raise NotImplementedError(
@@ -231,67 +235,10 @@ def run_local_processor(job: Job) -> Result:
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
-    return extract_result(result_sim, job, job.device)
-
-
-def extract_result(
-    result: (
-        StateVectorTrialResult
-        | cirq_result
-        | list[float]
-        | list[ObservableMeasuredResult]
-    ),
-    job: Optional[Job] = None,
-    device: Optional[GOOGLEDevice] = None,
-) -> Result:
-    """Extracts the needed data from ``cirq`` result and packages it into a
-    ``MPQP`` :class:`Result<mpqp.execution.result.Result>`.
-
-    Args:
-        result : The result of the simulation.
-        job : The original job. Defaults to None.
-        device : The device used for the simulation. Defaults to None.
-
-    Returns:
-        Result: The formatted result.
-
-    Raises:
-        NotImplementedError: If the job is None or the type is not supported.
-        ValueError: If the result type does not match the expected type for the
-            job type.
-    """
-    from cirq.sim.state_vector_simulator import StateVectorTrialResult
-    from cirq.study.result import Result as cirq_result
-
-    if job is None:
-        raise NotImplementedError("result from job None is not implemented")
-    else:
-        if job.job_type == JobType.SAMPLE:
-            if not isinstance(result, cirq_result):
-                raise ValueError(
-                    f"result: {type(result)}, must be a cirq_result for job type {job.job_type}"
-                )
-            return extract_result_SAMPLE(result, job, device)
-        elif job.job_type == JobType.STATE_VECTOR:
-            if not isinstance(result, StateVectorTrialResult):
-                raise ValueError(
-                    f"result: {type(result)}, must be a cirq_result for job type {job.job_type}"
-                )
-            return extract_result_STATE_VECTOR(result, job, device)
-        elif job.job_type == JobType.OBSERVABLE:
-            if isinstance(result, cirq_result):
-                raise ValueError(
-                    f"result: {type(result)}, must be a cirq_result for job type {job.job_type}"
-                )
-            return extract_result_OBSERVABLE(result, job, device)
-        else:
-            raise NotImplementedError("Job type not supported")
-
 
 def extract_result_SAMPLE(
-    result: cirq_result,
+    result: CirqResult,
     job: Job,
-    device: Optional[GOOGLEDevice] = None,
 ) -> Result:
     """
     Extracts the result from a sample-based job.
@@ -299,7 +246,6 @@ def extract_result_SAMPLE(
     Args:
         result : The result of the simulation.
         job : The original job.
-        device : The device used for the simulation. Defaults to None.
 
     Returns:
         Result: The formatted result.
@@ -325,7 +271,6 @@ def extract_result_SAMPLE(
 def extract_result_STATE_VECTOR(
     result: StateVectorTrialResult,
     job: Job,
-    device: Optional[GOOGLEDevice] = None,
 ) -> Result:
     """
     Extracts the result from a state vector-based job.
@@ -333,7 +278,6 @@ def extract_result_STATE_VECTOR(
     Args:
         result : The result of the simulation.
         job : The original job.
-        device : The device used for the simulation. Defaults to None.
 
     Returns:
         Result: The formatted result.
@@ -348,9 +292,8 @@ def extract_result_STATE_VECTOR(
 
 
 def extract_result_OBSERVABLE(
-    result: list[float] | list[ObservableMeasuredResult],
+    results: list[float] | list[ObservableMeasuredResult],
     job: Job,
-    device: Optional[GOOGLEDevice] = None,
 ) -> Result:
     """
     Extracts the result from an observable-based job.
@@ -358,7 +301,6 @@ def extract_result_OBSERVABLE(
     Args:
         result : The result of the simulation.
         job : The original job.
-        device : The device used for the simulation. Defaults to None.
 
     Returns:
         Result: The formatted result.
@@ -369,10 +311,10 @@ def extract_result_OBSERVABLE(
     variance = 0.0
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    for result1 in result:
-        if isinstance(result1, float) or isinstance(result1, complex):
-            mean += abs(result1)
-        if isinstance(result1, ObservableMeasuredResult):
-            mean += result1.mean
+    for result in results:
+        if isinstance(result, float):
+            mean += abs(result)
+        if isinstance(result, ObservableMeasuredResult):
+            mean += result.mean
             # TODO variance not supported variance += result1.variance
     return Result(job, mean, variance, job.measure.shots)
