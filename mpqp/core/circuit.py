@@ -538,7 +538,7 @@ class QCircuit:
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
-        matrix = Operator.from_circuit(qiskit_circuit).data
+        matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         assert isinstance(matrix, np.ndarray)
 
         return matrix
