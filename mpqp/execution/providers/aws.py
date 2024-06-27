@@ -240,7 +240,7 @@ def extract_result(
 
     if job.job_type == JobType.STATE_VECTOR:
         vector = braket_result.values[0]
-        assert isinstance(vector, list) or isinstance(vector, np.ndarray)
+        assert isinstance(vector, (list, np.ndarray))
         state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
         return Result(job, state_vector, 0, 0)
 

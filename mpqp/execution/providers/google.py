@@ -16,8 +16,6 @@ from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasu
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.tools.generics import flatten
-
 
 @typechecked
 def run_google(job: Job) -> Result:
@@ -152,8 +150,7 @@ def run_local(job: Job) -> Result:
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
-        assert isinstance(cirq_obs, CirqPauliSum) or isinstance(
-            cirq_obs, CirqPauliString
+        assert isinstance(cirq_obs, (CirqPauliSum, CirqPauliString)
         )
 
         if job.measure.shots == 0:
@@ -163,7 +160,9 @@ def run_local(job: Job) -> Result:
         else:
             result_sim = measure_observables(
                 cirq_circuit,
-                observables=flatten(cirq_obs),
+                observables=(
+                    [cirq_obs] if isinstance(cirq_obs, CirqPauliString) else cirq_obs
+                ),
                 sampler=simulator,
                 stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
             )
@@ -316,8 +315,8 @@ def extract_result_OBSERVABLE(
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     for result in results:
-        if isinstance(result, float):
-            mean += result
+        if isinstance(result, (float, complex)):
+            mean += result.real
         if isinstance(result, ObservableMeasuredResult):
             mean += result.mean
             # TODO variance not supported variance += result1.variance
