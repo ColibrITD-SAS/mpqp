@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from mpqp.core.instruction.measurement.pauli_string import PauliString
 
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
@@ -16,6 +18,7 @@ from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasu
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.result import Result, Sample, StateVector
+
 
 @typechecked
 def run_google(job: Job) -> Result:
@@ -150,24 +153,29 @@ def run_local(job: Job) -> Result:
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
-        assert isinstance(cirq_obs, (CirqPauliSum, CirqPauliString)
-        )
+        assert isinstance(cirq_obs, (CirqPauliSum, CirqPauliString))
 
         if job.measure.shots == 0:
-            result_sim = simulator.simulate_expectation_values(
-                cirq_circuit, observables=cirq_obs
+            return extract_result_OBSERVABLE_ideal(
+                simulator.simulate_expectation_values(
+                    cirq_circuit, observables=cirq_obs
+                ),
+                job,
             )
         else:
-            result_sim = measure_observables(
-                cirq_circuit,
-                observables=(
-                    [cirq_obs] if isinstance(cirq_obs, CirqPauliString) else cirq_obs
+            return extract_result_OBSERVABLE_shot_noise(
+                measure_observables(
+                    cirq_circuit,
+                    observables=(
+                        [cirq_obs]
+                        if isinstance(cirq_obs, CirqPauliString)
+                        else cirq_obs
+                    ),
+                    sampler=simulator,
+                    stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
                 ),
-                sampler=simulator,
-                stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
+                job,
             )
-        print(result_sim)
-        return extract_result_OBSERVABLE(result_sim, job)
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
@@ -294,8 +302,37 @@ def extract_result_STATE_VECTOR(
     return Result(job, state_vector, 0, 0)
 
 
-def extract_result_OBSERVABLE(
-    results: list[float] | list[ObservableMeasuredResult],
+def extract_result_OBSERVABLE_ideal(
+    results: list[float],
+    job: Job,
+) -> Result:
+    """Extracts the result from an observable-based ideal job.
+
+    The simulation from which the result to parse comes from can take in several
+    observables, and each observable will have a corresponding value in the
+    result. But since we only support a single measure per circuit for now, we
+    could simplify this function by only returning the first value.
+
+    Note:
+        for some reason, the values we retrieve from cirq are not always float,
+        but sometimes are complex. This is likely due to numerical aproximation
+        since the complex part is always extremely small, so we just remove it,
+        but this might result in slightly unexpected results.
+
+    Args:
+        result : The result of the simulation.
+        job : The original job.
+
+    Returns:
+        Result: The formatted result.
+    """
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+    return Result(job, sum(map(lambda r: r.real, results)), 0, job.measure.shots)
+
+
+def extract_result_OBSERVABLE_shot_noise(
+    results: list[ObservableMeasuredResult],
     job: Job,
 ) -> Result:
     """
@@ -308,16 +345,17 @@ def extract_result_OBSERVABLE(
     Returns:
         Result: The formatted result.
     """
-    from cirq.work.observable_measurement_data import ObservableMeasuredResult
-
-    mean = 0.0
-    variance = 0.0
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    for result in results:
-        if isinstance(result, (float, complex)):
-            mean += result.real
-        if isinstance(result, ObservableMeasuredResult):
-            mean += result.mean
-            # TODO variance not supported variance += result1.variance
-    return Result(job, mean, variance, job.measure.shots)
+    variances = {to_pauli_string(r.observable): r.variance for r in results}
+    print(results[0])
+    return Result(
+        job,
+        sum(map(lambda r: r.mean, results)),
+        variances,
+        job.measure.shots,
+    )
+
+
+# def to_pauli_string(cirq_ps: CirqPauliString):
+def to_pauli_string(cirq_ps: Any) -> PauliString: ...
