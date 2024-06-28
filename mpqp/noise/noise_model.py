@@ -323,13 +323,9 @@ class PhaseFlip(NoiseModel):
 
 
 class AmplitudeDamping(NoiseModel):
-    """3M-TODO"""
-
     def __init__(
         self,
         gamma: float,
-        # TODO: implement the work for GeneralizedAmplitudeDamping
-        # prop: float -> probability of the system being excited by the environment
         prop: Optional[float] = None,
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
@@ -339,7 +335,6 @@ class AmplitudeDamping(NoiseModel):
                 f"Invalid decaying rate: {gamma}. It should be between 0 and 1."
             )
 
-        # TODO: add the condition to validate the excitation probability
         if prop is not None:
             if not (0 <= prop <= 1):
                 raise ValueError(
@@ -351,34 +346,38 @@ class AmplitudeDamping(NoiseModel):
             raise ValueError("Number of target qubits should be at least 1.")
 
         super().__init__(targets, gates)
-        # TODO: modify here
         self.gamma = gamma
         """Decaying rate of the amplitude damping noise model."""
         self.prop = prop if prop is not None else 0
         """Excitation probability of the generalized amplitude damping noise model."""
 
     def __repr__(self):
-        # TODO: __repr__ modify for prop
+        model_type = "Generalized" if self.prop != 0 else ""
+
         return (
-            f"{type(self).__name__}(gama={self.gamma}, prop={self.prop}, targets={self.targets}"
-            + (", " + str(self.gates) if self.gates else "")
+            f"{model_type}{type(self).__name__}(gamma={self.gamma}, prop={self.prop}, targets={self.targets}"
+            + (", gates=" + str(self.gates) if self.gates else "")
             + ")"
         )
 
     def to_other_language(self, language: Language = Language.QISKIT) -> BraketNoise:
-        # TODO: add the GeneralizedAmplitudeDamping
         if language == Language.BRAKET:
             from braket.circuits.noises import (
                 AmplitudeDamping as BraketAmplitudeDamping,
             )
-            from braket.circuits.noises import (
-                GeneralizedAmplitudeDamping as BraketGeneralizedAmplitudeDamping,
-            )
+            from braket.circuits.noises import GeneralizedAmplitudeDamping
 
             if self.prop == 0:
                 return BraketAmplitudeDamping(self.gamma)
             else:
-                return BraketGeneralizedAmplitudeDamping(self.gamma, self.prop)
+                return GeneralizedAmplitudeDamping(self.gamma, self.prop)
+
+        # TODO: MY_QLM implmentation
+
+        else:
+            raise NotImplementedError(
+                f"Conversion of Depolarizing noise for language {language.name} is not supported"
+            )
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
