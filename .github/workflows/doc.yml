@@ -30,4 +30,5 @@ jobs:
           apiToken: ${{ secrets.PRD_CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.PRD_CLOUDFLARE_ACCOUNT_ID }}
           projectName: mpqp
+          branch: main
           directory: build
