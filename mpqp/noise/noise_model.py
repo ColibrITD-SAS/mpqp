@@ -330,6 +330,7 @@ class AmplitudeDamping(NoiseModel):
         gamma: float,
         # TODO: implement the work for GeneralizedAmplitudeDamping
         # prop: float -> probability of the system being excited by the environment
+        prop: Optional[float] = None,
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -339,6 +340,11 @@ class AmplitudeDamping(NoiseModel):
             )
 
         # TODO: add the condition to validate the excitation probability
+        if prop is not None:
+            if not (0 <= prop <= 1):
+                raise ValueError(
+                    f"Invalid excitation probability: {prop}. It should be between 0 and 1."
+                )
 
         nb_targets = len(targets) if targets else 0
         if nb_targets < 1:
@@ -348,11 +354,13 @@ class AmplitudeDamping(NoiseModel):
         # TODO: modify here
         self.gamma = gamma
         """Decaying rate of the amplitude damping noise model."""
+        self.prop = prop if prop is not None else 0
+        """Excitation probability of the generalized amplitude damping noise model."""
 
     def __repr__(self):
         # TODO: __repr__ modify for prop
         return (
-            f"{type(self).__name__}({self.gamma}, {self.targets}"
+            f"{type(self).__name__}(gama={self.gamma}, prop={self.prop}, targets={self.targets}"
             + (", " + str(self.gates) if self.gates else "")
             + ")"
         )
@@ -363,8 +371,14 @@ class AmplitudeDamping(NoiseModel):
             from braket.circuits.noises import (
                 AmplitudeDamping as BraketAmplitudeDamping,
             )
+            from braket.circuits.noises import (
+                GeneralizedAmplitudeDamping as BraketGeneralizedAmplitudeDamping,
+            )
 
-        return BraketAmplitudeDamping(self.gamma)
+            if self.prop == 0:
+                return BraketAmplitudeDamping(self.gamma)
+            else:
+                return BraketGeneralizedAmplitudeDamping(self.gamma, self.prop)
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
