@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
     from cirq.study.result import Result as CirqResult
@@ -16,6 +17,7 @@ from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasu
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.result import Result, Sample, StateVector
+
 
 @typechecked
 def run_google(job: Job) -> Result:
@@ -150,13 +152,13 @@ def run_local(job: Job) -> Result:
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
-        assert isinstance(cirq_obs, (CirqPauliSum, CirqPauliString)
-        )
+        assert isinstance(cirq_obs, (CirqPauliSum, CirqPauliString))
 
         if job.measure.shots == 0:
             result_sim = simulator.simulate_expectation_values(
                 cirq_circuit, observables=cirq_obs
             )
+            return extract_result_OBSERVABLE2(result_sim, job)
         else:
             result_sim = measure_observables(
                 cirq_circuit,
@@ -166,8 +168,7 @@ def run_local(job: Job) -> Result:
                 sampler=simulator,
                 stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
             )
-        print(result_sim)
-        return extract_result_OBSERVABLE(result_sim, job)
+            return extract_result_OBSERVABLE(result_sim, job)
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
@@ -294,8 +295,8 @@ def extract_result_STATE_VECTOR(
     return Result(job, state_vector, 0, 0)
 
 
-def extract_result_OBSERVABLE(
-    results: list[float] | list[ObservableMeasuredResult],
+def extract_result_OBSERVABLE2(
+    results: list[float],
     job: Job,
 ) -> Result:
     """
@@ -308,16 +309,42 @@ def extract_result_OBSERVABLE(
     Returns:
         Result: The formatted result.
     """
-    from cirq.work.observable_measurement_data import ObservableMeasuredResult
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+
+    mean = 0.0
+    for result in results:
+        mean += result.real
+
+    return Result(job, mean, None, job.measure.shots)
+
+
+def extract_result_OBSERVABLE(
+    results: list[ObservableMeasuredResult],
+    job: Job,
+) -> Result:
+    """
+    Extracts the result from an observable-based job.
+
+    Args:
+        result : The result of the simulation.
+        job : The original job.
+
+    Returns:
+        Result: The formatted result.
+    """
+    import numpy as np
+
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+    assert isinstance(job.measure, ExpectationMeasure)
+    pauli_string = job.measure.observable.pauli_string
 
     mean = 0.0
     variance = 0.0
-    if job.measure is None:
-        raise NotImplementedError("job.measure is None")
+
     for result in results:
-        if isinstance(result, (float, complex)):
-            mean += result.real
-        if isinstance(result, ObservableMeasuredResult):
-            mean += result.mean
-            # TODO variance not supported variance += result1.variance
+        mean += result.mean
+        variance += result.variance  # add covariance
+
     return Result(job, mean, variance, job.measure.shots)
