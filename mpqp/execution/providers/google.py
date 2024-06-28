@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+from mpqp.core.instruction.measurement.pauli_string import PauliString
 
 
 if TYPE_CHECKING:
@@ -155,20 +157,26 @@ def run_local(job: Job) -> Result:
         assert isinstance(cirq_obs, (CirqPauliSum, CirqPauliString))
 
         if job.measure.shots == 0:
-            result_sim = simulator.simulate_expectation_values(
-                cirq_circuit, observables=cirq_obs
-            )
-            return extract_result_OBSERVABLE2(result_sim, job)
-        else:
-            result_sim = measure_observables(
-                cirq_circuit,
-                observables=(
-                    [cirq_obs] if isinstance(cirq_obs, CirqPauliString) else cirq_obs
+            return extract_result_OBSERVABLE_ideal(
+                simulator.simulate_expectation_values(
+                    cirq_circuit, observables=cirq_obs
                 ),
-                sampler=simulator,
-                stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
+                job,
             )
-            return extract_result_OBSERVABLE(result_sim, job)
+        else:
+            return extract_result_OBSERVABLE_shot_noise(
+                measure_observables(
+                    cirq_circuit,
+                    observables=(
+                        [cirq_obs]
+                        if isinstance(cirq_obs, CirqPauliString)
+                        else cirq_obs
+                    ),
+                    sampler=simulator,
+                    stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
+                ),
+                job,
+            )
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
@@ -295,12 +303,22 @@ def extract_result_STATE_VECTOR(
     return Result(job, state_vector, 0, 0)
 
 
-def extract_result_OBSERVABLE2(
+def extract_result_OBSERVABLE_ideal(
     results: list[float],
     job: Job,
 ) -> Result:
-    """
-    Extracts the result from an observable-based job.
+    """Extracts the result from an observable-based ideal job.
+
+    The simulation from which the result to parse comes from can take in several
+    observables, and each observable will have a corresponding value in the
+    result. But since we only support a single measure per circuit for now, we
+    could simplify this function by only returning the first value.
+
+    Note:
+        for some reason, the values we retrieve from cirq are not always float,
+        but sometimes are complex. This is likely due to numerical aproximation
+        since the complex part is always extremely small, so we just remove it,
+        but this might result in slightly unexpected results.
 
     Args:
         result : The result of the simulation.
@@ -311,15 +329,10 @@ def extract_result_OBSERVABLE2(
     """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-
-    mean = 0.0
-    for result in results:
-        mean += result.real
-
-    return Result(job, mean, None, job.measure.shots)
+    return Result(job, sum(map(lambda r: r.real, results)), 0, job.measure.shots)
 
 
-def extract_result_OBSERVABLE(
+def extract_result_OBSERVABLE_shot_noise(
     results: list[ObservableMeasuredResult],
     job: Job,
 ) -> Result:
@@ -333,18 +346,17 @@ def extract_result_OBSERVABLE(
     Returns:
         Result: The formatted result.
     """
-    import numpy as np
-
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    assert isinstance(job.measure, ExpectationMeasure)
-    pauli_string = job.measure.observable.pauli_string
+    variances = {to_pauli_string(r.observable): r.variance for r in results}
+    print(results[0])
+    return Result(
+        job,
+        sum(map(lambda r: r.mean, results)),
+        variances,
+        job.measure.shots,
+    )
 
-    mean = 0.0
-    variance = 0.0
 
-    for result in results:
-        mean += result.mean
-        variance += result.variance  # add covariance
-
-    return Result(job, mean, variance, job.measure.shots)
+# def to_pauli_string(cirq_ps: CirqPauliString):
+def to_pauli_string(cirq_ps: Any) -> PauliString: ...

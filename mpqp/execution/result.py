@@ -30,6 +30,7 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
+from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.errors import ResultAttributeError
 from mpqp.tools.generics import clean_array
@@ -188,7 +189,7 @@ class Result:
         job: Type of the job related to this result.
         data: Data of the result, can be an expectation value (float), a
             StateVector, or a list of sample depending on the job_type.
-        error: Information about the error or the variance in the measurement.
+        errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
 
@@ -226,7 +227,7 @@ class Result:
         self,
         job: Job,
         data: float | StateVector | list[Sample],
-        error: Optional[float] = None,
+        errors: Optional[float | dict[PauliString, float]] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -238,7 +239,7 @@ class Result:
         self._samples = None
         self.shots = shots
         """See parameter description."""
-        self.error = error
+        self.error = errors
         """See parameter description."""
         self._data = data
 
@@ -373,9 +374,7 @@ class Result:
         return self._counts
 
     def __str__(self):
-        header = (
-            f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
-        )
+        header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
             samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
