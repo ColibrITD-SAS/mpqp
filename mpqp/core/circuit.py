@@ -1054,6 +1054,7 @@ class QCircuit:
         qubits = set(range(self.size()[0]))
         if self.noises:
             for noise in self.noises:
+                # TODO: add support for other noise models, BitFlip, AmplitudeDamping, ....
                 if not isinstance(noise, Depolarizing):
                     raise NotImplementedError(
                         "For now, only depolarizing noise is supported."
