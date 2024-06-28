@@ -283,7 +283,11 @@ class BitFlip(NoiseModel):
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
-        if not (0 <= prob <= 1):
+        # TODO: adjust the range check to match Braket's requirement
+        # ValueError: probability must be a real number in the interval [0, 0.5]
+        # class BitFlip(SingleProbabilisticNoise):
+        # class SingleProbabilisticNoise(Noise):# def __init__(self, probability, qubit_count, ascii_symbols, max_probability=0.5):
+        if not (0 <= prob <= 0.5):
             raise ValueError(
                 f"Invalid probability: {prob} but should be between 0 and 1."
             )
