@@ -277,8 +277,6 @@ class Depolarizing(NoiseModel):
 
 
 class BitFlip(NoiseModel):
-    """3M-TODO"""
-
     def __init__(
         self,
         prob: float,
@@ -299,12 +297,12 @@ class BitFlip(NoiseModel):
             raise ValueError("Number of target qubits should be at least 1.")
 
         super().__init__(targets, gates)
-        self.proba = prob
+        self.prob = prob
         """Probability, or error rate, of the bit-flip noise model."""
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}({self.proba}, {self.targets}"
+            f"{type(self).__name__}({self.prob}, {self.targets}"
             + (", " + str(self.gates) if self.gates else "")
             + ")"
         )
@@ -314,7 +312,10 @@ class BitFlip(NoiseModel):
         if language == Language.BRAKET:
             from braket.circuits.noises import BitFlip as BraketBitFlip
 
-            return BraketBitFlip(probability=self.proba)
+            return BraketBitFlip(probability=self.prob)
+
+        # TODO: MY_QLM implementation
+
         else:
             raise NotImplementedError(
                 f"Conversion of BitFlip noise for language {language.name} is not supported"
