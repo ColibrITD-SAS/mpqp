@@ -283,13 +283,10 @@ class BitFlip(NoiseModel):
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
-        # TODO: adjust the range check to match Braket's requirement
-        # ValueError: probability must be a real number in the interval [0, 0.5]
-        # class BitFlip(SingleProbabilisticNoise):
-        # class SingleProbabilisticNoise(Noise):# def __init__(self, probability, qubit_count, ascii_symbols, max_probability=0.5):
+
         if not (0 <= prob <= 0.5):
             raise ValueError(
-                f"Invalid probability: {prob} but should be between 0 and 1."
+                f"Invalid probability: {prob} but should be between 0 and 0.5"
             )
 
         if gates is not None:
@@ -298,7 +295,7 @@ class BitFlip(NoiseModel):
 
         nb_targets = len(targets)
         if nb_targets < 1:
-            raise ValueError("Number of target qubits should be at least 1.")
+            raise ValueError("Number of target qubits should be at least 1")
 
         super().__init__(targets, gates)
         self.prob = prob
@@ -306,12 +303,14 @@ class BitFlip(NoiseModel):
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}({self.prob}, {self.targets}"
-            + (", " + str(self.gates) if self.gates else "")
+            f"{type(self).__name__}(prob={self.prob}, targets={self.targets}"
+            + (", gates=" + str(self.gates) if self.gates else "")
             + ")"
         )
 
-    def to_other_language(self, language: Language = Language.QISKIT) -> BraketNoise:
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> BraketNoise | QLMNoise:
 
         if language == Language.BRAKET:
             from braket.circuits.noises import BitFlip as BraketBitFlip
