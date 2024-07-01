@@ -27,6 +27,7 @@ from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
@@ -365,8 +366,18 @@ def display_kth_breakpoint(circuit: QCircuit, k: int):
     bp = circuit.breakpoints[k]
     if bp.enabled:
         name_part = "" if bp.label is None else f", at breakpoint `{bp.label}`"
-        bp_instructions_index = find_index(circuit.instructions, lambda i: i is bp)
-        copy = QCircuit(circuit.instructions[:bp_instructions_index])
+        relevant_instructions = list(
+            filter(
+                lambda i: i is bp or not isinstance(i, Breakpoint), circuit.instructions
+            )
+        )
+        bp_instructions_index = find_index(relevant_instructions, lambda i: i is bp)
+        copy = QCircuit(
+            relevant_instructions[:bp_instructions_index],
+            nb_qubits=circuit.nb_qubits,
+            nb_cbits=circuit.nb_cbits,
+            label=circuit.label,
+        )
         res = _run_single(copy, ATOSDevice.MYQLM_CLINALG, {}, False)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
         print("       " + state_vector_ket_shape(res.amplitudes))
