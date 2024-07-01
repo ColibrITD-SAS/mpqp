@@ -44,7 +44,7 @@ class CustomGate(Gate):
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
 
-        6M-TODO refine this doc and implement
+        3M-TODO refine this doc and implement
         """
         from mpqp.core.circuit import QCircuit
 

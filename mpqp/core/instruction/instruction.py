@@ -9,10 +9,10 @@ from numbers import Complex
 from pickle import dumps
 from typing import TYPE_CHECKING, Any, Optional
 
-from sympy import Expr
 from typeguard import typechecked
 
 if TYPE_CHECKING:
+    from sympy import Expr
     from qiskit.circuit import Parameter
 
 from mpqp.core.languages import Language

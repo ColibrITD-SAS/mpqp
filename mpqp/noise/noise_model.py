@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-from braket.circuits.noises import Depolarizing as BraketDepolarizing
-from braket.circuits.noises import Noise as BraketNoise
-from braket.circuits.noises import TwoQubitDepolarizing
-from qat.quops.class_concepts import QuantumChannel as QLMNoise
+if TYPE_CHECKING:
+    from braket.circuits.noises import Noise as BraketNoise
+    from braket.circuits.noises import TwoQubitDepolarizing
+    from qat.quops.class_concepts import QuantumChannel as QLMNoise
+
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
@@ -30,14 +31,14 @@ class NoiseModel(ABC):
 
     Raises:
         ValueError: When target list is empty, or target indices are duplicated
-            or negative. When a custom gate does not have a class attribute ``nb_qubits``.
-            When the size of the gate is higher than the number of target qubits.
+        or negative. When the size of the gate is higher than the number of target qubits.
     """
 
-    def __init__(self, targets: list[int], gates: Optional[list[type[Gate]]] = None):
-        if len(targets) == 0:
-            raise ValueError("Expected non-empty target list")
-
+    def __init__(
+        self,
+        targets: list[int],
+        gates: Optional[list[type[Gate]]] = None,
+    ):
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
 
@@ -53,7 +54,9 @@ class NoiseModel(ABC):
                         " the noise target, please add `nb_qubits` to this "
                         "class as a class attribute."
                     )
-                if nb_qubits > len(targets):  # pyright: ignore[reportOperatorIssue]
+                if len(targets) != 0 and nb_qubits > len(
+                    targets
+                ):  # pyright: ignore[reportOperatorIssue]
                     raise ValueError(
                         "Size mismatch between gate and noise: gate size is "
                         f"{nb_qubits} but noise size is {len(targets)}"
@@ -130,18 +133,18 @@ class Depolarizing(NoiseModel):
         >>> d4 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
         >>> circuit.add([d1, d2, d3, d4])
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐
-            q_0: ┤ H ├
-                 ├───┤
-            q_1: ┤ H ├
-                 ├───┤
-            q_2: ┤ H ├
-                 └───┘
-            NoiseModel:
-                Depolarizing(0.32, [0, 1, 2], 1)
-                Depolarizing(0.05, [0, 1], 2)
-                Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
-                Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            Depolarizing(0.32, [0, 1, 2], 1)
+            Depolarizing(0.05, [0, 1], 2)
+            Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
+            Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
 
     """
 
@@ -158,7 +161,8 @@ class Depolarizing(NoiseModel):
                 f" than 1, but got {dimension} instead."
             )
 
-        # 3M-TODO: implement the possibility of having a parameterized noise, param: Union[float, Expr]
+        # 3M-TODO: implement the possibility of having a parameterized noise,
+        # param: Union[float, Expr]
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]
             print(dimension, prob, prob_upper_bound)
@@ -177,10 +181,9 @@ class Depolarizing(NoiseModel):
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
 
-        nb_targets = len(targets)
-        if nb_targets < dimension:
+        if len(targets) < dimension:
             raise ValueError(
-                f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}."
+                f"Number of target qubits {len(targets)} should be higher than the dimension {dimension}."
             )
 
         super().__init__(targets, gates)
@@ -237,8 +240,12 @@ class Depolarizing(NoiseModel):
                     f"Depolarizing channel is not implemented in Braket for more than 2 qubits."
                 )
             elif self.dimension == 2:
+                from braket.circuits.noises import TwoQubitDepolarizing
+
                 return TwoQubitDepolarizing(probability=self.proba)
             else:
+                from braket.circuits.noises import Depolarizing as BraketDepolarizing
+
                 return BraketDepolarizing(probability=self.proba)
 
         elif language == Language.MY_QLM:

@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING, Optional
 from warnings import warn
 
 import numpy as np
-from sympy import Expr
 from typeguard import typechecked
 
 if TYPE_CHECKING:
+    from sympy import Expr
     from qiskit.circuit import Parameter
     from qiskit.quantum_info import Operator, SparsePauliOp
     from qat.core.wrappers.observable import Observable as QLMObservable

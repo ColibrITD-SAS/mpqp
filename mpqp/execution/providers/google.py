@@ -1,29 +1,12 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
-import cirq_ionq as ionq
-from cirq.circuits.circuit import Circuit as Cirq_circuit
-from cirq.devices.line_qubit import LineQubit
-from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
-from cirq.sim.sparse_simulator import Simulator
-from cirq.sim.state_vector_simulator import StateVectorTrialResult
-from cirq.study.result import Result as cirq_result
-from cirq.transformers.optimize_for_target_gateset import optimize_for_target_gateset
-from cirq.value.probability import state_vector_to_probabilities
-from cirq.work.observable_measurement import (
-    RepetitionsStoppingCriteria,
-    measure_observables,
-)
-from cirq.work.observable_measurement_data import ObservableMeasuredResult
-from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
-from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
-from cirq_google.engine.virtual_engine_factory import (
-    create_device_from_processor_id,
-    load_median_device_calibration,
-)
-from cirq_ionq.ionq_gateset import IonQTargetGateset
-from qsimcirq.qsim_simulator import QSimSimulator
+if TYPE_CHECKING:
+    from cirq.sim.state_vector_simulator import StateVectorTrialResult
+    from cirq.study.result import Result as cirq_result
+    from cirq.work.observable_measurement_data import ObservableMeasuredResult
+
 from typeguard import typechecked
 
 from mpqp import Language
@@ -47,7 +30,8 @@ def run_google(job: Job) -> Result:
         A Result after submission and execution of the job.
         Note:
 
-    This function is not meant to be used directly, please use
+    Note:
+        This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
     return run_local(job) if not job.device.is_remote() else run_google_remote(job)
@@ -70,6 +54,14 @@ def run_google_remote(job: Job) -> Result:
             devices are supported currently).
         NotImplementedError: If the job type or basis measure is not supported.
     """
+    import cirq_ionq as ionq
+    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    from cirq.devices.line_qubit import LineQubit
+    from cirq.transformers.optimize_for_target_gateset import (
+        optimize_for_target_gateset,
+    )
+    from cirq_ionq.ionq_gateset import IonQTargetGateset
+
     assert type(job.device) == GOOGLEDevice
 
     job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
@@ -123,6 +115,14 @@ def run_local(job: Job) -> Result:
     Raises:
         ValueError: If the job device is not GOOGLEDevice.
     """
+    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+    from cirq.sim.sparse_simulator import Simulator
+    from cirq.work.observable_measurement import (
+        RepetitionsStoppingCriteria,
+        measure_observables,
+    )
+
     assert type(job.device) == GOOGLEDevice
 
     if job.device.is_processor():
@@ -179,6 +179,15 @@ def run_local_processor(job: Job) -> Result:
     Returns:
         Result: The result after submission and execution of the job.
     """
+    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
+    from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
+    from cirq_google.engine.virtual_engine_factory import (
+        create_device_from_processor_id,
+        load_median_device_calibration,
+    )
+    from qsimcirq.qsim_simulator import QSimSimulator
+
     assert type(job.device) == GOOGLEDevice
 
     calibration = load_median_device_calibration(job.device.value)
@@ -251,6 +260,9 @@ def extract_result(
         ValueError: If the result type does not match the expected type for the
             job type.
     """
+    from cirq.sim.state_vector_simulator import StateVectorTrialResult
+    from cirq.study.result import Result as cirq_result
+
     if job is None:
         raise NotImplementedError("result from job None is not implemented")
     else:
@@ -326,6 +338,8 @@ def extract_result_STATE_VECTOR(
     Returns:
         Result: The formatted result.
     """
+    from cirq.value.probability import state_vector_to_probabilities
+
     state_vector = result.final_state_vector
     state_vector = StateVector(
         state_vector, job.circuit.nb_qubits, state_vector_to_probabilities(state_vector)
@@ -349,6 +363,8 @@ def extract_result_OBSERVABLE(
     Returns:
         Result: The formatted result.
     """
+    from cirq.work.observable_measurement_data import ObservableMeasuredResult
+
     mean = 0.0
     variance = 0.0
     if job.measure is None:
@@ -358,5 +374,5 @@ def extract_result_OBSERVABLE(
             mean += abs(result1)
         if isinstance(result1, ObservableMeasuredResult):
             mean += result1.mean
-            # 3M-TODO variance not supported variance += result1.variance
+            # TODO variance not supported variance += result1.variance
     return Result(job, mean, variance, job.measure.shots)

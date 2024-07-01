@@ -2,6 +2,7 @@ Gates
 =====
 
 .. code-block:: python
+    :class: import
 
     from mpqp.gates import *
 

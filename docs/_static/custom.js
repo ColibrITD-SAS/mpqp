@@ -76,12 +76,41 @@ window.onload = () => {
       }
     }
   });
-};
 
-// const themeButton = document.querySelector('themeSwitcher')
-// themeButton.addEventListener('click', () => {
-//
-// });
+  // in the native gates section, add the list of native gates
+  ngListLocation = document.getElementById("native-gates-list");
+  if (ngListLocation) {
+    ngSection = ngListLocation.parentElement;
+    ngClasses = ngSection.querySelectorAll("dl.py.class");
+    ngLinks = "";
+
+    ngClasses.forEach(function (c) {
+      if (c.textContent.includes("ABC")) return;
+      ngLinks += `<a href="#${c.querySelector("dt.sig.sig-object.py").id}">
+        ${c.querySelector("span.descname").innerText}
+      </a>`;
+    });
+    ngListLocation.innerHTML = ngLinks;
+  }
+
+  // we add a note for abstract classes to remind that they cannot be
+  // implemented directly
+  document.querySelectorAll(".class").forEach((class_elt) => {
+    if (isABC(class_elt)) {
+      parents = class_elt.querySelector("dd > p:first-child");
+      template = document.createElement("template");
+      template.innerHTML = `
+      <div class="admonition note">
+        <p class="admonition-title"><span>Note</span></p>
+        <p>
+          Abstract classes (ABCs) are not meant to be instantiated as is. See 
+          classes that inherits from this one to check how to instantiate it.
+        </p>
+      </div>`;
+      parents.insertAdjacentElement("afterend", template.content.children[0]);
+    }
+  });
+};
 
 function getEndOfClassHeader(elt) {
   admonition = elt.querySelectorAll(".admonition");
@@ -91,6 +120,11 @@ function getEndOfClassHeader(elt) {
   examples = elt.querySelectorAll(".class>dd>div.doctest");
   if (examples.length != 0) return examples[examples.length - 1];
   return elt;
+}
+
+function isABC(elt) {
+  parents = elt.querySelector("dd > p:first-child");
+  return parents && parents.innerHTML.includes("ABC");
 }
 
 function isEnum(elt, explored = []) {

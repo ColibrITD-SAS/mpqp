@@ -29,6 +29,9 @@ div.document {
 } */
 
 /* *** fix for rtd dark *** */
+html[data-theme="dark"] .theme-switcher {
+  box-shadow: 0px 1px 14px 2px rgb(255 255 255 / 20%);
+}
 
 html[data-theme="dark"] div.nboutput.container div.output_area.stderr {
   background: rgb(103, 23, 23);
@@ -159,3 +162,50 @@ html[data-theme="dark"] .rst-content .admonition,
 html[data-theme="dark"] .rst-content .note {
     background-color: #80cb53;
 }*/
+
+.highlight-python.import {
+  position: sticky;
+  top: 10px;
+  z-index: 9999;
+  box-shadow: 0px 0px 10px 0px black;
+}
+
+html[data-theme="dark"] .highlight-python.import {
+  box-shadow: 0px 0px 10px 0px #595959;
+}
+
+html[data-theme="dark"] .rst-content .highlighted {
+  background: #7e6500;
+  box-shadow: 0 0 0 2px #7e6500;
+}
+
+#native-gates-list > * {
+  position: relative;
+}
+
+#native-gates-list {
+  display: flex;
+  flex-wrap: wrap;
+  margin-block-end: 1em;
+  position: sticky;
+  top: 57px;
+  z-index: 10000;
+  background-color: #141414;
+}
+
+#native-gates-list > * {
+  padding: 0 1em 0 1em;
+  border: 0.5px solid;
+  border-block-start: 0;
+  border-block-end: 0;
+  border-color: black;
+  margin-block-end: 0.5em;
+}
+
+html[data-theme="dark"] #native-gates-list > * {
+  border-color: white;
+}
+
+section > * {
+  scroll-padding-block-start: 60px;
+}

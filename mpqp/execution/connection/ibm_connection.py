@@ -23,7 +23,7 @@ def config_ibm_account(token: str):
         token: IBM Quantum API token.
 
     Raises:
-        IBMRemoteExecutionError
+        IBMRemoteExecutionError: If the account could not be saved.
     """
     from qiskit_ibm_runtime import QiskitRuntimeService
     try:

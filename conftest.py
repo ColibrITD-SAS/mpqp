@@ -1,12 +1,10 @@
-import os
-
-from pytest import Metafunc, Parser
+from pytest import Parser
 
 
 def pytest_addoption(parser: Parser):
     parser.addoption("--long", action="store_false", help="If set, long tests will run")
-
-
-def pytest_generate_tests(metafunc: Metafunc):
-    if metafunc.config.option.long:
-        os.environ["LONG_TESTS"] = "True"
+    parser.addoption(
+        "--long-local",
+        action="store_false",
+        help="If set, only local long tests will run",
+    )

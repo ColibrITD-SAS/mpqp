@@ -18,7 +18,7 @@ describing the problem you would like to solve.
 
 ### Setup your environment locally
 
-_Some commands will assume you have the GitHub CLI installed, if you haven't,
+\_Some commands will assume you have the GitHub CLI installed, if you haven't,
 consider [installing it](https://github.com/cli/cli#installation), but you can
 always use the Web UI if you prefer that instead.
 
@@ -40,6 +40,13 @@ etc... included), use pip:
 ```bash
 pip install -r requirements-dev.txt
 ```
+
+In the documentation, some notebooks are rendered to HTML, this process is done
+using [Pandoc](https://pandoc.org/). Unfortunately, this software cannot be
+installed from the pip repository, so you need to install it separately. You can
+check [their documentation](https://pandoc.org/installing.html) to see how to
+install it on your OS (you can find it on most package manager: `apt`,
+`yum`, `pacman`, `choco`, `winget`, `brew` and more... )
 
 The last (optinal) step is to setup a GitHub personal access tokens to enable
 the sphinx automatic changelog generation. This step is only important if you
@@ -88,11 +95,12 @@ repository, and find the one you need to modify to achieve your goal.
 
 Here are some useful scripts for when you are developing:
 
-| Command                           | Description              |
-| --------------------------------- | ------------------------ |
-| `sphinx-build -b html docs build` | Builds the documentation |
-| `python -m pytest`                | Runs the test suite      |
-| `python -m pytest --long`         | Runs the long tests too  |
+| Command                           | Description               |
+| --------------------------------- | ------------------------- |
+| `sphinx-build -b html docs build` | Builds the documentation  |
+| `python -m pytest`                | Runs the test suite       |
+| `python -m pytest --long`         | Runs the long tests too   |
+| `python -m pytest --long-local`   | Runs the local long tests |
 
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)
@@ -117,8 +125,8 @@ following (even though each of these sections is optional):
 2. `Returns`
 3. `Raises`
 4. `Example(s)`
-5. `Notes`
-6. `Warnings`
+5. `Note`
+6. `Warning`
 
 ### When you're done
 

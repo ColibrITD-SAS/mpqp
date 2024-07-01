@@ -16,17 +16,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from aenum import Enum, NoAlias
+from aenum import Enum, NoAlias, auto
 from typeguard import typechecked
+
+from mpqp.tools.generics import MessageEnum
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
-
-from braket.aws import AwsQuantumTask
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
-from qat.comm.qlmaas.ttypes import QLMServiceException
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
@@ -37,20 +35,20 @@ from .connection.qlm_connection import get_QLMaaSConnection
 from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 
 
-class JobStatus(Enum):
+class JobStatus(MessageEnum):
     """Possible states of a Job."""
 
-    INIT = "initializing the job"
+    INIT = auto()
     """Initializing the job."""
-    QUEUED = "the job is in the queue"
+    QUEUED = auto()
     """The job is in the queue."""
-    RUNNING = "the job is currently running"
+    RUNNING = auto()
     """The job is currently running."""
-    CANCELLED = "the job is cancelled"
+    CANCELLED = auto()
     """The job is cancelled."""
-    ERROR = "an error occurred with the job"
+    ERROR = auto()
     """An error occurred with the job."""
-    DONE = "the job is successfully done"
+    DONE = auto()
     """The job is successfully done."""
 
 
@@ -104,7 +102,7 @@ class Job:
 
     """
 
-    # 6M-TODO: decide, when there are several measurements, if we define a
+    # 3M-TODO: decide, when there are several measurements, if we define a
     #  multi-measure job, or if we need several jobs. For the moment, a Job can
     #  handle only one measurement
 
@@ -170,6 +168,9 @@ def get_qlm_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
+    from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+    from qat.comm.qlmaas.ttypes import QLMServiceException
+
     try:
         qlm_status = get_QLMaaSConnection().get_status(job_id)
     except QLMServiceException as e:
@@ -233,6 +234,8 @@ def get_aws_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
+    from braket.aws import AwsQuantumTask
+
     task = AwsQuantumTask(job_id)
     state = task.state()
     if state == "FAILED":

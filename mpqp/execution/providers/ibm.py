@@ -5,14 +5,16 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from qiskit import QuantumCircuit
-from qiskit.compiler import transpile
-from qiskit.primitives import PrimitiveResult, EstimatorResult, Estimator
-from qiskit.providers import BackendV1, BackendV2
-from qiskit.quantum_info import SparsePauliOp, Pauli
-from qiskit.result import Result as QiskitResult
-from qiskit_aer import AerSimulator
-from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator, SamplerV2 as Runtime_Sampler, RuntimeJobV2, Session
+if TYPE_CHECKING:
+    from qiskit import QuantumCircuit
+    from qiskit.primitives import EstimatorResult, PrimitiveResult
+    from qiskit.providers import BackendV1, BackendV2
+    from qiskit.result import Result as QiskitResult
+    from qiskit_ibm_runtime import RuntimeJobV2
+
+# from qiskit.primitives import PrimitiveResult, EstimatorResult
+
+
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
@@ -61,6 +63,9 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    from qiskit.primitives import Estimator
+    from qiskit.quantum_info import SparsePauliOp
+
     if not isinstance(job.measure, ExpectationMeasure):
         raise ValueError(
             "Cannot compute expectation value if measure used in job is not of "
@@ -72,9 +77,10 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
 
     estimator = Estimator()
 
-    # 6M-TODO : think of the possibility to compute several expectation values at the same time when the circuit is
-    #  the same apparently the estimator.run() can take several circuits and observables at the same time,
-    #  to verify if putting them all together increases the performance
+    # 3M-TODO: think of the possibility to compute several expectation values at
+    #  the same time when the circuit is the same apparently the estimator.run()
+    #  can take several circuits and observables at the same time, to verify if
+    #  putting them all together increases the performance
 
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run(
@@ -144,6 +150,9 @@ def run_aer(job: Job):
     """
     check_job_compatibility(job)
 
+    from qiskit import QuantumCircuit
+    from qiskit.compiler import transpile
+    from qiskit_aer import AerSimulator
 
     qiskit_circuit = (
         job.circuit.without_measurements().to_other_language(Language.QISKIT)
@@ -189,7 +198,7 @@ def run_aer(job: Job):
 
 
 @typechecked
-def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
+def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
     Args:
@@ -202,6 +211,12 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    from qiskit import QuantumCircuit
+    from qiskit.compiler import transpile
+    from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator, SamplerV2 as Runtime_Sampler, Session
+
+    from qiskit.quantum_info import Pauli, SparsePauliOp
+
     if job.job_type == JobType.STATE_VECTOR:
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using IBM remote simulators and"
@@ -224,6 +239,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
     qiskit_circuit = job.circuit.to_other_language(Language.QISKIT)
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
+
     qiskit_circuit = qiskit_circuit.reverse_bits()
     service = get_QiskitRuntimeService()
     assert isinstance(job.device, IBMDevice)
@@ -246,8 +262,9 @@ def submit_remote_ibm(job: Job) -> tuple[str, RuntimeJobV2]:
 
         # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
         #  https://github.com/Qiskit/qiskit-ibm-runtime/blob/ed71c5bf8d4fa23c26a0a26c6d45373263e5ecde/qiskit_ibm_runtime/qiskit/primitives/backend_estimator_v2.py#L154
-        #  Tried once with shots=1234, but got shots=1280 with the real experiment, looks like the decimal part of precision is truncated
-        #  The problem is on the IBM side, an issue has been published : https://github.com/Qiskit/qiskit-ibm-runtime/issues/1749
+        #  Tried once with shots=1234, but got shots=1280 with the real experiment, looks like the decimal part of
+        #  precision is truncated. The problem is on the IBM side, an issue has been published :
+        #  https://github.com/Qiskit/qiskit-ibm-runtime/issues/1749
         precision = 1/np.sqrt(job.measure.shots)
         ibm_job = estimator.run([(qiskit_circuit, qiskit_observable)], precision=precision)
     elif job.job_type == JobType.SAMPLE:
@@ -286,7 +303,7 @@ def run_remote_ibm(job: Job) -> Result:
 
 @typechecked
 def extract_result(
-    result: QiskitResult | EstimatorResult | PrimitiveResult,
+    result: "QiskitResult" | "EstimatorResult" | "PrimitiveResult",
     job: Optional[Job] = None,
     device: Optional[IBMDevice] = IBMDevice.AER_SIMULATOR,
 ) -> Result:
@@ -420,6 +437,7 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     Returns:
         The result converted to our format.
     """
+    from qiskit.providers import BackendV1, BackendV2
 
     connector = get_QiskitRuntimeService()
     ibm_job = (

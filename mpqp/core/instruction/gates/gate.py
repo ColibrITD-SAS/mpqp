@@ -335,7 +335,7 @@ class InvolutionGate(Gate, ABC):
 
 @typechecked
 class SingleQubitGate(Gate, ABC):
-    """Gates operating on a single qubit.
+    """Abstract class for gates operating on a single qubit.
 
     Args:
         target: Index or referring to the qubit on which the gate will be applied.
@@ -348,4 +348,6 @@ class SingleQubitGate(Gate, ABC):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.targets[0]})"
 
-    nb_qubits = 1  # pyright: ignore[reportAssignmentType]
+    nb_qubits = (  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+        1
+    )
