@@ -18,7 +18,24 @@ restrictive. :func:`find` allow us a much more versatile search using an
 from __future__ import annotations
 
 from abc import ABCMeta
-from typing import Callable, Iterable, Iterator, Sequence, TypeVar, Union
+from inspect import getsource
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Iterable,
+    Iterator,
+    Sequence,
+    TypeVar,
+    Union,
+)
+
+from aenum import Enum
+
+# This is needed because for some reason pyright does not understand that Enum
+# is a class (probably because Enum does weird things to the Enum class)
+if TYPE_CHECKING:
+    from enum import Enum
 
 import numpy as np
 import numpy.typing as npt
@@ -136,6 +153,7 @@ def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     raise ValueError("No objects satisfies the given oracle")
 
 
+
 class SimpleClassReprMeta(type):
     """Metaclass used to change the repr of the class (not the instances) to
     display the name of the class only (instead of the usual
@@ -150,4 +168,56 @@ class SimpleClassReprABCMeta(SimpleClassReprMeta, ABCMeta):
 
 
 class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
+    """This class is the equivalent of ABC (it signifies that it's subclass
+    isn't meant to be instantiated directly), but it adds the small feature of
+    setting the ``repr`` to be the class name, which is for instance useful for
+    gates."""
+
     pass
+
+
+class classproperty:
+    """Decorator yo unite the ``classmethod`` and ``property`` decorators."""
+
+    def __init__(self, func: Callable[..., Any]):
+        self.fget = func
+
+    def __get__(self, instance: object, owner: object):
+        return self.fget(owner)
+
+
+def _get_doc(enum: type[Any], member: str):
+    src = getsource(enum)
+    member_pointer = src.find(member)
+    docstr_start = member_pointer + src[member_pointer:].find('"""') + 3
+    docstr_end = docstr_start + src[docstr_start:].find('"""')
+    return src[docstr_start:docstr_end]
+
+
+class MessageEnum(Enum):
+    """Enum subclass allowing you to access the docstring of the members of your
+    enum through the ``message`` property.
+
+    Example:
+        >>> class A(MessageEnum):  # doctest: +SKIP
+        ...     '''an enum'''
+        ...     VALUE1 = auto()
+        ...     '''member VALUE1'''
+        ...     VALUE2 = auto()
+        ...     '''member VALUE2'''
+        >>> A.VALUE1.message  # doctest: +SKIP
+        'member VALUE1'
+
+    Warning:
+        This implementation is not very robust, in particular, in case some
+        members are not documented, it will mess things up. In addition, this
+        can only work for code in file, and will not work in the interpreter.
+    """
+
+    message: str
+    """Each of the members of the eum will have the ``message`` attribute."""
+
+    def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
+        super().__init__(*args, **kwds)
+        for member in type(self).__members__:
+            type(self).__members__[member].message = _get_doc(type(self), member)

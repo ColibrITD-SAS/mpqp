@@ -35,9 +35,10 @@ class NoiseModel(ABC):
     """
 
     def __init__(
-        self, targets: list[int] = [], gates: Optional[list[type[Gate]]] = None
+        self,
+        targets: list[int],
+        gates: Optional[list[type[Gate]]] = None,
     ):
-
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
 
@@ -127,11 +128,10 @@ class Depolarizing(NoiseModel):
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
         >>> d1 = Depolarizing(0.32, list(range(circuit.nb_qubits)))
-        >>> d2 = Depolarizing(0.01)
-        >>> d3 = Depolarizing(0.05, [0, 1], dimension=2)
-        >>> d4 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
-        >>> d5 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
-        >>> circuit.add([d1, d2, d3, d4, d5])
+        >>> d2 = Depolarizing(0.05, [0, 1], dimension=2)
+        >>> d3 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+        >>> d4 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
+        >>> circuit.add([d1, d2, d3, d4])
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
              ┌───┐
         q_0: ┤ H ├
@@ -142,7 +142,6 @@ class Depolarizing(NoiseModel):
              └───┘
         NoiseModel:
             Depolarizing(0.32, [0, 1, 2], 1)
-            Depolarizing(0.01, [0, 1, 2], 1)
             Depolarizing(0.05, [0, 1], 2)
             Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
             Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
@@ -152,7 +151,7 @@ class Depolarizing(NoiseModel):
     def __init__(
         self,
         prob: float,
-        targets: list[int] = [],
+        targets: list[int],
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -182,10 +181,9 @@ class Depolarizing(NoiseModel):
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
 
-        nb_targets = len(targets)
-        if nb_targets != 0 and nb_targets < dimension:
+        if len(targets) < dimension:
             raise ValueError(
-                f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}."
+                f"Number of target qubits {len(targets)} should be higher than the dimension {dimension}."
             )
 
         super().__init__(targets, gates)

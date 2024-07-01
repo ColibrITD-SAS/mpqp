@@ -18,7 +18,7 @@ from mpqp.tools.maths import is_unitary, matrix_eq
 
 @typechecked
 class GateDefinition(ABC):
-    """A class used to handle the definition of a Gate.
+    """Abstract class used to handle the definition of a Gate.
 
     A quantum gate can be defined in several ways, and this class allows us to
     define it as we prefer. It also handles the translation from one definition
