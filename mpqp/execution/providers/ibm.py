@@ -322,6 +322,8 @@ def extract_result(
     Returns:
         The ``qiskit`` result converted to our format.
     """
+    from qiskit.primitives import EstimatorResult, PrimitiveResult
+    from qiskit.result import Result as QiskitResult
 
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
