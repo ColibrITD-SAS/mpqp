@@ -125,12 +125,12 @@ def check_job_compatibility(job: Job):
     if job.device == IBMDevice.AER_SIMULATOR_STABILIZER:
         for inst in job.circuit.instructions:
             if type(inst) in {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}:
-                raise ValueError(f"Gate {inst} cannot be simulated with `IBMDevice.AER_SIMULATOR_STABILIZER`.")
+                raise ValueError(f"Gate {inst.__repr__()} cannot be simulated with `IBMDevice.AER_SIMULATOR_STABILIZER`.")
         ...
     elif job.device == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
         for inst in job.circuit.instructions:
             if type(inst) in {Rx, Rz}:
-                raise ValueError(f"Gate {inst} cannot be simulated with `IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER`.")
+                raise ValueError(f"Gate {inst.__repr__()} cannot be simulated with `IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER`.")
 
 
 @typechecked

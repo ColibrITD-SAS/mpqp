@@ -195,7 +195,7 @@ def test_observable_demo(shots: int):
     circuit = QCircuit(2, label="Observable test")
     # Constructing the circuit by adding gates and measurements
     circuit.add(H(0))
-    circuit.add(Rx(1.76, 1))
+    circuit.add([H(1), CNOT(1, 0)])
     circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
