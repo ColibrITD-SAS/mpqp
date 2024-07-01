@@ -814,14 +814,13 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
+                    new_circ = new_circ.reverse_bits()
                     new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
                         instruction.to_other_language(),
                         instruction.targets,
                         instruction.label,
                     )
-                    # FIXME: minus sign appearing when it should not, seems
-                    #  there a phase added somewhere, check u gate in OpenQASM
-                    #  translation.
+                    new_circ = new_circ.reverse_bits()
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
