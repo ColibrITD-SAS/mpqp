@@ -372,4 +372,4 @@ def display_kth_breakpoint(circuit: QCircuit, k: int):
         print("       " + state_vector_ket_shape(res.amplitudes))
         if bp.draw_circuit:
             print("       and circuit is")
-            print(indent(str(circuit), "       "))
+            print(indent(str(copy), "       "))
