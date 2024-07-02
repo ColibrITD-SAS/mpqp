@@ -52,7 +52,7 @@ class BasisMeasure(Measure):
         self,
         targets: Optional[list[int]] = None,
         c_targets: Optional[list[int]] = None,
-        shots: int = 0,
+        shots: int = 1024,
         basis: Optional[Basis] = None,
         label: Optional[str] = None,
     ):

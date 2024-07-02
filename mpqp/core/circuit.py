@@ -244,12 +244,12 @@ class QCircuit:
 
         Returns:
             qcircuit: A deep copy of the original quantum circuit object with updated properties.
-        
+
         Raises:
             ValueError: If the number of target qubits for a Depolarizing noise is less
                         than the noise's dimension, or if BasisMeasure does not span all
                         qubits in a noisy circuit.
-        
+
         Examples:
             >>> circuit2 = QCircuit([H(i) for i in range(2)])
             >>> circuit2.add(Depolarizing(0.01))
@@ -257,13 +257,13 @@ class QCircuit:
             >>> circuit2.add(Barrier())
             >>> circuit2.add(BasisMeasure())
             >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐┌─┐    ░ ┌─┐   
+                 ┌───┐┌─┐    ░ ┌─┐
             q_0: ┤ H ├┤M├────░─┤M├───
                  ├───┤└╥┘┌─┐ ░ └╥┘┌─┐
             q_1: ┤ H ├─╫─┤M├─░──╫─┤M├
                  └───┘ ║ └╥┘ ░  ║ └╥┘
             c: 4/══════╩══╩═════╩══╩═
-                       0  1     2  3 
+                       0  1     2  3
             NoiseModel:
                 Depolarizing(0.01, [all], 1)
             >>> circuit2.nb_qubits = 3
@@ -285,7 +285,7 @@ class QCircuit:
         noises = deepcopy(self.noises)
         for noise in noises:
             if len(noise.targets) == 0:
-                noise.targets = [target for target in range(self.nb_qubits)]
+                noise.targets = list(range(self.nb_qubits))
                 if (
                     isinstance(noise, Depolarizing)
                     and len(noise.targets) < noise.dimension
@@ -301,23 +301,21 @@ class QCircuit:
                 instruction.size = self.nb_qubits
             elif isinstance(instruction, Measure):
                 if len(instruction.targets) == 0:
-                    instruction.targets = [target for target in range(self.nb_qubits)]
-            if isinstance(instruction, BasisMeasure):
-                if instruction.c_targets is None:
-                    if len(instruction.targets) == 0:
-                        instruction.targets = [
-                            target for target in range(self.nb_qubits)
+                    instruction.targets = list(range(self.nb_qubits))
+                if isinstance(instruction, BasisMeasure):
+                    if instruction.c_targets is None:
+                        if len(instruction.targets) == 0:
+                            instruction.targets = list(range(self.nb_qubits))
+                        if qcircuit.nb_cbits is None:
+                            qcircuit.nb_cbits = 0
+                        instruction.c_targets = [
+                            qcircuit.nb_cbits + i for i in range(len(instruction.targets))
                         ]
-                    if qcircuit.nb_cbits is None:
-                        qcircuit.nb_cbits = 0
-                    instruction.c_targets = [
-                        qcircuit.nb_cbits + i for i in range(len(instruction.targets))
-                    ]
-                    qcircuit.nb_cbits += self.nb_qubits
-                if self.noises and len(instruction.targets) != self.nb_qubits:
-                    raise ValueError(
-                        "In noisy circuits, BasisMeasure must span all qubits in the circuit."
-                    )
+                        qcircuit.nb_cbits += self.nb_qubits
+                    if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
+                        raise ValueError(
+                            "In noisy circuits, BasisMeasure must span all qubits in the circuit."
+                        )
         qcircuit.instructions = instructions
         return qcircuit
 
