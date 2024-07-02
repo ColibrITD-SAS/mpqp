@@ -112,6 +112,14 @@ class IBMDevice(AvailableDevice):
         return True
         # return self != IBMDevice.PULSE_SIMULATOR
 
+    def supports_statevector(self):
+        return self in {
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+        }
+
     def is_simulator(self) -> bool:
         return "simulator" in self.value
 

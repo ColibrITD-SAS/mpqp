@@ -24,8 +24,15 @@ def with_local_devices(args: tuple[Any, ...]):
     return (
         (*args, d)
         for d in list(IBMDevice) + list(ATOSDevice) + list(AWSDevice)
-        if not d.is_remote() and d.is_gate_based() and (d not in {IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-                                                                  IBMDevice.AER_SIMULATOR_STABILIZER})
+        if not d.is_remote()
+        and d.is_gate_based()
+        and (
+            d
+            not in {
+                IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+                IBMDevice.AER_SIMULATOR_STABILIZER,
+            }
+        )
     )
 
 
