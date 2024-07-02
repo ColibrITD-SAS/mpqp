@@ -13,6 +13,7 @@ You will find bellow the list of available native gates:
 
 from __future__ import annotations
 
+from abc import abstractmethod
 from numbers import Integral
 from typing import TYPE_CHECKING, Optional
 
@@ -32,7 +33,7 @@ from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGa
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
-from mpqp.tools.generics import Matrix, SimpleClassReprABC
+from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
 from mpqp.tools.maths import cos, exp, sin
 
 # from sympy import Expr, pi
@@ -86,7 +87,7 @@ def _qiskit_parameter_adder(
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
-    This class represent all those gates supported by default.
+    This abstract class represent all those gates supported by default.
 
     Args:
         targets: List of indices referring to the qubits on which the gate will
@@ -101,9 +102,9 @@ class NativeGate(Gate, SimpleClassReprABC):
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
-    a single parameter: ``theta``. This class help up factorize this behavior,
-    and simply having to tweak the matrix semantics and qasm translation of
-    the specific gate.
+    a single parameter: ``theta``. This abstract class helps up factorize this
+    behavior, and simply having to tweak the matrix semantics and qasm
+    translation of the specific gate.
 
     Args:
         theta: Angle of the rotation.
@@ -114,10 +115,17 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         from braket.circuits import gates
         from qiskit.circuit.library import CPhaseGate, PhaseGate, RXGate, RYGate, RZGate
 
-    qiskit_gate: type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]
-    braket_gate: type[
-        gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift
-    ]
+    @classproperty
+    @abstractmethod
+    def qiskit_gate(cls) -> type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]:
+        pass
+
+    @classproperty
+    @abstractmethod
+    def braket_gate(
+        cls,
+    ) -> type[gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift]:
+        pass
 
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
@@ -161,7 +169,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
 @typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
-    """Class describing native gates that do not depend on parameters.
+    """Abstract class describing native gates that do not depend on parameters.
 
     Args:
         targets: List of indices referring to the qubits on which the gate will
@@ -185,7 +193,11 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             ZGate,
         )
 
-    qiskit_gate: type[
+    @classproperty
+    @abstractmethod
+    def qiskit_gate(
+        cls,
+    ) -> type[
         XGate
         | YGate
         | ZGate
@@ -197,8 +209,14 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | CZGate
         | CCXGate
         | IGate
-    ]
-    braket_gate: type[
+    ]:
+        pass
+
+    @classproperty
+    @abstractmethod
+    def braket_gate(
+        cls,
+    ) -> type[
         gates.X
         | gates.Y
         | gates.Z
@@ -210,7 +228,9 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | gates.CZ
         | gates.CCNot
         | gates.I
-    ]
+    ]:
+        pass
+
     qlm_aqasm_keyword: str
 
     """Corresponding ``qiskit``'s gate class."""
@@ -235,7 +255,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
 
 @typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
-    """Class describing one-qubit native gates that do not depend on parameters.
+    """Abstract Class describing one-qubit native gates that do not depend on
+    parameters.
 
     Args:
         target: Index referring to the qubits on which the gate will be applied.
@@ -258,14 +279,22 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    def __init__(self, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.I
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import IGate
+
+        return IGate
+
+    def __init__(self, target: int):
 
         super().__init__(target)
 
-        self.qiskit_gate = IGate
-        self.braket_gate = gates.I
         self.qlm_aqasm_keyword = "I"
         self.matrix = np.eye(2, dtype=np.complex64)
 
@@ -283,14 +312,22 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    def __init__(self, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.X
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import XGate
+
+        return XGate
+
+    def __init__(self, target: int):
 
         super().__init__(target)
 
-        self.qiskit_gate = XGate
-        self.braket_gate = gates.X
         self.qlm_aqasm_keyword = "X"
         self.matrix = np.array([[0, 1], [1, 0]])
 
@@ -308,14 +345,22 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    def __init__(self, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.Y
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import YGate
+
+        return YGate
+
+    def __init__(self, target: int):
 
         super().__init__(target)
 
-        self.qiskit_gate = YGate
-        self.braket_gate = gates.Y
         self.qlm_aqasm_keyword = "Y"
 
     matrix = np.array([[0, -1j], [1j, 0]])
@@ -334,14 +379,22 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    def __init__(self, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.Z
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import ZGate
+
+        return ZGate
+
+    def __init__(self, target: int):
 
         super().__init__(target)
 
-        self.qiskit_gate = ZGate
-        self.braket_gate = gates.Z
         self.qlm_aqasm_keyword = "Z"
 
     matrix = np.array([[1, 0], [0, -1]])
@@ -360,14 +413,22 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
     """
 
-    def __init__(self, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.H
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import HGate
+
+        return HGate
+
+    def __init__(self, target: int):
 
         super().__init__(target)
 
-        self.qiskit_gate = HGate
-        self.braket_gate = gates.H
         self.qlm_aqasm_keyword = "H"
 
     matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
@@ -387,14 +448,22 @@ class P(RotationGate, SingleQubitGate):
 
     """
 
-    def __init__(self, theta: Expr | float, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.PhaseShift
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import PhaseGate
+
+        return PhaseGate
+
+    def __init__(self, theta: Expr | float, target: int):
 
         super().__init__(theta, target)
 
-        self.qiskit_gate = PhaseGate
-        self.braket_gate = gates.PhaseShift
         self.qlm_aqasm_keyword = "PH"
 
     def to_matrix(self) -> Matrix:
@@ -425,14 +494,22 @@ class S(OneQubitNoParamGate):
 
     """
 
-    def __init__(self, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.S
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import SGate
+
+        return SGate
+
+    def __init__(self, target: int):
 
         super().__init__(target)
 
-        self.qiskit_gate = SGate
-        self.braket_gate = gates.S
         self.qlm_aqasm_keyword = "S"
 
     matrix = np.array([[1, 0], [0, 1j]])
@@ -454,14 +531,22 @@ class T(OneQubitNoParamGate):
 
     """
 
-    def __init__(self, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.T
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import TGate
+
+        return TGate
+
+    def __init__(self, target: int):
 
         super().__init__(target)
 
-        self.qiskit_gate = TGate
-        self.braket_gate = gates.T
         self.qlm_aqasm_keyword = "T"
 
     def to_matrix(self) -> Matrix:
@@ -486,12 +571,20 @@ class SWAP(InvolutionGate, NoParameterGate):
 
     """
 
-    def __init__(self, a: int, b: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.Swap
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import SwapGate
 
-        self.qiskit_gate = SwapGate
-        self.braket_gate = gates.Swap
+        return SwapGate
+
+    def __init__(self, a: int, b: int):
+
         self.qlm_aqasm_keyword = "SWAP"
 
         self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
@@ -610,14 +703,22 @@ class Rx(RotationGate, SingleQubitGate):
 
     """
 
-    def __init__(self, theta: Expr | float, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.Rx
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import RXGate
+
+        return RXGate
+
+    def __init__(self, theta: Expr | float, target: int):
 
         super().__init__(theta, target)
 
-        self.qiskit_gate = RXGate
-        self.braket_gate = gates.Rx
         self.qlm_aqasm_keyword = "RX"
 
     def to_matrix(self) -> Matrix:
@@ -642,14 +743,22 @@ class Ry(RotationGate, SingleQubitGate):
 
     """
 
-    def __init__(self, theta: Expr | float, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.Ry
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import RYGate
+
+        return RYGate
+
+    def __init__(self, theta: Expr | float, target: int):
 
         super().__init__(theta, target)
 
-        self.qiskit_gate = RYGate
-        self.braket_gate = gates.Ry
         self.qlm_aqasm_keyword = "RY"
 
     def to_matrix(self) -> Matrix:
@@ -672,14 +781,22 @@ class Rz(RotationGate, SingleQubitGate):
 
     """
 
-    def __init__(self, theta: Expr | float, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.Rz
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import RZGate
+
+        return RZGate
+
+    def __init__(self, theta: Expr | float, target: int):
 
         super().__init__(theta, target)
 
-        self.qiskit_gate = RZGate
-        self.braket_gate = gates.Rz
         self.qlm_aqasm_keyword = "RZ"
 
     def to_matrix(self) -> Matrix:
@@ -705,12 +822,20 @@ class Rk(RotationGate, SingleQubitGate):
 
     """
 
-    def __init__(self, k: Expr | int, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.PhaseShift
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import PhaseGate
 
-        self.qiskit_gate = PhaseGate
-        self.braket_gate = gates.PhaseShift
+        return PhaseGate
+
+    def __init__(self, k: Expr | int, target: int):
+
         self.qlm_aqasm_keyword = "PH"
 
         self.parameters = [k]
@@ -757,12 +882,20 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
 
     """
 
-    def __init__(self, control: int, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.CNot
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import CXGate
 
-        self.qiskit_gate = CXGate
-        self.braket_gate = gates.CNot
+        return CXGate
+
+    def __init__(self, control: int, target: int):
+
         self.qlm_aqasm_keyword = "CNOT"
         ControlledGate.__init__(self, [control], [target], X(target), "CNOT")
 
@@ -790,12 +923,20 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
 
     """
 
-    def __init__(self, control: int, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.CZ
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import CZGate
 
-        self.qiskit_gate = CZGate
-        self.braket_gate = gates.CZ
+        return CZGate
+
+    def __init__(self, control: int, target: int):
+
         self.qlm_aqasm_keyword = "CSIGN"
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
 
@@ -826,12 +967,20 @@ class CRk(RotationGate, ControlledGate):
 
     """
 
-    def __init__(self, k: Expr | int, control: int, target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.CPhaseShift
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import CPhaseGate
 
-        self.qiskit_gate = CPhaseGate
-        self.braket_gate = gates.CPhaseShift
+        return CPhaseGate
+
+    def __init__(self, k: Expr | int, control: int, target: int):
+
         self.qlm_aqasm_keyword = ["CNOT", "PH"]
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
@@ -884,12 +1033,20 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
 
     """
 
-    def __init__(self, control: list[int], target: int):
+    @classproperty
+    def braket_gate(cls):
         from braket.circuits import gates
+
+        return gates.CCNot
+
+    @classproperty
+    def qiskit_gate(cls):
         from qiskit.circuit.library import CCXGate
 
-        self.qiskit_gate = CCXGate
-        self.braket_gate = gates.CCNot
+        return CCXGate
+
+    def __init__(self, control: list[int], target: int):
+
         self.qlm_aqasm_keyword = "CCNOT"
         if len(control) != 2:
             raise ValueError("A Toffoli gate must have exactly 2 control qubits.")

@@ -1,16 +1,14 @@
-"""Add ``--long`` to the cli args to run this test (disabled by default because 
-too slow)"""
-
-import sys
-
-# 3M-TODO test everything
 import numpy as np
 import pytest
+from cirq.circuits.circuit import Circuit
+from cirq.ops.common_gates import CNOT as CirqCNOT
+from cirq.ops.measure_util import measure
+from cirq.ops.named_qubit import NamedQubit
+from cirq.ops.pauli_gates import X as CirqX
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
-from mpqp.execution import run
-from mpqp.execution.devices import GOOGLEDevice
+from mpqp.execution import GOOGLEDevice, run
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
 from mpqp.qasm import qasm2_to_cirq_Circuit
@@ -43,6 +41,7 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
                 BasisMeasure(list(range(3)), shots=0),
             ]
         ),
+        # OBSERVABLE JOB
         QCircuit(
             [
                 H(0),
@@ -65,25 +64,29 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
         ),
     ],
 )
-def running_remote_local_cirq(circuit: QCircuit):
+def test_running_local_cirq(circuit: QCircuit):
     return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
-if "--long" in sys.argv:
-    test_running_local_cirq_without = running_remote_local_cirq
-
-
 @pytest.mark.parametrize(
-    "qasm_filename",
+    "circuit, qasm_filename",
     [
-        "all",
+        (
+            Circuit(
+                CirqX(NamedQubit("q_0")),
+                CirqCNOT(NamedQubit("q_0"), NamedQubit("q_1")),
+                measure(NamedQubit("q_1"), key="c_1"),
+                measure(NamedQubit("q_0"), key="c_0"),
+            ),
+            "all",
+        )
     ],
 )
-def _test_qasm2_to_cirq_Circuit(qasm_filename: str):
-    # TODO: this test does not pass, fix it
+def test_qasm2_to_cirq_Circuit(circuit: QCircuit, qasm_filename: str):
+    # 3M-TODO test everything
     with open(
         f"tests/core/test_circuit/{qasm_filename}.qasm2",
         "r",
         encoding="utf-8",
     ) as f:
-        assert qasm2_to_cirq_Circuit(f.read()).to_qasm() == f.read()
+        assert qasm2_to_cirq_Circuit(f.read()) == circuit

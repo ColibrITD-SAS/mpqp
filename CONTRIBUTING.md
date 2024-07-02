@@ -95,11 +95,12 @@ repository, and find the one you need to modify to achieve your goal.
 
 Here are some useful scripts for when you are developing:
 
-| Command                           | Description              |
-| --------------------------------- | ------------------------ |
-| `sphinx-build -b html docs build` | Builds the documentation |
-| `python -m pytest`                | Runs the test suite      |
-| `python -m pytest --long`         | Runs the long tests too  |
+| Command                           | Description               |
+| --------------------------------- | ------------------------- |
+| `sphinx-build -b html docs build` | Builds the documentation  |
+| `python -m pytest`                | Runs the test suite       |
+| `python -m pytest --long`         | Runs the long tests too   |
+| `python -m pytest --long-local`   | Runs the local long tests |
 
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)
@@ -124,8 +125,8 @@ following (even though each of these sections is optional):
 2. `Returns`
 3. `Raises`
 4. `Example(s)`
-5. `Notes`
-6. `Warnings`
+5. `Note`
+6. `Warning`
 
 ### When you're done
 

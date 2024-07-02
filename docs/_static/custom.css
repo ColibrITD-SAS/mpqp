@@ -187,6 +187,10 @@ html[data-theme="dark"] .rst-content .highlighted {
   display: flex;
   flex-wrap: wrap;
   margin-block-end: 1em;
+  position: sticky;
+  top: 57px;
+  z-index: 10000;
+  background-color: #141414;
 }
 
 #native-gates-list > * {
@@ -200,4 +204,8 @@ html[data-theme="dark"] .rst-content .highlighted {
 
 html[data-theme="dark"] #native-gates-list > * {
   border-color: white;
+}
+
+section > * {
+  scroll-padding-block-start: 60px;
 }
