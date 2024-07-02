@@ -10,7 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 from functools import reduce
 from numbers import Real
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, List, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -18,6 +18,10 @@ import numpy.typing as npt
 FixedReal = Union[Real, float]
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, rtol
+
+if TYPE_CHECKING:
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
 
 
 class PauliString:
@@ -309,6 +313,98 @@ class PauliString:
                 PauliStringMonomial(0, [I for _ in range(num_qubits)])
             )
         return pauli_list
+    @classmethod
+    def _get_nb_qubits_cirq_pauli(
+        cls, pauli: Union[CirqPauliSum, CirqPauliString]
+    ):
+        from cirq.ops.pauli_string import PauliString as CirqPauliString
+        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+
+        nb_qubits = 0
+        if isinstance(pauli, CirqPauliSum):
+            for term in pauli:
+                for qubit, _ in term.items():
+                    nb_qubits = max(nb_qubits, int(qubit.name.split("_")[1]) + 1)
+        elif isinstance(pauli, CirqPauliString):
+            for qubit in pauli.qubits:
+                nb_qubits = max(nb_qubits, int(qubit.name.split("_")[1]) + 1)
+        return nb_qubits
+    
+    @classmethod
+    def _from_cirq(
+        cls, pauli: Union[CirqPauliSum, CirqPauliString], nb_qubit: int = 0
+    ) -> PauliString:
+        from mpqp.measures import I, X, Y, Z
+        from mpqp.core.instruction.measurement.pauli_string import PauliStringMonomial
+        from cirq.ops.pauli_gates import X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
+        from cirq.ops.pauli_string import PauliString as CirqPauliString
+        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+
+        def get_atom(op: Any):
+            if op == Cirq_X:
+                return X
+            elif op == Cirq_Y:
+                return Y
+            elif op == Cirq_Z:
+                return Z
+            else:
+                raise ValueError(f"Unsupported gate: {op}")
+
+        num_qubits = (
+            PauliString._get_nb_qubits_cirq_pauli(pauli) if nb_qubit == 0 else nb_qubit 
+        )
+        pauli_string = PauliString()
+
+        if isinstance(pauli, CirqPauliSum):
+            for term in pauli:
+                coef = term.coefficient.real
+                atoms = [I] * num_qubits
+                for qubit, op in term.items():
+                    nb_qubit = int(qubit.name.split("_")[1])
+                    atoms[nb_qubit] = get_atom(op)
+                pauli_string += PauliStringMonomial(coef, atoms)
+
+        elif isinstance(pauli, CirqPauliString):
+            coef = pauli.coefficient.real
+            atoms = [I] * num_qubits
+            for qubit, op in pauli.items():
+                nb_qubit = int(qubit.name.split("_")[1])
+                atoms[nb_qubit] = get_atom(op)
+            pauli_string += PauliStringMonomial(coef, atoms)
+
+        return pauli_string
+
+    @classmethod
+    def from_other_languages(
+        cls, pauli: Union[CirqPauliSum, CirqPauliString, List[CirqPauliString]], nb_qubits: int = 0
+    ) -> PauliString | List[PauliString]:
+        """
+        Convert pauli objects from other quantum computing libraries to PauliString.
+
+        args:
+            pauli: The pauli object(s) to be converted. This can be a single CirqPauliSum, a single CirqPauliString, or a list of CirqPauliString objects.
+
+        Returns:
+                The converted PauliString object. If the input is a list, the output will be a list of PauliString objects.
+
+        Raises:
+            ValueError: If the input type is not supported.
+        
+        """
+        from cirq.ops.pauli_string import PauliString as CirqPauliString
+        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+        
+        if isinstance(pauli, list) and all(isinstance(item, CirqPauliString) for item in pauli):
+            if nb_qubits == 0:
+                for pauli_mono in pauli:
+                    nb_qubits = max(PauliString._get_nb_qubits_cirq_pauli(pauli_mono), nb_qubits)
+            return [PauliString._from_cirq(pauli_mono, nb_qubits) for pauli_mono in pauli]
+        if isinstance(pauli, (CirqPauliSum, CirqPauliString)):
+            return PauliString._from_cirq(pauli)
+        
+        raise ValueError(
+            f"Unsupported input type: {type(pauli)}. Supported types are CirqPauliSum, CirqPauliString, and List[CirqPauliString]."
+        )
 
     def to_dict(self) -> dict[str, float]:
         """Converts the PauliString object to a dictionary representation.
