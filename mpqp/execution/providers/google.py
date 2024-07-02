@@ -348,10 +348,11 @@ def extract_result_OBSERVABLE_shot_noise(
     """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    idx = 0
-    for r in results:
-        idx = PauliString._get_nb_qubits_cirq_pauli(r.observable, idx)  # type: ignore
-    variances = {PauliString._cirq_pauli_to_pauli_string(r.observable, idx): r.variance for r in results}  # type: ignore
+    pauli_mono = PauliString.from_other_languages([r.observable for r in results], job.measure.nb_qubits)
+    assert isinstance(pauli_mono, list) and all(
+        isinstance(item, PauliString) for item in pauli_mono
+    )
+    variances = {pm: r.variance for pm, r in zip(pauli_mono, results)}
     return Result(
         job,
         sum(map(lambda r: r.mean, results)),
