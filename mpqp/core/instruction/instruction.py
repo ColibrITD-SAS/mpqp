@@ -45,8 +45,6 @@ class Instruction(SimpleClassReprABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
-        if len(targets) == 0:
-            raise ValueError("Expected non-empty target list")
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate registers in targets: {targets}")
         if not all([t >= 0 for t in targets]):

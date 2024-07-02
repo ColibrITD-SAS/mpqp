@@ -33,6 +33,9 @@ class Gate(Instruction, ABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
+        
+        if len(targets) == 0:
+            raise ValueError("Expected non-empty target list")
         super().__init__(targets, label=label)
 
     @abstractmethod
