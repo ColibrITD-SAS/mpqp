@@ -74,23 +74,14 @@ class IBMDevice(AvailableDevice):
         an equivalent one for instance).
     """
 
-    # PULSE_SIMULATOR = "pulse_simulator"
-
-    AER_SIMULATOR = "aer_simulator"
-    AER_SIMULATOR_STATEVECTOR = "aer_simulator_statevector"
-    # TODO: many devices are no longer working, explore why
-    # AER_SIMULATOR_DENSITY_MATRIX = "aer_simulator_density_matrix"
-    # AER_SIMULATOR_STABILIZER = "aer_simulator_stabilizer"
-    # AER_SIMULATOR_MATRIX_PRODUCT_STATE = "aer_simulator_matrix_product_state"
-    # AER_SIMULATOR_EXTENDED_STABILIZER = "aer_simulator_extended_stabilizer"
-    # AER_SIMULATOR_UNITARY = "aer_simulator_unitary"
-    # AER_SIMULATOR_SUPEROP = "aer_simulator_superop"
-
-    # IBMQ_SIMULATOR_STATEVECTOR = "simulator_statevector"
-    # IBMQ_SIMULATOR_STABILIZER = "simulator_stabilizer"
-    # IBMQ_SIMULATOR_EXTENDED_STABILIZER = "simulator_extended_stabilizer"
-    # IBMQ_SIMULATOR_MPS = "simulator_mps"
-    # IBMQ_QASM_SIMULATOR = "ibmq_qasm_simulator"
+    AER_SIMULATOR = "automatic"
+    AER_SIMULATOR_STATEVECTOR = "statevector"
+    AER_SIMULATOR_DENSITY_MATRIX = "density_matrix"
+    AER_SIMULATOR_STABILIZER = "stabilizer"
+    AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
+    AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
+    # AER_SIMULATOR_UNITARY = "unitary"
+    # AER_SIMULATOR_SUPEROP = "superop"
 
     IBM_BRISBANE = "ibm_brisbane"
     IBM_OSAKA = "ibm_osaka"
@@ -112,8 +103,7 @@ class IBMDevice(AvailableDevice):
     IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
-    IBM_RANDOM_SMALL_DEVICE = "ibm_small_device"
-    IBM_SMALL_DEVICES_LEAST_BUSY = "ibm_least_busy"
+    IBM_LEAST_BUSY = "ibm_least_busy"
 
     def is_remote(self) -> bool:
         return self.name.startswith("IBM")
@@ -122,6 +112,14 @@ class IBMDevice(AvailableDevice):
         return True
         # return self != IBMDevice.PULSE_SIMULATOR
 
+    def supports_statevector(self):
+        return self in {
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+        }
+
     def is_simulator(self) -> bool:
         return "simulator" in self.value
 
@@ -129,11 +127,7 @@ class IBMDevice(AvailableDevice):
         raise NotImplementedError()
         # TODO: determine which devices can simulate noise or not for Qiskit remote, or local
         noise_support_devices = {
-            IBMDevice.IBMQ_SIMULATOR_STATEVECTOR: True,
             IBMDevice.AER_SIMULATOR_STABILIZER: True,
-            IBMDevice.IBMQ_SIMULATOR_EXTENDED_STABILIZER: False,
-            IBMDevice.IBMQ_SIMULATOR_MPS: False,
-            IBMDevice.IBMQ_QASM_SIMULATOR: True,
         }
         return self in noise_support_devices
 
