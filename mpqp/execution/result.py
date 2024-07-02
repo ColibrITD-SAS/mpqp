@@ -31,8 +31,8 @@ import numpy.typing as npt
 from typeguard import typechecked
 
 from mpqp.execution.devices import AvailableDevice
+from mpqp.tools.display import clean_1D_array
 from mpqp.tools.errors import ResultAttributeError
-from mpqp.tools.generics import clean_array
 
 from .job import Job, JobType
 
@@ -83,12 +83,12 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f""" State vector: {clean_array(self.vector)}
- Probabilities: {clean_array(self.probabilities)}
+        return f""" State vector: {clean_1D_array(self.vector)}
+ Probabilities: {clean_1D_array(self.probabilities)}
  Number of qubits: {self.nb_qubits}"""
 
     def __repr__(self) -> str:
-        return f"StateVector({clean_array(self.vector)})"
+        return f"StateVector({clean_1D_array(self.vector)})"
 
 
 @typechecked
@@ -373,15 +373,13 @@ class Result:
         return self._counts
 
     def __str__(self):
-        header = (
-            f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
-        )
+        header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
             samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
             return f"""{header}
  Counts: {self._counts}
- Probabilities: {clean_array(self.probabilities)}
+ Probabilities: {clean_1D_array(self.probabilities)}
  Samples:
 {samples_str}
  Error: {self.error}"""

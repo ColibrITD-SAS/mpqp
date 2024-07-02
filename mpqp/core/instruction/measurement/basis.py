@@ -18,7 +18,7 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
-from mpqp.tools.generics import clean_array
+from mpqp.tools.display import clean_1D_array
 from mpqp.tools.maths import atol, matrix_eq
 
 
@@ -96,7 +96,7 @@ class Basis:
             ]
 
         """
-        joint_vectors = ",\n    ".join(map(clean_array, self.basis_vectors))
+        joint_vectors = ",\n    ".join(map(clean_1D_array, self.basis_vectors))
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
