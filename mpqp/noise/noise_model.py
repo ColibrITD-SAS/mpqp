@@ -131,10 +131,11 @@ class Depolarizing(NoiseModel):
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
         >>> d1 = Depolarizing(0.32, list(range(circuit.nb_qubits)))
-        >>> d2 = Depolarizing(0.05, [0, 1], dimension=2)
-        >>> d3 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
-        >>> d4 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
-        >>> circuit.add([d1, d2, d3, d4])
+        >>> d2 = Depolarizing(0.01)
+        >>> d3 = Depolarizing(0.05, [0, 1], dimension=2)
+        >>> d4 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+        >>> d5 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
+        >>> circuit.add([d1, d2, d3, d4, d5])
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
              ┌───┐
         q_0: ┤ H ├

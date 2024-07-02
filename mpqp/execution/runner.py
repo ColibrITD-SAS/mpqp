@@ -299,7 +299,7 @@ def run(
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
             [
-                _run_single(namer(circ, i), dev, values, display_breakpoints)
+                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
