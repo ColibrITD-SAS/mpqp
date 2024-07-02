@@ -219,12 +219,14 @@ class QCircuit:
                 self.nb_cbits += len(components.c_targets)
 
         if isinstance(components, NoiseModel):
-            basisMs = [
+            hardcoded_basis_measures = [
                 instr
                 for instr in self.instructions
                 if isinstance(instr, BasisMeasure) and len(instr.targets) != 0
             ]
-            if basisMs and all([len(bm.targets) != self.nb_qubits for bm in basisMs]):
+            if any(
+                len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures
+            ):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
