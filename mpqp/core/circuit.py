@@ -25,6 +25,8 @@ from numbers import Complex
 from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
+from mpqp.core.instruction.breakpoint import Breakpoint
+
 if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -225,10 +227,12 @@ class QCircuit:
             if len(components.targets) == 0:
                 components.targets = [target for target in range(self.nb_qubits)]
 
-            basisMs = [
+            basis_measure = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
             ]
-            if basisMs and all([len(bm.targets) != self.nb_qubits for bm in basisMs]):
+            if basis_measure and all(
+                [len(bm.targets) != self.nb_qubits for bm in basis_measure]
+            ):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
@@ -848,6 +852,8 @@ class QCircuit:
                     cargs = [instruction.c_targets]
                 elif isinstance(instruction, Barrier):
                     qargs = range(instruction.size)
+                elif isinstance(instruction, Breakpoint):
+                    continue
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
 
@@ -1132,3 +1138,8 @@ class QCircuit:
                     if isinstance(param, Expr):
                         params.update(param.free_symbols)
         return params
+
+    @property
+    def breakpoints(self) -> list[Breakpoint]:
+        """Returns the breakpoints of the circuit in order."""
+        return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]

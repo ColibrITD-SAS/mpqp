@@ -14,12 +14,12 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z, Id
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import Depolarizing
+from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.generics import (
     Matrix,
     OneOrMany,
     compute_expected_matrix,
-    one_lined_repr,
     random_single_qubit_gate_circuit,
 )
 
@@ -239,7 +239,7 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             ),
         ),
         (
-            QCircuit([CNOT(0, 1), Depolarizing(0.5)]),
+            QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             (Language.BRAKET,),
             BraketCircuit,
             (
@@ -255,7 +255,7 @@ T  : │         0         │"""
             ),
         ),
         (
-            QCircuit([CNOT(0, 1), Depolarizing(0.5, dimension=2)]),
+            QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             (Language.BRAKET,),
             BraketCircuit,
             (
@@ -271,7 +271,9 @@ T  : │         0         │"""
             ),
         ),
         (
-            QCircuit([CNOT(0, 1), Depolarizing(0.5, dimension=2, gates=[CNOT])]),
+            QCircuit(
+                [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
+            ),
             (Language.BRAKET,),
             BraketCircuit,
             (
