@@ -171,25 +171,37 @@ def random_single_qubit_gate_circuit(
         gate_class = random.choice(gate_classes)
         qubit = random.choice(qubits)
         print(gate_class)
-        if issubclass(gate_class, ParametrizedGate) and issubclass(
-            gate_class, SingleQubitGate
-        ):
-            if gate_class == U:  # type: ignore[reportUnnecessaryComparison]
-                theta = float(random.uniform(0, 2 * np.pi))
-                phi = float(random.uniform(0, 2 * np.pi))
-                gamma = float(random.uniform(0, 2 * np.pi))
-                qcircuit.add(U(theta, phi, gamma, qubit))
-            else:
-                qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), qubit))  # type: ignore[reportCallIssue]
-        elif issubclass(gate_class, OneQubitNoParamGate):
-            qcircuit.add(gate_class(qubit))
+        if issubclass(gate_class, SingleQubitGate):
+            if issubclass(gate_class, ParametrizedGate):
+                if gate_class == U:  # type: ignore[reportUnnecessaryComparison]
+                    theta = float(random.uniform(0, 2 * np.pi))
+                    phi = float(random.uniform(0, 2 * np.pi))
+                    gamma = float(random.uniform(0, 2 * np.pi))
+                    qcircuit.add(U(theta, phi, gamma, qubit))
+                else:
+                    qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), qubit))  # type: ignore[reportCallIssue]
+            elif issubclass(gate_class, OneQubitNoParamGate):
+                qcircuit.add(gate_class(qubit))
         else:
             raise ValueError(f"Unsupported gate: {gate_class}")
 
     return qcircuit
 
 
-def compute_expected_matrix(qcircuit: QCircuit, nb_qubits: int):
+def compute_expected_matrix(qcircuit: QCircuit):
+    """
+    Computes the expected matrix resulting from applying single-qubit gates
+    in reverse order on a quantum circuit.
+
+    args:
+        qcircuit : The quantum circuit object containing instructions.
+
+    returns:
+        Expected matrix resulting from applying the gates.
+
+    raises:
+        ValueError: If any gate in the circuit is not a SingleQubitGate.
+    """
     from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
     from sympy import N
 
@@ -198,6 +210,7 @@ def compute_expected_matrix(qcircuit: QCircuit, nb_qubits: int):
         for instruction in qcircuit.instructions
         if isinstance(instruction, Gate)
     ]
+    nb_qubits = qcircuit.nb_qubits
 
     result_matrix = np.eye(2**nb_qubits, dtype=complex)
 
