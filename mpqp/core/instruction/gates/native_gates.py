@@ -150,7 +150,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
-        theta = float(self.theta) if self._numeric_parameters else self.theta
+        theta = float(self.theta)
         if language == Language.QISKIT:
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:

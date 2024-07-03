@@ -9,11 +9,19 @@ from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
 
 from mpqp import Barrier, Instruction, Language, QCircuit
-from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z
+from mpqp.core.instruction.gates import native_gates
+from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z, Id
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import Depolarizing
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.generics import OneOrMany, one_lined_repr
+from mpqp.tools.generics import (
+    Matrix,
+    OneOrMany,
+    compute_expected_matrix,
+    one_lined_repr,
+    random_single_qubit_gate_circuit,
+)
 
 
 @pytest.mark.parametrize(
@@ -347,3 +355,43 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         encoding="utf-8",
     ) as f:
         assert circuit.to_qasm3().strip() == f.read().strip()
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_matrix",
+    [
+        (QCircuit([H(0)]), H(0).to_matrix()),
+        (QCircuit([CNOT(0, 1)]), CNOT(0, 1).to_matrix()),
+        (
+            QCircuit([H(0), CNOT(0, 1)]),
+            np.dot(
+                CNOT(0, 1).to_matrix(), np.kron(H(0).to_matrix(), Id(0).to_matrix())
+            ),
+        ),
+        (QCircuit([Id(0)]), Id(0).to_matrix()),
+        (QCircuit([SWAP(0, 1)]), SWAP(0, 1).to_matrix()),
+        (QCircuit([]), np.array([[1]])),
+        (
+            QCircuit([Rz(np.pi / 4, 0)]),
+            Rz(np.pi / 4, 0).to_matrix(),
+        ),
+        (
+            QCircuit([Ry(np.pi / 2, 0)]),
+            Ry(np.pi / 2, 0).to_matrix(),
+        ),
+    ],
+)
+def test_to_matrix(circuit: QCircuit, expected_matrix: Matrix):
+    np.testing.assert_almost_equal(circuit.to_matrix(), expected_matrix)
+
+
+def test_to_matrix_random():
+    gates = [
+        gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
+    ]
+    nb_qubits = 4
+    for _ in range(10):
+        qcircuit = random_single_qubit_gate_circuit(nb_qubits, gates)
+        expected_matrix = compute_expected_matrix(qcircuit, nb_qubits)
+
+        print(np.testing.assert_almost_equal(qcircuit.to_matrix(), expected_matrix))

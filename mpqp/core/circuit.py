@@ -484,8 +484,8 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        3M-TODO: will only work once the circuit.to_matrix is implemented
-         Also take into account Noise in the equivalence verification
+        3M-TODO: do we want to approximate ? andAlso take into account Noise 
+         in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 

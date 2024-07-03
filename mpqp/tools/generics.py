@@ -37,6 +37,7 @@ from aenum import Enum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
+    from mpqp.core.circuit import QCircuit
 
 import numpy as np
 import numpy.typing as npt
@@ -207,6 +208,70 @@ def clean_matrix(matrix: Matrix):
     # TODO: add an option to align cols
     cleaned_matrix = [clean_array(row) for row in matrix]
     return "[" + ",\n ".join(cleaned_matrix) + "]"
+
+
+def random_single_qubit_gate_circuit(
+    nb_qubits: int, gate_classes: list[type], num_gates: int = np.random.randint(5, 10)
+):
+    from mpqp.core.circuit import QCircuit
+    from mpqp.core.instruction.gates.gate import SingleQubitGate
+    from mpqp.core.instruction.gates.native_gates import U, OneQubitNoParamGate
+    from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+    import random
+
+    qubits = list(range(nb_qubits))
+    qcircuit = QCircuit(nb_qubits)
+
+    for _ in range(num_gates):
+        gate_class = random.choice(gate_classes)
+        qubit = random.choice(qubits)
+        print(gate_class)
+        if issubclass(gate_class, ParametrizedGate) and issubclass(
+            gate_class, SingleQubitGate
+        ):
+            if gate_class == U:  # type: ignore[reportUnnecessaryComparison]
+                theta = float(random.uniform(0, 2 * np.pi))
+                phi = float(random.uniform(0, 2 * np.pi))
+                gamma = float(random.uniform(0, 2 * np.pi))
+                qcircuit.add(U(theta, phi, gamma, qubit))
+            else:
+                qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), qubit))  # type: ignore[reportCallIssue]
+        elif issubclass(gate_class, OneQubitNoParamGate):
+            qcircuit.add(gate_class(qubit))
+        else:
+            raise ValueError(f"Unsupported gate: {gate_class}")
+
+    return qcircuit
+
+
+def compute_expected_matrix(qcircuit: QCircuit, nb_qubits: int):
+    from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
+    from sympy import N
+
+    gates = [
+        instruction
+        for instruction in qcircuit.instructions
+        if isinstance(instruction, Gate)
+    ]
+
+    result_matrix = np.eye(2**nb_qubits, dtype=complex)
+
+    for gate in reversed(gates):
+        if not isinstance(gate, SingleQubitGate):
+            raise ValueError(
+                f"Unsupported gate: {gate} only SingleQubitGate can be computed for now"
+            )
+        matrix = np.eye(2**nb_qubits, dtype=complex)
+        gate_matrix = gate.to_matrix()
+        index = gate.targets[0]
+        matrix = np.kron(
+            np.eye(2**index, dtype=complex),
+            np.kron(gate_matrix, np.eye(2 ** (nb_qubits - index - 1), dtype=complex)),
+        )
+
+        result_matrix = np.dot(result_matrix, matrix)
+
+    return np.vectorize(N)(result_matrix).astype(complex)
 
 
 class SimpleClassReprMeta(type):
