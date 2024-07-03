@@ -488,7 +488,7 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        3M-TODO: do we want to approximate ? andAlso take into account Noise 
+        3M-TODO: do we want to approximate ? Also take into account Noise 
          in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
@@ -531,13 +531,11 @@ class QCircuit:
                    [ 0.        ,  0.70710678,  0.        , -0.70710678],
                    [ 0.70710678,  0.        , -0.70710678,  0.        ]])
 
-        # 3M-TODO implement and double check examples and test:
-        the idea is to compute the tensor product of the matrices associated
-        with the gates of the circuit in a clever way (to minimize the number of
-        multiplications) and then return the big matrix
         """
         from qiskit import QuantumCircuit
         from qiskit.quantum_info.operators import Operator
+
+         # 3M-TODO make to matrix without qiskit
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)

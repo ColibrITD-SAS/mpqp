@@ -396,4 +396,4 @@ def test_to_matrix_random():
         qcircuit = random_single_qubit_gate_circuit(nb_qubits, gates)
         expected_matrix = compute_expected_matrix(qcircuit, nb_qubits)
 
-        print(np.testing.assert_almost_equal(qcircuit.to_matrix(), expected_matrix))
+        np.testing.assert_almost_equal(qcircuit.to_matrix(), expected_matrix)
