@@ -1,0 +1,18 @@
+{
+"include": ["mpqp"],
+"exclude": ["**/tests", "**/examples", "**/mpqp_scripts", "**/docs"],
+"useLibraryCodeForTypes": true,
+"reportOptionalSubscript": "error",
+"reportOptionalMemberAccess": "error",
+"reportOptionalCall": "error",
+"reportOptionalIterable": "error",	
+"reportOptionalContextManager": "error",	
+"reportOptionalOperand": "error",
+"strictDictionaryInference": true,
+"typeCheckingMode": "strict",
+"reportMissingImports": true,
+"reportUnnecessaryCast": "warning",
+"reportUnnecessaryComparison": "error",
+"reportConstantRedefinition": "error",
+"reportUnnecessaryTypeIgnoreComment": "warning"
+}
