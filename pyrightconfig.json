@@ -11,6 +11,8 @@
 "strictDictionaryInference": true,
 "typeCheckingMode": "strict",
 "reportMissingImports": true,
+"reportUnknownMemberType": "error",
+"reportUnknownVariableType": "error",
 "reportUnnecessaryCast": "warning",
 "reportUnnecessaryComparison": "error",
 "reportConstantRedefinition": "error",
