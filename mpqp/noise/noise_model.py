@@ -277,6 +277,8 @@ class Depolarizing(NoiseModel):
 
 
 class BitFlip(NoiseModel):
+    # TODO: to add docstring + examples
+    # TODO: add the model to pretty_print
     def __init__(
         self,
         prob: float,
