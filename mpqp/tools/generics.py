@@ -154,37 +154,73 @@ def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     raise ValueError("No objects satisfies the given oracle")
 
 
-
-def random_single_qubit_gate_circuit(
-    nb_qubits: int, gate_classes: list[type], num_gates: int = np.random.randint(5, 10)
+def random_circuit(
+    gate_classes: list[type], nb_qubits: int, nb_gates: int = np.random.randint(5, 10)
 ):
+    """This function creates a QCircuit with a specified number of qubits and gates.
+    The gates are chosen randomly from the provided list of native gate classes.
+
+    args:
+        nb_qubits : Number of qubits in the circuit.
+        gate_classes : List of native gate classes to use in the circuit.
+        nb_gates : Number of gates to add to the circuit. Defaults to a random
+         integer between 5 and 10.
+
+    Returns:
+        A quantum circuit with the specified number of qubits and randomly chosen gates.
+
+    Raises:
+        ValueError: If the number of qubits is too low for the specified gates.
+
+    Examples:
+        >>> random_circuit([U, TOF], 3) # doctest: +SKIP
+        Generates a random quantum circuit with 3 qubits using U and TOF gates.
+        >>> from mpqp.core.instruction.gates import native_gates
+        >>> random_circuit(native_gates.NATIVE_GATES, 4, 10) # doctest: +SKIP
+        Generates a random quantum circuit with 4 qubits and 10 gates native gates.
+    """
     from mpqp.core.circuit import QCircuit
     from mpqp.core.instruction.gates.gate import SingleQubitGate
-    from mpqp.core.instruction.gates.native_gates import U, OneQubitNoParamGate
+    from mpqp.core.instruction.gates.native_gates import U, TOF, OneQubitNoParamGate
     from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
     import random
 
     qubits = list(range(nb_qubits))
     qcircuit = QCircuit(nb_qubits)
+    if any(
+        not issubclass(gate, SingleQubitGate)
+        and ((gate == TOF and nb_qubits <= 2) or nb_qubits <= 1)
+        for gate in gate_classes
+    ):
+        raise ValueError("number of qubits to low for this gates")
 
-    for _ in range(num_gates):
+    for _ in range(nb_gates):
         gate_class = random.choice(gate_classes)
-        qubit = random.choice(qubits)
-        print(gate_class)
+        target = random.choice(qubits)
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
                 if gate_class == U:  # type: ignore[reportUnnecessaryComparison]
                     theta = float(random.uniform(0, 2 * np.pi))
                     phi = float(random.uniform(0, 2 * np.pi))
                     gamma = float(random.uniform(0, 2 * np.pi))
-                    qcircuit.add(U(theta, phi, gamma, qubit))
+                    qcircuit.add(U(theta, phi, gamma, target))
                 else:
-                    qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), qubit))  # type: ignore[reportCallIssue]
+                    qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), target))  # type: ignore[reportCallIssue]
             elif issubclass(gate_class, OneQubitNoParamGate):
-                qcircuit.add(gate_class(qubit))
+                qcircuit.add(gate_class(target))
         else:
-            raise ValueError(f"Unsupported gate: {gate_class}")
-
+            control = random.choice(qubits)
+            while control == target:
+                control = random.choice(qubits)
+            if issubclass(gate_class, ParametrizedGate):
+                qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), control, target))  # type: ignore[reportArgumentType]
+            elif gate_class == TOF:
+                control2 = random.choice(qubits)
+                while control2 == target or control2 == control:
+                    control = random.choice(qubits)
+                qcircuit.add(gate_class([control, control2], target))
+            else:
+                qcircuit.add(gate_class(control, target))
     return qcircuit
 
 
@@ -217,7 +253,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
     for gate in reversed(gates):
         if not isinstance(gate, SingleQubitGate):
             raise ValueError(
-                f"Unsupported gate: {gate} only SingleQubitGate can be computed for now"
+                f"Unsupported gate: {type(gate)} only SingleQubitGate can be computed for now"
             )
         matrix = np.eye(2**nb_qubits, dtype=complex)
         gate_matrix = gate.to_matrix()

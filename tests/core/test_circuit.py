@@ -20,7 +20,7 @@ from mpqp.tools.generics import (
     Matrix,
     OneOrMany,
     compute_expected_matrix,
-    random_single_qubit_gate_circuit,
+    random_circuit,
 )
 
 
@@ -391,9 +391,8 @@ def test_to_matrix_random():
     gates = [
         gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
     ]
-    nb_qubits = 4
     for _ in range(10):
-        qcircuit = random_single_qubit_gate_circuit(nb_qubits, gates)
+        qcircuit = random_circuit(gates, nb_qubits=4)
         expected_matrix = compute_expected_matrix(qcircuit)
 
         np.testing.assert_almost_equal(qcircuit.to_matrix(), expected_matrix)
