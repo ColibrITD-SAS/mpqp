@@ -323,12 +323,47 @@ class PhaseFlip(NoiseModel):
 
 
 class GeneralizedAmplitudeDamping(NoiseModel):
-    """Class representing the generalized amplitude damping noise channel."""
+    """Class representing the generalized amplitude damping noise channel, which models
+    both the decay and re-excitation processes in a qubit system. It can be applied
+    to a single qubit and depends on two parameters: the decay rate `gamma` and the
+    probability of excitation `prob`.
+
+    Args:
+        gamma: Decaying rate of the generalized amplitude damping noise channel.
+        prob: Probability of excitation in the generalized amplitude damping noise channel.
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise.
+
+    Raises:
+        ValueError: When the gamma or prob parameters are outside of the expected interval [0, 1].
+        ValueError: When no target qubits are specified.
+
+    Examples:
+        >>> circuit = QCircuit([H(i) for i in range(3)])
+        >>> gad1 = GeneralizedAmplitudeDamping(0.2, 0.05, [0])
+        >>> gad2 = GeneralizedAmplitudeDamping(0.4, 0.1, [1, 2])
+        >>> gad3 = GeneralizedAmplitudeDamping(0.15, 0.2, [0], gates=[H])
+        >>> circuit.add([gad1, gad2, gad3])
+        >>> print(circuit)
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            GeneralizedAmplitudeDamping(gamma=0.2, prob=0.05, targets=[0])
+            GeneralizedAmplitudeDamping(gamma=0.4, prob=0.1, targets=[1, 2])
+            GeneralizedAmplitudeDamping(gamma=0.15, prob=0.2, targets=[0], gates=[H])
+
+    """
 
     def __init__(
         self,
         gamma: float,
-        prop: float,
+        prob: float,
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -337,9 +372,9 @@ class GeneralizedAmplitudeDamping(NoiseModel):
                 f"Invalid decaying rate: {gamma} but should be between 0 and 1."
             )
 
-        if not (0 <= prop <= 1):
+        if not (0 <= prob <= 1):
             raise ValueError(
-                f"Invalid excitation probability: {prop} but should be between 0 and 1."
+                f"Invalid excitation probability: {prob} but should be between 0 and 1."
             )
 
         nb_targets = len(targets) if targets else 0
@@ -350,12 +385,12 @@ class GeneralizedAmplitudeDamping(NoiseModel):
 
         self.gamma = gamma
         """Decaying rate, of the amplitude damping noise channel."""
-        self.prop = prop
+        self.prob = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
     def __repr__(self):
         return (
-            f"{type(self).__name__}(gamma={self.gamma}, prop={self.prop}, targets={self.targets}"
+            f"{type(self).__name__}(gamma={self.gamma}, prob={self.prob}, targets={self.targets}"
             + (", gates=" + str(self.gates) if self.gates else "")
             + ")"
         )
@@ -381,7 +416,40 @@ class GeneralizedAmplitudeDamping(NoiseModel):
 
 
 class AmplitudeDamping(GeneralizedAmplitudeDamping):
-    """Class representing the amplitude damping noise channel."""
+    """Class representing the amplitude damping noise channel, which models
+    the energy dissipation process in a qubit system. It can be applied to a
+    single qubit and depends on a single parameter: the decay rate `gamma`.
+
+    Args:
+        gamma: Decaying rate of the amplitude damping noise channel.
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise.
+
+    Raises:
+        ValueError: When the gamma parameter is outside of the expected interval [0, 1].
+        ValueError: When no target qubits are specified.
+
+    Examples:
+        >>> circuit = QCircuit([X(0), Y(1), Z(2)])
+        >>> ad1 = AmplitudeDamping(0.1, [0])
+        >>> ad2 = AmplitudeDamping(0.2, [1])
+        >>> ad3 = AmplitudeDamping(0.6, [2], gates=[Z])
+        >>> circuit.add([ad1, ad2, ad3])
+        >>> print(circuit)
+             ┌───┐
+        q_0: ┤ X ├
+             ├───┤
+        q_1: ┤ Y ├
+             ├───┤
+        q_2: ┤ Z ├
+             └───┘
+    NoiseModel:
+        AmplitudeDamping(gamma=0.1, targets=[0])
+        AmplitudeDamping(gamma=0.2, targets=[1])
+        AmplitudeDamping(gamma=0.6, targets=[2], gates=[Z])
+
+    """
 
     def __init__(
         self,
