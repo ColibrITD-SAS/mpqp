@@ -3,7 +3,7 @@ name: MPQP CI
 on:
   push:
     branches:
-      - '*'
+      - 'feat-setup-pyright'
 
   workflow_dispatch:
     inputs:
@@ -40,5 +40,4 @@ jobs:
           pip install pyright
 
       - name: Run Pyright
-        run: |
-          pyright
+        run: pyright
