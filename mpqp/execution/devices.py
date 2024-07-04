@@ -63,6 +63,13 @@ class AvailableDevice(Enum):
         """
         pass
 
+    def is_gate_limited(self) -> bool:
+        """Indicates whether a simulator does not handle all the native gates.
+
+        Returns:
+            ``True`` if this device only handles a restricted set of gates."""
+        return True
+
 
 class IBMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by IBM Quantum.
@@ -111,6 +118,9 @@ class IBMDevice(AvailableDevice):
     def is_gate_based(self) -> bool:
         return True
         # return self != IBMDevice.PULSE_SIMULATOR
+
+    def is_gate_limited(self) -> bool:
+        return self in {IBMDevice.AER_SIMULATOR_STABILIZER, IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER}
 
     def supports_statevector(self):
         return self in {
