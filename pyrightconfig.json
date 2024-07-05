@@ -16,5 +16,9 @@
 "reportUnnecessaryCast": "warning",
 "reportUnnecessaryComparison": "error",
 "reportConstantRedefinition": "error",
-"reportUnnecessaryTypeIgnoreComment": "warning"
+"reportUnnecessaryTypeIgnoreComment": "warning",
+"reportMissingTypeStubs": false, // suppress missing type stubs errors
+"ignore": [
+  "**/__pycache__"
+]
 }
