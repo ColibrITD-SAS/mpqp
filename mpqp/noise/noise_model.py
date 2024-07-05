@@ -483,6 +483,19 @@ class AmplitudeDamping(GeneralizedAmplitudeDamping):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise:
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
+
+        Args:
+            language: Enum representing the target language.
+
+        Examples:
+            >>> braket_ad = AmplitudeDamping(0.2, [1]).to_other_language(Language.BRAKET)
+            >>> braket_ad
+            AmplitudeDamping('gamma': 0.2, 'qubit_count': 1)
+            >>> type(braket_ad)
+            <class 'braket.circuits.noises.AmplitudeDamping'>
+
+        """
         if language == Language.BRAKET:
             from braket.circuits.noises import (
                 AmplitudeDamping as BraketAmplitudeDamping,
