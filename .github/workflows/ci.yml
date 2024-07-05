@@ -3,7 +3,7 @@ name: MPQP CI
 on:
   push:
     branches:
-      - 'feat-setup-pyright'
+      - '*'
 
   workflow_dispatch:
     inputs:
