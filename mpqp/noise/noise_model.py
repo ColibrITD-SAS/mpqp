@@ -347,6 +347,19 @@ class BitFlip(NoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise:
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
+
+        Args:
+            language: Enum representing the target language.
+
+        Examples:
+            >>> braket_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET)
+            >>> braket_bitflip
+            BitFlip('probability': 0.3, 'qubit_count': 1)
+            >>> type(braket_bitflip)
+            <class 'braket.circuits.noises.BitFlip'>
+
+        """
 
         if language == Language.BRAKET:
             from braket.circuits.noises import BitFlip as BraketBitFlip
