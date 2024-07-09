@@ -25,6 +25,8 @@ from numbers import Complex
 from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
+from mpqp.core.instruction.breakpoint import Breakpoint
+
 if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -222,6 +224,9 @@ class QCircuit:
             components.size = self.nb_qubits
 
         if isinstance(components, NoiseModel):
+            if len(components.targets) == 0:
+                components.targets = [target for target in range(self.nb_qubits)]
+
             basis_measure = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
             ]
@@ -379,9 +384,11 @@ class QCircuit:
 
         """
         from matplotlib.figure import Figure
-        from qiskit.tools.visualization import circuit_drawer
+        from qiskit.visualization import circuit_drawer
 
         qc = self.to_other_language(language=Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(qc, QuantumCircuit)
         fig = circuit_drawer(qc, output=output, style={"backgroundcolor": "#EEEEEE"})
 
         if isinstance(fig, Figure):
@@ -820,8 +827,8 @@ class QCircuit:
                         instruction.label,
                     )
                     # FIXME: minus sign appearing when it should not, seems
-                    # there a phase added somewhere, check u gate in OpenQASM
-                    # translation.
+                    #  there a phase added somewhere, check u gate in OpenQASM
+                    #  translation.
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
@@ -831,13 +838,15 @@ class QCircuit:
                     instruction.basis, ComputationalBasis
                 ):
                     # TODO muhammad/henri, for custom basis, check if something
-                    # should be changed here, otherwise remove the condition to
-                    # have only computational basis
+                    #  should be changed here, otherwise remove the condition to
+                    #  have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
                 elif isinstance(instruction, Barrier):
                     qargs = range(instruction.size)
+                elif isinstance(instruction, Breakpoint):
+                    continue
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
 
@@ -945,9 +954,11 @@ class QCircuit:
         )
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
-        qasm = qiskit_circ.qasm()
-        assert qasm is not None
-        return qasm
+
+        from qiskit import qasm2
+
+        qasm_str = qasm2.dumps(qiskit_circ)
+        return qasm_str
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.
@@ -1025,7 +1036,7 @@ class QCircuit:
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
             + self.noises,  # 3M-TODO: modify this line when noise will be
-            # parameterized, to substitute, like we do for inst
+            # parameterized, do subs, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,
@@ -1122,3 +1133,8 @@ class QCircuit:
                     if isinstance(param, Expr):
                         params.update(param.free_symbols)
         return params
+
+    @property
+    def breakpoints(self) -> list[Breakpoint]:
+        """Returns the breakpoints of the circuit in order."""
+        return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]

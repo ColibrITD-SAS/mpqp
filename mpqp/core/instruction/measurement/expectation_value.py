@@ -16,7 +16,7 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from sympy import Expr
     from qiskit.circuit import Parameter
-    from qiskit.quantum_info import Operator
+    from qiskit.quantum_info import SparsePauliOp
     from qat.core.wrappers.observable import Observable as QLMObservable
     from braket.circuits.observables import Hermitian
     from cirq.circuits.circuit import Circuit as Cirq_Circuit
@@ -27,8 +27,9 @@ from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.core.languages import Language
+from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
-from mpqp.tools.generics import Matrix, one_lined_repr
+from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_hermitian
 
 
@@ -99,15 +100,15 @@ class Observable:
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
 
-    @pauli_string.setter
-    def pauli_string(self, pauli_string: PauliString):
-        self._pauli_string = pauli_string
-        self._matrix = None
-
     @matrix.setter
     def matrix(self, matrix: Matrix):
         self._matrix = matrix
         self._pauli_string = None
+
+    @pauli_string.setter
+    def pauli_string(self, pauli_string: PauliString):
+        self._pauli_string = pauli_string
+        self._matrix = None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
@@ -124,7 +125,7 @@ class Observable:
 
     def to_other_language(
         self, language: Language, circuit: Optional[Cirq_Circuit] = None
-    ) -> Operator | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
+    ) -> SparsePauliOp | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
         """Converts the observable to the representation of another quantum
         programming language.
 
@@ -139,22 +140,14 @@ class Observable:
         Example:
             >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
-            >>> print(obs_qiskit)
-            Operator([[ 0.69999999+0.j,  0.        +0.j,  0.        +0.j,
-                        0.        +0.j],
-                      [ 0.        +0.j, -1.        +0.j,  0.        +0.j,
-                        0.        +0.j],
-                      [ 0.        +0.j,  0.        +0.j,  1.        +0.j,
-                        0.        +0.j],
-                      [ 0.        +0.j,  0.        +0.j,  0.        +0.j,
-                        1.        +0.j]],
-                     input_dims=(2, 2), output_dims=(2, 2))
+            >>> obs_qiskit.to_list()
+            [('II', (0.42499999701976776+0j)), ('IZ', (0.42499999701976776+0j)), ('ZI', (-0.5750000029802322+0j)), ('ZZ', (0.42499999701976776+0j))]
 
         """
         if language == Language.QISKIT:
-            from qiskit.quantum_info import Operator
+            from qiskit.quantum_info import Operator, SparsePauliOp
 
-            return Operator(self.matrix)
+            return SparsePauliOp.from_operator(Operator(self.matrix))
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Observable as QLMObservable
 
