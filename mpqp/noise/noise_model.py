@@ -330,10 +330,11 @@ class AmplitudeDamping(NoiseModel):
 
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
-        prob: Probability of excitation in the generalized amplitude damping noise channel.
-              Defaults to 0, indicating standard amplitude damping.
+        prob: Probability of excitation in the generalized amplitude damping noise channel
+            When set to 0, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>` affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise.
 
     Raises:
         ValueError: When the gamma or prob parameters are outside of the expected interval [0, 1].
@@ -396,7 +397,24 @@ class AmplitudeDamping(NoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise:
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
+        Args:
+            language: Enum representing the target language.
+
+        Examples:
+            >>> braket_ad = AmplitudeDamping(0.2, 0, [1]).to_other_language(Language.BRAKET)
+            >>> braket_ad
+            AmplitudeDamping('gamma': 0.2, 'qubit_count': 1)
+            >>> type(braket_ad)
+            <class 'braket.circuits.noises.AmplitudeDamping'>
+            >>> braket_gad = AmplitudeDamping(0.15, 0.2, [0]).to_other_language(Language.BRAKET)
+            >>> braket_gad
+            GeneralizedAmplitudeDamping('gamma': 0.15, 'probability': 0.2, 'qubit_count': 1)
+            >>> type(braket_gad)
+            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
+
+        """
         if language == Language.BRAKET:
             if self.prob == 0:
                 from braket.circuits.noises import (
