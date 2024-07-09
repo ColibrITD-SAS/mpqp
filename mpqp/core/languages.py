@@ -18,6 +18,8 @@ from enum import Enum
 
 
 class Language(Enum):
+    """Enumerate containing all the supported languages."""
+
     QISKIT = 0
     MY_QLM = 1
     BRAKET = 2

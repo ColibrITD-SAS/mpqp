@@ -16,8 +16,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from aenum import Enum, NoAlias
+from aenum import Enum, NoAlias, auto
 from typeguard import typechecked
+
+from mpqp.tools.generics import MessageEnum
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
@@ -28,25 +30,25 @@ from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, 
 
 from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
-from .connection.ibm_connection import get_IBMProvider, get_QiskitRuntimeService
+from .connection.ibm_connection import get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
 from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 
 
-class JobStatus(Enum):
+class JobStatus(MessageEnum):
     """Possible states of a Job."""
 
-    INIT = "initializing the job"
+    INIT = auto()
     """Initializing the job."""
-    QUEUED = "the job is in the queue"
+    QUEUED = auto()
     """The job is in the queue."""
-    RUNNING = "the job is currently running"
+    RUNNING = auto()
     """The job is currently running."""
-    CANCELLED = "the job is cancelled"
+    CANCELLED = auto()
     """The job is cancelled."""
-    ERROR = "an error occurred with the job"
+    ERROR = auto()
     """An error occurred with the job."""
-    DONE = "the job is successfully done"
+    DONE = auto()
     """The job is successfully done."""
 
 
@@ -201,33 +203,28 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
-    from qiskit.providers import JobStatus as IBM_JobStatus
-
-    # test with QiskitRuntimeService
     if job_id in [e.job_id() for e in get_QiskitRuntimeService().jobs()]:
         ibm_job = get_QiskitRuntimeService().job(job_id)
-
-    # if not, test with IBMProvider
-    elif job_id in [e.job_id() for e in get_IBMProvider().jobs()]:
-        ibm_job = get_IBMProvider().retrieve_job(job_id)
-
     else:
         raise IBMRemoteExecutionError(
-            f"Could not find job with id {job_id} on IBM/QiskitRuntime provider"
+            f"Could not find job with id {job_id} on QiskitRuntime service."
         )
+
     status = ibm_job.status()
-    if status == IBM_JobStatus.ERROR:
+    if status == 'ERROR':
         return JobStatus.ERROR
-    elif status == IBM_JobStatus.CANCELLED:
+    elif status == 'CANCELLED':
         return JobStatus.CANCELLED
-    elif status in [IBM_JobStatus.QUEUED, IBM_JobStatus.VALIDATING]:
+    elif status == 'QUEUED':
         return JobStatus.QUEUED
-    elif status == IBM_JobStatus.INITIALIZING:
+    elif status == 'INITIALIZING':
         return JobStatus.INIT
-    elif status == IBM_JobStatus.RUNNING:
+    elif status == 'RUNNING':
         return JobStatus.RUNNING
-    else:
+    elif status == 'DONE':
         return JobStatus.DONE
+    else:
+        raise ValueError(f"Unexpected IBM job status: {status}")
 
 
 def get_aws_job_status(job_id: str) -> JobStatus:
