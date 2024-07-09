@@ -37,6 +37,31 @@ class Gate(Instruction, ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
+        """Return the matricial semantics to this gate. With
+        considering potential column and row permutations needed if the targets.
+
+        Returns:
+            A numpy array representing the unitary matrix of the gate.
+
+        Example:
+            >>> gd = UnitaryMatrix(
+            ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
+            ... )
+            >>> CustomGate(gd, [1, 2]).to_matrix()
+            array([[0, 0, 0, 1],
+                   [0, 1, 0, 0],
+                   [1, 0, 0, 0],
+                   [0, 0, 1, 0]])
+            >>> SWAP(0,1).to_matrix()
+            array([[1, 0, 0, 0],
+                   [0, 0, 1, 0],
+                   [0, 1, 0, 0],
+                   [0, 0, 0, 1]])
+
+        """
+
+    @abstractmethod
+    def to_canonical_matrix(self) -> Matrix:
         """Return the "base" matricial semantics to this gate. Without
         considering potential column and row permutations needed if the targets
         of the gate are not sorted.

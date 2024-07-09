@@ -43,6 +43,11 @@ class GateDefinition(ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
+        """Returns the matrix corresponding to this gate definition. With
+        considering potential column and row permutations needed if the targets."""
+
+    @abstractmethod
+    def to_canonical_matrix(self) -> Matrix:
         """Returns the matrix corresponding to this gate definition."""
 
     @abstractmethod
@@ -115,6 +120,9 @@ class UnitaryMatrix(GateDefinition):
         """See parameter :attr:`definition`'s description."""
 
     def to_matrix(self) -> Matrix:
+        return self.matrix
+
+    def to_canonical_matrix(self):
         return self.matrix
 
     def subs(
