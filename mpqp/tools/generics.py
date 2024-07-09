@@ -25,12 +25,14 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
+    Optional,
     Sequence,
     TypeVar,
     Union,
 )
 
 from aenum import Enum
+
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
@@ -155,7 +157,9 @@ def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
 
 
 def random_circuit(
-    gate_classes: list[type], nb_qubits: int, nb_gates: int = np.random.randint(5, 10)
+    gate_classes: Optional[list[type]] = None,
+    nb_qubits: int = 5,
+    nb_gates: int = np.random.randint(5, 10),
 ):
     """This function creates a QCircuit with a specified number of qubits and gates.
     The gates are chosen randomly from the provided list of native gate classes.
@@ -179,11 +183,15 @@ def random_circuit(
         >>> random_circuit(native_gates.NATIVE_GATES, 4, 10) # doctest: +SKIP
         Generates a random quantum circuit with 4 qubits and 10 gates native gates.
     """
+    from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
     from mpqp.core.circuit import QCircuit
     from mpqp.core.instruction.gates.gate import SingleQubitGate
     from mpqp.core.instruction.gates.native_gates import U, TOF, OneQubitNoParamGate
     from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
     import random
+
+    if gate_classes is None:
+        gate_classes = NATIVE_GATES
 
     qubits = list(range(nb_qubits))
     qcircuit = QCircuit(nb_qubits)

@@ -74,6 +74,7 @@ class Gate(Instruction, ABC):
             array([[1.-0.j, 0.-0.j],
                    [0.-0.j, 0.-1.j]])
 
+        # 3M-TODO: Multi qubits gate not handel by to_matrix
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -100,6 +101,7 @@ class Gate(Instruction, ABC):
             >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
             True
 
+        # 3M-TODO: Multi qubits gate not handel by to_matrix
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
