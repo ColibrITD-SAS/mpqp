@@ -92,12 +92,25 @@ window.onload = () => {
     });
     ngListLocation.innerHTML = ngLinks;
   }
-};
 
-// const themeButton = document.querySelector('themeSwitcher')
-// themeButton.addEventListener('click', () => {
-//
-// });
+  // we add a note for abstract classes to remind that they cannot be
+  // implemented directly
+  document.querySelectorAll(".class").forEach((class_elt) => {
+    if (isABC(class_elt)) {
+      parents = class_elt.querySelector("dd > p:first-child");
+      template = document.createElement("template");
+      template.innerHTML = `
+      <div class="admonition note">
+        <p class="admonition-title"><span>Note</span></p>
+        <p>
+          Abstract classes (ABCs) are not meant to be instantiated as is. See 
+          classes that inherits from this one to check how to instantiate it.
+        </p>
+      </div>`;
+      parents.insertAdjacentElement("afterend", template.content.children[0]);
+    }
+  });
+};
 
 function getEndOfClassHeader(elt) {
   admonition = elt.querySelectorAll(".admonition");
@@ -107,6 +120,11 @@ function getEndOfClassHeader(elt) {
   examples = elt.querySelectorAll(".class>dd>div.doctest");
   if (examples.length != 0) return examples[examples.length - 1];
   return elt;
+}
+
+function isABC(elt) {
+  parents = elt.querySelector("dd > p:first-child");
+  return parents && parents.innerHTML.includes("ABC");
 }
 
 function isEnum(elt, explored = []) {

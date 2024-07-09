@@ -22,7 +22,8 @@ class NoiseModel(ABC):
     its qubits.
 
     It allows to specify which qubits (targets) and which gates of the circuit
-    will be affected with this noise model.
+    will be affected with this noise model. If you don't specify a target, the
+    operation will apply to all qubits.
 
     Args:
         targets: List of qubit indices affected by this noise.
@@ -144,10 +145,10 @@ class Depolarizing(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            Depolarizing(0.32, [0, 1, 2], 1)
-            Depolarizing(0.01, [0, 1, 2], 1)
+            Depolarizing(0.32, [0, 1, 2])
+            Depolarizing(0.01)
             Depolarizing(0.05, [0, 1], 2)
-            Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
+            Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
             Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
 
     """
@@ -164,9 +165,6 @@ class Depolarizing(NoiseModel):
                 "Dimension of the depolarizing channel must be strictly greater"
                 f" than 1, but got {dimension} instead."
             )
-
-        if targets is None:
-            targets = []
 
         # 3M-TODO: implement the possibility of having a parameterized noise,
         # param: Union[float, Expr]
@@ -188,10 +186,9 @@ class Depolarizing(NoiseModel):
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
 
-        nb_targets = len(targets)
-        if nb_targets != 0 and nb_targets < dimension:
+        if targets and len(targets) < dimension:
             raise ValueError(
-                f"Number of target qubits {nb_targets} should be higher than the dimension {dimension}."
+                f"Number of target qubits {len(targets)} should be higher than the dimension {dimension}."
             )
 
         super().__init__(targets, gates)
@@ -207,9 +204,11 @@ class Depolarizing(NoiseModel):
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):
+        target = ", " + str(self.targets) if len(self.targets) != 0 else ""
+        dimension = f", {'dimension=' if not target else ''}" + str(self.dimension) if self.dimension != 1 else ""
         return (
-            f"{type(self).__name__}({self.proba}, {self.targets}, {self.dimension}"
-            + (", " + str(self.gates) if self.gates else "")
+            f"{type(self).__name__}({self.proba}{target}{dimension}"
+            + (f", {'gates=' if not target or not dimension else ''}" + str(self.gates) if len(self.gates) != 0 else "")
             + ")"
         )
 
