@@ -322,18 +322,18 @@ class PhaseFlip(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
-class GeneralizedAmplitudeDamping(NoiseModel):
-    """Class representing the generalized amplitude damping noise channel, which models
-    both the decay and re-excitation processes in a qubit system. It can be applied
+class AmplitudeDamping(NoiseModel):
+    """Class representing the amplitude damping noise channel, which can model both
+    the standard and generalized amplitude damping processes. It can be applied
     to a single qubit and depends on two parameters: the decay rate `gamma` and the
     probability of excitation `prob`.
 
     Args:
-        gamma: Decaying rate of the generalized amplitude damping noise channel.
+        gamma: Decaying rate of the amplitude damping noise channel.
         prob: Probability of excitation in the generalized amplitude damping noise channel.
+              Defaults to 0, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
-            affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>` affected by this noise.
 
     Raises:
         ValueError: When the gamma or prob parameters are outside of the expected interval [0, 1].
@@ -341,10 +341,9 @@ class GeneralizedAmplitudeDamping(NoiseModel):
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
-        >>> gad1 = GeneralizedAmplitudeDamping(0.2, 0.05, [0])
-        >>> gad2 = GeneralizedAmplitudeDamping(0.4, 0.1, [1, 2])
-        >>> gad3 = GeneralizedAmplitudeDamping(0.15, 0.2, [0], gates=[H])
-        >>> circuit.add([gad1, gad2, gad3])
+        >>> ad1 = AmplitudeDamping(0.2, 0, [0])
+        >>> ad2 = AmplitudeDamping(0.4, 0.1, [1, 2])
+        >>> circuit.add([ad1, ad2])
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -354,9 +353,8 @@ class GeneralizedAmplitudeDamping(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            GeneralizedAmplitudeDamping(gamma=0.2, prob=0.05, targets=[0])
-            GeneralizedAmplitudeDamping(gamma=0.4, prob=0.1, targets=[1, 2])
-            GeneralizedAmplitudeDamping(gamma=0.15, prob=0.2, targets=[0], gates=[H])
+            AmplitudeDamping(gamma=0.2, prob=0, targets=[0])
+            AmplitudeDamping(gamma=0.4, prob=0.1, targets=[1, 2])
 
     """
 
@@ -369,12 +367,12 @@ class GeneralizedAmplitudeDamping(NoiseModel):
     ):
         if not (0 <= gamma <= 1):
             raise ValueError(
-                f"Invalid decaying rate: {gamma} but should be between 0 and 1."
+                f"Invalid decaying rate: {gamma}. It should be between 0 and 1."
             )
 
         if not (0 <= prob <= 1):
             raise ValueError(
-                f"Invalid excitation probability: {prob} but should be between 0 and 1."
+                f"Invalid excitation probability: {prob}. It should be between 0 and 1."
             )
 
         nb_targets = len(targets) if targets else 0
@@ -398,116 +396,24 @@ class GeneralizedAmplitudeDamping(NoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise:
-        """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
-        Args:
-            language: Enum representing the target language.
-
-        Examples:
-            >>> braket_gad = GeneralizedAmplitudeDamping(0.15, 0.2, [0]).to_other_language(Language.BRAKET)
-            >>> braket_gad
-            GeneralizedAmplitudeDamping('gamma': 0.15, 'probability': 0.2, 'qubit_count': 1)
-            >>> type(braket_gad)
-            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
-
-        """
         if language == Language.BRAKET:
-            from braket.circuits.noises import (
-                GeneralizedAmplitudeDamping as BraketGeneralizedAmplitudeDamping,
-            )
+            if self.prob == 0:
+                from braket.circuits.noises import (
+                    AmplitudeDamping as BraketAmplitudeDamping,
+                )
 
-            return BraketGeneralizedAmplitudeDamping(self.gamma, self.prob)
+                return BraketAmplitudeDamping(self.gamma)
+            else:
+                from braket.circuits.noises import GeneralizedAmplitudeDamping
+
+                return GeneralizedAmplitudeDamping(self.gamma, self.prob)
 
         # TODO: MY_QLM implmentation
 
         else:
             raise NotImplementedError(
-                f"Conversion of Generalized Amplitude Damping noise for language {language.name} is not supported."
-            )
-
-    def to_kraus_representation(self) -> KrausRepresentation: ...
-
-
-class AmplitudeDamping(GeneralizedAmplitudeDamping):
-    """Class representing the amplitude damping noise channel, which models
-    the energy dissipation process in a qubit system. It can be applied to a
-    single qubit and depends on a single parameter: the decay rate `gamma`.
-
-    Args:
-        gamma: Decaying rate of the amplitude damping noise channel.
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
-            affected by this noise.
-
-    Raises:
-        ValueError: When the gamma parameter is outside of the expected interval [0, 1].
-        ValueError: When no target qubits are specified.
-
-    Examples:
-        >>> circuit = QCircuit([X(0), Y(1), Z(2)])
-        >>> ad1 = AmplitudeDamping(0.1, [0])
-        >>> ad2 = AmplitudeDamping(0.2, [1])
-        >>> ad3 = AmplitudeDamping(0.6, [2], gates=[Z])
-        >>> circuit.add([ad1, ad2, ad3])
-        >>> print(circuit)
-             ┌───┐
-        q_0: ┤ X ├
-             ├───┤
-        q_1: ┤ Y ├
-             ├───┤
-        q_2: ┤ Z ├
-             └───┘
-    NoiseModel:
-        AmplitudeDamping(gamma=0.1, targets=[0])
-        AmplitudeDamping(gamma=0.2, targets=[1])
-        AmplitudeDamping(gamma=0.6, targets=[2], gates=[Z])
-
-    """
-
-    def __init__(
-        self,
-        gamma: float,
-        targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
-    ):
-
-        super().__init__(gamma, 0, targets, gates)
-
-    def __repr__(self):
-        return (
-            f"{type(self).__name__}(gamma={self.gamma}, targets={self.targets}"
-            + (", gates=" + str(self.gates) if self.gates else "")
-            + ")"
-        )
-
-    def to_other_language(
-        self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
-        """See documentation of this method in abstract mother class :class:`NoiseModel`.
-
-        Args:
-            language: Enum representing the target language.
-
-        Examples:
-            >>> braket_ad = AmplitudeDamping(0.2, [1]).to_other_language(Language.BRAKET)
-            >>> braket_ad
-            AmplitudeDamping('gamma': 0.2, 'qubit_count': 1)
-            >>> type(braket_ad)
-            <class 'braket.circuits.noises.AmplitudeDamping'>
-
-        """
-        if language == Language.BRAKET:
-            from braket.circuits.noises import (
-                AmplitudeDamping as BraketAmplitudeDamping,
-            )
-
-            return BraketAmplitudeDamping(self.gamma)
-
-        # TODO: MY_QLM implmentation
-
-        else:
-            raise NotImplementedError(
-                f"Conversion of Amplitude Damping noise for language {language.name} is not supported."
+                f"Conversion of Amplitude Damping noise for language {language} is not supported."
             )
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
