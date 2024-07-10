@@ -33,7 +33,7 @@ class Gate(Instruction, ABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
-        
+
         if len(targets) == 0:
             raise ValueError("Expected non-empty target list")
         super().__init__(targets, label=label)
@@ -56,10 +56,10 @@ class Gate(Instruction, ABC):
                    [1, 0, 0, 0],
                    [0, 0, 1, 0]])
             >>> SWAP(0,1).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 0, 1]])
+            array([[1., 0., 0., 0.],
+                   [0., 0., 1., 0.],
+                   [0., 1., 0., 0.],
+                   [0., 0., 0., 1.]])
 
         """
 
@@ -82,10 +82,10 @@ class Gate(Instruction, ABC):
                    [1, 0, 0, 0],
                    [0, 0, 1, 0]])
             >>> SWAP(0,1).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 0, 1]])
+            array([[1., 0., 0., 0.],
+                   [0., 0., 1., 0.],
+                   [0., 1., 0., 0.],
+                   [0., 0., 0., 1.]])
 
         """
 
@@ -145,10 +145,10 @@ class Gate(Instruction, ABC):
         Examples:
             >>> swap_gate = SWAP(0,1)
             >>> (swap_gate.power(2)).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 0, 0, 1]])
+            array([[1., 0., 0., 0.],
+                   [0., 1., 0., 0.],
+                   [0., 0., 1., 0.],
+                   [0., 0., 0., 1.]])
             >>> (swap_gate.power(-1)).to_matrix()
             array([[1., 0., 0., 0.],
                    [0., 0., 1., 0.],

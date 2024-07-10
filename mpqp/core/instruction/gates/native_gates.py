@@ -150,7 +150,10 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
-        theta = float(self.theta) if self._numeric_parameters else self.theta
+        try:
+            theta = float(self.theta)
+        except:
+            theta = self.theta
         if language == Language.QISKIT:
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
@@ -573,10 +576,10 @@ class SWAP(InvolutionGate, NoParameterGate):
 
     Example:
         >>> SWAP(0, 1).to_matrix()
-        array([[1, 0, 0, 0],
-               [0, 0, 1, 0],
-               [0, 1, 0, 0],
-               [0, 0, 0, 1]])
+        array([[1., 0., 0., 0.],
+               [0., 0., 1., 0.],
+               [0., 1., 0., 0.],
+               [0., 0., 0., 1.]])
 
     """
 
@@ -598,13 +601,13 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         # TODO - test matrix
         super().__init__([a, b], "SWAP")
-        self.matrix = self.swap_gate()
+        self.matrix = self.swap_gate_matrix()
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
 
-    def swap_gate(self) -> npt.NDArray[np.complex64]:
+    def swap_gate_matrix(self) -> npt.NDArray[np.complex64]:
         """
         Constructs the matrix representation of a SWAP gate for two qubits in a multi-qubit system.
 
@@ -622,7 +625,7 @@ class SWAP(InvolutionGate, NoParameterGate):
         min_num_qubits = min(control, target)
         dim = 2 ** (nb_qubits + 1)
 
-        swap_matrix = np.eye(dim, dtype=complex)
+        swap_matrix = np.eye(dim)
 
         for i in range(dim):
             binary_state = list(format(i, f"0{nb_qubits + 1}b"))
@@ -938,10 +941,10 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
 
     Example:
         >>> CNOT(0, 1).to_matrix()
-        array([[1, 0, 0, 0],
-               [0, 1, 0, 0],
-               [0, 0, 0, 1],
-               [0, 0, 1, 0]])
+        array([[1., 0., 0., 0.],
+               [0., 1., 0., 0.],
+               [0., 0., 0., 1.],
+               [0., 0., 1., 0.]])
 
     """
 

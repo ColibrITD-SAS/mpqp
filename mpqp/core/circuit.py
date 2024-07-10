@@ -265,7 +265,7 @@ class QCircuit:
             c: 4/══════╩══╩═════╩══╩═
                        0  1     2  3
             NoiseModel:
-                Depolarizing(0.01, [all], 1)
+                Depolarizing(0.01)
             >>> circuit2.nb_qubits = 3
             >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐┌─┐    ░ ┌─┐
@@ -278,7 +278,7 @@ class QCircuit:
             c: 6/══╩═══╩══╩═════╩══╩══╩═
                    2   0  1     3  4  5
             NoiseModel:
-                Depolarizing(0.01, [all], 1)
+                Depolarizing(0.01)
         """
         qcircuit = deepcopy(self)
 
@@ -309,7 +309,8 @@ class QCircuit:
                         if qcircuit.nb_cbits is None:
                             qcircuit.nb_cbits = 0
                         instruction.c_targets = [
-                            qcircuit.nb_cbits + i for i in range(len(instruction.targets))
+                            qcircuit.nb_cbits + i
+                            for i in range(len(instruction.targets))
                         ]
                         qcircuit.nb_cbits += self.nb_qubits
                     if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
@@ -568,7 +569,7 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        3M-TODO: do we want to approximate ? Also take into account Noise 
+        3M-TODO: do we want to approximate ? Also take into account Noise
          in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
@@ -605,21 +606,18 @@ class QCircuit:
 
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
-            >>> c.to_matrix()
-            array([[ 0.70710678,  0.        ,  0.70710678,  0.        ],
-                   [ 0.        ,  0.70710678,  0.        ,  0.70710678],
-                   [ 0.        ,  0.70710678,  0.        , -0.70710678],
-                   [ 0.70710678,  0.        , -0.70710678,  0.        ]])
+            >>> c.to_matrix()  #  # doctest: +NORMALIZE_WHITESPACE
+            array([[ 0.70710678+0.j,  0.        +0.j,  0.70710678+0.j, 0.        +0.j],
+                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, 0.70710678+0.j],
+                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, -0.70710678+0.j],
+                   [ 0.70710678+0.j,  0.        +0.j, -0.70710678+0.j, 0.        +0.j]])
 
         """
         from qiskit import QuantumCircuit
         from qiskit.quantum_info.operators import Operator
 
-         # 3M-TODO make to matrix without qiskit
-
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
-
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         assert isinstance(matrix, np.ndarray)
 
@@ -810,7 +808,7 @@ class QCircuit:
                  └───┘ ║ └╥┘
             c: 2/══════╩══╩═
                        0  1
-            NoiseModel: Depolarizing(0.4, [0, 1], 1)
+            NoiseModel: Depolarizing(0.4, [0, 1])
             >>> print(circuit.without_noises())  # doctest: +NORMALIZE_WHITESPACE
                       ┌─┐
             q_0: ──■──┤M├───
@@ -1100,15 +1098,15 @@ class QCircuit:
             ...      BasisMeasure(list(range(3)), shots=1000)]
             ... )
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───────┐┌───┐┌───┐                              ┌─┐
-            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├────────────■─────────────────┤M├───
-                 └───────┘└─┬─┘└───┘┌─────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
-            q_1: ───────────■────■──┤ P(pi/2) ├─■──────────────────╫─┤M├
-                               ┌─┴─┐└──┬───┬──┘        ┌─┐         ║ └╥┘
-            q_2: ──────────────┤ X ├───┤ X ├───────────┤M├─────────╫──╫─
-                               └───┘   └───┘           └╥┘         ║  ║
-            c: 3/═══════════════════════════════════════╩══════════╩══╩═
-                                                        2          0  1
+                 ┌───────┐┌───┐┌───┐                             ┌─┐
+            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■─────────────────┤M├───
+                 └───────┘└─┬─┘└───┘┌────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
+            q_1: ───────────■────■──┤ P(π/2) ├─■──────────────────╫─┤M├
+                               ┌─┴─┐└─┬───┬──┘        ┌─┐         ║ └╥┘
+            q_2: ──────────────┤ X ├──┤ X ├───────────┤M├─────────╫──╫─
+                               └───┘  └───┘           └╥┘         ║  ║
+            c: 3/══════════════════════════════════════╩══════════╩══╩═
+                                                       2          0  1
             >>> print(c.subs({theta: np.pi, k: 1}))  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───
