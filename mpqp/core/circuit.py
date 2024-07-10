@@ -205,7 +205,7 @@ class QCircuit:
                 f" size ({self.nb_qubits})."
             )
 
-        if isinstance(components, BasisMeasure):
+        if isinstance(components, BasisMeasure) and len(components.targets) != 0:
             if self.noises and len(components.targets) != self.nb_qubits:
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
@@ -220,26 +220,105 @@ class QCircuit:
                 ]
                 self.nb_cbits += len(components.c_targets)
 
-        if isinstance(components, Barrier):
-            components.size = self.nb_qubits
-
         if isinstance(components, NoiseModel):
-            if len(components.targets) == 0:
-                components.targets = [target for target in range(self.nb_qubits)]
-
-            basis_measure = [
-                instr for instr in self.instructions if isinstance(instr, BasisMeasure)
+            hardcoded_basis_measures = [
+                instr
+                for instr in self.instructions
+                if isinstance(instr, BasisMeasure) and len(instr.targets) != 0
             ]
-            if basis_measure and all(
-                [len(bm.targets) != self.nb_qubits for bm in basis_measure]
+            if any(
+                len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures
             ):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
-
             self.noises.append(components)
         else:
             self.instructions.append(components)
+
+    def hard_copy(self):
+        """
+        Creates a deep copy of the quantum circuit object, ensuring all properties,
+        including noises and instructions, are properly duplicated with necessary
+        adjustments, empty targets are replaced with all possible targets.
+
+        Returns:
+            qcircuit: A deep copy of the original quantum circuit object with updated properties.
+
+        Raises:
+            ValueError: If the number of target qubits for a Depolarizing noise is less
+                        than the noise's dimension, or if BasisMeasure does not span all
+                        qubits in a noisy circuit.
+
+        Examples:
+            >>> circuit2 = QCircuit([H(i) for i in range(2)])
+            >>> circuit2.add(Depolarizing(0.01))
+            >>> circuit2.add(BasisMeasure())
+            >>> circuit2.add(Barrier())
+            >>> circuit2.add(BasisMeasure())
+            >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐┌─┐    ░ ┌─┐
+            q_0: ┤ H ├┤M├────░─┤M├───
+                 ├───┤└╥┘┌─┐ ░ └╥┘┌─┐
+            q_1: ┤ H ├─╫─┤M├─░──╫─┤M├
+                 └───┘ ║ └╥┘ ░  ║ └╥┘
+            c: 4/══════╩══╩═════╩══╩═
+                       0  1     2  3
+            NoiseModel:
+                Depolarizing(0.01)
+            >>> circuit2.nb_qubits = 3
+            >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐┌─┐    ░ ┌─┐
+            q_0: ┤ H ├┤M├────░─┤M├──────
+                 ├───┤└╥┘┌─┐ ░ └╥┘┌─┐
+            q_1: ┤ H ├─╫─┤M├─░──╫─┤M├───
+                 └┬─┬┘ ║ └╥┘ ░  ║ └╥┘┌─┐
+            q_2: ─┤M├──╫──╫──░──╫──╫─┤M├
+                  └╥┘  ║  ║  ░  ║  ║ └╥┘
+            c: 6/══╩═══╩══╩═════╩══╩══╩═
+                   2   0  1     3  4  5
+            NoiseModel:
+                Depolarizing(0.01)
+        """
+        qcircuit = deepcopy(self)
+
+        noises = deepcopy(self.noises)
+        for noise in noises:
+            if len(noise.targets) == 0:
+                noise.targets = list(range(self.nb_qubits))
+                if (
+                    isinstance(noise, Depolarizing)
+                    and len(noise.targets) < noise.dimension
+                ):
+                    raise ValueError(
+                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
+                    )
+        qcircuit.noises = noises
+
+        instructions = deepcopy(self.instructions)
+        for instruction in instructions:
+            if isinstance(instruction, Barrier):
+                instruction.size = self.nb_qubits
+            elif isinstance(instruction, Measure):
+                if len(instruction.targets) == 0:
+                    instruction.targets = list(range(self.nb_qubits))
+                if isinstance(instruction, BasisMeasure):
+                    if instruction.c_targets is None:
+                        if len(instruction.targets) == 0:
+                            instruction.targets = list(range(self.nb_qubits))
+                        if qcircuit.nb_cbits is None:
+                            qcircuit.nb_cbits = 0
+                        instruction.c_targets = [
+                            qcircuit.nb_cbits + i
+                            for i in range(len(instruction.targets))
+                        ]
+                        qcircuit.nb_cbits += self.nb_qubits
+                    if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
+                        raise ValueError(
+                            "In noisy circuits, BasisMeasure must span all qubits in the circuit."
+                        )
+        qcircuit.instructions = instructions
+        return qcircuit
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.
@@ -384,9 +463,11 @@ class QCircuit:
 
         """
         from matplotlib.figure import Figure
-        from qiskit.tools.visualization import circuit_drawer
+        from qiskit.visualization import circuit_drawer
 
         qc = self.to_other_language(language=Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(qc, QuantumCircuit)
         fig = circuit_drawer(qc, output=output, style={"backgroundcolor": "#EEEEEE"})
 
         if isinstance(fig, Figure):
@@ -488,7 +569,7 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        3M-TODO: do we want to approximate ? Also take into account Noise 
+        3M-TODO: do we want to approximate ? Also take into account Noise
          in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
@@ -525,21 +606,18 @@ class QCircuit:
 
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
-            >>> c.to_matrix()
-            array([[ 0.70710678,  0.        ,  0.70710678,  0.        ],
-                   [ 0.        ,  0.70710678,  0.        ,  0.70710678],
-                   [ 0.        ,  0.70710678,  0.        , -0.70710678],
-                   [ 0.70710678,  0.        , -0.70710678,  0.        ]])
+            >>> c.to_matrix()  #  # doctest: +NORMALIZE_WHITESPACE
+            array([[ 0.70710678+0.j,  0.        +0.j,  0.70710678+0.j, 0.        +0.j],
+                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, 0.70710678+0.j],
+                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, -0.70710678+0.j],
+                   [ 0.70710678+0.j,  0.        +0.j, -0.70710678+0.j, 0.        +0.j]])
 
         """
         from qiskit import QuantumCircuit
         from qiskit.quantum_info.operators import Operator
 
-         # 3M-TODO make to matrix without qiskit
-
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
-
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         assert isinstance(matrix, np.ndarray)
 
@@ -730,7 +808,7 @@ class QCircuit:
                  └───┘ ║ └╥┘
             c: 2/══════╩══╩═
                        0  1
-            NoiseModel: Depolarizing(0.4, [0, 1], 1)
+            NoiseModel: Depolarizing(0.4, [0, 1])
             >>> print(circuit.without_noises())  # doctest: +NORMALIZE_WHITESPACE
                       ┌─┐
             q_0: ──■──┤M├───
@@ -795,6 +873,7 @@ class QCircuit:
             T  : │         0         │         1         │
 
         """
+        qcircuit = self.hard_copy()
 
         if language == Language.QISKIT:
             from qiskit.circuit import Operation, QuantumCircuit
@@ -805,12 +884,12 @@ class QCircuit:
             # added parameters, and we use those instead of new ones when they
             # are used more than once
             qiskit_parameters = set()
-            if self.nb_cbits is None:
-                new_circ = QuantumCircuit(self.nb_qubits)
+            if qcircuit.nb_cbits is None:
+                new_circ = QuantumCircuit(qcircuit.nb_qubits)
             else:
-                new_circ = QuantumCircuit(self.nb_qubits, self.nb_cbits)
+                new_circ = QuantumCircuit(qcircuit.nb_qubits, qcircuit.nb_cbits)
 
-            for instruction in self.instructions:
+            for instruction in qcircuit.instructions:
                 if isinstance(instruction, ExpectationMeasure):
                     # these measures have no equivalent in Qiskit
                     continue
@@ -832,8 +911,8 @@ class QCircuit:
                         instruction.label,
                     )
                     # FIXME: minus sign appearing when it should not, seems
-                    # there a phase added somewhere, check u gate in OpenQASM
-                    # translation.
+                    #  there a phase added somewhere, check u gate in OpenQASM
+                    #  translation.
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
@@ -843,13 +922,13 @@ class QCircuit:
                     instruction.basis, ComputationalBasis
                 ):
                     # TODO muhammad/henri, for custom basis, check if something
-                    # should be changed here, otherwise remove the condition to
-                    # have only computational basis
+                    #  should be changed here, otherwise remove the condition to
+                    #  have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
                 elif isinstance(instruction, Barrier):
-                    qargs = range(instruction.size)
+                    qargs = range(qcircuit.nb_qubits)
                 elif isinstance(instruction, Breakpoint):
                     continue
                 else:
@@ -865,7 +944,7 @@ class QCircuit:
             return new_circ
 
         elif language == Language.MY_QLM:
-            cleaned_circuit = self.without_measurements()
+            cleaned_circuit = qcircuit.without_measurements()
             myqlm_circuit = qasm2_to_myqlm_Circuit(cleaned_circuit.to_qasm2())
             return myqlm_circuit
 
@@ -874,33 +953,35 @@ class QCircuit:
             used_qubits = set().union(
                 *(
                     inst.connections()
-                    for inst in self.instructions
+                    for inst in qcircuit.instructions
                     if isinstance(inst, Gate)
                 )
             )
             circuit = QCircuit(
                 [
                     Id(qubit)
-                    for qubit in range(self.nb_qubits)
+                    for qubit in range(qcircuit.nb_qubits)
                     if qubit not in used_qubits
                 ],
-                nb_qubits=self.nb_qubits,
-            ) + deepcopy(self)
+                nb_qubits=qcircuit.nb_qubits,
+            ) + deepcopy(qcircuit)
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
-            if len(self.noises) != 0:
-                if any(isinstance(instr, CRk) for instr in self.instructions):
+            if len(qcircuit.noises) != 0:
+                if any(isinstance(instr, CRk) for instr in qcircuit.instructions):
                     raise NotImplementedError(
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
 
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(circuit.to_qasm3()), self.noises, self.nb_qubits
+                qasm3_to_braket_Circuit(circuit.to_qasm3()),
+                qcircuit.noises,
+                qcircuit.nb_qubits,
             )
         elif language == Language.CIRQ:
-            cirq_circuit = qasm2_to_cirq_Circuit(self.to_qasm2())
+            cirq_circuit = qasm2_to_cirq_Circuit(qcircuit.to_qasm2())
             if cirq_proc_id:
                 from cirq.transformers.optimize_for_target_gateset import (
                     optimize_for_target_gateset,
@@ -959,9 +1040,11 @@ class QCircuit:
         )
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
-        qasm = qiskit_circ.qasm()
-        assert qasm is not None
-        return qasm
+
+        from qiskit import qasm2
+
+        qasm_str = qasm2.dumps(qiskit_circ)
+        return qasm_str
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.
@@ -1015,15 +1098,15 @@ class QCircuit:
             ...      BasisMeasure(list(range(3)), shots=1000)]
             ... )
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───────┐┌───┐┌───┐                              ┌─┐
-            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├────────────■─────────────────┤M├───
-                 └───────┘└─┬─┘└───┘┌─────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
-            q_1: ───────────■────■──┤ P(pi/2) ├─■──────────────────╫─┤M├
-                               ┌─┴─┐└──┬───┬──┘        ┌─┐         ║ └╥┘
-            q_2: ──────────────┤ X ├───┤ X ├───────────┤M├─────────╫──╫─
-                               └───┘   └───┘           └╥┘         ║  ║
-            c: 3/═══════════════════════════════════════╩══════════╩══╩═
-                                                        2          0  1
+                 ┌───────┐┌───┐┌───┐                             ┌─┐
+            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■─────────────────┤M├───
+                 └───────┘└─┬─┘└───┘┌────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
+            q_1: ───────────■────■──┤ P(π/2) ├─■──────────────────╫─┤M├
+                               ┌─┴─┐└─┬───┬──┘        ┌─┐         ║ └╥┘
+            q_2: ──────────────┤ X ├──┤ X ├───────────┤M├─────────╫──╫─
+                               └───┘  └───┘           └╥┘         ║  ║
+            c: 3/══════════════════════════════════════╩══════════╩══╩═
+                                                       2          0  1
             >>> print(c.subs({theta: np.pi, k: 1}))  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───
@@ -1039,7 +1122,7 @@ class QCircuit:
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
             + self.noises,  # 3M-TODO: modify this line when noise will be
-            # parameterized, to substitute, like we do for inst
+            # parameterized, do subs, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
             label=self.label,

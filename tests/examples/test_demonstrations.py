@@ -13,6 +13,8 @@ from mpqp.measures import BasisMeasure
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
+# TODO: add CIRQ local simulator devices to this file
+
 
 def warn_guard(device: AvailableDevice, run: Callable[[], Any]):
     if isinstance(device, AWSDevice):
@@ -50,6 +52,11 @@ def test_sample_demo():
         circuit,
         [
             IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            # IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
             ATOSDevice.MYQLM_PYLINALG,
             ATOSDevice.MYQLM_CLINALG,
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
@@ -58,6 +65,37 @@ def test_sample_demo():
 
     warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
+    assert True
+
+
+def test_sample_demo_aer_stabilizers():
+    # Declaration of the circuit with the right size
+    circuit = QCircuit(4)
+
+    # Constructing the circuit by adding gates
+    circuit.add(CNOT(0, 1))
+    circuit.add(X(0))
+    circuit.add(H(1))
+    circuit.add(Z(2))
+    circuit.add(CZ(2, 1))
+    circuit.add([SWAP(2, 0), CNOT(0, 2)])
+    circuit.add(S(1))
+    circuit.add(H(3))
+    circuit.add(CNOT(1, 2))
+    circuit.add(CNOT(3, 0))
+
+    # Add measurement
+    circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
+
+    # Run the circuit on a selected device
+    run(
+        circuit,
+        [
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            IBMDevice.AER_SIMULATOR_STABILIZER,
+        ],
+    )
     assert True
 
 
@@ -73,7 +111,7 @@ def test_statevector_demo():
     circuit.add(Z(2))
     circuit.add(CZ(2, 1))
     circuit.add([SWAP(2, 0), CNOT(0, 2)])
-    circuit.add(Ry(3.14 / 2, 2))
+    circuit.add(Ry(1.7, 2))
     circuit.add(S(1))
     circuit.add(H(3))
     circuit.add(CNOT(1, 2))
@@ -86,6 +124,8 @@ def test_statevector_demo():
         circuit,
         [
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
             ATOSDevice.MYQLM_PYLINALG,
             ATOSDevice.MYQLM_CLINALG,
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
@@ -102,6 +142,8 @@ def test_statevector_demo():
         circuit,
         [
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
             ATOSDevice.MYQLM_PYLINALG,
             ATOSDevice.MYQLM_CLINALG,
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
@@ -113,7 +155,30 @@ def test_statevector_demo():
     assert True
 
 
-def test_observable_demo():
+def test_statevector_demo_stab():
+    # Declaration of the circuit with the right size
+    circuit = QCircuit(4)
+
+    # Constructing the circuit by adding gates
+    circuit.add(S(0))
+    circuit.add(CNOT(0, 1))
+    circuit.add(X(0))
+    circuit.add(H(1))
+    circuit.add(Z(2))
+    circuit.add(CZ(2, 1))
+    circuit.add([SWAP(2, 0), CNOT(0, 2)])
+    circuit.add(S(1))
+    circuit.add(H(3))
+    circuit.add(CNOT(3, 0))
+
+    # when no measure in the circuit, must run in statevector mode
+    run(circuit, IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE)
+
+    assert True
+
+
+@pytest.mark.parametrize("shots", [0, 1000])
+def test_observable_demo(shots: int):
     obs = Observable(
         np.array(
             [
@@ -130,11 +195,26 @@ def test_observable_demo():
     circuit = QCircuit(2, label="Observable test")
     # Constructing the circuit by adding gates and measurements
     circuit.add(H(0))
-    circuit.add(Rx(1.76, 1))
-    circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=0))
+    circuit.add([H(1), CNOT(1, 0)])
+    circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    run(circuit, [ATOSDevice.MYQLM_PYLINALG, IBMDevice.AER_SIMULATOR])
+    runner = lambda: run(
+        circuit,
+        [
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        ],
+    )
+
+    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     assert True
 
@@ -157,7 +237,6 @@ def test_aws_qasm_executions():
 
 
 def test_aws_mpqp_executions():
-
     # Declaration of the circuit with the right size
     circuit = QCircuit(4)
 
