@@ -7,8 +7,12 @@ import numpy as np
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
-    from qiskit.primitives import EstimatorResult, PrimitiveResult
-    from qiskit.providers import BackendV1, BackendV2
+    from qiskit.primitives import (
+        EstimatorResult,
+        PrimitiveResult,
+        PubResult,
+        SamplerPubResult,
+    )
     from qiskit.result import Result as QiskitResult
     from qiskit_ibm_runtime import RuntimeJobV2
 
@@ -18,11 +22,14 @@ if TYPE_CHECKING:
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import CRk, P, Rk, Rx, Ry, Rz, T, TOF, U
+from mpqp.core.instruction.gates import TOF, CRk, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.execution.connection.ibm_connection import get_QiskitRuntimeService, get_backend
+from mpqp.execution.connection.ibm_connection import (
+    get_backend,
+    get_QiskitRuntimeService,
+)
 from mpqp.execution.devices import IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
@@ -104,33 +111,30 @@ def check_job_compatibility(job: Job):
             contained in the job (measure and job_type, device and job_type,
             etc...).
     """
+    assert isinstance(job.device, IBMDevice)
     if not type(job.measure) in job.job_type.value:
         raise DeviceJobIncompatibleError(
             f"An {job.job_type.name} job is valid only if the corresponding circuit has an measure in "
             f"{list(map(lambda cls: cls.__name__, job.job_type.value))}. "
             f"{type(job.measure).__name__} was given instead."
         )
-    if (
-        job.job_type == JobType.STATE_VECTOR
-        and job.device not in {IBMDevice.AER_SIMULATOR_STATEVECTOR,
-                               IBMDevice.AER_SIMULATOR,
-                               IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-                               IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,}
-    ):
+    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_statevector():
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
             f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "
-            "type, by for example giving a number of shots to a BasisMeasure)."
+            "type, for example by giving a number of shots to a BasisMeasure)."
         )
-    if job.device == IBMDevice.AER_SIMULATOR_STABILIZER:
-        for inst in job.circuit.instructions:
-            if type(inst) in {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}:
-                raise ValueError(f"Gate {inst.__repr__()} cannot be simulated with `IBMDevice.AER_SIMULATOR_STABILIZER`.")
-        ...
-    elif job.device == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
-        for inst in job.circuit.instructions:
-            if type(inst) in {Rx, Rz}:
-                raise ValueError(f"Gate {inst.__repr__()} cannot be simulated with `IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER`.")
+    incompatibilities = {
+        IBMDevice.AER_SIMULATOR_STABILIZER: {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U},
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER: {Rx, Rz},
+    }
+    if job.device in incompatibilities:
+        circ_gates = {type(i) for i in job.circuit.instructions}
+        incompatible_gates = circ_gates.intersection(incompatibilities[job.device])
+        if len(incompatible_gates) != 0:
+            raise ValueError(
+                f"Gate(s) {incompatible_gates} cannot be simulated on {job.device}."
+            )
 
 
 @typechecked
@@ -213,9 +217,10 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     """
     from qiskit import QuantumCircuit
     from qiskit.compiler import transpile
-    from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator, SamplerV2 as Runtime_Sampler, Session
-
-    from qiskit.quantum_info import Pauli, SparsePauliOp
+    from qiskit.quantum_info import Pauli, PauliList, SparsePauliOp
+    from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
+    from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
+    from qiskit_ibm_runtime import Session
 
     if job.job_type == JobType.STATE_VECTOR:
         raise DeviceJobIncompatibleError(
@@ -223,41 +228,57 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             " devices. Please use a local simulator instead."
         )
 
+    meas = job.measure
+
     if job.job_type == JobType.OBSERVABLE:
-        if not isinstance(job.measure, ExpectationMeasure):
+        if not isinstance(meas, ExpectationMeasure):
             raise ValueError(
                 "An observable job must is valid only if the corresponding "
                 "circuit has an expectation measure."
             )
-        if job.measure.shots == 0:
+        if meas.shots == 0:
             raise DeviceJobIncompatibleError(
                 "Expectation values cannot be computed exactly using IBM remote"
                 " simulators and devices. Please use a local simulator instead."
             )
     check_job_compatibility(job)
 
-    qiskit_circuit = job.circuit.to_other_language(Language.QISKIT)
+    qiskit_circ = job.circuit.to_other_language(Language.QISKIT)
     if TYPE_CHECKING:
-        assert isinstance(qiskit_circuit, QuantumCircuit)
+        assert isinstance(qiskit_circ, QuantumCircuit)
 
-    qiskit_circuit = qiskit_circuit.reverse_bits()
+    qiskit_circ = qiskit_circ.reverse_bits()
     service = get_QiskitRuntimeService()
     assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     session = Session(service=service, backend=backend)
-    qiskit_circuit = transpile(qiskit_circuit, backend)
+    qiskit_circ = transpile(qiskit_circ, backend)
 
     if job.job_type == JobType.OBSERVABLE:
-        assert isinstance(job.measure, ExpectationMeasure)
+        tot_size = qiskit_circ.num_qubits
+        if TYPE_CHECKING:
+            assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
-        qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
-        assert isinstance(qiskit_observable, SparsePauliOp)
+        qiskit_observable = meas.observable.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_observable, SparsePauliOp)
 
-        # Fills the Pauli strings with identities to make the observable size match the circuit size
+        # Fills the Pauli strings with identities to make the observable size
+        # match the circuit size
         qiskit_observable = SparsePauliOp(
-            [pauli._pauli_list[0].tensor(Pauli("I"*(qiskit_circuit.num_qubits - job.measure.observable.nb_qubits)))
-             for pauli in qiskit_observable],
-            coeffs=qiskit_observable.coeffs
+            [
+                # for some reason, the type checker gets the type of
+                # pauli.paulis[0] wrong, and as such the wrong tensor is
+                # inferred. Because of this, the type inside it are not guessed
+                # properly either, forcing us to "ignore" this problem.
+                pauli.paulis[0].tensor(
+                    PauliList(  # pyright: ignore[reportArgumentType]
+                        Pauli("I" * (tot_size - meas.observable.nb_qubits))
+                    )
+                )
+                for pauli in qiskit_observable
+            ],
+            coeffs=qiskit_observable.coeffs,
         )
 
         # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
@@ -265,12 +286,12 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         #  Tried once with shots=1234, but got shots=1280 with the real experiment, looks like the decimal part of
         #  precision is truncated. The problem is on the IBM side, an issue has been published :
         #  https://github.com/Qiskit/qiskit-ibm-runtime/issues/1749
-        precision = 1/np.sqrt(job.measure.shots)
-        ibm_job = estimator.run([(qiskit_circuit, qiskit_observable)], precision=precision)
+        precision = 1 / np.sqrt(meas.shots)
+        ibm_job = estimator.run([(qiskit_circ, qiskit_observable)], precision=precision)
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(job.measure, BasisMeasure)
+        assert isinstance(meas, BasisMeasure)
         sampler = Runtime_Sampler(session=session)
-        ibm_job = sampler.run([qiskit_circuit], shots=job.measure.shots)
+        ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
         raise NotImplementedError(f"{job.job_type} not handled.")
 
@@ -298,14 +319,14 @@ def run_remote_ibm(job: Job) -> Result:
     ibm_result = remote_job.result()
 
     assert isinstance(job.device, IBMDevice)
-    return extract_result(ibm_result, job, job.device, remote_job)
+    return extract_result(ibm_result, job, job.device)
 
 
 @typechecked
 def extract_result(
-    result: "QiskitResult" | "EstimatorResult" | "PrimitiveResult",
-    job: Optional[Job] = None,
-    device: Optional[IBMDevice] = IBMDevice.AER_SIMULATOR,
+    result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
+    job: Optional[Job],
+    device: IBMDevice,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`Result<mpqp.execution.result.Result>`.
@@ -316,8 +337,6 @@ def extract_result(
             result.
         device: IBMDevice on which the job was submitted. Used to know if the
             run was remote or local
-        ibm_job: Runtime job (V2) used to retrieve info about the circuit and
-            the submitted job (in the remote case).
 
     Returns:
         The ``qiskit`` result converted to our format.
@@ -328,27 +347,38 @@ def extract_result(
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
         res_data = result[0].data
+        # res_data is a DataBin, which means all typechecking is out of the
+        # windows for this specific object
+
         # If we are in observable mode
         if hasattr(res_data, "evs"):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
-            expectation = float(res_data.evs)
-            error = float(res_data.stds)
-            shots = result[0].metadata['shots']
-            return Result(job, expectation, error, shots)
+            mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
+            error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
+            shots = result[0].metadata["shots"]
+            return Result(job, mean, error, shots)
         # If we are in sample mode
         else:
             if job is None:
-                shots = res_data.meas.num_shots
-                nb_qubits = res_data.meas.num_bits
+                shots = (
+                    res_data.meas.num_shots  # pyright: ignore[reportAttributeAccessIssue]
+                )
+                nb_qubits = (
+                    res_data.meas.num_bits  # pyright: ignore[reportAttributeAccessIssue]
+                )
                 job = Job(
                     JobType.SAMPLE,
                     QCircuit(nb_qubits),
                     device,
                     BasisMeasure(list(range(nb_qubits)), shots=shots),
                 )
-            counts = res_data.meas.get_counts()
-            data=[
+            assert job.measure is not None
+
+            counts = (
+                res_data.meas.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
+            )
+            data = [
                 Sample(
                     bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits
                 )
@@ -369,8 +399,12 @@ def extract_result(
         if isinstance(result, EstimatorResult):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
-            shots = result.metadata[0]["shots"] if 'shots' in result.metadata[0] else 0
-            variance = result.metadata[0]["variance"] if 'variance' in result.metadata[0] else None
+            shots = result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0
+            variance = (
+                result.metadata[0]["variance"]
+                if "variance" in result.metadata[0]
+                else None
+            )
             return Result(job, result.values[0], variance, shots)
 
         elif isinstance(
@@ -415,7 +449,9 @@ def extract_result(
                 counts = result.get_counts(0)
                 data = [
                     Sample(
-                        bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits
+                        bin_str=item,
+                        count=counts[item],
+                        nb_qubits=job.circuit.nb_qubits,
                     )
                     for item in counts
                 ]
@@ -456,7 +492,7 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     status = ibm_job.status()
     if status in ["CANCELLED", "ERROR"]:
         raise IBMRemoteExecutionError(
-            f"Trying to retrieve an IBM result for a job in status {status.name}"
+            f"Trying to retrieve an IBM result for a job in status {status}"
         )
 
     # If the job is finished, it will get the result, if still running it is block until it finishes

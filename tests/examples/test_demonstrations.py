@@ -13,8 +13,8 @@ from mpqp.measures import BasisMeasure
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
+# TODO: add CIRQ local simulator devices to this file
 
-# TODO: add CIRQ local simu devices to this file
 
 def warn_guard(device: AvailableDevice, run: Callable[[], Any]):
     if isinstance(device, AWSDevice):
@@ -199,17 +199,20 @@ def test_observable_demo(shots: int):
     circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    runner = lambda: run(circuit, [
-        ATOSDevice.MYQLM_PYLINALG,
-        ATOSDevice.MYQLM_CLINALG,
-        AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        IBMDevice.AER_SIMULATOR,
-        IBMDevice.AER_SIMULATOR_STATEVECTOR,
-        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-        IBMDevice.AER_SIMULATOR_STABILIZER,
-        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
-        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-    ])
+    runner = lambda: run(
+        circuit,
+        [
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        ],
+    )
 
     warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
@@ -314,8 +317,8 @@ def test_all_native_gates():
 
     circuit.to_qasm2()
     with pytest.warns(
-            UserWarning,
-            match=r"There is a phase e\^\(i\(a\+c\)/2\) difference between U\(a,b,c\) gate in 2.0 and 3.0.",
+        UserWarning,
+        match=r"There is a phase e\^\(i\(a\+c\)/2\) difference between U\(a,b,c\) gate in 2.0 and 3.0.",
     ):
         circuit.to_qasm3()
         run(

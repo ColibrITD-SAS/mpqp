@@ -12,8 +12,9 @@ from mpqp import Barrier, Instruction, Language, QCircuit
 from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import Depolarizing
+from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.generics import OneOrMany, one_lined_repr
+from mpqp.tools.generics import OneOrMany
 
 
 @pytest.mark.parametrize(

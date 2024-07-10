@@ -26,8 +26,11 @@ def config_ibm_account(token: str):
         IBMRemoteExecutionError: If the account could not be saved.
     """
     from qiskit_ibm_runtime import QiskitRuntimeService
+
     try:
-        QiskitRuntimeService.save_account(channel="ibm_quantum", token=token, overwrite=True)
+        QiskitRuntimeService.save_account(
+            channel="ibm_quantum", token=token, overwrite=True
+        )
         save_env_variable("IBM_CONFIGURED", "True")
         save_env_variable("IBM_TOKEN", token)
     except Exception as err:
@@ -75,6 +78,7 @@ def test_connection() -> bool:
     """
     from qiskit_ibm_runtime import QiskitRuntimeService
     from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError
+
     global Runtime_Service
     try:
         Runtime_Service = QiskitRuntimeService(channel="ibm_quantum")
@@ -203,11 +207,7 @@ def get_all_job_ids() -> list[str]:
         'cm80pb1054sir2ck9i3g', 'cm80pa6879ps6bbqg2pg', 'cm7vdugiidfp3m8rg02g', 'cm7vds4pduldih1k1mq0']
 
     """
-    all_job_ids = []
     if get_env_variable("IBM_CONFIGURED") == "True":
-        service = get_QiskitRuntimeService()
+        return [job.job_id() for job in get_QiskitRuntimeService().jobs()]
 
-        if service:
-            all_job_ids.extend([job.job_id() for job in service.jobs()])
-
-    return all_job_ids
+    return []

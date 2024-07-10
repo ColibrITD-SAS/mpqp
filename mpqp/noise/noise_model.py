@@ -22,7 +22,8 @@ class NoiseModel(ABC):
     its qubits.
 
     It allows to specify which qubits (targets) and which gates of the circuit
-    will be affected with this noise model.
+    will be affected with this noise model. If you don't specify a target, the
+    operation will apply to all qubits.
 
     Args:
         targets: List of qubit indices affected by this noise.
@@ -36,9 +37,11 @@ class NoiseModel(ABC):
 
     def __init__(
         self,
-        targets: list[int],
+        targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
+        if targets is None:
+            targets = []
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
 
@@ -128,10 +131,11 @@ class Depolarizing(NoiseModel):
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
         >>> d1 = Depolarizing(0.32, list(range(circuit.nb_qubits)))
-        >>> d2 = Depolarizing(0.05, [0, 1], dimension=2)
-        >>> d3 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
-        >>> d4 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
-        >>> circuit.add([d1, d2, d3, d4])
+        >>> d2 = Depolarizing(0.01)
+        >>> d3 = Depolarizing(0.05, [0, 1], dimension=2)
+        >>> d4 = Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+        >>> d5 = Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
+        >>> circuit.add([d1, d2, d3, d4, d5])
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
              ┌───┐
         q_0: ┤ H ├
@@ -141,9 +145,10 @@ class Depolarizing(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            Depolarizing(0.32, [0, 1, 2], 1)
+            Depolarizing(0.32, [0, 1, 2])
+            Depolarizing(0.01)
             Depolarizing(0.05, [0, 1], 2)
-            Depolarizing(0.12, [2], 1, [H, Rx, Ry, Rz])
+            Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
             Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
 
     """
@@ -151,7 +156,7 @@ class Depolarizing(NoiseModel):
     def __init__(
         self,
         prob: float,
-        targets: list[int],
+        targets: Optional[list[int]] = None,
         dimension: int = 1,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -181,7 +186,7 @@ class Depolarizing(NoiseModel):
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
 
-        if len(targets) < dimension:
+        if targets and len(targets) < dimension:
             raise ValueError(
                 f"Number of target qubits {len(targets)} should be higher than the dimension {dimension}."
             )
@@ -199,9 +204,11 @@ class Depolarizing(NoiseModel):
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):
+        target = ", " + str(self.targets) if len(self.targets) != 0 else ""
+        dimension = f", {'dimension=' if not target else ''}" + str(self.dimension) if self.dimension != 1 else ""
         return (
-            f"{type(self).__name__}({self.proba}, {self.targets}, {self.dimension}"
-            + (", " + str(self.gates) if self.gates else "")
+            f"{type(self).__name__}({self.proba}{target}{dimension}"
+            + (f", {'gates=' if not target or not dimension else ''}" + str(self.gates) if len(self.gates) != 0 else "")
             + ")"
         )
 

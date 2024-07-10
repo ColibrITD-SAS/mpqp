@@ -16,7 +16,7 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from sympy import Expr
     from qiskit.circuit import Parameter
-    from qiskit.quantum_info import Operator, SparsePauliOp
+    from qiskit.quantum_info import SparsePauliOp
     from qat.core.wrappers.observable import Observable as QLMObservable
     from braket.circuits.observables import Hermitian
     from cirq.circuits.circuit import Circuit as Cirq_Circuit
@@ -27,8 +27,9 @@ from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.core.languages import Language
+from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
-from mpqp.tools.generics import Matrix, one_lined_repr
+from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_hermitian
 
 
@@ -145,6 +146,7 @@ class Observable:
         """
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator, SparsePauliOp
+
             return SparsePauliOp.from_operator(Operator(self.matrix))
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Observable as QLMObservable
