@@ -53,8 +53,10 @@ class ControlledGate(Gate, ABC):
 
         if len(self.controls) != 1 or len(self.targets) != 1:
             return self._multi_control_gate_to_matrix()
-        control = self.controls[0]
-        target = self.targets[0]
+        control, target = self.controls[0], self.targets[0]
+        min_ = min(control, target)
+        control -= min_
+        target -= min_
 
         nb_qubit = abs(control - target) + 1
         zero = np.array([[1, 0], [0, 0]])

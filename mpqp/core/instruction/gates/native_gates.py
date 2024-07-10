@@ -599,7 +599,6 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         self.qlm_aqasm_keyword = "SWAP"
 
-        # TODO - test matrix
         super().__init__([a, b], "SWAP")
         self.matrix = self.swap_gate_matrix()
 
@@ -968,8 +967,6 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     def to_matrix(self) -> Matrix:
         return self.controlled_gate_to_matrix()
 
-    # TODO - test matrix
-
     def to_canonical_matrix(self):
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
@@ -1013,8 +1010,6 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
 
     def to_matrix(self) -> Matrix:
         return self.controlled_gate_to_matrix()
-
-    # TODO - test matrix
 
     def to_canonical_matrix(self):
         m = np.eye(4, dtype=complex)
@@ -1082,8 +1077,6 @@ class CRk(RotationGate, ControlledGate):
     def to_matrix(self) -> Matrix:
         return self.controlled_gate_to_matrix()
 
-    # TODO - test matrix
-
     def to_canonical_matrix(self):
         e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
@@ -1137,8 +1130,6 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
 
     def to_matrix(self) -> Matrix:
         return self.controlled_gate_to_matrix()
-
-    # TODO - test matrix
 
     def to_canonical_matrix(self):
         m = np.identity(8, dtype=complex)
