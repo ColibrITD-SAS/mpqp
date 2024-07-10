@@ -13,9 +13,10 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run
+from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.noise import Depolarizing
-from mpqp.noise.noise_test_helper import (
+from mpqp.tools.theoretical_simulation import (
     chisquare_test,
     process_qcircuit,
     results_to_dict,
@@ -57,7 +58,7 @@ def devices():
 
 
 @pytest.fixture
-def chisquare_test_data():
+def chisquare_test_data() -> tuple[list[int], list[int], int, float]:
     noise_proba = 0.7
     shots = 1024
     alpha = 0.05
@@ -74,7 +75,7 @@ def chisquare_test_data():
     initial_state = [1, 0, 0, 0]
 
     # mpqp experiement
-    run_mpqp = run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    run_mpqp = _run_single(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR, {})
     mpqp_counts = run_mpqp.counts
 
     # theoretical experiement
@@ -128,32 +129,38 @@ def test_all_native_gates_local_noise(
     assert True
 
 
-def test_chisquare_expected_counts_calculation(chisquare_test_data):
+def test_chisquare_expected_counts_calculation(
+    chisquare_test_data: tuple[list[int], list[int], int, float]
+):
     mpqp_counts, theoretical_counts, shots, _ = chisquare_test_data
     result = chisquare_test(mpqp_counts, theoretical_counts, shots)
 
     theoretical_probabilities = [count / shots for count in theoretical_counts]
     expected_counts = [int(tp * shots) for tp in theoretical_probabilities]
 
-    assert result["expected_counts"] == expected_counts
+    assert result.expected_counts == expected_counts
 
 
-def test_chisquare_p_value_calculation(chisquare_test_data):
+def test_chisquare_p_value_calculation(
+    chisquare_test_data: tuple[list[int], list[int], int, float]
+):
     from scipy.stats import chisquare
 
     mpqp_counts, theoretical_counts, shots, _ = chisquare_test_data
     result = chisquare_test(mpqp_counts, theoretical_counts, shots)
 
-    _, expected_p_value = chisquare(mpqp_counts, result["expected_counts"])
-    assert result["p_value"] == expected_p_value
+    _, expected_p_value = chisquare(mpqp_counts, result.expected_counts)
+    assert result.p_value == expected_p_value
 
 
-def test_chisquare_significant(chisquare_test_data):
+def test_chisquare_significant(
+    chisquare_test_data: tuple[list[int], list[int], int, float]
+):
     mpqp_counts, theoretical_counts, shots, alpha = chisquare_test_data
 
     result = chisquare_test(mpqp_counts, theoretical_counts, shots, alpha)
 
-    assert result["p_value"] < alpha
+    assert result.p_value < alpha
 
 
 def test_chisquare_empty_counts():
@@ -163,7 +170,5 @@ def test_chisquare_empty_counts():
 
     result = chisquare_test(mpqp_counts, theoretical_counts, shots)
 
-    assert result["p_value"] == 1.0
-    assert not result[
-        "significant"
-    ], "Result should not be significant when empty counts"
+    assert result.p_value == 1.0
+    assert not result.significant, "Result should not be significant when empty counts"

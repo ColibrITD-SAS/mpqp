@@ -1,16 +1,27 @@
+from __future__ import annotations
+
 from collections import Counter
+from dataclasses import dataclass
+from typing import Any, Optional
 
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 from scipy.stats import chisquare
 
 from mpqp.all import *
+from mpqp.tools.generics import Matrix
 
 noise_proba = 0.7
 shots = 1024
 
+ElementalGate = tuple[Optional[str], list[int]]
+GatesMatrix = dict[Optional[str], Matrix]
 
-def process_qcircuit(circuit: QCircuit):
+
+def process_qcircuit(
+    circuit: QCircuit,
+) -> tuple[GatesMatrix, list[ElementalGate]]:
     gate_operations = [
         instr for instr in circuit.instructions if isinstance(instr, Gate)
     ]
@@ -20,7 +31,7 @@ def process_qcircuit(circuit: QCircuit):
     gates = [
         (
             (gate.label, gate.controls + gate.targets)
-            if gate.label == "CNOT"
+            if isinstance(gate, CNOT)
             else (gate.label, gate.targets)
         )
         for gate in gate_operations
@@ -29,7 +40,9 @@ def process_qcircuit(circuit: QCircuit):
     return gate_map, gates
 
 
-def apply_gate(state, gate, qubits, num_qubits):
+def apply_gate(
+    state: npt.NDArray[np.complex64], gate: Matrix, qubits: list[int], num_qubits: int
+):
 
     if len(qubits) == 1:
         qubit = qubits[0]
@@ -39,7 +52,6 @@ def apply_gate(state, gate, qubits, num_qubits):
         return gate_matrix @ state
     elif len(qubits) == 2:
         full_gate = np.eye(1 << num_qubits, dtype=complex)
-        control, target = qubits
         for i in range(1 << num_qubits):
             for j in range(1 << num_qubits):
                 bin_i = format(i, f"0{num_qubits}b")
@@ -55,15 +67,21 @@ def apply_gate(state, gate, qubits, num_qubits):
         raise ValueError("Only single-qubit and two-qubit gates are supported.")
 
 
-def depolarizing_noise(density_matrix, p):
+def depolarizing_noise(density_matrix: npt.NDArray[np.complex64], p: float):
     d = len(density_matrix)
     identity = np.eye(d)
     return (1 - p) * density_matrix + p / d * identity
 
 
-def run_experiment(initial_state, gates, gate_map, noise_proba, shots):
+def run_experiment(
+    initial_state: list[int] | npt.NDArray[np.float32],
+    gates: list[ElementalGate],
+    gate_map: GatesMatrix,
+    noise_proba: float,
+    shots: int,
+) -> list[str]:
     num_qubits = int(np.log2(len(initial_state)))
-    measurement_results = []
+    measurement_results: list[str] = []
 
     for _ in range(shots):
         state = np.array(initial_state, dtype=complex)
@@ -84,12 +102,14 @@ def run_experiment(initial_state, gates, gate_map, noise_proba, shots):
     return measurement_results
 
 
-def results_to_dict(measurement_results, num_qubits, shots):
+def results_to_dict(
+    measurement_results: list[str], num_qubits: int, shots: int
+) -> dict[str, int]:
     counter = Counter(measurement_results)
     max_value = max(map(int, counter.keys()))
     width = max(num_qubits, len(bin(max_value)) - 2)
 
-    results_dict = {}
+    results_dict: dict[str, int] = {}
     for x, count in counter.items():
         binary_str = format(int(x), f"0{width}b")
         results_dict[binary_str[-num_qubits:]] = count
@@ -98,14 +118,16 @@ def results_to_dict(measurement_results, num_qubits, shots):
     for state in results_dict:
         results_dict[state] = round(results_dict[state] * shots / total_counts)
 
-    max_count_state = max(results_dict, key=results_dict.get)
+    max_count_state: str = max(  # pyright: ignore[reportCallIssue]
+        results_dict, key=results_dict.get  # pyright: ignore[reportArgumentType]
+    )
     results_dict[max_count_state] += shots - sum(results_dict.values())
 
     sorted_results = sorted(results_dict.items(), key=lambda x: int(x[0], 2))
     return dict(sorted_results)
 
 
-def print_results(results_dict, num_qubits, shots):
+def print_results(results_dict: dict[str, int], num_qubits: int, shots: int):
     counts = [results_dict.get(f"{i:0{num_qubits}b}", 0) for i in range(2**num_qubits)]
     probabilities = [count / shots for count in counts]
 
@@ -120,7 +142,7 @@ def print_results(results_dict, num_qubits, shots):
         )
 
 
-def plot_results(measurement_results, num_qubits):
+def plot_results(measurement_results: list[str], num_qubits: int):
     results_dict = results_to_dict(measurement_results, num_qubits, shots)
 
     sorted_results = sorted(results_dict.items(), key=lambda x: int(x[0], 2))
@@ -137,24 +159,37 @@ def plot_results(measurement_results, num_qubits):
     plt.show()
 
 
-def chisquare_test(mpqp_counts, theoretical_counts, shots, alpha=0.05):
+def chisquare_test(
+    mpqp_counts: list[int],
+    theoretical_counts: list[int],
+    shots: int,
+    alpha: float = 0.05,
+) -> ChisquareResult:
 
     if not mpqp_counts or not theoretical_counts:
-        return {
-            "expected_counts": [],
-            "chisquare_stat": np.nan,
-            "p_value": 1.0,
-            "significant": False,
-        }
+        return ChisquareResult(
+            expected_counts=[],
+            chisquare_stat=np.nan,
+            p_value=1.0,
+            significant=False,
+        )
 
     theoretical_probabilities = [count / shots for count in theoretical_counts]
     expected_counts = [int(tp * shots) for tp in theoretical_probabilities]
 
     chisquare_stat, p_value = chisquare(mpqp_counts, expected_counts)
 
-    return {
-        "expected_counts": expected_counts,
-        "chisquare_stat": chisquare_stat,
-        "p_value": p_value,
-        "significant": p_value < alpha,
-    }
+    return ChisquareResult(
+        expected_counts=expected_counts,
+        chisquare_stat=chisquare_stat,
+        p_value=p_value,
+        significant=p_value < alpha,
+    )
+
+
+@dataclass
+class ChisquareResult:
+    expected_counts: list[int]
+    chisquare_stat: Any
+    p_value: float
+    significant: bool
