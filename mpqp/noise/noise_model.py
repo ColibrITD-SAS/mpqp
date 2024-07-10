@@ -351,7 +351,9 @@ class AmplitudeDamping(NoiseModel):
         >>> circuit = QCircuit([H(i) for i in range(3)])
         >>> ad1 = AmplitudeDamping(0.2, 0, [0])
         >>> ad2 = AmplitudeDamping(0.4, 0.1, [1, 2])
-        >>> circuit.add([ad1, ad2])
+        >>> ad3 = AmplitudeDamping(0.1, 1, [0, 1, 2])
+        >>> ad4 = AmplitudeDamping(0.7, targets=[0, 1])
+        >>> circuit.add([ad1, ad2, ad3, ad4])
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -363,6 +365,8 @@ class AmplitudeDamping(NoiseModel):
         NoiseModel:
             AmplitudeDamping(gamma=0.2, prob=0, targets=[0])
             AmplitudeDamping(gamma=0.4, prob=0.1, targets=[1, 2])
+            AmplitudeDamping(gamma=0.1, prob=1, targets=[0, 1, 2])
+            AmplitudeDamping(gamma=0.7, prob=1, targets=[0, 1])
 
     """
 
@@ -410,15 +414,20 @@ class AmplitudeDamping(NoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_ad = AmplitudeDamping(0.2, 0, [1]).to_other_language(Language.BRAKET)
+            >>> braket_ad = AmplitudeDamping(0.4, 1, [0, 1]).to_other_language(Language.BRAKET)
             >>> braket_ad
-            AmplitudeDamping('gamma': 0.2, 'qubit_count': 1)
+            AmplitudeDamping('gamma': 0.4, 'qubit_count': 1)
             >>> type(braket_ad)
             <class 'braket.circuits.noises.AmplitudeDamping'>
-            >>> braket_gad = AmplitudeDamping(0.15, 0.2, [0]).to_other_language(Language.BRAKET)
-            >>> braket_gad
+            >>> braket_gad1 = AmplitudeDamping(0.2, 0, [1]).to_other_language(Language.BRAKET)
+            >>> braket_gad1
+            GeneralizedAmplitudeDamping('gamma': 0.2, 'probability': 0.0, 'qubit_count': 1)
+            >>> type(braket_gad1)
+            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
+            >>> braket_gad2 = AmplitudeDamping(0.15, 0.2, [0]).to_other_language(Language.BRAKET)
+            >>> braket_gad2
             GeneralizedAmplitudeDamping('gamma': 0.15, 'probability': 0.2, 'qubit_count': 1)
-            >>> type(braket_gad)
+            >>> type(braket_gad2)
             <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
 
         """
