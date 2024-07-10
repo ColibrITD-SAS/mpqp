@@ -12,6 +12,5 @@ __pycache__/
 .dockerenv
 .env
 .idea/
-.vs/
 examples/notebooks/latex_error.log
 examples/scripts/qasm_files/test_qasm_converted.inc
