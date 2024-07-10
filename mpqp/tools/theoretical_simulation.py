@@ -31,7 +31,7 @@ def process_qcircuit(
     gates = [
         (
             (gate.label, gate.controls + gate.targets)
-            if isinstance(gate, CNOT)
+            if isinstance(gate, ControlledGate)
             else (gate.label, gate.targets)
         )
         for gate in gate_operations
