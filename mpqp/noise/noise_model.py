@@ -432,7 +432,7 @@ class AmplitudeDamping(NoiseModel):
             else:
                 from braket.circuits.noises import GeneralizedAmplitudeDamping
 
-                return GeneralizedAmplitudeDamping(self.gamma, self.prob)
+                return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
         # TODO: MY_QLM implmentation
 
