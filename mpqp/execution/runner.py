@@ -18,6 +18,7 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from numbers import Complex
 from textwrap import indent
 from typing import Iterable, Optional, Union
@@ -44,7 +45,7 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.google import run_google
-from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
+from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -290,11 +291,16 @@ def run(
     if values is None:
         values = {}
 
+    def namer(circ: QCircuit, i: int):
+        circ = deepcopy(circ)
+        circ.label = f"circuit {i}" if circ.label is None else circ.label
+        return circ
+
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
             [
-                _run_single(circ, dev, values, display_breakpoints)
-                for circ in flatten(circuit)
+                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
+                for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
@@ -344,7 +350,7 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        job_id, _ = submit_ibmq(job)
+        job_id, _ = submit_remote_ibm(job)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):

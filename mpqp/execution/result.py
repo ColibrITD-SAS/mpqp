@@ -34,7 +34,7 @@ from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array
 from mpqp.tools.errors import ResultAttributeError
 
-from .job import Job, JobType
+from  mpqp.execution import Job, JobType
 
 
 @typechecked
@@ -424,7 +424,7 @@ class Result:
         plt.xlabel("State")
         plt.ylabel("Counts")
         device = self.job.device
-        plt.title(type(device).__name__ + "\n" + device.name)
+        plt.title(f"{self.job.circuit.label}, {type(device).__name__}\n{device.name}")
 
         if show:
             plt.show()
