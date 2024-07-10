@@ -20,7 +20,7 @@ from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.noise.noise_model import NoiseModel
+from mpqp.noise.noise_model import BitFlip, NoiseModel
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
 
 
@@ -61,26 +61,59 @@ def apply_noise_to_braket_circuit(
     for noise in noises:
         braket_noise = noise.to_other_language(Language.BRAKET)
         assert isinstance(braket_noise, Noise)
+
         if CRk in noise.gates:
             raise NotImplementedError(
                 "Cannot simulate noisy circuit with CRk gate due to an error on"
                 " AWS Braket side."
             )
-        noisy_circuit.apply_gate_noise(
-            braket_noise,  # pyright: ignore[reportArgumentType]
-            target_gates=(
-                [
-                    gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
-                    for gate in noise.gates
-                    if hasattr(gate, "braket_gate")
-                ]
-                if len(noise.gates) != 0
-                else None
-            ),
-            target_qubits=(
-                noise.targets if set(noise.targets) != set(range(nb_qubits)) else None
-            ),
-        )
+
+        if isinstance(noise, BitFlip):
+            if noise.gates:
+                for gate in noise.gates:
+                    if gate.nb_qubits > 1:
+                        for idx in noise.connections():
+                            noisy_circuit.apply_gate_noise(
+                                braket_noise,
+                                target_gates=(
+                                    [gate.braket_gate]
+                                    if hasattr(gate, "braket_gate")
+                                    else None
+                                ),
+                                target_qubits=[idx],
+                            )
+                    else:
+                        noisy_circuit.apply_gate_noise(
+                            braket_noise,
+                            target_gates=(
+                                [gate.braket_gate]
+                                if hasattr(gate, "braket_gate")
+                                else None
+                            ),
+                            target_qubits=(
+                                noise.targets
+                                if set(noise.targets) != set(range(nb_qubits))
+                                else None
+                            ),
+                        )
+        else:
+            noisy_circuit.apply_gate_noise(
+                braket_noise,  # pyright: ignore[reportArgumentType]
+                target_gates=(
+                    [
+                        gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
+                        for gate in noise.gates
+                        if hasattr(gate, "braket_gate")
+                    ]
+                    if len(noise.gates) != 0
+                    else None
+                ),
+                target_qubits=(
+                    noise.targets
+                    if set(noise.targets) != set(range(nb_qubits))
+                    else None
+                ),
+            )
 
     return noisy_circuit
 

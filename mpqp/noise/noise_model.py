@@ -205,10 +205,18 @@ class Depolarizing(NoiseModel):
 
     def __repr__(self):
         target = ", " + str(self.targets) if len(self.targets) != 0 else ""
-        dimension = f", {'dimension=' if not target else ''}" + str(self.dimension) if self.dimension != 1 else ""
+        dimension = (
+            f", {'dimension=' if not target else ''}" + str(self.dimension)
+            if self.dimension != 1
+            else ""
+        )
         return (
             f"{type(self).__name__}({self.proba}{target}{dimension}"
-            + (f", {'gates=' if not target or not dimension else ''}" + str(self.gates) if len(self.gates) != 0 else "")
+            + (
+                f", {'gates=' if not target or not dimension else ''}" + str(self.gates)
+                if len(self.gates) != 0
+                else ""
+            )
             + ")"
         )
 
@@ -329,10 +337,6 @@ class BitFlip(NoiseModel):
             raise ValueError(
                 f"Invalid probability: {prob} but should be between 0 and 0.5"
             )
-
-        if gates is not None:
-            if any(gate.nb_qubits != 1 for gate in gates):
-                raise ValueError("BitFlip noise is only valid for single-qubit gates.")
 
         nb_targets = len(targets)
         if nb_targets < 1:
