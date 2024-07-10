@@ -205,10 +205,18 @@ class Depolarizing(NoiseModel):
 
     def __repr__(self):
         target = ", " + str(self.targets) if len(self.targets) != 0 else ""
-        dimension = f", {'dimension=' if not target else ''}" + str(self.dimension) if self.dimension != 1 else ""
+        dimension = (
+            f", {'dimension=' if not target else ''}" + str(self.dimension)
+            if self.dimension != 1
+            else ""
+        )
         return (
             f"{type(self).__name__}({self.proba}{target}{dimension}"
-            + (f", {'gates=' if not target or not dimension else ''}" + str(self.gates) if len(self.gates) != 0 else "")
+            + (
+                f", {'gates=' if not target or not dimension else ''}" + str(self.gates)
+                if len(self.gates) != 0
+                else ""
+            )
             + ")"
         )
 
@@ -330,7 +338,7 @@ class AmplitudeDamping(NoiseModel):
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
         prob: Probability of excitation in the generalized amplitude damping noise channel
-            When set to 0, indicating standard amplitude damping.
+            When set to 1, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
         gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
             affected by this noise.
@@ -361,7 +369,7 @@ class AmplitudeDamping(NoiseModel):
     def __init__(
         self,
         gamma: float,
-        prob: float,
+        prob: float = 1,
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -415,7 +423,7 @@ class AmplitudeDamping(NoiseModel):
 
         """
         if language == Language.BRAKET:
-            if self.prob == 0:
+            if self.prob == 1:
                 from braket.circuits.noises import (
                     AmplitudeDamping as BraketAmplitudeDamping,
                 )
