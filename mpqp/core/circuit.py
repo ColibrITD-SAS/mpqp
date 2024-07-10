@@ -900,6 +900,7 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
+                    # We reverse twice the qubits to pass the unitary in the usual qubit ordering
                     new_circ = new_circ.reverse_bits()
                     new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
                         instruction.to_other_language(),
@@ -1035,8 +1036,14 @@ class QCircuit:
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
 
-        from qiskit import qasm2
-
+        from qiskit import qasm2, transpile
+        gp = transpile(qiskit_circ, basis_gates=['u', 'cx']).global_phase
+        if gp != 0.0:
+            # Apply double succession of Phase and Y gate to the first qubit to add a global phase on the circuit
+            qiskit_circ.p(-gp, 0)
+            qiskit_circ.y(0)
+            qiskit_circ.p(-gp, 0)
+            qiskit_circ.y(0)
         qasm_str = qasm2.dumps(qiskit_circ)
         return qasm_str
 
