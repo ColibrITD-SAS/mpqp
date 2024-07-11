@@ -265,7 +265,7 @@ class QCircuit:
             c: 4/══════╩══╩═════╩══╩═
                        0  1     2  3
             NoiseModel:
-                Depolarizing(0.01, [all], 1)
+                Depolarizing(0.01, [all])
             >>> circuit2.nb_qubits = 3
             >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐┌─┐    ░ ┌─┐
@@ -278,7 +278,7 @@ class QCircuit:
             c: 6/══╩═══╩══╩═════╩══╩══╩═
                    2   0  1     3  4  5
             NoiseModel:
-                Depolarizing(0.01, [all], 1)
+                Depolarizing(0.01, [all])
         """
         qcircuit = deepcopy(self)
 
@@ -309,7 +309,8 @@ class QCircuit:
                         if qcircuit.nb_cbits is None:
                             qcircuit.nb_cbits = 0
                         instruction.c_targets = [
-                            qcircuit.nb_cbits + i for i in range(len(instruction.targets))
+                            qcircuit.nb_cbits + i
+                            for i in range(len(instruction.targets))
                         ]
                         qcircuit.nb_cbits += self.nb_qubits
                     if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
@@ -803,7 +804,7 @@ class QCircuit:
                  └───┘ ║ └╥┘
             c: 2/══════╩══╩═
                        0  1
-            NoiseModel: Depolarizing(0.4, [0, 1], 1)
+            NoiseModel: Depolarizing(0.4, [0, 1])
             >>> print(circuit.without_noises())  # doctest: +NORMALIZE_WHITESPACE
                       ┌─┐
             q_0: ──■──┤M├───
