@@ -146,9 +146,9 @@ class Depolarizing(NoiseModel):
              └───┘
         NoiseModel:
             Depolarizing(0.32, [0, 1, 2])
-            Depolarizing(0.01)
+            Depolarizing(0.01, [all])
             Depolarizing(0.05, [0, 1], 2)
-            Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+            Depolarizing(0.12, [2], [H, Rx, Ry, Rz])
             Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
 
     """
@@ -205,10 +205,26 @@ class Depolarizing(NoiseModel):
 
     def __repr__(self):
         target = ", " + str(self.targets) if len(self.targets) != 0 else ""
-        dimension = f", {'dimension=' if not target else ''}" + str(self.dimension) if self.dimension != 1 else ""
+        dimension = (
+            f", {'dimension=' if not target else ''}" + str(self.dimension)
+            if self.dimension != 1
+            else ""
+        )
         return (
             f"{type(self).__name__}({self.proba}{target}{dimension}"
-            + (f", {'gates=' if not target or not dimension else ''}" + str(self.gates) if len(self.gates) != 0 else "")
+            + (
+                f", {'gates=' if not target or not dimension else ''}" + str(self.gates)
+                if len(self.gates) != 0
+                else ""
+            )
+            + ")"
+        )
+
+    def __str__(self):
+        return (
+            f"{type(self).__name__}({self.proba}, {self.targets if len(self.targets) != 0 else '[all]'}"
+            + (", " + str(self.dimension) if self.dimension != 1 else "")
+            + (", " + str(self.gates) if self.gates else "")
             + ")"
         )
 
