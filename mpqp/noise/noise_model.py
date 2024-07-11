@@ -210,11 +210,6 @@ class Depolarizing(NoiseModel):
             if self.dimension != 1
             else ""
         )
-        dimension = (
-            f", {'dimension=' if not target else ''}" + str(self.dimension)
-            if self.dimension != 1
-            else ""
-        )
         return (
             f"{type(self).__name__}({self.proba}{target}{dimension}"
             + (
@@ -351,18 +346,25 @@ class BitFlip(NoiseModel):
                 f"Invalid probability: {prob} but should be between 0 and 0.5"
             )
 
-        nb_targets = len(targets)
-        if nb_targets < 1:
-            raise ValueError("Number of target qubits should be at least 1")
-
         super().__init__(targets, gates)
-        self.prob = prob
+        self.proba = prob
         """Probability, or error rate, of the bit-flip noise model."""
 
     def __repr__(self):
+        target = ", targets=" + str(self.targets) if self.targets else ""
         return (
-            f"{type(self).__name__}(prob={self.prob}, targets={self.targets}"
+            f"{type(self).__name__}(prob={self.proba}{target}"
             + (", gates=" + str(self.gates) if self.gates else "")
+            + ")"
+        )
+
+    def __str__(self):
+        targets_str = (
+            str(self.targets) if self.targets and len(self.targets) != 0 else "[all]"
+        )
+        return (
+            f"{type(self).__name__}({self.proba}, {targets_str}"
+            + (", " + str(self.gates) if self.gates else "")
             + ")"
         )
 
@@ -386,7 +388,7 @@ class BitFlip(NoiseModel):
         if language == Language.BRAKET:
             from braket.circuits.noises import BitFlip as BraketBitFlip
 
-            return BraketBitFlip(probability=self.prob)
+            return BraketBitFlip(probability=self.proba)
 
         # TODO: MY_QLM implementation
 
