@@ -297,6 +297,7 @@ class Depolarizing(NoiseModel):
             )
 
 
+@typechecked
 class BitFlip(NoiseModel):
     """Class representing the bit flip noise channel, which flips the state of
     a qubit with a certain probability. It can be applied to single and multi-qubit gates
