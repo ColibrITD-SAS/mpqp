@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING
 
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 
-
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
     from cirq.study.result import Result as CirqResult
@@ -46,10 +45,10 @@ def run_google_remote(job: Job) -> Result:
     IonQ devices are supported.
 
     Args:
-        job: job to be executed.
+        job: Job to be executed, it MUST be associated to a cirq device.
 
     Returns:
-        Result: The result after submission and execution of the job.
+        The result after submission and execution of the job.
 
     Raises:
         ValueError: If the job's device is not an instance of GOOGLEDevice.
@@ -65,7 +64,8 @@ def run_google_remote(job: Job) -> Result:
     )
     from cirq_ionq.ionq_gateset import IonQTargetGateset
 
-    assert type(job.device) == GOOGLEDevice
+    if TYPE_CHECKING:
+        assert type(job.device) == GOOGLEDevice
 
     job_CirqCircuit = job.circuit.to_other_language(Language.CIRQ)
     assert isinstance(job_CirqCircuit, CirqCircuit)
@@ -104,14 +104,13 @@ def run_google_remote(job: Job) -> Result:
 
 @typechecked
 def run_local(job: Job) -> Result:
-    """
-    Executes the job locally.
+    """Executes the job locally.
 
     Args:
-        job : The job to be executed.
+        job : Job to be executed, it MUST be associated to a cirq device.
 
     Returns:
-        Result: The result after submission and execution of the job.
+        The result after submission and execution of the job.
 
     Raises:
         ValueError: If the job device is not GOOGLEDevice.
@@ -125,7 +124,8 @@ def run_local(job: Job) -> Result:
         measure_observables,
     )
 
-    assert type(job.device) == GOOGLEDevice
+    if TYPE_CHECKING:
+        assert type(job.device) == GOOGLEDevice
 
     if job.device.is_processor():
         return run_local_processor(job)
@@ -183,14 +183,13 @@ def run_local(job: Job) -> Result:
 
 @typechecked
 def run_local_processor(job: Job) -> Result:
-    """
-    Executes the job locally on processor.
+    """Executes the job locally on processor.
 
     Args:
-        job : The job to be executed.
+        job : Job to be executed, it MUST be associated to a cirq device.
 
     Returns:
-        Result: The result after submission and execution of the job.
+        The result after submission and execution of the job.
     """
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
@@ -201,7 +200,8 @@ def run_local_processor(job: Job) -> Result:
     )
     from qsimcirq.qsim_simulator import QSimSimulator
 
-    assert type(job.device) == GOOGLEDevice
+    if TYPE_CHECKING:
+        assert type(job.device) == GOOGLEDevice
 
     calibration = load_median_device_calibration(job.device.value)
     device = create_device_from_processor_id(job.device.value)
@@ -252,15 +252,14 @@ def extract_result_SAMPLE(
     result: CirqResult,
     job: Job,
 ) -> Result:
-    """
-    Extracts the result from a sample-based job.
+    """Extracts the result from a sample-based job.
 
     Args:
         result : The result of the simulation.
         job : The original job.
 
     Returns:
-        Result: The formatted result.
+        The formatted result.
     """
     nb_qubits = job.circuit.nb_qubits
 
@@ -284,15 +283,14 @@ def extract_result_STATE_VECTOR(
     result: StateVectorTrialResult,
     job: Job,
 ) -> Result:
-    """
-    Extracts the result from a state vector-based job.
+    """Extracts the result from a state vector-based job.
 
     Args:
         result : The result of the simulation.
         job : The original job.
 
     Returns:
-        Result: The formatted result.
+        The formatted result.
     """
     from cirq.value.probability import state_vector_to_probabilities
 
@@ -316,7 +314,7 @@ def extract_result_OBSERVABLE_ideal(
 
     Note:
         for some reason, the values we retrieve from cirq are not always float,
-        but sometimes are complex. This is likely due to numerical aproximation
+        but sometimes are complex. This is likely due to numerical approximation
         since the complex part is always extremely small, so we just remove it,
         but this might result in slightly unexpected results.
 
@@ -325,7 +323,7 @@ def extract_result_OBSERVABLE_ideal(
         job : The original job.
 
     Returns:
-        Result: The formatted result.
+        The formatted result.
     """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
@@ -336,19 +334,20 @@ def extract_result_OBSERVABLE_shot_noise(
     results: list[ObservableMeasuredResult],
     job: Job,
 ) -> Result:
-    """
-    Extracts the result from an observable-based job.
+    """Extracts the result from an observable-based job.
 
     Args:
         result : The result of the simulation.
         job : The original job.
 
     Returns:
-        Result: The formatted result.
+        The formatted result.
     """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    pauli_mono = PauliString.from_other_languages([r.observable for r in results], job.measure.nb_qubits)
+    pauli_mono = PauliString.from_other_languages(
+        [r.observable for r in results], job.measure.nb_qubits
+    )
     assert isinstance(pauli_mono, list) and all(
         isinstance(item, PauliString) for item in pauli_mono
     )
