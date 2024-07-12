@@ -45,7 +45,8 @@ def run_google_remote(job: Job) -> Result:
     IonQ devices are supported.
 
     Args:
-        job: Job to be executed, it MUST be associated to a cirq device.
+        job: Job to be executed, it MUST be corresponding to a
+            :class:`mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
         The result after submission and execution of the job.
@@ -56,6 +57,12 @@ def run_google_remote(job: Job) -> Result:
             devices are supported currently).
         NotImplementedError: If the job type or basis measure is not supported.
     """
+    if not isinstance(job.device, GOOGLEDevice):
+        raise ValueError(
+            "`job` must correspond to an `GOOGLEDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+
     import cirq_ionq as ionq
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.devices.line_qubit import LineQubit
@@ -63,9 +70,6 @@ def run_google_remote(job: Job) -> Result:
         optimize_for_target_gateset,
     )
     from cirq_ionq.ionq_gateset import IonQTargetGateset
-
-    if TYPE_CHECKING:
-        assert type(job.device) == GOOGLEDevice
 
     job_CirqCircuit = job.circuit.to_other_language(Language.CIRQ)
     assert isinstance(job_CirqCircuit, CirqCircuit)
@@ -107,7 +111,8 @@ def run_local(job: Job) -> Result:
     """Executes the job locally.
 
     Args:
-        job : Job to be executed, it MUST be associated to a cirq device.
+        job : Job to be executed, it MUST be corresponding to a
+            :class:`mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
         The result after submission and execution of the job.
@@ -115,6 +120,12 @@ def run_local(job: Job) -> Result:
     Raises:
         ValueError: If the job device is not GOOGLEDevice.
     """
+    if not isinstance(job.device, GOOGLEDevice):
+        raise ValueError(
+            "`job` must correspond to an `GOOGLEDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.sim.sparse_simulator import Simulator
@@ -122,9 +133,6 @@ def run_local(job: Job) -> Result:
         RepetitionsStoppingCriteria,
         measure_observables,
     )
-
-    if TYPE_CHECKING:
-        assert type(job.device) == GOOGLEDevice
 
     if job.device.is_processor():
         return run_local_processor(job)
@@ -184,11 +192,18 @@ def run_local_processor(job: Job) -> Result:
     """Executes the job locally on processor.
 
     Args:
-        job : Job to be executed, it MUST be associated to a cirq device.
+        job : Job to be executed, it MUST be corresponding to a
+            :class:`mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
         The result after submission and execution of the job.
     """
+    if not isinstance(job.device, GOOGLEDevice):
+        raise ValueError(
+            "`job` must correspond to an `GOOGLEDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
     from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
@@ -197,9 +212,6 @@ def run_local_processor(job: Job) -> Result:
         load_median_device_calibration,
     )
     from qsimcirq.qsim_simulator import QSimSimulator
-
-    if TYPE_CHECKING:
-        assert type(job.device) == GOOGLEDevice
 
     calibration = load_median_device_calibration(job.device.value)
     device = create_device_from_processor_id(job.device.value)
@@ -216,11 +228,9 @@ def run_local_processor(job: Job) -> Result:
     )
     simulator = SimulatedLocalEngine([sim_processor])
 
-    job_CirqCircuit = job.circuit.to_other_language(
-        Language.CIRQ, cirq_proc_id=job.device.value
-    )
+    cirq_circuit = job.circuit.to_other_language(Language.CIRQ, job.device.value)
     if TYPE_CHECKING:
-        assert isinstance(job_CirqCircuit, CirqCircuit)
+        assert isinstance(cirq_circuit, CirqCircuit)
 
     if job.job_type == JobType.STATE_VECTOR:
         raise NotImplementedError(
@@ -235,7 +245,7 @@ def run_local_processor(job: Job) -> Result:
         if isinstance(job.measure.basis, ComputationalBasis):
             return extract_result_SAMPLE(
                 simulator.get_sampler(job.device.value).run(
-                    job_CirqCircuit, repetitions=job.measure.shots
+                    cirq_circuit, repetitions=job.measure.shots
                 ),
                 job,
             )
