@@ -328,9 +328,9 @@ class BitFlip(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            BitFlip(prob=0.1, targets=[0])
-            BitFlip(prob=0.3, targets=[1, 2])
-            BitFlip(prob=0.05, targets=[0], gates=[H])
+            BitFlip(0.1, [0])
+            BitFlip(0.3, [1, 2])
+            BitFlip(0.05, [0], [H])
 
     """
 
