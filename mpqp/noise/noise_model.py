@@ -299,19 +299,18 @@ class Depolarizing(NoiseModel):
 
 class BitFlip(NoiseModel):
     """Class representing the bit flip noise channel, which flips the state of
-    a qubit with a certain probability. It can be applied to single-qubit gates
+    a qubit with a certain probability. It can be applied to single and multi-qubit gates
     and depends on a single parameter (probability or error rate).
 
     Args:
         prob: Bit flip error probability or error rate (must be within [0, 0.5]).
         targets: List of qubit indices affected by this noise.
         gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
-            affected by this noise. Only single-qubit gates are valid.
+            affected by this noise. If multi-qubit gates is passed, single-qubit
+            bitflip will be added for each qubit connected (target, control) with the gates.
 
     Raises:
         ValueError: When the probability is outside of the expected interval [0, 0.5].
-        ValueError: When no target qubits are specified.
-        ValueError: When the specified gates are not single-qubit gates.
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
