@@ -59,8 +59,8 @@ class ControlledGate(Gate, ABC):
         target -= min_
 
         nb_qubit = abs(control - target) + 1
-        zero = np.array([[1, 0], [0, 0]])
-        one = np.array([[0, 0], [0, 1]])
+        zero = np.diag([1, 0])
+        one = np.diag([0, 1])
         I2 = np.eye(2)
 
         control_matrix = zero if control == 0 else I2
@@ -86,11 +86,13 @@ class ControlledGate(Gate, ABC):
             else:
                 control_matrix = np.kron(control_matrix, I2)
 
-        return control_matrix + target_matrix
+        return control_matrix + target_matrix  # pyright: ignore[reportReturnType]
 
     def _multi_control_gate_to_matrix(self) -> Matrix:
-        import numpy as np
         import math
+
+        import numpy as np
+
         from mpqp.core.instruction.gates.native_gates import SWAP
 
         I2 = np.eye(2)
