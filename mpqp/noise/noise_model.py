@@ -336,7 +336,6 @@ class AmplitudeDamping(NoiseModel):
 
     Raises:
         ValueError: When the gamma or prob parameters are outside of the expected interval [0, 1].
-        ValueError: When no target qubits are specified.
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
