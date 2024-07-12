@@ -337,6 +337,7 @@ class PhaseFlip(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
+@typechecked
 class AmplitudeDamping(NoiseModel):
     """Class representing the amplitude damping noise channel, which can model both
     the standard and generalized amplitude damping processes. It can be applied
@@ -395,21 +396,28 @@ class AmplitudeDamping(NoiseModel):
                 f"Invalid excitation probability: {prob}. It should be between 0 and 1."
             )
 
-        nb_targets = len(targets) if targets else 0
-        if nb_targets < 1:
-            raise ValueError("Number of target qubits should be at least 1.")
-
         super().__init__(targets, gates)
-
         self.gamma = gamma
         """Decaying rate, of the amplitude damping noise channel."""
-        self.prob = prob
+        self.proba = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
     def __repr__(self):
+        target = ", targets=" + str(self.targets) if len(self.targets) != 0 else ""
         return (
-            f"{type(self).__name__}(gamma={self.gamma}, prob={self.prob}, targets={self.targets}"
+            f"{type(self).__name__}(gamma={self.gamma}, prob={self.proba}"
+            + target
             + (", gates=" + str(self.gates) if self.gates else "")
+            + ")"
+        )
+
+    def __str__(self):
+        targets_str = (
+            str(self.targets) if self.targets and len(self.targets) != 0 else "[all]"
+        )
+        return (
+            f"{type(self).__name__}({self.gamma}, {self.proba}, {targets_str}"
+            + (", " + str(self.gates) if self.gates else "")
             + ")"
         )
 
@@ -440,7 +448,7 @@ class AmplitudeDamping(NoiseModel):
 
         """
         if language == Language.BRAKET:
-            if self.prob == 1:
+            if self.proba == 1:
                 from braket.circuits.noises import (
                     AmplitudeDamping as BraketAmplitudeDamping,
                 )
@@ -449,7 +457,7 @@ class AmplitudeDamping(NoiseModel):
             else:
                 from braket.circuits.noises import GeneralizedAmplitudeDamping
 
-                return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
+                return GeneralizedAmplitudeDamping(self.gamma, float(self.proba))
 
         # TODO: MY_QLM implmentation
 
