@@ -319,24 +319,6 @@ class BitFlip(NoiseModel):
         ...
 
 
-class Pauli(NoiseModel):
-    """3M-TODO"""
-
-    def to_kraus_representation(self) -> KrausRepresentation: ...
-
-
-class Dephasing(NoiseModel):
-    """3M-TODO"""
-
-    def to_kraus_representation(self) -> KrausRepresentation: ...
-
-
-class PhaseFlip(NoiseModel):
-    """3M-TODO"""
-
-    def to_kraus_representation(self) -> KrausRepresentation: ...
-
-
 @typechecked
 class AmplitudeDamping(NoiseModel):
     """Class representing the amplitude damping noise channel, which can model both
@@ -470,6 +452,24 @@ class AmplitudeDamping(NoiseModel):
 
 
 class PhaseDamping(NoiseModel):
+    """3M-TODO"""
+
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
+
+class Pauli(NoiseModel):
+    """3M-TODO"""
+
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
+
+class Dephasing(NoiseModel):
+    """3M-TODO"""
+
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
+
+class PhaseFlip(NoiseModel):
     """3M-TODO"""
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
