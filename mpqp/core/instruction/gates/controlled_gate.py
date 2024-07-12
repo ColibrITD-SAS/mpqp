@@ -158,3 +158,14 @@ class ControlledGate(Gate, ABC):
                 )
 
         return matrix.dot(canonical_matrix).dot(matrix)
+
+
+# peudo algo for multi control g to m
+# input: gate, nb_qubits
+
+# blank_qubits = nb_qubits - gate.nb_qubits
+# result = gate.canonical_matrix() @ np.eye(2^blank_qubits)
+# swaps = []
+# for canonical_index, actual_index in enumerate(gate.controls + gate.targets):
+#     swaps.append(SWAP(canonical_index, actual_index).to_matrix(nb_qubits))
+# return reduce(np.dot, swaps + [result] + swaps[::-1])
