@@ -116,7 +116,6 @@ def run_local(job: Job) -> Result:
         ValueError: If the job device is not GOOGLEDevice.
     """
     from cirq.circuits.circuit import Circuit as CirqCircuit
-    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.sim.sparse_simulator import Simulator
     from cirq.work.observable_measurement import (
@@ -154,7 +153,6 @@ def run_local(job: Job) -> Result:
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
-        assert isinstance(cirq_obs, (CirqPauliSum, CirqPauliString))
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
@@ -221,7 +219,8 @@ def run_local_processor(job: Job) -> Result:
     job_CirqCircuit = job.circuit.to_other_language(
         Language.CIRQ, cirq_proc_id=job.device.value
     )
-    assert isinstance(job_CirqCircuit, CirqCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.job_type == JobType.STATE_VECTOR:
         raise NotImplementedError(
@@ -345,12 +344,10 @@ def extract_result_OBSERVABLE_shot_noise(
     """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    pauli_mono = PauliString.from_other_languages(
+    pauli_mono = PauliString.from_other_language(
         [r.observable for r in results], job.measure.nb_qubits
     )
-    assert isinstance(pauli_mono, list) and all(
-        isinstance(item, PauliString) for item in pauli_mono
-    )
+    assert isinstance(pauli_mono, list)
     variances = {pm: r.variance for pm, r in zip(pauli_mono, results)}
     return Result(
         job,
