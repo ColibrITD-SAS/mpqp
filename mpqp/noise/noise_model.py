@@ -297,26 +297,107 @@ class Depolarizing(NoiseModel):
             )
 
 
+@typechecked
 class BitFlip(NoiseModel):
-    """3M-TODO"""
+    """Class representing the bit flip noise channel, which flips the state of
+    a qubit with a certain probability. It can be applied to single and multi-qubit gates
+    and depends on a single parameter (probability or error rate).
 
-    # def __init__(
-    #     self,
-    #     proba: Union[float, Expr],
-    #     targets: List[int],
-    #     dimension: int = 1,
-    #     gates: List[Gate] = None):
+    Args:
+        prob: Bit flip error probability or error rate (must be within [0, 0.5]).
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise. If multi-qubit gates is passed, single-qubit
+            bitflip will be added for each qubit connected (target, control) with the gates.
 
-    #     super().__init__(proba, targets, dimension, gates)
+    Raises:
+        ValueError: When the probability is outside of the expected interval [0, 0.5].
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        # generate Kraus operators for bit flip noise
-        # kraus_operators = [
-        #     np.sqrt(1 - self.proba) * np.array([[1, 0], [0, 1]]),  # Identity
-        #     np.sqrt(self.proba) * np.array([[0, 1], [1, 0]])      # Bit flip
-        # ]
-        # return KrausRepresentation(kraus_operators)
-        ...
+    Examples:
+        >>> circuit = QCircuit([H(i) for i in range(3)])
+        >>> bf1 = BitFlip(0.1, [0])
+        >>> bf2 = BitFlip(0.3, [1, 2])
+        >>> bf3 = BitFlip(0.05, [0], gates=[H])
+        >>> circuit.add([bf1, bf2, bf3])
+        >>> print(circuit)
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            BitFlip(0.1, [0])
+            BitFlip(0.3, [1, 2])
+            BitFlip(0.05, [0], [H])
+
+    """
+
+    def __init__(
+        self,
+        prob: float,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[Gate]]] = None,
+    ):
+
+        if not (0 <= prob <= 0.5):
+            raise ValueError(
+                f"Invalid probability: {prob} but should be between 0 and 0.5"
+            )
+
+        super().__init__(targets, gates)
+        self.proba = prob
+        """Probability, or error rate, of the bit-flip noise model."""
+
+    def __repr__(self):
+        target = ", targets=" + str(self.targets) if self.targets else ""
+        return (
+            f"{type(self).__name__}(prob={self.proba}{target}"
+            + (", gates=" + str(self.gates) if self.gates else "")
+            + ")"
+        )
+
+    def __str__(self):
+        targets_str = (
+            str(self.targets) if self.targets and len(self.targets) != 0 else "[all]"
+        )
+        return (
+            f"{type(self).__name__}({self.proba}, {targets_str}"
+            + (", " + str(self.gates) if self.gates else "")
+            + ")"
+        )
+
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> BraketNoise | QLMNoise:
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
+
+        Args:
+            language: Enum representing the target language.
+
+        Examples:
+            >>> braket_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET)
+            >>> braket_bitflip
+            BitFlip('probability': 0.3, 'qubit_count': 1)
+            >>> type(braket_bitflip)
+            <class 'braket.circuits.noises.BitFlip'>
+
+        """
+
+        if language == Language.BRAKET:
+            from braket.circuits.noises import BitFlip as BraketBitFlip
+
+            return BraketBitFlip(probability=self.proba)
+
+        # TODO: MY_QLM implementation
+
+        else:
+            raise NotImplementedError(
+                f"Conversion of BitFlip noise for language {language.name} is not supported"
+            )
+
+    def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
 @typechecked
