@@ -273,9 +273,7 @@ class Depolarizing(NoiseModel):
                 depol_type="pauli",
             )
         else:
-            raise NotImplementedError(
-                f"Conversion of Depolarizing noise for language {language.name} is not supported"
-            )
+            raise NotImplementedError(f"{language.name} not yet supported.")
 
 
 @typechecked
@@ -361,9 +359,7 @@ class BitFlip(NoiseModel):
         # TODO: MY_QLM implementation
 
         else:
-            raise NotImplementedError(
-                f"Conversion of BitFlip noise for language {language.name} is not supported"
-            )
+            raise NotImplementedError(f"{language.name} not yet supported.")
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
