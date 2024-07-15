@@ -265,7 +265,7 @@ class QCircuit:
             c: 4/══════╩══╩═════╩══╩═
                        0  1     2  3
             NoiseModel:
-                Depolarizing(0.01, [all])
+                Depolarizing(0.01)
             >>> circuit2.nb_qubits = 3
             >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐┌─┐    ░ ┌─┐
@@ -278,7 +278,7 @@ class QCircuit:
             c: 6/══╩═══╩══╩═════╩══╩══╩═
                    2   0  1     3  4  5
             NoiseModel:
-                Depolarizing(0.01, [all])
+                Depolarizing(0.01)
         """
         qcircuit = deepcopy(self)
 

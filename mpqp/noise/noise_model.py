@@ -146,11 +146,10 @@ class Depolarizing(NoiseModel):
              └───┘
         NoiseModel:
             Depolarizing(0.32, [0, 1, 2])
-            Depolarizing(0.01, [all])
-            Depolarizing(0.05, [0, 1], 2)
-            Depolarizing(0.12, [2], [H, Rx, Ry, Rz])
-            Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
-
+            Depolarizing(0.01)
+            Depolarizing(0.05, [0, 1], dimension=2)
+            Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+            Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
     """
 
     def __init__(
@@ -309,7 +308,7 @@ class BitFlip(NoiseModel):
         NoiseModel:
             BitFlip(0.1, [0])
             BitFlip(0.3, [1, 2])
-            BitFlip(0.05, [0], [H])
+            BitFlip(0.05, [0], gates=[H])
 
     """
 
@@ -330,7 +329,7 @@ class BitFlip(NoiseModel):
         """Probability, or error rate, of the bit-flip noise model."""
 
     def __repr__(self):
-        target = f", targets={self.targets}" if self.targets else ""
+        target = f", {self.targets}" if self.targets else ""
         gates = f", gates={self.gates}" if self.gates else ""
         return f"{type(self).__name__}({self.prob}{target}{gates})"
 
