@@ -534,22 +534,26 @@ class AmplitudeDamping(NoiseModel):
 class PhaseDamping(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def __init__(self):
+        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
 
 
 class Pauli(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def __init__(self):
+        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
 
 
 class Dephasing(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def __init__(self):
+        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
 
 
 class PhaseFlip(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def __init__(self):
+        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
