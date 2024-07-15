@@ -1151,8 +1151,8 @@ class QCircuit:
                         f"For now, {type(noise)} noise is not supported."
                     )
                 targets = set(noise.targets)
-                noise_info = f"{type(noise).__name__} noise: probability {noise.proba}"
-    
+                noise_info = f"{type(noise).__name__} noise: probability {noise.prob}"
+
                 if targets and targets != qubits:
                     noise_info += (
                         f" on qubit{'s' if len(noise.targets) > 1 else ''} "

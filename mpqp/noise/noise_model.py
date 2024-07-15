@@ -192,7 +192,7 @@ class Depolarizing(NoiseModel):
             )
 
         super().__init__(targets, gates)
-        self.proba = prob
+        self.prob = prob
         """Probability, or error rate, of the depolarizing noise model."""
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
@@ -204,29 +204,10 @@ class Depolarizing(NoiseModel):
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):
-        target = ", " + str(self.targets) if len(self.targets) != 0 else ""
-        dimension = (
-            f", {'dimension=' if not target else ''}" + str(self.dimension)
-            if self.dimension != 1
-            else ""
-        )
-        return (
-            f"{type(self).__name__}({self.proba}{target}{dimension}"
-            + (
-                f", {'gates=' if not target or not dimension else ''}" + str(self.gates)
-                if len(self.gates) != 0
-                else ""
-            )
-            + ")"
-        )
-
-    def __str__(self):
-        return (
-            f"{type(self).__name__}({self.proba}, {self.targets if len(self.targets) != 0 else '[all]'}"
-            + (", " + str(self.dimension) if self.dimension != 1 else "")
-            + (", " + str(self.gates) if self.gates else "")
-            + ")"
-        )
+        target = f", {self.targets}" if len(self.targets) != 0 else ""
+        dimension = f", dimension={self.dimension}" if self.dimension != 1 else ""
+        gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
+        return f"{type(self).__name__}({self.prob}{target}{dimension}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -237,13 +218,13 @@ class Depolarizing(NoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
-            >>> braket_depo
+            >>> braket_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
+            >>> braket_depolarizing
             Depolarizing('probability': 0.3, 'qubit_count': 1)
-            >>> type(braket_depo)
+            >>> type(braket_depolarizing)
             <class 'braket.circuits.noises.Depolarizing'>
-            >>> qlm_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
-            >>> print(qlm_depo)  # doctest: +NORMALIZE_WHITESPACE
+            >>> qlm_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
+            >>> print(qlm_depolarizing)  # doctest: +NORMALIZE_WHITESPACE
             Depolarizing channel, p = 0.3:
             [[0.83666003 0.        ]
              [0.         0.83666003]]
@@ -253,7 +234,7 @@ class Depolarizing(NoiseModel):
              [0.+0.31622777j 0.+0.j        ]]
             [[ 0.31622777+0.j  0.        +0.j]
              [ 0.        +0.j -0.31622777+0.j]]
-            >>> type(qlm_depo)
+            >>> type(qlm_depolarizing)
             <class 'qat.quops.quantum_channels.QuantumChannelKraus'>
 
         """
@@ -265,11 +246,11 @@ class Depolarizing(NoiseModel):
             elif self.dimension == 2:
                 from braket.circuits.noises import TwoQubitDepolarizing
 
-                return TwoQubitDepolarizing(probability=self.proba)
+                return TwoQubitDepolarizing(probability=self.prob)
             else:
                 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 
-                return BraketDepolarizing(probability=self.proba)
+                return BraketDepolarizing(probability=self.prob)
 
         elif language == Language.MY_QLM:
             if self.dimension > 2:
@@ -286,7 +267,7 @@ class Depolarizing(NoiseModel):
             )
 
             return make_depolarizing_channel(
-                prob=self.proba,
+                prob=self.prob,
                 nqbits=self.dimension,
                 method_2q="equal_probs",
                 depol_type="pauli",
@@ -347,26 +328,13 @@ class BitFlip(NoiseModel):
             )
 
         super().__init__(targets, gates)
-        self.proba = prob
+        self.prob = prob
         """Probability, or error rate, of the bit-flip noise model."""
 
     def __repr__(self):
-        target = ", targets=" + str(self.targets) if self.targets else ""
-        return (
-            f"{type(self).__name__}(prob={self.proba}{target}"
-            + (", gates=" + str(self.gates) if self.gates else "")
-            + ")"
-        )
-
-    def __str__(self):
-        targets_str = (
-            str(self.targets) if self.targets and len(self.targets) != 0 else "[all]"
-        )
-        return (
-            f"{type(self).__name__}({self.proba}, {targets_str}"
-            + (", " + str(self.gates) if self.gates else "")
-            + ")"
-        )
+        target = f", targets={self.targets}" if self.targets else ""
+        gates = f", gates={self.gates}" if self.gates else ""
+        return f"{type(self).__name__}({self.prob}{target}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -388,7 +356,7 @@ class BitFlip(NoiseModel):
         if language == Language.BRAKET:
             from braket.circuits.noises import BitFlip as BraketBitFlip
 
-            return BraketBitFlip(probability=self.proba)
+            return BraketBitFlip(probability=self.prob)
 
         # TODO: MY_QLM implementation
 

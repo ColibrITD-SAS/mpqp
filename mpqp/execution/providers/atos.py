@@ -293,7 +293,7 @@ def generate_hardware_model(
             if CNOT not in noise.gates:
                 noise.gates.append(CNOT)
             noises.append(
-                Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk])
+                Depolarizing(noise.prob, noise.targets, dimension=1, gates=[Rk])
             )
             warnings.warn(
                 "Requested noise on CRk gate will introduce noise on CNOT and "
