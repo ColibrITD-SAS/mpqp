@@ -1031,21 +1031,28 @@ class QCircuit:
             measure q[1] -> c[1];
 
         """
+        from qiskit import qasm2, transpile, QuantumCircuit
+
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
         )
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
 
-        from qiskit import qasm2, transpile
         gp = transpile(qiskit_circ, basis_gates=['u', 'cx']).global_phase
+        print("Global phase", gp)
         if gp != 0.0:
             # Apply double succession of Phase and Y gate to the first qubit to add a global phase on the circuit
-            qiskit_circ.p(-gp, 0)
-            qiskit_circ.y(0)
-            qiskit_circ.p(-gp, 0)
-            qiskit_circ.y(0)
+            gb_circ = QuantumCircuit(qiskit_circ.num_qubits)
+            gb_circ.p(-gp, 0)
+            gb_circ.y(0)
+            gb_circ.p(-gp, 0)
+            gb_circ.y(0)
+            qiskit_circ.compose(gb_circ, front=True, inplace=True)
+        print(qiskit_circ)
         qasm_str = qasm2.dumps(qiskit_circ)
+
+        # TODO, correct each gate u manually, a global phase is not sufficient for circuits with more than 1qubit
         return qasm_str
 
     def to_qasm3(self) -> str:
