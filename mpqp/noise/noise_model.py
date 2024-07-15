@@ -444,7 +444,7 @@ class AmplitudeDamping(NoiseModel):
     def __init__(
         self,
         gamma: float,
-        prob: float = 1,
+        prob: Optional[float] = 1,
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
