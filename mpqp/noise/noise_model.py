@@ -98,6 +98,11 @@ class NoiseModel(ABC):
         """
         pass
 
+    @abstractmethod
+    def info(self) -> str:
+        """Returns a string conatain information about the noise model."""
+        pass
+
     # 3M-TODO: implement the possibility of having a parameterized noise
     # @abstractmethod
     # def subs(self):
@@ -296,6 +301,12 @@ class Depolarizing(NoiseModel):
                 f"Conversion of Depolarizing noise for language {language.name} is not supported"
             )
 
+    def info(self) -> str:
+        noise_info = f"{type(self).__name__} noise: probability {self.proba}"
+        if self.dimension != 1:
+            noise_info += f", dimension {self.dimension}"
+        return noise_info
+
 
 @typechecked
 class BitFlip(NoiseModel):
@@ -350,6 +361,8 @@ class BitFlip(NoiseModel):
         self.proba = prob
         """Probability, or error rate, of the bit-flip noise model."""
 
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
     def __repr__(self):
         target = ", targets=" + str(self.targets) if self.targets else ""
         return (
@@ -397,7 +410,8 @@ class BitFlip(NoiseModel):
                 f"Conversion of BitFlip noise for language {language.name} is not supported"
             )
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def info(self) -> str:
+        return f"{type(self).__name__} noise: probability {self.proba}"
 
 
 @typechecked
@@ -464,6 +478,8 @@ class AmplitudeDamping(NoiseModel):
         self.proba = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
     def __repr__(self):
         target = ", targets=" + str(self.targets) if len(self.targets) != 0 else ""
         return (
@@ -528,32 +544,44 @@ class AmplitudeDamping(NoiseModel):
                 f"Conversion of Amplitude Damping noise for language {language} is not supported."
             )
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def info(self) -> str:
+        noise_info = f"{type(self).__name__} noise: gamma {self.gamma}"
+        if self.proba != 1:
+            noise_info += f", probability {self.proba}"
+        return noise_info
 
 
 class PhaseDamping(NoiseModel):
     """3M-TODO"""
 
     def __init__(self):
-        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
 
 
 class Pauli(NoiseModel):
     """3M-TODO"""
 
     def __init__(self):
-        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
 
 
 class Dephasing(NoiseModel):
     """3M-TODO"""
 
     def __init__(self):
-        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
 
 
 class PhaseFlip(NoiseModel):
     """3M-TODO"""
 
     def __init__(self):
-        raise NotImplementedError(f"{type(self).__name__} noise model is not yet implemented.")
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
