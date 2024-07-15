@@ -1039,7 +1039,9 @@ class QCircuit:
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
 
-        gp = transpile(qiskit_circ, basis_gates=['u', 'cx']).global_phase
+        gp_trans = transpile(qiskit_circ, basis_gates=['u', 'cx'])
+        print(gp_trans)
+        gp = gp_trans.global_phase
         print("Global phase", gp)
         if gp != 0.0:
             # Apply double succession of Phase and Y gate to the first qubit to add a global phase on the circuit
@@ -1051,7 +1053,7 @@ class QCircuit:
             qiskit_circ.compose(gb_circ, front=True, inplace=True)
         print(qiskit_circ)
         qasm_str = qasm2.dumps(qiskit_circ)
-
+        print(qasm_str)
         # TODO, correct each gate u manually, a global phase is not sufficient for circuits with more than 1qubit
         return qasm_str
 
