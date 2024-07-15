@@ -100,7 +100,7 @@ class NoiseModel(ABC):
 
     @abstractmethod
     def info(self) -> str:
-        """Returns a string conatain information about the noise model."""
+        """Returns a string containing information about the noise model."""
         pass
 
     # 3M-TODO: implement the possibility of having a parameterized noise
