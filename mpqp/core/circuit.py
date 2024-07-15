@@ -1146,10 +1146,6 @@ class QCircuit:
         qubits = set(range(self.size()[0]))
         if self.noises:
             for noise in self.noises:
-                if not isinstance(noise, NoiseModel):
-                    raise NotImplementedError(
-                        f"For now, {type(noise).__name__} noise model is not supported."
-                    )
                 targets = set(noise.targets)
                 noise_info = noise.info()
                 if targets and targets != qubits:
