@@ -155,3 +155,14 @@ translation of the documentation, get in touch with us so we set it up together!
 
 This documented was inspired by the contributing guidelines for
 [t3-oss/create-t3-app](https://github.com/t3-oss/create-t3-app/blob/main/CONTRIBUTING.md).
+
+## A note about `qiskit`
+
+When `qiksit` went from version `0.x` to version `1.x`, the migration caused
+problems. In order to facilitate the migration, we provide a shorthand to
+uninstall all `qiskit` packages: you can simply run the two following commands
+
+```sh
+pip uninstall -y -r all-qiskit.txt
+pip install -r requirements.txt
+```
