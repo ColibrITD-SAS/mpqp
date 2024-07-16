@@ -25,8 +25,6 @@ from numbers import Complex
 from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
 
-from mpqp.core.instruction.breakpoint import Breakpoint
-
 if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -40,6 +38,7 @@ from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
+from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -1032,6 +1031,47 @@ class QCircuit:
 
         """
         from qiskit import qasm2, transpile, QuantumCircuit
+        from qiskit.circuit import CircuitInstruction
+
+        def apply_gphase(circuit: QuantumCircuit, global_phase: float, qubit: int):
+            """
+            TODO comment
+            Args:
+                circuit:
+                global_phase:
+                qubit:
+
+            Returns:
+
+            """
+            # circuit.append(GlobalPhaseGate(-global_phase)) --> We cannot use it because OQASM2 doesn't not support
+            circuit.p(global_phase, qubit)
+            circuit.y(qubit)
+            circuit.p(global_phase, qubit)
+            circuit.y(qubit)
+
+        def replace_custom_gate(custom_unitary: CircuitInstruction, nb_qubits: int) -> QuantumCircuit:
+            """
+            TODO comment
+            Args:
+                custom_unitary:
+                nb_qubits:
+
+            Returns:
+
+            """
+            transpilation_circuit = QuantumCircuit(nb_qubits)
+            transpilation_circuit.append(custom_unitary)
+            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+            replace_circuit = QuantumCircuit(nb_qubits)
+            print(transpiled.data)
+            for instr in transpiled.data:
+                replace_circuit.append(instr)
+                if instr.operation.name == 'u':
+                    phi = instr.operation.params[1]
+                    gamma = instr.operation.params[2]
+                    apply_gphase(replace_circuit, -(phi+gamma)/2, instr.qubits[0]._index)
+            return replace_circuit
 
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
@@ -1039,22 +1079,17 @@ class QCircuit:
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
 
-        gp_trans = transpile(qiskit_circ, basis_gates=['u', 'cx'])
-        print(gp_trans)
-        gp = gp_trans.global_phase
-        print("Global phase", gp)
-        if gp != 0.0:
-            # Apply double succession of Phase and Y gate to the first qubit to add a global phase on the circuit
-            gb_circ = QuantumCircuit(qiskit_circ.num_qubits)
-            gb_circ.p(-gp, 0)
-            gb_circ.y(0)
-            gb_circ.p(-gp, 0)
-            gb_circ.y(0)
-            qiskit_circ.compose(gb_circ, front=True, inplace=True)
-        print(qiskit_circ)
-        qasm_str = qasm2.dumps(qiskit_circ)
+        new_circuit = QuantumCircuit(qiskit_circ.num_qubits)
+        for instruction in qiskit_circ.data:
+            if instruction.operation.name == 'unitary':
+                new_circuit.compose(replace_custom_gate(instruction, qiskit_circ.num_qubits), inplace=True)
+            else:
+                new_circuit.append(instruction)
+
+        print(new_circuit)
+        qasm_str = qasm2.dumps(new_circuit)
         print(qasm_str)
-        # TODO, correct each gate u manually, a global phase is not sufficient for circuits with more than 1qubit
+
         return qasm_str
 
     def to_qasm3(self) -> str:
