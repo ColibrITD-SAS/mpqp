@@ -1017,7 +1017,7 @@ class QCircuit:
             A string representing the OpenQASM2 code corresponding to this
             circuit.
 
-        Example:
+        Examples:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
             >>> print(circuit.to_qasm2())  # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 2.0;
@@ -1028,20 +1028,21 @@ class QCircuit:
             cx q[0],q[1];
             measure q[0] -> c[0];
             measure q[1] -> c[1];
+            # TODO add example with custom gate
 
         """
         from qiskit import qasm2, transpile, QuantumCircuit
         from qiskit.circuit import CircuitInstruction
 
-        def apply_gphase(circuit: QuantumCircuit, global_phase: float, qubit: int):
+        def apply_gphase(circuit: QuantumCircuit, global_phase: float, qubit: int) -> None:
             """
-            TODO comment
-            Args:
-                circuit:
-                global_phase:
-                qubit:
+            Apply a global phase to a given circuit by appending the right sequence of Phase and Y gates on the qubit
+            given in parameter.
 
-            Returns:
+            Args:
+                circuit: QuantumCircuit to which we want to add the global phase.
+                global_phase: Global phase g parametrizing the global phase `e^{i \times g}` to add.
+                qubit: Index of the qubit on which the sequence of gates will be applied.
 
             """
             # circuit.append(GlobalPhaseGate(-global_phase)) --> We cannot use it because OQASM2 doesn't not support
@@ -1052,13 +1053,16 @@ class QCircuit:
 
         def replace_custom_gate(custom_unitary: CircuitInstruction, nb_qubits: int) -> QuantumCircuit:
             """
-            TODO comment
+            Decompose and replace the (custom) qiskit unitary given in parameter by a ``QuantumCircuit`` composed of
+            ``U`` and ``CX`` gates, with the global phase (related to usage of ``u`` in OpenQASM2) corrected.
+
             Args:
-                custom_unitary:
-                nb_qubits:
+                custom_unitary: Qiskit CircuitInstruction containing the custom unitary operator.
+                nb_qubits: Number of qubits of the circuit from which the unitary instruction was taken.
 
             Returns:
-
+                QuantumCircuit containing the decomposition of the unitary in terms of native gates ``U`` and ``CX``,
+                with a correction in the global phase of each ``U`` operator.
             """
             transpilation_circuit = QuantumCircuit(nb_qubits)
             transpilation_circuit.append(custom_unitary)
@@ -1086,9 +1090,7 @@ class QCircuit:
             else:
                 new_circuit.append(instruction)
 
-        print(new_circuit)
         qasm_str = qasm2.dumps(new_circuit)
-        print(qasm_str)
 
         return qasm_str
 
