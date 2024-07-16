@@ -24,7 +24,7 @@ def with_local_devices(args: tuple[Any, ...]):
     return (
         (*args, d)
         for d in list(IBMDevice) + list(ATOSDevice) + list(AWSDevice)
-        if not d.is_remote() and d.is_gate_based()
+        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
     )
 
 
