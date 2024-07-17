@@ -47,7 +47,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import BitFlip, Depolarizing, NoiseModel
+from mpqp.noise.noise_model import Depolarizing, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -1146,13 +1146,8 @@ class QCircuit:
         qubits = set(range(self.size()[0]))
         if self.noises:
             for noise in self.noises:
-                if not isinstance(noise, (Depolarizing, BitFlip)):
-                    raise NotImplementedError(
-                        f"For now, {type(noise)} noise is not supported."
-                    )
                 targets = set(noise.targets)
-                noise_info = f"{type(noise).__name__} noise: probability {noise.prob}"
-
+                noise_info = noise.info()
                 if targets and targets != qubits:
                     noise_info += (
                         f" on qubit{'s' if len(noise.targets) > 1 else ''} "

@@ -98,6 +98,11 @@ class NoiseModel(ABC):
         """
         pass
 
+    @abstractmethod
+    def info(self) -> str:
+        """Returns a string containing information about the noise model."""
+        pass
+
     # 3M-TODO: implement the possibility of having a parameterized noise
     # @abstractmethod
     # def subs(self):
@@ -274,6 +279,12 @@ class Depolarizing(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
+    def info(self) -> str:
+        noise_info = f"{type(self).__name__} noise: probability {self.proba}"
+        if self.dimension != 1:
+            noise_info += f", dimension {self.dimension}"
+        return noise_info
+
 
 @typechecked
 class BitFlip(NoiseModel):
@@ -328,6 +339,8 @@ class BitFlip(NoiseModel):
         self.prob = prob
         """Probability, or error rate, of the bit-flip noise model."""
 
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
     def __repr__(self):
         target = f", {self.targets}" if self.targets else ""
         gates = f", gates={self.gates}" if self.gates else ""
@@ -360,125 +373,178 @@ class BitFlip(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def info(self) -> str:
+        return f"{type(self).__name__} noise: probability {self.proba}"
 
 
-class Pauli(NoiseModel):
-    """3M-TODO"""
+@typechecked
+class AmplitudeDamping(NoiseModel):
+    """Class representing the amplitude damping noise channel, which can model both
+    the standard and generalized amplitude damping processes. It can be applied
+    to a single qubit and depends on two parameters: the decay rate `gamma` and the
+    probability of excitation `prob`.
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    Args:
+        gamma: Decaying rate of the amplitude damping noise channel.
+        prob: Probability of excitation in the generalized amplitude damping noise channel
+            When set to 1, indicating standard amplitude damping.
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise.
 
+    Raises:
+        ValueError: When the gamma or prob parameters are outside of the expected interval [0, 1].
 
-class Dephasing(NoiseModel):
-    """3M-TODO"""
+    Examples:
+        >>> circuit = QCircuit([H(i) for i in range(3)])
+        >>> ad1 = AmplitudeDamping(0.2, 0, [0])
+        >>> ad2 = AmplitudeDamping(0.4, 0.1, [1, 2])
+        >>> ad3 = AmplitudeDamping(0.1, 1, [0, 1, 2])
+        >>> ad4 = AmplitudeDamping(0.7, targets=[0, 1])
+        >>> circuit.add([ad1, ad2, ad3, ad4])
+        >>> print(circuit)
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            AmplitudeDamping(0.2, 0, [0])
+            AmplitudeDamping(0.4, 0.1, [1, 2])
+            AmplitudeDamping(0.1, 1, [0, 1, 2])
+            AmplitudeDamping(0.7, 1, [0, 1])
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
-
-
-class PhaseFlip(NoiseModel):
-    """3M-TODO"""
-
-    def to_kraus_representation(self) -> KrausRepresentation: ...
-
-
-class GeneralizedAmplitudeDamping(NoiseModel):
-    """Class representing the generalized amplitude damping noise channel."""
+    """
 
     def __init__(
         self,
         gamma: float,
-        prop: float,
+        prob: Optional[float] = 1,
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
         if not (0 <= gamma <= 1):
             raise ValueError(
-                f"Invalid decaying rate: {gamma} but should be between 0 and 1."
+                f"Invalid decaying rate: {gamma}. It should be between 0 and 1."
             )
 
-        if not (0 <= prop <= 1):
+        if not (0 <= prob <= 1):
             raise ValueError(
-                f"Invalid excitation probability: {prop} but should be between 0 and 1."
+                f"Invalid excitation probability: {prob}. It should be between 0 and 1."
             )
-
-        nb_targets = len(targets) if targets else 0
-        if nb_targets < 1:
-            raise ValueError("Number of target qubits should be at least 1.")
 
         super().__init__(targets, gates)
-
         self.gamma = gamma
         """Decaying rate, of the amplitude damping noise channel."""
-        self.prop = prop
+        self.proba = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
     def __repr__(self):
+        target = ", targets=" + str(self.targets) if len(self.targets) != 0 else ""
         return (
-            f"{type(self).__name__}(gamma={self.gamma}, prop={self.prop}, targets={self.targets}"
+            f"{type(self).__name__}(gamma={self.gamma}, prob={self.proba}"
+            + target
             + (", gates=" + str(self.gates) if self.gates else "")
+            + ")"
+        )
+
+    def __str__(self):
+        targets_str = (
+            str(self.targets) if self.targets and len(self.targets) != 0 else "[all]"
+        )
+        return (
+            f"{type(self).__name__}({self.gamma}, {self.proba}, {targets_str}"
+            + (", " + str(self.gates) if self.gates else "")
             + ")"
         )
 
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise:
-        if language == Language.BRAKET:
-            from braket.circuits.noises import (
-                GeneralizedAmplitudeDamping as BraketGeneralizedAmplitudeDamping,
-            )
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
-            return BraketGeneralizedAmplitudeDamping(self.gamma, self.prop)
+        Args:
+            language: Enum representing the target language.
+
+        Examples:
+            >>> braket_ad = AmplitudeDamping(0.4, 1, [0, 1]).to_other_language(Language.BRAKET)
+            >>> braket_ad
+            AmplitudeDamping('gamma': 0.4, 'qubit_count': 1)
+            >>> type(braket_ad)
+            <class 'braket.circuits.noises.AmplitudeDamping'>
+            >>> braket_gad1 = AmplitudeDamping(0.2, 0, [1]).to_other_language(Language.BRAKET)
+            >>> braket_gad1
+            GeneralizedAmplitudeDamping('gamma': 0.2, 'probability': 0.0, 'qubit_count': 1)
+            >>> type(braket_gad1)
+            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
+            >>> braket_gad2 = AmplitudeDamping(0.15, 0.2, [0]).to_other_language(Language.BRAKET)
+            >>> braket_gad2
+            GeneralizedAmplitudeDamping('gamma': 0.15, 'probability': 0.2, 'qubit_count': 1)
+            >>> type(braket_gad2)
+            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
+
+        """
+        if language == Language.BRAKET:
+            if self.proba == 1:
+                from braket.circuits.noises import (
+                    AmplitudeDamping as BraketAmplitudeDamping,
+                )
+
+                return BraketAmplitudeDamping(self.gamma)
+            else:
+                from braket.circuits.noises import GeneralizedAmplitudeDamping
+
+                return GeneralizedAmplitudeDamping(self.gamma, float(self.proba))
 
         # TODO: MY_QLM implmentation
 
         else:
             raise NotImplementedError(
-                f"Conversion of Generalized Amplitude Damping noise for language {language.name} is not supported."
+                f"Conversion of Amplitude Damping noise for language {language} is not supported."
             )
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
-
-
-class AmplitudeDamping(GeneralizedAmplitudeDamping):
-    """Class representing the amplitude damping noise channel."""
-
-    def __init__(
-        self,
-        gamma: float,
-        targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
-    ):
-
-        super().__init__(gamma, 0, targets, gates)
-
-    def __repr__(self):
-        return (
-            f"{type(self).__name__}(gamma={self.gamma}, targets={self.targets}"
-            + (", gates=" + str(self.gates) if self.gates else "")
-            + ")"
-        )
-
-    def to_other_language(
-        self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
-        if language == Language.BRAKET:
-            from braket.circuits.noises import (
-                AmplitudeDamping as BraketAmplitudeDamping,
-            )
-
-            return BraketAmplitudeDamping(self.gamma)
-
-        # TODO: MY_QLM implmentation
-
-        else:
-            raise NotImplementedError(
-                f"Conversion of Amplitude Damping noise for language {language.name} is not supported."
-            )
-
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def info(self) -> str:
+        noise_info = f"{type(self).__name__} noise: gamma {self.gamma}"
+        if self.proba != 1:
+            noise_info += f", probability {self.proba}"
+        return noise_info
 
 
 class PhaseDamping(NoiseModel):
     """3M-TODO"""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def __init__(self):
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
+
+
+class Pauli(NoiseModel):
+    """3M-TODO"""
+
+    def __init__(self):
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
+
+
+class Dephasing(NoiseModel):
+    """3M-TODO"""
+
+    def __init__(self):
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
+
+
+class PhaseFlip(NoiseModel):
+    """3M-TODO"""
+
+    def __init__(self):
+        raise NotImplementedError(
+            f"{type(self).__name__} noise model is not yet implemented."
+        )
