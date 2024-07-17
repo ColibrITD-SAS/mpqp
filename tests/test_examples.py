@@ -9,7 +9,7 @@ SKIP_NOTEBOOK = os.path.join(NOTEBOOK_DIR, "2_Execution_Bell_circuit.ipynb")
 
 def run_notebooks():
     result = subprocess.run(
-        ["pytest", "--nbmake", NOTEBOOK_DIR, "--ignore", SKIP_NOTEBOOK]
+        ["python", "-m", "pytest", "--nbmake", NOTEBOOK_DIR, "--ignore", SKIP_NOTEBOOK]
     )
     if result.returncode != 0:
         raise Exception(f"Some notebooks failed")

@@ -33,6 +33,9 @@ class Gate(Instruction, ABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
+        
+        if len(targets) == 0:
+            raise ValueError("Expected non-empty target list")
         super().__init__(targets, label=label)
 
     @abstractmethod
@@ -335,7 +338,7 @@ class InvolutionGate(Gate, ABC):
 
 @typechecked
 class SingleQubitGate(Gate, ABC):
-    """Gates operating on a single qubit.
+    """Abstract class for gates operating on a single qubit.
 
     Args:
         target: Index or referring to the qubit on which the gate will be applied.
