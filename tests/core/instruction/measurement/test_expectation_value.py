@@ -18,11 +18,6 @@ from mpqp.core.instruction.measurement.pauli_string import I, X
 from mpqp.core.languages import Language
 from mpqp.measures import ExpectationMeasure, Observable
 
-q = LineQubit.range(3)
-c = Circuit()
-for q_ in q:
-    c.append(Cirq_X(q_))
-
 
 @pytest.mark.parametrize(
     "targets",
@@ -54,13 +49,16 @@ def test_expectation_measure_wrong_targets(
     ] == expected_swaps
 
 
+a, b, c = LineQubit.range(3)
+
+
 # TODO: complete this
 @pytest.mark.parametrize(
     "obs, translation",
     [
         (
             Observable(I @ I + I @ X),
-            sum(1.0 * Cirq_I(q[0]) * Cirq_I(q[1]) + Cirq_X(q[1])),
+            sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
         ),
     ],
 )
@@ -68,4 +66,4 @@ def test_to_other_language(
     obs: Observable,
     translation: Operator | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString,
 ):
-    assert obs.to_other_language(Language.CIRQ, c) == translation
+    assert obs.to_other_language(Language.CIRQ) == translation
