@@ -148,5 +148,5 @@ a, b, c = LineQubit.range(3)
         ),
     ],
 )
-def test_from_other_languages(other_ps: any, mpqp_ps: PauliString):
-    assert PauliString.from_other_languages(other_ps) == mpqp_ps
+def test_from_other_language(other_ps: any, mpqp_ps: PauliString):
+    assert PauliString.from_other_language(other_ps) == mpqp_ps
