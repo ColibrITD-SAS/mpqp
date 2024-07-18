@@ -1144,11 +1144,13 @@ class QCircuit:
         )
 
         qubits = set(range(self.size()[0]))
-        if self.noises:
-            for noise in self.noises:
-                print(noise.info(qubits))
+        for noise in self.noises:
+            print(noise.info(qubits))
 
-        print(f"{self.to_other_language(Language.QISKIT)}")
+        qiskit_circuit = self.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
+        print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
         qiskit_circ = self.to_other_language(Language.QISKIT)
@@ -1157,12 +1159,9 @@ class QCircuit:
 
             assert isinstance(qiskit_circ, QuantumCircuit)
         output = str(qiskit_circ.draw(output="text", fold=0))
-        if TYPE_CHECKING:
-            assert isinstance(output, str)
         if len(self.noises) != 0:
-            output += "\nNoiseModel:\n    " + "\n    ".join(
-                str(noise) for noise in self.noises
-            )
+            noises = "\n    ".join(str(noise) for noise in self.noises)
+            output += f"\nNoiseModel:\n    {noises}"
         return output
 
     def __repr__(self) -> str:
