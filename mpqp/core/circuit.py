@@ -99,7 +99,7 @@ class QCircuit:
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
         QCircuit NoiseExample: Size (Qubits, Cbits) = (3, 3), Nb instructions = 5
-        Depolarizing noise: probability 0.5 on qubits [0, 1]
+        Depolarizing noise: on qubits [0, 1] with probability 0.5
              ┌───┐     ┌─┐
         q_0: ┤ H ├──■──┤M├───
              ├───┤┌─┴─┐└╥┘┌─┐
@@ -178,8 +178,8 @@ class QCircuit:
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
-            Depolarizing noise: probability 0.3 for gate CNOT
-            Depolarizing noise: probability 0.02 on qubit 0
+            Depolarizing noise: for gate CNOT with probability 0.3 and dimension 2
+            Depolarizing noise: on qubit 0 with probability 0.02
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -1146,19 +1146,7 @@ class QCircuit:
         qubits = set(range(self.size()[0]))
         if self.noises:
             for noise in self.noises:
-                targets = set(noise.targets)
-                noise_info = noise.info()
-                if targets and targets != qubits:
-                    noise_info += (
-                        f" on qubit{'s' if len(noise.targets) > 1 else ''} "
-                        f"{noise.targets[0] if len(noise.targets) == 1 else noise.targets}"
-                    )
-                if noise.gates:
-                    noise_info += (
-                        f" for gate{'s' if len(noise.gates) > 1 else ''} "
-                        f"{noise.gates[0] if len(noise.gates) == 1 else noise.gates}"
-                    )
-                print(noise_info)
+                print(noise.info(qubits))
 
         print(f"{self.to_other_language(Language.QISKIT)}")
 

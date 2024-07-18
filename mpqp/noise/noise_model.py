@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
+
+from mpqp.tools.generics import T
 
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
@@ -13,6 +15,12 @@ from typeguard import typechecked
 from mpqp.core.instruction.gates import Gate
 from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
+
+
+def plural_marker(items: Sequence[T]):
+    if len(items) > 1:
+        return f"s {items}"
+    return f" {items[0]}"
 
 
 @typechecked
@@ -98,10 +106,14 @@ class NoiseModel(ABC):
         """
         pass
 
-    @abstractmethod
-    def info(self) -> str:
-        """Returns a string containing information about the noise model."""
-        pass
+    def info(self, qubits: set[int]) -> str:
+        noise_info = f"{type(self).__name__} noise:"
+        if set(self.targets) not in [qubits, set()]:
+            noise_info += f" on qubit{plural_marker(self.targets)}"
+        if len(self.gates) != 0:
+            noise_info += f" for gate{plural_marker(self.gates)}"
+
+        return noise_info
 
     # 3M-TODO: implement the possibility of having a parameterized noise
     # @abstractmethod
@@ -279,11 +291,9 @@ class Depolarizing(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def info(self) -> str:
-        noise_info = f"{type(self).__name__} noise: probability {self.proba}"
-        if self.dimension != 1:
-            noise_info += f", dimension {self.dimension}"
-        return noise_info
+    def info(self, qubits: set[int]) -> str:
+        dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
+        return f"{super().info(qubits)} with probability {self.prob}{dimension}"
 
 
 @typechecked
@@ -373,8 +383,8 @@ class BitFlip(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def info(self) -> str:
-        return f"{type(self).__name__} noise: probability {self.proba}"
+    def info(self, qubits: set[int]) -> str:
+        return f"{super().info(qubits)} with probability {self.prob}"
 
 
 @typechecked
@@ -411,17 +421,17 @@ class AmplitudeDamping(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            AmplitudeDamping(0.2, 0, [0])
-            AmplitudeDamping(0.4, 0.1, [1, 2])
-            AmplitudeDamping(0.1, 1, [0, 1, 2])
-            AmplitudeDamping(0.7, 1, [0, 1])
+            AmplitudeDamping(0.2, prob=0, targets=[0])
+            AmplitudeDamping(0.4, prob=0.1, targets=[1, 2])
+            AmplitudeDamping(0.1, targets=[0, 1, 2])
+            AmplitudeDamping(0.7, targets=[0, 1])
 
     """
 
     def __init__(
         self,
         gamma: float,
-        prob: Optional[float] = 1,
+        prob: float = 1,
         targets: Optional[list[int]] = None,
         gates: Optional[list[type[Gate]]] = None,
     ):
@@ -438,29 +448,16 @@ class AmplitudeDamping(NoiseModel):
         super().__init__(targets, gates)
         self.gamma = gamma
         """Decaying rate, of the amplitude damping noise channel."""
-        self.proba = prob
+        self.prob = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
-        target = ", targets=" + str(self.targets) if len(self.targets) != 0 else ""
-        return (
-            f"{type(self).__name__}(gamma={self.gamma}, prob={self.proba}"
-            + target
-            + (", gates=" + str(self.gates) if self.gates else "")
-            + ")"
-        )
-
-    def __str__(self):
-        targets_str = (
-            str(self.targets) if self.targets and len(self.targets) != 0 else "[all]"
-        )
-        return (
-            f"{type(self).__name__}({self.gamma}, {self.proba}, {targets_str}"
-            + (", " + str(self.gates) if self.gates else "")
-            + ")"
-        )
+        targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
+        gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
+        prob = f", prob={self.prob}" if self.prob != 1 else ""
+        return f"{type(self).__name__}({self.gamma}{prob}{targets}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -489,7 +486,7 @@ class AmplitudeDamping(NoiseModel):
 
         """
         if language == Language.BRAKET:
-            if self.proba == 1:
+            if self.prob == 1:
                 from braket.circuits.noises import (
                     AmplitudeDamping as BraketAmplitudeDamping,
                 )
@@ -498,7 +495,7 @@ class AmplitudeDamping(NoiseModel):
             else:
                 from braket.circuits.noises import GeneralizedAmplitudeDamping
 
-                return GeneralizedAmplitudeDamping(self.gamma, float(self.proba))
+                return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
         # TODO: MY_QLM implmentation
 
@@ -507,11 +504,9 @@ class AmplitudeDamping(NoiseModel):
                 f"Conversion of Amplitude Damping noise for language {language} is not supported."
             )
 
-    def info(self) -> str:
-        noise_info = f"{type(self).__name__} noise: gamma {self.gamma}"
-        if self.proba != 1:
-            noise_info += f", probability {self.proba}"
-        return noise_info
+    def info(self, qubits: set[int]) -> str:
+        prob = f" and probability {self.prob}" if self.prob != 1 else ""
+        return f"{super().info(qubits)} with gamma {self.gamma}{prob}"
 
 
 class PhaseDamping(NoiseModel):
