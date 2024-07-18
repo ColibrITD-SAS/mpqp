@@ -904,7 +904,7 @@ class QCircuit:
                     new_circ = new_circ.reverse_bits()
                     new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
                         instruction.to_other_language(),
-                        instruction.targets,
+                        [qcircuit.nb_qubits-1-i for i in instruction.targets],
                         instruction.label,
                     )
                     new_circ = new_circ.reverse_bits()
@@ -916,8 +916,7 @@ class QCircuit:
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
-                    # TODO muhammad/henri, for custom basis, check if something
-                    #  should be changed here, otherwise remove the condition to
+                    # TODO for custom basis, check if something should be changed here, e.g. remove the condition to
                     #  have only computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
@@ -1068,7 +1067,6 @@ class QCircuit:
             transpilation_circuit.append(custom_unitary)
             transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
             replace_circuit = QuantumCircuit(nb_qubits)
-            print(transpiled.data)
             for instr in transpiled.data:
                 replace_circuit.append(instr)
                 if instr.operation.name == 'u':
