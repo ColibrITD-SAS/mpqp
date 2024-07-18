@@ -996,10 +996,12 @@ class QCircuit:
                         f"Device {device} does not have metadata for processor {cirq_proc_id}"
                     )
 
+                # For some processors, the circuits need to be optimized for the
+                # architecture. This is done here.
                 router = RouteCQC(device.metadata.nx_graph)
-                rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
+                route_circ, _, _ = router.route_circuit(cirq_circuit)
                 cirq_circuit = optimize_for_target_gateset(
-                    rcirc, gateset=SqrtIswapTargetGateset()
+                    route_circ, gateset=SqrtIswapTargetGateset()
                 )
 
                 device.validate_circuit(cirq_circuit)
