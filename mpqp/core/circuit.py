@@ -1083,7 +1083,7 @@ class QCircuit:
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
 
-        new_circuit = QuantumCircuit(qiskit_circ.num_qubits)
+        new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
             if instruction.operation.name == 'unitary':
                 new_circuit.compose(replace_custom_gate(instruction, qiskit_circ.num_qubits), inplace=True)
