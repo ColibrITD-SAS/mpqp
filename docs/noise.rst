@@ -39,11 +39,12 @@ in simulating and analyzing the effects of noise on quantum circuits.
 
 .. autoclass:: mpqp.noise.noise_model.NoiseModel
 
-.. note::
-    Only the predefined :class:`Depolarizing<mpqp.noise.noise_model.Depolarizing>` 
-    noise model is available for the moment. More will come in the future.
-
 Depolarizing Noise Model
--------------------------
+------------------------
 
 .. autoclass:: mpqp.noise.noise_model.Depolarizing
+
+BitFlip Noise Model
+-------------------
+
+.. autoclass:: mpqp.noise.noise_model.BitFlip

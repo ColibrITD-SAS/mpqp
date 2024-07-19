@@ -46,7 +46,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import Depolarizing, NoiseModel
+from mpqp.noise.noise_model import BitFlip, Depolarizing, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -264,7 +264,7 @@ class QCircuit:
             c: 4/══════╩══╩═════╩══╩═
                        0  1     2  3
             NoiseModel:
-                Depolarizing(0.01, [all])
+                Depolarizing(0.01)
             >>> circuit2.nb_qubits = 3
             >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐┌─┐    ░ ┌─┐
@@ -277,7 +277,7 @@ class QCircuit:
             c: 6/══╩═══╩══╩═════╩══╩══╩═
                    2   0  1     3  4  5
             NoiseModel:
-                Depolarizing(0.01, [all])
+                Depolarizing(0.01)
         """
         qcircuit = deepcopy(self)
 
@@ -1196,13 +1196,14 @@ class QCircuit:
         qubits = set(range(self.size()[0]))
         if self.noises:
             for noise in self.noises:
-                if not isinstance(noise, Depolarizing):
+                if not isinstance(noise, (Depolarizing, BitFlip)):
                     raise NotImplementedError(
-                        "For now, only depolarizing noise is supported."
+                        f"For now, {type(noise)} noise is not supported."
                     )
                 targets = set(noise.targets)
-                noise_info = f"{type(noise).__name__} noise: probability {noise.proba}"
-                if targets != qubits:
+                noise_info = f"{type(noise).__name__} noise: probability {noise.prob}"
+
+                if targets and targets != qubits:
                     noise_info += (
                         f" on qubit{'s' if len(noise.targets) > 1 else ''} "
                         f"{noise.targets[0] if len(noise.targets) == 1 else noise.targets}"

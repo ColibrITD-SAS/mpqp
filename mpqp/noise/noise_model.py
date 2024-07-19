@@ -146,11 +146,10 @@ class Depolarizing(NoiseModel):
              └───┘
         NoiseModel:
             Depolarizing(0.32, [0, 1, 2])
-            Depolarizing(0.01, [all])
-            Depolarizing(0.05, [0, 1], 2)
-            Depolarizing(0.12, [2], [H, Rx, Ry, Rz])
-            Depolarizing(0.05, [0, 1, 2], 2, [CNOT, CZ])
-
+            Depolarizing(0.01)
+            Depolarizing(0.05, [0, 1], dimension=2)
+            Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
+            Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
     """
 
     def __init__(
@@ -192,7 +191,7 @@ class Depolarizing(NoiseModel):
             )
 
         super().__init__(targets, gates)
-        self.proba = prob
+        self.prob = prob
         """Probability, or error rate, of the depolarizing noise model."""
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
@@ -204,29 +203,10 @@ class Depolarizing(NoiseModel):
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):
-        target = ", " + str(self.targets) if len(self.targets) != 0 else ""
-        dimension = (
-            f", {'dimension=' if not target else ''}" + str(self.dimension)
-            if self.dimension != 1
-            else ""
-        )
-        return (
-            f"{type(self).__name__}({self.proba}{target}{dimension}"
-            + (
-                f", {'gates=' if not target or not dimension else ''}" + str(self.gates)
-                if len(self.gates) != 0
-                else ""
-            )
-            + ")"
-        )
-
-    def __str__(self):
-        return (
-            f"{type(self).__name__}({self.proba}, {self.targets if len(self.targets) != 0 else '[all]'}"
-            + (", " + str(self.dimension) if self.dimension != 1 else "")
-            + (", " + str(self.gates) if self.gates else "")
-            + ")"
-        )
+        target = f", {self.targets}" if len(self.targets) != 0 else ""
+        dimension = f", dimension={self.dimension}" if self.dimension != 1 else ""
+        gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
+        return f"{type(self).__name__}({self.prob}{target}{dimension}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -237,13 +217,13 @@ class Depolarizing(NoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
-            >>> braket_depo
+            >>> braket_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
+            >>> braket_depolarizing
             Depolarizing('probability': 0.3, 'qubit_count': 1)
-            >>> type(braket_depo)
+            >>> type(braket_depolarizing)
             <class 'braket.circuits.noises.Depolarizing'>
-            >>> qlm_depo = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
-            >>> print(qlm_depo)  # doctest: +NORMALIZE_WHITESPACE
+            >>> qlm_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
+            >>> print(qlm_depolarizing)  # doctest: +NORMALIZE_WHITESPACE
             Depolarizing channel, p = 0.3:
             [[0.83666003 0.        ]
              [0.         0.83666003]]
@@ -253,7 +233,7 @@ class Depolarizing(NoiseModel):
              [0.+0.31622777j 0.+0.j        ]]
             [[ 0.31622777+0.j  0.        +0.j]
              [ 0.        +0.j -0.31622777+0.j]]
-            >>> type(qlm_depo)
+            >>> type(qlm_depolarizing)
             <class 'qat.quops.quantum_channels.QuantumChannelKraus'>
 
         """
@@ -265,11 +245,11 @@ class Depolarizing(NoiseModel):
             elif self.dimension == 2:
                 from braket.circuits.noises import TwoQubitDepolarizing
 
-                return TwoQubitDepolarizing(probability=self.proba)
+                return TwoQubitDepolarizing(probability=self.prob)
             else:
                 from braket.circuits.noises import Depolarizing as BraketDepolarizing
 
-                return BraketDepolarizing(probability=self.proba)
+                return BraketDepolarizing(probability=self.prob)
 
         elif language == Language.MY_QLM:
             if self.dimension > 2:
@@ -286,37 +266,101 @@ class Depolarizing(NoiseModel):
             )
 
             return make_depolarizing_channel(
-                prob=self.proba,
+                prob=self.prob,
                 nqbits=self.dimension,
                 method_2q="equal_probs",
                 depol_type="pauli",
             )
         else:
-            raise NotImplementedError(
-                f"Conversion of Depolarizing noise for language {language.name} is not supported"
+            raise NotImplementedError(f"{language.name} not yet supported.")
+
+
+@typechecked
+class BitFlip(NoiseModel):
+    """Class representing the bit flip noise channel, which flips the state of
+    a qubit with a certain probability. It can be applied to single and multi-qubit gates
+    and depends on a single parameter (probability or error rate).
+
+    Args:
+        prob: Bit flip error probability or error rate (must be within [0, 0.5]).
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise. If multi-qubit gates is passed, single-qubit
+            bitflip will be added for each qubit connected (target, control) with the gates.
+
+    Raises:
+        ValueError: When the probability is outside of the expected interval [0, 0.5].
+
+    Examples:
+        >>> circuit = QCircuit([H(i) for i in range(3)])
+        >>> bf1 = BitFlip(0.1, [0])
+        >>> bf2 = BitFlip(0.3, [1, 2])
+        >>> bf3 = BitFlip(0.05, [0], gates=[H])
+        >>> circuit.add([bf1, bf2, bf3])
+        >>> print(circuit)
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            BitFlip(0.1, [0])
+            BitFlip(0.3, [1, 2])
+            BitFlip(0.05, [0], gates=[H])
+
+    """
+
+    def __init__(
+        self,
+        prob: float,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[Gate]]] = None,
+    ):
+
+        if not (0 <= prob <= 0.5):
+            raise ValueError(
+                f"Invalid probability: {prob} but should be between 0 and 0.5"
             )
 
+        super().__init__(targets, gates)
+        self.prob = prob
+        """Probability, or error rate, of the bit-flip noise model."""
 
-class BitFlip(NoiseModel):
-    """3M-TODO"""
+    def __repr__(self):
+        target = f", {self.targets}" if self.targets else ""
+        gates = f", gates={self.gates}" if self.gates else ""
+        return f"{type(self).__name__}({self.prob}{target}{gates})"
 
-    # def __init__(
-    #     self,
-    #     proba: Union[float, Expr],
-    #     targets: List[int],
-    #     dimension: int = 1,
-    #     gates: List[Gate] = None):
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> BraketNoise | QLMNoise:
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
-    #     super().__init__(proba, targets, dimension, gates)
+        Args:
+            language: Enum representing the target language.
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        # generate Kraus operators for bit flip noise
-        # kraus_operators = [
-        #     np.sqrt(1 - self.proba) * np.array([[1, 0], [0, 1]]),  # Identity
-        #     np.sqrt(self.proba) * np.array([[0, 1], [1, 0]])      # Bit flip
-        # ]
-        # return KrausRepresentation(kraus_operators)
-        ...
+        Examples:
+            >>> braket_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET)
+            >>> braket_bitflip
+            BitFlip('probability': 0.3, 'qubit_count': 1)
+            >>> type(braket_bitflip)
+            <class 'braket.circuits.noises.BitFlip'>
+
+        """
+
+        if language == Language.BRAKET:
+            from braket.circuits.noises import BitFlip as BraketBitFlip
+
+            return BraketBitFlip(probability=self.prob)
+
+        # TODO: MY_QLM implementation
+
+        else:
+            raise NotImplementedError(f"{language.name} not yet supported.")
+
+    def to_kraus_representation(self) -> KrausRepresentation: ...
 
 
 class Pauli(NoiseModel):
