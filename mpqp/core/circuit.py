@@ -46,7 +46,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import BitFlip, Depolarizing, NoiseModel
+from mpqp.noise.noise_model import Depolarizing, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -98,7 +98,7 @@ class QCircuit:
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
         QCircuit NoiseExample: Size (Qubits, Cbits) = (3, 3), Nb instructions = 5
-        Depolarizing noise: probability 0.5 on qubits [0, 1]
+        Depolarizing noise: on qubits [0, 1] with probability 0.5
              ┌───┐     ┌─┐
         q_0: ┤ H ├──■──┤M├───
              ├───┤┌─┴─┐└╥┘┌─┐
@@ -177,8 +177,8 @@ class QCircuit:
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
-            Depolarizing noise: probability 0.3 for gate CNOT
-            Depolarizing noise: probability 0.02 on qubit 0
+            Depolarizing noise: for gate CNOT with probability 0.3 and dimension 2
+            Depolarizing noise: on qubit 0 with probability 0.02
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -994,10 +994,12 @@ class QCircuit:
                         f"Device {device} does not have metadata for processor {cirq_proc_id}"
                     )
 
+                # For some processors, the circuits need to be optimized for the
+                # architecture. This is done here.
                 router = RouteCQC(device.metadata.nx_graph)
-                rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
+                route_circ, _, _ = router.route_circuit(cirq_circuit)
                 cirq_circuit = optimize_for_target_gateset(
-                    rcirc, gateset=SqrtIswapTargetGateset()
+                    route_circ, gateset=SqrtIswapTargetGateset()
                 )
 
                 device.validate_circuit(cirq_circuit)
@@ -1194,28 +1196,13 @@ class QCircuit:
         )
 
         qubits = set(range(self.size()[0]))
-        if self.noises:
-            for noise in self.noises:
-                if not isinstance(noise, (Depolarizing, BitFlip)):
-                    raise NotImplementedError(
-                        f"For now, {type(noise)} noise is not supported."
-                    )
-                targets = set(noise.targets)
-                noise_info = f"{type(noise).__name__} noise: probability {noise.prob}"
+        for noise in self.noises:
+            print(noise.info(qubits))
 
-                if targets and targets != qubits:
-                    noise_info += (
-                        f" on qubit{'s' if len(noise.targets) > 1 else ''} "
-                        f"{noise.targets[0] if len(noise.targets) == 1 else noise.targets}"
-                    )
-                if noise.gates:
-                    noise_info += (
-                        f" for gate{'s' if len(noise.gates) > 1 else ''} "
-                        f"{noise.gates[0] if len(noise.gates) == 1 else noise.gates}"
-                    )
-                print(noise_info)
-
-        print(f"{self.to_other_language(Language.QISKIT)}")
+        qiskit_circuit = self.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
+        print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
         qiskit_circ = self.to_other_language(Language.QISKIT)
@@ -1224,12 +1211,9 @@ class QCircuit:
 
             assert isinstance(qiskit_circ, QuantumCircuit)
         output = str(qiskit_circ.draw(output="text", fold=0))
-        if TYPE_CHECKING:
-            assert isinstance(output, str)
         if len(self.noises) != 0:
-            output += "\nNoiseModel:\n    " + "\n    ".join(
-                str(noise) for noise in self.noises
-            )
+            noises = "\n    ".join(str(noise) for noise in self.noises)
+            output += f"\nNoiseModel:\n    {noises}"
         return output
 
     def __repr__(self) -> str:
