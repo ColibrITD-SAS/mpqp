@@ -41,3 +41,8 @@ Native Gates
 .. [#traits] This in fact is somewhat twisting the way inheritance usually 
    works in python, to make it into a feature existing in other languages, such 
    as traits in rust.
+
+Custom Gates
+------------
+
+.. automodule:: mpqp.core.instruction.gates.custom_gate

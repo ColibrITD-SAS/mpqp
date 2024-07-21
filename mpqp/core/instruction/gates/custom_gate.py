@@ -1,3 +1,9 @@
+"""In some cases, we need to manipulate unitary operations that are not defined using native gates, but by the
+corresponding unitary matrix for instance. We define a
+:class:`CustomGate<mpqp.core.instruction.gates.custom_gate.CustomGate>` class allowing the user to add this custom
+unitary operation to the circuit, that will be decomposed and executed transparently."""
+
+
 from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
@@ -12,12 +18,15 @@ from mpqp.core.languages import Language
 
 @typechecked
 class CustomGate(Gate):
-    """Custom gates allow you to define your own gates.
+    """Custom gates allow you to define your own unitary gates.
 
     Args:
-        definition: The matrix (this is the only way supported to now) semantics of the gate.
+        definition: The UnitaryMatrix (only way supported for now) description of the gate.
         targets: The qubits on which the gate operates.
         label: The label of the gate. Defaults to None.
+
+    Raises:
+        ValueError: the target qubits must be contiguous and in order, and must match the size of the UnitaryMatrix
     """
 
     def __init__(
@@ -25,6 +34,15 @@ class CustomGate(Gate):
     ):
         self.matrix = definition.matrix
         """See parameter description."""
+
+        if definition.nb_qubits != len(targets):
+            raise ValueError(f"Size of the targets ({len(targets)}) must match the number of qubits of the "
+                             f"UnitaryMatrix ({definition.nb_qubits})")
+        if not all([targets[i]+1==targets[i+1] for i in range(len(targets)-1)]):
+            raise ValueError("Target qubits must be ordered and contiguous for a CustomGate.")
+
+        # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate
+
         super().__init__(targets, label)
 
     def to_matrix(self):

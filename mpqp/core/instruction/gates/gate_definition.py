@@ -91,7 +91,7 @@ class GateDefinition(ABC):
 
 @typechecked
 class UnitaryMatrix(GateDefinition):
-    """Definition of a gate using it's matrix.
+    """Definition of a gate using its matrix.
 
     Args:
         definition: Matrix defining the unitary gate.
@@ -113,9 +113,18 @@ class UnitaryMatrix(GateDefinition):
             )
         self.matrix = definition
         """See parameter :attr:`definition`'s description."""
+        self._nb_qubits = None
 
     def to_matrix(self) -> Matrix:
         return self.matrix
+
+    @property
+    def nb_qubits(self) -> int:
+        # TODO: we don't check that the size of the unitary matrix is a power of 2, and I wouldn't put that check in
+        #  `is_unitary`, because this is specific to the quantum computing context.
+        if self._nb_qubits is None:
+            self._nb_qubits = int(np.log2(self.matrix.shape[0]))
+        return self._nb_qubits
 
     def subs(
         self,
