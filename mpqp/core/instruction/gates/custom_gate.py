@@ -1,6 +1,6 @@
-"""In some cases, we need to manipulate unitary operations that are not defined using native gates, but by the
-corresponding unitary matrix for instance. We define a
-:class:`CustomGate<mpqp.core.instruction.gates.custom_gate.CustomGate>` class allowing the user to add this custom
+"""In some cases, we need to manipulate unitary operations that are not defined using native gates (by the
+corresponding unitary matrix for instance). We define a
+:class:`CustomGate<mpqp.core.instruction.gates.custom_gate.CustomGate>` class allowing the user to add his custom
 unitary operation to the circuit, that will be decomposed and executed transparently."""
 
 
