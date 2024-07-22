@@ -64,6 +64,4 @@ class CustomGate(Gate):
 
         3M-TODO refine this doc and implement
         """
-        from mpqp.core.circuit import QCircuit
-
-        return QCircuit(self.nb_qubits)
+        raise NotImplementedError()
