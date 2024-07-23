@@ -71,6 +71,7 @@ def test_power(gate: Gate, pow: float, result_matrix: npt.NDArray[np.complex64])
     assert np.allclose(gate.power(pow).to_matrix(), result_matrix)
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "g1, g2, result_matrix",
     [

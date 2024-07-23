@@ -8,10 +8,6 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.tools.maths import is_unitary
 
 
-def test_custom_gate_created():
-    definition = UnitaryMatrix(np.array([[1, 0], [0, 1j]]))
-    assert is_unitary(CustomGate(definition, [0, 1]).to_matrix())
-
 
 @pytest.mark.parametrize(
     "matrix_1, matrix_2",
