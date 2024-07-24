@@ -904,7 +904,7 @@ class QCircuit:
                     new_circ = new_circ.reverse_bits()
                     new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
                         instruction.to_other_language(),
-                        [qcircuit.nb_qubits-1-i for i in instruction.targets],
+                        [i for i in instruction.targets],
                         instruction.label,
                     )
                     new_circ = new_circ.reverse_bits()
@@ -1083,12 +1083,16 @@ class QCircuit:
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
 
+        qiskit_circ.reverse_bits()
+
         new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
             if instruction.operation.name == 'unitary':
                 new_circuit.compose(replace_custom_gate(instruction, qiskit_circ.num_qubits), inplace=True)
             else:
                 new_circuit.append(instruction)
+
+        # apply_gphase(new_circuit, -np.pi, 0)
 
         qasm_str = qasm2.dumps(new_circuit)
 
