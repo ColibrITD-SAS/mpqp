@@ -692,6 +692,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             ]
         )
 
+    def __repr__(self):
+        return f"{type(self).__name__}({self.theta}, {self.phi}, {self.gamma}, {self.targets[0]})"
+
     qlm_aqasm_keyword = "U"
 
 
