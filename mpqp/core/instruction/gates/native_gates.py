@@ -902,6 +902,9 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     def to_matrix(self) -> Matrix:
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.controls[0]}, {self.targets[0]})"
+
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
@@ -944,6 +947,9 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         m = np.eye(4, dtype=complex)
         m[-1, -1] = -1
         return m
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.controls[0]}, {self.targets[0]})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
@@ -1056,6 +1062,9 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         m = np.identity(8, dtype=complex)
         m[-2:, -2:] = np.ones(2) - np.identity(2)
         return m
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.controls}, {self.targets[0]})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         3
