@@ -588,7 +588,13 @@ class SWAP(InvolutionGate, NoParameterGate):
         self.qlm_aqasm_keyword = "SWAP"
 
         self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+
         super().__init__([a, b], "SWAP")
+        self.a = a
+        self.b = b
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.a}, {self.b})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
