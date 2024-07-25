@@ -1,4 +1,5 @@
 {
+  "exclude": ["examples/scripts"],
   "typeCheckingMode": "strict",
   "useLibraryCodeForTypes": true,
   "reportUnknownArgumentType": "none",
@@ -7,5 +8,6 @@
   "reportUnknownLambdaType": "none",
   "reportMissingTypeStubs": "none",
   "reportUnknownParameterType": "none",
-  "reportUnnecessaryTypeIgnoreComment": "warning"
+  "reportUnnecessaryTypeIgnoreComment": "warning",
+  "ignore": ["__pycache__/", "build/"]
 }
