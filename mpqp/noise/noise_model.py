@@ -185,7 +185,7 @@ class Depolarizing(NoiseModel):
         # 3M-TODO: implement the possibility of having a parameterized noise,
         # param: Union[float, Expr]
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
-        if not (0 <= prob <= prob_upper_bound):  # pyright: ignore[reportOperatorIssue]
+        if not (0 <= prob <= prob_upper_bound):
             print(dimension, prob, prob_upper_bound)
             raise ValueError(
                 f"Invalid probability: {prob} but should have been between 0 "

@@ -60,8 +60,8 @@ def apply_noise_to_braket_circuit(
 
     for noise in noises:
         braket_noise = noise.to_other_language(Language.BRAKET)
-        assert isinstance(braket_noise, Noise)
-
+        if TYPE_CHECKING:
+            assert isinstance(braket_noise, Noise)
         if CRk in noise.gates:
             raise NotImplementedError(
                 "Cannot simulate noisy circuit with CRk gate due to an error on"
@@ -94,7 +94,8 @@ def run_braket(job: Job) -> Result:
     returns the Result.
 
     Args:
-        job: Job to be executed.
+        job: Job to be executed, it MUST be corresponding to a
+            :class:`mpqp.execution.devices.AWSDevice`.
 
     Returns:
         The result of the job.
@@ -103,12 +104,18 @@ def run_braket(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    if not isinstance(job.device, AWSDevice):
+        raise ValueError(
+            "`job` must correspond to an `AWSDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+
     from braket.tasks import GateModelQuantumTaskResult
 
     _, task = submit_job_braket(job)
-    assert isinstance(job.device, AWSDevice)
     res = task.result()
-    assert isinstance(res, GateModelQuantumTaskResult)
+    if TYPE_CHECKING:
+        assert isinstance(res, GateModelQuantumTaskResult)
 
     return extract_result(res, job, job.device)
 
@@ -119,7 +126,8 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     generated task.
 
     Args:
-        job: Job to be executed.
+        job: Job to be executed, it MUST be corresponding to a
+            :class:`mpqp.execution.devices.AWSDevice`.
 
     Returns:
         The task's id and the Task itself.
@@ -135,49 +143,55 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
-    from braket.circuits import Circuit
-
-    # check some compatibility issues
+    if not isinstance(job.device, AWSDevice):
+        raise ValueError(
+            "`job` must correspond to an `AWSDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using AWS Braket remote simulators"
             " and devices. Please use the LocalSimulator instead"
         )
-
+    if job.job_type == JobType.SAMPLE and job.measure is None:
+        raise ValueError("`SAMPLE` jobs must have a measure.")
+    if job.job_type == JobType.OBSERVABLE and not isinstance(
+        job.measure, ExpectationMeasure
+    ):
+        raise ValueError("`OBSERVABLE` jobs must have an `ExpectationMeasure`.")
     is_noisy = bool(job.circuit.noises)
-    device = get_braket_device(job.device, is_noisy=is_noisy)  # type: ignore
-
-    # convert job circuit into braket circuit, and apply the noise
-    braket_circuit = job.circuit.to_other_language(Language.BRAKET)
-    assert isinstance(braket_circuit, Circuit)
-
     if is_noisy and job.job_type not in [JobType.SAMPLE, JobType.OBSERVABLE]:
         raise ValueError(
             f"Job of type {job.job_type} is not supported for noisy circuits."
         )
-    # excute the job based on its type
+
+    from braket.circuits import Circuit
+
+    device = get_braket_device(job.device, is_noisy=is_noisy)
+
+    braket_circuit = job.circuit.to_other_language(Language.BRAKET)
+    if TYPE_CHECKING:
+        assert isinstance(braket_circuit, Circuit)
+
     if job.job_type == JobType.STATE_VECTOR:
         job.circuit = job.circuit.without_measurements()
-        braket_circuit = job.circuit.to_other_language(Language.BRAKET)
-        assert isinstance(braket_circuit, Circuit)
-        braket_circuit.state_vector()  # type: ignore
+        braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=0, inputs=None)
 
     elif job.job_type == JobType.SAMPLE:
-        assert job.measure is not None
+        if TYPE_CHECKING:
+            assert job.measure is not None
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
-        if not isinstance(job.measure, ExpectationMeasure):
-            raise ValueError(
-                "Cannot compute expectation value if measure used in job is not of "
-                "type ExpectationMeasure"
-            )
-
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, ExpectationMeasure)
         herm_op = job.measure.observable.to_other_language(Language.BRAKET)
-        braket_circuit.expectation(observable=herm_op, target=job.measure.targets)  # type: ignore
+        braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
+            observable=herm_op, target=job.measure.targets
+        )
 
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
@@ -240,14 +254,18 @@ def extract_result(
         job = Job(job_type, QCircuit(nb_qubits), device, measure)
     job.status = JobStatus.DONE
 
+    if job.job_type in (JobType.SAMPLE, JobType.OBSERVABLE) and job.measure is None:
+        raise ValueError("`SAMPLE` or `OBSERVABLE` jobs must have a measure.")
+
     if job.job_type == JobType.STATE_VECTOR:
         vector = braket_result.values[0]
-        assert isinstance(vector, list) or isinstance(vector, np.ndarray)
+        assert isinstance(vector, (list, np.ndarray))
         state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
         return Result(job, state_vector, 0, 0)
 
     elif job.job_type == JobType.SAMPLE:
-        assert job.measure is not None
+        if TYPE_CHECKING:
+            assert job.measure is not None
         counts = braket_result.measurement_counts
         sample_info = []
         for state in counts.keys():
@@ -257,7 +275,8 @@ def extract_result(
         return Result(job, sample_info, None, job.measure.shots)
 
     elif job.job_type == JobType.OBSERVABLE:
-        assert job.measure is not None
+        if TYPE_CHECKING:
+            assert job.measure is not None
         exp_value = braket_result.values[0]
         return Result(job, exp_value, None, job.measure.shots)
 
@@ -290,7 +309,8 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
         raise AWSBraketRemoteExecutionError(f"Job status: {status}")
     elif status in ["CREATED", "QUEUED", "RUNNING", "COMPLETED"]:  #
         result = task.result()
-        assert isinstance(result, GateModelQuantumTaskResult)
+        if TYPE_CHECKING:
+            assert isinstance(result, GateModelQuantumTaskResult)
     else:
         raise AWSBraketRemoteExecutionError(
             f"Unknown status {status} for the task {task_arn}"

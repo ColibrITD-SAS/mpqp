@@ -106,7 +106,10 @@ def is_hermitian(matrix: Matrix) -> bool:
         False
 
     """
-    return matrix_eq(np.array(matrix).transpose().conjugate(), matrix)  # type: ignore
+    return matrix_eq(
+        np.array(matrix).transpose().conjugate(),  # pyright: ignore[reportArgumentType]
+        matrix,
+    )
 
 
 @typechecked

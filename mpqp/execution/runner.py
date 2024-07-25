@@ -21,7 +21,7 @@ from __future__ import annotations
 from copy import deepcopy
 from numbers import Complex
 from textwrap import indent
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional
 
 import numpy as np
 from sympy import Expr
@@ -76,11 +76,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
         list(range(circuit.nb_qubits)),
-        Observable(
-            np.kron(
-                np.kron(Id_before, measure.observable.matrix), Id_after
-            )  # pyright: ignore[reportArgumentType]
-        ),
+        Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
         measure.shots,
     )
     return tweaked_measure
@@ -194,7 +190,7 @@ def _run_single(
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not (isinstance(device, ATOSDevice) or isinstance(device, AWSDevice)):
+        elif not (isinstance(device, (ATOSDevice, AWSDevice))):
             raise NotImplementedError(
                 f"Noisy simulations are not yet available on devices of type {type(device).name}."
             )
@@ -217,7 +213,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-) -> Union[Result, BatchResult]:
+) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
 
