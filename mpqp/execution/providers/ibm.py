@@ -175,7 +175,7 @@ def run_aer(job: Job):
         # the type checker can't find it. I hate it but it is what it is.
         # this explains the `type: ignore`. This method is needed to get a
         # statevector our of the statevector simulator...
-        qiskit_circuit.save_statevector()  # type: ignore
+        qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=0)
         result_sim = job_sim.result()

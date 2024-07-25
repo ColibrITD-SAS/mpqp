@@ -8,12 +8,12 @@ from mpqp.tools.maths import cos, exp, matrix_eq, sin
 
 theta: Expr
 k: Expr
-theta, k = symbols("θ k")  # pyright: ignore[reportAssignmentType]
+theta, k = symbols("θ k")
 c, s, e = cos(theta), sin(theta), exp(1.0 * I * theta)
 c2, s2, e2 = (
     cos(theta / 2),  # pyright: ignore[reportOperatorIssue]
     sin(theta / 2),  # pyright: ignore[reportOperatorIssue]
-    exp(1.0 * I * theta / 2),  # pyright: ignore[reportOperatorIssue]
+    exp(1.0 * I * theta / 2),
 )
 
 

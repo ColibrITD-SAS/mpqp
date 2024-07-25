@@ -992,9 +992,9 @@ class QCircuit:
                     )
 
                 router = RouteCQC(device.metadata.nx_graph)
-                rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
+                r_circ, _, _ = router.route_circuit(cirq_circuit)
                 cirq_circuit = optimize_for_target_gateset(
-                    rcirc, gateset=SqrtIswapTargetGateset()
+                    r_circ, gateset=SqrtIswapTargetGateset()
                 )
 
                 device.validate_circuit(cirq_circuit)

@@ -76,11 +76,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
         list(range(circuit.nb_qubits)),
-        Observable(
-            np.kron(
-                np.kron(Id_before, measure.observable.matrix), Id_after
-            )  # pyright: ignore[reportArgumentType]
-        ),
+        Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
         measure.shots,
     )
     return tweaked_measure

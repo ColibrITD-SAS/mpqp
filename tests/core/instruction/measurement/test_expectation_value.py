@@ -5,7 +5,6 @@ import warnings
 import numpy as np
 import pytest
 from braket.circuits.observables import Hermitian
-from cirq.circuits.circuit import Circuit
 from cirq.devices.line_qubit import LineQubit
 from cirq.ops.identity import I as Cirq_I
 from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
