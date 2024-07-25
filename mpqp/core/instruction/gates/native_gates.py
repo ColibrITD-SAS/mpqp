@@ -593,7 +593,7 @@ class SWAP(InvolutionGate, NoParameterGate):
         self.a = a
         self.b = b
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({self.a}, {self.b})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
@@ -692,7 +692,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             ]
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({self.theta}, {self.phi}, {self.gamma}, {self.targets[0]})"
 
     qlm_aqasm_keyword = "U"
@@ -1020,7 +1020,7 @@ class CRk(RotationGate, ControlledGate):
         e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
