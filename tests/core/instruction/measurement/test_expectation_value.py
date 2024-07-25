@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from typing import Union
 
 import numpy as np
 import pytest
@@ -63,6 +64,8 @@ a, b, c = LineQubit.range(3)
 )
 def test_to_other_language(
     obs: Observable,
-    translation: Operator | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString,
+    translation: Union[
+        Operator, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
+    ],
 ):
     assert obs.to_other_language(Language.CIRQ) == translation
