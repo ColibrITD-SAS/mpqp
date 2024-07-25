@@ -27,6 +27,9 @@ div.document {
         color: lime;
     }
 } */
+html {
+  scroll-padding-block-start: 120px;
+}
 
 /* *** fix for rtd dark *** */
 html[data-theme="dark"] .theme-switcher {
@@ -204,8 +207,4 @@ html[data-theme="dark"] .rst-content .highlighted {
 
 html[data-theme="dark"] #native-gates-list > * {
   border-color: white;
-}
-
-section > * {
-  scroll-padding-block-start: 60px;
 }

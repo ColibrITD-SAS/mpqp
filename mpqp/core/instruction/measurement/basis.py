@@ -18,7 +18,7 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
-from mpqp.tools.generics import clean_array
+from mpqp.tools.display import clean_1D_array
 from mpqp.tools.maths import atol, matrix_eq
 
 
@@ -67,11 +67,7 @@ class Basis:
             )
         if any(len(vector) != 2**nb_qubits for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not the same size")
-        if any(
-            abs(np.linalg.norm(vector) - 1)  # pyright: ignore[reportGeneralTypeIssues]
-            > atol
-            for vector in basis_vectors
-        ):
+        if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not normalized")
         m = np.array([vector for vector in basis_vectors])
         if not matrix_eq(
@@ -96,7 +92,7 @@ class Basis:
             ]
 
         """
-        joint_vectors = ",\n    ".join(map(clean_array, self.basis_vectors))
+        joint_vectors = ",\n    ".join(map(clean_1D_array, self.basis_vectors))
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:

@@ -18,14 +18,17 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from numbers import Complex
-from typing import Iterable, Optional, Union
+from textwrap import indent
+from typing import Iterable, Optional
 
 import numpy as np
 from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
@@ -42,10 +45,11 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.google import run_google
-from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
+from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
+from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
-from mpqp.tools.generics import OneOrMany
+from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 
 @typechecked
@@ -72,11 +76,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
         list(range(circuit.nb_qubits)),
-        Observable(
-            np.kron(
-                np.kron(Id_before, measure.observable.matrix), Id_after
-            )  # pyright: ignore[reportArgumentType]
-        ),
+        Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
         measure.shots,
     )
     return tweaked_measure
@@ -140,7 +140,10 @@ def generate_job(
 
 @typechecked
 def _run_single(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex]
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: dict[Expr | str, Complex],
+    display_breakpoints: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -149,6 +152,9 @@ def _run_single(
         circuit: QCircuit to be run.
         device: Device, on which the circuit will be run.
         values: Set of values to substitute symbolic variables. Defaults to ``{}``.
+        display_breakpoints: If ``False``, breakpoints will be disabled. Each
+            breakpoint adds an execution of the circuit(s), so you may use this
+            option for performance if need be.
 
     Returns:
         The Result containing information about the measurement required.
@@ -172,6 +178,10 @@ def _run_single(
          Error: None
 
     """
+    if display_breakpoints:
+        for k in range(len(circuit.breakpoints)):
+            display_kth_breakpoint(circuit, k)
+
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
@@ -180,7 +190,7 @@ def _run_single(
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not (isinstance(device, ATOSDevice) or isinstance(device, AWSDevice)):
+        elif not (isinstance(device, (ATOSDevice, AWSDevice))):
             raise NotImplementedError(
                 f"Noisy simulations are not yet available on devices of type {type(device).name}."
             )
@@ -202,7 +212,8 @@ def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
-) -> Union[Result, BatchResult]:
+    display_breakpoints: bool = True,
+) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
 
@@ -211,9 +222,12 @@ def run(
     substitutions.
 
     Args:
-        circuit: QCircuit to be run.
+        circuit: Circuit, or list of circuits, to be run.
         device: Device, or list of devices, on which the circuit will be run.
         values: Set of values to substitute symbolic variables. Defaults to ``{}``.
+        display_breakpoints: If ``False``, breakpoints will be disabled. Each
+            breakpoint adds an execution of the circuit(s), so you may use this
+            option for performance if need be.
 
     Returns:
         The Result containing information about the measurement required.
@@ -273,16 +287,22 @@ def run(
     if values is None:
         values = {}
 
-    if isinstance(circuit, Iterable):
-        if isinstance(device, Iterable):
-            return BatchResult([_run_single(circ, dev, values) for circ in circuit for dev in device])
-        else:
-            return BatchResult([_run_single(circ, device, values) for circ in circuit])
+    def namer(circ: QCircuit, i: int):
+        circ = deepcopy(circ)
+        circ.label = f"circuit {i}" if circ.label is None else circ.label
+        return circ
+
+    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+        return BatchResult(
+            [
+                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
+                for i, circ in enumerate(flatten(circuit))
+                for dev in flatten(device)
+            ]
+        )
     else:
-        if isinstance(device, Iterable):
-            return BatchResult([_run_single(circuit, dev, values) for dev in device])
-        else:
-            return _run_single(circuit, device, values)
+        return _run_single(circuit, device, values, display_breakpoints)
+
 
 @typechecked
 def submit(
@@ -326,7 +346,7 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        job_id, _ = submit_ibmq(job)
+        job_id, _ = submit_remote_ibm(job)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
@@ -335,3 +355,34 @@ def submit(
         raise NotImplementedError(f"Device {device} not handled")
 
     return job_id, job
+
+
+def display_kth_breakpoint(circuit: QCircuit, k: int):
+    """Prints to the standard output the state vector corresponding to the state
+    of the system when it encounters the `k^{th}` breakpoint.
+
+    Args:
+        circuit: The circuit to be examined.
+        k: The state desired is met at the `k^{th}` breakpoint.
+    """
+    bp = circuit.breakpoints[k]
+    if bp.enabled:
+        name_part = "" if bp.label is None else f", at breakpoint `{bp.label}`"
+        relevant_instructions = list(
+            filter(
+                lambda i: i is bp or not isinstance(i, Breakpoint), circuit.instructions
+            )
+        )
+        bp_instructions_index = find_index(relevant_instructions, lambda i: i is bp)
+        copy = QCircuit(
+            relevant_instructions[:bp_instructions_index],
+            nb_qubits=circuit.nb_qubits,
+            nb_cbits=circuit.nb_cbits,
+            label=circuit.label,
+        )
+        res = _run_single(copy, ATOSDevice.MYQLM_CLINALG, {}, False)
+        print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
+        print("       " + state_vector_ket_shape(res.amplitudes))
+        if bp.draw_circuit:
+            print("       and circuit is")
+            print(indent(str(copy), "       "))
