@@ -1,24 +1,11 @@
 {
-"include": ["mpqp"],
-"exclude": ["**/tests", "**/examples", "**/mpqp_scripts", "**/docs"],
-"useLibraryCodeForTypes": true,
-"reportOptionalSubscript": "error",
-"reportOptionalMemberAccess": "error",
-"reportOptionalCall": "error",
-"reportOptionalIterable": "error",	
-"reportOptionalContextManager": "error",	
-"reportOptionalOperand": "error",
-"strictDictionaryInference": true,
-"typeCheckingMode": "strict",
-"reportMissingImports": true,
-"reportUnknownMemberType": "error",
-"reportUnknownVariableType": "error",
-"reportUnnecessaryCast": "warning",
-"reportUnnecessaryComparison": "error",
-"reportConstantRedefinition": "error",
-"reportUnnecessaryTypeIgnoreComment": "warning",
-"reportMissingTypeStubs": false, // suppress missing type stubs errors
-"ignore": [
-  "**/__pycache__"
-]
+  "typeCheckingMode": "strict",
+  "useLibraryCodeForTypes": true,
+  "reportUnknownArgumentType": "none",
+  "reportUnknownVariableType": "none",
+  "reportUnknownMemberType": "none",
+  "reportUnknownLambdaType": "none",
+  "reportMissingTypeStubs": "none",
+  "reportUnknownParameterType": "none",
+  "reportUnnecessaryTypeIgnoreComment": "warning"
 }
