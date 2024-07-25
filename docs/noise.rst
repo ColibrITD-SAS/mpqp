@@ -48,3 +48,8 @@ BitFlip Noise Model
 -------------------
 
 .. autoclass:: mpqp.noise.noise_model.BitFlip
+
+Amplitude Damping Noise Model
+-----------------------------
+
+.. autoclass:: mpqp.noise.noise_model.AmplitudeDamping
