@@ -23,7 +23,7 @@ from __future__ import annotations
 from copy import deepcopy
 from numbers import Complex
 from pickle import dumps
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
 
 from mpqp.core.instruction.breakpoint import Breakpoint
 
@@ -114,7 +114,7 @@ class QCircuit:
 
     def __init__(
         self,
-        data: int | Sequence[Union[Instruction, NoiseModel]],
+        data: int | Sequence[Instruction | NoiseModel],
         *,
         nb_qubits: Optional[int] = None,
         nb_cbits: Optional[int] = None,
@@ -821,12 +821,7 @@ class QCircuit:
 
     def to_other_language(
         self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
-    ) -> Union[
-        QuantumCircuit,
-        myQLM_Circuit,
-        braket_Circuit,
-        cirq_Circuit,
-    ]:
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -901,7 +896,7 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
+                    new_circ.unitary(
                         instruction.to_other_language(),
                         instruction.targets,
                         instruction.label,

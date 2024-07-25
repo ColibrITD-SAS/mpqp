@@ -21,7 +21,7 @@ from __future__ import annotations
 from copy import deepcopy
 from numbers import Complex
 from textwrap import indent
-from typing import Iterable, Optional, Union
+from typing import Iterable, Optional
 
 import numpy as np
 from sympy import Expr
@@ -217,7 +217,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-) -> Union[Result, BatchResult]:
+) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
 
