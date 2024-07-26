@@ -1,11 +1,9 @@
 import numpy as np
-import numpy.typing as npt
 import pytest
 
-from mpqp.core.instruction.measurement.pauli_string import I, Z, X, Y, PauliString
-from mpqp.core.instruction.measurement.expectation_value import Observable
-from mpqp.tools.maths import matrix_eq
+from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
 from mpqp.tools.generics import Matrix
+from mpqp.tools.maths import matrix_eq
 
 
 def list_matrix_pauli_string():

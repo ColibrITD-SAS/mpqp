@@ -106,7 +106,10 @@ def is_hermitian(matrix: Matrix) -> bool:
         False
 
     """
-    return matrix_eq(np.array(matrix).transpose().conjugate(), matrix)  # type: ignore
+    return matrix_eq(
+        np.array(matrix).transpose().conjugate(),  # pyright: ignore[reportArgumentType]
+        matrix,
+    )
 
 
 @typechecked
@@ -253,9 +256,7 @@ def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
     """
     from qiskit import quantum_info
 
-    return quantum_info.random_clifford(
-        nb_qubits
-    ).to_matrix()  # pyright: ignore[reportReturnType]
+    return quantum_info.random_clifford(nb_qubits).to_matrix()
 
 
 def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:

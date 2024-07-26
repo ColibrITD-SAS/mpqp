@@ -859,9 +859,7 @@ class Rz(RotationGate, SingleQubitGate):
         self.qlm_aqasm_keyword = "RZ"
 
     def to_matrix(self) -> Matrix:
-        e = exp(
-            -1j * self.parameters[0] / 2  # pyright: ignore[reportOperatorIssue]
-        )  # pyright: ignore[reportArgumentType]
+        e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         return np.array(  # pyright: ignore[reportCallIssue]
             [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
         )

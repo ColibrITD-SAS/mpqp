@@ -246,7 +246,8 @@ def _minimize_local_circ(
     # The sympy `free_symbols` method returns in fact sets of Basic, which
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
-    variables: set[Expr] = circ.variables()  # type: ignore
+    # TODO: bellow might be a bug, check why we need this type ignore
+    variables: set[Expr] = circ.variables()  # pyright: ignore[reportAssignmentType]
 
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:

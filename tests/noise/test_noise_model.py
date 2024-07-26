@@ -10,7 +10,7 @@ from mpqp.noise.noise_model import NoiseModel
 
 def test_depolarizing_valid_params():
     noise = Depolarizing(0.1, [0])
-    assert noise.proba == 0.1
+    assert noise.prob == 0.1
 
 
 @pytest.mark.parametrize(

@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
     from qat.core.wrappers.observable import Observable as QLMObservable
     from braket.circuits.observables import Hermitian
-    from cirq.circuits.circuit import Circuit as Cirq_Circuit
+    from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
 
@@ -124,7 +124,7 @@ class Observable:
         ...
 
     def to_other_language(
-        self, language: Language, circuit: Optional[Cirq_Circuit] = None
+        self, language: Language, circuit: Optional[CirqCircuit] = None
     ) -> SparsePauliOp | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
         """Converts the observable to the representation of another quantum
         programming language.
@@ -157,42 +157,7 @@ class Observable:
 
             return Hermitian(self.matrix)
         elif language == Language.CIRQ:
-            if circuit is None:
-                raise ValueError("Circuit must be specified for cirq_observable.")
-
-            from cirq.ops.identity import I as Cirq_I
-            from cirq.ops.pauli_gates import X as Cirq_X
-            from cirq.ops.pauli_gates import Y as Cirq_Y
-            from cirq.ops.pauli_gates import Z as Cirq_Z
-
-            all_qubits = sorted(
-                set(
-                    q
-                    for moment in circuit
-                    for op in moment.operations
-                    for q in op.qubits
-                )
-            )
-
-            pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
-
-            cirq_pauli_string = None
-
-            for monomial in self.pauli_string.monomials:
-                cirq_monomial = None
-
-                for index, atom in enumerate(monomial.atoms):
-                    cirq_atom = pauli_gate_map[atom.label](all_qubits[index])
-                    cirq_monomial = cirq_atom if cirq_monomial is None else cirq_monomial * cirq_atom  # type: ignore
-
-                cirq_monomial *= monomial.coef  # type: ignore
-                cirq_pauli_string = (
-                    cirq_monomial
-                    if cirq_pauli_string is None
-                    else cirq_pauli_string + cirq_monomial
-                )
-
-            return cirq_pauli_string
+            return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
             raise ValueError(f"Unsupported language: {language}")
 
