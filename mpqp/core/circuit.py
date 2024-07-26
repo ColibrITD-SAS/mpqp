@@ -237,18 +237,17 @@ class QCircuit:
             self.instructions.append(components)
 
     def hard_copy(self):
-        """
-        Creates a deep copy of the quantum circuit object, ensuring all properties,
-        including noises and instructions, are properly duplicated with necessary
-        adjustments, empty targets are replaced with all possible targets.
+        """Creates a copy of the quantum circuit and additionally hardcodes any
+        dynamic size parameter.
 
         Returns:
-            qcircuit: A deep copy of the original quantum circuit object with updated properties.
+            qcircuit: A deep copy of the circuit with the appropriate properties
+                updated.
 
         Raises:
-            ValueError: If the number of target qubits for a Depolarizing noise is less
-                        than the noise's dimension, or if BasisMeasure does not span all
-                        qubits in a noisy circuit.
+            ValueError: If the number of target qubits for a noise source is
+                smaller than the its dimension, or if BasisMeasure does not span
+                all qubits in a noisy circuit.
 
         Examples:
             >>> circuit2 = QCircuit([H(i) for i in range(2)])
@@ -286,13 +285,11 @@ class QCircuit:
         for noise in noises:
             if len(noise.targets) == 0:
                 noise.targets = list(range(self.nb_qubits))
-                if (
-                    isinstance(noise, Depolarizing)
-                    and len(noise.targets) < noise.dimension
-                ):
-                    raise ValueError(
-                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
-                    )
+            if isinstance(noise, Depolarizing) and len(noise.targets) < noise.dimension:
+                raise ValueError(
+                    f"Number of target qubits {len(noise.targets)} should "
+                    f"be higher than the dimension {noise.dimension}."
+                )
         qcircuit.noises = noises
 
         instructions = deepcopy(self.instructions)
@@ -303,11 +300,9 @@ class QCircuit:
                 if len(instruction.targets) == 0:
                     instruction.targets = list(range(self.nb_qubits))
                 if isinstance(instruction, BasisMeasure):
+                    if qcircuit.nb_cbits is None:
+                        qcircuit.nb_cbits = 0
                     if instruction.c_targets is None:
-                        if len(instruction.targets) == 0:
-                            instruction.targets = list(range(self.nb_qubits))
-                        if qcircuit.nb_cbits is None:
-                            qcircuit.nb_cbits = 0
                         instruction.c_targets = [
                             qcircuit.nb_cbits + i
                             for i in range(len(instruction.targets))
@@ -315,7 +310,8 @@ class QCircuit:
                         qcircuit.nb_cbits += self.nb_qubits
                     if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
                         raise ValueError(
-                            "In noisy circuits, BasisMeasure must span all qubits in the circuit."
+                            "In noisy circuits, BasisMeasure must span all "
+                            "qubits in the circuit."
                         )
         qcircuit.instructions = instructions
         return qcircuit
@@ -617,9 +613,11 @@ class QCircuit:
         from qiskit.quantum_info.operators import Operator
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
-        assert isinstance(qiskit_circuit, QuantumCircuit)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
-        assert isinstance(matrix, np.ndarray)
+        if TYPE_CHECKING:
+            assert isinstance(matrix, np.ndarray)
 
         return matrix
 

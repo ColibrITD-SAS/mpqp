@@ -624,7 +624,7 @@ class SWAP(InvolutionGate, NoParameterGate):
         min_num_qubits = min(control, target)
         dim = 2 ** (nb_qubits + 1)
 
-        swap_matrix = np.eye(dim)
+        swap_matrix = np.eye(dim, dtype=np.complex64)
 
         for i in range(dim):
             binary_state = list(format(i, f"0{nb_qubits + 1}b"))
@@ -704,7 +704,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
         elif language == Language.BRAKET:
-            from braket.circuits import gates
+            from braket.circuits.gates import U as braket_U
             from sympy import Expr
 
             # TODO handle symbolic parameters
@@ -718,7 +718,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                     "export, this feature is coming very soon!"
                 )
 
-            return gates.U(self.theta, self.phi, self.gamma)
+            return braket_U(self.theta, self.phi, self.gamma)
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 

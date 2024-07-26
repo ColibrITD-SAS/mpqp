@@ -43,8 +43,7 @@ class ControlledGate(Gate, ABC):
         Gate.__init__(self, targets, label)
 
     def controlled_gate_to_matrix(self) -> Matrix:
-        """
-        Constructs the matrix representation of a controlled gate.
+        """Constructs the matrix representation of a controlled gate.
 
         Returns:
             The matrix representation of the controlled gate.
@@ -97,16 +96,16 @@ class ControlledGate(Gate, ABC):
 
         I2 = np.eye(2)
 
-        min_qubit = min(min(self.controls), min(self.targets))
-        max_qubit = max(max(self.controls), max(self.targets))
-        nb_qubits = max_qubit - min_qubit + 1
+        min_qubit = min(self.connections())
+        max_qubit = max(self.connections())
+        span = max_qubit - min_qubit + 1
+        size = len(self.connections())
 
         canonical_matrix = self.to_canonical_matrix()
-        while canonical_matrix.shape[0] < 2**nb_qubits:
-            canonical_matrix = np.kron(canonical_matrix, I2)
+        canonical_matrix = np.kron(canonical_matrix, np.eye(2 ** (span - size)))
 
-        matrix = np.eye(2**nb_qubits, dtype=np.complex64)
-        qubit_types = {i: "None" for i in range(nb_qubits)}
+        matrix = np.eye(2**span, dtype=np.complex64)
+        qubit_types = {i: "None" for i in range(span)}
 
         for i, _ in enumerate(self.controls):
             qubit_types[i] = "control"
@@ -115,7 +114,7 @@ class ControlledGate(Gate, ABC):
 
         def swap_and_update(matrix: Matrix, idx_a: int, idx_b: int):
             swap_matrix = SWAP(idx_a, idx_b).to_matrix()
-            extended_swap_matrix = np.eye(2**nb_qubits)
+            extended_swap_matrix = np.eye(2**span)
             start = min(idx_b, idx_a)
             if start == 0:
                 extended_swap_matrix = swap_matrix
@@ -124,7 +123,7 @@ class ControlledGate(Gate, ABC):
                 for _ in range(1, start - 1):
                     extended_swap_matrix = np.kron(extended_swap_matrix, I2)
                 extended_swap_matrix = np.kron(extended_swap_matrix, swap_matrix)
-            for _ in range(int(math.log2(extended_swap_matrix.shape[0])), nb_qubits):
+            for _ in range(int(math.log2(extended_swap_matrix.shape[0])), span):
                 extended_swap_matrix = np.kron(extended_swap_matrix, I2)
             return np.dot(matrix, extended_swap_matrix)
 
@@ -133,7 +132,7 @@ class ControlledGate(Gate, ABC):
             if qubit_types[control] != "control":
                 target_idx = next(
                     i
-                    for i in range(nb_qubits)
+                    for i in range(span)
                     if qubit_types[i] == "control" and i not in self.controls
                 )
                 print("control:", control, target_idx)
@@ -148,7 +147,7 @@ class ControlledGate(Gate, ABC):
             if qubit_types[target] != "target":
                 target_idx = next(
                     i
-                    for i in range(nb_qubits)
+                    for i in range(span)
                     if qubit_types[i] == "target" and i not in self.controls
                 )
                 matrix = swap_and_update(matrix, target, target_idx)
