@@ -16,7 +16,7 @@ jsonschema>=4.17.3
 typeguard>=4.2.1
 pylatexenc==2.10
 anytree>=2.12.1
-sympy==1.10.1
+sympy==1.13.1
 pick==2.2.0
 termcolor==2.4.0
 aenum==3.1.15

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 from numbers import Complex
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
 import numpy as np
@@ -125,7 +125,7 @@ class Observable:
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
-    ) -> SparsePauliOp | QLMObservable | Hermitian | CirqPauliSum | CirqPauliString:
+    ) -> Union[SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString]:
         """Converts the observable to the representation of another quantum
         programming language.
 
