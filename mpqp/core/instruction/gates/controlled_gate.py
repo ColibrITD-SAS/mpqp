@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from abc import ABC
+from functools import reduce
 from typing import Optional
 
 from typeguard import typechecked
@@ -42,9 +43,14 @@ class ControlledGate(Gate, ABC):
 
         Gate.__init__(self, targets, label)
 
-    def controlled_gate_to_matrix(self) -> Matrix:
+    def to_matrix(self, nb_qubits: int = 0) -> Matrix:
         """
         Constructs the matrix representation of a controlled gate.
+
+        Args:
+            nb_qubits: The total number of qubits in the system. If not provided,
+                        the minimum number of qubits required to generate the matrix
+                        will be used.
 
         Returns:
             The matrix representation of the controlled gate.
@@ -52,13 +58,19 @@ class ControlledGate(Gate, ABC):
         import numpy as np
 
         if len(self.controls) != 1 or len(self.targets) != 1:
-            return self._multi_control_gate_to_matrix()
-        control, target = self.controls[0], self.targets[0]
-        min_ = min(control, target)
-        control -= min_
-        target -= min_
+            return self._multi_control_gate_to_matrix(nb_qubits)
 
-        nb_qubit = abs(control - target) + 1
+        control, target = self.controls[0], self.targets[0]
+        max_qubit = max(control, target)
+        if nb_qubits != 0:
+            if nb_qubits - 1 < max_qubit:
+                raise ValueError(f"nb_qubits must be at least {max_qubit}")
+        else:
+            min_qubit = min(control, target)
+            control -= min_qubit
+            target -= min_qubit
+            nb_qubits = abs(control - target) + 1
+
         zero = np.diag([1, 0])
         one = np.diag([0, 1])
         I2 = np.eye(2)
@@ -70,94 +82,73 @@ class ControlledGate(Gate, ABC):
             else (self.non_controlled_gate.to_matrix() if target == 0 else I2)
         )
 
-        for i in range(1, nb_qubit):
+        for i in range(1, nb_qubits):
             if i == control:
                 target_matrix = np.kron(target_matrix, one)
+                control_matrix = np.kron(control_matrix, zero)
             elif i == target:
                 target_matrix = np.kron(
                     target_matrix, self.non_controlled_gate.to_matrix()
                 )
+                control_matrix = np.kron(control_matrix, I2)
             else:
                 target_matrix = np.kron(target_matrix, I2)
-
-        for i in range(1, nb_qubit):
-            if i == control:
-                control_matrix = np.kron(control_matrix, zero)
-            else:
                 control_matrix = np.kron(control_matrix, I2)
 
         return control_matrix + target_matrix  # pyright: ignore[reportReturnType]
 
-    def _multi_control_gate_to_matrix(self) -> Matrix:
-        import math
-
+    def _multi_control_gate_to_matrix(self, nb_qubits: int = 0) -> Matrix:
         import numpy as np
-
         from mpqp.core.instruction.gates.native_gates import SWAP
 
-        I2 = np.eye(2)
+        controls, targets = self.controls, self.targets
+        min_qubit, max_qubit = min(min(controls), min(targets)), max(
+            max(controls), max(targets)
+        )
 
-        min_qubit = min(min(self.controls), min(self.targets))
-        max_qubit = max(max(self.controls), max(self.targets))
-        nb_qubits = max_qubit - min_qubit + 1
+        # If nb_qubits is not provided, calculate the necessary number of minimal qubits
+        if nb_qubits == 0:
+            nb_qubits = max_qubit - min_qubit + 1
+            controls = [x - min_qubit for x in controls]
+            targets = [x - min_qubit for x in targets]
+        elif nb_qubits < max_qubit:
+            raise ValueError(f"nb_qubits must be at least {max_qubit}")
 
+        # Get the canonical matrix and extend it to the correct size
         canonical_matrix = self.to_canonical_matrix()
-        while canonical_matrix.shape[0] < 2**nb_qubits:
-            canonical_matrix = np.kron(canonical_matrix, I2)
+        if canonical_matrix.shape[0] < 2**nb_qubits:
+            canonical_matrix = np.kron(
+                canonical_matrix, np.eye(2**nb_qubits // canonical_matrix.shape[0])
+            )
 
-        matrix = np.eye(2**nb_qubits, dtype=np.complex64)
+        swaps = []
+        # qubit_types if a representation of the all qubits to follow target and control with swap
+        # assuming that canonical_matrix start with control and then target
         qubit_types = {i: "None" for i in range(nb_qubits)}
-
-        for i, _ in enumerate(self.controls):
+        for i in range(len(controls)):
             qubit_types[i] = "control"
-        for i, _ in enumerate(self.targets, start=len(self.controls)):
-            qubit_types[i] = "target"
+        for i in range(len(targets)):
+            qubit_types[i + len(controls)] = "target"
 
-        def swap_and_update(matrix: Matrix, idx_a: int, idx_b: int):
-            swap_matrix = SWAP(idx_a, idx_b).to_matrix()
-            extended_swap_matrix = np.eye(2**nb_qubits)
-            start = min(idx_b, idx_a)
-            if start == 0:
-                extended_swap_matrix = swap_matrix
-            if start != 0:
-                extended_swap_matrix = I2
-                for _ in range(1, start - 1):
-                    extended_swap_matrix = np.kron(extended_swap_matrix, I2)
-                extended_swap_matrix = np.kron(extended_swap_matrix, swap_matrix)
-            for _ in range(int(math.log2(extended_swap_matrix.shape[0])), nb_qubits):
-                extended_swap_matrix = np.kron(extended_swap_matrix, I2)
-            return np.dot(matrix, extended_swap_matrix)
+        def swap_and_update(qubits: list[int], target_type: str):
+            for qubit in sorted(qubits):
+                if qubit_types[qubit] != target_type:
+                    # Find a qubit of the target type that is not in the current set of qubits
+                    target_idx = next(
+                        i
+                        for i in range(nb_qubits)
+                        if qubit_types[i] == target_type and i not in qubits
+                    )
+                    swaps.append(SWAP(qubit, target_idx).to_matrix(nb_qubits))
+                    qubit_types[qubit], qubit_types[target_idx] = (
+                        qubit_types[target_idx],
+                        qubit_types[qubit],
+                    )
 
-        for control in sorted(self.controls):
-            control -= min_qubit
-            if qubit_types[control] != "control":
-                target_idx = next(
-                    i
-                    for i in range(nb_qubits)
-                    if qubit_types[i] == "control" and i not in self.controls
-                )
-                print("control:", control, target_idx)
-                matrix = swap_and_update(matrix, control, target_idx)
-                qubit_types[control], qubit_types[target_idx] = (
-                    qubit_types[target_idx],
-                    qubit_types[control],
-                )
+        swap_and_update(controls, "control")
+        swap_and_update(targets, "target")
 
-        for target in sorted(self.targets):
-            target -= min_qubit
-            if qubit_types[target] != "target":
-                target_idx = next(
-                    i
-                    for i in range(nb_qubits)
-                    if qubit_types[i] == "target" and i not in self.controls
-                )
-                matrix = swap_and_update(matrix, target, target_idx)
-                qubit_types[target], qubit_types[target_idx] = (
-                    qubit_types[target_idx],
-                    qubit_types[target],
-                )
-
-        return matrix.dot(canonical_matrix).dot(matrix)
+        return reduce(np.dot, swaps[::-1] + [canonical_matrix] + swaps)
 
 
 # peudo algo for multi control g to m

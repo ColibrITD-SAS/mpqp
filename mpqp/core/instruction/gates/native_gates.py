@@ -600,48 +600,58 @@ class SWAP(InvolutionGate, NoParameterGate):
         self.qlm_aqasm_keyword = "SWAP"
 
         super().__init__([a, b], "SWAP")
-        self.matrix = self.swap_gate_matrix()
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
 
-    def swap_gate_matrix(self) -> npt.NDArray[np.complex64]:
+    def to_matrix(self, nb_qubits: int = 0) -> npt.NDArray[np.complex64]:
         """
         Constructs the matrix representation of a SWAP gate for two qubits in a multi-qubit system.
 
-        Parameters:
-            control (int): The first qubit index (0-based) to be swapped.
-            target (int): The second qubit index (0-based) to be swapped.
-            num_qubits (int): The total number of qubits in the system.
+        Args:
+            nb_qubits: The total number of qubits in the system. If not provided,
+                        the minimum number of qubits required to generate the matrix
+                        will be used.
 
         Returns:
             numpy.ndarray: The matrix representation of the SWAP gate.
         """
         control = self.targets[0]
         target = self.targets[1]
-        nb_qubits = abs(control - target)
-        min_num_qubits = min(control, target)
-        dim = 2 ** (nb_qubits + 1)
 
+        if nb_qubits != 0:
+            if nb_qubits < max(control, target):
+                raise ValueError(
+                    f"The number of qubits in the system must be at least {nb_qubits}."
+                )
+
+        nb_qubits_swap = abs(control - target) + 1
+        min_num_qubits = min(control, target)
+        dim = 2**nb_qubits_swap
         swap_matrix = np.eye(dim)
 
         for i in range(dim):
-            binary_state = list(format(i, f"0{nb_qubits + 1}b"))
+            binary_state = list(format(i, f"0{nb_qubits_swap}b"))
 
             (
-                binary_state[nb_qubits - control + min_num_qubits],
-                binary_state[nb_qubits - target + min_num_qubits],
+                binary_state[nb_qubits_swap - control + min_num_qubits - 1],
+                binary_state[nb_qubits_swap - target + min_num_qubits - 1],
             ) = (
-                binary_state[nb_qubits - target + min_num_qubits],
-                binary_state[nb_qubits - control + min_num_qubits],
+                binary_state[nb_qubits_swap - target + min_num_qubits - 1],
+                binary_state[nb_qubits_swap - control + min_num_qubits - 1],
             )
 
             swapped_index = int("".join(binary_state), 2)
 
             swap_matrix[i, i] = 0
-            swap_matrix[i, swapped_index] = 1
+            swap_matrix[swapped_index, i] = 1
 
+        if nb_qubits != 0:
+            for i in range(0, min_num_qubits):
+                swap_matrix = np.kron(np.eye(2), swap_matrix)
+            for i in range(max(control, target) + 1, nb_qubits):
+                swap_matrix = np.kron(swap_matrix, np.eye(2))
         return swap_matrix
 
 
@@ -931,7 +941,7 @@ class Rk(RotationGate, SingleQubitGate):
         return f"{type(self).__name__}({self.k}, {self.targets[0]})"
 
 
-class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
+class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
     """Two-qubit Controlled-NOT gate.
 
     Args:
@@ -964,9 +974,6 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
         self.qlm_aqasm_keyword = "CNOT"
         ControlledGate.__init__(self, [control], [target], X(target), "CNOT")
 
-    def to_matrix(self) -> Matrix:
-        return self.controlled_gate_to_matrix()
-
     def to_canonical_matrix(self):
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
@@ -975,7 +982,7 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     )
 
 
-class CZ(InvolutionGate, NoParameterGate, ControlledGate):
+class CZ(InvolutionGate, ControlledGate, NoParameterGate):
     """Two-qubit Controlled-Z gate.
 
     Args:
@@ -1007,9 +1014,6 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
 
         self.qlm_aqasm_keyword = "CSIGN"
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
-
-    def to_matrix(self) -> Matrix:
-        return self.controlled_gate_to_matrix()
 
     def to_canonical_matrix(self):
         m = np.eye(4, dtype=complex)
@@ -1074,9 +1078,6 @@ class CRk(RotationGate, ControlledGate):
         """See corresponding argument."""
         return self.parameters[0]
 
-    def to_matrix(self) -> Matrix:
-        return self.controlled_gate_to_matrix()
-
     def to_canonical_matrix(self):
         e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
@@ -1089,7 +1090,7 @@ class CRk(RotationGate, ControlledGate):
     )
 
 
-class TOF(InvolutionGate, NoParameterGate, ControlledGate):
+class TOF(InvolutionGate, ControlledGate, NoParameterGate):
     """Three-qubit Controlled-Controlled-NOT gate, also known as Toffoli Gate
 
     Args:
@@ -1127,9 +1128,6 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         if len(control) != 2:
             raise ValueError("A Toffoli gate must have exactly 2 control qubits.")
         ControlledGate.__init__(self, control, [target], X(target), "TOF")
-
-    def to_matrix(self) -> Matrix:
-        return self.controlled_gate_to_matrix()
 
     def to_canonical_matrix(self):
         m = np.identity(8, dtype=complex)
