@@ -67,11 +67,7 @@ class Basis:
             )
         if any(len(vector) != 2**nb_qubits for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not the same size")
-        if any(
-            abs(np.linalg.norm(vector) - 1)  # pyright: ignore[reportGeneralTypeIssues]
-            > atol
-            for vector in basis_vectors
-        ):
+        if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not normalized")
         m = np.array([vector for vector in basis_vectors])
         if not matrix_eq(

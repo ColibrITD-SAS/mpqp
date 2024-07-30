@@ -5,8 +5,14 @@ from random import randint
 import numpy as np
 import numpy.typing as npt
 import pytest
+from cirq.devices.line_qubit import LineQubit
+from cirq.ops.identity import I as Cirq_I
+from cirq.ops.linear_combinations import PauliSum
+from cirq.ops.pauli_gates import X as Cirq_X
+from cirq.ops.pauli_gates import Y as Cirq_Y
+from cirq.ops.pauli_gates import Z as Cirq_Z
 
-from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z, PauliString
+from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
 from mpqp.tools.maths import matrix_eq
 
 
@@ -85,3 +91,72 @@ def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex64]):
 def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
     simplified_ps = init_ps.simplify()
     assert simplified_ps == simplified_ps
+
+
+a, b, c = LineQubit.range(3)
+
+
+@pytest.mark.parametrize(
+    "other_ps, mpqp_ps",
+    [
+        (
+            Cirq_X(a) + Cirq_Y(b) + Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
+            X @ I @ I + I @ Y @ I + I @ I @ Z,
+        ),
+        (
+            Cirq_X(a) * Cirq_Y(b) * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
+            X @ Y @ Z,
+        ),
+        (
+            Cirq_I(a) + Cirq_Z(b) + Cirq_X(c),
+            I @ I @ I + I @ Z @ I + I @ I @ X,
+        ),
+        (
+            Cirq_Y(a) * Cirq_Z(b) * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
+            Y @ Z @ X,
+        ),
+        (
+            Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
+            Z @ Y @ I + I @ I @ X,
+        ),
+        (
+            Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
+            X @ I @ I + I @ I @ Y,
+        ),
+        (
+            Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
+            I @ X @ I + I @ I @ Y,
+        ),
+        (
+            2 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            + 3 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
+            + 4 * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
+            2 * X @ I @ I + 3 * I @ Y @ I + 4 * I @ I @ Z,
+        ),
+        (
+            -Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            * 1.5
+            * Cirq_Y(b)
+            * 0.5
+            * Cirq_Z(c),
+            -1.5 * 0.5 * X @ Y @ Z,
+        ),
+        (
+            0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
+            + 2 * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
+            0.25 * Z @ Y @ I + 2 * I @ I @ X,
+        ),
+        (
+            1.5 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            + Cirq_I(b) * -2.5 * Cirq_Y(c),
+            1.5 * X @ I @ I + -2.5 * I @ I @ Y,
+        ),
+        (
+            0.25 * Cirq_I(a) * 4 * Cirq_X(b)
+            + 3 * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
+            1.0 * I @ X @ I + 3 * I @ I @ Y,
+        ),
+    ],
+)
+def test_from_other_language(other_ps: PauliSum, mpqp_ps: PauliString):
+    assert PauliString.from_other_language(other_ps) == mpqp_ps
