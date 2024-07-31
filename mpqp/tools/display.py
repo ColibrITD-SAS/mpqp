@@ -81,10 +81,10 @@ def clean_1D_array(
         '[1.2345679, 2.345679, 3.4567895]'
         >>> clean_1D_array([1+2j, 3+4j, 5+6j])
         '[1+2j, 3+4j, 5+6j]'
-        >>> clean_1D_array([1+0j, 0+0j, 5.])
-        '[1, 0, 5]'
-        >>> clean_1D_array([1.0, 2.0, 3.0])
-        '[1, 2, 3]'
+        >>> clean_1D_array([1+0j, 0.5+0j, 5.+1j])
+        '[1, 0.5, 5+1j]'
+        >>> clean_1D_array([1.0, 2.1, 3.0])
+        '[1, 2.1, 3]'
 
     """
     array = np.array(array, dtype=np.complex64)
@@ -93,7 +93,7 @@ def clean_1D_array(
             int(element.real)
             if int(element.real) == element
             else (
-                np.round(element.real, 7)
+                np.round(element.real, 5)
                 if (np.imag(element) == 0)
                 else (str(np.round(element, 7)).replace("(", "").replace(")", ""))
             )

@@ -5,6 +5,9 @@ import os
 
 from dotenv import load_dotenv, set_key
 from typeguard import typechecked
+from getpass import getpass
+from typing import Callable
+from termcolor import colored
 
 MPQP_CONFIG_PATH = os.path.expanduser("~") + "/.mpqp"
 
@@ -124,3 +127,37 @@ def save_env_variable(key: str, value: str) -> bool:
         return False
 
     return a
+
+
+
+def config_key(key_name: str, configuration_name: str, test_connection:  Callable[[str], bool]):
+    """
+    Configure a key by setting the API token.
+
+    Returns:
+        tuple: A message indicating the result of the configuration and an empty list.
+    """
+    was_configured = get_env_variable(f"{configuration_name}_CONFIGURED") == "True"
+
+    if was_configured:
+        decision = input(
+            f"{configuration_name} key is already configured. Do you want to update it? [y/N]"
+        )
+        if decision.lower().strip() != "y":
+            return "Canceled.", []
+
+    token = getpass(f"Enter your {configuration_name} token (hidden): ")
+    if token == "":
+        print(colored("Empty credentials", "red"))
+        getpass("Press 'Enter' to continue")
+        return "", []
+    if test_connection(token):
+        save_env_variable(f"{key_name}", token)
+        save_env_variable(f"{configuration_name}_CONFIGURED", "True")
+        return f"{configuration_name} key correctly configured", []
+    else:
+        if not was_configured:
+            save_env_variable(f"{key_name}", token)
+            save_env_variable(f"{configuration_name}_CONFIGURED", "False")
+        getpass("Press 'Enter' to continue")
+        return "", []

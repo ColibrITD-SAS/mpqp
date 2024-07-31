@@ -17,7 +17,7 @@ def print_config_info():
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.env_manager as env_m
     import mpqp.execution.connection.ibm_connection as ibmqc
-    import mpqp.execution.connection.key_connection as keyc
+    import mpqp.execution.connection.ionq_connection as keyc
     import mpqp.execution.connection.azure_connection as azuc
     import mpqp.execution.connection.google_connection as cirqc
     from mpqp.tools.errors import IBMRemoteExecutionError
@@ -74,7 +74,7 @@ def main_setup():
     from mpqp.execution.connection.azure_connection import config_azure_account
     from mpqp.execution.connection.aws_connection import setup_aws_braket_account
     from mpqp.execution.connection.ibm_connection import setup_ibm_account
-    from mpqp.execution.connection.key_connection import config_ionq_key
+    from mpqp.execution.connection.ionq_connection import config_ionq_key
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
