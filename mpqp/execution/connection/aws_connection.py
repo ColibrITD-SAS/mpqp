@@ -74,9 +74,11 @@ def get_aws_braket_account_info() -> str:
         session = AwsSession()
 
         # get the AWS Braket user access key, secret key and region
-        access_key_id = session.boto_session.get_credentials().access_key
-
-        secret_access_key = session.boto_session.get_credentials().secret_key
+        credentials = session.boto_session.get_credentials()
+        if credentials is None:
+            raise AWSBraketRemoteExecutionError("Could not retrieve AWS' credentials")
+        access_key_id = credentials.access_key
+        secret_access_key = credentials.secret_key
         obfuscate_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
 
         region_name = session.boto_session.region_name
@@ -92,11 +94,12 @@ def get_aws_braket_account_info() -> str:
 
 
 @typechecked
-def get_braket_device(device: AWSDevice) -> "BraketDevice":
+def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Args:
         device: AWSDevice element describing which remote/local AwsDevice we want.
+        is_noisy: If the expected device is noisy or not.
 
     Raises:
         AWSBraketRemoteExecutionError: If the device or the region could not be
@@ -111,18 +114,26 @@ def get_braket_device(device: AWSDevice) -> "BraketDevice":
          ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
 
     """
-    if not device.is_remote():
-        from braket.devices import LocalSimulator
+    from braket.devices import LocalSimulator
 
-        return LocalSimulator()
+    if not device.is_remote():
+        if is_noisy:
+            return LocalSimulator("braket_dm")
+        else:
+            return LocalSimulator()
+
     import boto3
+    import pkg_resources
     from botocore.exceptions import NoRegionError
     from braket.aws import AwsDevice, AwsSession
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
-        aws_session.add_braket_user_agent(user_agent="APN/1.0 ColibriTD/1.0 MPQP/1.0")
+        mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
+        aws_session.add_braket_user_agent(
+            user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
+        )
         return AwsDevice(device.get_arn(), aws_session=aws_session)
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(

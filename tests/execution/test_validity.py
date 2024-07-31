@@ -9,6 +9,7 @@ from mpqp.execution.result import BatchResult, Result
 from mpqp.gates import *
 from mpqp.measures import ExpectationMeasure, Observable
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import matrix_eq
 
 pi = np.pi
@@ -92,7 +93,8 @@ def hae_3_qubit_circuit(
 def test_state_vector_result_HEA_ansatz(
     parameters: list[float], expected_vector: npt.NDArray[np.complex64]
 ):
-    batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert matrix_eq(result.amplitudes, expected_vector)
@@ -161,7 +163,8 @@ def test_state_vector_result_HEA_ansatz(
     ],
 )
 def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: Matrix):
-    batch = run(QCircuit(gates), state_vector_devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        batch = run(QCircuit(gates), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         if isinstance(result.device, GOOGLEDevice):
@@ -209,7 +212,8 @@ def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: M
 def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str]):
     c = QCircuit(gates)
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=10000))
-    batch = run(c, sampling_devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
@@ -231,7 +235,8 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     assert isinstance(res, Result)
     expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
-    batch = run(c, sampling_devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         counts = result.counts
@@ -277,7 +282,8 @@ def test_observable_ideal_case(
     expected_value = (
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
-    batch = run(c, sampling_devices)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert abs(result.expectation_value - expected_value) < (

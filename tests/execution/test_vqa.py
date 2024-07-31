@@ -2,7 +2,7 @@ from typing import Any
 
 import numpy as np
 import pytest
-from sympy import Expr
+from sympy import Expr, symbols
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement.expectation_value import (
@@ -17,14 +17,14 @@ from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 # the symbols function is a bit wacky, so some manual type definition is needed here
-theta: Expr = symbols("θ")  # type: ignore
+theta: Expr = symbols("θ")
 
 
 def with_local_devices(args: tuple[Any, ...]):
     return (
         (*args, d)
         for d in list(IBMDevice) + list(ATOSDevice) + list(AWSDevice)
-        if not d.is_remote() and d.is_gate_based()
+        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
     )
 
 

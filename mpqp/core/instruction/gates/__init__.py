@@ -2,7 +2,7 @@
 from .controlled_gate import ControlledGate
 from .custom_gate import CustomGate, UnitaryMatrix
 from .gate import Gate
-from .gate_definition import GateDefinition, KrausRepresentation, PauliDecomposition
+from .gate_definition import GateDefinition
 from .native_gates import (
     CNOT,
     CZ,
@@ -23,4 +23,4 @@ from .native_gates import (
     Y,
     Z,
 )
-from .parametrized_gate import ParametrizedGate, symbols
+from .parametrized_gate import ParametrizedGate

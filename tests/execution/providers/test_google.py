@@ -1,18 +1,17 @@
-"""add -l or --long to the cli args to run this test (disabled by default 
-because too slow)"""
-
-# 3M-TODO test everything
 import numpy as np
 import pytest
+from cirq.circuits.circuit import Circuit
+from cirq.ops.common_gates import CNOT as CirqCNOT
+from cirq.ops.measure_util import measure
+from cirq.ops.named_qubit import NamedQubit
+from cirq.ops.pauli_gates import X as CirqX
 
-from mpqp.core.instruction.measurement import Observable, ExpectationMeasure
-from mpqp.gates import *
 from mpqp import QCircuit
+from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
+from mpqp.execution import GOOGLEDevice, run
+from mpqp.gates import *
 from mpqp.measures import BasisMeasure
-from mpqp.execution import run
-from mpqp.execution.devices import ATOSDevice
-
-import sys
+from mpqp.qasm import qasm2_to_cirq_Circuit
 
 
 @pytest.mark.parametrize(
@@ -65,9 +64,29 @@ import sys
         ),
     ],
 )
-def running_remote_QLM_without_error(circuit: QCircuit):
-    run(circuit, ATOSDevice.QLM_LINALG)
+def test_running_local_cirq(circuit: QCircuit):
+    return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
-if "-l" in sys.argv or "--long" in sys.argv:
-    test_running_remote_QLM_without_error = running_remote_QLM_without_error
+@pytest.mark.parametrize(
+    "circuit, qasm_filename",
+    [
+        (
+            Circuit(
+                CirqX(NamedQubit("q_0")),
+                CirqCNOT(NamedQubit("q_0"), NamedQubit("q_1")),
+                measure(NamedQubit("q_1"), key="c_1"),
+                measure(NamedQubit("q_0"), key="c_0"),
+            ),
+            "all",
+        )
+    ],
+)
+def test_qasm2_to_cirq_Circuit(circuit: QCircuit, qasm_filename: str):
+    # 3M-TODO test everything
+    with open(
+        f"tests/core/test_circuit/{qasm_filename}.qasm2",
+        "r",
+        encoding="utf-8",
+    ) as f:
+        assert qasm2_to_cirq_Circuit(f.read()) == circuit

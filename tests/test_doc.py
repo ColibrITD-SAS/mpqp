@@ -7,7 +7,10 @@ from types import TracebackType
 from typing import Optional, Type
 
 import numpy as np
+import pytest
 from dotenv import dotenv_values, set_key, unset_key
+
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -24,7 +27,8 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
-from mpqp.tools.generics import clean_array, clean_matrix, find, flatten
+from mpqp.tools.display import clean_1D_array, clean_matrix
+from mpqp.tools.generics import find, flatten
 from mpqp.tools.maths import is_hermitian, is_unitary, normalize, rand_orthogonal_matrix
 
 
@@ -67,7 +71,7 @@ class SafeRunner:
         load_env_variables()
 
 
-def test_documentation():
+def documentation():
     print(os.getcwd())
 
     test_globals = globals().copy()
@@ -79,29 +83,36 @@ def test_documentation():
     finder = DocTestFinder()
     runner = DocTestRunner()
 
-    folder_path = "mpqp"
-    for root, _, files in os.walk(folder_path):
-        for filename in files:
-            if any(str in filename for str in pass_file):
-                continue
-            elif filename.endswith(".py"):
-                print(f"Running doctests in {os.path.join(os.getcwd(),root,filename)}")
-                my_module = importlib.import_module(
-                    os.path.join(root, filename)
-                    .replace(".py", "")
-                    .replace("\\", ".")
-                    .replace("/", ".")
-                )
-                saf = any(str in filename for str in saf_file)
-                for test in finder.find(my_module, "mpqp", globs=test_globals):
-                    if (
-                        test.docstring
-                        and "3M-TODO" not in test.docstring
-                        and "6M-TODO" not in test.docstring
-                    ):
-                        if saf:
-                            with SafeRunner():
-                                if "PYTEST_CURRENT_TEST" not in os.environ:
-                                    assert runner.run(test).failed == 0
-                        else:
-                            assert runner.run(test).failed == 0
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        folder_path = "mpqp"
+        for root, _, files in os.walk(folder_path):
+            for filename in files:
+                if any(str in filename for str in pass_file):
+                    continue
+                elif filename.endswith(".py"):
+                    print(
+                        f"Running doctests in {os.path.join(os.getcwd(),root,filename)}"
+                    )
+                    my_module = importlib.import_module(
+                        os.path.join(root, filename)
+                        .replace(".py", "")
+                        .replace("\\", ".")
+                        .replace("/", ".")
+                    )
+                    saf = any(str in filename for str in saf_file)
+                    for test in finder.find(my_module, "mpqp", globs=test_globals):
+                        if (
+                            test.docstring
+                            and "3M-TODO" not in test.docstring
+                            and "6M-TODO" not in test.docstring
+                        ):
+                            if saf:
+                                with SafeRunner():
+                                    if "PYTEST_CURRENT_TEST" not in os.environ:
+                                        assert runner.run(test).failed == 0
+                            else:
+                                assert runner.run(test).failed == 0
+
+
+if "--long-local" in sys.argv or "--long" in sys.argv:
+    test_notebooks = documentation

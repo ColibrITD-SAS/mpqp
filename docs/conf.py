@@ -45,6 +45,7 @@ extensions = [
 default_dark_mode = True
 autodoc_typehints = "description"
 autodoc_type_aliases = {"Matrix": "Matrix", "AvailableDevice": "AvailableDevice"}
+autodoc_mock_imports = ["braket.circuits.measure"]
 simplify_optional_unions = True
 typehints_defaults = "comma"
 dotenv.load_dotenv()

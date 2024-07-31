@@ -10,14 +10,22 @@ from __future__ import annotations
 from copy import deepcopy
 from functools import reduce
 from numbers import Real
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 
 FixedReal = Union[Real, float]
+from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, rtol
+
+if TYPE_CHECKING:
+    from braket.quantum_information.pauli_string import PauliString as BraketPauliString
+    from cirq.circuits.circuit import Circuit as CirqCircuit
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from qiskit.quantum_info import PauliList as QiskitPauliString
 
 
 class PauliString:
@@ -32,9 +40,22 @@ class PauliString:
         1*I@Z + 2*Y@I + 1*X@Z
 
     Note:
-        Pauli atoms are named I, X, Y, and Z. If you have conflicts with ``mpqp.gates import X, Y, Z``, you can:
-         - **Rename Import:** ``from mpqp.core.instruction.measurement.pauli_string import X as Pauli_X``, usage: ``Pauli_X``
-         - **Import Only Pauli String:** ``from mpqp.core.instruction.measurement import pauli_string``, usage: ``pauli_string.X``
+        Pauli atoms are named ``I``, ``X``, ``Y``, and ``Z``. If you have
+        conflicts with the gates of the same name, you could:
+
+        - Rename the Pauli atoms:
+
+        .. code-block:: python
+
+            from mpqp.measures import X as Pauli_X,  Y as Pauli_Y
+            ps = Pauli_X + Pauli_Y/2
+
+        - Import the Pauli atoms directly from the module:
+
+        .. code-block:: python
+
+            from mpqp.measures import pauli_string
+            ps = pauli_string.X + pauli_string.Y/2
     """
 
     def __init__(self, monomials: Optional[list["PauliStringMonomial"]] = None):
@@ -256,20 +277,20 @@ class PauliString:
         """Constructs a PauliString from a matrix.
 
         Args:
-            matrix: Matrix from which the PauliString is generated
+            Matrix from which the PauliString is generated
 
         Returns:
-            PauliString: Pauli string decomposition of the matrix in parameter.
+            Pauli string decomposition of the matrix in parameter.
 
+        Raises:
+            ValueError: If the input matrix is not square or its dimensions are
+                not a power of 2.
 
         Example:
             >>> ps = PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
             >>> print(ps)
             1*I + 1*X + -1*Z
 
-        Raises:
-            ValueError: If the input matrix is not square or its dimensions are
-                not a power of 2.
         """
         if matrix.shape[0] != matrix.shape[1]:
             raise ValueError("Input matrix must be square.")
@@ -296,6 +317,186 @@ class PauliString:
                 PauliStringMonomial(0, [I for _ in range(num_qubits)])
             )
         return pauli_list
+
+    @classmethod
+    def _get_dimension_cirq_pauli(cls, pauli: Union[CirqPauliSum, CirqPauliString]):
+        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+        from cirq.ops.pauli_string import PauliString as CirqPauliString
+
+        dimension = 0
+        if isinstance(pauli, CirqPauliSum):
+            for term in pauli:
+                for qubit, _ in term.items():
+                    nb_qubits = (
+                        int(qubit.x)
+                        if hasattr(qubit, "x")
+                        else int(qubit.name.split("_")[1])
+                    )
+                    dimension = max(dimension, nb_qubits + 1)
+        elif isinstance(pauli, CirqPauliString):
+            for qubit in pauli.qubits:
+                nb_qubits = (
+                    int(qubit.x)
+                    if hasattr(qubit, "x")
+                    else int(qubit.name.split("_")[1])
+                )
+                dimension = max(dimension, nb_qubits + 1)
+        return dimension
+
+    @classmethod
+    def _from_cirq(
+        cls, pauli: Union[CirqPauliSum, CirqPauliString], dimension: int = 0
+    ) -> PauliString:
+        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+        from cirq.ops.pauli_gates import X as Cirq_X
+        from cirq.ops.pauli_gates import Y as Cirq_Y
+        from cirq.ops.pauli_gates import Z as Cirq_Z
+        from cirq.ops.pauli_string import PauliString as CirqPauliString
+
+        ps_mapping = {Cirq_X: X, Cirq_Y: Y, Cirq_Z: Z}
+
+        num_qubits = (
+            PauliString._get_dimension_cirq_pauli(pauli)
+            if dimension == 0
+            else dimension
+        )
+        pauli_string = PauliString()
+
+        def process_term(term: CirqPauliString, pauli_string: PauliString):
+            coef = term.coefficient.real
+            atoms = [I] * num_qubits
+            for qubit, op in term.items():
+                dimension = (
+                    int(qubit.x)
+                    if hasattr(qubit, "x")
+                    else int(qubit.name.split("_")[1])
+                )
+                atoms[dimension] = ps_mapping[op]
+            pauli_string += PauliStringMonomial(coef, atoms)
+
+        if isinstance(pauli, CirqPauliSum):
+            for term in pauli:
+                process_term(term, pauli_string)
+        elif isinstance(pauli, CirqPauliString):
+            process_term(pauli, pauli_string)
+
+        return pauli_string
+
+    @classmethod
+    def from_other_language(
+        cls,
+        pauli: Union[
+            QiskitPauliString,
+            BraketPauliString,
+            CirqPauliSum,
+            CirqPauliString,
+            list[CirqPauliString],
+        ],
+        min_dimension: int = 0,
+    ) -> PauliString | list[PauliString]:
+        """Convert pauli objects from other quantum SDKs to :class:`PauliString`.
+
+        args:
+            pauli: The pauli object(s) to be converted.
+            min_dimension: Minimal dimension of the resulting Pauli string.
+
+        Returns:
+            The converted :class:`PauliString`. If the input is a list, the
+            output will be a list of :class:`PauliString`.
+        """
+        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+        from cirq.ops.pauli_string import PauliString as CirqPauliString
+
+        if isinstance(pauli, (CirqPauliSum, CirqPauliString)):
+            return PauliString._from_cirq(pauli)
+
+        if isinstance(pauli, list):
+            dimension = max(map(PauliString._get_dimension_cirq_pauli, pauli))
+            dimension = max(dimension, min_dimension)
+            return [
+                PauliString._from_cirq(pauli_mono, dimension) for pauli_mono in pauli
+            ]
+
+        raise NotImplementedError(f"Unsupported input type: {type(pauli)}.")
+
+    def to_other_language(
+        self, language: Language, circuit: Optional[CirqCircuit] = None
+    ) -> Union[
+        QiskitPauliString,
+        BraketPauliString,
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+    ]:
+        """Converts the pauli string to pauli string of another quantum
+        programming language.
+
+        Args:
+            language: The target programming language.
+            circuit: The Cirq circuit associated with the pauli string (required
+                for ``cirq``).
+
+        Returns:
+            Depends on the target language.
+
+        Example:
+            >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
+            >>> ps = X @ I @ I + I @ Y @ I + I @ I @ Z
+            >>> print(ps.to_other_language(Language.CIRQ))
+            1.000*X(q(0))+1.000*Y(q(1))+1.000*Z(q(2))
+
+        """
+        if language == Language.QISKIT:
+            raise NotImplemented(f"Unsupported input language.")
+        elif language == Language.MY_QLM:
+            raise NotImplemented(f"Unsupported input language.")
+        elif language == Language.BRAKET:
+            raise NotImplemented(f"Unsupported input language.")
+        elif language == Language.CIRQ:
+            from cirq.devices.line_qubit import LineQubit
+            from cirq.ops.identity import I as Cirq_I
+            from cirq.ops.pauli_gates import X as Cirq_X
+            from cirq.ops.pauli_gates import Y as Cirq_Y
+            from cirq.ops.pauli_gates import Z as Cirq_Z
+
+            if circuit is None:
+                all_qubits = LineQubit.range(self.nb_qubits)
+            else:
+                all_qubits = sorted(
+                    set(
+                        q
+                        for moment in circuit
+                        for op in moment.operations
+                        for q in op.qubits
+                    )
+                )
+
+            pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
+
+            cirq_pauli_string = None
+
+            for monomial in self.monomials:
+                cirq_monomial = None
+
+                for index, atom in enumerate(monomial.atoms):
+                    cirq_atom = pauli_gate_map[atom.label](all_qubits[index])
+                    cirq_monomial = (
+                        cirq_atom
+                        if cirq_monomial is None
+                        else cirq_monomial
+                        * cirq_atom  # pyright: ignore[reportOperatorIssue]
+                    )
+
+                cirq_monomial *= monomial.coef  # pyright: ignore[reportOperatorIssue]
+                cirq_pauli_string = (
+                    cirq_monomial
+                    if cirq_pauli_string is None
+                    else cirq_pauli_string + cirq_monomial
+                )
+
+            return cirq_pauli_string
+        else:
+            raise ValueError(f"Unsupported language: {language}")
 
     def to_dict(self) -> dict[str, float]:
         """Converts the PauliString object to a dictionary representation.
@@ -365,7 +566,7 @@ class PauliStringMonomial(PauliString):
                 np.eye(1, dtype=np.complex64).tolist(),
             )
             * self.coef
-        )  # pyright: ignore[reportReturnType]
+        )
 
     def __iadd__(self, other: "PauliString"):
         for mono in other.monomials:
@@ -445,14 +646,16 @@ class PauliStringAtom(PauliStringMonomial):
     """Represents a single Pauli operator acting on a qubit in a Pauli string.
 
     Args:
-        label: The label representing the Pauli operator (e.g., 'I', 'X', 'Y', 'Z').
+        label: The label representing the Pauli operator.
         matrix: The matrix representation of the Pauli operator.
 
     Raises:
-        AttributeError: new atoms cannot be created
+        RuntimeError: New atoms cannot be created, you should use the available
+            ones.
 
     Note:
-        All the atoms are already initialized. Available atoms are ('I', 'X', 'Y', 'Z').
+        All the atoms are already initialized. Available atoms are (``I``,
+        ``X``, ``Y``, ``Z``).
     """
 
     __is_mutable = True
@@ -463,8 +666,9 @@ class PauliStringAtom(PauliStringMonomial):
             self.matrix = matrix
             self.__is_mutable = False
         else:
-            raise AttributeError(
-                "New atoms cannot be created, just use the given I, X, Y and Z"
+            raise RuntimeError(
+                "New atoms cannot be created, just use the given `I`, `X`, `Y` "
+                "and `Z`"
             )
 
     @property
@@ -484,10 +688,9 @@ class PauliStringAtom(PauliStringMonomial):
         return [PauliStringMonomial(self.coef, [a for a in self.atoms])]
 
     def __setattr__(self, name: str, value: Any):
-        if self.__is_mutable:
-            super().__setattr__(name, value)
-        else:
+        if not self.__is_mutable:
             raise AttributeError("This object is immutable")
+        super().__setattr__(name, value)
 
     def __str__(self):
         return self.label
@@ -497,7 +700,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other, [self] # pyright: ignore[reportArgumentType]
+            1 / other, [self]  # pyright: ignore[reportArgumentType]
         )
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:

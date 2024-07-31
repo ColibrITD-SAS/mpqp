@@ -1,19 +1,19 @@
 import numpy as np
 import pytest
-from sympy import Expr, symbols
+from sympy import Expr, I, pi, symbols
 
 from mpqp.gates import *
 from mpqp.tools.generics import Matrix
-from mpqp.tools.maths import I, cos, exp, matrix_eq, pi, sin
+from mpqp.tools.maths import cos, exp, matrix_eq, sin
 
 theta: Expr
 k: Expr
-theta, k = symbols("θ k")  # pyright: ignore[reportAssignmentType]
+theta, k = symbols("θ k")
 c, s, e = cos(theta), sin(theta), exp(1.0 * I * theta)
 c2, s2, e2 = (
     cos(theta / 2),  # pyright: ignore[reportOperatorIssue]
     sin(theta / 2),  # pyright: ignore[reportOperatorIssue]
-    exp(1.0 * I * theta / 2),  # pyright: ignore[reportOperatorIssue]
+    exp(1.0 * I * theta / 2),
 )
 
 

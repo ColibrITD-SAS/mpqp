@@ -8,12 +8,13 @@ from functools import reduce
 from numbers import Complex, Real
 from typing import TYPE_CHECKING, Optional
 
+if TYPE_CHECKING:
+    from sympy import Expr
+    import sympy as sp
+
 import numpy as np
 import numpy.typing as npt
-import sympy as sp
-from qiskit import quantum_info
 from scipy.linalg import inv, sqrtm
-from sympy import Expr, I, pi  # pyright: ignore[reportUnusedImport]
 from typeguard import typechecked
 
 from mpqp.tools.generics import Matrix
@@ -61,6 +62,8 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
     Returns:
         ``True`` if the two matrix are equal (according to the definition above).
     """
+    from sympy import Expr
+
     for elt in zip(np.ndarray.flatten(lhs), np.ndarray.flatten(rhs)):
         if isinstance(elt[0], Expr) or isinstance(elt[1], Expr):
             if elt[0] != elt[1]:
@@ -103,7 +106,10 @@ def is_hermitian(matrix: Matrix) -> bool:
         False
 
     """
-    return matrix_eq(np.array(matrix).transpose().conjugate(), matrix)  # type: ignore
+    return matrix_eq(
+        np.array(matrix).transpose().conjugate(),  # pyright: ignore[reportArgumentType]
+        matrix,
+    )
 
 
 @typechecked
@@ -146,6 +152,9 @@ def cos(angle: Expr | Real) -> sp.Expr | float:
             assert isinstance(angle, float)
         return np.cos(angle)
     else:
+        import sympy as sp
+        from sympy import Expr
+
         res = sp.cos(angle)
         assert isinstance(res, Expr)
         return res
@@ -167,6 +176,9 @@ def sin(angle: Expr | Real) -> sp.Expr | float:
             assert isinstance(angle, float)
         return np.sin(angle)
     else:
+        import sympy as sp
+        from sympy import Expr
+
         res = sp.sin(angle)
         assert isinstance(res, Expr)
         return res
@@ -188,6 +200,9 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
             assert isinstance(angle, complex)
         return np.exp(angle)
     else:
+        import sympy as sp
+        from sympy import Expr
+
         res = sp.exp(angle)
         assert isinstance(res, Expr)
         return res
@@ -239,9 +254,9 @@ def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
                [-0.5+0.j, -0.5+0.j,  0.5+0.j,  0.5+0.j]])
 
     """
-    return quantum_info.random_clifford(
-        nb_qubits
-    ).to_matrix()  # pyright: ignore[reportReturnType]
+    from qiskit import quantum_info
+
+    return quantum_info.random_clifford(nb_qubits).to_matrix()
 
 
 def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:

@@ -2,7 +2,6 @@
 from mpqp import QCircuit
 from mpqp.core.languages import Language
 from mpqp.execution import run
-from mpqp.execution.connection.google_connection import config_ionq_key
 from mpqp.execution.devices import GOOGLEDevice, IBMDevice
 from mpqp.gates import H, Rx, Ry, Rz
 from mpqp.measures import BasisMeasure
@@ -42,12 +41,3 @@ print(f"Cirq circuit:\n{cirq_circuit}\n")
 processor_id = "rainbow"
 grid_circuit = circuit.to_other_language(Language.CIRQ, cirq_proc_id=processor_id)
 print(f"circuit for processor {processor_id}:\n{grid_circuit}\n")
-
-# %%
-config_ionq_key()
-
-# %%
-results = run(circuit, [GOOGLEDevice.IONQ_SIMULATOR])
-print(results)
-
-results.plot()

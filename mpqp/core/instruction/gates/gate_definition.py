@@ -2,19 +2,23 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from numbers import Complex
+from typing import TYPE_CHECKING
 from warnings import warn
 
+if TYPE_CHECKING:
+    from sympy import Expr
+
 import numpy as np
-from sympy import Expr
 from typeguard import typechecked
 
-from mpqp.tools.generics import Matrix, one_lined_repr
+from mpqp.tools.display import one_lined_repr
+from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_unitary, matrix_eq
 
 
 @typechecked
 class GateDefinition(ABC):
-    """A class used to handle the definition of a Gate.
+    """Abstract class used to handle the definition of a Gate.
 
     A quantum gate can be defined in several ways, and this class allows us to
     define it as we prefer. It also handles the translation from one definition
@@ -50,16 +54,6 @@ class GateDefinition(ABC):
     ) -> GateDefinition:
         pass
 
-    # @abstractmethod
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """6M-TODO"""
-        raise NotImplementedError()
-
-    # @abstractmethod
-    def to_pauli_decomposition(self) -> PauliDecomposition:
-        """6M-TODO"""
-        raise NotImplementedError()
-
     def is_equivalent(self, other: GateDefinition) -> bool:
         """Determines if this definition is equivalent to the other.
 
@@ -89,24 +83,15 @@ class GateDefinition(ABC):
         mat = self.to_matrix()
 
         if not all(
-            isinstance(elt.item(), Complex) for elt in np.nditer(mat, ["refs_ok"])  # type: ignore
+            isinstance(
+                elt.item(), Complex  # pyright: ignore[reportAttributeAccessIssue]
+            )
+            for elt in np.nditer(mat, ["refs_ok"])
         ):
             raise ValueError("Cannot invert arbitrary gates using symbolic variables")
-        return UnitaryMatrix(np.linalg.inv(mat))  # type:ignore
-
-
-class KrausRepresentation(GateDefinition):
-    """# 6M-TODO : implement and comment"""
-
-    def __init__(self):
-        self.pp = 1
-
-
-class PauliDecomposition(GateDefinition):
-    """# 6M-TODO : implement and comment"""
-
-    def __init__(self):
-        self.pp = 1
+        return UnitaryMatrix(
+            np.linalg.inv(mat)  # pyright: ignore[reportCallIssue, reportArgumentType]
+        )
 
 
 @typechecked
@@ -120,6 +105,8 @@ class UnitaryMatrix(GateDefinition):
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
+        from sympy import Expr
+
         if any(isinstance(elt, Expr) for _, elt in np.ndenumerate(definition)):
             if not disable_symbol_warn:
                 # 3M-TODO: can we improve this situation ?
@@ -134,14 +121,6 @@ class UnitaryMatrix(GateDefinition):
 
     def to_matrix(self) -> Matrix:
         return self.matrix
-
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """6M-TODO to implement"""
-        ...
-
-    def to_pauli_decomposition(self) -> PauliDecomposition:
-        """6M-TODO to implement"""
-        ...
 
     def subs(
         self,
@@ -166,6 +145,7 @@ class UnitaryMatrix(GateDefinition):
                 argument disables this check because in some contexts, it is
                 undesired. Defaults to False.
         """
+        from sympy import Expr
 
         def mapping(val: Expr | Complex) -> Expr | Complex:
             def caster(v: Expr | Complex) -> Expr | Complex:

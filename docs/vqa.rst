@@ -4,6 +4,7 @@ Variational Quantum Algorithms
 ==============================
 
 .. code-block:: python
+    :class: import
 
     from mpqp.execution.vqa import *
 
@@ -16,7 +17,7 @@ value attributed. It can be created as such:
 
 .. code-block:: python
 
-    from mpqp.execution.vqa import symbols
+    from sympy import symbols
 
     theta, k = symbols("Θ k")
 

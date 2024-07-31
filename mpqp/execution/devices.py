@@ -54,6 +54,22 @@ class AvailableDevice(Enum):
             ``True`` if this device is a simulator."""
         pass
 
+    @abstractmethod
+    def is_noisy_simulator(self) -> bool:
+        """Indicates whether a device can simulate noise or not.
+
+        Returns:
+            ``True`` if this device can simulate noise.
+        """
+        pass
+
+    def has_reduced_gate_set(self) -> bool:
+        """Indicates whether a simulator does not handle all the native gates.
+
+        Returns:
+            ``True`` if this device only handles a restricted set of gates."""
+        return True
+
 
 class IBMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by IBM Quantum.
@@ -65,23 +81,14 @@ class IBMDevice(AvailableDevice):
         an equivalent one for instance).
     """
 
-    # PULSE_SIMULATOR = "pulse_simulator"
-
-    AER_SIMULATOR = "aer_simulator"
-    AER_SIMULATOR_STATEVECTOR = "aer_simulator_statevector"
-    # TODO: many devices are no longer working, explore why
-    # AER_SIMULATOR_DENSITY_MATRIX = "aer_simulator_density_matrix"
-    # AER_SIMULATOR_STABILIZER = "aer_simulator_stabilizer"
-    # AER_SIMULATOR_MATRIX_PRODUCT_STATE = "aer_simulator_matrix_product_state"
-    # AER_SIMULATOR_EXTENDED_STABILIZER = "aer_simulator_extended_stabilizer"
-    # AER_SIMULATOR_UNITARY = "aer_simulator_unitary"
-    # AER_SIMULATOR_SUPEROP = "aer_simulator_superop"
-
-    # IBMQ_SIMULATOR_STATEVECTOR = "simulator_statevector"
-    # IBMQ_SIMULATOR_STABILIZER = "simulator_stabilizer"
-    # IBMQ_SIMULATOR_EXTENDED_STABILIZER = "simulator_extended_stabilizer"
-    # IBMQ_SIMULATOR_MPS = "simulator_mps"
-    # IBMQ_QASM_SIMULATOR = "ibmq_qasm_simulator"
+    AER_SIMULATOR = "automatic"
+    AER_SIMULATOR_STATEVECTOR = "statevector"
+    AER_SIMULATOR_DENSITY_MATRIX = "density_matrix"
+    AER_SIMULATOR_STABILIZER = "stabilizer"
+    AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
+    AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
+    # AER_SIMULATOR_UNITARY = "unitary"
+    # AER_SIMULATOR_SUPEROP = "superop"
 
     IBM_BRISBANE = "ibm_brisbane"
     IBM_OSAKA = "ibm_osaka"
@@ -103,8 +110,7 @@ class IBMDevice(AvailableDevice):
     IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
-    IBM_RANDOM_SMALL_DEVICE = "ibm_small_device"
-    IBM_SMALL_DEVICES_LEAST_BUSY = "ibm_least_busy"
+    IBM_LEAST_BUSY = "ibm_least_busy"
 
     def is_remote(self) -> bool:
         return self.name.startswith("IBM")
@@ -113,8 +119,30 @@ class IBMDevice(AvailableDevice):
         return True
         # return self != IBMDevice.PULSE_SIMULATOR
 
+    def has_reduced_gate_set(self) -> bool:
+        return self in {
+            IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+        }
+
+    def supports_statevector(self):
+        return self in {
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+        }
+
     def is_simulator(self) -> bool:
         return "simulator" in self.value
+
+    def is_noisy_simulator(self) -> bool:
+        raise NotImplementedError()
+        # TODO: determine which devices can simulate noise or not for Qiskit remote, or local
+        noise_support_devices = {
+            IBMDevice.AER_SIMULATOR_STABILIZER: True,
+        }
+        return self in noise_support_devices
 
 
 class ATOSDevice(AvailableDevice):
@@ -125,15 +153,8 @@ class ATOSDevice(AvailableDevice):
 
     QLM_LINALG = auto()
     QLM_MPS = auto()
-    QLM_MPS_LEGACY = auto()
     QLM_MPO = auto()
-    QLM_STABS = auto()
-    QLM_FEYNMAN = auto()
-    QLM_BDD = auto()
-    QLM_NOISY_QPROC = auto()
-    QLM_SQA = auto()
-    QLM_QPEG = auto()
-    QLM_CLASSICAL_QPU = auto()
+    QLM_NOISYQPROC = auto()
 
     def is_remote(self):
         return self.name.startswith("QLM")
@@ -143,6 +164,35 @@ class ATOSDevice(AvailableDevice):
 
     def is_simulator(self) -> bool:
         return True
+
+    def is_noisy_simulator(self) -> bool:
+        return self in {ATOSDevice.QLM_NOISYQPROC, ATOSDevice.QLM_MPO}
+
+    @staticmethod
+    def from_str_remote(name: str):
+        """Returns the first remote ATOSDevice containing the name given in parameter.
+
+        Args:
+            name: A string containing the name of the device.
+
+        Raises:
+            ValueError: If no device corresponding to the given name could be
+                found.
+
+        Examples:
+            >>> ATOSDevice.from_str_remote('NoisyQProc')
+            <ATOSDevice.QLM_NOISYQPROC: 6>
+            >>> ATOSDevice.from_str_remote('linalg')
+            <ATOSDevice.QLM_LINALG: 3>
+            >>> ATOSDevice.from_str_remote('Mps')
+            <ATOSDevice.QLM_MPS: 4>
+
+        """
+        u_name = name.upper()
+        for elem in ATOSDevice:
+            if u_name in elem.name and elem.is_remote():
+                return elem
+        raise ValueError(f"No device found for name `{name}`.")
 
 
 class AWSDevice(AvailableDevice):
@@ -170,6 +220,12 @@ class AWSDevice(AvailableDevice):
 
     def is_simulator(self) -> bool:
         return "SIMULATOR" in self.name
+
+    def is_noisy_simulator(self) -> bool:
+        return self in [
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            AWSDevice.BRAKET_DM1_SIMULATOR,
+        ]
 
     def get_arn(self) -> str:
         """Retrieve the AwsDevice arn from this AWSDevice element.

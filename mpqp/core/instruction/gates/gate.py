@@ -33,6 +33,9 @@ class Gate(Instruction, ABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
+
+        if len(targets) == 0:
+            raise ValueError("Expected non-empty target list")
         super().__init__(targets, label=label)
 
     @abstractmethod
@@ -208,7 +211,7 @@ class Gate(Instruction, ABC):
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
-            definition=UnitaryMatrix(self.to_matrix().dot(other.to_matrix())),  # type: ignore
+            definition=UnitaryMatrix(self.to_matrix().dot(other.to_matrix())),
             targets=self._check_targets_compatibility(other, targets),
             label=f"{self._mandatory_label('1')}×{other._mandatory_label('2')}",
         )
@@ -261,7 +264,7 @@ class Gate(Instruction, ABC):
 
         subtraction = self.to_matrix() - other.to_matrix()
         return CustomGate(
-            definition=UnitaryMatrix(subtraction / np.linalg.norm(subtraction, 2)),  # type: ignore
+            definition=UnitaryMatrix(subtraction / np.linalg.norm(subtraction, 2)),
             targets=self._check_targets_compatibility(other, targets),
             label=f"{self._mandatory_label('1')}-{other._mandatory_label('2')}",
         )
@@ -288,7 +291,7 @@ class Gate(Instruction, ABC):
 
         addition = self.to_matrix() + other.to_matrix()
         return CustomGate(
-            definition=UnitaryMatrix(addition / np.linalg.norm(addition, 2)),  # type: ignore
+            definition=UnitaryMatrix(addition / np.linalg.norm(addition, 2)),
             targets=self._check_targets_compatibility(other, targets),
             label=f"{self._mandatory_label('1')}+{other._mandatory_label('2')}",
         )
@@ -335,7 +338,7 @@ class InvolutionGate(Gate, ABC):
 
 @typechecked
 class SingleQubitGate(Gate, ABC):
-    """Gates operating on a single qubit.
+    """Abstract class for gates operating on a single qubit.
 
     Args:
         target: Index or referring to the qubit on which the gate will be applied.
@@ -347,3 +350,7 @@ class SingleQubitGate(Gate, ABC):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.targets[0]})"
+
+    nb_qubits = (  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
+        1
+    )

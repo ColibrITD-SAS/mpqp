@@ -18,8 +18,8 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
+from mpqp.tools.display import clean_1D_array
 from mpqp.tools.maths import atol, matrix_eq
-from mpqp.tools.generics import clean_array
 
 
 @typechecked
@@ -46,11 +46,13 @@ class Basis:
         basis_vectors: list[npt.NDArray[np.complex64]],
         nb_qubits: Optional[int] = None,
     ):
-        # 3M-TODO : add the possibility to give the symbols for the '0' and '1' of the custom basis. This should then
-        #  appear in the Sample binary_representation of the basis state. For instance in the Hadamard basis, the
-        #  symbols will be '+' and '-'. If the user wants '↑' and '↓' for his custom basis, when we print samples we
-        #  would have something like:
-        #  State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
+        # TODO : add the possibility to give the symbols for the '0' and '1' of
+        # the custom basis. This should then appear in the Sample
+        # binary_representation of the basis state. For instance in the Hadamard
+        # basis, the symbols will be '+' and '-'. If the user wants '↑' and '↓'
+        # for his custom basis, when we print samples we would have something
+        # like:
+        # State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
         if len(basis_vectors) == 0:
             self.nb_qubits = nb_qubits
             self.basis_vectors = basis_vectors
@@ -65,11 +67,7 @@ class Basis:
             )
         if any(len(vector) != 2**nb_qubits for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not the same size")
-        if any(
-            abs(np.linalg.norm(vector) - 1)  # pyright: ignore[reportGeneralTypeIssues]
-            > atol
-            for vector in basis_vectors
-        ):
+        if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not normalized")
         m = np.array([vector for vector in basis_vectors])
         if not matrix_eq(
@@ -94,7 +92,7 @@ class Basis:
             ]
 
         """
-        joint_vectors = ",\n    ".join(map(clean_array, self.basis_vectors))
+        joint_vectors = ",\n    ".join(map(clean_1D_array, self.basis_vectors))
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
@@ -107,6 +105,7 @@ class VariableSizeBasis(Basis):
 
     @abstractmethod
     def __init__(self, nb_qubits: Optional[int] = None):
+        super().__init__([], nb_qubits)
         pass
 
     @abstractmethod

@@ -26,9 +26,10 @@ On this page, you will find:
 
 ## Install
 
-For now, we support python versions 3.9 to 3.11, and both Windows and Linux
-(specifically, if was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 is not
-supported). MacOS versions will come very soon!
+For now, we support python versions 3.9 to 3.11, and every major OS (Windows,
+Linux and MacOS). We are dependant on the SDKs we support to enable various
+python versions and OS support, for instance, MPQP was validated on Ubuntu LTS
+20.04, while Ubuntu 18.04 is not supported because myQLM does not support it.
 
 The preferred installation method is with the `pipy` repo. In order to use this
 installation method, simply run
@@ -38,8 +39,8 @@ pip install mpqp
 ```
 
 You can also clone this repo and install from source, for instance if you need
-to modify something. In that case, we advise you to see the
-[Contribute](#contribute) section of this document.
+to modify something. In that case, we advise you to have a look at our
+[contribution guide](CONTRIBUTING.md).
 
 ## Usage
 
@@ -61,82 +62,31 @@ print(circ)
 #             └───┘  └───┘
 print(run(circ, IBMDevice.AER_SIMULATOR_STATEVECTOR))
 # Result: IBMDevice, AER_SIMULATOR_STATEVECTOR
-#
-#         State vector: [0.-0.j  0.+0.5j 0.-0.5j 0.+0.j  0.-0.j  0.+0.5j 0.-0.5j 0.+0.j ]
-#         Probabilities: [0.   0.25 0.25 0.   0.   0.25 0.25 0.  ]
-#         Number of qubits: 3
+#  State vector: [0.-0.j  0.+0.5j 0.-0.5j 0.+0.j  0.-0.j  0.+0.5j 0.-0.5j 0.+0.j ]
+#  Probabilities: [0.   0.25 0.25 0.   0.   0.25 0.25 0.  ]
+#  Number of qubits: 3
 ```
 
 More details are available in our [documentation](https://mpqpdoc.colibri-quantum.com).
 
-## Contribute
-
-To contribute, once you cloned this repo, you'll need to install the development
-dependencies.
-
-```
-pip install -r requirements-dev.txt
-```
-
-We advise you to get in touch with us on
-[our Discord server](https://discord.gg/yyukutWbzf) so we help you on any
-difficulty you may encounter along the way.
-
-Two tools are useful when working on MPQP:
-
-- the test suite
-- the documentation generation
-
-If you need to try out some behaviors of the library during the development, you
-can install it from source using the command.
-
-```
-pip install .
-```
-
-### Tests
-
-To run the test suite, run the following command:
-
-```sh
-python -m pytest
-```
-
-By default, long tests are disables to be more friendly to regularly run for
-devs. The full suit can be run by adding the option `-l` or `--long` to the
-previous command. This should still be run regularly to validate retro
-compatibility.
-
-<!-- 3M-TODO: add doctest for doc testing and tox for multiversions testing -->
-
-### Documentation
-
-The website documentation is generated with
-[sphinx](https://www.sphinx-doc.org/en/master/index.html). You probably don't
-need to generate it if you work on new features, but if you want to help us by
-improving the documentation, you need to know two things:
-
-- how our documentation is structured, _i.e._ most of it is in the docstrings in
-  the code. This is done on purpose to keep code and documentation close
-  together.
-- you only need to run one command to generate the documentation:
-
-```
-sphinx-build -b html docs build
-```
-
-The changelog is generated from github's versions section. For this to work, you
-need to get a github token with public repo read right and save is as an
-environment variable with the key `SPHINX_GITHUB_CHANGELOG_TOKEN`.
-Alternatively, you can create a `.env` file by duplicating the `.env.example`
-one and removing the `.example` extension, and replace in this file the ellipsis
-by your token. This said, you don't need the changelog to generate to work on
-the documentation.
-
 ## Contributors
 
-Henri de Boutray - ColibriTD
-
-Hamza Jaffali - ColibriTD
-
-Muhammad Attallah - ColibriTD
+<table>
+<tr>
+<td style="text-align:center">
+<img src="https://github.com/Henri-ColibrITD.png" width="60px;"/><br/><sub><a href="https://github.com/Henri-ColibrITD">Henri de Boutray</a></sub>
+</td>
+<td style="text-align:center">
+<img src="https://github.com/hJaffaliColibritd.png" width="60px;"/><br/><sub><a href="https://github.com/hJaffaliColibritd">Hamza Jaffali</a></sub>
+</td>
+<td style="text-align:center">
+<img src="https://github.com/MoHermes.png" width="60px;"/><br /><sub><a href="https://github.com/MoHermes">Muhammad Attallah</a></sub>
+</td>
+<td style="text-align:center">
+<img src="https://github.com/JulienCalistoTD.png" width="60px;"/><br/><sub><a href="https://github.com/JulienCalistoTD">JulienCalisto</a></sub>
+</td>
+<td style="text-align:center">
+<img src="https://github.com/ah4dev.png" width="60px;"/><br /><sub><a href="https://github.com/ah4dev">Ahmed Bejaoui</a></sub>
+</td>
+</tr>
+</table>

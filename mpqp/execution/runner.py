@@ -18,14 +18,17 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from numbers import Complex
-from typing import Optional, Sequence, Union
+from textwrap import indent
+from typing import Iterable, Optional
 
 import numpy as np
 from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
@@ -35,17 +38,18 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
+    IBMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.google import run_google
-from mpqp.execution.providers.ibm import run_ibm, submit_ibmq
+from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
-from mpqp.tools.errors import RemoteExecutionError
-from mpqp.tools.generics import OneOrMany
+from mpqp.tools.display import state_vector_ket_shape
+from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
+from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 
 @typechecked
@@ -72,11 +76,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
         list(range(circuit.nb_qubits)),
-        Observable(
-            np.kron(
-                np.kron(Id_before, measure.observable.matrix), Id_after
-            )  # pyright: ignore[reportArgumentType]
-        ),
+        Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
         measure.shots,
     )
     return tweaked_measure
@@ -111,7 +111,7 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # 3M-TODO: handle other basis by adding the right rotation (change
+            # TODO: handle other basis by adding the right rotation (change
             # of basis) before measuring in the computational basis
             # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
             if measurement.shots <= 0:
@@ -140,7 +140,10 @@ def generate_job(
 
 @typechecked
 def _run_single(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex]
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: dict[Expr | str, Complex],
+    display_breakpoints: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -149,9 +152,18 @@ def _run_single(
         circuit: QCircuit to be run.
         device: Device, on which the circuit will be run.
         values: Set of values to substitute symbolic variables. Defaults to ``{}``.
+        display_breakpoints: If ``False``, breakpoints will be disabled. Each
+            breakpoint adds an execution of the circuit(s), so you may use this
+            option for performance if need be.
 
     Returns:
         The Result containing information about the measurement required.
+
+    Raises:
+        DeviceJobIncompatibleError: if a non noisy simulator is given in
+            parameter and the circuit contains noise
+        NotImplementedError: If the device is not handled for noisy simulation
+            or other submissions.
 
     Example:
         >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")
@@ -166,8 +178,22 @@ def _run_single(
          Error: None
 
     """
+    if display_breakpoints:
+        for k in range(len(circuit.breakpoints)):
+            display_kth_breakpoint(circuit, k)
+
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
+
+    if circuit.noises:
+        if not device.is_noisy_simulator():
+            raise DeviceJobIncompatibleError(
+                f"Device {device} cannot simulate circuits containing NoiseModels."
+            )
+        elif not (isinstance(device, (ATOSDevice, AWSDevice))):
+            raise NotImplementedError(
+                f"Noisy simulations are not yet available on devices of type {type(device).name}."
+            )
 
     if isinstance(device, IBMDevice):
         return run_ibm(job)
@@ -183,10 +209,11 @@ def _run_single(
 
 @typechecked
 def run(
-    circuit: QCircuit,
+    circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
-) -> Union[Result, BatchResult]:
+    display_breakpoints: bool = True,
+) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
 
@@ -195,62 +222,86 @@ def run(
     substitutions.
 
     Args:
-        circuit: QCircuit to be run.
+        circuit: Circuit, or list of circuits, to be run.
         device: Device, or list of devices, on which the circuit will be run.
         values: Set of values to substitute symbolic variables. Defaults to ``{}``.
+        display_breakpoints: If ``False``, breakpoints will be disabled. Each
+            breakpoint adds an execution of the circuit(s), so you may use this
+            option for performance if need be.
 
     Returns:
         The Result containing information about the measurement required.
 
     Examples:
         >>> c = QCircuit(
-        ...     [H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
-        ...     label="Bell pair",
+        ...     [X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
+        ...     label="X CNOT circuit",
         ... )
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result) # doctest: +SKIP
-        Result: IBMDevice, AER_SIMULATOR
-         Counts: [497, 0, 0, 503]
-         Probabilities: [0.497, 0, 0, 0.503]
+        >>> print(result)
+        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 00, Index: 0, Count: 497, Probability: 0.497
-          State: 11, Index: 3, Count: 503, Probability: 0.503
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
          Error: None
         >>> batch_result = run(
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
-        >>> print(batch_result) # doctest: +SKIP
+        >>> print(batch_result)
         BatchResult: 2 results
-        Result: ATOSDevice, MYQLM_PYLINALG
-         Counts: [499, 0, 0, 501]
-         Probabilities: [0.499, 0, 0, 0.501]
+        Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 00, Index: 0, Count: 499, Probability: 0.499
-          State: 11, Index: 3, Count: 501, Probability: 0.501
-         Error: 0.01581926829057682
-        Result: AWSDevice, BRAKET_LOCAL_SIMULATOR
-         Counts: [502, 0, 0, 498]
-         Probabilities: [0.502, 0, 0, 0.498]
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
+         Error: 0.0
+        Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 00, Index: 0, Count: 502, Probability: 0.502
-          State: 11, Index: 3, Count: 498, Probability: 0.498
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
+         Error: None
+        >>> c2 = QCircuit(
+        ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
+        ...     label="X circuit",
+        ... )
+        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
+        >>> print(result)
+        BatchResult: 2 results
+        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
+         Samples:
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
+         Error: None
+        Result: X circuit, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 1000]
+         Probabilities: [0, 0, 0, 1]
+         Samples:
+          State: 11, Index: 3, Count: 1000, Probability: 1.0
          Error: None
 
     """
-
     if values is None:
         values = {}
 
-    if isinstance(device, Sequence):
-        # Duplicate devices are removed
-        set_device = list(set(device))
-        if len(set_device) == 1:
-            return _run_single(circuit, set_device[0], values)
+    def namer(circ: QCircuit, i: int):
+        circ = deepcopy(circ)
+        circ.label = f"circuit {i}" if circ.label is None else circ.label
+        return circ
 
-        return BatchResult([_run_single(circuit, dev, values) for dev in set_device])
-
-    return _run_single(circuit, device, values)
+    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+        return BatchResult(
+            [
+                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
+                for i, circ in enumerate(flatten(circuit))
+                for dev in flatten(device)
+            ]
+        )
+    else:
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
 @typechecked
@@ -295,7 +346,7 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        job_id, _ = submit_ibmq(job)
+        job_id, _ = submit_remote_ibm(job)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
@@ -304,3 +355,34 @@ def submit(
         raise NotImplementedError(f"Device {device} not handled")
 
     return job_id, job
+
+
+def display_kth_breakpoint(circuit: QCircuit, k: int):
+    """Prints to the standard output the state vector corresponding to the state
+    of the system when it encounters the `k^{th}` breakpoint.
+
+    Args:
+        circuit: The circuit to be examined.
+        k: The state desired is met at the `k^{th}` breakpoint.
+    """
+    bp = circuit.breakpoints[k]
+    if bp.enabled:
+        name_part = "" if bp.label is None else f", at breakpoint `{bp.label}`"
+        relevant_instructions = list(
+            filter(
+                lambda i: i is bp or not isinstance(i, Breakpoint), circuit.instructions
+            )
+        )
+        bp_instructions_index = find_index(relevant_instructions, lambda i: i is bp)
+        copy = QCircuit(
+            relevant_instructions[:bp_instructions_index],
+            nb_qubits=circuit.nb_qubits,
+            nb_cbits=circuit.nb_cbits,
+            label=circuit.label,
+        )
+        res = _run_single(copy, ATOSDevice.MYQLM_CLINALG, {}, False)
+        print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
+        print("       " + state_vector_ket_shape(res.amplitudes))
+        if bp.draw_circuit:
+            print("       and circuit is")
+            print(indent(str(copy), "       "))

@@ -22,10 +22,10 @@ OptimizerCallable = Callable[
     [OptimizableFunc, Optional[OptimizerInput]], tuple[float, OptimizerInput]
 ]
 
-# 3M-TODO: all those functions with almost or exactly the same signature look like
+# TODO: all those functions with almost or exactly the same signature look like
 #  a code smell to me.
 
-# 3M-TODO: test the minimizer options
+# TODO: test the minimizer options
 
 
 def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
@@ -114,7 +114,7 @@ def minimize(
         optimizer = _minimize_remote if device.is_remote() else _minimize_local
         return optimizer(optimizable, method, device, init_params, nb_params)
     else:
-        # 3M-TODO: find a way to know if the job is remote or local from the function
+        # TODO: find a way to know if the job is remote or local from the function
         return _minimize_local(
             optimizable, method, device, init_params, nb_params, optimizer_options
         )
@@ -157,7 +157,7 @@ def _minimize_remote(
     Returns:
         The optimal value reached and the parameters used to reach this value.
 
-    3M-TODO to implement on QLM first
+    TODO to implement on QLM first
     """
     raise NotImplementedError()
 
@@ -246,7 +246,8 @@ def _minimize_local_circ(
     # The sympy `free_symbols` method returns in fact sets of Basic, which
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
-    variables: set[Expr] = circ.variables()  # type: ignore
+    # TODO: bellow might be a bug, check why we need this type ignore
+    variables: set[Expr] = circ.variables()  # pyright: ignore[reportAssignmentType]
 
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:

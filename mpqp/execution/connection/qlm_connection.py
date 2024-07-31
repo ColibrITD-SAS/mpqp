@@ -28,7 +28,7 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
             outside MPQP.
 
     Raises:
-        QLMRemoteExecutionError: TODO
+        QLMRemoteExecutionError: If the account could not be saved.
     """
     # store the username and password in environment variables QLM_USER and QLM_PASSWD in .mpqp
     prev_user = get_env_variable("QLM_USER")
@@ -48,15 +48,17 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
             # if file doesn't exist, create it, or overwrite the credentials in the ~/.netrc file
             with open(netrc_path, "w") as file:
                 file.write(
-                    "machine qlm35e.neasqc.eu\nlogin "
-                    + username
-                    + "\npassword "
-                    + password
+                    f"""\
+machine qlm35e.neasqc.eu
+login {username}
+password {password}"""
                 )
-            # Set the permissions to '0600' (equivalent to 'chmod og-rw')
+            # Set the permissions to read and right for user only
             os.chmod(netrc_path, 0o600)
 
-        from qat.qlmaas import QLMaaSConnection  # type: ignore
+        from qat.qlmaas import (
+            QLMaaSConnection,  # pyright: ignore[reportAttributeAccessIssue]
+        )
 
         c = QLMaaSConnection(
             hostname="qlm35e.neasqc.eu",

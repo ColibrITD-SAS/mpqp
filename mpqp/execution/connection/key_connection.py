@@ -1,5 +1,6 @@
 from getpass import getpass
 from typing import Callable, Optional
+
 from termcolor import colored
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
@@ -36,8 +37,10 @@ def config_key(key_name: str, configuration_name: str, test_connection:  Callabl
             save_env_variable(f"{configuration_name}_CONFIGURED", "False")
         getpass("Press 'Enter' to continue")
         return "", []
-    
 
+
+# TODO: move the providers specific keys to their own file ? and the
+# `config_key` to the env_manager ?
 def config_ionq_key():
     """
     Configure the IonQ account by setting the API token.
@@ -45,8 +48,8 @@ def config_ionq_key():
     Returns:
         tuple: A message indicating the result of the configuration and an empty list.
     """
-    configuration_name = 'IONQ'
-    key_name = 'IONQ_API_KEY'
+    configuration_name = "IONQ"
+    key_name = "IONQ_API_KEY"
     return config_key(key_name, configuration_name, test_ionq_connection)
 
 
@@ -57,10 +60,10 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
     Returns:
         bool: True if the connection is successful, False otherwise.
     """
-    from cirq_ionq.ionq_exceptions import IonQException
     import cirq_ionq as ionq
+    from cirq_ionq.ionq_exceptions import IonQException
 
-    service = ionq.Service(api_key=key,default_target="simulator")
+    service = ionq.Service(api_key=key, default_target="simulator")
     try:
         service.list_jobs()
         return True
@@ -71,14 +74,14 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
 
 def config_aqt_key():
     """
-    # 3M-TODO add aqt in list of provider
+    # TODO add aqt in list of provider
     Configure the AQT account by setting the API token.
 
     Returns:
         tuple: A message indicating the result of the configuration and an empty list.
     """
-    configuration_name = 'AQT'
-    key_name = 'AQT_TOKEN'
+    configuration_name = "AQT"
+    key_name = "AQT_TOKEN"
     return config_key(key_name, configuration_name, test_aqt_connection)
 
 
@@ -90,16 +93,16 @@ def test_aqt_connection(key: Optional[str] = None) -> bool:
     Returns:
         bool: True if the connection is successful, False otherwise.
     """
-    from qiskit_aqt_provider import AQTProvider
-    from qiskit_aqt_provider.aqt_provider import NoTokenWarning
+    raise NotImplementedError
+    # from qiskit_aqt_provider import AQTProvider
+    # from qiskit_aqt_provider.aqt_provider import NoTokenWarning
 
-    
-    try:
-        AQTProvider(access_token=key)
-        return True
-    except NoTokenWarning:
-        print(colored("Wrong credentials", "red"))
-        return False
+    # try:
+    #     AQTProvider(access_token=key)
+    #     return True
+    # except NoTokenWarning:
+    #     print(colored("Wrong credentials", "red"))
+    #     return False
 
 
 def get_ionq_job_ids() -> list[str]:
@@ -119,18 +122,19 @@ def get_ionq_job_ids() -> list[str]:
 
 def get_aqt_job_ids() -> list[str]:
     """
-    # 3M-TODO 
+    # TODO 
     Retrieves all job IDs associated with AQT jobs.
 
     Returns:
         A list of job IDs.
     """
-    from qiskit_aqt_provider import AQTProvider, aqt_job
-    from qiskit_aqt_provider.primitives import AQTSampler
-    
-    provider = AQTProvider()
-    aqt_job_ids = []
-    if get_env_variable("AQT_API_KEY") == "True":
-        return aqt_job_ids
-        aqt_job_ids = [job.job_id() for job in service.list_jobs()]
-    return aqt_job_ids
+    raise NotImplementedError
+    # from qiskit_aqt_provider import AQTProvider, aqt_job
+    # from qiskit_aqt_provider.primitives import AQTSampler
+
+    # provider = AQTProvider()
+    # aqt_job_ids = []
+    # if get_env_variable("AQT_API_KEY") == "True":
+    #     return aqt_job_ids
+    #     aqt_job_ids = [job.job_id() for job in service.list_jobs()]
+    # return aqt_job_ids

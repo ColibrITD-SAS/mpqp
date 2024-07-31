@@ -1,11 +1,11 @@
 import numpy as np
 import numpy.typing as npt
 import pytest
+from sympy import symbols
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.tools.maths import is_unitary
-from mpqp.gates import symbols
 
 
 def test_custom_gate_created():
