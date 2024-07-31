@@ -102,9 +102,7 @@ class ControlledGate(Gate, ABC):
         from mpqp.core.instruction.gates.native_gates import SWAP
 
         controls, targets = self.controls, self.targets
-        min_qubit, max_qubit = min(min(controls), min(targets)), max(
-            max(controls), max(targets)
-        )
+        min_qubit, max_qubit =  min(self.connections()), max(self.connections())
 
         # If nb_qubits is not provided, calculate the necessary number of minimal qubits
         if nb_qubits == 0:
@@ -151,7 +149,7 @@ class ControlledGate(Gate, ABC):
         return reduce(np.dot, swaps[::-1] + [canonical_matrix] + swaps)
 
 
-# peudo algo for multi control g to m
+# pseudo algo for multi control g to m
 # input: gate, nb_qubits
 
 # blank_qubits = nb_qubits - gate.nb_qubits

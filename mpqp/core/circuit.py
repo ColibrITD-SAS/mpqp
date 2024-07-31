@@ -23,7 +23,7 @@ from __future__ import annotations
 from copy import deepcopy
 from numbers import Complex
 from pickle import dumps
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
 
 from mpqp.core.instruction.breakpoint import Breakpoint
 
@@ -99,7 +99,7 @@ class QCircuit:
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
         QCircuit NoiseExample: Size (Qubits, Cbits) = (3, 3), Nb instructions = 5
-        Depolarizing noise: probability 0.5 on qubits [0, 1]
+        Depolarizing noise: on qubits [0, 1] with probability 0.5
              ┌───┐     ┌─┐
         q_0: ┤ H ├──■──┤M├───
              ├───┤┌─┴─┐└╥┘┌─┐
@@ -114,7 +114,7 @@ class QCircuit:
 
     def __init__(
         self,
-        data: int | Sequence[Union[Instruction, NoiseModel]],
+        data: int | Sequence[Instruction | NoiseModel],
         *,
         nb_qubits: Optional[int] = None,
         nb_cbits: Optional[int] = None,
@@ -178,8 +178,8 @@ class QCircuit:
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
-            Depolarizing noise: probability 0.3 for gate CNOT
-            Depolarizing noise: probability 0.02 on qubit 0
+            Depolarizing noise: for gate CNOT with probability 0.3 and dimension 2
+            Depolarizing noise: on qubit 0 with probability 0.02
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
                  └───┘┌─┴─┐└╥┘┌─┐
@@ -237,18 +237,17 @@ class QCircuit:
             self.instructions.append(components)
 
     def hard_copy(self):
-        """
-        Creates a deep copy of the quantum circuit object, ensuring all properties,
-        including noises and instructions, are properly duplicated with necessary
-        adjustments, empty targets are replaced with all possible targets.
+        """Creates a copy of the quantum circuit and additionally hardcodes any
+        dynamic size parameter.
 
         Returns:
-            qcircuit: A deep copy of the original quantum circuit object with updated properties.
+            qcircuit: A deep copy of the circuit with the appropriate properties
+                updated.
 
         Raises:
-            ValueError: If the number of target qubits for a Depolarizing noise is less
-                        than the noise's dimension, or if BasisMeasure does not span all
-                        qubits in a noisy circuit.
+            ValueError: If the number of target qubits for a noise source is
+                smaller than the its dimension, or if BasisMeasure does not span
+                all qubits in a noisy circuit.
 
         Examples:
             >>> circuit2 = QCircuit([H(i) for i in range(2)])
@@ -286,13 +285,11 @@ class QCircuit:
         for noise in noises:
             if len(noise.targets) == 0:
                 noise.targets = list(range(self.nb_qubits))
-                if (
-                    isinstance(noise, Depolarizing)
-                    and len(noise.targets) < noise.dimension
-                ):
-                    raise ValueError(
-                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
-                    )
+            if isinstance(noise, Depolarizing) and len(noise.targets) < noise.dimension:
+                raise ValueError(
+                    f"Number of target qubits {len(noise.targets)} should "
+                    f"be higher than the dimension {noise.dimension}."
+                )
         qcircuit.noises = noises
 
         instructions = deepcopy(self.instructions)
@@ -303,11 +300,9 @@ class QCircuit:
                 if len(instruction.targets) == 0:
                     instruction.targets = list(range(self.nb_qubits))
                 if isinstance(instruction, BasisMeasure):
+                    if qcircuit.nb_cbits is None:
+                        qcircuit.nb_cbits = 0
                     if instruction.c_targets is None:
-                        if len(instruction.targets) == 0:
-                            instruction.targets = list(range(self.nb_qubits))
-                        if qcircuit.nb_cbits is None:
-                            qcircuit.nb_cbits = 0
                         instruction.c_targets = [
                             qcircuit.nb_cbits + i
                             for i in range(len(instruction.targets))
@@ -315,7 +310,8 @@ class QCircuit:
                         qcircuit.nb_cbits += self.nb_qubits
                     if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
                         raise ValueError(
-                            "In noisy circuits, BasisMeasure must span all qubits in the circuit."
+                            "In noisy circuits, BasisMeasure must span all "
+                            "qubits in the circuit."
                         )
         qcircuit.instructions = instructions
         return qcircuit
@@ -617,9 +613,11 @@ class QCircuit:
         from qiskit.quantum_info.operators import Operator
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
-        assert isinstance(qiskit_circuit, QuantumCircuit)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
-        assert isinstance(matrix, np.ndarray)
+        if TYPE_CHECKING:
+            assert isinstance(matrix, np.ndarray)
 
         return matrix
 
@@ -825,12 +823,7 @@ class QCircuit:
 
     def to_other_language(
         self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
-    ) -> Union[
-        QuantumCircuit,
-        myQLM_Circuit,
-        braket_Circuit,
-        cirq_Circuit,
-    ]:
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -905,7 +898,7 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    new_circ.unitary(  # pyright: ignore[reportAttributeAccessIssue]
+                    new_circ.unitary(
                         instruction.to_other_language(),
                         instruction.targets,
                         instruction.label,
@@ -1000,10 +993,12 @@ class QCircuit:
                         f"Device {device} does not have metadata for processor {cirq_proc_id}"
                     )
 
+                # For some processors, the circuits need to be optimized for the
+                # architecture. This is done here.
                 router = RouteCQC(device.metadata.nx_graph)
-                rcirc, initial_map, swap_map = router.route_circuit(cirq_circuit)  # type: ignore[reportUnusedVariable]
+                route_circ, _, _ = router.route_circuit(cirq_circuit)
                 cirq_circuit = optimize_for_target_gateset(
-                    rcirc, gateset=SqrtIswapTargetGateset()
+                    route_circ, gateset=SqrtIswapTargetGateset()
                 )
 
                 device.validate_circuit(cirq_circuit)
@@ -1148,27 +1143,13 @@ class QCircuit:
         )
 
         qubits = set(range(self.size()[0]))
-        if self.noises:
-            for noise in self.noises:
-                if not isinstance(noise, Depolarizing):
-                    raise NotImplementedError(
-                        "For now, only depolarizing noise is supported."
-                    )
-                targets = set(noise.targets)
-                noise_info = f"{type(noise).__name__} noise: probability {noise.proba}"
-                if targets != qubits:
-                    noise_info += (
-                        f" on qubit{'s' if len(noise.targets) > 1 else ''} "
-                        f"{noise.targets[0] if len(noise.targets) == 1 else noise.targets}"
-                    )
-                if noise.gates:
-                    noise_info += (
-                        f" for gate{'s' if len(noise.gates) > 1 else ''} "
-                        f"{noise.gates[0] if len(noise.gates) == 1 else noise.gates}"
-                    )
-                print(noise_info)
+        for noise in self.noises:
+            print(noise.info(qubits))
 
-        print(f"{self.to_other_language(Language.QISKIT)}")
+        qiskit_circuit = self.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
+        print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
         qiskit_circ = self.to_other_language(Language.QISKIT)
@@ -1177,12 +1158,9 @@ class QCircuit:
 
             assert isinstance(qiskit_circ, QuantumCircuit)
         output = str(qiskit_circ.draw(output="text", fold=0))
-        if TYPE_CHECKING:
-            assert isinstance(output, str)
         if len(self.noises) != 0:
-            output += "\nNoiseModel:\n    " + "\n    ".join(
-                str(noise) for noise in self.noises
-            )
+            noises = "\n    ".join(str(noise) for noise in self.noises)
+            output += f"\nNoiseModel:\n    {noises}"
         return output
 
     def __repr__(self) -> str:

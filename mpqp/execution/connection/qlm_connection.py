@@ -56,7 +56,9 @@ password {password}"""
             # Set the permissions to read and right for user only
             os.chmod(netrc_path, 0o600)
 
-        from qat.qlmaas import QLMaaSConnection  # type: ignore
+        from qat.qlmaas import (
+            QLMaaSConnection,  # pyright: ignore[reportAttributeAccessIssue]
+        )
 
         c = QLMaaSConnection(
             hostname="qlm35e.neasqc.eu",

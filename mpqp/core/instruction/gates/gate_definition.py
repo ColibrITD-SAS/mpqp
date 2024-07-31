@@ -88,10 +88,15 @@ class GateDefinition(ABC):
         mat = self.to_matrix()
 
         if not all(
-            isinstance(elt.item(), Complex) for elt in np.nditer(mat, ["refs_ok"])  # type: ignore
+            isinstance(
+                elt.item(), Complex  # pyright: ignore[reportAttributeAccessIssue]
+            )
+            for elt in np.nditer(mat, ["refs_ok"])
         ):
             raise ValueError("Cannot invert arbitrary gates using symbolic variables")
-        return UnitaryMatrix(np.linalg.inv(mat))  # type:ignore
+        return UnitaryMatrix(
+            np.linalg.inv(mat)  # pyright: ignore[reportCallIssue, reportArgumentType]
+        )
 
 
 @typechecked

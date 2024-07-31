@@ -11,17 +11,13 @@ from typeguard import TypeCheckError
 from mpqp import Barrier, Instruction, Language, QCircuit
 from mpqp.core.instruction.gates import native_gates
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z, Id
+from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import Depolarizing
+from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.generics import (
-    Matrix,
-    OneOrMany,
-    compute_expected_matrix,
-    random_circuit,
-)
+from mpqp.tools.generics import Matrix, OneOrMany, compute_expected_matrix
 
 
 @pytest.mark.parametrize(

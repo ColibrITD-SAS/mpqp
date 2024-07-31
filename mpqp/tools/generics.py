@@ -25,14 +25,12 @@ from typing import (
     Callable,
     Iterable,
     Iterator,
-    Optional,
     Sequence,
     TypeVar,
     Union,
 )
 
 from aenum import Enum
-
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
@@ -156,82 +154,6 @@ def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     raise ValueError("No objects satisfies the given oracle")
 
 
-def random_circuit(
-    gate_classes: Optional[list[type]] = None,
-    nb_qubits: int = 5,
-    nb_gates: int = np.random.randint(5, 10),
-):
-    """This function creates a QCircuit with a specified number of qubits and gates.
-    The gates are chosen randomly from the provided list of native gate classes.
-
-    args:
-        nb_qubits : Number of qubits in the circuit.
-        gate_classes : List of native gate classes to use in the circuit.
-        nb_gates : Number of gates to add to the circuit. Defaults to a random
-         integer between 5 and 10.
-
-    Returns:
-        A quantum circuit with the specified number of qubits and randomly chosen gates.
-
-    Raises:
-        ValueError: If the number of qubits is too low for the specified gates.
-
-    Examples:
-        >>> random_circuit([U, TOF], 3) # doctest: +SKIP
-        Generates a random quantum circuit with 3 qubits using U and TOF gates.
-        >>> from mpqp.core.instruction.gates import native_gates
-        >>> random_circuit(native_gates.NATIVE_GATES, 4, 10) # doctest: +SKIP
-        Generates a random quantum circuit with 4 qubits and 10 gates native gates.
-    """
-    from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
-    from mpqp.core.circuit import QCircuit
-    from mpqp.core.instruction.gates.gate import SingleQubitGate
-    from mpqp.core.instruction.gates.native_gates import U, TOF, OneQubitNoParamGate
-    from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
-    import random
-
-    if gate_classes is None:
-        gate_classes = NATIVE_GATES
-
-    qubits = list(range(nb_qubits))
-    qcircuit = QCircuit(nb_qubits)
-    if any(
-        not issubclass(gate, SingleQubitGate)
-        and ((gate == TOF and nb_qubits <= 2) or nb_qubits <= 1)
-        for gate in gate_classes
-    ):
-        raise ValueError("number of qubits to low for this gates")
-
-    for _ in range(nb_gates):
-        gate_class = random.choice(gate_classes)
-        target = random.choice(qubits)
-        if issubclass(gate_class, SingleQubitGate):
-            if issubclass(gate_class, ParametrizedGate):
-                if gate_class == U:  # type: ignore[reportUnnecessaryComparison]
-                    theta = float(random.uniform(0, 2 * np.pi))
-                    phi = float(random.uniform(0, 2 * np.pi))
-                    gamma = float(random.uniform(0, 2 * np.pi))
-                    qcircuit.add(U(theta, phi, gamma, target))
-                else:
-                    qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), target))  # type: ignore[reportCallIssue]
-            elif issubclass(gate_class, OneQubitNoParamGate):
-                qcircuit.add(gate_class(target))
-        else:
-            control = random.choice(qubits)
-            while control == target:
-                control = random.choice(qubits)
-            if issubclass(gate_class, ParametrizedGate):
-                qcircuit.add(gate_class(float(random.uniform(0, 2 * np.pi)), control, target))  # type: ignore[reportArgumentType]
-            elif gate_class == TOF:
-                control2 = random.choice(qubits)
-                while control2 == target or control2 == control:
-                    control = random.choice(qubits)
-                qcircuit.add(gate_class([control, control2], target))
-            else:
-                qcircuit.add(gate_class(control, target))
-    return qcircuit
-
-
 def compute_expected_matrix(qcircuit: QCircuit):
     """
     Computes the expected matrix resulting from applying single-qubit gates
@@ -246,8 +168,9 @@ def compute_expected_matrix(qcircuit: QCircuit):
     raises:
         ValueError: If any gate in the circuit is not a SingleQubitGate.
     """
-    from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
     from sympy import N
+
+    from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 
     gates = [
         instruction

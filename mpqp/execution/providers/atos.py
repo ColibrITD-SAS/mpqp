@@ -134,7 +134,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
 
         if device == ATOSDevice.QLM_NOISYQPROC:
             get_QLMaaSConnection()
-            from qlmaas.qpus import NoisyQProc  # type: ignore
+            from qlmaas.qpus import NoisyQProc  # pyright: ignore[reportMissingImports]
 
             hw_model = generate_hardware_model(
                 job.circuit.noises, job.circuit.nb_qubits
@@ -145,13 +145,15 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
                 n_samples=job.measure.shots if job.measure is not None else 0,
             )
             if job.job_type == JobType.OBSERVABLE:
-                from qlmaas.plugins import ObservableSplitter  # type: ignore
+                from qlmaas.plugins import (  # pyright: ignore[reportMissingImports]
+                    ObservableSplitter,
+                )
 
                 qpu = ObservableSplitter() | qpu
             return qpu
         elif device == ATOSDevice.QLM_MPO:
             get_QLMaaSConnection()
-            from qlmaas.qpus import MPO  # type: ignore
+            from qlmaas.qpus import MPO  # pyright: ignore[reportMissingImports]
 
             hw_model = generate_hardware_model(
                 job.circuit.noises, job.circuit.nb_qubits
@@ -164,30 +166,32 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
     else:
         if device == ATOSDevice.QLM_LINALG:
             get_QLMaaSConnection()
-            from qlmaas.qpus import LinAlg  # type: ignore
+            from qlmaas.qpus import LinAlg  # pyright: ignore[reportMissingImports]
 
             return LinAlg()
         elif device == ATOSDevice.QLM_MPS:
             get_QLMaaSConnection()
-            from qlmaas.qpus import MPS  # type: ignore
+            from qlmaas.qpus import MPS  # pyright: ignore[reportMissingImports]
 
             return MPS()
         elif device == ATOSDevice.QLM_NOISYQPROC:
             get_QLMaaSConnection()
-            from qlmaas.qpus import NoisyQProc  # type: ignore
+            from qlmaas.qpus import NoisyQProc  # pyright: ignore[reportMissingImports]
 
             qpu = NoisyQProc(
                 sim_method="stochastic",
                 n_samples=job.measure.shots if job.measure is not None else 0,
             )
             if job.job_type == JobType.OBSERVABLE:
-                from qlmaas.plugins import ObservableSplitter  # type: ignore
+                from qlmaas.plugins import (  # pyright: ignore[reportMissingImports]
+                    ObservableSplitter,
+                )
 
                 qpu = ObservableSplitter() | qpu
             return qpu
         elif device == ATOSDevice.QLM_MPO:
             get_QLMaaSConnection()
-            from qlmaas.qpus import MPO  # type: ignore
+            from qlmaas.qpus import MPO  # pyright: ignore[reportMissingImports]
 
             return MPO()
         else:
@@ -293,7 +297,7 @@ def generate_hardware_model(
             if CNOT not in noise.gates:
                 noise.gates.append(CNOT)
             noises.append(
-                Depolarizing(noise.proba, noise.targets, dimension=1, gates=[Rk])
+                Depolarizing(noise.prob, noise.targets, dimension=1, gates=[Rk])
             )
             warnings.warn(
                 "Requested noise on CRk gate will introduce noise on CNOT and "
@@ -724,7 +728,7 @@ def run_myQLM(job: Job) -> Result:
     myqlm_result = qpu.submit(myqlm_job)
 
     # retrieving the results
-    result = extract_result(myqlm_result, job, job.device)  # type: ignore
+    result = extract_result(myqlm_result, job, job.device)
 
     job.status = JobStatus.DONE
     return result
