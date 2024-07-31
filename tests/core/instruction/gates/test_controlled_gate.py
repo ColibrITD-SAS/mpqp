@@ -23,6 +23,9 @@ class CustomControlledGate(ControlledGate):
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return np.array([[1, 0], [0, 1]], dtype=np.complex64)
 
+    def to_canonical_matrix(self):
+        return self.to_matrix()
+
 
 @pytest.fixture
 def gate_mock() -> MagicMock:
