@@ -50,16 +50,16 @@ class Gate(Instruction, ABC):
             >>> gd = UnitaryMatrix(
             ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
             ... )
-            >>> CustomGate(gd, [1, 2]).to_matrix()
-            array([[0, 0, 0, 1],
-                   [0, 1, 0, 0],
-                   [1, 0, 0, 0],
-                   [0, 0, 1, 0]])
-            >>> SWAP(0,1).to_matrix()
-            array([[1., 0., 0., 0.],
-                   [0., 0., 1., 0.],
-                   [0., 1., 0., 0.],
-                   [0., 0., 0., 1.]])
+            >>> pretty_print_matrix(CustomGate(gd, [1, 2]).to_matrix())
+            [[0, 0, 0, 1],
+             [0, 1, 0, 0],
+             [1, 0, 0, 0],
+             [0, 0, 1, 0]]
+            >>> pretty_print_matrix(SWAP(0,1).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
 
         """
 
@@ -76,16 +76,16 @@ class Gate(Instruction, ABC):
             >>> gd = UnitaryMatrix(
             ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
             ... )
-            >>> CustomGate(gd, [1, 2]).to_matrix()
-            array([[0, 0, 0, 1],
-                   [0, 1, 0, 0],
-                   [1, 0, 0, 0],
-                   [0, 0, 1, 0]])
-            >>> SWAP(0,1).to_matrix()
-            array([[1., 0., 0., 0.],
-                   [0., 0., 1., 0.],
-                   [0., 1., 0., 0.],
-                   [0., 0., 0., 1.]])
+            >>> pretty_print_matrix(CustomGate(gd, [1, 2]).to_canonical_matrix())
+            [[0, 0, 0, 1],
+             [0, 1, 0, 0],
+             [1, 0, 0, 0],
+             [0, 0, 1, 0]]
+            >>> pretty_print_matrix(SWAP(0,1).to_canonical_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
 
         """
 
@@ -144,17 +144,17 @@ class Gate(Instruction, ABC):
 
         Examples:
             >>> swap_gate = SWAP(0,1)
-            >>> (swap_gate.power(2)).to_matrix()
-            array([[1., 0., 0., 0.],
-                   [0., 1., 0., 0.],
-                   [0., 0., 1., 0.],
-                   [0., 0., 0., 1.]])
-            >>> (swap_gate.power(-1)).to_matrix()
-            array([[1., 0., 0., 0.],
-                   [0., 0., 1., 0.],
-                   [0., 1., 0., 0.],
-                   [0., 0., 0., 1.]])
-            >>> (swap_gate.power(0.75)).to_matrix() # not implemented yet
+            >>> pretty_print_matrix((swap_gate.power(2)).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 1, 0, 0],
+             [0, 0, 1, 0],
+             [0, 0, 0, 1]]
+            >>> pretty_print_matrix((swap_gate.power(-1)).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
+            >>> pretty_print_matrix((swap_gate.power(0.75)).to_matrix()) # not implemented yet #doctest: +SKIP
             array([[1.        +0.j        , 0.        +0.j        ,
                     0.        +0.j        , 0.        +0.j        ],
                    [0.        +0.j        , 0.14644661+0.35355339j,

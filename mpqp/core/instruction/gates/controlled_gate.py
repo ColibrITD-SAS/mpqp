@@ -61,9 +61,10 @@ class ControlledGate(Gate, ABC):
             return self._multi_control_gate_to_matrix(nb_qubits)
 
         control, target = self.controls[0], self.targets[0]
-        max_qubit = max(control, target)
+
         if nb_qubits != 0:
-            if nb_qubits - 1 < max_qubit:
+            max_qubit = max(control, target) + 1
+            if nb_qubits < max_qubit:
                 raise ValueError(f"nb_qubits must be at least {max_qubit}")
         else:
             min_qubit = min(control, target)
@@ -73,13 +74,12 @@ class ControlledGate(Gate, ABC):
 
         zero = np.diag([1, 0])
         one = np.diag([0, 1])
+        non_controlled_gate = self.non_controlled_gate.to_matrix()
         I2 = np.eye(2)
 
         control_matrix = zero if control == 0 else I2
         target_matrix = (
-            one
-            if control == 0
-            else (self.non_controlled_gate.to_matrix() if target == 0 else I2)
+            one if control == 0 else (non_controlled_gate if target == 0 else I2)
         )
 
         for i in range(1, nb_qubits):
@@ -87,9 +87,7 @@ class ControlledGate(Gate, ABC):
                 target_matrix = np.kron(target_matrix, one)
                 control_matrix = np.kron(control_matrix, zero)
             elif i == target:
-                target_matrix = np.kron(
-                    target_matrix, self.non_controlled_gate.to_matrix()
-                )
+                target_matrix = np.kron(target_matrix, non_controlled_gate)
                 control_matrix = np.kron(control_matrix, I2)
             else:
                 target_matrix = np.kron(target_matrix, I2)
@@ -102,15 +100,15 @@ class ControlledGate(Gate, ABC):
         from mpqp.core.instruction.gates.native_gates import SWAP
 
         controls, targets = self.controls, self.targets
-        min_qubit, max_qubit =  min(self.connections()), max(self.connections())
+        min_qubit, max_qubit = min(self.connections()), max(self.connections())
 
         # If nb_qubits is not provided, calculate the necessary number of minimal qubits
         if nb_qubits == 0:
             nb_qubits = max_qubit - min_qubit + 1
             controls = [x - min_qubit for x in controls]
             targets = [x - min_qubit for x in targets]
-        elif nb_qubits < max_qubit:
-            raise ValueError(f"nb_qubits must be at least {max_qubit}")
+        elif nb_qubits < max_qubit + 1:
+            raise ValueError(f"nb_qubits must be at least {max_qubit + 1}")
 
         # Get the canonical matrix and extend it to the correct size
         canonical_matrix = self.to_canonical_matrix()

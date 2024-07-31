@@ -575,11 +575,11 @@ class SWAP(InvolutionGate, NoParameterGate):
         b: Second target of the swapping operation.
 
     Example:
-        >>> SWAP(0, 1).to_matrix()
-        array([[1., 0., 0., 0.],
-               [0., 0., 1., 0.],
-               [0., 1., 0., 0.],
-               [0., 0., 0., 1.]])
+        >>> pretty_print_matrix(SWAP(0, 1).to_matrix())
+        [[1, 0, 0, 0],
+         [0, 0, 1, 0],
+         [0, 1, 0, 0],
+         [0, 0, 0, 1]]
 
     """
 
@@ -617,29 +617,27 @@ class SWAP(InvolutionGate, NoParameterGate):
         Returns:
             numpy.ndarray: The matrix representation of the SWAP gate.
         """
-        control = self.targets[0]
-        target = self.targets[1]
+        control, target = self.targets[0], self.targets[1]
 
-        if nb_qubits != 0:
-            if nb_qubits < max(control, target):
-                raise ValueError(
-                    f"The number of qubits in the system must be at least {nb_qubits}."
-                )
+        max_qubits = max(control, target) + 1
+        if nb_qubits != 0 and nb_qubits < max_qubits:
+            raise ValueError(
+                f"The number of qubits in the system must be at least {max_qubits}."
+            )
 
         nb_qubits_swap = abs(control - target) + 1
-        min_num_qubits = min(control, target)
-        dim = 2**nb_qubits_swap
-        swap_matrix = np.eye(dim, dtype=np.complex64)
+        min_nb_qubits = min(control, target)
+        swap_matrix = np.eye(2**nb_qubits_swap, dtype=np.complex64)
 
-        for i in range(dim):
+        for i in range(2**nb_qubits_swap):
             binary_state = list(format(i, f"0{nb_qubits_swap}b"))
 
             (
-                binary_state[nb_qubits_swap - control + min_num_qubits - 1],
-                binary_state[nb_qubits_swap - target + min_num_qubits - 1],
+                binary_state[nb_qubits_swap - control + min_nb_qubits - 1],
+                binary_state[nb_qubits_swap - target + min_nb_qubits - 1],
             ) = (
-                binary_state[nb_qubits_swap - target + min_num_qubits - 1],
-                binary_state[nb_qubits_swap - control + min_num_qubits - 1],
+                binary_state[nb_qubits_swap - target + min_nb_qubits - 1],
+                binary_state[nb_qubits_swap - control + min_nb_qubits - 1],
             )
 
             swapped_index = int("".join(binary_state), 2)
@@ -648,10 +646,8 @@ class SWAP(InvolutionGate, NoParameterGate):
             swap_matrix[swapped_index, i] = 1
 
         if nb_qubits != 0:
-            for i in range(0, min_num_qubits):
-                swap_matrix = np.kron(np.eye(2), swap_matrix)
-            for i in range(max(control, target) + 1, nb_qubits):
-                swap_matrix = np.kron(swap_matrix, np.eye(2))
+            swap_matrix = np.kron(np.eye(2**min_nb_qubits), swap_matrix)
+            swap_matrix = np.kron(swap_matrix, np.eye(2 ** (nb_qubits - max_qubits)))
         return swap_matrix
 
 
@@ -844,7 +840,7 @@ class Rz(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(Rz(np.pi/5, 1).to_matrix()))
+        >>> pretty_print_matrix(Rz(np.pi/5, 1).to_matrix())
         [[0.9510565-0.309017j, 0],
          [0, 0.9510565+0.309017j]]
 
@@ -988,7 +984,7 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(CZ(0, 1).to_matrix()))
+        >>> pretty_print_matrix(CZ(0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 1, 0, 0],
          [0, 0, 1, 0],
@@ -1032,7 +1028,7 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(CRk(4, 0, 1).to_matrix()))
+        >>> pretty_print_matrix(CRk(4, 0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 1, 0, 0],
          [0, 0, 1, 0],
@@ -1096,7 +1092,7 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(TOF([0, 1], 2).to_matrix()))
+        >>> pretty_print_matrix(TOF([0, 1], 2).to_matrix())
         [[1, 0, 0, 0, 0, 0, 0, 0],
          [0, 1, 0, 0, 0, 0, 0, 0],
          [0, 0, 1, 0, 0, 0, 0, 0],
