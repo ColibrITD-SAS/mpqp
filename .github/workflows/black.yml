@@ -29,8 +29,7 @@ jobs:
         pip install black
 
     - name: Run Black
-      run: black
-      #run: black .
+      run: black .
 
     - name: Show Black changes
       run: |
