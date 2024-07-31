@@ -21,10 +21,6 @@ could be use to add CNOT gates to your circuit, using the two registers
 from __future__ import annotations
 
 from copy import deepcopy
-
-
-
-
 from numbers import Complex
 from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
@@ -123,6 +119,9 @@ class QCircuit:
         nb_qubits: Optional[int] = None,
         nb_cbits: Optional[int] = None,
         label: Optional[str] = None,
+
+
+        
     ):
         self.nb_cbits = nb_cbits
         """See parameter description."""
