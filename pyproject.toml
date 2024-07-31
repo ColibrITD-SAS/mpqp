@@ -13,3 +13,7 @@ include_trailing_comma = true
 force_grid_wrap = 0
 line_length = 88
 profile = "black"
+
+[tool.black]
+line-length = 88
+skip-string-normalization = true
