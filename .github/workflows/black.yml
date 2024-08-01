@@ -49,14 +49,6 @@ jobs:
           echo "::set-output name=has_changes::false"
         fi
 
-    - name: Stash changes
-      if: steps.check_diff.outputs.has_changes == 'true'
-      run: git stash
-
-    - name: Pull latest changes
-      if: steps.check_diff.outputs.has_changes == 'true'
-      run: git pull origin ${{ github.ref_name }}
-
     - name: Commit and Push changes
       if: steps.check_diff.outputs.has_changes == 'true'
       run: |
