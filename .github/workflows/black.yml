@@ -34,8 +34,8 @@ jobs:
     - name: Show Black changes
       id: check_diff
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name "github-actions"
+        git config --global user.email "github-actions@users.noreply.github.com"
         CHANGED_FILES=$(git diff --name-only)
         echo "changed files:"
         if [ -n "$CHANGED_FILES" ]; then
@@ -53,4 +53,4 @@ jobs:
         git commit -m "auto-format code using Black"
         git push
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}
