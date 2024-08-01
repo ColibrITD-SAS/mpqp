@@ -34,8 +34,8 @@ jobs:
     - name: Show Black changes
       id: check_diff
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "github-actions[bot]@users.noreply.github.com"
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         CHANGED_FILES=$(git diff --name-only)
         echo "changed files:"
         if [ -n "$CHANGED_FILES" ]; then
