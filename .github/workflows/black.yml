@@ -7,7 +7,7 @@ on:
 
 permissions:
   contents: write
-  
+
 jobs:
   black:
     name: Format code with Black
@@ -49,11 +49,15 @@ jobs:
           echo "::set-output name=has_changes::false"
         fi
 
+    - name: Pull latest changes
+      if: steps.check_diff.outputs.has_changes == 'true'
+      run: git pull origin ${{ github.ref_name }}
+
     - name: Commit and Push changes
       if: steps.check_diff.outputs.has_changes == 'true'
       run: |
         git add .
         git commit -m "auto-format code using Black"
-        git push https://x-access-token:${{ secrets.GH_ACTIONS_BLACK_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ github.ref_name }}
+        git push
       env:
         GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}
