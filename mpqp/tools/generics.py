@@ -153,7 +153,6 @@ def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     raise ValueError("No objects satisfies the given oracle")
 
 
-
 class SimpleClassReprMeta(type):
     """Metaclass used to change the repr of the class (not the instances) to
     display the name of the class only (instead of the usual
