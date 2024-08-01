@@ -46,7 +46,7 @@ jobs:
       continue-on-error: true
 
     - name: Commit and push changes
-      if: steps.check_formatting.outputs.has_changes == 'true'
+      if: matrix.python-version == '3.9' && steps.check_formatting.outputs.has_changes == 'true'
       run: |
         python -m black .
         git config --global user.name 'github-actions[bot]'
