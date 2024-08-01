@@ -40,14 +40,13 @@ jobs:
         echo "changed files:"
         if [ -n "$CHANGED_FILES" ]; then
           echo "$CHANGED_FILES"
-          echo "has_changes=true" >> $GITHUB_ENV
+          echo "::set-output name=has_changes::true"
         else
           echo "No files formatted by Black."
-          echo "has_changes=false" >> $GITHUB_ENV
-        fi
+          echo "::set-output name=has_changes::false"
 
     - name: Commit and Push changes
-      if: env.has_changes == 'true'
+      if: steps.check_diff.outputs.has_changes == 'true'
       run: |
         git add .
         git commit -m "auto-format code using Black"
