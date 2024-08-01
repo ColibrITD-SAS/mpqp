@@ -51,6 +51,6 @@ jobs:
       run: |
         git add .
         git commit -m "auto-format code using Black"
-        git push
+        git push https://x-access-token:${{ secrets.GH_ACTIONS_BLACK_TOKEN }}@github.com/${{ github.repository }} HEAD:${{ github.ref_name }}
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN}}
+        GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}
