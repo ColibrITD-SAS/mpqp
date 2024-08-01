@@ -221,6 +221,14 @@ class QCircuit:
                 self.nb_cbits += len(components.c_targets)
 
         if isinstance(components, NoiseModel):
+            if (
+                isinstance(components, Depolarizing)
+                and len(components.targets) != 0
+                and len(components.targets) < components.dimension
+            ):
+                raise ValueError(
+                    f"Number of target qubits {len(components.targets)} should be higher than the dimension {components.dimension}."
+                )
             hardcoded_basis_measures = [
                 instr
                 for instr in self.instructions
@@ -283,41 +291,29 @@ class QCircuit:
         qcircuit = deepcopy(self)
 
         noises = deepcopy(self.noises)
+        instructions = deepcopy(self.instructions)
+        qcircuit.noises = []
+        qcircuit.instructions = []
+
         for noise in noises:
             if len(noise.targets) == 0:
                 noise.targets = list(range(self.nb_qubits))
-                if (
-                    isinstance(noise, Depolarizing)
-                    and len(noise.targets) < noise.dimension
-                ):
-                    raise ValueError(
-                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
-                    )
-        qcircuit.noises = noises
+            qcircuit.add(noise)
 
-        instructions = deepcopy(self.instructions)
         for instruction in instructions:
             if isinstance(instruction, Barrier):
                 instruction.size = self.nb_qubits
             elif isinstance(instruction, Measure):
                 if len(instruction.targets) == 0:
                     instruction.targets = list(range(self.nb_qubits))
-                if isinstance(instruction, BasisMeasure):
-                    if instruction.c_targets is None:
-                        if len(instruction.targets) == 0:
-                            instruction.targets = list(range(self.nb_qubits))
-                        if qcircuit.nb_cbits is None:
-                            qcircuit.nb_cbits = 0
-                        instruction.c_targets = [
-                            qcircuit.nb_cbits + i
-                            for i in range(len(instruction.targets))
-                        ]
-                        qcircuit.nb_cbits += self.nb_qubits
-                    if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
-                        raise ValueError(
-                            "In noisy circuits, BasisMeasure must span all qubits in the circuit."
-                        )
-        qcircuit.instructions = instructions
+                if isinstance(instruction, ExpectationMeasure):
+                    instruction = ExpectationMeasure(
+                        instruction.observable,
+                        instruction.targets,
+                        instruction.shots,
+                        instruction.label,
+                    )
+            qcircuit.add(instruction)
         return qcircuit
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:

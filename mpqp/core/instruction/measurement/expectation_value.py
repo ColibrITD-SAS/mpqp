@@ -194,56 +194,63 @@ class ExpectationMeasure(Measure):
 
     def __init__(
         self,
-        targets: list[int],
         observable: Observable,
+        targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
     ):
         from mpqp.core.circuit import QCircuit
 
-        super().__init__(targets, shots, label)
-        self.observable = observable
-        """See parameter description."""
-        # Raise an error if the number of target qubits does not match the size of the observable.
-        if self.nb_qubits != observable.nb_qubits:
-            raise NumberQubitsError(
-                f"{self.nb_qubits}, the number of target qubit(s) doesn't match"
-                f" {observable.nb_qubits}, the size of the observable"
-            )
+        if targets is None:
+            super().__init__([], shots, label)
+            self.observable = observable
+        else:
+            super().__init__(targets, shots, label)
+            self.observable = observable
+            """See parameter description."""
+            # Raise an error if the number of target qubits does not match the size of the observable.
+            print(self.nb_qubits, observable.nb_qubits)
+            print(observable)
+            if self.nb_qubits != observable.nb_qubits:
+                raise NumberQubitsError(
+                    f"the number of target qubit(s) ({self.nb_qubits}) doesn't match "
+                    f"the size of the observable ({observable.nb_qubits}), targets "
+                    f"can be specified in creation of the ExpectationMeasure"
+                )
 
-        self.pre_measure = QCircuit(max(targets) + 1)
-        """Circuit added before the expectation measurement to correctly swap
-        target qubits when their are note ordered or contiguous."""
-        targets_is_ordered = all(
-            [targets[i] > targets[i - 1] for i in range(1, len(targets))]
-        )
-        tweaked_tgt = copy.copy(targets)
-        if (
-            max(tweaked_tgt) - min(tweaked_tgt) + 1 != len(tweaked_tgt)
-            or not targets_is_ordered
-        ):
-            warn(
-                "Non contiguous or non sorted observable target will introduce "
-                "additional CNOTs."
+            self.pre_measure = QCircuit(max(targets) + 1)
+            """Circuit added before the expectation measurement to correctly swap
+            target qubits when their are note ordered or contiguous."""
+            targets_is_ordered = all(
+                [targets[i] > targets[i - 1] for i in range(1, len(targets))]
             )
+            tweaked_tgt = copy.copy(targets)
+            if (
+                max(tweaked_tgt) - min(tweaked_tgt) + 1 != len(tweaked_tgt)
+                or not targets_is_ordered
+            ):
+                warn(
+                    "Non contiguous or non sorted observable target will introduce "
+                    "additional CNOTs."
+                )
 
-            for t_index, target in enumerate(tweaked_tgt):  # sort the targets
-                min_index = tweaked_tgt.index(min(tweaked_tgt[t_index:]))
-                if t_index != min_index:
-                    self.pre_measure.add(SWAP(target, tweaked_tgt[min_index]))
-                    tweaked_tgt[t_index], tweaked_tgt[min_index] = (
-                        tweaked_tgt[min_index],
-                        target,
-                    )
-            for t_index, target in enumerate(tweaked_tgt):  # compact the targets
-                if t_index == 0:
-                    continue
-                if target != tweaked_tgt[t_index - 1] + 1:
-                    self.pre_measure.add(SWAP(target, tweaked_tgt[t_index - 1] + 1))
-                    tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
-        self.rearranged_targets = tweaked_tgt
-        """Adjusted list of target qubits when they are not initially sorted and
-        contiguous."""
+                for t_index, target in enumerate(tweaked_tgt):  # sort the targets
+                    min_index = tweaked_tgt.index(min(tweaked_tgt[t_index:]))
+                    if t_index != min_index:
+                        self.pre_measure.add(SWAP(target, tweaked_tgt[min_index]))
+                        tweaked_tgt[t_index], tweaked_tgt[min_index] = (
+                            tweaked_tgt[min_index],
+                            target,
+                        )
+                for t_index, target in enumerate(tweaked_tgt):  # compact the targets
+                    if t_index == 0:
+                        continue
+                    if target != tweaked_tgt[t_index - 1] + 1:
+                        self.pre_measure.add(SWAP(target, tweaked_tgt[t_index - 1] + 1))
+                        tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
+            self.rearranged_targets = tweaked_tgt
+            """Adjusted list of target qubits when they are not initially sorted and
+            contiguous."""
 
     def __repr__(self) -> str:
         return (
