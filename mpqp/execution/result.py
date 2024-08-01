@@ -35,7 +35,7 @@ from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array
 from mpqp.tools.errors import ResultAttributeError
 
-from  mpqp.execution import Job, JobType
+from mpqp.execution import Job, JobType
 
 
 @typechecked
