@@ -44,6 +44,7 @@ jobs:
         else
           echo "No files formatted by Black."
           echo "::set-output name=has_changes::false"
+        fi
 
     - name: Commit and Push changes
       if: steps.check_diff.outputs.has_changes == 'true'
