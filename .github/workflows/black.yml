@@ -31,29 +31,28 @@ jobs:
         python -m pip install --upgrade pip
         pip install black
 
-    - name: Run Black
-      run: black .
-
-    - name: Show Black changes
-      id: check_diff
+    - name: Run Black and show formatting changes
+      id: check_formatting
       run: |
-        git config --global user.name 'github-actions[bot]'
-        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-        CHANGED_FILES=$(git diff --name-only)
-        echo "changed files:"
-        if [ -n "$CHANGED_FILES" ]; then
-          echo "$CHANGED_FILES"
-          echo "::set-output name=has_changes::true"
-        else
+        python -m black --check .
+        BLACK_EXIT_CODE=$?
+        if [ $BLACK_EXIT_CODE -eq 0 ]; then
           echo "No files formatted by Black."
           echo "::set-output name=has_changes::false"
+        else
+          echo "Files need to be formatted:"
+          echo "::set-output name=has_changes::true"
         fi
+      continue-on-error: true
 
-    - name: Commit and Push changes
-      if: steps.check_diff.outputs.has_changes == 'true'
+    - name: Commit and push changes
+      if: steps.check_formatting.outputs.has_changes == 'true'
       run: |
+        python -m black .
+        git config --global user.name 'github-actions[bot]'
+        git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git add .
         git commit -m "auto-format code using Black"
         git push
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}
+        github_token: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}
