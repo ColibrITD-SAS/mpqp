@@ -440,7 +440,7 @@ class QCircuit:
             >>> theta = symbols("θ")
             >>> circ = QCircuit([
             ...     P(theta, 0),
-            ...     ExpectationMeasure([0], Observable(np.array([[0, 1], [1, 0]])), shots=1000)
+            ...     ExpectationMeasure(Observable(np.array([[0, 1], [1, 0]])), [0], shots=1000)
             ... ])
             >>> circ.display("text")
                ┌──────┐
@@ -743,11 +743,11 @@ class QCircuit:
         Example:
             >>> circuit = QCircuit([
             ...     BasisMeasure([0, 1], shots=1000),
-            ...     ExpectationMeasure([1], Observable(np.identity(2)), shots=1000)
+            ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
             ... ])
             >>> circuit.get_measurements()  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure([0, 1], shots=1000),
-            ExpectationMeasure([1], Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), shots=1000)]
+            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
@@ -1176,7 +1176,7 @@ class QCircuit:
         Example:
             >>> circ = QCircuit([
             ...     Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1),
-            ...     H(0), CRk(k, 0, 1), ExpectationMeasure([1], obs)
+            ...     H(0), CRk(k, 0, 1), ExpectationMeasure(obs, [1])
             ... ])
             >>> circ.variables()  # doctest: +SKIP
             {θ, k}

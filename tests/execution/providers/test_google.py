@@ -47,7 +47,6 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
                 H(0),
                 Rx(1.76, 1),
                 ExpectationMeasure(
-                    [0, 1],
                     observable=Observable(
                         np.array(
                             [
@@ -58,6 +57,7 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
                             ],
                         )
                     ),
+                    targets=[0, 1],
                     shots=1000,
                 ),
             ]

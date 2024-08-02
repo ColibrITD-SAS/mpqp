@@ -344,6 +344,8 @@ class BitFlip(NoiseModel):
             raise ValueError(
                 f"Invalid probability: {prob} but should be between 0 and 0.5"
             )
+        if targets is None:
+            targets = []
 
         super().__init__(targets, gates)
         self.prob = prob
