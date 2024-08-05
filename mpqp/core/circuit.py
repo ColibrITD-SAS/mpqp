@@ -1087,7 +1087,7 @@ class QCircuit:
             else:
                 new_circuit.append(instruction)
 
-        # apply_gphase(new_circuit, -np.pi, 0)
+        print("final circuit golbal phase", new_circuit.global_phase)
 
         qasm_str = qasm2.dumps(new_circuit)
 

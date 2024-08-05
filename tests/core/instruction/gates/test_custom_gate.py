@@ -27,8 +27,13 @@ def test_custom_gate_is_unitary():
     assert is_unitary(CustomGate(definition, [0]).to_matrix())
 
 
-def test_random_orthogonal_matrix():
-    n_circ = random.randint(1, 5)
+@pytest.mark.parametrize(
+    "n_circ",
+    [
+        (random.randint(1, 5)) for _ in range(10)
+    ],
+)
+def test_random_orthogonal_matrix(n_circ: int):
     n_gate = random.randint(1, n_circ)
     t = random.randint(0, n_circ-n_gate)
     m = rand_orthogonal_matrix(2**n_gate)
