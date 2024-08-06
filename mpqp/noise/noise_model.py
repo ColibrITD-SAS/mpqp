@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
     from braket.circuits.noises import TwoQubitDepolarizing
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
+    from qiskit_aer.noise.errors.quantum_error import QuantumError
 
 from typeguard import typechecked
 
@@ -89,6 +90,10 @@ class NoiseModel(ABC):
     @abstractmethod
     def to_kraus_representation(self) -> KrausRepresentation:
         """3M-TODO: to be implemented"""
+        pass
+
+    @abstractmethod
+    def to_pauli(self) -> tuple[list[str], list[float]]:
         pass
 
     @abstractmethod
@@ -356,9 +361,14 @@ class BitFlip(NoiseModel):
         gates = f", gates={self.gates}" if self.gates else ""
         return f"{type(self).__name__}({self.prob}{target}{gates})"
 
+    def to_pauli(self) -> tuple[list[str], list[float]]:
+        pauli_operators = ["X", "I"]
+        probabilities = [self.prob, 1 - self.prob]
+        return pauli_operators, probabilities
+
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
+    ) -> BraketNoise | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -377,6 +387,12 @@ class BitFlip(NoiseModel):
             from braket.circuits.noises import BitFlip as BraketBitFlip
 
             return BraketBitFlip(probability=self.prob)
+
+        elif language == Language.QISKIT:
+            pauli_operators, probabilities = self.to_pauli()
+            pauli_objs = [Pauli(op) for op in pauli_operators]
+
+            return QuantumError(list(zip(pauli_objs, probabilities)))
 
         # TODO: MY_QLM implementation
 
