@@ -306,14 +306,15 @@ class QCircuit:
             elif isinstance(instruction, Measure):
                 if len(instruction.targets) == 0:
                     instruction.targets = list(range(self.nb_qubits))
-                if isinstance(instruction, ExpectationMeasure):
-                    instruction = ExpectationMeasure(
-                        instruction.observable,
-                        instruction.targets,
-                        instruction.shots,
-                        instruction.label,
-                    )
+                    if isinstance(instruction, ExpectationMeasure):
+                        instruction = ExpectationMeasure(
+                            instruction.observable,
+                            instruction.targets,
+                            instruction.shots,
+                            instruction.label,
+                        )
             qcircuit.add(instruction)
+
         return qcircuit
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
