@@ -94,6 +94,12 @@ class NoiseModel(ABC):
 
     @abstractmethod
     def to_pauli(self) -> tuple[list[str], list[float]]:
+        # TODO: maybe modify the name of the method to be more explicit ? to_pauli_error ? to_pauli_noise ?
+        #  why not directly putting a list of tuples ?
+        #  if this method is only used for qiskit, why not moving this to to_other_language ? so we generate directly
+        #  the right QuantumError instead of passing through 3 steps each time
+        #  other idea: we plan to implement a noise called Pauli (see below in the file), is it interesting to
+        #  think already of returning an mpqp Pauli, that we transform then into QuantumError ?
         pass
 
     @abstractmethod
@@ -121,6 +127,7 @@ class NoiseModel(ABC):
         return noise_info
 
     # 3M-TODO: implement the possibility of having a parameterized noise
+    # param: Union[float, Expr]
     # @abstractmethod
     # def subs(self):
     #     pass
@@ -187,8 +194,6 @@ class Depolarizing(NoiseModel):
                 f" than 1, but got {dimension} instead."
             )
 
-        # 3M-TODO: implement the possibility of having a parameterized noise,
-        # param: Union[float, Expr]
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
             print(dimension, prob, prob_upper_bound)
@@ -231,12 +236,14 @@ class Depolarizing(NoiseModel):
         return f"{type(self).__name__}({self.prob}{target}{dimension}{gates})"
 
     def to_pauli(self) -> tuple[list[str], list[float]]:
+        # TODO: to test and document
         num_terms = 4**self.dimension
         max_param = num_terms / (num_terms - 1)
         if self.prob > max_param:
             raise ValueError(
                 f"Depolarizing parameter must be in between 0 and {max_param}."
             )
+        # FIXME: this check is already done in the constructor no ?
 
         prob_iden = 1 - self.prob / max_param
         prob_pauli = self.prob / (num_terms - 1)
@@ -289,8 +296,8 @@ class Depolarizing(NoiseModel):
 
         elif language == Language.QISKIT:
             pauli_operators, probabilities = self.to_pauli()
+            # FIXME: you using the Pauli of mpqp here not the qiskit one, need to be imported here
             pauli_objs = [Pauli(op) for op in pauli_operators]
-
             return QuantumError(list(zip(pauli_objs, probabilities)))
 
         elif language == Language.MY_QLM:
@@ -408,6 +415,7 @@ class BitFlip(NoiseModel):
 
         elif language == Language.QISKIT:
             pauli_operators, probabilities = self.to_pauli()
+            # FIXME: you using the Pauli of mpqp here not the qiskit one, need to be imported here
             pauli_objs = [Pauli(op) for op in pauli_operators]
 
             return QuantumError(list(zip(pauli_objs, probabilities)))
@@ -493,6 +501,10 @@ class AmplitudeDamping(NoiseModel):
         prob = f", prob={self.prob}" if self.prob != 1 else ""
         return f"{type(self).__name__}({self.gamma}{prob}{targets}{gates})"
 
+    def to_pauli(self) -> tuple[list[str], list[float]]:
+        # TODO: to implement
+        pass
+
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise:
@@ -531,7 +543,9 @@ class AmplitudeDamping(NoiseModel):
 
                 return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
-        # TODO: MY_QLM implmentation
+        # TODO: MY_QLM implementation
+
+        # TODO: QISKIT implementation
 
         else:
             raise NotImplementedError(
