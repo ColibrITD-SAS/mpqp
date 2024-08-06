@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
+from mpqp.noise import NoiseModel
+
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
     from qiskit.primitives import (
@@ -15,8 +17,7 @@ if TYPE_CHECKING:
     )
     from qiskit.result import Result as QiskitResult
     from qiskit_ibm_runtime import RuntimeJobV2
-
-# from qiskit.primitives import PrimitiveResult, EstimatorResult
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
 
 from typeguard import typechecked
@@ -136,6 +137,22 @@ def check_job_compatibility(job: Job):
                 f"Gate(s) {incompatible_gates} cannot be simulated on {job.device}."
             )
 
+
+@typechecked
+def generate_qiskit_noise_model(noises: list[NoiseModel]) -> "Qiskit_NoiseModel":
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+
+    # TODO: implement and document this function. generate noise model that is combination of quantumErrors
+
+    noiseModel = Qiskit_NoiseModel()
+    for noise in noises:
+        q_e = noise.to_other_language()
+        if noise.targets ...:
+            noiseModel.add_quantum_error(q_e, .....)
+        else:
+            noiseModel.add_all_qubit_quantum_error(q_e, .....)
+
+    return noiseModel
 
 @typechecked
 def run_aer(job: Job):
