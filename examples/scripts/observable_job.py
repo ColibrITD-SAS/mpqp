@@ -32,7 +32,7 @@ circuit = QCircuit(2, label="Observable test")
 # Constructing the circuit by adding gates and measurements
 circuit.add(H(0))
 circuit.add(Rx(1.76, 1))
-circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=1000))
+circuit.add(ExpectationMeasure(obs, [0, 1], shots=1000))
 
 print(circuit)
 
@@ -55,7 +55,7 @@ circuit = QCircuit(2, label="Observable test 2")
 # Constructing the circuit by adding gates and measurements
 circuit.add(H(0))
 circuit.add(H(1))
-circuit.add(ExpectationMeasure([0, 1], observable=obs2, shots=0))
+circuit.add(ExpectationMeasure(obs2, [0, 1], shots=0))
 
 print(circuit)
 

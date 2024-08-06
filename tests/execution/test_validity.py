@@ -278,7 +278,7 @@ def test_observable_ideal_case(
     gates: list[Gate], observable: npt.NDArray[np.complex64], expected_vector: Matrix
 ):
     c = QCircuit(gates)
-    c.add(ExpectationMeasure(list(range(c.nb_qubits)), Observable(observable)))
+    c.add(ExpectationMeasure(Observable(observable), list(range(c.nb_qubits))))
     expected_value = (
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
