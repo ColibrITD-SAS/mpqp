@@ -187,6 +187,8 @@ def run_aer(job: Job):
     backend_sim = AerSimulator(method=job.device.value)
     run_input = transpile(qiskit_circuit, backend_sim)
 
+    # TODO : add here what is needed to add the handle on noise (generate the noise model, add it to run/backend)
+
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.
@@ -360,6 +362,8 @@ def extract_result(
     """
     from qiskit.primitives import EstimatorResult, PrimitiveResult
     from qiskit.result import Result as QiskitResult
+
+    # TODO: check if the result of a noisy simulation requires a different parsing, if so implement it
 
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
