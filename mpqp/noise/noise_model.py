@@ -230,9 +230,23 @@ class Depolarizing(NoiseModel):
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
         return f"{type(self).__name__}({self.prob}{target}{dimension}{gates})"
 
+    def to_pauli(self) -> tuple[list[str], list[float]]:
+        num_terms = 4**self.dimension
+        max_param = num_terms / (num_terms - 1)
+        if self.prob > max_param:
+            raise ValueError(
+                f"Depolarizing parameter must be in between 0 and {max_param}."
+            )
+
+        prob_iden = 1 - self.prob / max_param
+        prob_pauli = self.prob / (num_terms - 1)
+        pauli_operators = ["I", "X", "Y", "Z"]
+        probabilities = [prob_iden] + [prob_pauli] * (num_terms - 1)
+        return pauli_operators, probabilities
+
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise:
+    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -273,6 +287,12 @@ class Depolarizing(NoiseModel):
 
                 return BraketDepolarizing(probability=self.prob)
 
+        elif language == Language.QISKIT:
+            pauli_operators, probabilities = self.to_pauli()
+            pauli_objs = [Pauli(op) for op in pauli_operators]
+
+            return QuantumError(list(zip(pauli_objs, probabilities)))
+
         elif language == Language.MY_QLM:
             if self.dimension > 2:
                 raise NotImplementedError(
@@ -293,8 +313,6 @@ class Depolarizing(NoiseModel):
                 method_2q="equal_probs",
                 depol_type="pauli",
             )
-        else:
-            raise NotImplementedError(f"{language.name} not yet supported.")
 
     def info(self, qubits: set[int]) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
