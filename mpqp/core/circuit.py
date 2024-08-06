@@ -920,7 +920,7 @@ class QCircuit:
                     cargs = [instruction.c_targets]
                 elif isinstance(instruction, Barrier):
                     qargs = range(qcircuit.nb_qubits)
-                elif isinstance(instruction, Breakpoint) or isinstance(instruction, NoiseModel):
+                elif isinstance(instruction, Breakpoint):
                     continue
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
