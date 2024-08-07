@@ -11,6 +11,7 @@ if TYPE_CHECKING:
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
 
+
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
@@ -90,16 +91,6 @@ class NoiseModel(ABC):
     @abstractmethod
     def to_kraus_representation(self) -> KrausRepresentation:
         """3M-TODO: to be implemented"""
-        pass
-
-    @abstractmethod
-    def to_pauli(self) -> tuple[list[str], list[float]]:
-        # TODO: maybe modify the name of the method to be more explicit ? to_pauli_error ? to_pauli_noise ?
-        #  why not directly putting a list of tuples ?
-        #  if this method is only used for qiskit, why not moving this to to_other_language ? so we generate directly
-        #  the right QuantumError instead of passing through 3 steps each time
-        #  other idea: we plan to implement a noise called Pauli (see below in the file), is it interesting to
-        #  think already of returning an mpqp Pauli, that we transform then into QuantumError ?
         pass
 
     @abstractmethod
@@ -235,22 +226,6 @@ class Depolarizing(NoiseModel):
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
         return f"{type(self).__name__}({self.prob}{target}{dimension}{gates})"
 
-    def to_pauli(self) -> tuple[list[str], list[float]]:
-        # TODO: to test and document
-        num_terms = 4**self.dimension
-        max_param = num_terms / (num_terms - 1)
-        if self.prob > max_param:
-            raise ValueError(
-                f"Depolarizing parameter must be in between 0 and {max_param}."
-            )
-        # FIXME: this check is already done in the constructor no ?
-
-        prob_iden = 1 - self.prob / max_param
-        prob_pauli = self.prob / (num_terms - 1)
-        pauli_operators = ["I", "X", "Y", "Z"]
-        probabilities = [prob_iden] + [prob_pauli] * (num_terms - 1)
-        return pauli_operators, probabilities
-
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError:
@@ -295,10 +270,10 @@ class Depolarizing(NoiseModel):
                 return BraketDepolarizing(probability=self.prob)
 
         elif language == Language.QISKIT:
-            pauli_operators, probabilities = self.to_pauli()
-            # FIXME: you using the Pauli of mpqp here not the qiskit one, need to be imported here
-            pauli_objs = [Pauli(op) for op in pauli_operators]
-            return QuantumError(list(zip(pauli_objs, probabilities)))
+            from qiskit_aer.noise.errors.standard_errors import depolarizing_error
+
+            nb_qubits = len(self.targets) if self.targets else 1
+            return depolarizing_error(self.prob, nb_qubits)
 
         elif language == Language.MY_QLM:
             if self.dimension > 2:
@@ -386,11 +361,6 @@ class BitFlip(NoiseModel):
         gates = f", gates={self.gates}" if self.gates else ""
         return f"{type(self).__name__}({self.prob}{target}{gates})"
 
-    def to_pauli(self) -> tuple[list[str], list[float]]:
-        pauli_operators = ["X", "I"]
-        probabilities = [self.prob, 1 - self.prob]
-        return pauli_operators, probabilities
-
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise | QuantumError:
@@ -414,11 +384,9 @@ class BitFlip(NoiseModel):
             return BraketBitFlip(probability=self.prob)
 
         elif language == Language.QISKIT:
-            pauli_operators, probabilities = self.to_pauli()
-            # FIXME: you using the Pauli of mpqp here not the qiskit one, need to be imported here
-            pauli_objs = [Pauli(op) for op in pauli_operators]
+            from qiskit_aer.noise.errors.standard_errors import pauli_error
 
-            return QuantumError(list(zip(pauli_objs, probabilities)))
+            return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
         # TODO: MY_QLM implementation
 
@@ -500,10 +468,6 @@ class AmplitudeDamping(NoiseModel):
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
         prob = f", prob={self.prob}" if self.prob != 1 else ""
         return f"{type(self).__name__}({self.gamma}{prob}{targets}{gates})"
-
-    def to_pauli(self) -> tuple[list[str], list[float]]:
-        # TODO: to implement
-        pass
 
     def to_other_language(
         self, language: Language = Language.QISKIT
