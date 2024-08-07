@@ -879,6 +879,8 @@ class QCircuit:
                 new_circ = QuantumCircuit(qcircuit.nb_qubits)
             else:
                 new_circ = QuantumCircuit(qcircuit.nb_qubits, qcircuit.nb_cbits)
+            if qcircuit.label is not None:
+                new_circ.name = qcircuit.label
 
             for instruction in qcircuit.instructions:
                 if isinstance(instruction, ExpectationMeasure):

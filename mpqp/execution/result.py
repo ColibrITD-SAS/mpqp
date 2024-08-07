@@ -35,7 +35,7 @@ from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array
 from mpqp.tools.errors import ResultAttributeError
 
-from  mpqp.execution import Job, JobType
+from mpqp.execution import Job, JobType
 
 
 @typechecked
@@ -162,7 +162,10 @@ class Sample:
                     )
 
     def __str__(self):
-        return f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}, Probability: {self.probability}"
+        return (
+            f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}"
+            + f", Probability: {np.round(self.probability, 5) if self.probability is not None else None}"
+        )
 
     def __repr__(self):
         return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
@@ -278,24 +281,28 @@ class Result:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
-                counts = [
-                    int(count)
-                    for count in np.round(self.job.measure.shots * self._probabilities)
-                ]
-                self._counts = counts
-                for sample in self._samples:
-                    sample.count = self._counts[sample.index]
-            elif is_counts:
+                if not is_counts:
+                    counts = [
+                        int(count)
+                        for count in np.round(
+                            self.job.measure.shots * self._probabilities
+                        )
+                    ]
+                    self._counts = counts
+                    for sample in self._samples:
+                        sample.count = self._counts[sample.index]
+            if is_counts:
                 counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
                 for sample in data:
                     assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
                 assert shots != 0
-                self._probabilities = np.array(counts, dtype=float) / self.shots
-                for sample in self._samples:
-                    sample.probability = self._probabilities[sample.index]
-            else:
+                if not is_probas:
+                    self._probabilities = np.array(counts, dtype=float) / self.shots
+                    for sample in self._samples:
+                        sample.probability = self._probabilities[sample.index]
+            elif not is_probas:
                 raise ValueError(
                     f"For {JobType.SAMPLE.name} jobs, all samples must contain"
                     " either `count` or `probability` (and the non-None "

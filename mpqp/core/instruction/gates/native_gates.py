@@ -776,8 +776,8 @@ class Rz(RotationGate, SingleQubitGate):
 
     Example:
         >>> print(clean_matrix(Rz(np.pi/5, 1).to_matrix()))
-        [[0.9510565-0.309017j, 0],
-         [0, 0.9510565+0.309017j]]
+        [[0.95106-0.30902j, 0               ],
+         [0               , 0.95106+0.30902j]]
 
     """
 
@@ -914,9 +914,9 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
 
     Example:
         >>> print(clean_matrix(CZ(0, 1).to_matrix()))
-        [[1, 0, 0, 0],
-         [0, 1, 0, 0],
-         [0, 0, 1, 0],
+        [[1, 0, 0, 0 ],
+         [0, 1, 0, 0 ],
+         [0, 0, 1, 0 ],
          [0, 0, 0, -1]]
 
     """
@@ -958,10 +958,10 @@ class CRk(RotationGate, ControlledGate):
 
     Example:
         >>> print(clean_matrix(CRk(4, 0, 1).to_matrix()))
-        [[1, 0, 0, 0],
-         [0, 1, 0, 0],
-         [0, 0, 1, 0],
-         [0, 0, 0, 0.9238795+0.3826834j]]
+        [[1, 0, 0, 0               ],
+         [0, 1, 0, 0               ],
+         [0, 0, 1, 0               ],
+         [0, 0, 0, 0.92388+0.38268j]]
 
     """
 

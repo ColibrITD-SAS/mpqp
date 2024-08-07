@@ -447,11 +447,17 @@ def extract_result(
             elif job.job_type == JobType.SAMPLE:
                 assert job.measure is not None
                 counts = result.get_counts(0)
+                job_data = result.data()
                 data = [
                     Sample(
                         bin_str=item,
                         count=counts[item],
                         nb_qubits=job.circuit.nb_qubits,
+                        probability=(
+                            job_data.get("probabilities").get(item)
+                            if "probabilities" in job_data
+                            else None
+                        ),
                     )
                     for item in counts
                 ]

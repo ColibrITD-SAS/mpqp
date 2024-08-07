@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from typing import Union
 
 import numpy as np
 import numpy.typing as npt
@@ -62,8 +63,20 @@ def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
     return val
 
 
+def format_element(element: Union[int, float, complex], round: int = 5) -> str:
+    if np.iscomplex(element):
+        real_part = np.round(element.real, round)
+        imag_part = np.round(element.imag, round)
+        if imag_part == 0:
+            return str(int(real_part)) if real_part.is_integer() else str(real_part)
+        return str(np.round(element, round)).replace("(", "").replace(")", "")
+    else:
+        real_part = np.round(element.real, round)
+        return str(int(real_part)) if real_part.is_integer() else str(real_part)
+
+
 def clean_1D_array(
-    array: list[complex] | npt.NDArray[np.complex64 | np.float32],
+    array: list[complex] | npt.NDArray[np.complex64 | np.float32], round: int = 5
 ) -> str:
     """Cleans and formats elements of an array.
     This function rounds the real parts of complex numbers in the array to 7 decimal places
@@ -72,13 +85,14 @@ def clean_1D_array(
 
     Args:
         array: An array containing numeric elements, possibly including complex numbers.
+        round: The number of decimal places to round the real and imaginary parts.
 
     Returns:
         A string representation of the cleaned array without parentheses.
 
     Example:
         >>> clean_1D_array([1.234567895546, 2.3456789645645, 3.45678945645])
-        '[1.2345679, 2.345679, 3.4567895]'
+        '[1.23457, 2.34568, 3.45679]'
         >>> clean_1D_array([1+2j, 3+4j, 5+6j])
         '[1+2j, 3+4j, 5+6j]'
         >>> clean_1D_array([1+0j, 0.5+0j, 5.+1j])
@@ -87,46 +101,59 @@ def clean_1D_array(
         '[1, 2.1, 3]'
 
     """
-    array = np.array(array, dtype=np.complex64)
-    cleaned_array = [
-        (
-            int(element.real)
-            if int(element.real) == element
-            else (
-                np.round(element.real, 5)
-                if (np.imag(element) == 0)
-                else (str(np.round(element, 7)).replace("(", "").replace(")", ""))
-            )
-        )
-        for element in array
-    ]
+    cleaned_array = [format_element(element, round) for element in array]
     return "[" + ", ".join(map(str, cleaned_array)) + "]"
 
 
-def clean_matrix(matrix: Matrix):
+def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     """Cleans and formats elements of a matrix.
     This function cleans and formats the elements of a matrix. It rounds the real parts of complex numbers
-    in the matrix to 7 decimal places and formats them as integers if they are whole numbers. It returns a
+    in the matrix places and formats them as integers if they are whole numbers. It returns a
     string representation of the cleaned matrix without parentheses.
 
     Args:
         matrix: A matrix containing numeric elements, possibly including complex numbers.
+        round: The number of decimal places to round the real and imaginary parts.
+        align: Whether to align the elements for a cleaner output.
 
     Returns:
         str: A string representation of the cleaned matrix without parentheses.
 
     Examples:
         >>> print(clean_matrix([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ...               [1+0j, 0+0j, 5.],
-        ...               [1.0, 2.0, 3.0]]))
-        [[1.2345679, 2.345679, 3.4567895],
-         [1, 0, 5],
-         [1, 2, 3]]
+        ...                     [1+5j, 0+1j, 5.],
+        ...                     [1.223123425+0.95113462364j, 2.0, 3.0]]))
+        [[1.23457         , 2.34568, 3.45679],
+         [1+5j            , 1j     , 5      ],
+         [1.22312+0.95113j, 2      , 3      ]]
 
     """
-    # TODO: add an option to align cols
-    cleaned_matrix = [clean_1D_array(row) for row in matrix]
-    return "[" + ",\n ".join(cleaned_matrix) + "]"
+
+    formatted_matrix = [
+        [format_element(element, round) for element in row] for row in matrix
+    ]
+    if align:
+        max_lengths = [
+            max(len(row[i]) for row in formatted_matrix)
+            for i in range(len(formatted_matrix[0]))
+        ]
+
+        aligned_matrix = [
+            [element.ljust(max_lengths[i]) for i, element in enumerate(row)]
+            for row in formatted_matrix
+        ]
+
+        return (
+            "["
+            + ",\n ".join(["[" + ", ".join(row) + "]" for row in aligned_matrix])
+            + "]"
+        )
+
+    return (
+        "["
+        + ",\n ".join(["[" + ", ".join(row) + "]" for row in formatted_matrix])
+        + "]"
+    )
 
 
 def one_lined_repr(obj: object):

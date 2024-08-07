@@ -17,7 +17,7 @@ def print_config_info():
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.env_manager as env_m
     import mpqp.execution.connection.ibm_connection as ibmqc
-    import mpqp.execution.connection.ionq_connection as keyc
+    import mpqp.execution.connection.ionq_connection as ionqc
     import mpqp.execution.connection.azure_connection as azuc
     import mpqp.execution.connection.google_connection as cirqc
     from mpqp.tools.errors import IBMRemoteExecutionError
@@ -47,19 +47,19 @@ def print_config_info():
     print("===== IonQ info : ===== ")
     try:
         pass
-        #print(keyc.get_ionq_info())
+        # print(keyc.get_ionq_info())
     except Exception as err:
         print("Error occurred when getting IonQ account info.")
     print("===== AQT info : ===== ")
     try:
         pass
-        #print(keyc.get_aqt_info())
+        # print(keyc.get_aqt_info())
     except Exception as err:
         print("Error occurred when getting AQT account info.")
     print("===== Azure info : ===== ")
     try:
         pass
-        #print(azuc.get_azure_account_info())
+        # print(azuc.get_azure_account_info())
     except Exception as err:
         print("Error occurred when getting Azure account info.")
     input("Press 'Enter' to continue")
@@ -89,8 +89,8 @@ def main_setup():
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Azure", config_azure_account),
-            #AnswerNode("AQT", keyc.config_aqt_key),
-            #AnswerNode("Cirq configuration", return_action),
+            # AnswerNode("AQT", keyc.config_aqt_key),
+            # AnswerNode("Cirq configuration", return_action),
             AnswerNode("Recap", print_config_info),
             # AnswerNode(
             #     "Cirq",

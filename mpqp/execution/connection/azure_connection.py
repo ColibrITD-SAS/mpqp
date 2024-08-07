@@ -1,8 +1,12 @@
 from getpass import getpass
-from typing import Callable, Optional
+from typing import TYPE_CHECKING
 from termcolor import colored
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+
+if TYPE_CHECKING:
+    from azure.quantum.qiskit import AzureQuantumProvider
+    from azure.quantum import Workspace
 
 
 def config_azure_account():
@@ -65,3 +69,18 @@ def test_connection(resource_id: str, Location: str) -> bool:
     except:
         print(colored("Wrong credentials", "red"))
         return False
+
+
+def get_azure_workspace() -> "Workspace":
+    from azure.quantum import Workspace
+
+    return Workspace(
+        resource_id=get_env_variable(f"AZURE_RESOURCE_ID"),
+        location=get_env_variable(f"AZURE_LOCATION"),
+    )
+
+
+def get_azure_provider() -> "AzureQuantumProvider":
+    from azure.quantum.qiskit import AzureQuantumProvider
+
+    return AzureQuantumProvider(get_azure_workspace())

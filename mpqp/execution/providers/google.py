@@ -19,31 +19,6 @@ from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 
-from cirq.work.observable_measurement_data import ObservableMeasuredResult
-from cirq.sim.state_vector_simulator import StateVectorTrialResult
-from cirq.transformers.optimize_for_target_gateset import optimize_for_target_gateset
-from cirq.value.probability import state_vector_to_probabilities
-from cirq.sim.sparse_simulator import Simulator
-from cirq.circuits.circuit import Circuit as Cirq_circuit
-from cirq.study.result import Result as cirq_result
-from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
-from cirq.ops.pauli_string import PauliString as Cirq_PauliString
-from cirq_google.engine.virtual_engine_factory import (
-    load_median_device_calibration,
-    create_device_from_processor_id,
-)
-from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
-from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
-from qsimcirq.qsim_simulator import QSimSimulator
-from cirq.work.observable_measurement import (
-    measure_observables,
-    RepetitionsStoppingCriteria,
-)
-import cirq_ionq as ionq
-from cirq_ionq.ionq_gateset import IonQTargetGateset
-from cirq.devices.line_qubit import LineQubit
-
-
 
 @typechecked
 def run_google(job: Job) -> Result:
@@ -181,6 +156,9 @@ def run_local(job: Job) -> Result:
             )
 
     elif job.job_type == JobType.OBSERVABLE:
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
+        from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+
         assert isinstance(job.measure, ExpectationMeasure)
 
         cirq_obs = job.measure.observable.to_other_language(
@@ -263,6 +241,9 @@ def run_local_processor(job: Job) -> Result:
             f"Does not handle {job.job_type} for processor for the moment"
         )
     elif job.job_type == JobType.OBSERVABLE:
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
+        from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+
         assert isinstance(job.measure, ExpectationMeasure)
 
         cirq_obs = job.measure.observable.to_other_language(
@@ -271,9 +252,12 @@ def run_local_processor(job: Job) -> Result:
         assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
 
         shots = 1000 if job.measure.shots == 0 else job.measure.shots
-        return extract_result_OBSERVABLE_ideal2(simulator.get_sampler(job.device.value).sample_expectation_values(
-            cirq_circuit, observables=cirq_obs, num_samples=shots
-        ), job)
+        return extract_result_OBSERVABLE_ideal2(
+            simulator.get_sampler(job.device.value).sample_expectation_values(
+                cirq_circuit, observables=cirq_obs, num_samples=shots
+            ),
+            job,
+        )
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
         if isinstance(job.measure.basis, ComputationalBasis):
@@ -312,7 +296,7 @@ def extract_result_SAMPLE(
     data = [
         Sample(
             bin_str="".join(map(str, state)),
-            probability=count / sum(counts.values()),
+            count=count,
             nb_qubits=nb_qubits,
         )
         for (state, count) in counts.items()
@@ -343,6 +327,7 @@ def extract_result_STATE_VECTOR(
     )
     return Result(job, state_vector, 0, 0)
 
+
 def extract_result_OBSERVABLE_ideal2(
     results: Sequence[Sequence[float]],
     job: Job,
@@ -351,8 +336,9 @@ def extract_result_OBSERVABLE_ideal2(
         raise NotImplementedError("job.measure is None")
     mean = 0
     for result in results:
-        mean += sum(result)/len(result)
+        mean += sum(result) / len(result)
     return Result(job, mean, 0, job.measure.shots)
+
 
 def extract_result_OBSERVABLE_ideal(
     results: list[float],
