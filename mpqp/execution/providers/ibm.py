@@ -19,7 +19,6 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime import RuntimeJobV2
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
-
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
@@ -140,19 +139,40 @@ def check_job_compatibility(job: Job):
 
 @typechecked
 def generate_qiskit_noise_model(noises: list[NoiseModel]) -> "Qiskit_NoiseModel":
+    """
+    Generate a Qiskit noise model from a list of MPQP NoiseModel instances.
+
+    Args:
+        noises: List of MPQP NoiseModel instances to be converted to Qiskit noise model.
+
+    Returns:
+        Qiskit_NoiseModel: A Qiskit noise model combining the provided noise models.
+
+    """
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
-    # TODO: implement and document this function. generate noise model that is combination of quantumErrors
+    noise_model = Qiskit_NoiseModel()
 
-    noiseModel = Qiskit_NoiseModel()
     for noise in noises:
-        q_e = noise.to_other_language()
-        if noise.targets ...:
-            noiseModel.add_quantum_error(q_e, .....)
-        else:
-            noiseModel.add_all_qubit_quantum_error(q_e, .....)
+        qiskit_error = noise.to_other_language(Language.QISKIT)
 
-    return noiseModel
+        if noise.targets:
+            targets = noise.targets
+            if noise.gates:
+                gates = noise.gates
+                for gate in gates:
+                    noise_model.add_quantum_error(qiskit_error, gate, targets)
+            else:
+                noise_model.add_all_qubit_quantum_error(qiskit_error, targets)
+        else:
+            if noise.gates:
+                for gate in noise.gates:
+                    noise_model.add_all_qubit_quantum_error(qiskit_error, gate)
+            else:
+                noise_model.add_all_qubit_quantum_error(qiskit_error, [])
+
+    return noise_model
+
 
 @typechecked
 def run_aer(job: Job):
@@ -186,8 +206,6 @@ def run_aer(job: Job):
     qiskit_circuit = qiskit_circuit.reverse_bits()
     backend_sim = AerSimulator(method=job.device.value)
     run_input = transpile(qiskit_circuit, backend_sim)
-
-    # TODO : add here what is needed to add the handle on noise (generate the noise model, add it to run/backend)
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
@@ -364,7 +382,6 @@ def extract_result(
     from qiskit.result import Result as QiskitResult
 
     # TODO: check if the result of a noisy simulation requires a different parsing, if so implement it
-
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
         res_data = result[0].data
