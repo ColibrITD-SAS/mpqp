@@ -470,7 +470,7 @@ class AmplitudeDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
+    ) -> BraketNoise | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -508,7 +508,10 @@ class AmplitudeDamping(NoiseModel):
 
         # TODO: MY_QLM implementation
 
-        # TODO: QISKIT implementation
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
+
+            return amplitude_damping_error(self.gamma, 1 - self.prob)
 
         else:
             raise NotImplementedError(
