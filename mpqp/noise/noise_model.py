@@ -272,8 +272,7 @@ class Depolarizing(NoiseModel):
         elif language == Language.QISKIT:
             from qiskit_aer.noise.errors.standard_errors import depolarizing_error
 
-            nb_qubits = len(self.targets) if self.targets else 1
-            return depolarizing_error(self.prob, nb_qubits)
+            return depolarizing_error(self.prob, self.dimension)
 
         elif language == Language.MY_QLM:
             if self.dimension > 2:
