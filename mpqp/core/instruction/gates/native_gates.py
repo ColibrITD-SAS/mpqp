@@ -353,7 +353,7 @@ class Y(OneQubitNoParamGate, InvolutionGate):
         return YGate
 
     qlm_aqasm_keyword = "Y"
-    qiskit_string = ""
+    qiskit_string = "y"
 
     def __init__(self, target: int):
         super().__init__(target)
