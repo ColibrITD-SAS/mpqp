@@ -138,38 +138,52 @@ def check_job_compatibility(job: Job):
 
 
 @typechecked
-def generate_qiskit_noise_model(noises: list[NoiseModel]) -> "Qiskit_NoiseModel":
-    """
-    Generate a Qiskit noise model from a list of MPQP NoiseModel instances.
+def generate_qiskit_noise_model(
+    noises: list[NoiseModel], circuit: QCircuit
+) -> "Qiskit_NoiseModel":
+    """Generate a Qiskit noise model from a list of MPQP NoiseModel instances and a QCircuit.
 
     Args:
         noises: List of MPQP NoiseModel instances to be converted to Qiskit noise model.
+        circuit: Qcircuit to determine the gates used.
 
     Returns:
         Qiskit_NoiseModel: A Qiskit noise model combining the provided noise models.
-
     """
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
+    from mpqp.core.instruction.gates.gate import Gate
+
     noise_model = Qiskit_NoiseModel()
+
+    gate_instructions = [
+        instr for instr in circuit.instructions if isinstance(instr, Gate)
+    ]
+    basis_gates = set(
+        gate.qiskit_string
+        for gate in gate_instructions
+        if hasattr(gate, "qiskit_string")
+    )
 
     for noise in noises:
         qiskit_error = noise.to_other_language(Language.QISKIT)
+        targets = noise.targets if noise.targets else list(range(circuit.nb_qubits))
 
-        if noise.targets:
-            targets = noise.targets
-            if noise.gates:
-                gates = noise.gates
-                for gate in gates:
-                    noise_model.add_quantum_error(qiskit_error, gate, targets)
-            else:
-                noise_model.add_all_qubit_quantum_error(qiskit_error, targets)
+        if noise.gates:
+            target_gates = [
+                gate.qiskit_string
+                for gate in noise.gates
+                if hasattr(gate, "qiskit_string") and gate.qiskit_string in basis_gates
+            ]
         else:
-            if noise.gates:
-                for gate in noise.gates:
-                    noise_model.add_all_qubit_quantum_error(qiskit_error, gate)
-            else:
-                noise_model.add_all_qubit_quantum_error(qiskit_error, [])
+            target_gates = list(basis_gates)
+
+        if target_gates:
+            for gate in target_gates:
+                for target in targets:
+                    noise_model.add_quantum_error(qiskit_error, gate, [target])
+        else:
+            noise_model.add_all_qubit_quantum_error(qiskit_error, list(basis_gates))
 
     return noise_model
 
