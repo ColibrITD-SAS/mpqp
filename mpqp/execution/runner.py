@@ -288,7 +288,7 @@ def run(
         values = {}
 
     def namer(circ: QCircuit, i: int):
-        circ = deepcopy(circ)
+        circ = circ.hard_copy()
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -301,7 +301,7 @@ def run(
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(circuit.hard_copy(), device, values, display_breakpoints)
 
 
 @typechecked
