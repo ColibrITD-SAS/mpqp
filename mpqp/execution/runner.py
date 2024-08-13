@@ -18,7 +18,6 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 
 from __future__ import annotations
 
-from copy import deepcopy
 from numbers import Complex
 from textwrap import indent
 from typing import Iterable, Optional
