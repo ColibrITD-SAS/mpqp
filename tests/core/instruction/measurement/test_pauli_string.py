@@ -109,18 +109,22 @@ a, b, c = LineQubit.range(3)
 
 
 @pytest.mark.parametrize(
-    "cirq_ps, braket_ps, mpqp_ps",
+    "cirq_ps, braket_ps, qiskit_ps, my_qml_ps, mpqp_ps",
     [
         (
             Cirq_X(a) + Cirq_Y(b) + Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
             Braket_X() @ Braket_I() @ Braket_I()
             + Braket_I() @ Braket_Y() @ Braket_I()
             + Braket_I() @ Braket_I() @ Braket_Z(),
+            SparsePauliOp(["IIX", "IYI", "ZII"]),
+            [Term(1, "X", [0]), Term(1, "Y", [1]), Term(1, "Z", [2])],
             X @ I @ I + I @ Y @ I + I @ I @ Z,
         ),
         (
             Cirq_X(a) * Cirq_Y(b) * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
             Braket_X() @ Braket_Y() @ Braket_Z(),
+            SparsePauliOp(["ZYX"]),
+            Term(1, "XYZ", [0, 1, 2]),
             X @ Y @ Z,
         ),
         (
@@ -128,26 +132,36 @@ a, b, c = LineQubit.range(3)
             Braket_I() @ Braket_I() @ Braket_I()
             + Braket_I() @ Braket_Z() @ Braket_I()
             + Braket_I() @ Braket_I() @ Braket_X(),
+            SparsePauliOp(["III", "IZI", "XII"]),
+            [Term(1, "I", [0]), Term(1, "Z", [1]), Term(1, "X", [2])],
             I @ I @ I + I @ Z @ I + I @ I @ X,
         ),
         (
             Cirq_Y(a) * Cirq_Z(b) * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
             Braket_Y() @ Braket_Z() @ Braket_X(),
+            SparsePauliOp(["XZY"]),
+            Term(1, "YZX", [0, 1, 2]),
             Y @ Z @ X,
         ),
         (
             Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
             Braket_Z() @ Braket_Y() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_X(),
+            SparsePauliOp(["IYZ", "XII"]),
+            [Term(1, "ZY", [0, 1]), Term(1, "X", [2])],
             Z @ Y @ I + I @ I @ X,
         ),
         (
             Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
             Braket_X() @ Braket_I() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
+            SparsePauliOp(["IIX", "YII"]),
+            [Term(1, "X", [0]), Term(1, "Y", [2])],
             X @ I @ I + I @ I @ Y,
         ),
         (
             Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
             Braket_I() @ Braket_X() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
+            SparsePauliOp(["IXI", "YII"]),
+            [Term(1, "X", [1]), Term(1, "Y", [2])],
             I @ X @ I + I @ I @ Y,
         ),
         (
@@ -157,6 +171,10 @@ a, b, c = LineQubit.range(3)
             2 * Braket_X() @ Braket_I() @ Braket_I()
             + 3 * Braket_I() @ Braket_Y() @ Braket_I()
             + 4 * Braket_I() @ Braket_I() @ Braket_Z(),
+            SparsePauliOp(
+                ["IIX", "IYI", "ZII"], coeffs=[2.0 + 0.0j, 3.0 + 0.0j, 4.0 + 0.0j]
+            ),
+            [Term(2, "X", [0]), Term(3, "Y", [1]), Term(4, "Z", [2])],
             2 * X @ I @ I + 3 * I @ Y @ I + 4 * I @ I @ Z,
         ),
         (
@@ -166,6 +184,8 @@ a, b, c = LineQubit.range(3)
             * 0.5
             * Cirq_Z(c),
             -1.5 * 0.5 * Braket_X() @ Braket_Y() @ Braket_Z(),
+            SparsePauliOp(["ZYX"], coeffs=[-0.75 + 0.0j]),
+            Term(-0.75, "XYZ", [0, 1, 2]),
             -1.5 * 0.5 * X @ Y @ Z,
         ),
         (
@@ -173,6 +193,8 @@ a, b, c = LineQubit.range(3)
             + 2 * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
             0.25 * Braket_Z() @ Braket_Y() @ Braket_I()
             + 2 * Braket_I() @ Braket_I() @ Braket_X(),
+            SparsePauliOp(["IYZ", "XII"], coeffs=[0.25 + 0.0j, 2.0 + 0.0j]),
+            [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])],
             0.25 * Z @ Y @ I + 2 * I @ I @ X,
         ),
         (
@@ -180,6 +202,8 @@ a, b, c = LineQubit.range(3)
             + Cirq_I(b) * -2.5 * Cirq_Y(c),
             1.5 * Braket_X() @ Braket_I() @ Braket_I()
             + -2.5 * Braket_I() @ Braket_I() @ Braket_Y(),
+            SparsePauliOp(["IIX", "YII"], coeffs=[1.5 + 0.0j, -2.5 + 0.0j]),
+            [Term(1.5, "X", [0]), Term(-2.5, "Y", [2])],
             1.5 * X @ I @ I + -2.5 * I @ I @ Y,
         ),
         (
@@ -187,56 +211,79 @@ a, b, c = LineQubit.range(3)
             + 3 * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
             1.0 * Braket_I() @ Braket_X() @ Braket_I()
             + 3 * Braket_I() @ Braket_I() @ Braket_Y(),
+            SparsePauliOp(["IXI", "YII"], coeffs=[1.0 + 0.0j, 3.0 + 0.0j]),
+            [Term(1.0, "X", [1]), Term(3, "Y", [2])],
             1.0 * I @ X @ I + 3 * I @ I @ Y,
         ),
         (
             Cirq_I(a),
             Braket_I(),
+            SparsePauliOp(["I"]),
+            Term(1, "I", [0]),
             I,
         ),
         (
             Cirq_X(a),
             Braket_X(),
+            SparsePauliOp(["X"]),
+            Term(1, "X", [0]),
             X,
         ),
         (
             Cirq_Z(a),
             Braket_Z(),
+            SparsePauliOp(["Z"]),
+            Term(1, "Z", [0]),
             Z,
         ),
         (
             Cirq_Y(a),
-            Braket_Z(),
+            Braket_Y(),
+            SparsePauliOp(["Y"]),
+            Term(1, "Y", [0]),
             Y,
         ),
         (
-            Cirq_I(b),
+            1 * Cirq_I(b),
             Braket_I() @ Braket_I(),
+            SparsePauliOp(["II"]),
+            Term(1, "II", [0, 1]),
             I @ I,
         ),
         (
-            Cirq_X(b),
+            1 * Cirq_X(b),
             Braket_I() @ Braket_X(),
+            SparsePauliOp(["XI"]),
+            Term(1, "X", [1]),
             I @ X,
         ),
         (
-            Cirq_Z(b),
+            1 * Cirq_Z(b),
             Braket_I() @ Braket_Z(),
+            SparsePauliOp(["ZI"]),
+            Term(1, "Z", [1]),
             I @ Z,
         ),
         (
-            Cirq_Y(b),
-            Braket_I() @ Braket_Z(),
+            1 * Cirq_Y(b),
+            Braket_I() @ Braket_Y(),
+            SparsePauliOp(["YI"]),
+            Term(1, "Y", [1]),
             I @ Y,
         ),
     ],
 )
 def test_from_other_language(
-    cirq_ps: PauliSum, braket_ps: BraketSum, mpqp_ps: PauliString
+    cirq_ps: PauliSum,
+    braket_ps: BraketSum,
+    qiskit_ps: SparsePauliOp,
+    my_qml_ps: Term,
+    mpqp_ps: PauliString,
 ):
-    assert PauliString.from_other_language(cirq_ps) == mpqp_ps
-    # assert PauliString.from_other_language(Braket_ps) == mpqp_ps
-    # assert PauliString.from_other_language(Braket_ps) == mpqp_ps
+    assert PauliString.from_other_language(cirq_ps, mpqp_ps.nb_qubits) == mpqp_ps
+    assert PauliString.from_other_language(braket_ps) == mpqp_ps
+    assert PauliString.from_other_language(qiskit_ps) == mpqp_ps
+    assert PauliString.from_other_language(my_qml_ps) == mpqp_ps
 
 
 @pytest.mark.parametrize(
