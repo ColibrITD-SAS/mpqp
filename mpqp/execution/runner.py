@@ -190,7 +190,7 @@ def _run_single(
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not (isinstance(device, (ATOSDevice, AWSDevice))):
+        elif not (isinstance(device, (ATOSDevice, AWSDevice, IBMDevice))):
             raise NotImplementedError(
                 f"Noisy simulations are not yet available on devices of type {type(device).name}."
             )
