@@ -132,7 +132,14 @@ class IBMDevice(AvailableDevice):
         }
 
     def is_simulator(self) -> bool:
-        return "simulator" in self.value
+        return self in {
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+            IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        }
 
     def is_noisy_simulator(self) -> bool:
         return self.is_simulator()
