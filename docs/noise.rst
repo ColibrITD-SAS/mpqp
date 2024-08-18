@@ -39,17 +39,17 @@ in simulating and analyzing the effects of noise on quantum circuits.
 
 .. autoclass:: mpqp.noise.noise_model.NoiseModel
 
-Depolarizing Noise Model
-------------------------
+Depolarizing
+------------
 
 .. autoclass:: mpqp.noise.noise_model.Depolarizing
 
-BitFlip Noise Model
--------------------
+BitFlip
+-------
 
 .. autoclass:: mpqp.noise.noise_model.BitFlip
 
-Amplitude Damping Noise Model
------------------------------
+Amplitude Damping
+-----------------
 
 .. autoclass:: mpqp.noise.noise_model.AmplitudeDamping
