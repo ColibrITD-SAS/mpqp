@@ -9,6 +9,8 @@ if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
     from braket.circuits.noises import TwoQubitDepolarizing
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
+    from qiskit_aer.noise.errors.quantum_error import QuantumError
+
 
 from typeguard import typechecked
 
@@ -116,6 +118,7 @@ class NoiseModel(ABC):
         return noise_info
 
     # 3M-TODO: implement the possibility of having a parameterized noise
+    # param: Union[float, Expr]
     # @abstractmethod
     # def subs(self):
     #     pass
@@ -182,8 +185,6 @@ class Depolarizing(NoiseModel):
                 f" than 1, but got {dimension} instead."
             )
 
-        # 3M-TODO: implement the possibility of having a parameterized noise,
-        # param: Union[float, Expr]
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
             print(dimension, prob, prob_upper_bound)
@@ -227,7 +228,7 @@ class Depolarizing(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise:
+    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -268,6 +269,11 @@ class Depolarizing(NoiseModel):
 
                 return BraketDepolarizing(probability=self.prob)
 
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import depolarizing_error
+
+            return depolarizing_error(self.prob, self.dimension)
+
         elif language == Language.MY_QLM:
             if self.dimension > 2:
                 raise NotImplementedError(
@@ -288,8 +294,6 @@ class Depolarizing(NoiseModel):
                 method_2q="equal_probs",
                 depol_type="pauli",
             )
-        else:
-            raise NotImplementedError(f"{language.name} not yet supported.")
 
     def info(self, qubits: set[int]) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
@@ -358,7 +362,7 @@ class BitFlip(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
+    ) -> BraketNoise | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -377,6 +381,11 @@ class BitFlip(NoiseModel):
             from braket.circuits.noises import BitFlip as BraketBitFlip
 
             return BraketBitFlip(probability=self.prob)
+
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import pauli_error
+
+            return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
         # TODO: MY_QLM implementation
 
@@ -461,7 +470,7 @@ class AmplitudeDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
+    ) -> BraketNoise | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -497,7 +506,12 @@ class AmplitudeDamping(NoiseModel):
 
                 return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
-        # TODO: MY_QLM implmentation
+        # TODO: MY_QLM implementation
+
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
+
+            return amplitude_damping_error(self.gamma, 1 - self.prob)
 
         else:
             raise NotImplementedError(

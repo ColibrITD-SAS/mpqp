@@ -55,3 +55,8 @@ def test_depolarizing_braket_export(noise: NoiseModel):
 def test_depolarizing_qlm_export(noise: NoiseModel):
     qlm_noise = noise.to_other_language(Language.MY_QLM)
     assert isinstance(qlm_noise, QuantumChannelKraus)
+
+# TODO: add tests for Qiskit provider
+# TODO: add tests for BitFlip
+# TODO: add tests for AmplitudeDamping
+# TODO: add tests for noisemodels specific to some gates
