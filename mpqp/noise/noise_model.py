@@ -11,7 +11,6 @@ if TYPE_CHECKING:
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
 
-
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
