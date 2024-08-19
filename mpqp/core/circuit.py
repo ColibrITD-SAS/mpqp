@@ -124,6 +124,7 @@ class QCircuit:
     
     ):
         
+        
 
         self.nb_cbits = nb_cbits
         """See parameter description."""
