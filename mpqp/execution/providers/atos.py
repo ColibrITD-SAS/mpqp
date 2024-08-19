@@ -17,7 +17,7 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.gates import CNOT, CRk, Rk
-from mpqp.noise.noise_model import Depolarizing, NoiseModel
+from mpqp.noise.noise_model import Depolarizing, NoiseModel, BitFlip, AmplitudeDamping
 
 from ...tools.errors import (
     AdditionalGateNoiseWarning,
@@ -288,17 +288,24 @@ def generate_hardware_model(
 
     # For each noise model
     for noise in noises:
-        if not isinstance(noise, Depolarizing):
-            raise NotImplementedError("So far, only depolarizing noise is supported.")
         this_noise_all_qubits_target = True
 
         if CRk in noise.gates:
             noise.gates.remove(CRk)
             if CNOT not in noise.gates:
                 noise.gates.append(CNOT)
-            noises.append(
-                Depolarizing(noise.prob, noise.targets, dimension=1, gates=[Rk])
-            )
+            if isinstance(noise, Depolarizing):
+                noises.append(
+                    Depolarizing(noise.prob, noise.targets, dimension=1, gates=[Rk])
+                )
+            elif isinstance(noise, BitFlip):
+                noises.append(
+                    BitFlip(noise.prob, noise.targets, gates=[Rk])
+                )
+            elif isinstance(noise, AmplitudeDamping):
+                noises.append(
+                    AmplitudeDamping(noise.gamma, noise.prob, noise.targets, gates=[Rk])
+                )
             warnings.warn(
                 "Requested noise on CRk gate will introduce noise on CNOT and "
                 "Rk (PH) due to its decomposition in my_QLM",

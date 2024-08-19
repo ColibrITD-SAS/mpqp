@@ -523,9 +523,6 @@ class AmplitudeDamping(NoiseModel):
 
             return make_generalized_amplitude_damping(self.prob, self.gamma)
 
-
-            # TODO: finish implementation
-
         elif language == Language.QISKIT:
             from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
 
