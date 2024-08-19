@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Sequence
+from typeguard import typechecked
 
-from mpqp.tools.generics import T
 
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
@@ -11,9 +11,9 @@ if TYPE_CHECKING:
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
 
+import numpy as np
 
-from typeguard import typechecked
-
+from mpqp.tools.generics import T
 from mpqp.core.instruction.gates import Gate
 from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
@@ -388,8 +388,10 @@ class BitFlip(NoiseModel):
             return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
         elif language == Language.MY_QLM:
-            ...
-            # TODO: MY_QLM implementation
+            from qat.quops import QuantumChannelKraus
+
+            return QuantumChannelKraus([np.sqrt(1 - self.prob) * np.eye(2),
+                                        np.sqrt(self.prob)*np.array([[0, 1], [1, 0]])])
 
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
@@ -538,6 +540,7 @@ class AmplitudeDamping(NoiseModel):
         return f"{super().info(qubits)} with gamma {self.gamma}{prob}"
 
 
+@typechecked
 class PhaseDamping(NoiseModel):
     """3M-TODO"""
 
@@ -547,6 +550,7 @@ class PhaseDamping(NoiseModel):
         )
 
 
+@typechecked
 class Pauli(NoiseModel):
     """3M-TODO"""
 
@@ -556,6 +560,7 @@ class Pauli(NoiseModel):
         )
 
 
+@typechecked
 class Dephasing(NoiseModel):
     """3M-TODO"""
 
@@ -565,6 +570,7 @@ class Dephasing(NoiseModel):
         )
 
 
+@typechecked
 class PhaseFlip(NoiseModel):
     """3M-TODO"""
 
