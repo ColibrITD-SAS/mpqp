@@ -171,6 +171,12 @@ def generate_qiskit_noise_model(
             [gate.qiskit_string for gate in noise.gates] if noise.gates else None
         )
 
+        if not targets:
+            all_qubits = set()
+            for instr in gate_instructions:
+                all_qubits.update(instr.connections())
+            targets = list(all_qubits)
+
         identity_added = set()
 
         for instr in gate_instructions:
@@ -189,14 +195,11 @@ def generate_qiskit_noise_model(
                         and noise.dimension == 2
                         and len(connections) == 2
                     ):
-                        multi_qubit_error = depolarizing_error(
-                            noise.prob, 2
-                        )  # apply multi-qubit depolarizing error (issue when dimension=2)
+                        multi_qubit_error = depolarizing_error(noise.prob, 2)
                         noise_model.add_quantum_error(
                             multi_qubit_error, gate_name, connections
                         )
                     else:
-                        # apply multi-qubit noise (pauli error or amplitude damping)
                         multi_qubit_error = pauli_error(
                             [
                                 ("I" * len(connections), 1 - noise.prob),
