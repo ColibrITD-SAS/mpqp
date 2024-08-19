@@ -3,8 +3,7 @@ name: Tests
 on:
   push:
     branches:
-      - dev
-      - main
+      - feat-ci-manual-dispatch
   workflow_dispatch:
     inputs:
       python_v:
