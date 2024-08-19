@@ -590,11 +590,9 @@ class SWAP(InvolutionGate, NoParameterGate):
         self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
         super().__init__([a, b], "SWAP")
-        self.a = a
-        self.b = b
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.a}, {self.b})"
+        return f"{type(self).__name__}({self.targets[0]}, {self.targets[1]})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
