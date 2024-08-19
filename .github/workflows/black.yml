@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   format:
-    name: Format code with multiple Python versions independently
+    name: Format code with multiple Python versions
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -31,21 +31,16 @@ jobs:
         python -m pip install --upgrade pip
         pip install black
 
-    - name: Run Black
-      run: black .
+    - name: Run Black (Python ${{ matrix.python-version }})
+      run: black . --quiet
 
-    - name: Commit changes (Python ${{ matrix.python-version }})
+    - name: Commit changes after all Python versions
+      if: matrix.python-version == '3.11'
       run: |
         git config --global user.name 'github-actions[bot]'
         git config --global user.email 'github-actions[bot]@users.noreply.github.com'
         git add .
-        git commit -m "Reformat files using Black with Python ${{ matrix.python-version }}" || true
-
-    - name: Push changes (Python ${{ matrix.python-version }})
-      run: |
+        git commit -m "Reformat files using Black with multiple Python versions" || echo "No files changed by Black"
         git push
       env:
-        GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}
-
-    - name: Reset code to original state
-      run: git reset --hard origin/${{ github.ref }}
+        GITHUB_TOKEN: ${{ secrets.secrets.GH_ACTIONS_BLACK_TOKEN }}
