@@ -119,6 +119,10 @@ class QCircuit:
         nb_qubits: Optional[int] = None,
         nb_cbits: Optional[int] = None,
         label: Optional[str] = None,
+    
+    
+    
+    
     ):
 
         self.nb_cbits = nb_cbits
