@@ -55,7 +55,7 @@ jobs:
         git commit -m "Reformat code using Black with Python ${{ matrix.python-version }}"
         git push
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}
 
   check:
     name: Check formatted code across Python versions
