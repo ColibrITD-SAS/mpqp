@@ -139,6 +139,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
             hw_model = generate_hardware_model(
                 job.circuit.noises, job.circuit.nb_qubits
             )
+
             qpu = NoisyQProc(
                 hw_model,
                 sim_method="stochastic",
@@ -374,16 +375,20 @@ def generate_hardware_model(
 
     if all_qubits_target:
         gate_noise_lambdas = dict()
+        idle_noise_lambdas = dict()
 
         for gate_name in gate_noise_global:
             gate_noise_lambdas[gate_name] = eval(
                 "lambda *_: c", {"c": gate_noise_global[gate_name]}, {}
             )
 
+        for qubit in range(nb_qubits):
+            idle_noise_lambdas[qubit] = idle_lambda_global
+
         return HardwareModel(
             DefaultGatesSpecification(),
             gate_noise=gate_noise_lambdas if gate_noise_lambdas else None,
-            idle_noise=idle_lambda_global if idle_lambda_global else None,
+            idle_noise=idle_noise_lambdas if idle_noise_lambdas else None,
         )
 
     else:
