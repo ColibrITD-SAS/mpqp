@@ -152,7 +152,7 @@ def generate_qiskit_noise_model(
     """
 
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-    from qiskit_aer.noise.errors.standard_errors import pauli_error
+    from qiskit_aer.noise.errors.standard_errors import depolarizing_error, pauli_error
 
     from mpqp.core.instruction.gates.gate import Gate
 
@@ -171,7 +171,7 @@ def generate_qiskit_noise_model(
             [gate.qiskit_string for gate in noise.gates] if noise.gates else None
         )
 
-        identity_added = set()  # track qubits - identity added
+        identity_added = set()
 
         for instr in gate_instructions:
             gate_name = instr.qiskit_string
@@ -184,30 +184,43 @@ def generate_qiskit_noise_model(
                 targets_in_connections = set(connections).intersection(set(targets))
 
                 if targets_in_connections == set(connections):
-
-                    multi_qubit_error = (
-                        pauli_error(  # handling adding errors to multi-qubit gates
+                    if (
+                        hasattr(noise, "dimension")
+                        and noise.dimension == 2
+                        and len(connections) == 2
+                    ):
+                        multi_qubit_error = depolarizing_error(
+                            noise.prob, 2
+                        )  # apply multi-qubit depolarizing error (issue when dimension=2)
+                        noise_model.add_quantum_error(
+                            multi_qubit_error, gate_name, connections
+                        )
+                    else:
+                        # apply multi-qubit noise (pauli error or amplitude damping)
+                        multi_qubit_error = pauli_error(
                             [
                                 ("I" * len(connections), 1 - noise.prob),
                                 ("X" * len(connections), noise.prob),
                             ]
                         )
-                    )
-                    noise_model.add_quantum_error(
-                        multi_qubit_error, gate_name, connections
-                    )
-
-                elif (
-                    targets_in_connections
-                ):  # some but not all qubits in the gate are in the target
+                        noise_model.add_quantum_error(
+                            multi_qubit_error, gate_name, connections
+                        )
+                elif targets_in_connections:
                     for qubit in targets_in_connections:
                         if qubit not in identity_added:
                             labeled_identity = Id(
                                 target=qubit, label=f"noisy_{gate_name}_{qubit}"
                             )
                             modified_circuit.add(labeled_identity)
+
+                            if hasattr(noise, "dimension") and noise.dimension == 2:
+                                identity_error = depolarizing_error(noise.prob, 1)
+                            else:
+                                identity_error = qiskit_error
+
                             noise_model.add_quantum_error(
-                                qiskit_error, f"noisy_{gate_name}", [qubit]
+                                identity_error, f"noisy_{gate_name}", [qubit]
                             )
                             identity_added.add(qubit)
             else:
