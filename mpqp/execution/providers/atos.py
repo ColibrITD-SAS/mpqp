@@ -279,6 +279,8 @@ def generate_hardware_model(
     from qat.quops import (
         make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
     )
+    # TODO refacto this function, shorten it, regroup similar code parts
+
 
     all_qubits_target = True
 
@@ -361,12 +363,37 @@ def generate_hardware_model(
                         "class attribute.",
                         UserWarning,
                     )
-        # Otherwise, we add an iddle noise
+        # Otherwise, we add channel for all possible gates and an iddle noise
         else:
+            all_aqasm_keywords = ['CNOT', 'CSIGN', 'H', 'I', 'PH', 'RX', 'RY', 'RZ', 'S', 'SWAP', 'T', 'CCNOT',
+                                  'U', 'X', 'Y', 'Z']
+
             if this_noise_all_qubits_target:
+                for keyword in all_aqasm_keywords:
+                    if keyword not in gate_noise_global:
+                        gate_noise_global[keyword] = channel
+                    else:
+                        gate_noise_global[keyword] *= channel
                 idle_lambda_global.append(eval("lambda *_: c", {"c": channel}, {}))
             else:
                 for target in noise.targets:
+                    for keyword in all_aqasm_keywords:
+                        if keyword not in gate_noise_local:
+                            gate_noise_local[keyword] = dict()
+
+                        if keyword not in {'CNOT', 'CSIGN', 'SWAP', 'CCNOT'}:
+                            if target not in gate_noise_local[keyword]:
+                                gate_noise_local[keyword][target] = channel
+                            else:
+                                gate_noise_local[keyword][target] *= channel
+                        else:
+                            tuples = permutations(noise.targets, 3 if keyword == "CCNOT" else 2)
+                            for t in tuples:
+                                if t not in gate_noise_local[keyword]:
+                                    gate_noise_local[keyword][t] = channel
+                                else:
+                                    gate_noise_local[keyword][t] *= channel
+
                     if target not in idle_lambda_local:
                         idle_lambda_local[target] = []
                     idle_lambda_local[target].append(
