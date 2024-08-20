@@ -358,7 +358,7 @@ class PauliString:
     def _from_cirq(
         cls,
         pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation],
-        min_dimension: int = 0,
+        min_dimension: int = 1,
     ) -> PauliString:
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
         from cirq.ops.pauli_gates import X as Cirq_X
@@ -370,11 +370,7 @@ class PauliString:
 
         ps_mapping = {Cirq_X: X, Cirq_Y: Y, Cirq_Z: Z, Cirq_I: I}
 
-        num_qubits = (
-            PauliString._get_dimension_cirq_pauli(pauli)
-            if min_dimension == 0
-            else min_dimension
-        )
+        num_qubits = max(PauliString._get_dimension_cirq_pauli(pauli), min_dimension)
         pauli_string = PauliString()
 
         def process_term(term: CirqPauliString, pauli_string: PauliString):
@@ -461,8 +457,8 @@ class PauliString:
             else min_dimension
         )
         monomial = [I] * min_dimension
-        for i, atom in enumerate(pauli.op):
-            monomial[pauli.qbits[i]] = PAULI_ATOM_DICT[atom]
+        for index, atom in enumerate(pauli.op):
+            monomial[pauli.qbits[index]] = PAULI_ATOM_DICT[atom]
         return PauliStringMonomial(pauli.coeff, monomial)
 
     @classmethod
@@ -479,7 +475,7 @@ class PauliString:
             list[CirqPauliString],
             CirqGateOperation,
         ],
-        min_dimension: int = 0,
+        min_dimension: int = 1,
     ) -> PauliString | list[PauliString]:
         """Convert pauli objects from other quantum SDKs to :class:`PauliString`.
 
@@ -490,6 +486,34 @@ class PauliString:
         Returns:
             The converted :class:`PauliString`. If the input is a list, the
             output will be a list of :class:`PauliString`.
+
+        Example:
+            >>> from cirq.devices.line_qubit import LineQubit
+            >>> from cirq.ops.linear_combinations import PauliSum
+            >>> from cirq.ops.pauli_gates import X as Cirq_X
+            >>> from cirq.ops.pauli_gates import Y as Cirq_Y
+            >>> from cirq.ops.pauli_gates import Z as Cirq_Z
+            >>> a, b, c = LineQubit.range(3)
+            >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c)
+            >>> PauliString.from_other_language(cirq_ps)
+            0.25*Z@Y@I + 2.0*I@I@X
+            >>> from braket.circuits.observables import Sum as BraketSum
+            >>> from braket.circuits.observables import I as Braket_I
+            >>> from braket.circuits.observables import X as Braket_X
+            >>> from braket.circuits.observables import Y as Braket_Y
+            >>> from braket.circuits.observables import Z as Braket_Z
+            >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X()
+            >>> PauliString.from_other_language(braket_ps)
+            0.25*Z@Y@I + 2*I@I@X
+            >>> from qiskit.quantum_info import SparsePauliOp
+            >>> qiskit_ps = SparsePauliOp(["IYZ", "XII"], coeffs=[0.25 + 0.0j, 2.0 + 0.0j])
+            >>> PauliString.from_other_language(qiskit_ps)
+            (0.25+0j)*Z@Y@I + (2+0j)*I@I@X
+            >>> from qat.core import Term
+            >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
+            >>> PauliString.from_other_language(my_qml_ps)
+            0.25*Z@Y@I + 2*I@I@X
+
         """
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
         from cirq.ops.pauli_string import PauliString as CirqPauliString
@@ -555,8 +579,16 @@ class PauliString:
             >>> ps = X @ I @ I + I @ Y @ I + I @ I @ Z
             >>> print(ps.to_other_language(Language.CIRQ))
             1.000*X(q(0))+1.000*Y(q(1))+1.000*Z(q(2))
+            >>> print(ps.to_other_language(Language.MY_QLM))
+            [Term(_coeff=TNumber(is_abstract=False, type=0, int_p=1, double_p=None, string_p=None, matrix_p=None, serialized_p=None, complex_p=None), op='X', qbits=[0], _do_validity_check=True), Term(_coeff=TNumber(is_abstract=False, type=0, int_p=1, double_p=None, string_p=None, matrix_p=None, serialized_p=None, complex_p=None), op='Y', qbits=[1], _do_validity_check=True), Term(_coeff=TNumber(is_abstract=False, type=0, int_p=1, double_p=None, string_p=None, matrix_p=None, serialized_p=None, complex_p=None), op='Z', qbits=[2], _do_validity_check=True)]
+            >>> print(ps.to_other_language(Language.QISKIT))
+            SparsePauliOp(['IIX', 'IYI', 'ZII'],
+                          coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
+            >>> print(ps.to_other_language(Language.BRAKET))
+            Sum(TensorProduct(X('qubit_count': 1), I('qubit_count': 1), I('qubit_count': 1)), TensorProduct(I('qubit_count': 1), Y('qubit_count': 1), I('qubit_count': 1)), TensorProduct(I('qubit_count': 1), I('qubit_count': 1), Z('qubit_count': 1)))
 
         """
+
         if language == Language.QISKIT:
             from qiskit.quantum_info import SparsePauliOp
 
@@ -783,10 +815,10 @@ class PauliStringMonomial(PauliString):
             else:
                 all_qubits = sorted(
                     set(
-                        q
+                        qubit
                         for moment in circuit
                         for op in moment.operations
-                        for q in op.qubits
+                        for qubit in op.qubits
                     )
                 )
 

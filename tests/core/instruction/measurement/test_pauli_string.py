@@ -462,3 +462,51 @@ def test_to_other_language(
     assert repr(mpqp_ps.to_other_language(Language.BRAKET)) == repr(braket_ps)
     assert mpqp_ps.to_other_language(Language.QISKIT) == qiskit_ps
     assert mpqp_ps.to_other_language(Language.MY_QLM) == my_qml_ps
+
+
+@pytest.mark.parametrize(
+    "mpqp_ps",
+    [
+        X @ I @ I + I @ Y @ I + I @ I @ Z,
+        X @ Y @ Z,
+        I @ I @ I + I @ Z @ I + I @ I @ X,
+        Y @ Z @ X,
+        Z @ Y @ I + I @ I @ X,
+        X @ I @ I + I @ I @ Y,
+        I @ X @ I + I @ I @ Y,
+        2 * X @ I @ I + 3 * I @ Y @ I + 4 * I @ I @ Z,
+        -1.5 * 0.5 * X @ Y @ Z,
+        0.25 * Z @ Y @ I + 2 * I @ I @ X,
+        1.5 * X @ I @ I + -2.5 * I @ I @ Y,
+        1.0 * I @ X @ I + 3 * I @ I @ Y,
+        I,
+        X,
+        Z,
+        Y,
+        I @ I,
+        I @ X,
+        I @ Z,
+        I @ Y,
+    ],
+)
+def test_to_from_other_language(
+    mpqp_ps: PauliString,
+):
+    assert (
+        PauliString.from_other_language(
+            mpqp_ps.to_other_language(Language.CIRQ), mpqp_ps.nb_qubits
+        )
+        == mpqp_ps
+    )
+    assert (
+        PauliString.from_other_language(mpqp_ps.to_other_language(Language.BRAKET))
+        == mpqp_ps
+    )
+    assert (
+        PauliString.from_other_language(mpqp_ps.to_other_language(Language.QISKIT))
+        == mpqp_ps
+    )
+    assert (
+        PauliString.from_other_language(mpqp_ps.to_other_language(Language.MY_QLM))
+        == mpqp_ps
+    )
