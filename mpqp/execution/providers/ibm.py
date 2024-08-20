@@ -137,6 +137,7 @@ def check_job_compatibility(job: Job):
             )
 
 
+@typechecked
 def generate_qiskit_noise_model(
     noises: list[NoiseModel], circuit: QCircuit
 ) -> Qiskit_NoiseModel:
