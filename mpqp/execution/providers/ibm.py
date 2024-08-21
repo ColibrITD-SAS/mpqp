@@ -159,7 +159,7 @@ def generate_qiskit_noise_model(
 
     noise_model = Qiskit_NoiseModel()
 
-    modified_circuit = QCircuit(circuit.instructions.copy())
+    modified_instructions = []
 
     gate_instructions = [
         instr for instr in circuit.instructions if isinstance(instr, Gate)
@@ -178,14 +178,15 @@ def generate_qiskit_noise_model(
                 all_qubits.update(instr.connections())
             targets = list(all_qubits)
 
-        identity_added = set()
-
         for instr in gate_instructions:
             gate_name = instr.qiskit_string
             connections = list(instr.connections())
 
             if target_gates and gate_name not in target_gates:
+                modified_instructions.append(instr)
                 continue
+
+            modified_instructions.append(instr)
 
             if len(connections) > 1:
                 targets_in_connections = set(connections).intersection(set(targets))
@@ -194,14 +195,15 @@ def generate_qiskit_noise_model(
                     if (
                         hasattr(noise, "dimension")
                         and noise.dimension == 2
-                        and len(connections) == 2
+                        and len(connections)
+                        == 2  # to change (proper condition "3qubits")
                     ):
                         multi_qubit_error = depolarizing_error(noise.prob, 2)
                         noise_model.add_quantum_error(
                             multi_qubit_error, gate_name, connections
                         )
                     else:
-                        multi_qubit_error = pauli_error(
+                        multi_qubit_error = pauli_error(  # to be handled differently -- not proper implmentation (get rid of it)
                             [
                                 ("I" * len(connections), 1 - noise.prob),
                                 ("X" * len(connections), noise.prob),
@@ -210,29 +212,30 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             multi_qubit_error, gate_name, connections
                         )
-                elif targets_in_connections:
+                else:
                     for qubit in targets_in_connections:
-                        if qubit not in identity_added:
-                            labeled_identity = Id(
-                                target=qubit, label=f"noisy_{gate_name}_{qubit}"
-                            )
-                            modified_circuit.add(labeled_identity)
+                        labeled_identity = Id(
+                            target=qubit, label=f"noisy_{gate_name}_{qubit}"
+                        )
+                        modified_instructions.append(labeled_identity)
 
-                            if hasattr(noise, "dimension") and noise.dimension == 2:
-                                identity_error = depolarizing_error(noise.prob, 1)
-                            else:
-                                identity_error = qiskit_error
+                        if hasattr(noise, "dimension") and noise.dimension == 2:
+                            identity_error = depolarizing_error(noise.prob, 1)
+                        else:
+                            identity_error = qiskit_error
 
-                            noise_model.add_quantum_error(
-                                identity_error, f"noisy_{gate_name}", [qubit]
-                            )
-                            identity_added.add(qubit)
+                        noise_model.add_quantum_error(
+                            identity_error, f"noisy_{gate_name}", [qubit]
+                        )
             else:
                 qubit_index = connections[0]
-                if not targets or qubit_index in targets:
+                if not (hasattr(noise, "dimension") and noise.dimension == 2):
                     noise_model.add_quantum_error(
                         qiskit_error, gate_name, [qubit_index]
                     )
+
+    modified_circuit = QCircuit(modified_instructions)
+    print(modified_circuit)
 
     return noise_model
 
