@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -230,7 +230,7 @@ class Result:
         self,
         job: Job,
         data: float | StateVector | list[Sample],
-        errors: Optional[float | dict[PauliString, float]] = None,
+        errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job

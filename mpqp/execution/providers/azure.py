@@ -134,4 +134,6 @@ def extract_result(
         else:
             raise NotImplementedError(f"{job.job_type} not handled.")
     else:
-        raise NotImplementedError(f"{job} not handled.")
+        if job is None:
+            job = Job(JobType.OBSERVABLE, QCircuit(1), device)
+        return Result(job, 0, result.data())

@@ -84,3 +84,25 @@ def get_azure_provider() -> "AzureQuantumProvider":
     from azure.quantum.qiskit import AzureQuantumProvider
 
     return AzureQuantumProvider(get_azure_workspace())
+
+def get_all_job_ids():
+    """Retrieves all the task ids of this account/group from Azure
+
+    Example:
+        >>> get_all_jobs_ids()
+        ['6a46ae9a-d02f-4a23-b46f-eae43471bc22',
+         '11db7e68-2b17-4b00-a4ec-20f662fd4876',
+         '292d329f-727c-4b92-83e1-7d4bedd4b243',
+         '4b94c703-2ce8-480b-b3f3-ecb2580dbb82',
+         'edc094aa-23e8-4a8c-87be-f2e09281d79d',
+         'af9e623a-dd1c-4ecb-9db6-dbbd1af08110']
+
+    """
+    workspace = get_azure_workspace()
+    return [job.id for job in workspace.list_jobs()]
+
+def get_jobs_by_id(job_id: str):
+    """Retrieves azure job by id
+    """
+    workspace = get_azure_workspace()
+    return workspace.get_job(job_id)

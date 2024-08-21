@@ -13,12 +13,14 @@ from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
 from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
+from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
     IBMDevice,
     GOOGLEDevice,
+    AZUREDevice,
 )
 from mpqp.execution.job import Job
 from mpqp.execution.providers.atos import get_result_from_qlm_job_id
@@ -121,6 +123,7 @@ def get_all_job_ids() -> dict[type[AvailableDevice], list[str]]:
         ATOSDevice: qlm_ids(),
         IBMDevice: ibm_ids(),
         GOOGLEDevice: cirq_ids(),
+        AZUREDevice: azure_ids(),
     }
 
     return job_ids
