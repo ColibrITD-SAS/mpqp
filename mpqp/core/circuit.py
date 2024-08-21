@@ -236,7 +236,7 @@ class QCircuit:
         else:
             self.instructions.append(components)
 
-    def hard_copy(self):
+    def hard_copy(self) -> QCircuit:
         """
         Creates a deep copy of the quantum circuit object, ensuring all properties,
         including noises and instructions, are properly duplicated with necessary
@@ -955,7 +955,7 @@ class QCircuit:
                     if qubit not in used_qubits
                 ],
                 nb_qubits=qcircuit.nb_qubits,
-            ) + deepcopy(qcircuit)
+            ) + qcircuit
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
