@@ -327,6 +327,13 @@ def run_aer(job: Job):
     from qiskit.compiler import transpile
     from qiskit_aer import AerSimulator
 
+    if job.circuit.noises:
+        noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
+        job.circuit = modified_circuit
+        backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
+    else:
+        backend_sim = AerSimulator(method=job.device.value)
+
     qiskit_circuit = (
         job.circuit.without_measurements().to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
@@ -336,12 +343,6 @@ def run_aer(job: Job):
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
-
-    if job.circuit.noises:
-        noise_model = generate_qiskit_noise_model(job.circuit.noises, job.circuit)
-        backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
-    else:
-        backend_sim = AerSimulator(method=job.device.value)
 
     run_input = transpile(qiskit_circuit, backend_sim)
 
