@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import TOF, CRk, Id, P, Rk, Rx, Ry, Rz, T, U, Gate
+from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
@@ -136,7 +136,9 @@ def check_job_compatibility(job: Job):
 
 
 @typechecked
-def generate_qiskit_noise_model(circuit: QCircuit) -> tuple["Qiskit_NoiseModel", QCircuit]:
+def generate_qiskit_noise_model(
+    circuit: QCircuit,
+) -> tuple["Qiskit_NoiseModel", QCircuit]:
     """
     Generate a Qiskit Aer NoiseModel from the list of MPQP NoiseModels attached to the QCircuit in parameter.
 
@@ -153,157 +155,77 @@ def generate_qiskit_noise_model(circuit: QCircuit) -> tuple["Qiskit_NoiseModel",
 
     copy_circuit = circuit.hard_copy()
 
-    # filling the circuit with identity gates when some qubits don't have any instruction
     used_qubits = set().union(
-        *(inst.connections() for inst in copy_circuit.instructions if isinstance(inst, Gate))
+        *(
+            inst.connections()
+            for inst in copy_circuit.instructions
+            if isinstance(inst, Gate)
+        )
     )
-    modified_circuit = QCircuit([Id(qubit) for qubit in range(copy_circuit.nb_qubits) if qubit not in used_qubits],
-                                nb_qubits=copy_circuit.nb_qubits,
-                                ) + copy_circuit
+    modified_circuit = (
+        QCircuit(
+            [
+                Id(qubit)
+                for qubit in range(copy_circuit.nb_qubits)
+                if qubit not in used_qubits
+            ],
+            nb_qubits=copy_circuit.nb_qubits,
+        )
+        + copy_circuit
+    )
 
-    gate_instructions = [instr for instr in modified_circuit.instructions if isinstance(instr, Gate)]
+    gate_instructions = [
+        instr for instr in modified_circuit.instructions if isinstance(instr, Gate)
+    ]
 
     noisy_identity_counter = 0
 
     for noise in circuit.noises:
-
         qiskit_error = noise.to_other_language(Language.QISKIT)
 
-        # If all qubits are affected
-        if len(noise.targets) == modified_circuit.nb_qubits:
+        gates_str = (
+            [gate.qiskit_string for gate in noise.gates]
+            if noise.gates
+            else list({gate.qiskit_string for gate in gate_instructions})
+        )
+        targets = (
+            set(noise.targets)
+            if noise.targets
+            else set(range(modified_circuit.nb_qubits))
+        )
 
-            # Generate the list of affected gates depending on if the user specified some gates or not. In the second
-            # case we take all gates present in the circuit, instead of listing all possible native gates
-            gates_str = (
-                [gate.qiskit_string for gate in noise.gates] if len(noise.gates) != 0
-                else list({gate.qiskit_string for gate in gate_instructions})
-            )
-            noise_model.add_all_qubit_quantum_error(qiskit_error, gates_str)
+        for gate in gate_instructions:
+            connections = gate.connections()
+            intersection = connections.intersection(targets)
 
-        # Only specific qubits are affected
-        else:
-
-            gates_str = [gate.qiskit_string for gate in noise.gates]
-
-            for gate in gate_instructions:
-
-                # If gates are specified in the noise and the current gate is not in the list, we move to the next one
-                if len(gates_str) != 0 and gate.qiskit_string not in gates_str:
-                    continue
-
-                connections = gate.connections()
-                intersection = connections.intersection(set(noise.targets))
-
-                # Gate targets are included in the noise targets
+            if len(connections) == noise.dimension:
                 if intersection == connections:
-                    # Noise model is multi-dimensional
-                    if hasattr(noise, "dimension") and 1 < noise.dimension == len(connections):
-                        noise_model.add_quantum_error(qiskit_error, [gate.qiskit_string], list(connections))
-                    else:
-                        for qubit in connections:
-                            noise_model.add_quantum_error(qiskit_error, [gate.qiskit_string], [qubit])
-
-                # Only some targets of the gate are included in the noise targets
-                elif len(intersection) != 0:
-                    if (not hasattr(noise, "dimension")) or (noise.dimension == 1):
-                        for qubit in intersection:
-                            # We add a custom identity gate on the relevant qubits to apply noise after the gate
+                    noise_model.add_quantum_error(
+                        qiskit_error, [gate.qiskit_string], list(connections)
+                    )
+                elif intersection:
+                    for qubit in intersection:
+                        if noise.dimension == 1:
                             labeled_identity = Id(
-                                target=qubit, label=f"noisy_identity_{noisy_identity_counter}"
+                                target=qubit,
+                                label=f"noisy_identity_{noisy_identity_counter}",
                             )
                             noise_model.add_quantum_error(
-                                qiskit_error, f"noisy_identity_{noisy_identity_counter}", [qubit]
+                                qiskit_error,
+                                f"noisy_identity_{noisy_identity_counter}",
+                                [qubit],
                             )
                             gate_index = modified_circuit.instructions.index(gate)
-                            modified_circuit.instructions.insert(gate_index+1, labeled_identity)
+                            modified_circuit.instructions.insert(
+                                gate_index + 1, labeled_identity
+                            )
                             noisy_identity_counter += 1
+                        elif noise.dimension == 2 and len(intersection) == 2:
+                            noise_model.add_quantum_error(
+                                qiskit_error, [gate.qiskit_string], list(intersection)
+                            )
 
     return noise_model, modified_circuit
-
-################################################################################################
-
-        # noise_model = Qiskit_NoiseModel()
-        #
-        # modified_instructions = []
-        #
-        # gate_instructions = [
-        #     instr for instr in circuit.instructions if isinstance(instr, Gate)
-        # ]
-        #
-        # for noise in noises:
-        #     qiskit_error = noise.to_other_language(Language.QISKIT)
-        #     targets = noise.targets if noise.targets else []
-        #     target_gates = (
-        #         [gate.qiskit_string for gate in noise.gates] if noise.gates else None
-        #     )
-        #
-        #     if not targets:
-        #         all_qubits = set()
-        #         for instr in gate_instructions:
-        #             all_qubits.update(instr.connections())
-        #         targets = list(all_qubits)
-        #
-        #     for instr in gate_instructions:
-        #         gate_name = instr.qiskit_string
-        #         connections = list(instr.connections())
-        #
-        #         if target_gates and gate_name not in target_gates:
-        #             modified_instructions.append(instr)
-        #             continue
-        #
-        #         modified_instructions.append(instr)
-        #
-        #         if len(connections) > 1:
-        #             targets_in_connections = set(connections).intersection(set(targets))
-        #
-        #             if targets_in_connections == set(connections):
-        #                 if (
-        #                         hasattr(noise, "dimension")
-        #                         and noise.dimension == 2
-        #                         and len(connections)
-        #                         == 2  # to change (proper condition "3qubits")
-        #                 ):
-        #                     multi_qubit_error = depolarizing_error(noise.prob, 2)
-        #                     noise_model.add_quantum_error(
-        #                         multi_qubit_error, gate_name, connections
-        #                     )
-        #                 else:
-        #                     multi_qubit_error = pauli_error(
-        #                         # to be handled differently -- not proper implmentation (get rid of it)
-        #                         [
-        #                             ("I" * len(connections), 1 - noise.prob),
-        #                             ("X" * len(connections), noise.prob),
-        #                         ]
-        #                     )
-        #                     noise_model.add_quantum_error(
-        #                         multi_qubit_error, gate_name, connections
-        #                     )
-        #             else:
-        #                 for qubit in targets_in_connections:
-        #                     labeled_identity = Id(
-        #                         target=qubit, label=f"noisy_{gate_name}_{qubit}"
-        #                     )
-        #                     modified_instructions.append(labeled_identity)
-        #
-        #                     if hasattr(noise, "dimension") and noise.dimension == 2:
-        #                         identity_error = depolarizing_error(noise.prob, 1)
-        #                     else:
-        #                         identity_error = qiskit_error
-        #
-        #                     noise_model.add_quantum_error(
-        #                         identity_error, f"noisy_{gate_name}", [qubit]
-        #                     )
-        #         else:
-        #             qubit_index = connections[0]
-        #             if not (hasattr(noise, "dimension") and noise.dimension == 2):
-        #                 noise_model.add_quantum_error(
-        #                     qiskit_error, gate_name, [qubit_index]
-        #                 )
-        #
-        # modified_circuit = QCircuit(modified_instructions)
-        # print(modified_circuit)
-        #
-        # return noise_model
 
 
 @typechecked
@@ -500,9 +422,9 @@ def run_remote_ibm(job: Job) -> Result:
 
 @typechecked
 def extract_result(
-        result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
-        job: Optional[Job],
-        device: IBMDevice,
+    result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
+    job: Optional[Job],
+    device: IBMDevice,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`Result<mpqp.execution.result.Result>`.
@@ -566,7 +488,7 @@ def extract_result(
     else:
 
         if job is not None and (
-                isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
+            isinstance(result, EstimatorResult) != (job.job_type == JobType.OBSERVABLE)
         ):
             raise ValueError(
                 "Mismatch between job type and result type: if the result is an"
@@ -585,7 +507,7 @@ def extract_result(
             return Result(job, result.values[0], variance, shots)
 
         elif isinstance(
-                result, QiskitResult
+            result, QiskitResult
         ):  # pyright: ignore[reportUnnecessaryIsInstance]
             if job is None:
                 job_data = result.data()
