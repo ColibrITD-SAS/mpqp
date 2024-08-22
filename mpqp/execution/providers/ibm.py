@@ -327,15 +327,17 @@ def run_aer(job: Job):
     from qiskit.compiler import transpile
     from qiskit_aer import AerSimulator
 
-    if job.circuit.noises:
+    job_circuit = job.circuit
+
+    if len(job.circuit.noises) != 0:
         noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
-        job.circuit = modified_circuit
+        job_circuit = modified_circuit
         backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
     else:
         backend_sim = AerSimulator(method=job.device.value)
 
     qiskit_circuit = (
-        job.circuit.without_measurements().to_other_language(Language.QISKIT)
+        job_circuit.without_measurements().to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
     )
