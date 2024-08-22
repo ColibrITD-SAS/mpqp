@@ -384,31 +384,7 @@ class BitFlip(NoiseModel):
         elif language == Language.QISKIT:
             from qiskit_aer.noise.errors.standard_errors import pauli_error
 
-            if not self.gates:
-                raise ValueError("Gates must be provided for Qiskit conversion.")
-
-            num_qubits = [gate.nb_qubits for gate in self.gates]
-
-            if isinstance(num_qubits, int):
-                pauli_errors = [
-                    ("X" * num_qubits, self.prob),
-                    ("I" * num_qubits, 1 - self.prob),
-                ]
-            elif isinstance(num_qubits, list):
-                max_qubits = max(num_qubits)
-                pauli_errors = []  # better tensor product
-                for qubits in num_qubits:
-                    p_x = self.prob / len(num_qubits)
-                    p_i = (1 - self.prob) / len(num_qubits)
-                    pauli_errors.append(
-                        ("X" * qubits + "I" * (max_qubits - qubits), p_x)
-                    )
-                    pauli_errors.append(("I" * max_qubits, p_i))
-            else:
-                raise TypeError(f"Unsupported type for num_qubits: {type(num_qubits)}")
-
-            return pauli_error(pauli_errors)
-            # return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
+            return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
         # TODO: MY_QLM implementation
 

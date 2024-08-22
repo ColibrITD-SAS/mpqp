@@ -287,11 +287,12 @@ class QCircuit:
             if len(noise.targets) == 0:
                 noise.targets = list(range(self.nb_qubits))
                 if (
-                    isinstance(noise, Depolarizing)
+                    hasattr(noise, "dimension")
                     and len(noise.targets) < noise.dimension
                 ):
                     raise ValueError(
-                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
+                        f"Number of target qubits {len(noise.targets)} should be higher "
+                        f"than the dimension {noise.dimension}."
                     )
         qcircuit.noises = noises
 
