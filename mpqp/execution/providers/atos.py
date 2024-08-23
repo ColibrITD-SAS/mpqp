@@ -281,7 +281,6 @@ def generate_hardware_model(
     )
     # TODO refacto this function, shorten it, regroup similar code parts
 
-
     all_qubits_target = True
 
     gate_noise_global = dict()
