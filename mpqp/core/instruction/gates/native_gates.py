@@ -306,10 +306,9 @@ class Id(OneQubitNoParamGate, InvolutionGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QISKIT:
-            gate_class = self.qiskit_gate
             if self.label:
-                return gate_class(label=self.label)
-            return gate_class()
+                return self.qiskit_gate(label=self.label)
+            return self.qiskit_gate()
 
 
 class X(OneQubitNoParamGate, InvolutionGate):

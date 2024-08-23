@@ -3,15 +3,13 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Sequence
 from typeguard import typechecked
-
+import numpy as np
 
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
     from braket.circuits.noises import TwoQubitDepolarizing
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
-
-import numpy as np
 
 from mpqp.tools.generics import T
 from mpqp.core.instruction.gates import Gate

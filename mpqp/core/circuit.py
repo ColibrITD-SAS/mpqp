@@ -236,7 +236,7 @@ class QCircuit:
         else:
             self.instructions.append(components)
 
-    def hard_copy(self):
+    def hard_copy(self) -> QCircuit:
         """
         Creates a deep copy of the quantum circuit object, ensuring all properties,
         including noises and instructions, are properly duplicated with necessary
@@ -287,11 +287,12 @@ class QCircuit:
             if len(noise.targets) == 0:
                 noise.targets = list(range(self.nb_qubits))
                 if (
-                    isinstance(noise, Depolarizing)
+                    hasattr(noise, "dimension")
                     and len(noise.targets) < noise.dimension
                 ):
                     raise ValueError(
-                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
+                        f"Number of target qubits {len(noise.targets)} should be higher "
+                        f"than the dimension {noise.dimension}."
                     )
         qcircuit.noises = noises
 
@@ -955,7 +956,7 @@ class QCircuit:
                     if qubit not in used_qubits
                 ],
                 nb_qubits=qcircuit.nb_qubits,
-            ) + deepcopy(qcircuit)
+            ) + qcircuit
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
