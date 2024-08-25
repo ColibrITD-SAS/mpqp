@@ -495,7 +495,6 @@ def extract_result(
     from qiskit.primitives import EstimatorResult, PrimitiveResult
     from qiskit.result import Result as QiskitResult
 
-    # TODO: check if the result of a noisy simulation requires a different parsing, if so implement it
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
         res_data = result[0].data
