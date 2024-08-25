@@ -399,8 +399,16 @@ class BitFlip(NoiseModel):
 class AmplitudeDamping(NoiseModel):
     """Class representing the amplitude damping noise channel, which can model both
     the standard and generalized amplitude damping processes. It can be applied
-    to a single qubit and depends on two parameters: the decay rate `gamma` and the
-    probability of excitation `prob`.
+    to a single qubit and depends on two parameters: the decay rate ``gamma`` and the
+    probability of excitation ``prob``.
+
+    We recall below the associated representation, in terms of Kraus operators, where we denote
+    by `\gamma` the decay rate ``gamma``, and by `p` the excitation probability ``prob``:
+
+    .. math:: E_0=\\sqrt{p}\\begin{pmatrix}1&0\\\\0&\\sqrt{1-\\gamma}\\end{pmatrix},
+    .. math:: E_1=\\sqrt{p}\\begin{pmatrix}0&\\sqrt{\\gamma}\\\\0&0\\end{pmatrix},
+    .. math:: E_2=\\sqrt{1-p}\\begin{pmatrix}\\sqrt{1-\\gamma}&0\\\\0&1\\end{pmatrix},
+    .. math:: E_3=\\sqrt{1-p}\\begin{pmatrix}0&0\\\\\\sqrt{\\gamma}&0\\end{pmatrix}.
 
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
