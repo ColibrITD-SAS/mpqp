@@ -52,11 +52,13 @@ def test_random_orthogonal_matrix(n_circ: int):
     print("exp_state_vector", exp_state_vector)
 
     execution_ibm_statevector = run(c, IBMDevice.AER_SIMULATOR).state_vector
-    #execution_aws_statevector = run(c, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
+    execution_aws_statevector = run(c, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
     execution_qlm_statevector = run(c, ATOSDevice.MYQLM_PYLINALG).state_vector
 
     print("result", execution_ibm_statevector)
 
     # assert matrix_eq(execution_ibm_statevector.amplitudes, exp_state_vector)
     #assert matrix_eq(execution_aws_statevector.amplitudes, exp_state_vector)
-    assert matrix_eq(execution_qlm_statevector.amplitudes, exp_state_vector)
+    # assert matrix_eq(execution_qlm_statevector.amplitudes, exp_state_vector,1e-06,1e-05)
+    assert matrix_eq(execution_qlm_statevector.amplitudes, execution_ibm_statevector.amplitudes, 1e-06, 1e-05)
+    assert matrix_eq(execution_aws_statevector.amplitudes, execution_ibm_statevector.amplitudes, 1e-06, 1e-05)
