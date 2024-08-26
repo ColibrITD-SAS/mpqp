@@ -259,6 +259,9 @@ class Result:
                 )
             else:
                 self._state_vector = data
+                print("We check the _gphase in result : ", job.circuit.gphase)
+                if job.circuit.gphase is not None:
+                    self._state_vector.vector *= job.circuit.gphase
                 self._probabilities = data.probabilities
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):

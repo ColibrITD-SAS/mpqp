@@ -130,6 +130,11 @@ class QCircuit:
         self.nb_qubits: int
         """Number of qubits of the circuit."""
 
+        self.gphase: Optional[float] = None
+        """Stores the global phase arising from the Qiskit conversion of CustomGates 
+        to OpenQASM2. It is used to correct the global phase when the job type
+        is STATE_VECTOR, and when this circuit contains CustomGate. `None`` otherwise."""
+
         if isinstance(data, int):
             if data < 0:
                 raise TypeCheckError(
@@ -935,6 +940,7 @@ class QCircuit:
         elif language == Language.MY_QLM:
             cleaned_circuit = qcircuit.without_measurements()
             myqlm_circuit = qasm2_to_myqlm_Circuit(cleaned_circuit.to_qasm2())
+            self.gphase = cleaned_circuit.gphase
             return myqlm_circuit
 
         elif language == Language.BRAKET:
@@ -963,9 +969,10 @@ class QCircuit:
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
-
+            qasm3_str = circuit.to_qasm3()
+            self.gphase = circuit.gphase
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(circuit.to_qasm3()),
+                qasm3_to_braket_Circuit(qasm3_str),
                 qcircuit.noises,
                 qcircuit.nb_qubits,
             )
@@ -1047,11 +1054,13 @@ class QCircuit:
             circuit.p(global_phase, qubit)
             circuit.y(qubit)
 
-        def replace_custom_gate(custom_unitary: CircuitInstruction, nb_qubits: int) -> QuantumCircuit:
+        def replace_custom_gate(
+                custom_unitary: CircuitInstruction, nb_qubits: int
+        ) -> tuple[QuantumCircuit, float]:
             """
             Decompose and replace the (custom) qiskit unitary given in parameter by a ``QuantumCircuit`` composed of
             ``U`` and ``CX`` gates, with the global phase (related to usage of ``u`` in OpenQASM2) corrected.
-
+            TODO: update the doc to remove the global phase correction
             Args:
                 custom_unitary: Qiskit CircuitInstruction containing the custom unitary operator.
                 nb_qubits: Number of qubits of the circuit from which the unitary instruction was taken.
@@ -1064,13 +1073,14 @@ class QCircuit:
             transpilation_circuit.append(custom_unitary)
             transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
             replace_circuit = QuantumCircuit(nb_qubits)
+            global_phase = transpiled.global_phase
             for instr in transpiled.data:
                 replace_circuit.append(instr)
                 if instr.operation.name == 'u':
                     phi = instr.operation.params[1]
                     gamma = instr.operation.params[2]
-                    apply_gphase(replace_circuit, -(phi+gamma)/2, instr.qubits[0]._index)
-            return replace_circuit
+                    #global_phase = np.exp(-1j*(phi+gamma)/2)
+            return transpiled, global_phase
 
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
@@ -1080,15 +1090,20 @@ class QCircuit:
 
         qiskit_circ.reverse_bits()
 
+        global_phase = 0
         new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
             if instruction.operation.name == 'unitary':
-                new_circuit.compose(replace_custom_gate(instruction, qiskit_circ.num_qubits), inplace=True)
+                circuit, gphase = replace_custom_gate(instruction, qiskit_circ.num_qubits)
+                new_circuit.compose(circuit, inplace=True)
+                global_phase += gphase
             else:
                 new_circuit.append(instruction)
 
-        print("final circuit golbal phase", new_circuit.global_phase)
-
+        print("GLobal phase après décompo", global_phase)
+        if global_phase != 0:
+            self.gphase = np.exp(1j*global_phase)
+            print("circuit global phase", self.gphase)
         qasm_str = qasm2.dumps(new_circuit)
 
         return qasm_str

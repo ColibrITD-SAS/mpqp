@@ -161,6 +161,7 @@ class Job:
         self._status = job_status
 
 
+@typechecked
 def get_qlm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a QLM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -196,6 +197,7 @@ def get_qlm_job_status(job_id: str) -> JobStatus:
         return JobStatus.DONE
 
 
+@typechecked
 def get_ibm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of an IBM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -227,6 +229,7 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
         raise ValueError(f"Unexpected IBM job status: {status}")
 
 
+@typechecked
 def get_aws_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a AWS Braket from the id in parameter, and
     returns the corresponding JobStatus of this library.
