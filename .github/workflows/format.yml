@@ -16,7 +16,7 @@ jobs:
       - name: Formatting
         run: |
           pip install black
-          black . --quiet
+          black .
       - name: Commit
         run: |
           git config --global user.name 'github-actions[bot]'
