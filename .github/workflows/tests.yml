@@ -29,14 +29,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        #python-version: ["3.9", "3.10", "3.11"]
-        python-version: ${{ github.event.inputs.python_v || '["3.9", "3.10", "3.11"]' }}
+        python-version: ["3.9", "3.10", "3.11"]
+        include:
+          - python-version: ${{ github.event.inputs.python_v }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up python ${{ matrix.python-version }}
+      - name: Set up python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
@@ -53,7 +54,6 @@ jobs:
           sudo apt install -y poppler-utils
           sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra
       - name: Run tests
-        if: ${{ github.event.inputs.python_v || github.event_name != 'workflow_dispatch' }}
         run: |
           if [ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]; then
             python -m pytest --long-local
@@ -64,14 +64,15 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        #python-version: ["3.9", "3.10", "3.11"]
-        python-version: ${{ github.event.inputs.python_v || '["3.9", "3.10", "3.11"]' }}
+        python-version: ["3.9", "3.10", "3.11"]
+        include:
+          - python-version: ${{ github.event.inputs.python_v }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up python ${{ matrix.python-version }}
+      - name: Set up python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
