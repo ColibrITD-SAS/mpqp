@@ -13,10 +13,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Formatting
         run: |
           pip install black
           black . --quiet
+
       - name: Commit
         run: |
           git config --global user.name 'github-actions[bot]'
