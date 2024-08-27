@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       python_v:
-        description: "Python version"
+        description: "python version"
         required: true
         default: "3.9"
         type: choice
@@ -14,7 +14,7 @@ on:
           - "3.10"
           - "3.11"
       commit_ref:
-        description: Specific ref (branch, tag, or SHA)
+        description: Specific ref (branch, tag or SHA)
         default: ""
         type: string
         required: false
@@ -32,39 +32,33 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4   
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up python ${{ github.event.inputs.python_v || matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ github.event.inputs.python_v || matrix.python-version }}
           cache: "pip"
-
-      - name: Install Python dependencies
+      - name: Install python dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements-dev.txt
-
-      - name: Install OS specific dependencies
+      - name: Install os specific dependencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
         run: |
           pip install .
           sudo apt-get update
           sudo apt install -y poppler-utils
           sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra
-
       - name: Run tests
+        if: ${{ github.event.inputs.python_v }}  
         run: |
           if [ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]; then
             python -m pytest --long-local
           else
             python -m pytest
           fi
-
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && matrix.python-version == github.event.inputs.python_v) }}
-
   typechecks:
     runs-on: ubuntu-latest
     strategy:
@@ -72,23 +66,17 @@ jobs:
         python-version: ["3.9", "3.10", "3.11"]
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4   
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-
-      - name: Set up Python ${{ matrix.python-version }}
+      - name: Set up python ${{ github.event.inputs.python_v || matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ github.event.inputs.python_v || matrix.python-version }}
           cache: "pip"
-
       - name: Install dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements-dev.txt
-
       - name: Run type checker
         run: pyright
-    
-        if: ${{ github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && matrix.python-version == github.event.inputs.python_v) }}
-  
