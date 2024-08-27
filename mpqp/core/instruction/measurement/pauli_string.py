@@ -408,7 +408,7 @@ class PauliString:
         from cirq.ops.pauli_string import PauliString as CirqPauliString
 
         if isinstance(pauli, (CirqPauliSum, CirqPauliString)):
-            return PauliString._from_cirq(pauli)
+                return PauliString._from_cirq(pauli)
 
         if isinstance(pauli, list):
             dimension = max(map(PauliString._get_dimension_cirq_pauli, pauli))
