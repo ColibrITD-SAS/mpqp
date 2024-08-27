@@ -120,6 +120,7 @@ class QCircuit:
         nb_cbits: Optional[int] = None,
         label: Optional[str] = None,
     ):
+
         self.nb_cbits = nb_cbits
         """See parameter description."""
         self.label = label
