@@ -25,9 +25,10 @@ on:
         type: boolean
 
 jobs:
-  tests-on-push:
-    if: github.event_name == 'push'
+  tests:
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.python_v || '3.9' }}
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
@@ -36,41 +37,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up python ${{ matrix.python-version }}
+      - name: Set up python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-          cache: "pip"
-      - name: Install python dependencies
-        run: |
-          pip install --upgrade pip
-          pip install -r requirements-dev.txt
-      - name: Install os specific dependencies
-        if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
-        run: |
-          pip install .
-          sudo apt-get update
-          sudo apt install -y poppler-utils
-          sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra
-      - name: Run tests
-        run: |
-          if [ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]; then
-            python -m pytest --long-local
-          else
-            python -m pytest
-          fi
-  tests-manual:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up python ${{ github.event.inputs.python_v }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: ${{ github.event.inputs.python_v }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
       - name: Install python dependencies
         run: |
@@ -92,6 +62,8 @@ jobs:
           fi
   typechecks:
     runs-on: ubuntu-latest
+    env:
+      PYTHON_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.python_v || '3.9' }}
     strategy:
       matrix:
         python-version: ["3.9", "3.10", "3.11"]
@@ -101,10 +73,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up python ${{ matrix.python-version }}
+      - name: Set up python ${{ env.PYTHON_VERSION }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ env.PYTHON_VERSION }}
           cache: "pip"
       - name: Install dependencies
         run: |
