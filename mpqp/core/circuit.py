@@ -904,7 +904,9 @@ class QCircuit:
                     new_circ = new_circ.reverse_bits()
                     new_circ.unitary(
                         instruction.to_other_language(),
-                        instruction.targets,
+                        instruction.targets, # TODO double this, i think the target are not the right ones,
+                        #                       or think of modify the matrix instead to avoid reversing several times
+                        #                       the qubits
                         instruction.label,
                     )
                     new_circ = new_circ.reverse_bits()
