@@ -29,16 +29,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.9", "3.10", "3.11"]') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up Python
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.python_v || matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
       - name: Install python dependencies
         run: |
@@ -62,16 +62,16 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.9", "3.10", "3.11"]
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.9", "3.10", "3.11"]') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up Python 
+      - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.python_v || matrix.python-version }}
+          python-version: ${{ matrix.python-version }}
           cache: "pip"
       - name: Install dependencies
         run: |
