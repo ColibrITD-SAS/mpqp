@@ -10,18 +10,6 @@ from mpqp.tools.maths import matrix_eq, rand_orthogonal_matrix, is_unitary
 from mpqp.execution import run, ATOSDevice, IBMDevice, AWSDevice
 
 
-# @pytest.mark.parametrize(
-#     "circuit, state_vector",
-#     [
-#         (
-#             QCircuit([CustomGate(UnitaryMatrix())]),
-#             np.array()
-#         )
-#     ],
-# )
-# def test_custom_gate_state_vector(circuit: QCircuit, state_vector: np.ndarray):
-#     assert matrix_eq(run(circuit, ATOSDevice.MYQLM_PYLINALG).state_vector.amplitudes, state_vector)
-
 def test_custom_gate_is_unitary():
     definition = UnitaryMatrix(np.array([[1, 0], [0, 1j]]))
     assert is_unitary(CustomGate(definition, [0]).to_matrix())
@@ -37,7 +25,6 @@ def test_random_orthogonal_matrix(n_circ: int):
     """
     Args:
         n_circ: size of the whole circuit
-
     """
     # size of the custom gate
     n_gate = random.randint(1, n_circ)
