@@ -30,7 +30,7 @@ class GateDefinition(ABC):
     Example:
         >>> gate_matrix = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
         >>> gate_definition = UnitaryMatrix(gate_matrix)
-        >>> custom_gate = CustomGate(gate_definition, [0])
+        >>> custom_gate = CustomGate(gate_definition, [0,1])
 
     """
 
