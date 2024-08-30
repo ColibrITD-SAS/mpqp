@@ -74,9 +74,11 @@ def get_aws_braket_account_info() -> str:
         session = AwsSession()
 
         # get the AWS Braket user access key, secret key and region
-        access_key_id = session.boto_session.get_credentials().access_key
-
-        secret_access_key = session.boto_session.get_credentials().secret_key
+        credentials = session.boto_session.get_credentials()
+        if credentials is None:
+            raise AWSBraketRemoteExecutionError("Could not retrieve AWS' credentials")
+        access_key_id = credentials.access_key
+        secret_access_key = credentials.secret_key
         obfuscate_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
 
         region_name = session.boto_session.region_name

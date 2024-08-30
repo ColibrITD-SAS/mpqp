@@ -319,7 +319,7 @@ class PauliString:
         return pauli_list
 
     @classmethod
-    def _get_dimension_cirq_pauli(cls, pauli: CirqPauliSum | CirqPauliString):
+    def _get_dimension_cirq_pauli(cls, pauli: Union[CirqPauliSum, CirqPauliString]):
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
         from cirq.ops.pauli_string import PauliString as CirqPauliString
 
@@ -345,7 +345,7 @@ class PauliString:
 
     @classmethod
     def _from_cirq(
-        cls, pauli: CirqPauliSum | CirqPauliString, dimension: int = 0
+        cls, pauli: Union[CirqPauliSum, CirqPauliString], dimension: int = 0
     ) -> PauliString:
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
         from cirq.ops.pauli_gates import X as Cirq_X
@@ -385,13 +385,13 @@ class PauliString:
     @classmethod
     def from_other_language(
         cls,
-        pauli: (
-            QiskitPauliString
-            | BraketPauliString
-            | CirqPauliSum
-            | CirqPauliString
-            | list[CirqPauliString]
-        ),
+        pauli: Union[
+            QiskitPauliString,
+            BraketPauliString,
+            CirqPauliSum,
+            CirqPauliString,
+            list[CirqPauliString],
+        ],
         min_dimension: int = 0,
     ) -> PauliString | list[PauliString]:
         """Convert pauli objects from other quantum SDKs to :class:`PauliString`.
@@ -421,13 +421,13 @@ class PauliString:
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
-    ) -> (
-        QiskitPauliString
-        | BraketPauliString
-        | CirqPauliSum
-        | CirqPauliString
-        | list[CirqPauliString]
-    ):
+    ) -> Union[
+        QiskitPauliString,
+        BraketPauliString,
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+    ]:
         """Converts the pauli string to pauli string of another quantum
         programming language.
 

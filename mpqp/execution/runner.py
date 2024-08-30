@@ -18,7 +18,6 @@ return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
 
 from __future__ import annotations
 
-from copy import deepcopy
 from numbers import Complex
 from textwrap import indent
 from typing import Iterable, Optional
@@ -288,7 +287,7 @@ def run(
         values = {}
 
     def namer(circ: QCircuit, i: int):
-        circ = deepcopy(circ)
+        circ = circ.hard_copy()
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -301,7 +300,7 @@ def run(
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(circuit.hard_copy(), device, values, display_breakpoints)
 
 
 @typechecked

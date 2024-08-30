@@ -28,23 +28,26 @@ on:
         type: boolean
 
 jobs:
-  test:
+  tests:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.commit_ref || github.ref }}
-      - name: Set up python ${{ github.event.inputs.python_v || '3.9' }}
+      - name: Set up python ${{ github.event.inputs.python_v || matrix.python-version }}
         uses: actions/setup-python@v5
         with:
-          python-version: ${{ github.event.inputs.python_v || '3.9' }}
+          python-version: ${{ github.event.inputs.python_v || matrix.python-version }}
           cache: "pip"
-      - name: Install dependencies
+      - name: Install python dependencies
         run: |
           pip install --upgrade pip
           pip install -r requirements-dev.txt
-      - name: Install long dedendencies
+      - name: Install os specific dedendencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
         run: |
           pip install .
@@ -58,3 +61,24 @@ jobs:
           else
             python -m pytest
           fi
+  typechecks:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.9", "3.10", "3.11"]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit_ref || github.ref }}
+      - name: Set up python ${{ github.event.inputs.python_v || matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ github.event.inputs.python_v || matrix.python-version }}
+          cache: "pip"
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements-dev.txt
+      - name: Run type checker
+        run: pyright
