@@ -784,7 +784,7 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = QCircuit(self.nb_qubits)
+        new_circuit = self.hard_copy()
         new_circuit.instructions = [
             inst for inst in self.instructions if not isinstance(inst, Measure)
         ]
@@ -819,7 +819,7 @@ class QCircuit:
                        0  1
 
         """
-        new_circuit = deepcopy(self)
+        new_circuit = self.hard_copy()
         new_circuit.noises = []
         return new_circuit
 
@@ -904,7 +904,7 @@ class QCircuit:
                     new_circ = new_circ.reverse_bits()
                     new_circ.unitary(
                         instruction.to_other_language(),
-                        instruction.targets, # TODO double this, i think the target are not the right ones,
+                        instruction.targets, # TODO double check this, i think the target are not the right ones,
                         #                       or think of modify the matrix instead to avoid reversing several times
                         #                       the qubits
                         instruction.label,
@@ -971,6 +971,7 @@ class QCircuit:
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
+
             qasm3_str = circuit.to_qasm3()
             self.gphase = circuit.gphase
             return apply_noise_to_braket_circuit(
@@ -1039,50 +1040,24 @@ class QCircuit:
         from qiskit import qasm2, transpile, QuantumCircuit
         from qiskit.circuit import CircuitInstruction
 
-        def apply_gphase(circuit: QuantumCircuit, global_phase: float, qubit: int) -> None:
-            """
-            Apply a global phase to a given circuit by appending the right sequence of Phase and Y gates on the qubit
-            given in parameter.
-
-            Args:
-                circuit: QuantumCircuit to which we want to add the global phase.
-                global_phase: Global phase g parametrizing the global phase `e^{i \times g}` to add.
-                qubit: Index of the qubit on which the sequence of gates will be applied.
-
-            """
-            # circuit.append(GlobalPhaseGate(-global_phase)) --> We cannot use it because OQASM2 doesn't not support
-            circuit.p(global_phase, qubit)
-            circuit.y(qubit)
-            circuit.p(global_phase, qubit)
-            circuit.y(qubit)
-
         def replace_custom_gate(
                 custom_unitary: CircuitInstruction, nb_qubits: int
         ) -> tuple[QuantumCircuit, float]:
             """
             Decompose and replace the (custom) qiskit unitary given in parameter by a ``QuantumCircuit`` composed of
-            ``U`` and ``CX`` gates, with the global phase (related to usage of ``u`` in OpenQASM2) corrected.
-            TODO: update the doc to remove the global phase correction
+            ``U`` and ``CX`` gates, and return the global phase (related to usage of ``u`` in OpenQASM2) of the circuit.
             Args:
                 custom_unitary: Qiskit CircuitInstruction containing the custom unitary operator.
                 nb_qubits: Number of qubits of the circuit from which the unitary instruction was taken.
 
             Returns:
                 QuantumCircuit containing the decomposition of the unitary in terms of native gates ``U`` and ``CX``,
-                with a correction in the global phase of each ``U`` operator.
+                and the global phase used for final correction of the statevector.
             """
             transpilation_circuit = QuantumCircuit(nb_qubits)
             transpilation_circuit.append(custom_unitary)
             transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
-            replace_circuit = QuantumCircuit(nb_qubits)
-            global_phase = transpiled.global_phase
-            for instr in transpiled.data:
-                replace_circuit.append(instr)
-                if instr.operation.name == 'u':
-                    phi = instr.operation.params[1]
-                    gamma = instr.operation.params[2]
-                    #global_phase = np.exp(-1j*(phi+gamma)/2)
-            return transpiled, global_phase
+            return transpiled, transpiled.global_phase
 
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
@@ -1102,10 +1077,9 @@ class QCircuit:
             else:
                 new_circuit.append(instruction)
 
-        print("GLobal phase après décompo", global_phase)
         if global_phase != 0:
             self.gphase = np.exp(1j*global_phase)
-            print("circuit global phase", self.gphase)
+
         qasm_str = qasm2.dumps(new_circuit)
 
         return qasm_str
