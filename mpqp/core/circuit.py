@@ -785,6 +785,7 @@ class QCircuit:
 
         """
         new_circuit = self.hard_copy()
+        new_circuit.nb_cbits = 0
         new_circuit.instructions = [
             inst for inst in self.instructions if not isinstance(inst, Measure)
         ]
@@ -900,16 +901,14 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    # We reverse twice the qubits to pass the unitary in the usual qubit ordering
-                    new_circ = new_circ.reverse_bits()
+                    # We reverse the target qubits to pass the unitary in the usual qubit ordering
+                    reversed_target = instruction.targets
+                    reversed_target.reverse()
                     new_circ.unitary(
                         instruction.to_other_language(),
-                        instruction.targets, # TODO double check this, i think the target are not the right ones,
-                        #                       or think of modify the matrix instead to avoid reversing several times
-                        #                       the qubits
+                        reversed_target,
                         instruction.label,
                     )
-                    new_circ = new_circ.reverse_bits()
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
@@ -1034,8 +1033,13 @@ class QCircuit:
             cx q[0],q[1];
             measure q[0] -> c[0];
             measure q[1] -> c[1];
-            # TODO add example with custom gate
-
+            >>> c2 = QCircuit([CustomGate(UnitaryMatrix(np.array([[0,1,0,0],[1,0,0,0],[0,0,0,1],[0,0,1,0]])),[1,2])])
+            >>> print(c2.to_qasm2())
+            OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[3];
+            u(0,pi/2,-pi/2) q[1];
+            u(pi,-pi/2,pi/2) q[2];
         """
         from qiskit import qasm2, transpile, QuantumCircuit
         from qiskit.circuit import CircuitInstruction
@@ -1105,6 +1109,13 @@ class QCircuit:
             cx q[0],q[1];
             c[0] = measure q[0];
             c[1] = measure q[1];
+            >>> c2 = QCircuit([CustomGate(UnitaryMatrix(np.array([[0,1,0,0],[1,0,0,0],[0,0,0,1],[0,0,1,0]])),[1,2])])
+            >>> print(c2.to_qasm3()) # doctest: +NORMALIZE_WHITESPACE
+            OPENQASM 3.0;
+            include "stdgates.inc";
+            qubit[3] q;
+            u3(0,pi/2,-pi/2) q[1];
+            u3(pi,-pi/2,pi/2) q[2];
 
         """
         qasm2_code = self.to_qasm2()
