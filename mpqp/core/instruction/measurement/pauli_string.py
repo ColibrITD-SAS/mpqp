@@ -210,6 +210,47 @@ class PauliString:
             self._monomials = res.monomials
         return res
 
+    def hard_simplify(self, inplace: bool = False) -> PauliString:
+        """Hard simplifies the PauliString by combining identical terms and removing
+        terms with null coefficients.
+
+        Args:
+            inplace: Indicates if ``simplify`` should update self.
+
+        Returns:
+            PauliString: A simplified version of the PauliString.
+
+        Example:
+            >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
+            >>> ps = I@I - 2 *I@I + Z@I - Z@I
+            >>> print(ps.hard_simplify())
+            -1*I@I
+            >>> ps = I + X
+            >>> print(ps.hard_simplify())
+            1*X
+            >>> ps = I
+            >>> print(ps.hard_simplify())
+            I
+
+        """
+        res = PauliString()
+        for mono in self.simplify().monomials:
+            if mono.coef == 1:
+                if any(atom != I for atom in mono.atoms):
+                    res.monomials.append(mono)
+            else:
+                res.monomials.append(mono)
+        if len(res.monomials) == 0:
+            if self.nb_qubits > 1:
+                res.monomials.append(
+                    PauliStringMonomial(1, [I for _ in range(self.nb_qubits)])
+                )
+            else:
+                res = I
+        if inplace:
+            self._monomials = res.monomials
+        return res
+
     def round(self, round_off_till: int = 4) -> PauliString:
         """Rounds the coefficients of the PauliString to a specified number of
         decimal places.
@@ -408,7 +449,7 @@ class PauliString:
         for pauli_str, coef in pauli.to_list():
             monomial = PauliStringMonomial()
             for atom in pauli_str:
-                monomial = PAULI_ATOM_DICT[atom] @ monomial
+                monomial = _pauli_atom_dict[atom] @ monomial
             monomial *= coef
             pauli_string += monomial
         return pauli_string
@@ -428,20 +469,28 @@ class PauliString:
         def tensor_product_to_pauli_sting(pauli: TensorProduct):
             monomial = PauliStringMonomial()
             for atom in pauli.factors:
-                monomial @= PAULI_ATOM_DICT[atom.ascii_symbols[0]]
+                monomial @= _pauli_atom_dict[atom.ascii_symbols[0]]
             monomial *= pauli.coefficient
             return monomial
 
         if isinstance(pauli, BraketSum):
             pauli_str = PauliString()
             for tensor_product in pauli.summands:
-                assert isinstance(tensor_product, TensorProduct)
-                pauli_str += tensor_product_to_pauli_sting(tensor_product)
+                if isinstance(tensor_product, TensorProduct):
+                    pauli_str += tensor_product_to_pauli_sting(tensor_product)
+                elif isinstance(
+                    tensor_product, (Braket_I, Braket_X, Braket_Y, Braket_Z)
+                ):
+                    pauli_str += _pauli_atom_dict[tensor_product.ascii_symbols[0]]
+                else:
+                    raise NotImplementedError(
+                        f"Unsupported input type: {type(tensor_product)}."
+                    )
             return pauli_str
         elif isinstance(pauli, TensorProduct):
             return tensor_product_to_pauli_sting(pauli)
         elif isinstance(pauli, (Braket_I, Braket_X, Braket_Y, Braket_Z)):
-            return PAULI_ATOM_DICT[pauli.ascii_symbols[0]]
+            return _pauli_atom_dict[pauli.ascii_symbols[0]]
         else:
             raise NotImplementedError(f"Unsupported input type: {type(pauli)}.")
 
@@ -458,7 +507,7 @@ class PauliString:
         )
         monomial = [I] * min_dimension
         for index, atom in enumerate(pauli.op):
-            monomial[pauli.qbits[index]] = PAULI_ATOM_DICT[atom]
+            monomial[pauli.qbits[index]] = _pauli_atom_dict[atom]
         return PauliStringMonomial(pauli.coeff, monomial)
 
     @classmethod
@@ -579,13 +628,17 @@ class PauliString:
             >>> ps = X @ I @ I + I @ Y @ I + I @ I @ Z
             >>> print(ps.to_other_language(Language.CIRQ))
             1.000*X(q(0))+1.000*Y(q(1))+1.000*Z(q(2))
-            >>> print(ps.to_other_language(Language.MY_QLM))
-            [Term(_coeff=TNumber(is_abstract=False, type=0, int_p=1, double_p=None, string_p=None, matrix_p=None, serialized_p=None, complex_p=None), op='X', qbits=[0], _do_validity_check=True), Term(_coeff=TNumber(is_abstract=False, type=0, int_p=1, double_p=None, string_p=None, matrix_p=None, serialized_p=None, complex_p=None), op='Y', qbits=[1], _do_validity_check=True), Term(_coeff=TNumber(is_abstract=False, type=0, int_p=1, double_p=None, string_p=None, matrix_p=None, serialized_p=None, complex_p=None), op='Z', qbits=[2], _do_validity_check=True)]
+            >>> for term in ps.to_other_language(Language.MY_QLM):
+            ...     print(term.op, term.qbits)
+            X [0]
+            Y [1]
+            Z [2]
             >>> print(ps.to_other_language(Language.QISKIT))
             SparsePauliOp(['IIX', 'IYI', 'ZII'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
-            >>> print(ps.to_other_language(Language.BRAKET))
-            Sum(TensorProduct(X('qubit_count': 1), I('qubit_count': 1), I('qubit_count': 1)), TensorProduct(I('qubit_count': 1), Y('qubit_count': 1), I('qubit_count': 1)), TensorProduct(I('qubit_count': 1), I('qubit_count': 1), Z('qubit_count': 1)))
+            >>> braket_sum = ps.to_other_language(Language.BRAKET)
+            >>> print(" + ".join(f"{tensor.coefficient} * {''.join(atom.ascii_symbols[0] for atom in tensor.factors)}" for tensor in braket_sum.summands))
+            1 * XII + 1 * IYI + 1 * IIZ
 
         """
 
@@ -835,7 +888,6 @@ class PauliStringMonomial(PauliString):
                 )
 
             cirq_monomial *= self.coef  # pyright: ignore[reportOperatorIssue]
-
             return cirq_monomial
 
 
@@ -909,7 +961,7 @@ class PauliStringAtom(PauliStringMonomial):
     def __rmul__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(other, [self])
 
-    def __matmul__(self, other: PauliString) -> PauliString:
+    def __imatmul__(self, other: PauliString) -> PauliString:
         res = (
             PauliStringMonomial(1, [other])
             if isinstance(other, PauliStringAtom)
@@ -921,6 +973,11 @@ class PauliStringAtom(PauliStringMonomial):
             for i, mono in enumerate(res.monomials):
                 res.monomials[i] = PauliStringMonomial(mono.coef, mono.atoms)
                 res.monomials[i].atoms.insert(0, self)
+        return res
+
+    def __matmul__(self, other: PauliString):
+        res = deepcopy(self)
+        res @= other
         return res
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
@@ -999,5 +1056,5 @@ Matrix representation:
 `\begin{pmatrix}1&0\\0&-1\end{pmatrix}`
 """
 
-PAULI_ATOM_DICT = {"I": I, "X": X, "Y": Y, "Z": Z}
+_pauli_atom_dict = {"I": I, "X": X, "Y": Y, "Z": Z}
 _allow_atom_creation = False

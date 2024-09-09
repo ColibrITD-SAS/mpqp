@@ -227,7 +227,7 @@ def pauli_strings_in_all_languages():
             @ Braket_I()
             @ (3 * Braket_Y()),  # pyright: ignore[reportOperatorIssue]
             SparsePauliOp(["IXI", "YII"], coeffs=np.array([0.25 * 4, 3])),
-            [Term(1, "X", [1]), Term(3, "Y", [2])],
+            [Term(4 * 0.25, "X", [1]), Term(3, "Y", [2])],
             ((0.25 * I) @ (4 * X) @ I) + (I @ I @ (3 * Y)),
         ),
         (
@@ -285,6 +285,41 @@ def pauli_strings_in_all_languages():
             SparsePauliOp(["YI"]),
             Term(1, "Y", [1]),
             I @ Y,
+        ),
+        (
+            1 * Cirq_I(a) + 1 * Cirq_I(a),
+            Braket_I() + Braket_I(),
+            SparsePauliOp(["I", "I"]),
+            [Term(1, "I", [0]), Term(1, "I", [0])],
+            I + I,
+        ),
+        (
+            1 * Cirq_I(a) + 1 * Cirq_X(a),  # pyright: ignore[reportOperatorIssue]
+            Braket_I() + Braket_X(),
+            SparsePauliOp(["I", "X"]),
+            [Term(1, "I", [0]), Term(1, "X", [0])],
+            I + X,
+        ),
+        (
+            1 * Cirq_X(a) + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
+            Braket_Z() + Braket_X(),
+            SparsePauliOp(["Z", "X"]),
+            [Term(1, "Z", [0]), Term(1, "X", [0])],
+            Z + X,
+        ),
+        (
+            1 * Cirq_Y(a) + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
+            Braket_Y() + Braket_Z(),
+            SparsePauliOp(["Y", "Z"]),
+            [Term(1, "Y", [0]), Term(1, "Z", [0])],
+            Y + Z,
+        ),
+        (
+            1 * Cirq_X(a) + 1 * Cirq_Y(a),  # pyright: ignore[reportOperatorIssue]
+            Braket_X() + Braket_Y(),
+            SparsePauliOp(["X", "Y"]),
+            [Term(1, "X", [0]), Term(1, "Y", [0])],
+            X + Y,
         ),
     ]
 
