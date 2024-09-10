@@ -73,7 +73,7 @@ circuit = QCircuit(2, label="Observable test")
 # Constructing the circuit by adding gates and measurements
 circuit.add(H(0))
 circuit.add(Rx(1.76, 1))
-circuit.add(ExpectationMeasure(obs, [0, 1], shots=0))
+circuit.add(ExpectationMeasure(obs, shots=0))
 
 # Running the computation on myQLM and on Aer simulator, then retrieving the results
 result = run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])

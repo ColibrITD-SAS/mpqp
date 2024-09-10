@@ -303,6 +303,7 @@ class QCircuit:
         for instruction in instructions:
             if isinstance(instruction, Barrier):
                 instruction.size = self.nb_qubits
+                instruction.targets = list(range(self.nb_qubits))
             elif isinstance(instruction, Measure):
                 if len(instruction.targets) == 0:
                     instruction.targets = list(range(self.nb_qubits))

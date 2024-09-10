@@ -9,9 +9,13 @@ from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
 
 from mpqp import Barrier, Instruction, Language, QCircuit
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import I, Z as Pauli_Z
+from mpqp.execution.devices import ATOSDevice
+from mpqp.execution.runner import run
 from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.noise.noise_model import Depolarizing
+from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.generics import OneOrMany
@@ -350,3 +354,46 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         encoding="utf-8",
     ) as f:
         assert circuit.to_qasm3().strip() == f.read().strip()
+
+
+@pytest.mark.parametrize(
+    "measure",
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * I @ Pauli_Z + 1 * I @ I))],
+)
+def test_measure_no_target(measure: Measure):
+    circuit = QCircuit(2)
+    circuit.add(H(0))
+    circuit.add(CNOT(0, 1))
+    circuit.add(measure)
+
+    if isinstance(measure, ExpectationMeasure):
+        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_value, float)  # type: ignore[AttributeAccessIssue]
+    else:
+        assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
+
+
+def test_instruction_no_target():
+    circuit = QCircuit(2)
+    circuit.add(H(0))
+    circuit.add(CNOT(0, 1))
+    circuit.add(Depolarizing(0.3))
+    circuit.add(BitFlip(0.05))
+    circuit.add(AmplitudeDamping(0.2))
+    circuit.add(Barrier())
+
+    qcircuit = circuit.hard_copy()
+    qubits = list(range(circuit.nb_qubits))
+    for instruction in qcircuit.instructions:
+        if isinstance(instruction, NoiseModel):
+            assert qubits == instruction.targets
+        elif isinstance(instruction, Barrier):
+            assert qubits == instruction.targets
+
+    circuit.nb_qubits += 1
+    qcircuit = circuit.hard_copy()
+    qubits = list(range(circuit.nb_qubits))
+    for instruction in qcircuit.instructions:
+        if isinstance(instruction, NoiseModel):
+            assert qubits == instruction.targets
+        elif isinstance(instruction, Barrier):
+            assert qubits == instruction.targets

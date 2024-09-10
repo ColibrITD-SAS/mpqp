@@ -181,7 +181,7 @@ class ExpectationMeasure(Measure):
 
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
-        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, [0,1], shots=10000)])
+        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value # doctest: +SKIP
         0.85918
 
@@ -201,14 +201,11 @@ class ExpectationMeasure(Measure):
     ):
         from mpqp.core.circuit import QCircuit
 
-        if targets is None:
-            super().__init__([], shots, label)
-            self.observable = observable
-        else:
-            super().__init__(targets, shots, label)
-            self.observable = observable
-            """See parameter description."""
-            # Raise an error if the number of target qubits does not match the size of the observable.
+        super().__init__(targets, shots, label)
+        self.observable = observable
+        """See parameter description."""
+        # Raise an error if the number of target qubits does not match the size of the observable.
+        if targets is not None:
             if self.nb_qubits != observable.nb_qubits:
                 raise NumberQubitsError(
                     f"the number of target qubit(s) ({self.nb_qubits}) doesn't match "
@@ -249,6 +246,8 @@ class ExpectationMeasure(Measure):
             self.rearranged_targets = tweaked_tgt
             """Adjusted list of target qubits when they are not initially sorted and
             contiguous."""
+        else:
+            self.pre_measure = QCircuit(0)
 
     def __repr__(self) -> str:
         return (

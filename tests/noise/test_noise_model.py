@@ -3,7 +3,6 @@ from braket.circuits.noises import Depolarizing as BraketDepolarizing
 from qat.quops.quantum_channels import QuantumChannelKraus
 
 from mpqp.core.languages import Language
-from mpqp.gates import *
 from mpqp.noise import Depolarizing
 from mpqp.noise.noise_model import NoiseModel
 

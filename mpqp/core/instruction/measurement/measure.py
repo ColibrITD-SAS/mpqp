@@ -42,7 +42,7 @@ class Measure(Instruction, ABC):
 
     def __init__(
         self,
-        targets: list[int],
+        targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
     ):
@@ -50,6 +50,8 @@ class Measure(Instruction, ABC):
             raise TypeCheckError(
                 f"Negative number of shot makes no sense, given {shots}"
             )
+        if targets is None:
+            targets = []
         super().__init__(targets, label)
         self.shots = shots
         """See parameter description."""

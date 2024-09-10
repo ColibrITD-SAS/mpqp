@@ -317,7 +317,8 @@ class BitFlip(NoiseModel):
         >>> bf1 = BitFlip(0.1, [0])
         >>> bf2 = BitFlip(0.3, [1, 2])
         >>> bf3 = BitFlip(0.05, [0], gates=[H])
-        >>> circuit.add([bf1, bf2, bf3])
+        >>> bf4 = BitFlip(0.3)
+        >>> circuit.add([bf1, bf2, bf3, bf4])
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -330,6 +331,7 @@ class BitFlip(NoiseModel):
             BitFlip(0.1, [0])
             BitFlip(0.3, [1, 2])
             BitFlip(0.05, [0], gates=[H])
+            BitFlip(0.3)
 
     """
 
@@ -344,8 +346,6 @@ class BitFlip(NoiseModel):
             raise ValueError(
                 f"Invalid probability: {prob} but should be between 0 and 0.5"
             )
-        if targets is None:
-            targets = []
 
         super().__init__(targets, gates)
         self.prob = prob
@@ -412,8 +412,9 @@ class AmplitudeDamping(NoiseModel):
         >>> ad1 = AmplitudeDamping(0.2, 0, [0])
         >>> ad2 = AmplitudeDamping(0.4, 0.1, [1, 2])
         >>> ad3 = AmplitudeDamping(0.1, 1, [0, 1, 2])
-        >>> ad4 = AmplitudeDamping(0.7, targets=[0, 1])
-        >>> circuit.add([ad1, ad2, ad3, ad4])
+        >>> ad4 = AmplitudeDamping(0.1, 1)
+        >>> ad5 = AmplitudeDamping(0.7, targets=[0, 1])
+        >>> circuit.add([ad1, ad2, ad3, ad4, ad5])
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -426,6 +427,7 @@ class AmplitudeDamping(NoiseModel):
             AmplitudeDamping(0.2, prob=0, targets=[0])
             AmplitudeDamping(0.4, prob=0.1, targets=[1, 2])
             AmplitudeDamping(0.1, targets=[0, 1, 2])
+            AmplitudeDamping(0.1)
             AmplitudeDamping(0.7, targets=[0, 1])
 
     """
