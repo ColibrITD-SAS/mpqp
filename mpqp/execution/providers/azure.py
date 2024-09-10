@@ -15,7 +15,11 @@ from typeguard import typechecked
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.languages import Language
-from mpqp.execution.connection.azure_connection import get_azure_provider
+from mpqp.execution.connection.azure_connection import (
+    get_azure_provider,
+    get_azure_workspace,
+    get_jobs_by_id,
+)
 from mpqp.execution.devices import AZUREDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
@@ -137,3 +141,63 @@ def extract_result(
         if job is None:
             job = Job(JobType.OBSERVABLE, QCircuit(1), device)
         return Result(job, 0, result.data())
+
+
+@typechecked
+def get_result_from_azure_job_id(job_id: str) -> Result:
+    """Retrieves from IBM remote platform and parse the result of the job_id
+    given in parameter. If the job is still running, we wait (blocking) until it
+    is ``DONE``.
+
+    Args:
+        job_id: Id of the remote IBM job.
+
+    Returns:
+        The result converted to our format.
+    """
+    job = get_jobs_by_id(job_id)
+
+    result = job.get_results()
+    nb_qubits = 0
+    if job.details.metadata is not None:
+        nb_qubits = int(job.details.metadata["num_qubits"])
+
+    if "c" in result:
+        result_list = result["c"]
+        result_dict = {item: result_list.count(item) for item in set(result_list)}
+
+        data = [
+            Sample(
+                bin_str=state,
+                count=count,
+                nb_qubits=nb_qubits,
+            )
+            for (state, count) in result_dict.items()
+        ]
+    elif "histogram" in result:
+        result_dict = result["histogram"]
+        isinstance(result_dict, dict)
+        data = [
+            Sample(
+                index=int(state),
+                count=int(count),
+                probability=count,
+                nb_qubits=nb_qubits,
+            )
+            for (state, count) in result_dict.items()
+        ]
+    else:
+        raise ValueError(f"Result dictionary not compatible: {result}")
+
+    shots = 0
+    if job.details.input_params is not None:
+        shots = job.details.input_params["shots"]
+    device = AZUREDevice(job.details.target)
+
+    job_ = Job(
+        JobType.SAMPLE,
+        QCircuit(nb_qubits),
+        device,
+        BasisMeasure(list(range(nb_qubits)), shots=shots),
+    )
+    return Result(job_, data, None, shots)
