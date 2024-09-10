@@ -46,11 +46,10 @@ def print_config_info():
             print("Error occurred when getting AWS account info.")
     print("===== IonQ info : ===== ")
     try:
-        pass
-        # print(keyc.get_ionq_info())
+        print(ionqc.get_ionq_account_info())
     except Exception as err:
         print("Error occurred when getting IonQ account info.")
-    print("===== AQT info : ===== ")
+    # print("===== AQT info : ===== ")
     try:
         pass
         # print(keyc.get_aqt_info())
@@ -58,8 +57,7 @@ def print_config_info():
         print("Error occurred when getting AQT account info.")
     print("===== Azure info : ===== ")
     try:
-        pass
-        # print(azuc.get_azure_account_info())
+        print(azuc.get_azure_account_info())
     except Exception as err:
         print("Error occurred when getting Azure account info.")
     input("Press 'Enter' to continue")
