@@ -17,7 +17,6 @@ from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.languages import Language
 from mpqp.execution.connection.azure_connection import (
     get_azure_provider,
-    get_azure_workspace,
     get_jobs_by_id,
 )
 from mpqp.execution.devices import AZUREDevice
@@ -27,7 +26,7 @@ from mpqp.execution.result import Result, Sample, StateVector
 
 @typechecked
 def run_azure(job: Job) -> Result:
-    """Executes the job on the right AZURE Q device precised in the job in
+    """Executes the job on the right AZURE device precised in the job in
     parameter.
 
     Args:
@@ -145,12 +144,12 @@ def extract_result(
 
 @typechecked
 def get_result_from_azure_job_id(job_id: str) -> Result:
-    """Retrieves from IBM remote platform and parse the result of the job_id
+    """Retrieves from Azure remote platform and parse the result of the job_id
     given in parameter. If the job is still running, we wait (blocking) until it
     is ``DONE``.
 
     Args:
-        job_id: Id of the remote IBM job.
+        job_id: Id of the remote Azure job.
 
     Returns:
         The result converted to our format.

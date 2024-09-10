@@ -3,6 +3,7 @@ from termcolor import colored
 
 from mpqp.execution.connection.env_manager import config_key, get_env_variable
 
+
 def config_ionq_key():
     """
     Configure the IonQ account by setting the API token.
@@ -32,6 +33,22 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
         return False
 
 
+def get_ionq_account_info() -> str:
+    """
+    Get the IonQ API key from the environment variables.
+
+    Returns:
+        str: A string containing the IonQ API key.
+    """
+    ionq_api_key = get_env_variable("IONQ_API_KEY")
+    if ionq_api_key == "":
+        display = "Not configured"
+    else:
+        display = ionq_api_key[:5] + "*****"
+
+    return "   IONQ_API_KEY: " + display
+
+
 def get_ionq_job_ids() -> list[str]:
     """
     Retrieves ionq job IDs associated with IonQ jobs.
@@ -46,4 +63,3 @@ def get_ionq_job_ids() -> list[str]:
         service = ionq.Service()
         ionq_job_ids = [job.job_id() for job in service.list_jobs()]
     return ionq_job_ids
-

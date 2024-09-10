@@ -49,6 +49,23 @@ def config_azure_account():
         return "", []
 
 
+def get_azure_account_info() -> str:
+    """
+    Get the IonQ API key from the environment variables.
+
+    Returns:
+        str: A string containing the IonQ API key.
+    """
+    azure_resource_id = get_env_variable("AZURE_RESOURCE_ID")
+    if azure_resource_id == "":
+        display = "Not configured"
+    else:
+        display = azure_resource_id[:5] + "*****"
+    azure_location = get_env_variable("AZURE_LOCATION")
+
+    return "   AZURE_RESOURCE_ID: " + display + "\n   AZURE_LOCATION: " + azure_location
+
+
 def test_connection(resource_id: str, Location: str) -> bool:
     """
     Test the connection to the IonQ service.
@@ -85,6 +102,7 @@ def get_azure_provider() -> "AzureQuantumProvider":
 
     return AzureQuantumProvider(get_azure_workspace())
 
+
 def get_all_job_ids():
     """Retrieves all the task ids of this account/group from Azure
 
@@ -101,8 +119,8 @@ def get_all_job_ids():
     workspace = get_azure_workspace()
     return [job.id for job in workspace.list_jobs()]
 
+
 def get_jobs_by_id(job_id: str):
-    """Retrieves azure job by id
-    """
+    """Retrieves azure job by id"""
     workspace = get_azure_workspace()
     return workspace.get_job(job_id)
