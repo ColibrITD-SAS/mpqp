@@ -652,9 +652,7 @@ class PauliString:
                     "".join(atom.label for atom in reversed(mono.atoms))
                 )
                 pauli_string_coef.append(mono.coef)
-            return SparsePauliOp(
-                pauli_string, pauli_string_coef  # pyright: ignore[reportArgumentType]
-            )
+            return SparsePauliOp(pauli_string, np.array(pauli_string_coef))
         elif language == Language.MY_QLM:
             return [mono.to_other_language(language) for mono in self.monomials]
         elif language == Language.BRAKET:
@@ -832,9 +830,7 @@ class PauliStringMonomial(PauliString):
             from qiskit.quantum_info import SparsePauliOp
 
             pauli_mono_str = "".join(atom.label for atom in reversed(self.atoms))
-            return SparsePauliOp(
-                pauli_mono_str, [self.coef]  # pyright: ignore[reportArgumentType]
-            )
+            return SparsePauliOp(pauli_mono_str, np.array(self.coef))
         elif language == Language.MY_QLM:
             from qat.core import Term  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -948,7 +944,8 @@ class PauliStringAtom(PauliStringMonomial):
         return str(self)
 
     def __itruediv__(self, other: FixedReal) -> PauliStringMonomial:
-       return self / other 
+        self = self / other
+        return self
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
@@ -956,7 +953,8 @@ class PauliStringAtom(PauliStringMonomial):
         )
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
-        return self * other
+        self = self * other
+        return self
 
     def __mul__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(other, [self])
