@@ -1,5 +1,6 @@
+from copy import deepcopy
 from itertools import product
-from operator import add, matmul, mul, neg, pos, sub, truediv
+from operator import add, iadd, imatmul, imul, itruediv, matmul, mul, neg, pos, sub, truediv
 from random import randint
 
 import numpy as np
@@ -23,11 +24,10 @@ from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y,
 from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
 
-
 def pauli_string_combinations():
-    scalar_bin_operation = [mul, truediv]
-    homogeneous_bin_operation = [add, sub]
-    bin_operation = [matmul]
+    scalar_bin_operation = [mul, truediv, imul, itruediv]
+    homogeneous_bin_operation = [add, sub, iadd]
+    bin_operation = [matmul, imatmul]
     un_operation = [pos, neg]
     pauli = [
         (I, np.eye(2)),
@@ -40,16 +40,21 @@ def pauli_string_combinations():
     for ps in pauli:
         for op in scalar_bin_operation:
             a = randint(1, 9)
-            result.append((op(ps[0], a), op(ps[1], a)))
+            ps_ = deepcopy(ps[0])
+            ps_matrix = deepcopy(ps[1])
+            result.append((op(ps_, a), op(ps_matrix, a)))
         for op in un_operation:
             result.append((op(ps[0]), op(ps[1])))
     for ps_1, ps_2 in product(pauli, repeat=2):
         for op in bin_operation:
-            converted_op = op if op != matmul else np.kron
-            result.append((op(ps_1[0], ps_2[0]), converted_op(ps_1[1], ps_2[1])))
+            converted_op = op if (op != matmul and op != imatmul) else np.kron
+            ps1 = deepcopy(ps_1[0])
+            result.append((op(ps1, ps_2[0]), converted_op(ps_1[1], ps_2[1])))
         if ps_1[0].nb_qubits == ps_2[0].nb_qubits:
             for op in homogeneous_bin_operation:
-                result.append((op(ps_1[0], ps_2[0]), op(ps_1[1], ps_2[1])))
+                ps1 = deepcopy(ps_1[0])
+                ps1_matrix = deepcopy(ps_1[1])
+                result.append((op(ps1, ps_2[0]), op(ps1_matrix, ps_2[1])))
 
     return result
 

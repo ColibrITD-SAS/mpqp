@@ -947,6 +947,9 @@ class PauliStringAtom(PauliStringMonomial):
     def __repr__(self):
         return str(self)
 
+    def __itruediv__(self, other: FixedReal) -> PauliStringMonomial:
+       return self / other 
+
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
             1 / other, [self]  # pyright: ignore[reportArgumentType]
