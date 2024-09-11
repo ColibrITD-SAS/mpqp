@@ -571,9 +571,9 @@ def parse_user_gates(qasm_code: str) -> tuple[dict[str, str], str]:
     # TODO: for cleaner gate definitions, they could be objects instead of lists
     user_gate_definitions = {}
 
-    replaced_code = qasm_code
+    replaced_code = qasm_code.replace("{", "{\n").replace("}", "\n}")
 
-    lines = qasm_code.split("\n")
+    lines = replaced_code.split("\n")
 
     in_user_gate = False
     current_gate_name = ""
