@@ -138,16 +138,10 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
             for i in range(len(formatted_matrix[0]))
         ]
 
-        aligned_matrix = [
+        formatted_matrix = [
             [element.ljust(max_lengths[i]) for i, element in enumerate(row)]
             for row in formatted_matrix
         ]
-
-        return (
-            "["
-            + ",\n ".join(["[" + ", ".join(row) + "]" for row in aligned_matrix])
-            + "]"
-        )
 
     return (
         "["
