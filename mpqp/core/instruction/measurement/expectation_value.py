@@ -250,8 +250,10 @@ class ExpectationMeasure(Measure):
             self.pre_measure = QCircuit(0)
 
     def __repr__(self) -> str:
+        targets = f", {self.targets}" if len(self.targets) == 0 else ""
+        label = "" is self.label if None else f", label={self.label}"
         return (
-            f"ExpectationMeasure({self.observable}, {self.targets}, shots={self.shots})"
+            f"ExpectationMeasure({self.observable}{targets}, shots={self.shots}{label})"
         )
 
     def to_other_language(

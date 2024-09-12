@@ -90,10 +90,8 @@ class BasisMeasure(Measure):
 
     def __repr__(self) -> str:
         options = ""
-        if self.shots != 0:
-            options += f", shots={self.shots}"
         if not isinstance(self.basis, ComputationalBasis):
             options += f", basis={self.basis}"
         if self.label is not None:
             options += f", label={self.label}"
-        return f"BasisMeasure({self.targets}{options})"
+        return f"BasisMeasure({self.targets}, shots={self.shots}{options})"
