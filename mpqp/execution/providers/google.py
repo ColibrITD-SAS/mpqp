@@ -252,7 +252,7 @@ def run_local_processor(job: Job) -> Result:
         assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
 
         shots = 1000 if job.measure.shots == 0 else job.measure.shots
-        return extract_result_OBSERVABLE_ideal2(
+        return extract_result_OBSERVABLE_processors(
             simulator.get_sampler(job.device.value).sample_expectation_values(
                 cirq_circuit, observables=cirq_obs, num_samples=shots
             ),
@@ -328,10 +328,24 @@ def extract_result_STATE_VECTOR(
     return Result(job, state_vector, 0, 0)
 
 
-def extract_result_OBSERVABLE_ideal2(
+def extract_result_OBSERVABLE_processors(
     results: Sequence[Sequence[float]],
     job: Job,
 ) -> Result:
+    """
+    Process measurement results for an observable from a quantum job.
+
+    Args:
+        results : A sequence of measurement results, where
+            each inner sequence represents a set of results for a particular shot.
+        job: The original job.
+
+    Returns:
+        The formatted result.
+
+    Raises:
+        NotImplementedError: If the job does not contain a measurement (i.e., `job.measure` is `None`).
+    """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     mean = 0

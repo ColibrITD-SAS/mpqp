@@ -356,7 +356,7 @@ class AZUREDevice(AvailableDevice):
         return True
 
     def is_simulator(self) -> bool:
-        return True
+        return self == AZUREDevice.IONQ_SIMULATOR
 
     def is_noisy_simulator(self) -> bool:
         return False

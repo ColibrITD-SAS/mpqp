@@ -129,10 +129,17 @@ def save_env_variable(key: str, value: str) -> bool:
     return a
 
 
-
-def config_key(key_name: str, configuration_name: str, test_connection:  Callable[[str], bool]):
+def config_key(
+    key_name: str, configuration_name: str, test_connection: Callable[[str], bool]
+):
     """
     Configure a key by setting the API token.
+
+    Args:
+        key_name: The name of the key to be saved in the environment variables.
+        configuration_name: The name of the service for which the API token is being configured.
+        test_connection: A callable function that takes a token (str) as input and returns
+            a boolean indicating whether the connection with the provided token is successful.
 
     Returns:
         tuple: A message indicating the result of the configuration and an empty list.
