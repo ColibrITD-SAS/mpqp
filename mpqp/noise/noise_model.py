@@ -216,7 +216,7 @@ class Depolarizing(NoiseModel):
     def to_kraus_representation(self):
         """3M-TODO"""
         # generate Kraus operators for depolarizing noise
-        kraus_operators = [...]  # list of Kraus operators
+        kraus_operators = []  # list of Kraus operators
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):

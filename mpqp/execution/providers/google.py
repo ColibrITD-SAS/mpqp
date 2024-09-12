@@ -173,7 +173,7 @@ def run_local(job: Job) -> Result:
             return extract_result_OBSERVABLE_shot_noise(
                 measure_observables(
                     cirq_circuit,
-                    observables=(
+                    observables=(  # pyright: ignore[reportArgumentType]
                         [cirq_obs]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
