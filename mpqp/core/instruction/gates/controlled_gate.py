@@ -121,10 +121,8 @@ class ControlledGate(Gate, ABC):
         # qubit_types if a representation of the all qubits to follow target and control with swap
         # assuming that canonical_matrix start with control and then target
         qubit_types = {i: "None" for i in range(nb_qubits)}
-        for i in range(len(controls)):
-            qubit_types[i] = "control"
-        for i in range(len(targets)):
-            qubit_types[i + len(controls)] = "target"
+        qubit_types.update({i: "control" for i in range(len(controls))})
+        qubit_types.update({i + len(controls): "target" for i in range(len(targets))})
 
         def swap_and_update(qubits: list[int], target_type: str):
             for qubit in sorted(qubits):
