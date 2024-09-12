@@ -20,7 +20,7 @@ class CustomControlledGate(ControlledGate):
         assert self.non_controlled_gate is not None
         return self.non_controlled_gate.to_other_language(language, qiskit_parameters)
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
+    def to_matrix(self, nb_qubits: int = 0) -> npt.NDArray[np.complex64]:
         return np.array([[1, 0], [0, 1]], dtype=np.complex64)
 
     def to_canonical_matrix(self):

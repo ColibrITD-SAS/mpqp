@@ -62,7 +62,6 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
     Returns:
         ``True`` if the two matrix are equal (according to the definition above).
     """
-    from sympy import Expr
 
     for elt in zip(np.ndarray.flatten(lhs), np.ndarray.flatten(rhs)):
         try:
@@ -71,7 +70,7 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
         except TypeError:
             if elt[0] != elt[1]:
                 return False
-       
+
     return True
 
 
