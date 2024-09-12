@@ -357,17 +357,18 @@ class SingleQubitGate(Gate, ABC):
 
     @classmethod
     def range(cls, start_or_end: int, end: Optional[int] = None, step: int = 1):
-        """
-        Apply the gate to a range of qubits.
+        """Apply the gate to a range of qubits.
 
         Args:
-            start_or_end: If `end` is not define, this value is treated as the `end` value of the range,
-                and the range starts from 0. Otherwise, it is treated as the `start` value.
+            start_or_end: If ``end`` is not defined, this value is treated as
+                the end value of the range, and the range starts from ``0``.
+                Otherwise, it is treated as the start value.
             end: The upper bound of the range (exclusive).
-            step: The step or increment between indices in the range. Defaults to 1.
+            step: The step or increment between indices in the range.
 
         Returns:
-            A list of gate instances applied to the qubits in the specified range.
+            A list of gate instances applied to the qubits in the specified
+            range.
         """
         if end is None:
             start_or_end, end = 0, start_or_end
