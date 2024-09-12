@@ -71,7 +71,7 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
         except TypeError:
             if elt[0] != elt[1]:
                 return False
-       
+
     return True
 
 
