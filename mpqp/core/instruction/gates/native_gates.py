@@ -291,6 +291,8 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
         return IGate
 
+    qasm2_gate = "id"
+
     def __init__(self, target: int):
 
         super().__init__(target)
@@ -324,6 +326,8 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
         return XGate
 
+    qasm2_gate = "x"
+
     def __init__(self, target: int):
 
         super().__init__(target)
@@ -356,6 +360,8 @@ class Y(OneQubitNoParamGate, InvolutionGate):
         from qiskit.circuit.library import YGate
 
         return YGate
+
+    qasm2_gate = "y"
 
     def __init__(self, target: int):
 
@@ -391,6 +397,8 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
         return ZGate
 
+    qasm2_gate = "z"
+
     def __init__(self, target: int):
 
         super().__init__(target)
@@ -424,6 +432,8 @@ class H(OneQubitNoParamGate, InvolutionGate):
         from qiskit.circuit.library import HGate
 
         return HGate
+
+    qasm2_gate = "h"
 
     def __init__(self, target: int):
 
@@ -459,6 +469,8 @@ class P(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import PhaseGate
 
         return PhaseGate
+
+    qasm2_gate = "p"
 
     def __init__(self, theta: Expr | float, target: int):
 
@@ -506,6 +518,8 @@ class S(OneQubitNoParamGate):
 
         return SGate
 
+    qasm2_gate = "s"
+
     def __init__(self, target: int):
 
         super().__init__(target)
@@ -542,6 +556,8 @@ class T(OneQubitNoParamGate):
         from qiskit.circuit.library import TGate
 
         return TGate
+
+    qasm2_gate = "t"
 
     def __init__(self, target: int):
 
@@ -582,6 +598,8 @@ class SWAP(InvolutionGate, NoParameterGate):
         from qiskit.circuit.library import SwapGate
 
         return SwapGate
+
+    qasm2_gate = "swap"
 
     def __init__(self, a: int, b: int):
 
@@ -687,6 +705,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         )
 
     qlm_aqasm_keyword = "U"
+    qasm2_gate = "u"
 
 
 class Rx(RotationGate, SingleQubitGate):
@@ -714,6 +733,8 @@ class Rx(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import RXGate
 
         return RXGate
+
+    qasm2_gate = "rx"
 
     def __init__(self, theta: Expr | float, target: int):
 
@@ -755,6 +776,8 @@ class Ry(RotationGate, SingleQubitGate):
 
         return RYGate
 
+    qasm2_gate = "ry"
+
     def __init__(self, theta: Expr | float, target: int):
 
         super().__init__(theta, target)
@@ -792,6 +815,8 @@ class Rz(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import RZGate
 
         return RZGate
+
+    qasm2_gate = "rz"
 
     def __init__(self, theta: Expr | float, target: int):
 
@@ -831,6 +856,8 @@ class Rk(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import PhaseGate
 
         return PhaseGate
+
+    qasm2_gate = "p"
 
     def __init__(self, k: Expr | int, target: int):
 
@@ -892,6 +919,8 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
 
         return CXGate
 
+    qasm2_gate = "cx"
+
     def __init__(self, control: int, target: int):
 
         self.qlm_aqasm_keyword = "CNOT"
@@ -932,6 +961,8 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         from qiskit.circuit.library import CZGate
 
         return CZGate
+
+    qasm2_gate = "cz"
 
     def __init__(self, control: int, target: int):
 
@@ -976,6 +1007,8 @@ class CRk(RotationGate, ControlledGate):
         from qiskit.circuit.library import CPhaseGate
 
         return CPhaseGate
+
+    qasm2_gate = "cp"
 
     def __init__(self, k: Expr | int, control: int, target: int):
 
@@ -1042,6 +1075,8 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         from qiskit.circuit.library import CCXGate
 
         return CCXGate
+
+    qasm2_gate = "ccx"
 
     def __init__(self, control: list[int], target: int):
 
