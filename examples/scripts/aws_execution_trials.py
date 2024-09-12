@@ -25,7 +25,7 @@ c[1] = measure q[1];"""
 circuit = qasm3_to_braket_Circuit(qasm_str)
 print(circuit)
 result = device.run(circuit, shots=100).result()
-print(f"Measurement counts: {result.measurement_counts}")
+print(f"Measurement counts: {result.measurement_counts}")  # pyright: ignore
 
 #####################################################
 
