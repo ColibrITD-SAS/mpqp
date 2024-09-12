@@ -207,7 +207,7 @@ class ExpectationMeasure(Measure):
         if targets is not None:
             if self.nb_qubits != observable.nb_qubits:
                 raise NumberQubitsError(
-                    f"Target size {len(targets)} doesn't observable size {observable.nb_qubits}."
+                    f"Target size {len(targets)} doesn't match observable size {observable.nb_qubits}."
                 )
 
             self.pre_measure = QCircuit(max(targets) + 1)
