@@ -65,12 +65,13 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
     from sympy import Expr
 
     for elt in zip(np.ndarray.flatten(lhs), np.ndarray.flatten(rhs)):
-        if isinstance(elt[0], Expr) or isinstance(elt[1], Expr):
-            if elt[0] != elt[1]:
-                return False
-        else:
+        try:
             if abs(elt[0] - elt[1]) > (atol + rtol * abs(elt[1])):
                 return False
+        except TypeError:
+            if elt[0] != elt[1]:
+                return False
+       
     return True
 
 
