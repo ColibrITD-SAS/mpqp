@@ -591,6 +591,30 @@ class PhaseDamping(NoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | QLMNoise | QuantumError:
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
+
+        Args:
+            language: Enum representing the target language.
+
+        Examples:
+            >>> braket_pd = PhaseDamping(0.4, [0, 1]).to_other_language(Language.BRAKET)
+            >>> braket_pd
+            PhaseDamping('gamma': 0.4, 'qubit_count': 1)
+            >>> type(braket_pd)
+            <class 'braket.circuits.noises.PhaseDamping'>
+            >>> qiskit_pd = PhaseDamping(0.4, [0, 1]).to_other_language(Language.QISKIT)
+            >>> qiskit_pd
+            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f48f0f91dc0>, 1.0)])
+            >>> print(qiskit_pd)
+            QuantumError on 1 qubits. Noise circuits:
+              P(0) = 1.0, Circuit =
+               ┌───────┐
+            q: ┤ kraus ├
+               └───────┘
+            >>> type(qiskit_pd)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
+
+        """
         if language == Language.BRAKET:
             from braket.circuits.noises import PhaseDamping as BraketPhaseDamping
 
