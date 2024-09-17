@@ -531,12 +531,48 @@ class AmplitudeDamping(NoiseModel):
 
 
 class PhaseDamping(NoiseModel):
-    """3M-TODO"""
+    def __init__(
+        self,
+        gamma: float,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[Gate]]] = None,
+    ):
+        if not (0 <= gamma <= 1):
+            raise ValueError(
+                f"Invalid phase damping parameter: {gamma}. It should be between 0 and 1."
+            )
 
-    def __init__(self):
-        raise NotImplementedError(
-            f"{type(self).__name__} noise model is not yet implemented."
-        )
+        super().__init__(targets, gates)
+        self.gamma = gamma
+        """Probability of phase damping."""
+
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
+    def __repr__(self):
+        targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
+        gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
+        return f"{type(self).__name__}({self.gamma}{targets}{gates})"
+
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> BraketNoise | QLMNoise | QuantumError:
+        if language == Language.BRAKET:
+            from braket.circuits.noises import PhaseDamping as BraketPhaseDamping
+
+            return BraketPhaseDamping(self.gamma)
+
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import phase_damping_error
+
+            return phase_damping_error(self.gamma)
+
+        else:
+            raise NotImplementedError(
+                f"Conversion of Amplitude Damping noise for language {language} is not supported."
+            )
+
+    def info(self, qubits: set[int]) -> str:
+        return f"{super().info(qubits)} with gamma {self.gamma}"
 
 
 class Pauli(NoiseModel):
