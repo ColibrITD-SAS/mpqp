@@ -68,8 +68,7 @@ Here are the pieces of software useful to know to work on our library:
 - We run our tests using [pytest](https://docs.pytest.org).
 - We generate our documentation using [Sphinx](https://www.sphinx-doc.org).
 - We format the code using [black](https://black.readthedocs.io) and
-  [isort](https://pycqa.github.io/isort), but this is not configured in our CI
-  yet.
+  [isort](https://pycqa.github.io/isort).
 - We check our types using [Pyright](https://microsoft.github.io/pyright), but
   this is not configured yet.
 - The documentation is automatically deployed on new versions with
