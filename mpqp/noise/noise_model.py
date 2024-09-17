@@ -531,6 +531,41 @@ class AmplitudeDamping(NoiseModel):
 
 
 class PhaseDamping(NoiseModel):
+    """Class representing the phase damping noise channel. It can be applied to a
+    single qubit and depends on the phase damping parameter ``gamma``. Phase damping happens
+    when a quantum system loses its phase information due to interactions with the environment,
+    leading to decoherence.
+
+    Args:
+        gamma: Probability of phase damping.
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+            affected by this noise.
+
+    Raises:
+        ValueError: When the gamma parameter is outside of the expected interval [0, 1].
+
+    Examples:
+        >>> circuit = QCircuit([H(i) for i in range(3)])
+        >>> pd1 = PhaseDamping(0.32, list(range(circuit.nb_qubits)))
+        >>> pd2 = PhaseDamping(0.01)
+        >>> pd3 = PhaseDamping(0.45, [0, 1])
+        >>> circuit.add([pd1, pd2, pd3])
+        >>> print(circuit)
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            PhaseDamping(0.32, targets=[0, 1, 2])
+            PhaseDamping(0.01)
+            PhaseDamping(0.45, targets=[0, 1])
+
+    """
+
     def __init__(
         self,
         gamma: float,
@@ -568,7 +603,7 @@ class PhaseDamping(NoiseModel):
 
         else:
             raise NotImplementedError(
-                f"Conversion of Amplitude Damping noise for language {language} is not supported."
+                f"Conversion of Phase Damping noise for language {language} is not supported."
             )
 
     def info(self, qubits: set[int]) -> str:
