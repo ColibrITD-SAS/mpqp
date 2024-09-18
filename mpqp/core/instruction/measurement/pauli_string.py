@@ -10,6 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 from functools import reduce
 from numbers import Real
+from operator import matmul, mul
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
@@ -25,11 +26,12 @@ if TYPE_CHECKING:
     from braket.circuits.observables import Sum as BraketSum
     from braket.circuits.observables import TensorProduct
     from cirq.circuits.circuit import Circuit as CirqCircuit
+    from cirq.ops.gate_operation import GateOperation as CirqGateOperation
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from cirq.ops.raw_types import Qid
+    from qat.core.wrappers.observable import Term
     from qiskit.quantum_info import SparsePauliOp
-    from cirq.ops.gate_operation import GateOperation as CirqGateOperation
-    from qat.core import Term  # pyright: ignore[reportAttributeAccessIssue]
 
 
 class PauliString:
@@ -367,9 +369,9 @@ class PauliString:
     def _get_dimension_cirq_pauli(
         cls, pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation]
     ):
+        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
         from cirq.ops.pauli_string import PauliString as CirqPauliString
-        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
 
         dimension = 0
         if isinstance(pauli, CirqPauliSum):
@@ -401,13 +403,13 @@ class PauliString:
         pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation],
         min_dimension: int = 1,
     ) -> PauliString:
+        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
+        from cirq.ops.identity import I as Cirq_I
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
         from cirq.ops.pauli_gates import X as Cirq_X
         from cirq.ops.pauli_gates import Y as Cirq_Y
         from cirq.ops.pauli_gates import Z as Cirq_Z
-        from cirq.ops.identity import I as Cirq_I
         from cirq.ops.pauli_string import PauliString as CirqPauliString
-        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
 
         ps_mapping = {Cirq_X: X, Cirq_Y: Y, Cirq_Z: Z, Cirq_I: I}
 
@@ -459,9 +461,9 @@ class PauliString:
         cls,
         pauli: BraketObservable,
     ) -> PauliString:
-        from braket.circuits.observables import TensorProduct
-        from braket.circuits.observables import Sum as BraketSum
         from braket.circuits.observables import I as Braket_I
+        from braket.circuits.observables import Sum as BraketSum
+        from braket.circuits.observables import TensorProduct
         from braket.circuits.observables import X as Braket_X
         from braket.circuits.observables import Y as Braket_Y
         from braket.circuits.observables import Z as Braket_Z
@@ -564,12 +566,12 @@ class PauliString:
             0.25*Z@Y@I + 2*I@I@X
 
         """
+        from braket.circuits.observables import Observable as BraketObservable
+        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
         from cirq.ops.pauli_string import PauliString as CirqPauliString
-        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
+        from qat.core.wrappers.observable import Term
         from qiskit.quantum_info import SparsePauliOp
-        from qat.core import Term  # pyright: ignore[reportAttributeAccessIssue]
-        from braket.circuits.observables import Observable as BraketObservable
 
         if isinstance(pauli, SparsePauliOp):
             return PauliString._from_qiskit(pauli)
@@ -624,8 +626,8 @@ class PauliString:
             Depends on the target language.
 
         Example:
-            >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
-            >>> ps = X @ I @ I + I @ Y @ I + I @ I @ Z
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> ps = X@I@I + I@Y@I + I@I@Z
             >>> print(ps.to_other_language(Language.CIRQ))
             1.000*X(q(0))+1.000*Y(q(1))+1.000*Z(q(2))
             >>> for term in ps.to_other_language(Language.MY_QLM):
@@ -636,9 +638,11 @@ class PauliString:
             >>> print(ps.to_other_language(Language.QISKIT))
             SparsePauliOp(['IIX', 'IYI', 'ZII'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
-            >>> braket_sum = ps.to_other_language(Language.BRAKET)
-            >>> print(" + ".join(f"{tensor.coefficient} * {''.join(atom.ascii_symbols[0] for atom in tensor.factors)}" for tensor in braket_sum.summands))
-            1 * XII + 1 * IYI + 1 * IIZ
+            >>> for tensor in ps.to_other_language(Language.BRAKET).summands:
+            ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors))
+            1 XII
+            1 IYI
+            1 IIZ
 
         """
 
@@ -660,7 +664,7 @@ class PauliString:
             for mono in self.monomials:
                 braket_mono = mono.to_other_language(Language.BRAKET)
                 pauli_string = (
-                    pauli_string + braket_mono  # pyright: ignore[reportOperatorIssue]
+                    pauli_string + braket_mono
                     if pauli_string is not None
                     else braket_mono
                 )
@@ -672,8 +676,7 @@ class PauliString:
                 cirq_pauli_string = (
                     cirq_monomial
                     if cirq_pauli_string is None
-                    else cirq_pauli_string
-                    + cirq_monomial  # pyright: ignore[reportOperatorIssue]
+                    else cirq_pauli_string + cirq_monomial
                 )
 
             return cirq_pauli_string
@@ -832,37 +835,25 @@ class PauliStringMonomial(PauliString):
             pauli_mono_str = "".join(atom.label for atom in reversed(self.atoms))
             return SparsePauliOp(pauli_mono_str, np.array(self.coef))
         elif language == Language.MY_QLM:
-            from qat.core import Term  # pyright: ignore[reportAttributeAccessIssue]
+            from qat.core.wrappers.observable import Term
 
             pauli_mono_str = "".join(atom.label for atom in self.atoms)
             return Term(self.coef, pauli_mono_str, list(range(len(pauli_mono_str))))
         elif language == Language.BRAKET:
-            mono_pauli_str = None
-            for atom in self.atoms:
-                from braket.circuits.observables import I as Braket_I
-                from braket.circuits.observables import X as Braket_X
-                from braket.circuits.observables import Y as Braket_Y
-                from braket.circuits.observables import Z as Braket_Z
+            braket_atoms: list[BraketObservable] = [
+                atom.to_other_language(Language.BRAKET) for atom in self.atoms
+            ]  # pyright: ignore[reportAssignmentType]
 
-                braket_atom = atom.to_other_language(Language.BRAKET)
-                assert isinstance(braket_atom, (Braket_I, Braket_X, Braket_Y, Braket_Z))
-                mono_pauli_str = (
-                    mono_pauli_str @ braket_atom
-                    if mono_pauli_str is not None
-                    else braket_atom
-                )
-            return self.coef * mono_pauli_str  # pyright: ignore[reportOperatorIssue]
+            return self.coef * reduce(matmul, braket_atoms)
         elif language == Language.CIRQ:
-            from cirq.ops.identity import I as Cirq_I
-            from cirq.ops.pauli_gates import X as Cirq_X
-            from cirq.ops.pauli_gates import Y as Cirq_Y
-            from cirq.ops.pauli_gates import Z as Cirq_Z
             from cirq.devices.line_qubit import LineQubit
+            from cirq.ops.identity import IdentityGate as CirqI
+            from cirq.ops.pauli_gates import Pauli as CirqPauli
 
-            if circuit is None:
-                all_qubits = LineQubit.range(self.nb_qubits)
-            else:
-                all_qubits = sorted(
+            all_qubits = (
+                LineQubit.range(self.nb_qubits)
+                if circuit is None
+                else sorted(
                     set(
                         qubit
                         for moment in circuit
@@ -870,21 +861,14 @@ class PauliStringMonomial(PauliString):
                         for qubit in op.qubits
                     )
                 )
+            )
 
-            cirq_monomial = None
+            cirq_atoms: list[CirqPauli | CirqI] = [
+                atom.to_other_language(Language.CIRQ, target=all_qubits[index])
+                for index, atom in enumerate(self.atoms)
+            ]
 
-            for index, atom in enumerate(self.atoms):
-                pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
-                cirq_atom = pauli_gate_map[atom.label](all_qubits[index])
-                cirq_monomial = (
-                    cirq_atom
-                    if cirq_monomial is None
-                    else cirq_monomial
-                    * cirq_atom  # pyright: ignore[reportOperatorIssue]
-                )
-
-            cirq_monomial *= self.coef  # pyright: ignore[reportOperatorIssue]
-            return cirq_monomial
+            return reduce(mul, cirq_atoms) * self.coef
 
 
 class PauliStringAtom(PauliStringMonomial):
@@ -994,14 +978,17 @@ class PauliStringAtom(PauliStringMonomial):
         return hash(self.label)
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
     ):
         if language == Language.QISKIT:
             from qiskit.quantum_info import SparsePauliOp
 
             return SparsePauliOp(self.label)
         elif language == Language.MY_QLM:
-            from qat.core import Term  # pyright: ignore[reportAttributeAccessIssue]
+            from qat.core.wrappers.observable import Term
 
             return Term(1.0, self.label, [0])
         elif language == Language.BRAKET:
@@ -1018,19 +1005,21 @@ class PauliStringAtom(PauliStringMonomial):
             }
             return pauli_gate_map[self.label]
         elif language == Language.CIRQ:
+            from cirq.devices.line_qubit import LineQubit
             from cirq.ops.identity import I as Cirq_I
             from cirq.ops.pauli_gates import X as Cirq_X
             from cirq.ops.pauli_gates import Y as Cirq_Y
             from cirq.ops.pauli_gates import Z as Cirq_Z
-            from cirq.devices.line_qubit import LineQubit
 
             pauli_gate_map = {
-                "I": Cirq_I(LineQubit(0)),
-                "X": Cirq_X(LineQubit(0)),
-                "Y": Cirq_Y(LineQubit(0)),
-                "Z": Cirq_Z(LineQubit(0)),
+                "I": Cirq_I,
+                "X": Cirq_X,
+                "Y": Cirq_Y,
+                "Z": Cirq_Z,
             }
-            return pauli_gate_map[self.label]
+            return pauli_gate_map[self.label](
+                LineQubit(0) if target is None else target
+            )
 
 
 _allow_atom_creation = True
