@@ -211,8 +211,8 @@ class PauliString:
         return res
 
     def hard_simplify(self, inplace: bool = False) -> PauliString:
-        """Hard simplifies the PauliString by combining identical terms and removing
-        terms with null coefficients.
+        """Hard simplifies the PauliString by combining identical terms, removing
+        terms with null coefficients and remove identity.
 
         Args:
             inplace: Indicates if ``simplify`` should update self.
