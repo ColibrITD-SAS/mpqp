@@ -1,6 +1,18 @@
 from copy import deepcopy
 from itertools import product
-from operator import add, iadd, imatmul, imul, itruediv, matmul, mul, neg, pos, sub, truediv
+from operator import (
+    add,
+    iadd,
+    imatmul,
+    imul,
+    itruediv,
+    matmul,
+    mul,
+    neg,
+    pos,
+    sub,
+    truediv,
+)
 from random import randint
 
 import numpy as np
@@ -23,6 +35,7 @@ from qiskit.quantum_info import SparsePauliOp
 from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
 from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
+
 
 def pauli_string_combinations():
     scalar_bin_operation = [mul, truediv, imul, itruediv]
