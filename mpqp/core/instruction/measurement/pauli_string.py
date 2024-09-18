@@ -626,8 +626,8 @@ class PauliString:
             Depends on the target language.
 
         Example:
-            >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
-            >>> ps = X @ I @ I + I @ Y @ I + I @ I @ Z
+            >>> from mpqp.measure import I, X, Y, Z
+            >>> ps = X@I@I + I@Y@I + I@I@Z
             >>> print(ps.to_other_language(Language.CIRQ))
             1.000*X(q(0))+1.000*Y(q(1))+1.000*Z(q(2))
             >>> for term in ps.to_other_language(Language.MY_QLM):
@@ -638,9 +638,11 @@ class PauliString:
             >>> print(ps.to_other_language(Language.QISKIT))
             SparsePauliOp(['IIX', 'IYI', 'ZII'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
-            >>> braket_sum = ps.to_other_language(Language.BRAKET)
-            >>> print(" + ".join(f"{tensor.coefficient} * {''.join(atom.ascii_symbols[0] for atom in tensor.factors)}" for tensor in braket_sum.summands))
-            1 * XII + 1 * IYI + 1 * IIZ
+            >>> for tensor in ps.to_other_language(Language.BRAKET).summands:
+            ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors)
+            1 XII
+            1 IYI
+            2 IIZ
 
         """
 
