@@ -14,7 +14,7 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates import *
 
 
-def handle_measurement(instruction: BasisMeasure) -> str:
+def _handle_measurement(instruction: BasisMeasure) -> str:
     if instruction.c_targets is None:
         return "\n".join(
             f"measure q[{target}] -> c[{i}];"
@@ -27,14 +27,14 @@ def handle_measurement(instruction: BasisMeasure) -> str:
         )
 
 
-def handle_connection(instruction: Gate | Barrier) -> str:
+def _handle_connection(instruction: Gate | Barrier) -> str:
     control = ""
     if isinstance(instruction, ControlledGate):
         control = ",".join([f"q[{j}]" for j in instruction.controls]) + ","
     return control + ",".join([f"q[{j}]" for j in instruction.targets])
 
 
-def float_to_str(f: float) -> str:
+def _float_to_str(f: float) -> str:
     if f.is_integer():
         return str(int(f))
     elif f % np.pi == 0:
@@ -43,10 +43,12 @@ def float_to_str(f: float) -> str:
         return f"pi/{int(1 / f * np.pi)}" if (np.pi * (1 / f)).is_integer() else str(f)
 
 
-def handle_rotation(gate: ParametrizedGate) -> str:
+def _handle_rotation(gate: ParametrizedGate) -> str:
     if gate.label in {"Rk", "CRk"}:
-        return "(" + float_to_str(2 * np.pi / (2 ** float(gate.parameters[0]))) + ")"
-    return "(" + ",".join(float_to_str(float(param)) for param in gate.parameters) + ")"
+        return "(" + _float_to_str(2 * np.pi / (2 ** float(gate.parameters[0]))) + ")"
+    return (
+        "(" + ",".join(_float_to_str(float(param)) for param in gate.parameters) + ")"
+    )
 
 
 def instruction_to_qasm(instruction: Instruction, simplify: bool = False) -> str:
@@ -57,26 +59,26 @@ def instruction_to_qasm(instruction: Instruction, simplify: bool = False) -> str
         if instruction_str is None:
             raise ValueError(f"Unknown gate: {type(instruction)}")
         if isinstance(instruction, ParametrizedGate):
-            instruction_str += handle_rotation(instruction)
-        return "\n" + instruction_str + " " + handle_connection(instruction) + ";"
+            instruction_str += _handle_rotation(instruction)
+        return "\n" + instruction_str + " " + _handle_connection(instruction) + ";"
     elif isinstance(instruction, BasisMeasure):
-        return "\n" + handle_measurement(instruction)
+        return "\n" + _handle_measurement(instruction)
     elif isinstance(instruction, Barrier):
         if simplify:
             return "\nbarrier q;"
-        return "\nbarrier " + handle_connection(instruction) + ";"
+        return "\nbarrier " + _handle_connection(instruction) + ";"
     else:
         raise ValueError("Unknown instruction")
 
 
-def simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int]):
+def _simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int]):
     instruction_str = (
         instruction.qasm2_gate  # pyright: ignore[reportAttributeAccessIssue]
     )
     if instruction_str is None:
         raise ValueError(f"Unknown gate: {type(instruction)}")
     if isinstance(instruction, ParametrizedGate):
-        instruction_str += handle_rotation(instruction)
+        instruction_str += _handle_rotation(instruction)
     final_str = ""
 
     while any(target != 0 for target in targets.values()):
@@ -95,6 +97,35 @@ def simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int]):
 
 
 def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
+    """
+    Converts an MPQP `QCircuit` object into a string in QASM 2.0 format.
+    It handles various quantum instructions like gates, measurements, and barriers and
+    can optionally simplify the circuit by merging consecutive single-qubit gates of the same type.
+
+    Args:
+        circuit: The MPQP quantum circuit to be converted.
+        simplify:  If set to True, the function will attempt to simplify the circuit
+        by merging consecutive single-qubit gates of the same type, if applicable.
+
+    Returns:
+        A string containing the QASM 2.0 representation of the provided quantum circuit.
+
+    Raises:
+        ValueError: If an unknown gate or instruction type is encountered during the conversion process.
+
+    Example:
+        >>> circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure()])
+        >>> qasm_code = mpqp_to_qasm2(circuit, simplify=True)
+        >>> print(qasm_code)
+        OPENQASM 2.0;
+        include "qelib1.inc";
+        qreg q[2];
+        creg c[2];
+        h q[0];
+        cx q[0],q[1];
+        measure q[0] -> c[0];
+        measure q[1] -> c[1];
+    """
     circuit_copy = circuit.hard_copy()
     if circuit_copy.noises:
         logging.warning(
@@ -118,7 +149,7 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
             if isinstance(instruction, SingleQubitGate):
                 if previous is None or not isinstance(instruction, type(previous)):
                     if previous:
-                        qasm_str += simplify_instruction(previous, targets)
+                        qasm_str += _simplify_instruction(previous, targets)
                         targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
                     previous = instruction
                 else:
@@ -127,14 +158,14 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
                         and instruction.parameters
                         != previous.parameters  # pyright: ignore[reportAttributeAccessIssue]
                     ):
-                        qasm_str += simplify_instruction(previous, targets)
+                        qasm_str += _simplify_instruction(previous, targets)
                         targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
                         previous = instruction
                 for target in instruction.targets:
                     targets[target] += 1
             else:
                 if previous:
-                    qasm_str += simplify_instruction(previous, targets)
+                    qasm_str += _simplify_instruction(previous, targets)
                     previous = None
                     targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
                 qasm_str += instruction_to_qasm(instruction, simplify)
@@ -142,5 +173,5 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
             qasm_str += instruction_to_qasm(instruction, simplify)
 
     if previous:
-        qasm_str += simplify_instruction(previous, targets)
+        qasm_str += _simplify_instruction(previous, targets)
     return qasm_str
