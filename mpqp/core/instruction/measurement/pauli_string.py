@@ -626,7 +626,7 @@ class PauliString:
             Depends on the target language.
 
         Example:
-            >>> from mpqp.measure import I, X, Y, Z
+            >>> from mpqp.measures import I, X, Y, Z
             >>> ps = X@I@I + I@Y@I + I@I@Z
             >>> print(ps.to_other_language(Language.CIRQ))
             1.000*X(q(0))+1.000*Y(q(1))+1.000*Z(q(2))
@@ -639,10 +639,10 @@ class PauliString:
             SparsePauliOp(['IIX', 'IYI', 'ZII'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
             >>> for tensor in ps.to_other_language(Language.BRAKET).summands:
-            ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors)
+            ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors))
             1 XII
             1 IYI
-            2 IIZ
+            1 IIZ
 
         """
 
@@ -868,7 +868,7 @@ class PauliStringMonomial(PauliString):
                 for index, atom in enumerate(self.atoms)
             ]
 
-            return self.coef * reduce(mul, cirq_atoms)
+            return reduce(mul, cirq_atoms) * self.coef
 
 
 class PauliStringAtom(PauliStringMonomial):
