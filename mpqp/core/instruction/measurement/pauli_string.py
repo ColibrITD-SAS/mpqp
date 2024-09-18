@@ -10,6 +10,7 @@ from __future__ import annotations
 from copy import deepcopy
 from functools import reduce
 from numbers import Real
+from operator import matmul, mul
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
@@ -28,6 +29,7 @@ if TYPE_CHECKING:
     from cirq.ops.gate_operation import GateOperation as CirqGateOperation
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from cirq.ops.raw_types import Qid
     from qat.core.wrappers.observable import Term
     from qiskit.quantum_info import SparsePauliOp
 
@@ -836,32 +838,20 @@ class PauliStringMonomial(PauliString):
             pauli_mono_str = "".join(atom.label for atom in self.atoms)
             return Term(self.coef, pauli_mono_str, list(range(len(pauli_mono_str))))
         elif language == Language.BRAKET:
-            mono_pauli_str = None
-            for atom in self.atoms:
-                from braket.circuits.observables import I as Braket_I
-                from braket.circuits.observables import X as Braket_X
-                from braket.circuits.observables import Y as Braket_Y
-                from braket.circuits.observables import Z as Braket_Z
+            braket_atoms: list[BraketObservable] = [
+                atom.to_other_language(Language.BRAKET) for atom in self.atoms
+            ]  # pyright: ignore[reportAssignmentType]
 
-                braket_atom = atom.to_other_language(Language.BRAKET)
-                assert isinstance(braket_atom, (Braket_I, Braket_X, Braket_Y, Braket_Z))
-                mono_pauli_str = (
-                    mono_pauli_str @ braket_atom
-                    if mono_pauli_str is not None
-                    else braket_atom
-                )
-            return self.coef * mono_pauli_str  # pyright: ignore[reportOperatorIssue]
+            return self.coef * reduce(matmul, braket_atoms)
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
-            from cirq.ops.identity import I as Cirq_I
-            from cirq.ops.pauli_gates import X as Cirq_X
-            from cirq.ops.pauli_gates import Y as Cirq_Y
-            from cirq.ops.pauli_gates import Z as Cirq_Z
+            from cirq.ops.identity import IdentityGate as CirqI
+            from cirq.ops.pauli_gates import Pauli as CirqPauli
 
-            if circuit is None:
-                all_qubits = LineQubit.range(self.nb_qubits)
-            else:
-                all_qubits = sorted(
+            all_qubits = (
+                LineQubit.range(self.nb_qubits)
+                if circuit is None
+                else sorted(
                     set(
                         qubit
                         for moment in circuit
@@ -869,21 +859,14 @@ class PauliStringMonomial(PauliString):
                         for qubit in op.qubits
                     )
                 )
+            )
 
-            cirq_monomial = None
+            cirq_atoms: list[CirqPauli | CirqI] = [
+                atom.to_other_language(Language.CIRQ, target=all_qubits[index])
+                for index, atom in enumerate(self.atoms)
+            ]
 
-            for index, atom in enumerate(self.atoms):
-                pauli_gate_map = {"I": Cirq_I, "X": Cirq_X, "Y": Cirq_Y, "Z": Cirq_Z}
-                cirq_atom = pauli_gate_map[atom.label](all_qubits[index])
-                cirq_monomial = (
-                    cirq_atom
-                    if cirq_monomial is None
-                    else cirq_monomial
-                    * cirq_atom  # pyright: ignore[reportOperatorIssue]
-                )
-
-            cirq_monomial *= self.coef  # pyright: ignore[reportOperatorIssue]
-            return cirq_monomial
+            return self.coef * reduce(mul, cirq_atoms)
 
 
 class PauliStringAtom(PauliStringMonomial):
@@ -993,7 +976,10 @@ class PauliStringAtom(PauliStringMonomial):
         return hash(self.label)
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
     ):
         if language == Language.QISKIT:
             from qiskit.quantum_info import SparsePauliOp
@@ -1024,12 +1010,14 @@ class PauliStringAtom(PauliStringMonomial):
             from cirq.ops.pauli_gates import Z as Cirq_Z
 
             pauli_gate_map = {
-                "I": Cirq_I(LineQubit(0)),
-                "X": Cirq_X(LineQubit(0)),
-                "Y": Cirq_Y(LineQubit(0)),
-                "Z": Cirq_Z(LineQubit(0)),
+                "I": Cirq_I,
+                "X": Cirq_X,
+                "Y": Cirq_Y,
+                "Z": Cirq_Z,
             }
-            return pauli_gate_map[self.label]
+            return pauli_gate_map[self.label](
+                LineQubit(0) if target is None else target
+            )
 
 
 _allow_atom_creation = True
