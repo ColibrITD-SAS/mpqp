@@ -31,6 +31,7 @@ from mpqp.tools.display import clean_1D_array, clean_matrix
 from mpqp.tools.generics import find, flatten, find_index
 from mpqp.tools.maths import is_hermitian, is_unitary, normalize, rand_orthogonal_matrix
 
+
 class SafeRunner:
     def __enter__(self):
         if not os.path.exists(MPQP_CONFIG_PATH):  # Ensure the config file exists
