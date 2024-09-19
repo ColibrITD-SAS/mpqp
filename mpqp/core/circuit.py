@@ -252,16 +252,15 @@ class QCircuit:
 
         Examples:
             >>> circuit = QCircuit([Depolarizing(0.01),BasisMeasure()], nb_qubits=2)
-            >>> repr(circuit)
-            'QCircuit([BasisMeasure([], shots=1024), Depolarizing(0.01, [])], nb_qubits=2, nb_cbits=None, label="None")'
-            >>> repr(circuit.hard_copy())
-            'QCircuit([BasisMeasure([0, 1], shots=1024), Depolarizing(0.01, [0, 1])], nb_qubits=2, nb_cbits=2, label="None")'
-
+            >>> print(repr(circuit))
+            QCircuit([BasisMeasure([], shots=1024), Depolarizing(0.01, [])], nb_qubits=2, nb_cbits=None, label="None")
+            >>> print(repr(circuit.hard_copy()))
+            QCircuit([BasisMeasure([0, 1], shots=1024), Depolarizing(0.01, [0, 1])], nb_qubits=2, nb_cbits=2, label="None")
             >>> circuit.nb_qubits = 3
-            >>> repr(circuit)
-            'QCircuit([BasisMeasure([], shots=1024), Depolarizing(0.01, [])], nb_qubits=3, nb_cbits=None, label="None")'
-            >>> repr(circuit.hard_copy())
-            'QCircuit([BasisMeasure([0, 1, 2], shots=1024), Depolarizing(0.01, [0, 1, 2])], nb_qubits=3, nb_cbits=3, label="None")'
+            >>> print(repr(circuit))
+            QCircuit([BasisMeasure([], shots=1024), Depolarizing(0.01, [])], nb_qubits=3, nb_cbits=None, label="None")
+            >>> print(repr(circuit.hard_copy()))
+            QCircuit([BasisMeasure([0, 1, 2], shots=1024), Depolarizing(0.01, [0, 1, 2])], nb_qubits=3, nb_cbits=3, label="None")
 
         """
         qcircuit = deepcopy(self)
