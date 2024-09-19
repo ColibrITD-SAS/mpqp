@@ -1,6 +1,6 @@
 import pytest
 
-from mpqp.qasm.qasm2_to_mpqp import qasm2_parse
+from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.core.instruction import *
 
 

@@ -1,14 +1,17 @@
 from __future__ import annotations
+from typing import TYPE_CHECKING
 from venv import logger
-
-
-import numpy as np  # pyright: ignore[reportUnusedImport]
-from mpqp import QCircuit, Barrier
-from mpqp.gates import *
-from mpqp.measures import *
 
 from ply.lex import lex
 
+
+if TYPE_CHECKING:
+    from mpqp.core.circuit import QCircuit
+
+import numpy as np  # pyright: ignore[reportUnusedImport]
+from mpqp.gates import *
+from mpqp.measures import *
+from mpqp.core.instruction import Barrier
 from mpqp.qasm.lexer_utils import *
 from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include
 
@@ -17,6 +20,7 @@ from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include
 # commentary "\\": not handle
 # if: not handle
 # barrier: handle for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
+# no ID name handle for qreg or creg
 
 
 def lex_openqasm(input_string: str) -> list[LexToken]:
@@ -31,6 +35,39 @@ def lex_openqasm(input_string: str) -> list[LexToken]:
 
 
 def qasm2_parse(input_string: str) -> QCircuit:
+    """
+    Parses an OpenQASM 2.0 formatted string and returns a MPQP circuit.
+
+    Args:
+        input_string: The OpenQASM 2.0 source code to be parsed.
+
+    Returns:
+        QCircuit object representing the parsed QASM input.
+
+    Raises:
+        SyntaxError: If the input string does not conform to OpenQASM 2.0 format or contains syntactical issues.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 2.0;
+        ... qreg q[2];
+        ... creg c[2];
+        ... h q[0];
+        ... cx q[0], q[1];
+        ... measure q -> c;
+        ... '''
+        >>> print(qasm2_parse(qasm_code)) # doctest: +NORMALIZE_WHITESPACE
+             ┌───┐     ┌─┐
+        q_0: ┤ H ├──■──┤M├───
+             └───┘┌─┴─┐└╥┘┌─┐
+        q_1: ─────┤ X ├─╫─┤M├
+                  └───┘ ║ └╥┘
+        c: 4/═══════════╩══╩═
+                        2  3
+
+    """
+    from mpqp.core.circuit import QCircuit
+
     input_string = remove_include(input_string)
     input_string = remove_user_gates(input_string)
     tokens = lex_openqasm(input_string)
@@ -59,26 +96,26 @@ def qasm2_parse(input_string: str) -> QCircuit:
         logger.debug(circuit)
         logger.debug('================================')
         logger.debug('new line:', tokens[idx].value, idx)
-        idx = TokenSwitch(circuit, tokens, idx)
+        idx = _TokenSwitch(circuit, tokens, idx)
 
     return circuit
 
 
-def TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+def _TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     token = tokens[idx]
     if token.type == 'CREG':
-        return TokenCREG(circuit, tokens, idx)
+        return _TokenCREG(circuit, tokens, idx)
     elif token.type == 'MEASURE':
-        return TokenMeasure(circuit, tokens, idx)
+        return _TokenMeasure(circuit, tokens, idx)
     elif token.type == 'BARRIER':
-        return TokenBarrier(circuit, tokens, idx)
+        return _TokenBarrier(circuit, tokens, idx)
     elif token.type == 'ID':
-        return TokenGate(circuit, tokens, idx)
+        return _TokenGate(circuit, tokens, idx)
     else:
         raise SyntaxError(f"Invalid token: {idx} {token.type}")
 
 
-def TokenCREG(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+def _TokenCREG(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     idx += 1
     if check_Id(tokens, idx) or tokens[idx + 4].type != 'SEMICOLON':
         raise SyntaxError(' '.join(str(token.value) for token in tokens[idx : idx + 4]))
@@ -86,7 +123,7 @@ def TokenCREG(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     return idx + 5
 
 
-def TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+def _TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     targets = []
     idx += 1
     while tokens[idx].type != 'SEMICOLON' and tokens[idx].type != 'ARROW':
@@ -125,7 +162,7 @@ def TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     return idx + 1
 
 
-def TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     idx += 2
     if tokens[idx].type != 'SEMICOLON':
         raise SyntaxError(f"Barrier: {idx} {tokens[idx]}")
@@ -133,23 +170,23 @@ def TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     return idx + 1
 
 
-def TokenGate(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+def _TokenGate(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     token = tokens[idx]
     idx += 1
 
     if token.value in single_qubits_gate_qasm:
-        return Gate_single_qubits(circuit, token.value, tokens, idx)
+        return _Gate_single_qubits(circuit, token.value, tokens, idx)
     elif token.value in two_qubits_gate_qasm:
-        return Gate_two_qubits(circuit, token.value, tokens, idx)
+        return _Gate_two_qubits(circuit, token.value, tokens, idx)
     elif token.value in one_parametrized_gate_qasm:
-        return Gate_one_parametrized(circuit, token.value, tokens, idx)
+        return _Gate_one_parametrized(circuit, token.value, tokens, idx)
     elif token.value in u_gate_qasm:
-        return Gate_U(circuit, token.value, tokens, idx)
+        return _Gate_U(circuit, token.value, tokens, idx)
     else:
         raise SyntaxError(f"TokenGate: {idx} {token.value}")
 
 
-def Gate_single_qubits(
+def _Gate_single_qubits(
     circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int
 ) -> int:
     if tokens[idx].type == 'ID' and tokens[idx + 1].type == 'SEMICOLON':
@@ -166,7 +203,7 @@ def Gate_single_qubits(
     return idx + 1
 
 
-def Gate_two_qubits(
+def _Gate_two_qubits(
     circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int
 ) -> int:
     if (
@@ -184,7 +221,7 @@ def Gate_two_qubits(
     return idx + 10
 
 
-def eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
+def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
     expr = ""
     while tokens[idx].type != 'COMMA' and tokens[idx].type != 'RPAREN':
         if check_num_expr(tokens[idx].type):
@@ -197,13 +234,13 @@ def eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
     return eval(expr), idx + 1
 
 
-def Gate_one_parametrized(
+def _Gate_one_parametrized(
     circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int
 ) -> int:
     if tokens[idx].type != 'LPAREN':
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
-    parameter, idx = eval_expr(tokens, idx)
+    parameter, idx = _eval_expr(tokens, idx)
     if check_Id(tokens, idx):
         raise SyntaxError(
             f'Gate_two_qubits: {" ".join(token.value for token in tokens[idx : idx + 3])}'
@@ -213,21 +250,21 @@ def Gate_one_parametrized(
     return idx + 5
 
 
-def Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) -> int:
+def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) -> int:
     if tokens[idx].type != 'LPAREN':
         raise SyntaxError(f"Gate_U: {idx} {tokens[idx]}")
     idx += 1
 
     theta, phi, lbda = 0, 0, 0
     if gate_str == 'u1':
-        theta, idx = eval_expr(tokens, idx)
+        theta, idx = _eval_expr(tokens, idx)
     elif gate_str == 'u2':
-        theta, idx = eval_expr(tokens, idx)
-        phi, idx = eval_expr(tokens, idx)
+        theta, idx = _eval_expr(tokens, idx)
+        phi, idx = _eval_expr(tokens, idx)
     elif gate_str == 'u3' or gate_str == 'u':
-        theta, idx = eval_expr(tokens, idx)
-        phi, idx = eval_expr(tokens, idx)
-        lbda, idx = eval_expr(tokens, idx)
+        theta, idx = _eval_expr(tokens, idx)
+        phi, idx = _eval_expr(tokens, idx)
+        lbda, idx = _eval_expr(tokens, idx)
 
     if check_Id(tokens, idx):
         raise SyntaxError(
