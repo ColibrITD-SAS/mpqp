@@ -39,3 +39,8 @@ class ControlledGate(Gate, ABC):
         """See parameter description."""
 
         Gate.__init__(self, targets, label)
+
+    def __repr__(self) -> str:
+        c = self.controls if len(self.controls) > 1 else self.controls[0]
+        t = self.targets if len(self.targets) > 1 else self.targets[0]
+        return f"{type(self).__name__}({c}, {t})"
