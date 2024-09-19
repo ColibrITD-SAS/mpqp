@@ -943,11 +943,11 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
         target: index referring to the qubit on which the gate will be applied
 
     Example:
-        >>> CNOT(0, 1).to_matrix()
-        array([[1.+0.j, 0.+0.j, 0.+0.j, 0.+0.j],
-               [0.+0.j, 1.+0.j, 0.+0.j, 0.+0.j],
-               [0.+0.j, 0.+0.j, 0.+0.j, 1.+0.j],
-               [0.+0.j, 0.+0.j, 1.+0.j, 0.+0.j]])
+        >>> pretty_print_matrix(CNOT(0, 1).to_matrix())
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 0, 1],
+         [0, 0, 1, 0]]
 
     """
 
