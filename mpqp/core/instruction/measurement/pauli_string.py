@@ -863,12 +863,10 @@ class PauliStringMonomial(PauliString):
                 )
             )
 
-            cirq_atoms: list[CirqPauli | CirqI] = (
-                [  # pyright: ignore[reportGeneralTypeIssues]
-                    atom.to_other_language(Language.CIRQ, target=all_qubits[index])
-                    for index, atom in enumerate(self.atoms)
-                ]
-            )
+            cirq_atoms: list[CirqPauli | CirqI] = [
+                atom.to_other_language(Language.CIRQ, target=all_qubits[index])
+                for index, atom in enumerate(self.atoms)
+            ]  # pyright: ignore[reportGeneralTypeIssues]
 
             return reduce(mul, cirq_atoms) * self.coef
 
