@@ -48,4 +48,3 @@ class CustomControlledGate(ControlledGate):
 
     def to_matrix(self, nb_qubits: int = 0) -> npt.NDArray[np.complex64]:
         return np.array([[1, 0], [0, 1]], dtype=np.complex64)
-

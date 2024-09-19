@@ -745,7 +745,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             ]
         )
 
-
     def to_canonical_matrix(self):
         return self.to_matrix()
 
