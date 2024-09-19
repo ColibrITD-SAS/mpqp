@@ -123,3 +123,8 @@ class ControlledGate(Gate, ABC):
                 control_matrix = np.kron(control_matrix, I2)
 
         return control_matrix + target_matrix
+
+    def __repr__(self) -> str:
+        c = self.controls if len(self.controls) > 1 else self.controls[0]
+        t = self.targets if len(self.targets) > 1 else self.targets[0]
+        return f"{type(self).__name__}({c}, {t})"
