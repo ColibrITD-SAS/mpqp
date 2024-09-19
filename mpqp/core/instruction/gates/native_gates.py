@@ -606,16 +606,16 @@ class SWAP(InvolutionGate, NoParameterGate):
     )
 
     def to_matrix(self, nb_qubits: int = 0) -> npt.NDArray[np.complex64]:
-        """
-        Constructs the matrix representation of a SWAP gate for two qubits in a multi-qubit system.
+        """Constructs the matrix representation of a SWAP gate for two qubits in
+        a multi-qubit system.
 
         Args:
-            nb_qubits: The total number of qubits in the system. If not provided,
-                        the minimum number of qubits required to generate the matrix
-                        will be used.
+            nb_qubits: The total number of qubits in the system. If not
+                provided, the minimum number of qubits required to generate the
+                matrix will be used.
 
         Returns:
-            numpy.ndarray: The matrix representation of the SWAP gate.
+            The matrix representation of the SWAP gate.
         """
         control, target = self.targets[0], self.targets[1]
 
@@ -944,10 +944,10 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
 
     Example:
         >>> CNOT(0, 1).to_matrix()
-        array([[1., 0., 0., 0.],
-               [0., 1., 0., 0.],
-               [0., 0., 0., 1.],
-               [0., 0., 1., 0.]])
+        array([[1.+0.j, 0.+0.j, 0.+0.j, 0.+0.j],
+               [0.+0.j, 1.+0.j, 0.+0.j, 0.+0.j],
+               [0.+0.j, 0.+0.j, 0.+0.j, 1.+0.j],
+               [0.+0.j, 0.+0.j, 1.+0.j, 0.+0.j]])
 
     """
 
