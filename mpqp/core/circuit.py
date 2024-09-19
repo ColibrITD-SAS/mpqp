@@ -781,7 +781,8 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = QCircuit(self.nb_qubits)
+        new_circuit = self.hard_copy()
+        new_circuit.nb_cbits = 0
         new_circuit.instructions = [
             inst for inst in self.instructions if not isinstance(inst, Measure)
         ]
