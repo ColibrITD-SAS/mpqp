@@ -2,6 +2,7 @@ from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
+import pytest
 from qiskit.circuit import Parameter
 
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
@@ -47,6 +48,3 @@ class CustomControlledGate(ControlledGate):
 
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return np.array([[1, 0], [0, 1]], dtype=np.complex64)
-
-
-# TODO
