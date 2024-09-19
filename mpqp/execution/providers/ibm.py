@@ -312,7 +312,7 @@ def run_aer(job: Job):
     qiskit_circuit = (
         job_circuit.without_measurements().to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
-        else job.circuit.to_other_language(Language.QISKIT)
+        else job_circuit.to_other_language(Language.QISKIT)
     )
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
