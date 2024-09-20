@@ -3,6 +3,7 @@ from termcolor import colored
 
 from mpqp.execution.connection.env_manager import config_key, get_env_variable
 
+
 def config_aqt_key():
     """
     # TODO add aqt in list of provider
@@ -33,7 +34,7 @@ def test_aqt_connection(key: Optional[str] = None) -> bool:
 
 def get_aqt_job_ids() -> list[str]:
     """
-    # TODO 
+    # TODO
     Retrieves all job IDs associated with AQT jobs.
 
     Returns:
@@ -42,9 +43,9 @@ def get_aqt_job_ids() -> list[str]:
     from qiskit_aqt_provider import AQTProvider, aqt_job
     from qiskit_aqt_provider.primitives import AQTSampler
 
-    #provider = AQTProvider(access_token=get_env_variable("AQT_API_KEY"))
-    
+    # provider = AQTProvider(access_token=get_env_variable("AQT_API_KEY"))
+
     # Get all jobs associated with the provider
     # Extract job IDs from the retrieved jobs
-    
+
     return []
