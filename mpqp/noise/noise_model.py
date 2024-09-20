@@ -452,7 +452,7 @@ class AmplitudeDamping(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
-        targets = f", targets={self.targets}"
+        targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
         prob = f", prob={self.prob}" if self.prob != 1 else ""
         return f"{type(self).__name__}({self.gamma}{prob}{targets}{gates})"
