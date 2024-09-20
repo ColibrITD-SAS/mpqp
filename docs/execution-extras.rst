@@ -7,12 +7,13 @@ implemented. Most of them are aimed at internal usage even though you can
 absolutely use them yourself. As a user, the elements of this page of interest
 for you are most likely:
 
-- To connect to remote QPU connections, see :ref:`Remote setup`.
-- IBM's :func:`get_all_job_ids<mpqp.execution.connection.ibm_connection.get_all_job_ids>`;
-- Eviden's :func:`get_all_job_ids<mpqp.execution.connection.qlm_connection.get_all_job_ids>`;
-- AWS's :func:`get_all_task_ids<mpqp.execution.connection.aws_connection.get_all_task_ids>`;
-- CIRQ's :func:`get_all_job_ids<mpqp.execution.connection.cirq_connection.get_all_job_ids>`;
+- IBM's :func:`~mpqp.execution.connection.ibm_connection.get_all_job_ids`;
+- Eviden's :func:`~mpqp.execution.connection.qlm_connection.get_all_job_ids`;
+- AWS's :func:`~mpqp.execution.connection.aws_connection.get_all_task_ids`;
+- CIRQ's :func:`~mpqp.execution.connection.cirq_connection.get_all_job_ids`;
 - The :ref:`con-setup` section.
+
+To setup your access to remote QPUs, see the :ref:`Remote setup` section.
 
 Provider specifics
 ------------------
