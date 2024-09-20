@@ -256,7 +256,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         return self.matrix
 
     def to_canonical_matrix(self) -> Matrix:
-        return self.to_matrix()
+        return self.matrix
 
 
 @typechecked
