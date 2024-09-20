@@ -18,6 +18,9 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
     """
     Test the connection to the IonQ service.
 
+    Args:
+        key: The API key for authenticating with the IonQ service.
+
     Returns:
         bool: True if the connection is successful, False otherwise.
     """
