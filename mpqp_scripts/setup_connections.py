@@ -16,8 +16,8 @@ def print_config_info():
     """Displays the information stored for each provider."""
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.env_manager as env_m
-    import mpqp.execution.connection.google_connection as cirqc
     import mpqp.execution.connection.ibm_connection as ibmqc
+    import mpqp.execution.connection.google_connection as cirqc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
     """Prints the info concerning each provider's registered account."""
@@ -42,6 +42,17 @@ def print_config_info():
             print("Account not configured")
         else:
             print("Error occurred when getting AWS account info.")
+    print("===== IonQ info : ===== ")
+    try:
+        print(ionqc.get_ionq_account_info())
+    except Exception as err:
+        print("Error occurred when getting IonQ account info.")
+    # print("===== AQT info : ===== ")
+    try:
+        pass
+        # print(keyc.get_aqt_info())
+    except Exception as err:
+        print("Error occurred when getting AQT account info.")
     print("===== Cirq info : ===== ")
     print(cirqc.get_google_account_info())
     input("Press 'Enter' to continue")
@@ -59,6 +70,9 @@ def main_setup():
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
+    # def no_op():
+    #     return "", []
+
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
         [
@@ -66,7 +80,20 @@ def main_setup():
             AnswerNode("QLM", setup_qlm_account),
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
+            AnswerNode("Azure", config_azure_account),
+            # AnswerNode("AQT", keyc.config_aqt_key),
+            # AnswerNode("Cirq configuration", return_action),
             AnswerNode("Recap", print_config_info),
+            # AnswerNode(
+            #     "Cirq",
+            #     no_op,
+            #     next_question=QuestionNode(
+            #         "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
+            #         [
+            #             AnswerNode("↩ Return", no_op),
+            #         ],
+            #     ),
+            # ),
         ],
         leaf_loop_to_here=True,
     )
