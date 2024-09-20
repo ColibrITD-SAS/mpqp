@@ -146,4 +146,3 @@ def compute_expected_matrix(qcircuit: QCircuit):
         result_matrix = np.dot(result_matrix, matrix)
 
     return np.vectorize(N)(result_matrix).astype(complex)
-
