@@ -58,8 +58,16 @@ Setup remote accesses
 
 Installing MPQP gives you access to ``setup_connections`` a script facilitating
 the setting up of remote QPU connections. The three supported providers (qiskit,
-Qaptiva and braket) can be setup from this script. Each of these providers have
-their own set of data needed to setup the connection, summed up here:
+Qaptiva and braket) can be setup from this script.  
+
+To run the script, simply enter in your terminal:
+
+.. code-block:: console
+
+    $ setup_connections
+
+Each of these providers have their own set of data needed to setup the connection, 
+summed up here:
 
 - IBM quantum (qiskit): for this provider, you only need your account ``API
   token``, which you can find in your `account page <https://quantum.ibm.com/account>`_;
@@ -79,6 +87,8 @@ their own set of data needed to setup the connection, summed up here:
   + ``AWS Access Key ID``,
   + ``AWS Secret Access Key`` and
   + ``Default region name``.
+
+To see which devices are available, see :ref:`Devices`.
 
 Execute examples
 ----------------
