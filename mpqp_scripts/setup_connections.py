@@ -15,11 +15,10 @@ os.environ["FOR_DISABLE_CONSOLE_CTRL_HANDLER"] = "1"
 def print_config_info():
     """Displays the information stored for each provider."""
     import mpqp.execution.connection.aws_connection as awsc
+    import mpqp.execution.connection.azure_connection as azuc
     import mpqp.execution.connection.env_manager as env_m
     import mpqp.execution.connection.ibm_connection as ibmqc
     import mpqp.execution.connection.ionq_connection as ionqc
-    import mpqp.execution.connection.azure_connection as azuc
-    import mpqp.execution.connection.google_connection as cirqc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
     """Prints the info concerning each provider's registered account."""
@@ -49,12 +48,6 @@ def print_config_info():
         print(ionqc.get_ionq_account_info())
     except Exception as err:
         print("Error occurred when getting IonQ account info.")
-    # print("===== AQT info : ===== ")
-    try:
-        pass
-        # print(keyc.get_aqt_info())
-    except Exception as err:
-        print("Error occurred when getting AQT account info.")
     print("===== Azure info : ===== ")
     try:
         print(azuc.get_azure_account_info())
@@ -69,15 +62,12 @@ def main_setup():
     you through the steps needed to configure each provider access. This
     function has to be executed from a terminal like environment, allowing you
     to type tokens and alike."""
-    from mpqp.execution.connection.azure_connection import config_azure_account
     from mpqp.execution.connection.aws_connection import setup_aws_braket_account
+    from mpqp.execution.connection.azure_connection import config_azure_account
     from mpqp.execution.connection.ibm_connection import setup_ibm_account
     from mpqp.execution.connection.ionq_connection import config_ionq_key
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
-
-    # def no_op():
-    #     return "", []
 
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
@@ -87,30 +77,14 @@ def main_setup():
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Azure", config_azure_account),
-            # AnswerNode("AQT", keyc.config_aqt_key),
-            # AnswerNode("Cirq configuration", return_action),
             AnswerNode("Recap", print_config_info),
-            # AnswerNode(
-            #     "Cirq",
-            #     no_op,
-            #     next_question=QuestionNode(
-            #         "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
-            #         [
-            #             AnswerNode("↩ Return", no_op),
-            #         ],
-            #     ),
-            # ),
         ],
     )
 
     # TODO: to avoid having to manually set that, we could add this as an option
     # to the run choice tree
     for answer in setup_tree.answers:
-        if answer.label == "Cirq" and answer.next_question is not None:
-            for answer in answer.next_question.answers:
-                answer.next_question = setup_tree
-        else:
-            answer.next_question = setup_tree
+        answer.next_question = setup_tree
 
     run_choice_tree(setup_tree)
 

@@ -9,7 +9,6 @@ if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
     from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
 
-
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
