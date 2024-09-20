@@ -40,8 +40,8 @@ class Gate(Instruction, ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
-        """Return the matricial semantics to this gate. With
-        considering potential column and row permutations needed if the targets.
+        """Return the matricial semantics to this gate. Considering connections,
+         order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
 
         Returns:
             A numpy array representing the unitary matrix of the gate.
@@ -56,6 +56,11 @@ class Gate(Instruction, ABC):
              [1, 0, 0, 0],
              [0, 0, 1, 0]]
             >>> pretty_print_matrix(SWAP(0,1).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
+            >>> pretty_print_matrix(TOF([1,4],3).to_matrix())
             [[1, 0, 0, 0],
              [0, 0, 1, 0],
              [0, 1, 0, 0],
@@ -102,7 +107,7 @@ class Gate(Instruction, ABC):
             array([[1.-0.j, 0.-0.j],
                    [0.-0.j, 0.-1.j]])
 
-        # 3M-TODO: Multi qubits gate not handel by to_matrix
+        # 3M-TODO: test
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -129,7 +134,7 @@ class Gate(Instruction, ABC):
             >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
             True
 
-        # 3M-TODO: Multi qubits gate not handel by to_matrix
+        # 3M-TODO: test
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 

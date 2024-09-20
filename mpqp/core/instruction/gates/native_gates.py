@@ -255,7 +255,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
     def to_matrix(self) -> Matrix:
         return self.matrix
 
-    def to_canonical_matrix(self):
+    def to_canonical_matrix(self) -> Matrix:
         return self.to_matrix()
 
 
@@ -479,13 +479,14 @@ class P(RotationGate, SingleQubitGate):
                 [
                     0,
                     exp(
-                        self.parameters[0] * 1j  # pyright: ignore[reportOperatorIssue]
+                        self.parameters[0]
+                        * 1j  # pyright: ignore[reportArgumentType, reportOperatorIssue]
                     ),
                 ],
             ]
         )
 
-    def to_canonical_matrix(self):
+    def to_canonical_matrix(self) -> Matrix:
         return self.to_matrix()
 
 
@@ -608,12 +609,11 @@ class SWAP(InvolutionGate, NoParameterGate):
         2
     )
 
-    def to_matrix(self, nb_qubits: int = 0) -> npt.NDArray[np.complex64]:
-        """Constructs the matrix representation of a SWAP gate for two qubits in
-        a multi-qubit system.
+    def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex64]:
+        """Constructs the matrix representation of a SWAP gate for two qubits.
 
         Args:
-            nb_qubits: The total number of qubits in the system. If not
+            nb_qubits: The total number for qubits gate representation. If not
                 provided, the minimum number of qubits required to generate the
                 matrix will be used.
 
@@ -623,7 +623,7 @@ class SWAP(InvolutionGate, NoParameterGate):
         control, target = self.targets[0], self.targets[1]
 
         max_qubits = max(control, target) + 1
-        if nb_qubits != 0 and nb_qubits < max_qubits:
+        if desired_gate_size != 0 and desired_gate_size < max_qubits:
             raise ValueError(
                 f"The number of qubits in the system must be at least {max_qubits}."
             )
@@ -648,9 +648,11 @@ class SWAP(InvolutionGate, NoParameterGate):
             swap_matrix[i, i] = 0
             swap_matrix[swapped_index, i] = 1
 
-        if nb_qubits != 0:
+        if desired_gate_size != 0:
             swap_matrix = np.kron(np.eye(2**min_nb_qubits), swap_matrix)
-            swap_matrix = np.kron(swap_matrix, np.eye(2 ** (nb_qubits - max_qubits)))
+            swap_matrix = np.kron(
+                swap_matrix, np.eye(2 ** (desired_gate_size - max_qubits))
+            )
         return swap_matrix
 
 

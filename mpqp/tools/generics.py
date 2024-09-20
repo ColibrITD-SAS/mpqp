@@ -154,7 +154,7 @@ def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     raise ValueError("No objects satisfies the given oracle")
 
 
-def compute_expected_matrix(qcircuit: QCircuit):
+def compute_expected_matrix(qcircuit: 'QCircuit'):
     """
     Computes the expected matrix resulting from applying single-qubit gates
     in reverse order on a quantum circuit.

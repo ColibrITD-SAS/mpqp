@@ -43,12 +43,12 @@ class ControlledGate(Gate, ABC):
 
         Gate.__init__(self, targets, label)
 
-    def to_matrix(self, nb_qubits: int = 0) -> Matrix:
+    def to_matrix(self, desired_gate_size: int = 0) -> Matrix:
         """
         Constructs the matrix representation of a controlled gate.
 
         Args:
-            nb_qubits: The total number of qubits in the system. If not provided,
+            nb_qubits: The total number for qubits gate representation. If not provided,
                         the minimum number of qubits required to generate the matrix
                         will be used.
 
@@ -64,16 +64,16 @@ class ControlledGate(Gate, ABC):
             min_qubit, max_qubit = min(self.connections()), max(self.connections())
 
             # If nb_qubits is not provided, calculate the necessary number of minimal qubits
-            if nb_qubits == 0:
-                nb_qubits = max_qubit - min_qubit + 1
+            if desired_gate_size == 0:
+                desired_gate_size = max_qubit - min_qubit + 1
                 controls = [x - min_qubit for x in controls]
                 targets = [x - min_qubit for x in targets]
-            elif nb_qubits < max_qubit + 1:
+            elif desired_gate_size < max_qubit + 1:
                 raise ValueError(f"nb_qubits must be at least {max_qubit + 1}")
 
             canonical_matrix = np.kron(
                 self.to_canonical_matrix(),
-                np.eye(2 ** (nb_qubits - self.nb_qubits)),
+                np.eye(2 ** (desired_gate_size - self.nb_qubits)),
             )
 
             permutations = set(
@@ -83,7 +83,7 @@ class ControlledGate(Gate, ABC):
             )
 
             swaps = [
-                SWAP(canonical_index, actual_index).to_matrix(nb_qubits)
+                SWAP(canonical_index, actual_index).to_matrix(desired_gate_size)
                 for canonical_index, actual_index in permutations
             ]
 
@@ -91,15 +91,15 @@ class ControlledGate(Gate, ABC):
 
         control, target = self.controls[0], self.targets[0]
 
-        if nb_qubits != 0:
+        if desired_gate_size != 0:
             max_qubit = max(control, target) + 1
-            if nb_qubits < max_qubit:
+            if desired_gate_size < max_qubit:
                 raise ValueError(f"nb_qubits must be at least {max_qubit}")
         else:
             min_qubit = min(control, target)
             control -= min_qubit
             target -= min_qubit
-            nb_qubits = abs(control - target) + 1
+            desired_gate_size = abs(control - target) + 1
 
         zero = np.diag([1, 0]).astype(np.complex64)
         one = np.diag([0, 1]).astype(np.complex64)
@@ -111,7 +111,7 @@ class ControlledGate(Gate, ABC):
             one if control == 0 else (non_controlled_gate if target == 0 else I2)
         )
 
-        for i in range(1, nb_qubits):
+        for i in range(1, desired_gate_size):
             if i == control:
                 target_matrix = np.kron(target_matrix, one)
                 control_matrix = np.kron(control_matrix, zero)

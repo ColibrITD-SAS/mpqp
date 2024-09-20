@@ -43,8 +43,9 @@ class GateDefinition(ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
-        """Returns the matrix corresponding to this gate definition. With
-        considering potential column and row permutations needed if the targets."""
+        """Returns the matrix corresponding to this gate definition. Considering connections,
+        order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
+        """
 
     @abstractmethod
     def to_canonical_matrix(self) -> Matrix:
