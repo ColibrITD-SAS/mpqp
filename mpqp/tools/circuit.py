@@ -31,10 +31,24 @@ def random_circuit(
 
     Examples:
         >>> random_circuit([U, TOF], 3) # doctest: +SKIP
-        Generates a random quantum circuit with 3 qubits using U and TOF gates.
+                            ┌──────────────────────────┐┌───┐
+        q_0: ──■────■────■──┤ U(2.4433,0.72405,4.7053) ├┤ X ├───────────────────────────
+             ┌─┴─┐  │    │  └┬────────────────────────┬┘└─┬─┘
+        q_1: ┤ X ├──■────■───┤ U(4.603,5.6604,1.4087) ├───■─────────────────────────────
+             └─┬─┘┌─┴─┐┌─┴─┐┌┴────────────────────────┤   │  ┌─────────────────────────┐
+        q_2: ──■──┤ X ├┤ X ├┤ U(4.2873,4.4459,2.6049) ├───■──┤ U(3.6991,3.7342,2.4204) ├
+                  └───┘└───┘└─────────────────────────┘      └─────────────────────────┘
         >>> from mpqp.core.instruction.gates import native_gates
         >>> random_circuit(native_gates.NATIVE_GATES, 4, 10) # doctest: +SKIP
-        Generates a random quantum circuit with 4 qubits and 10 gates native gates.
+                           ┌───┐           ┌────────────┐           ┌───┐
+        q_0: ──────■───────┤ Z ├─X─────────┤ Rz(5.0279) ├───────────┤ S ├──────────
+                   │       └───┘ │         └────────────┘           └───┘
+        q_1: ──────■─────────────┼─────────────────────────────────────────────────
+             ┌────────────┐      │ ┌───────────────────────────┐┌────────────┐┌───┐
+        q_2: ┤ Rz(2.7008) ├──────X─┤ U(1.8753,2.3799,0.012721) ├┤ Rx(3.5982) ├┤ H ├
+             └───┬───┬────┘        └───────────────────────────┘└────────────┘└───┘
+        q_3: ────┤ Y ├─────────────────────────────────────────────────────────────
+                 └───┘
     """
 
     if gate_classes is None:
@@ -87,3 +101,49 @@ def random_circuit(
             else:
                 qcircuit.add(gate_class(control, target))
     return qcircuit
+
+
+def compute_expected_matrix(qcircuit: QCircuit):
+    """
+    Computes the expected matrix resulting from applying single-qubit gates
+    in reverse order on a quantum circuit.
+
+    args:
+        qcircuit : The quantum circuit object containing instructions.
+
+    returns:
+        Expected matrix resulting from applying the gates.
+
+    raises:
+        ValueError: If any gate in the circuit is not a SingleQubitGate.
+    """
+    from sympy import N
+
+    from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
+
+    gates = [
+        instruction
+        for instruction in qcircuit.instructions
+        if isinstance(instruction, Gate)
+    ]
+    nb_qubits = qcircuit.nb_qubits
+
+    result_matrix = np.eye(2**nb_qubits, dtype=complex)
+
+    for gate in reversed(gates):
+        if not isinstance(gate, SingleQubitGate):
+            raise ValueError(
+                f"Unsupported gate: {type(gate)} only SingleQubitGate can be computed for now"
+            )
+        matrix = np.eye(2**nb_qubits, dtype=complex)
+        gate_matrix = gate.to_matrix()
+        index = gate.targets[0]
+        matrix = np.kron(
+            np.eye(2**index, dtype=complex),
+            np.kron(gate_matrix, np.eye(2 ** (nb_qubits - index - 1), dtype=complex)),
+        )
+
+        result_matrix = np.dot(result_matrix, matrix)
+
+    return np.vectorize(N)(result_matrix).astype(complex)
+

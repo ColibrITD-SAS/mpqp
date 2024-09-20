@@ -40,7 +40,7 @@ class Gate(Instruction, ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
-        """Return the matricial semantics to this gate. Considering connections,
+        """Return the matricial semantics to this gate. Considering connections'
          order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
 
         Returns:
