@@ -11,7 +11,7 @@ from typeguard import TypeCheckError
 from mpqp import Barrier, Instruction, Language, QCircuit
 from mpqp.core.instruction.gates import native_gates
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
+from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z, TOF
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import Depolarizing
 from mpqp.tools.circuit import random_circuit, compute_expected_matrix
@@ -376,6 +376,14 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         (
             QCircuit([Ry(np.pi / 2, 0)]),
             Ry(np.pi / 2, 0).to_matrix(),
+        ),
+        (
+            QCircuit([TOF([0, 1], 2)]),
+            TOF([0, 1], 2).to_matrix(),
+        ),
+        (
+            QCircuit([TOF([0, 2], 1)]),
+            TOF([0, 2], 1).to_matrix(),
         ),
     ],
 )
