@@ -43,8 +43,9 @@ class GateDefinition(ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
-        """Returns the matrix corresponding to this gate definition. Considering connections,
-        order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
+        """Returns the matrix corresponding to this gate definition. Considering
+        connections' order and position, in contrast with
+        :meth:`~Gate.to_canonical_matrix`.
         """
 
     @abstractmethod

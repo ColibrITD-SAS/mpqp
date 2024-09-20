@@ -479,8 +479,7 @@ class P(RotationGate, SingleQubitGate):
                 [
                     0,
                     exp(
-                        self.parameters[0]
-                        * 1j  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+                        self.parameters[0] * 1j  # pyright: ignore[reportOperatorIssue]
                     ),
                 ],
             ]

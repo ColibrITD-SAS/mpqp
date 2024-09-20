@@ -40,8 +40,8 @@ class Gate(Instruction, ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
-        """Return the matricial semantics to this gate. Considering connections,
-         order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
+        """Return the matricial semantics to this gate. Considering connections'
+        order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
 
         Returns:
             A numpy array representing the unitary matrix of the gate.
@@ -55,28 +55,20 @@ class Gate(Instruction, ABC):
              [0, 1, 0, 0],
              [1, 0, 0, 0],
              [0, 0, 1, 0]]
-            >>> pretty_print_matrix(SWAP(0,1).to_matrix())
+            >>> pretty_print_matrix(SWAP(0, 1).to_matrix())
             [[1, 0, 0, 0],
              [0, 0, 1, 0],
              [0, 1, 0, 0],
              [0, 0, 0, 1]]
-            >>> pretty_print_matrix(TOF([1,4],3).to_matrix())
-            [[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-             [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0]]
+            >>> pretty_print_matrix(TOF([1,3], 2).to_matrix())
+            [[1, 0, 0, 0, 0, 0, 0, 0],
+             [0, 1, 0, 0, 0, 0, 0, 0],
+             [0, 0, 1, 0, 0, 0, 0, 0],
+             [0, 0, 0, 1, 0, 0, 0, 0],
+             [0, 0, 0, 0, 1, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, 0, 1],
+             [0, 0, 0, 0, 0, 0, 1, 0],
+             [0, 0, 0, 0, 0, 1, 0, 0]]
 
         """
 

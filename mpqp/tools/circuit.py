@@ -87,3 +87,48 @@ def random_circuit(
             else:
                 qcircuit.add(gate_class(control, target))
     return qcircuit
+
+
+def compute_expected_matrix(qcircuit: QCircuit):
+    """
+    Computes the expected matrix resulting from applying single-qubit gates
+    in reverse order on a quantum circuit.
+
+    args:
+        qcircuit : The quantum circuit object containing instructions.
+
+    returns:
+        Expected matrix resulting from applying the gates.
+
+    raises:
+        ValueError: If any gate in the circuit is not a SingleQubitGate.
+    """
+    from sympy import N
+
+    from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
+
+    gates = [
+        instruction
+        for instruction in qcircuit.instructions
+        if isinstance(instruction, Gate)
+    ]
+    nb_qubits = qcircuit.nb_qubits
+
+    result_matrix = np.eye(2**nb_qubits, dtype=complex)
+
+    for gate in reversed(gates):
+        if not isinstance(gate, SingleQubitGate):
+            raise ValueError(
+                f"Unsupported gate: {type(gate)} only SingleQubitGate can be computed for now"
+            )
+        matrix = np.eye(2**nb_qubits, dtype=complex)
+        gate_matrix = gate.to_matrix()
+        index = gate.targets[0]
+        matrix = np.kron(
+            np.eye(2**index, dtype=complex),
+            np.kron(gate_matrix, np.eye(2 ** (nb_qubits - index - 1), dtype=complex)),
+        )
+
+        result_matrix = np.dot(result_matrix, matrix)
+
+    return np.vectorize(N)(result_matrix).astype(complex)
