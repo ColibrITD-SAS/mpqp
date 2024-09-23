@@ -40,6 +40,40 @@ class Gate(Instruction, ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
+        """Return the matricial semantics to this gate. Considering connections'
+        order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
+
+        Returns:
+            A numpy array representing the unitary matrix of the gate.
+
+        Example:
+            >>> gd = UnitaryMatrix(
+            ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
+            ... )
+            >>> pretty_print_matrix(CustomGate(gd, [1, 2]).to_matrix())
+            [[0, 0, 0, 1],
+             [0, 1, 0, 0],
+             [1, 0, 0, 0],
+             [0, 0, 1, 0]]
+            >>> pretty_print_matrix(SWAP(0, 1).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
+            >>> pretty_print_matrix(TOF([1,3], 2).to_matrix())
+            [[1, 0, 0, 0, 0, 0, 0, 0],
+             [0, 1, 0, 0, 0, 0, 0, 0],
+             [0, 0, 1, 0, 0, 0, 0, 0],
+             [0, 0, 0, 1, 0, 0, 0, 0],
+             [0, 0, 0, 0, 1, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, 0, 1],
+             [0, 0, 0, 0, 0, 0, 1, 0],
+             [0, 0, 0, 0, 0, 1, 0, 0]]
+
+        """
+
+    @abstractmethod
+    def to_canonical_matrix(self) -> Matrix:
         """Return the "base" matricial semantics to this gate. Without
         considering potential column and row permutations needed if the targets
         of the gate are not sorted.
@@ -51,16 +85,16 @@ class Gate(Instruction, ABC):
             >>> gd = UnitaryMatrix(
             ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
             ... )
-            >>> CustomGate(gd, [1, 2]).to_matrix()
-            array([[0, 0, 0, 1],
-                   [0, 1, 0, 0],
-                   [1, 0, 0, 0],
-                   [0, 0, 1, 0]])
-            >>> SWAP(0,1).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 0, 1]])
+            >>> pretty_print_matrix(CustomGate(gd, [1, 2]).to_canonical_matrix())
+            [[0, 0, 0, 1],
+             [0, 1, 0, 0],
+             [1, 0, 0, 0],
+             [0, 0, 1, 0]]
+            >>> pretty_print_matrix(SWAP(0,1).to_canonical_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
 
         """
 
@@ -77,6 +111,7 @@ class Gate(Instruction, ABC):
             array([[1.-0.j, 0.-0.j],
                    [0.-0.j, 0.-1.j]])
 
+        # 3M-TODO: test
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -103,6 +138,7 @@ class Gate(Instruction, ABC):
             >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
             True
 
+        # 3M-TODO: test
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
@@ -117,17 +153,17 @@ class Gate(Instruction, ABC):
 
         Examples:
             >>> swap_gate = SWAP(0,1)
-            >>> (swap_gate.power(2)).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 0, 0, 1]])
-            >>> (swap_gate.power(-1)).to_matrix()
-            array([[1., 0., 0., 0.],
-                   [0., 0., 1., 0.],
-                   [0., 1., 0., 0.],
-                   [0., 0., 0., 1.]])
-            >>> (swap_gate.power(0.75)).to_matrix() # not implemented yet
+            >>> pretty_print_matrix((swap_gate.power(2)).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 1, 0, 0],
+             [0, 0, 1, 0],
+             [0, 0, 0, 1]]
+            >>> pretty_print_matrix((swap_gate.power(-1)).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
+            >>> pretty_print_matrix((swap_gate.power(0.75)).to_matrix()) # not implemented yet #doctest: +SKIP
             array([[1.        +0.j        , 0.        +0.j        ,
                     0.        +0.j        , 0.        +0.j        ],
                    [0.        +0.j        , 0.14644661+0.35355339j,
