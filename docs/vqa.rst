@@ -28,7 +28,7 @@ has ``FreeExpression``, ``qiskit`` has ``Parameter``, ``qlm`` has ``Variable``,
 Once you define a circuit with variables, you have two options:
 
 1. either the measure of the circuit is an 
-   :class:`ExpectationMeasure<mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure>`
+   :class:`~mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure`
    and can directly feed it in the optimizer;
 2. or you can define a custom cost function for more complicated cases.
 

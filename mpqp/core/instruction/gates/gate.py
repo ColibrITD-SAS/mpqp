@@ -20,7 +20,7 @@ class Gate(Instruction, ABC):
 
     A gate is an measurement and the main component of a circuit. The semantics
     of a gate is defined using
-    :class:`GateDefinition<mpqp.core.instruction.gates.gate_definition.GateDefinition>`.
+    :class:`~mpqp.core.instruction.gates.gate_definition.GateDefinition`.
 
     Args:
         targets: List of indices referring to the qubits on which the gate will

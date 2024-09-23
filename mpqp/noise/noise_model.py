@@ -35,7 +35,7 @@ class NoiseModel(ABC):
 
     Args:
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instructions.gates.gate.Gate`
             affected by this noise.
 
     Raises:
@@ -136,7 +136,7 @@ class Depolarizing(NoiseModel):
         prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
             affected by this noise.
 
     Raises:
@@ -304,7 +304,7 @@ class BitFlip(NoiseModel):
     Args:
         prob: Bit flip error probability or error rate (must be within [0, 0.5]).
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
             affected by this noise. If multi-qubit gates is passed, single-qubit
             bitflip will be added for each qubit connected (target, control) with the gates.
 
@@ -397,7 +397,7 @@ class AmplitudeDamping(NoiseModel):
         prob: Probability of excitation in the generalized amplitude damping noise channel
             When set to 1, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
             affected by this noise.
 
     Raises:
