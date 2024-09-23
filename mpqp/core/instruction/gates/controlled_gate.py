@@ -44,17 +44,6 @@ class ControlledGate(Gate, ABC):
         Gate.__init__(self, targets, label)
 
     def to_matrix(self, desired_gate_size: int = 0) -> Matrix:
-        """
-        Constructs the matrix representation of a controlled gate.
-
-        Args:
-            desired_gate_size: The total number for qubits needed for the gate
-                representation. If not provided, the minimum number of qubits
-                required to generate the matrix will be used.
-
-        Returns:
-            The matrix representation of the controlled gate.
-        """
         import numpy as np
 
         if len(self.controls) != 1 or len(self.targets) != 1:

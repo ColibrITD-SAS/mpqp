@@ -129,7 +129,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
-        definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
+        definition = UnitaryMatrix(
+            self.to_canonical_matrix(), **self.native_gate_options
+        )
         ParametrizedGate.__init__(
             self, definition, [target], [self.theta], type(self).__name__.capitalize()
         )
@@ -252,9 +254,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
-    def to_matrix(self) -> Matrix:
-        return self.matrix
-
     def to_canonical_matrix(self) -> Matrix:
         return self.matrix
 
@@ -279,9 +278,9 @@ class Id(OneQubitNoParamGate, InvolutionGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Id(0).to_matrix()
-        array([[1.+0.j, 0.+0.j],
-               [0.+0.j, 1.+0.j]], dtype=complex64)
+        >>> pprint(Id(0).to_matrix())
+        [[1, 0],
+         [0, 1]]
 
     """
 
@@ -312,9 +311,9 @@ class X(OneQubitNoParamGate, InvolutionGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> X(0).to_matrix()
-        array([[0, 1],
-               [1, 0]])
+        >>> pprint(X(0).to_matrix())
+        [[0, 1],
+         [1, 0]]
 
     """
 
@@ -345,9 +344,9 @@ class Y(OneQubitNoParamGate, InvolutionGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Y(0).to_matrix()
-        array([[ 0.+0.j, -0.-1.j],
-               [ 0.+1.j,  0.+0.j]])
+        >>> pprint(Y(0).to_matrix())
+        [[0, -1j],
+         [1j, 0]]
 
     """
 
@@ -379,9 +378,9 @@ class Z(OneQubitNoParamGate, InvolutionGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Z(0).to_matrix()
-        array([[ 1,  0],
-               [ 0, -1]])
+        >>> pprint(Z(0).to_matrix())
+        [[1, 0],
+         [0, -1]]
 
     """
 
@@ -413,9 +412,9 @@ class H(OneQubitNoParamGate, InvolutionGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> H(0).to_matrix()
-        array([[ 0.70710678,  0.70710678],
-               [ 0.70710678, -0.70710678]])
+        >>> pprint(H(0).to_matrix())
+        [[0.7071068, 0.7071068],
+         [0.7071068, -0.7071068]]
 
     """
 
@@ -448,9 +447,9 @@ class P(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> P(np.pi/3, 1).to_matrix()
-        array([[1. +0.j       , 0. +0.j       ],
-               [0. +0.j       , 0.5+0.8660254j]])
+        >>> pprint(P(np.pi/3, 1).to_matrix())
+        [[1, 0],
+         [0, 0.5+0.8660254j]]
 
     """
 
@@ -472,7 +471,7 @@ class P(RotationGate, SingleQubitGate):
 
         self.qlm_aqasm_keyword = "PH"
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self) -> Matrix:
         return np.array(  # pyright: ignore[reportCallIssue]
             [
                 [1, 0],
@@ -485,9 +484,6 @@ class P(RotationGate, SingleQubitGate):
             ]
         )
 
-    def to_canonical_matrix(self) -> Matrix:
-        return self.to_matrix()
-
 
 class S(OneQubitNoParamGate):
     """One qubit S gate. It's equivalent to ``P(pi/2)``.
@@ -497,9 +493,9 @@ class S(OneQubitNoParamGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> S(0).to_matrix()
-        array([[1.+0.j, 0.+0.j],
-               [0.+0.j, 0.+1.j]])
+        >>> pprint(S(0).to_matrix())
+        [[1, 0],
+         [0, 1j]]
 
     """
 
@@ -534,9 +530,9 @@ class T(OneQubitNoParamGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> T(0).to_matrix()
-        array([[1, 0],
-               [0, exp(0.25*I*pi)]], dtype=object)
+        >>> pprint(T(0).to_matrix())
+        [[1, 0],
+         [0, 0.7071068+0.7071068j]]
 
     """
 
@@ -558,13 +554,10 @@ class T(OneQubitNoParamGate):
 
         self.qlm_aqasm_keyword = "T"
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         from sympy import pi
 
         return np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
-
-    def to_canonical_matrix(self):
-        return self.to_matrix()
 
 
 class SWAP(InvolutionGate, NoParameterGate):
@@ -575,7 +568,7 @@ class SWAP(InvolutionGate, NoParameterGate):
         b: Second target of the swapping operation.
 
     Example:
-        >>> pretty_print_matrix(SWAP(0, 1).to_matrix())
+        >>> pprint(SWAP(0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 0, 1, 0],
          [0, 1, 0, 0],
@@ -667,9 +660,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> U(np.pi/3, 0, np.pi/4, 0).to_matrix()
-        array([[ 0.8660254 +0.j        , -0.35355339-0.35355339j],
-               [ 0.5       +0.j        ,  0.61237244+0.61237244j]])
+        >>> pprint(U(np.pi/3, 0, np.pi/4, 0).to_matrix())
+        [[0.8660254, -0.3535534-0.3535534j],
+         [0.5, 0.6123724+0.6123724j]]
 
     """
 
@@ -681,7 +674,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         target: int,
     ):
         self.parameters = [theta, phi, gamma]
-        definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
+        definition = UnitaryMatrix(
+            self.to_canonical_matrix(), **self.native_gate_options
+        )
         ParametrizedGate.__init__(self, definition, [target], [theta, phi, gamma], "U")
 
     @property
@@ -734,7 +729,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         c, s, eg, ep = (
             cos(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
             sin(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
@@ -747,9 +742,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
             ]
         )
-
-    def to_canonical_matrix(self):
-        return self.to_matrix()
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.theta}, {self.phi}, {self.gamma}, {self.targets[0]})"
@@ -765,9 +757,9 @@ class Rx(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Rx(np.pi/5, 1).to_matrix()
-        array([[0.95105652+0.j        , 0.        -0.30901699j],
-               [0.        -0.30901699j, 0.95105652+0.j        ]])
+        >>> pprint(Rx(np.pi/5, 1).to_matrix())
+        [[0.9510565, -0.309017j],
+         [-0.309017j, 0.9510565]]
 
     """
 
@@ -789,15 +781,12 @@ class Rx(RotationGate, SingleQubitGate):
 
         self.qlm_aqasm_keyword = "RX"
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         return np.array(  # pyright: ignore[reportCallIssue]
             [[c, -1j * s], [-1j * s, c]]  # pyright: ignore[reportOperatorIssue]
         )
-
-    def to_canonical_matrix(self):
-        return self.to_matrix()
 
 
 class Ry(RotationGate, SingleQubitGate):
@@ -808,9 +797,9 @@ class Ry(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Ry(np.pi/5, 1).to_matrix()
-        array([[ 0.95105652, -0.30901699],
-               [ 0.30901699,  0.95105652]])
+        >>> pprint(Ry(np.pi/5, 1).to_matrix())
+        [[0.9510565, -0.309017],
+         [0.309017, 0.9510565]]
 
     """
 
@@ -832,13 +821,10 @@ class Ry(RotationGate, SingleQubitGate):
 
         self.qlm_aqasm_keyword = "RY"
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         return np.array([[c, -s], [s, c]])
-
-    def to_canonical_matrix(self):
-        return self.to_matrix()
 
 
 class Rz(RotationGate, SingleQubitGate):
@@ -849,7 +835,7 @@ class Rz(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> pretty_print_matrix(Rz(np.pi/5, 1).to_matrix())
+        >>> pprint(Rz(np.pi/5, 1).to_matrix())
         [[0.9510565-0.309017j, 0],
          [0, 0.9510565+0.309017j]]
 
@@ -873,14 +859,11 @@ class Rz(RotationGate, SingleQubitGate):
 
         self.qlm_aqasm_keyword = "RZ"
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         return np.array(  # pyright: ignore[reportCallIssue]
             [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
         )
-
-    def to_canonical_matrix(self):
-        return self.to_matrix()
 
 
 class Rk(RotationGate, SingleQubitGate):
@@ -891,9 +874,9 @@ class Rk(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> Rk(5, 0).to_matrix()
-        array([[1.        +0.j        , 0.        +0.j        ],
-               [0.        +0.j        , 0.98078528+0.19509032j]])
+        >>> pprint(Rk(5, 0).to_matrix())
+        [[1, 0],
+         [0, 0.9807853+0.1950903j]]
 
     """
 
@@ -914,7 +897,9 @@ class Rk(RotationGate, SingleQubitGate):
         self.qlm_aqasm_keyword = "PH"
 
         self.parameters = [k]
-        definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
+        definition = UnitaryMatrix(
+            self.to_canonical_matrix(), **self.native_gate_options
+        )
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk")
 
     @property
@@ -930,15 +915,12 @@ class Rk(RotationGate, SingleQubitGate):
         """See corresponding argument."""
         return self.parameters[0]
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
         e = exp(p * 1j / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0], [0, e]])
-
-    def to_canonical_matrix(self):
-        return self.to_matrix()
 
     def __repr__(self):
         return f"{type(self).__name__}({self.k}, {self.targets[0]})"
@@ -952,7 +934,7 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
         target: index referring to the qubit on which the gate will be applied
 
     Example:
-        >>> pretty_print_matrix(CNOT(0, 1).to_matrix())
+        >>> pprint(CNOT(0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 1, 0, 0],
          [0, 0, 0, 1],
@@ -993,7 +975,7 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> pretty_print_matrix(CZ(0, 1).to_matrix())
+        >>> pprint(CZ(0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 1, 0, 0],
          [0, 0, 1, 0],
@@ -1037,7 +1019,7 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> pretty_print_matrix(CRk(4, 0, 1).to_matrix())
+        >>> pprint(CRk(4, 0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 1, 0, 0],
          [0, 0, 1, 0],
@@ -1101,7 +1083,7 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> pretty_print_matrix(TOF([0, 1], 2).to_matrix())
+        >>> pprint(TOF([0, 1], 2).to_matrix())
         [[1, 0, 0, 0, 0, 0, 0, 0],
          [0, 1, 0, 0, 0, 0, 0, 0],
          [0, 0, 1, 0, 0, 0, 0, 0],
