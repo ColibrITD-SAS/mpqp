@@ -27,7 +27,10 @@ class CustomGate(Gate):
         """See parameter description."""
         super().__init__(targets, label)
 
-    def to_matrix(self):
+    def to_matrix(self, desired_gate_size: int = 0):
+        return self.matrix
+
+    def to_canonical_matrix(self):
         return self.matrix
 
     def to_other_language(
