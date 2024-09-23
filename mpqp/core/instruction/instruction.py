@@ -45,8 +45,6 @@ class Instruction(SimpleClassReprABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
-        if len(targets) == 0:
-            raise ValueError("Expected non-empty target list")
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate registers in targets: {targets}")
         if not all([t >= 0 for t in targets]):
@@ -105,9 +103,11 @@ class Instruction(SimpleClassReprABC):
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(max(self.connections()) + 1)
-        c.add(self)
-        return str(c)
+        connection = self.connections()
+        circuit_size = max(connection) + 1 if connection else 1
+        circuit = QCircuit(circuit_size)
+        circuit.add(self)
+        return str(circuit)
 
     def __repr__(self) -> str:
         from mpqp.core.instruction.gates import ControlledGate

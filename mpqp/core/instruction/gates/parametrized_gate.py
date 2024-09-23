@@ -31,7 +31,7 @@ from mpqp.core.instruction.gates.gate_definition import GateDefinition
 
 @typechecked
 class ParametrizedGate(Gate, ABC):
-    """Define a parametrized gate.
+    """Abstract class to factorize behavior of parametrized gate.
 
     Args:
         definition: Provide a definition of the gate (matrix, gate combination,
@@ -40,12 +40,6 @@ class ParametrizedGate(Gate, ABC):
             be applied.
         parameters: List of parameters used to define the gate.
         label: Label used to identify the measurement.
-
-    Example:
-        >>> theta = np.pi/3
-        >>> c, s = np.cos(theta / 2), np.sin(theta / 2)
-        >>> gate_def = UnitaryMatrix(np.array([[c, s], [-s, c]]))
-        >>> parametrized = ParametrizedGate(gate_def, [3], [theta])
 
     """
 

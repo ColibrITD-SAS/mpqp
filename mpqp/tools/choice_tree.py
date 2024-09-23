@@ -48,14 +48,29 @@ class QuestionNode:
     """Represents a node in a decision tree corresponding to a question.
 
     Args:
-        label: See attribute description.
-        answers: See attribute description.
+        label: The label or text associated with the question.
+        answers: List of possible answers to this question.
+        leaf_loop_to_here: If ``True`` answers without followup questions will
+            loop back to here.
     """
 
     label: str
-    """The label or text associated with the question."""
     answers: list[AnswerNode]
-    """List of possible answers to this question."""
+    leaf_loop_to_here: bool = False
+
+    def __post_init__(self):
+        to_visit: list[QuestionNode] = [self]
+        visited: list[QuestionNode] = []
+        while len(to_visit) != 0:
+            for q_index, ques in enumerate(to_visit):
+                if ques not in visited:
+                    for ans in ques.answers:
+                        if ans.next_question is None:
+                            ans.next_question = self
+                        else:
+                            visited.append(ans.next_question)
+                    visited.append(ques)
+                    del to_visit[q_index]
 
 
 @typechecked
@@ -68,6 +83,12 @@ def run_choice_tree(question: QuestionNode):
     prev_args = []
     prev_message = ""
     next_question = question
+
+    # TODO: add the following to pick once my PR is merged
+    # KEY_CTRL_C = 3
+    # KEY_ESCAPE = 27
+    # KEYS_QUIT = (KEY_CTRL_C, KEY_ESCAPE, ord("q"))
+
     try:
         while True:
             option, _ = pick(

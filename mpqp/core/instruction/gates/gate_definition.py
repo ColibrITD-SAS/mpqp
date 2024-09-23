@@ -11,13 +11,14 @@ if TYPE_CHECKING:
 import numpy as np
 from typeguard import typechecked
 
-from mpqp.tools.generics import Matrix, one_lined_repr
+from mpqp.tools.display import one_lined_repr
+from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_unitary, matrix_eq
 
 
 @typechecked
 class GateDefinition(ABC):
-    """A class used to handle the definition of a Gate.
+    """Abstract class used to handle the definition of a Gate.
 
     A quantum gate can be defined in several ways, and this class allows us to
     define it as we prefer. It also handles the translation from one definition
@@ -82,10 +83,15 @@ class GateDefinition(ABC):
         mat = self.to_matrix()
 
         if not all(
-            isinstance(elt.item(), Complex) for elt in np.nditer(mat, ["refs_ok"])  # type: ignore
+            isinstance(
+                elt.item(), Complex  # pyright: ignore[reportAttributeAccessIssue]
+            )
+            for elt in np.nditer(mat, ["refs_ok"])
         ):
             raise ValueError("Cannot invert arbitrary gates using symbolic variables")
-        return UnitaryMatrix(np.linalg.inv(mat))  # type:ignore
+        return UnitaryMatrix(
+            np.linalg.inv(mat)  # pyright: ignore[reportCallIssue, reportArgumentType]
+        )
 
 
 @typechecked

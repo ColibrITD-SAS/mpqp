@@ -4,7 +4,7 @@ from sympy import symbols
 
 from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 
-from . import Barrier, Instruction, Language, QCircuit
+from . import Barrier, Breakpoint, Instruction, Language, QCircuit
 from .execution import (
     Job,
     JobStatus,
@@ -58,7 +58,7 @@ from .measures import Measure, Observable, VariableSizeBasis
 from .measures import X as Xop
 from .measures import Y as Yop
 from .measures import Z as Zop
-from .noise import Depolarizing
+from .noise import AmplitudeDamping, BitFlip, Depolarizing
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
 theta, k = symbols("θ k")

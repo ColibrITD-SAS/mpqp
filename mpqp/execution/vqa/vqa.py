@@ -18,8 +18,10 @@ T1 = TypeVar("T1")
 T2 = TypeVar("T2")
 OptimizerInput = Union[list[float], npt.NDArray[np.float32]]
 OptimizableFunc = Callable[[OptimizerInput], float]
+OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
-    [OptimizableFunc, Optional[OptimizerInput]], tuple[float, OptimizerInput]
+    [OptimizableFunc, Optional[OptimizerInput], Optional[OptimizerOptions]],
+    tuple[float, OptimizerInput],
 ]
 
 # TODO: all those functions with almost or exactly the same signature look like
@@ -246,7 +248,8 @@ def _minimize_local_circ(
     # The sympy `free_symbols` method returns in fact sets of Basic, which
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
-    variables: set[Expr] = circ.variables()  # type: ignore
+    # TODO: bellow might be a bug, check why we need this type ignore
+    variables: set[Expr] = circ.variables()  # pyright: ignore[reportAssignmentType]
 
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:
@@ -268,7 +271,7 @@ def _minimize_local_func(
     method: Optimizer | OptimizerCallable,
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
-    optimizer_options: Optional[dict[str, Any]] = None,
+    optimizer_options: Optional[OptimizerOptions] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -315,4 +318,4 @@ def _minimize_local_func(
         )
         return res.fun, res.x
     else:
-        return method(eval_func, init_params)
+        return method(eval_func, init_params, optimizer_options)
