@@ -599,6 +599,8 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         self.qlm_aqasm_keyword = "SWAP"
 
+        self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+
         super().__init__([a, b], "SWAP")
 
     def __repr__(self) -> str:
