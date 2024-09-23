@@ -15,15 +15,13 @@ from mpqp.core.instruction.measurement import (
 from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
-from mpqp.noise import Depolarizing, BitFlip, AmplitudeDamping
-from mpqp.noise import Depolarizing
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.theoretical_simulation import (
-    chisquare_test,
-    process_qcircuit,
+    chi_square_test,
     results_to_dict,
     run_experiment,
 )
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
 @pytest.fixture
@@ -59,7 +57,7 @@ def devices():
 
 
 @pytest.fixture
-def chisquare_test_data() -> tuple[list[int], list[int], int, float]:
+def chi_square_test_data() -> tuple[list[int], list[int], int, float]:
     noise_proba = 0.7
     shots = 1024
     alpha = 0.05
@@ -73,18 +71,12 @@ def chisquare_test_data() -> tuple[list[int], list[int], int, float]:
         ],
         label="Noise-Testing",
     )
-    initial_state = [1, 0, 0, 0]
 
-    # mpqp experiement
     run_mpqp = _run_single(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR, {})
     mpqp_counts = run_mpqp.counts
 
-    # theoretical experiement
-    gate_map, gates = process_qcircuit(circuit)
-    run_theoretical = run_experiment(initial_state, gates, gate_map, noise_proba, shots)
-
-    num_qubits = circuit.nb_qubits
-    results_dict = results_to_dict(run_theoretical, num_qubits, shots)
+    run_theoretical = run_experiment(circuit, noise_proba, shots)
+    results_dict = results_to_dict(run_theoretical, circuit.nb_qubits, shots)
     theoretical_counts = list(results_dict.values())
 
     return mpqp_counts, theoretical_counts, shots, alpha
@@ -142,10 +134,10 @@ def test_all_native_gates_local_noise(
 
 
 def test_chisquare_expected_counts_calculation(
-    chisquare_test_data: tuple[list[int], list[int], int, float]
+    chi_square_test_data: tuple[list[int], list[int], int, float]
 ):
-    mpqp_counts, theoretical_counts, shots, _ = chisquare_test_data
-    result = chisquare_test(mpqp_counts, theoretical_counts, shots)
+    mpqp_counts, theoretical_counts, shots, _ = chi_square_test_data
+    result = chi_square_test(mpqp_counts, theoretical_counts, shots)
 
     theoretical_probabilities = [count / shots for count in theoretical_counts]
     expected_counts = [int(tp * shots) for tp in theoretical_probabilities]
@@ -154,23 +146,23 @@ def test_chisquare_expected_counts_calculation(
 
 
 def test_chisquare_p_value_calculation(
-    chisquare_test_data: tuple[list[int], list[int], int, float]
+    chi_square_test_data: tuple[list[int], list[int], int, float]
 ):
     from scipy.stats import chisquare
 
-    mpqp_counts, theoretical_counts, shots, _ = chisquare_test_data
-    result = chisquare_test(mpqp_counts, theoretical_counts, shots)
+    mpqp_counts, theoretical_counts, shots, _ = chi_square_test_data
+    result = chi_square_test(mpqp_counts, theoretical_counts, shots)
 
     _, expected_p_value = chisquare(mpqp_counts, result.expected_counts)
     assert result.p_value == expected_p_value
 
 
 def test_chisquare_significant(
-    chisquare_test_data: tuple[list[int], list[int], int, float]
+    chi_square_test_data: tuple[list[int], list[int], int, float]
 ):
-    mpqp_counts, theoretical_counts, shots, alpha = chisquare_test_data
+    mpqp_counts, theoretical_counts, shots, alpha = chi_square_test_data
 
-    result = chisquare_test(mpqp_counts, theoretical_counts, shots, alpha)
+    result = chi_square_test(mpqp_counts, theoretical_counts, shots, alpha)
 
     assert result.p_value < alpha
 
@@ -180,7 +172,7 @@ def test_chisquare_empty_counts():
     theoretical_counts = []
     shots = 1
 
-    result = chisquare_test(mpqp_counts, theoretical_counts, shots)
+    result = chi_square_test(mpqp_counts, theoretical_counts, shots)
 
     assert result.p_value == 1.0
     assert not result.significant, "Result should not be significant when empty counts"
