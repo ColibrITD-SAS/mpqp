@@ -48,9 +48,9 @@ class ControlledGate(Gate, ABC):
         Constructs the matrix representation of a controlled gate.
 
         Args:
-            nb_qubits: The total number for qubits gate representation. If not provided,
-                        the minimum number of qubits required to generate the matrix
-                        will be used.
+            desired_gate_size: The total number for qubits needed for the gate
+                representation. If not provided, the minimum number of qubits
+                required to generate the matrix will be used.
 
         Returns:
             The matrix representation of the controlled gate.
