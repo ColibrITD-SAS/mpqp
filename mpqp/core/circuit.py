@@ -113,12 +113,12 @@ class QCircuit:
     """
 
     def __init__(
-        self,
-        data: int | Sequence[Instruction | NoiseModel],
-        *,
-        nb_qubits: Optional[int] = None,
-        nb_cbits: Optional[int] = None,
-        label: Optional[str] = None,
+            self,
+            data: int | Sequence[Instruction | NoiseModel],
+            *,
+            nb_qubits: Optional[int] = None,
+            nb_cbits: Optional[int] = None,
+            label: Optional[str] = None,
     ):
         self.nb_cbits = nb_cbits
         """See parameter description."""
@@ -227,7 +227,7 @@ class QCircuit:
                 if isinstance(instr, BasisMeasure) and len(instr.targets) != 0
             ]
             if any(
-                len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures
+                    len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures
             ):
                 raise ValueError(
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
@@ -287,8 +287,8 @@ class QCircuit:
             if len(noise.targets) == 0:
                 noise.targets = list(range(self.nb_qubits))
                 if (
-                    hasattr(noise, "dimension")
-                    and len(noise.targets) < noise.dimension
+                        hasattr(noise, "dimension")
+                        and len(noise.targets) < noise.dimension
                 ):
                     raise ValueError(
                         f"Number of target qubits {len(noise.targets)} should be higher "
@@ -705,7 +705,7 @@ class QCircuit:
         # the qiskit QuantumCircuit feature qc.initialize()
         """
         size = int(np.log2(len(state)))
-        if 2**size != len(state):
+        if 2 ** size != len(state):
             raise ValueError(f"Input state {state} should have a power of 2 size")
         res = cls(size)
         ...
@@ -738,6 +738,10 @@ class QCircuit:
         """
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
+
+    def get_gates(self) -> list[Gate]:
+        # TODO: doc and test, yarham babak
+        return [instr for instr in self.instructions if isinstance(instr, Gate)]  # type: ignore
 
     def get_measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
@@ -822,7 +826,7 @@ class QCircuit:
         return new_circuit
 
     def to_other_language(
-        self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
+            self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
@@ -891,9 +895,9 @@ class QCircuit:
                 )
                 if TYPE_CHECKING:
                     assert (
-                        isinstance(qiskit_inst, CircuitInstruction)
-                        or isinstance(qiskit_inst, Operation)
-                        or isinstance(qiskit_inst, Operator)
+                            isinstance(qiskit_inst, CircuitInstruction)
+                            or isinstance(qiskit_inst, Operation)
+                            or isinstance(qiskit_inst, Operator)
                     )
                 cargs = []
 
@@ -912,7 +916,7 @@ class QCircuit:
                 elif isinstance(instruction, Gate):
                     qargs = instruction.targets
                 elif isinstance(instruction, BasisMeasure) and isinstance(
-                    instruction.basis, ComputationalBasis
+                        instruction.basis, ComputationalBasis
                 ):
                     # TODO muhammad/henri, for custom basis, check if something
                     #  should be changed here, otherwise remove the condition to
@@ -1069,7 +1073,7 @@ class QCircuit:
         return qasm3_code
 
     def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+            self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> QCircuit:
         r"""Substitute the parameters of the circuit with complex values.
         Optionally also remove all symbolic variables such as `\pi` (needed for
@@ -1116,7 +1120,7 @@ class QCircuit:
         """
         return QCircuit(
             data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
-            + self.noises,  # 3M-TODO: modify this line when noise will be
+                 + self.noises,  # 3M-TODO: modify this line when noise will be
             # parameterized, do subs, like we do for inst
             nb_qubits=self.nb_qubits,
             nb_cbits=self.nb_cbits,
