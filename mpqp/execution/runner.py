@@ -178,16 +178,16 @@ def _run_single(
          Error: None
 
     """
-    circuit = circuit.hard_copy()
+    circuit_copy = circuit.hard_copy()
 
     if display_breakpoints:
-        for k in range(len(circuit.breakpoints)):
-            display_kth_breakpoint(circuit, k)
+        for k in range(len(circuit_copy.breakpoints)):
+            display_kth_breakpoint(circuit_copy, k)
 
-    job = generate_job(circuit, device, values)
+    job = generate_job(circuit_copy, device, values)
     job.status = JobStatus.INIT
 
-    if circuit.noises:
+    if circuit_copy.noises:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."

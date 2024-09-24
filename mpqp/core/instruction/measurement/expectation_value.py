@@ -211,7 +211,7 @@ class ExpectationMeasure(Measure):
 
         if self.nb_qubits != observable.nb_qubits:
             raise NumberQubitsError(
-                f"Target size {len(targets)} doesn't match observable size "
+                f"Target size {self.nb_qubits} doesn't match observable size "
                 f"{observable.nb_qubits}."
             )
 
