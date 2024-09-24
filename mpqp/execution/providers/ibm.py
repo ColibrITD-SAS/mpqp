@@ -170,9 +170,7 @@ def generate_qiskit_noise_model(
         ]
     )
 
-    gate_instructions = [
-        instr for instr in modified_circuit.instructions if isinstance(instr, Gate)
-    ]
+    gate_instructions = modified_circuit.get_gates()
 
     noisy_identity_counter = 0
 
@@ -320,6 +318,8 @@ def run_aer(job: Job):
     qiskit_circuit = qiskit_circuit.reverse_bits()
 
     run_input = transpile(qiskit_circuit, backend_sim)
+    # TODO: double check this reverse stuff, maybe we need to transpile before reversing qubits ?
+    #  maybe we should reverse qubits inside the noise model also ?
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
