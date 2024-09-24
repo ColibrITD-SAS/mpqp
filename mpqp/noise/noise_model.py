@@ -35,7 +35,7 @@ class NoiseModel(ABC):
 
     Args:
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instructions.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instructions.gates.gate.Gate`
             affected by this noise.
 
     Raises:
@@ -136,7 +136,7 @@ class Depolarizing(NoiseModel):
         prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
             affected by this noise.
 
     Raises:
@@ -305,7 +305,7 @@ class BitFlip(NoiseModel):
     Args:
         prob: Bit flip error probability or error rate (must be within [0, 0.5]).
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
             affected by this noise. If multi-qubit gates is passed, single-qubit
             bitflip will be added for each qubit connected (target, control) with the gates.
 
@@ -354,9 +354,9 @@ class BitFlip(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
-        target = f", {self.targets}" if self.targets else ""
+        targets = f", {self.targets}" if len(self.targets) != 0 else ""
         gates = f", gates={self.gates}" if self.gates else ""
-        return f"{type(self).__name__}({self.prob}{target}{gates})"
+        return f"{type(self).__name__}({self.prob}{targets}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -401,7 +401,7 @@ class AmplitudeDamping(NoiseModel):
         prob: Probability of excitation in the generalized amplitude damping noise channel
             When set to 1, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
             affected by this noise.
 
     Raises:
@@ -424,8 +424,8 @@ class AmplitudeDamping(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            AmplitudeDamping(0.2, prob=0, targets=[0])
-            AmplitudeDamping(0.4, prob=0.1, targets=[1, 2])
+            AmplitudeDamping(0.2, 0, targets=[0])
+            AmplitudeDamping(0.4, 0.1, targets=[1, 2])
             AmplitudeDamping(0.1, targets=[0, 1, 2])
             AmplitudeDamping(0.1)
             AmplitudeDamping(0.7, targets=[0, 1])
@@ -458,9 +458,9 @@ class AmplitudeDamping(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
+        prob = f", {self.prob}" if self.prob != 1 else ""
         targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
-        prob = f", prob={self.prob}" if self.prob != 1 else ""
         return f"{type(self).__name__}({self.gamma}{prob}{targets}{gates})"
 
     def to_other_language(

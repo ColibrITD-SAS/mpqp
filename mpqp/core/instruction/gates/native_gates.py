@@ -150,7 +150,10 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
-        theta = float(self.theta) if self._numeric_parameters else self.theta
+        try:
+            theta = float(self.theta)
+        except:
+            theta = self.theta
         if language == Language.QISKIT:
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
@@ -250,6 +253,9 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             raise NotImplementedError(f"Error: {language} is not supported")
 
     def to_matrix(self) -> Matrix:
+        return self.matrix
+
+    def to_canonical_matrix(self) -> Matrix:
         return self.matrix
 
 
@@ -479,6 +485,9 @@ class P(RotationGate, SingleQubitGate):
             ]
         )
 
+    def to_canonical_matrix(self) -> Matrix:
+        return self.to_matrix()
+
 
 class S(OneQubitNoParamGate):
     """One qubit S gate. It's equivalent to ``P(pi/2)``.
@@ -554,6 +563,9 @@ class T(OneQubitNoParamGate):
 
         return np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
 
+    def to_canonical_matrix(self):
+        return self.to_matrix()
+
 
 class SWAP(InvolutionGate, NoParameterGate):
     """Two-qubit SWAP gate.
@@ -563,11 +575,11 @@ class SWAP(InvolutionGate, NoParameterGate):
         b: Second target of the swapping operation.
 
     Example:
-        >>> SWAP(0, 1).to_matrix()
-        array([[1, 0, 0, 0],
-               [0, 0, 1, 0],
-               [0, 1, 0, 0],
-               [0, 0, 0, 1]])
+        >>> pretty_print_matrix(SWAP(0, 1).to_matrix())
+        [[1, 0, 0, 0],
+         [0, 0, 1, 0],
+         [0, 1, 0, 0],
+         [0, 0, 0, 1]]
 
     """
 
@@ -588,11 +600,61 @@ class SWAP(InvolutionGate, NoParameterGate):
         self.qlm_aqasm_keyword = "SWAP"
 
         self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
+
         super().__init__([a, b], "SWAP")
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.targets[0]}, {self.targets[1]})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
+
+    def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex64]:
+        """Constructs the matrix representation of a SWAP gate for two qubits.
+
+        Args:
+            nb_qubits: The total number for qubits gate representation. If not
+                provided, the minimum number of qubits required to generate the
+                matrix will be used.
+
+        Returns:
+            The matrix representation of the SWAP gate.
+        """
+        control, target = self.targets[0], self.targets[1]
+
+        max_qubits = max(control, target) + 1
+        if desired_gate_size != 0 and desired_gate_size < max_qubits:
+            raise ValueError(
+                f"The number of qubits in the system must be at least {max_qubits}."
+            )
+
+        nb_qubits_swap = abs(control - target) + 1
+        min_nb_qubits = min(control, target)
+        swap_matrix = np.eye(2**nb_qubits_swap, dtype=np.complex64)
+
+        for i in range(2**nb_qubits_swap):
+            binary_state = list(format(i, f"0{nb_qubits_swap}b"))
+
+            (
+                binary_state[nb_qubits_swap - control + min_nb_qubits - 1],
+                binary_state[nb_qubits_swap - target + min_nb_qubits - 1],
+            ) = (
+                binary_state[nb_qubits_swap - target + min_nb_qubits - 1],
+                binary_state[nb_qubits_swap - control + min_nb_qubits - 1],
+            )
+
+            swapped_index = int("".join(binary_state), 2)
+
+            swap_matrix[i, i] = 0
+            swap_matrix[swapped_index, i] = 1
+
+        if desired_gate_size != 0:
+            swap_matrix = np.kron(np.eye(2**min_nb_qubits), swap_matrix)
+            swap_matrix = np.kron(
+                swap_matrix, np.eye(2 ** (desired_gate_size - max_qubits))
+            )
+        return swap_matrix
 
 
 class U(NativeGate, ParametrizedGate, SingleQubitGate):
@@ -654,7 +716,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
         elif language == Language.BRAKET:
-            from braket.circuits import gates
+            from braket.circuits.gates import U as braket_U
             from sympy import Expr
 
             # TODO handle symbolic parameters
@@ -668,7 +730,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                     "export, this feature is coming very soon!"
                 )
 
-            return gates.U(self.theta, self.phi, self.gamma)
+            return braket_U(self.theta, self.phi, self.gamma)
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -685,6 +747,12 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
             ]
         )
+
+    def to_canonical_matrix(self):
+        return self.to_matrix()
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.theta}, {self.phi}, {self.gamma}, {self.targets[0]})"
 
     qlm_aqasm_keyword = "U"
 
@@ -728,6 +796,9 @@ class Rx(RotationGate, SingleQubitGate):
             [[c, -1j * s], [-1j * s, c]]  # pyright: ignore[reportOperatorIssue]
         )
 
+    def to_canonical_matrix(self):
+        return self.to_matrix()
+
 
 class Ry(RotationGate, SingleQubitGate):
     """One qubit rotation around the Y axis
@@ -766,6 +837,9 @@ class Ry(RotationGate, SingleQubitGate):
         s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         return np.array([[c, -s], [s, c]])
 
+    def to_canonical_matrix(self):
+        return self.to_matrix()
+
 
 class Rz(RotationGate, SingleQubitGate):
     """One qubit rotation around the Z axis
@@ -775,7 +849,7 @@ class Rz(RotationGate, SingleQubitGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(Rz(np.pi/5, 1).to_matrix()))
+        >>> pretty_print_matrix(Rz(np.pi/5, 1).to_matrix())
         [[0.9510565-0.309017j, 0],
          [0, 0.9510565+0.309017j]]
 
@@ -804,6 +878,9 @@ class Rz(RotationGate, SingleQubitGate):
         return np.array(  # pyright: ignore[reportCallIssue]
             [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
         )
+
+    def to_canonical_matrix(self):
+        return self.to_matrix()
 
 
 class Rk(RotationGate, SingleQubitGate):
@@ -860,11 +937,14 @@ class Rk(RotationGate, SingleQubitGate):
         e = exp(p * 1j / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0], [0, e]])
 
+    def to_canonical_matrix(self):
+        return self.to_matrix()
+
     def __repr__(self):
         return f"{type(self).__name__}({self.k}, {self.targets[0]})"
 
 
-class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
+class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
     """Two-qubit Controlled-NOT gate.
 
     Args:
@@ -872,11 +952,11 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
         target: index referring to the qubit on which the gate will be applied
 
     Example:
-        >>> CNOT(0, 1).to_matrix()
-        array([[1, 0, 0, 0],
-               [0, 1, 0, 0],
-               [0, 0, 0, 1],
-               [0, 0, 1, 0]])
+        >>> pretty_print_matrix(CNOT(0, 1).to_matrix())
+        [[1, 0, 0, 0],
+         [0, 1, 0, 0],
+         [0, 0, 0, 1],
+         [0, 0, 1, 0]]
 
     """
 
@@ -897,7 +977,7 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
         self.qlm_aqasm_keyword = "CNOT"
         ControlledGate.__init__(self, [control], [target], X(target), "CNOT")
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
@@ -905,7 +985,7 @@ class CNOT(InvolutionGate, NoParameterGate, ControlledGate):
     )
 
 
-class CZ(InvolutionGate, NoParameterGate, ControlledGate):
+class CZ(InvolutionGate, ControlledGate, NoParameterGate):
     """Two-qubit Controlled-Z gate.
 
     Args:
@@ -913,7 +993,7 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(CZ(0, 1).to_matrix()))
+        >>> pretty_print_matrix(CZ(0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 1, 0, 0],
          [0, 0, 1, 0],
@@ -938,7 +1018,7 @@ class CZ(InvolutionGate, NoParameterGate, ControlledGate):
         self.qlm_aqasm_keyword = "CSIGN"
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         m = np.eye(4, dtype=complex)
         m[-1, -1] = -1
         return m
@@ -957,7 +1037,7 @@ class CRk(RotationGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(CRk(4, 0, 1).to_matrix()))
+        >>> pretty_print_matrix(CRk(4, 0, 1).to_matrix())
         [[1, 0, 0, 0],
          [0, 1, 0, 0],
          [0, 0, 1, 0],
@@ -982,7 +1062,9 @@ class CRk(RotationGate, ControlledGate):
         self.qlm_aqasm_keyword = ["CNOT", "PH"]
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
-        definition = UnitaryMatrix(self.to_matrix(), **self.native_gate_options)
+        definition = UnitaryMatrix(
+            self.to_canonical_matrix(), **self.native_gate_options
+        )
         ParametrizedGate.__init__(self, definition, [target], [k], "CRk")
 
     @property
@@ -999,11 +1081,11 @@ class CRk(RotationGate, ControlledGate):
         """See corresponding argument."""
         return self.parameters[0]
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
 
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
@@ -1011,7 +1093,7 @@ class CRk(RotationGate, ControlledGate):
     )
 
 
-class TOF(InvolutionGate, NoParameterGate, ControlledGate):
+class TOF(InvolutionGate, ControlledGate, NoParameterGate):
     """Three-qubit Controlled-Controlled-NOT gate, also known as Toffoli Gate
 
     Args:
@@ -1019,7 +1101,7 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
-        >>> print(clean_matrix(TOF([0, 1], 2).to_matrix()))
+        >>> pretty_print_matrix(TOF([0, 1], 2).to_matrix())
         [[1, 0, 0, 0, 0, 0, 0, 0],
          [0, 1, 0, 0, 0, 0, 0, 0],
          [0, 0, 1, 0, 0, 0, 0, 0],
@@ -1050,7 +1132,7 @@ class TOF(InvolutionGate, NoParameterGate, ControlledGate):
             raise ValueError("A Toffoli gate must have exactly 2 control qubits.")
         ControlledGate.__init__(self, control, [target], X(target), "TOF")
 
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self):
         m = np.identity(8, dtype=complex)
         m[-2:, -2:] = np.ones(2) - np.identity(2)
         return m

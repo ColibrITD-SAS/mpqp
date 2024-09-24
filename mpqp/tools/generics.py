@@ -143,15 +143,14 @@ def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     Example:
         >>> numbers = [1, 2, 3, 4, 5]
         >>> is_even = lambda x: x % 2 == 0
-        >>> find(numbers, is_even)
-        2
+        >>> find_index(numbers, is_even)
+        1
 
     """
     for index, item in enumerate(iterable):
         if oracle(item):
             return index
     raise ValueError("No objects satisfies the given oracle")
-
 
 
 class SimpleClassReprMeta(type):

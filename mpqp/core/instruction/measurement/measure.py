@@ -1,11 +1,11 @@
-""":class:`Measure<mpqp.core.instruction.measurement.measure.Measure>` is the
+""":class:`~mpqp.core.instruction.measurement.measure.Measure` is the
 base class for measurements. It regroups all the attributes and methods
 common to all types of measurements we support.
 
 A measurement can be of two types:
-:class:`BasisMeasure<mpqp.core.instruction.measurement.basis_measure.BasisMeasure>`
+:class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
 or
-:class:`ExpectationMeasure<mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure>`,
+:class:`~mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure`,
 described in details bellow."""
 
 from __future__ import annotations
