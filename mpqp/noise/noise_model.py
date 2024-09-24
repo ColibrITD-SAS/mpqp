@@ -50,6 +50,9 @@ class NoiseModel(ABC):
     ):
         if targets is None:
             targets = []
+            self._dynamic = True
+        else:
+            self._dynamic = False
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
 
@@ -201,17 +204,18 @@ class Depolarizing(NoiseModel):
                 raise ValueError(
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
-
-        if targets and len(targets) < dimension:
-            raise ValueError(
-                f"Number of target qubits {len(targets)} should be higher than the dimension {dimension}."
-            )
-
         super().__init__(targets, gates)
         self.prob = prob
         """Probability, or error rate, of the depolarizing noise model."""
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
+        self._check_dimension()
+
+    def _check_dimension(self):
+        if self.targets != [] and len(self.targets) < self.dimension:
+            raise ValueError(
+                f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
+            )
 
     def to_kraus_representation(self):
         """3M-TODO"""
@@ -220,10 +224,14 @@ class Depolarizing(NoiseModel):
         return KrausRepresentation(kraus_operators)
 
     def __repr__(self):
-        target = f", {self.targets}" if len(self.targets) != 0 else ""
+        target = (
+            f", {self.targets}"
+            if (not self._dynamic and len(self.targets) != 0)
+            else ""
+        )
         dimension = f", dimension={self.dimension}" if self.dimension != 1 else ""
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
-        return f"{type(self).__name__}({self.prob}{target}{dimension}{gates})"
+        return f"Depolarizing({self.prob}{target}{dimension}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -354,9 +362,13 @@ class BitFlip(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
-        targets = f", {self.targets}" if len(self.targets) != 0 else ""
+        targets = (
+            f", {self.targets}"
+            if (not self._dynamic and len(self.targets)) != 0
+            else ""
+        )
         gates = f", gates={self.gates}" if self.gates else ""
-        return f"{type(self).__name__}({self.prob}{targets}{gates})"
+        return f"BitFlip({self.prob}{targets}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -459,9 +471,13 @@ class AmplitudeDamping(NoiseModel):
 
     def __repr__(self):
         prob = f", {self.prob}" if self.prob != 1 else ""
-        targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
+        targets = (
+            f", targets={self.targets}"
+            if (not self._dynamic and len(self.targets)) != 0
+            else ""
+        )
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
-        return f"{type(self).__name__}({self.gamma}{prob}{targets}{gates})"
+        return f"AmplitudeDamping({self.gamma}{prob}{targets}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT

@@ -57,3 +57,5 @@ class Measure(Instruction, ABC):
         """See parameter description."""
         self.label = label
         """See parameter description."""
+        if targets == []:
+            self._dynamic = True

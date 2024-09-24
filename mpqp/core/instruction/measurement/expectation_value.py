@@ -179,6 +179,13 @@ class ExpectationMeasure(Measure):
         shots: Number of shots to be performed.
         label: Label used to identify the measure.
 
+    Attributes:
+        observable: Observable used for the measure.
+        pre_measure: Circuit added before the expectation measurement to correctly swap
+                target qubits when their are note ordered or contiguous.
+        rearranged_targets: Adjusted list of target qubits when they are not initially sorted and
+                contiguous.
+
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
@@ -199,29 +206,30 @@ class ExpectationMeasure(Measure):
         shots: int = 0,
         label: Optional[str] = None,
     ):
-        from mpqp.core.circuit import QCircuit
 
         super().__init__(targets, shots, label)
         self.observable = observable
         """See parameter description."""
+        self._check_targets_order()
 
-        if targets is None:
+    def _check_targets_order(self):
+        from mpqp.core.circuit import QCircuit
+
+        if self.targets == []:
             self.pre_measure = QCircuit(0)
             return
 
-        if self.nb_qubits != observable.nb_qubits:
+        if self.nb_qubits != self.observable.nb_qubits:
             raise NumberQubitsError(
                 f"Target size {self.nb_qubits} doesn't match observable size "
-                f"{observable.nb_qubits}."
+                f"{self.observable.nb_qubits}."
             )
 
-        self.pre_measure = QCircuit(max(targets) + 1)
-        """Circuit added before the expectation measurement to correctly swap "
-        "target qubits when their are note ordered or contiguous."""
+        self.pre_measure = QCircuit(max(self.targets) + 1)
         targets_is_ordered = all(
-            [targets[i] > targets[i - 1] for i in range(1, len(targets))]
+            [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )
-        tweaked_tgt = copy.copy(targets)
+        tweaked_tgt = copy.copy(self.targets)
         if (
             max(tweaked_tgt) - min(tweaked_tgt) + 1 != len(tweaked_tgt)
             or not targets_is_ordered
@@ -244,15 +252,16 @@ class ExpectationMeasure(Measure):
                     self.pre_measure.add(SWAP(target, tweaked_tgt[t_index - 1] + 1))
                     tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
         self.rearranged_targets = tweaked_tgt
-        """Adjusted list of target qubits when they are not initially sorted and 
-        contiguous."""
 
     def __repr__(self) -> str:
-        targets = "" if len(self.targets) == 0 else f", {self.targets}"
-        label = "" if self.label is None else f", label={self.label}"
-        return (
-            f"ExpectationMeasure({self.observable}{targets}, shots={self.shots}{label})"
+        targets = (
+            f", {self.targets}"
+            if (not self._dynamic and len(self.targets)) != 0
+            else ""
         )
+        shots = "" if self.shots == 0 else f", shots={self.shots}"
+        label = "" if self.label is None else f", label={self.label}"
+        return f"ExpectationMeasure({self.observable}{targets}{shots}{label})"
 
     def to_other_language(
         self,

@@ -375,31 +375,32 @@ def test_measure_no_target(measure: Measure):
         assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
 
 
-def test_instruction_no_target():
+@pytest.mark.parametrize(
+    "component",
+    [
+        Depolarizing(0.3),
+        BitFlip(0.05),
+        AmplitudeDamping(0.2),
+        Barrier(),
+        BasisMeasure(),
+    ],
+)
+def test_instruction_no_target(component: Instruction | NoiseModel):
     circuit = QCircuit(2)
-    circuit.add(H(0))
-    circuit.add(CNOT(0, 1))
-    circuit.add(Depolarizing(0.3))
-    circuit.add(BitFlip(0.05))
-    circuit.add(AmplitudeDamping(0.2))
-    circuit.add(Barrier())
+    circuit.add(component)
 
-    qcircuit = circuit.hard_copy()
     qubits = list(range(circuit.nb_qubits))
-    for instruction in qcircuit.instructions:
-        if isinstance(instruction, NoiseModel):
-            assert qubits == instruction.targets
-        elif isinstance(instruction, Barrier):
-            assert qubits == instruction.targets
+    for instruction in circuit.instructions:
+        assert qubits == instruction.targets
+    for noise in circuit.noises:
+        assert qubits == noise.targets
 
     circuit.nb_qubits += 1
-    qcircuit = circuit.hard_copy()
     qubits = list(range(circuit.nb_qubits))
-    for instruction in qcircuit.instructions:
-        if isinstance(instruction, NoiseModel):
-            assert qubits == instruction.targets
-        elif isinstance(instruction, Barrier):
-            assert qubits == instruction.targets
+    for instruction in circuit.instructions:
+        assert qubits == instruction.targets
+    for noise in circuit.noises:
+        assert qubits == noise.targets
 
 
 @pytest.mark.parametrize(

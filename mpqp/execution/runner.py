@@ -177,16 +177,15 @@ def _run_single(
          Error: None
 
     """
-    circuit_copy = circuit.hard_copy()
 
     if display_breakpoints:
-        for k in range(len(circuit_copy.breakpoints)):
-            display_kth_breakpoint(circuit_copy, k)
+        for k in range(len(circuit.breakpoints)):
+            display_kth_breakpoint(circuit, k)
 
-    job = generate_job(circuit_copy, device, values)
+    job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
-    if circuit_copy.noises:
+    if circuit.noises:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
@@ -289,7 +288,6 @@ def run(
         values = {}
 
     def namer(circ: QCircuit, i: int):
-        circ = circ.hard_copy()
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -302,7 +300,7 @@ def run(
             ]
         )
     else:
-        return _run_single(circuit.hard_copy(), device, values, display_breakpoints)
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
 @typechecked
