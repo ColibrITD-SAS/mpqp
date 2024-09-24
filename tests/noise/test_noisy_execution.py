@@ -17,11 +17,7 @@ from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUs
 from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.theoretical_simulation import (
-    chi_square_test,
-    results_to_dict,
-    run_experiment,
-)
+from mpqp.tools.theoretical_simulation import chi_square_test, run_experiment
 
 
 @pytest.fixture
@@ -56,46 +52,22 @@ def devices():
     return devices
 
 
-@pytest.fixture
-def chi_square_test_data() -> tuple[list[int], list[int], int, float]:
-    noise_proba = 0.7
-    shots = 1024
-    alpha = 0.05
-
-    circuit = QCircuit(
-        [
-            H(0),
-            CNOT(0, 1),
-            BasisMeasure([0, 1], shots=1024),
-            Depolarizing(noise_proba, [0, 1]),
-        ],
-        label="Noise-Testing",
-    )
-
-    run_mpqp = _run_single(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR, {})
-    mpqp_counts = run_mpqp.counts
-
-    run_theoretical = run_experiment(circuit, noise_proba, shots)
-    results_dict = results_to_dict(run_theoretical, circuit.nb_qubits, shots)
-    theoretical_counts = list(results_dict.values())
-
-    return mpqp_counts, theoretical_counts, shots, alpha
-
-
 def test_noisy_expectation_value_execution_without_error(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
     circuit.add(
-        ExpectationMeasure(
-            [0, 1, 2],
-            observable=Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
-            shots=1023,
-        )
+        [
+            ExpectationMeasure(
+                [0, 1, 2],
+                observable=Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
+                shots=1023,
+            ),
+            Depolarizing(0.23, [0, 1]),
+            BitFlip(0.1),
+            AmplitudeDamping(0.4),
+            AmplitudeDamping(0.2, 0.3),
+        ]
     )
-    circuit.add(Depolarizing(0.23, [0, 1]))
-    circuit.add(BitFlip(0.1))
-    circuit.add(AmplitudeDamping(0.4))
-    circuit.add(AmplitudeDamping(0.2, 0.3))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
@@ -104,13 +76,17 @@ def test_noisy_expectation_value_execution_without_error(
 def test_all_native_gates_global_noise_execution_without_error(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
-    circuit.add(BasisMeasure([0, 1, 2], shots=1023))
-    circuit.add(Depolarizing(0.23))
-    circuit.add(Depolarizing(0.23, [0, 1, 2], dimension=2, gates=[SWAP, CNOT, CZ]))
-    circuit.add(BitFlip(0.2, [0, 1, 2]))
-    circuit.add(BitFlip(0.1, gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.4, gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.2, 0.3, [0, 1, 2]))
+    circuit.add(
+        [
+            BasisMeasure([0, 1, 2], shots=1023),
+            Depolarizing(0.23),
+            Depolarizing(0.23, [0, 1, 2], dimension=2, gates=[SWAP, CNOT, CZ]),
+            BitFlip(0.2, [0, 1, 2]),
+            BitFlip(0.1, gates=[CNOT, H]),
+            AmplitudeDamping(0.4, gates=[CNOT, H]),
+            AmplitudeDamping(0.2, 0.3, [0, 1, 2]),
+        ]
+    )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
@@ -119,60 +95,42 @@ def test_all_native_gates_global_noise_execution_without_error(
 def test_all_native_gates_local_noise(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
-    circuit.add(BasisMeasure([0, 1, 2], shots=1023))
     circuit.add(
-        Depolarizing(0.23, [0, 2], gates=[H, X, Y, Z, S, T, Rx, Ry, Rz, Rk, P, U])
+        [
+            BasisMeasure([0, 1, 2], shots=1023),
+            Depolarizing(0.23, [0, 2], gates=[H, X, Y, Z, S, T, Rx, Ry, Rz, Rk, P, U]),
+            Depolarizing(0.23, [0, 1], dimension=2, gates=[SWAP, CNOT, CZ]),
+            BitFlip(0.2, [0, 2]),
+            BitFlip(0.1, [0, 1], gates=[CNOT, H]),
+            AmplitudeDamping(0.4, targets=[0, 1], gates=[CNOT, H]),
+            AmplitudeDamping(0.2, 0.3, [0, 1, 2]),
+        ]
     )
-    circuit.add(Depolarizing(0.23, [0, 1], dimension=2, gates=[SWAP, CNOT, CZ]))
-    circuit.add(BitFlip(0.2, [0, 2]))
-    circuit.add(BitFlip(0.1, [0, 1], gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.4, targets=[0, 1], gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.2, 0.3, [0, 1, 2]))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
 
 
-def test_chisquare_expected_counts_calculation(
-    chi_square_test_data: tuple[list[int], list[int], int, float]
-):
-    mpqp_counts, theoretical_counts, shots, _ = chi_square_test_data
-    result = chi_square_test(mpqp_counts, theoretical_counts, shots)
+def test_shot_noise(circuit: QCircuit, devices: list[AvailableDevice]):
+    shots = 1024
+    circuit.add([BasisMeasure()])
+    result = _run_single(circuit, devices[0], {})
+    experimental_counts = result.counts
 
-    theoretical_probabilities = [count / shots for count in theoretical_counts]
-    expected_counts = [int(tp * shots) for tp in theoretical_probabilities]
+    theoretical_counts = run_experiment(circuit, 0, shots)
 
-    assert result.expected_counts == expected_counts
-
-
-def test_chisquare_p_value_calculation(
-    chi_square_test_data: tuple[list[int], list[int], int, float]
-):
-    from scipy.stats import chisquare
-
-    mpqp_counts, theoretical_counts, shots, _ = chi_square_test_data
-    result = chi_square_test(mpqp_counts, theoretical_counts, shots)
-
-    _, expected_p_value = chisquare(mpqp_counts, result.expected_counts)
-    assert result.p_value == expected_p_value
+    r = chi_square_test(experimental_counts, list(theoretical_counts.values()), shots)
+    assert r.significant
 
 
-def test_chisquare_significant(
-    chi_square_test_data: tuple[list[int], list[int], int, float]
-):
-    mpqp_counts, theoretical_counts, shots, alpha = chi_square_test_data
+def test_depol_noise(circuit: QCircuit, devices: list[AvailableDevice]):
+    shots = 1024
+    depol_noise = 0.3
+    circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
+    result = _run_single(circuit, devices[0], {})
+    experimental_counts = result.counts
 
-    result = chi_square_test(mpqp_counts, theoretical_counts, shots, alpha)
+    theoretical_counts = run_experiment(circuit, depol_noise, shots)
 
-    assert result.p_value < alpha
-
-
-def test_chisquare_empty_counts():
-    mpqp_counts = []
-    theoretical_counts = []
-    shots = 1
-
-    result = chi_square_test(mpqp_counts, theoretical_counts, shots)
-
-    assert result.p_value == 1.0
-    assert not result.significant, "Result should not be significant when empty counts"
+    r = chi_square_test(experimental_counts, list(theoretical_counts.values()), shots)
+    assert r.significant

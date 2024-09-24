@@ -232,8 +232,8 @@ def rand_orthogonal_matrix(
                [-0.17290035,  0.9733528 , -0.15063131]])
 
     """
-    np.random.seed(seed)
-    m = np.random.rand(size, size)
+    rs = np.random.RandomState(seed)
+    m = rs.rand(size, size)
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
