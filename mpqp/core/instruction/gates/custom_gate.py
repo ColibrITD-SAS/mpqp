@@ -59,6 +59,10 @@ class CustomGate(Gate):
             qiskit_parameters = set()
         return QiskitOperator(self.matrix)
 
+    def __repr__(self):
+        # TODO: fill the __repr__
+        return ""
+
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
 
