@@ -150,7 +150,7 @@ def generate_qiskit_noise_model(
     """
 
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-
+    #TODO: explain in the doc that we did reverse the qubit orders
     noise_model = Qiskit_NoiseModel()
 
     modified_circuit = circuit.hard_copy()
