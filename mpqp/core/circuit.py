@@ -24,6 +24,7 @@ from copy import deepcopy
 from numbers import Complex
 from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
+from warnings import warn
 
 from mpqp.core.instruction.breakpoint import Breakpoint
 
@@ -207,17 +208,17 @@ class QCircuit:
             )
 
         if components._dynamic:  # pyright: ignore[reportPrivateUsage]
-            components = self.update_targets_components(components)
+            components = self._update_targets_components(components)
 
         self._check_components_targets(components)
         if isinstance(components, BasisMeasure):
+            if self.nb_cbits is None:
+                self.nb_cbits = 0
             if components.c_targets is None:
-                if self.nb_cbits is None:
-                    self.nb_cbits = 0
                 components.c_targets = [
                     self.nb_cbits + i for i in range(len(components.targets))
                 ]
-                self.nb_cbits += len(components.c_targets)
+            self.nb_cbits = max(self.nb_cbits, max(components.c_targets) + 1)
 
         if isinstance(components, NoiseModel):
             self.noises.append(components)
@@ -248,7 +249,7 @@ class QCircuit:
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
 
-    def update_targets_components(self, components: Instruction | NoiseModel):
+    def _update_targets_components(self, components: Instruction | NoiseModel):
         """update the targets of the components with the number of qubits in the circuit.
 
         Raises:
@@ -262,23 +263,22 @@ class QCircuit:
             >>> basis_measure = BasisMeasure()
             >>> print(depolarization.targets)
             []
-            >>> print(circuit.update_targets_components(depolarization).targets)
+            >>> print(circuit._update_targets_components(depolarization).targets)
             [0, 1]
             >>> print(basis_measure.targets)
             []
-            >>> print(circuit.update_targets_components(basis_measure).targets)
+            >>> print(circuit._update_targets_components(basis_measure).targets)
             [0, 1]
             >>> circuit.nb_qubits = 3
-            >>> print(circuit.update_targets_components(depolarization).targets)
+            >>> print(circuit._update_targets_components(depolarization).targets)
             [0, 1, 2]
-            >>> print(circuit.update_targets_components(basis_measure).targets)
+            >>> print(circuit._update_targets_components(basis_measure).targets)
             [0, 1, 2]
 
         """
 
         targets = list(range(self.nb_qubits))
 
-        old_targets = len(components.targets)
         dynamic_components = components
         dynamic_components.targets = targets
         self._check_components_targets(components)
@@ -292,16 +292,27 @@ class QCircuit:
         elif isinstance(dynamic_components, BasisMeasure):
             if self.nb_cbits is None:
                 self.nb_cbits = 0
-            if dynamic_components.c_targets:
-                dynamic_components.c_targets = [
-                    dynamic_components.c_targets[0] + i
-                    for i in range(len(dynamic_components.targets))
-                ]
-            else:
-                dynamic_components.c_targets = [
-                    self.nb_cbits + i for i in range(len(components.targets))
-                ]
-            self.nb_cbits += len(dynamic_components.c_targets) - old_targets
+            unique_cbits = set()
+            for basis_measure in self.instructions:
+                if basis_measure != components and isinstance(
+                    basis_measure, BasisMeasure
+                ):
+                    if basis_measure.c_targets:
+                        unique_cbits.update(basis_measure.c_targets)
+            c_targets = []
+            i = 0
+            for _ in range(len(dynamic_components.targets)):
+                while i in unique_cbits:
+                    warn(
+                        "Dynamic measurements don't play well with static measurements: order of classic bits might be unexpected"
+                    )
+                    i += 1
+                c_targets.append(i)
+                i += 1
+            dynamic_components.c_targets = c_targets
+            self.nb_cbits = max(
+                max(c_targets, default=0) + 1, max(unique_cbits, default=0) + 1
+            )
 
         return dynamic_components
 
@@ -313,25 +324,13 @@ class QCircuit:
     def nb_qubits(self, nb_qubits: int):
         self._nb_qubits = nb_qubits
 
-        qcircuit = deepcopy(self)
-        qcircuit.instructions = []
-        qcircuit.noises = []
-
         for noise in self.noises:
             if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
-                components_copy = self.update_targets_components(noise)
-            else:
-                components_copy = noise
-            qcircuit.add(components_copy)
+                self._update_targets_components(noise)
 
         for instruction in self.instructions:
             if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
-                components_copy = self.update_targets_components(instruction)
-            else:
-                components_copy = instruction
-            qcircuit.add(components_copy)
-
-        self = qcircuit
+                self._update_targets_components(instruction)
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.
