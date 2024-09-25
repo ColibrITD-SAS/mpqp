@@ -17,7 +17,7 @@ from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUs
 from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.theoretical_simulation import chi_square_test, run_experiment
+from mpqp.tools.theoretical_simulation import theoretical_probs, validate
 
 
 @pytest.fixture
@@ -114,23 +114,35 @@ def test_all_native_gates_local_noise(
 def test_shot_noise(circuit: QCircuit, devices: list[AvailableDevice]):
     shots = 1024
     circuit.add([BasisMeasure()])
-    result = _run_single(circuit, devices[0], {})
+    result = _run_single(circuit.hard_copy(), devices[0], {})
     experimental_counts = result.counts
 
-    theoretical_counts = run_experiment(circuit, 0, shots)
+    probs = theoretical_probs(circuit.hard_copy(), 0)
 
-    r = chi_square_test(experimental_counts, list(theoretical_counts.values()), shots)
-    assert r.significant
+    assert validate(experimental_counts, probs, shots)
 
 
-def test_depol_noise(circuit: QCircuit, devices: list[AvailableDevice]):
-    shots = 1024
-    depol_noise = 0.3
+@pytest.mark.parametrize("depol_noise", [0.001, 0.01, 0.1])
+def test_depol_noise(
+    circuit: QCircuit, devices: list[AvailableDevice], depol_noise: float
+):
     circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
-    result = _run_single(circuit, devices[0], {})
+    result = _run_single(circuit.hard_copy(), devices[0], {})
     experimental_counts = result.counts
 
-    theoretical_counts = run_experiment(circuit, depol_noise, shots)
+    probs = theoretical_probs(circuit.hard_copy(), depol_noise)
 
-    r = chi_square_test(experimental_counts, list(theoretical_counts.values()), shots)
-    assert r.significant
+    assert validate(experimental_counts, probs, 0.05 + depol_noise * 10)
+
+
+@pytest.mark.parametrize("depol_noise", [0.1, 0.2, 0.3])
+def test_depol_noise_fail(
+    circuit: QCircuit, devices: list[AvailableDevice], depol_noise: float
+):
+    circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
+    result = _run_single(circuit.hard_copy(), devices[0], {})
+    experimental_counts = result.counts
+
+    probs = theoretical_probs(circuit.hard_copy(), depol_noise)
+
+    assert not validate(experimental_counts, probs, 0.05)
