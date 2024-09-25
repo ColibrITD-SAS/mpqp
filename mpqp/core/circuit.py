@@ -53,7 +53,7 @@ from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import OneOrMany
-from mpqp.tools.maths import matrix_eq
+from mpqp.tools.maths import matrix_eq, closest_unitary
 
 
 @typechecked
@@ -1058,9 +1058,18 @@ class QCircuit:
                 QuantumCircuit containing the decomposition of the unitary in terms of native gates ``U`` and ``CX``,
                 and the global phase used for final correction of the statevector.
             """
+            from qiskit.exceptions import QiskitError
             transpilation_circuit = QuantumCircuit(nb_qubits)
             transpilation_circuit.append(custom_unitary)
-            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+            try:
+                transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+            except QiskitError as e:
+                # if the error is arising from TwoQubitWeylDecomposition, we replace the matrix by the closest unitary
+                if "TwoQubitWeylDecomposition" in str(e):
+                    custom_unitary.operation.params[0] = closest_unitary(custom_unitary.operation.params[0])
+                    transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+                else:
+                    raise e
             return transpiled, transpiled.global_phase
 
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(

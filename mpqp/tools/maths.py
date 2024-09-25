@@ -137,6 +137,25 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
+def closest_unitary(matrix: Matrix):
+    """ Calculate the unitary matrix that is closest with respect to the operator norm distance to the general matrix
+    in parameter.
+
+    Args:
+        matrix: Matrix for which we want to determine the closest unitary matrix.
+
+        Return U as a numpy matrix.
+
+    Example:
+        # TODO : fill examples
+
+    """
+    from scipy.linalg import svd
+    V, _, Wh = svd(matrix)
+    return np.array(V.dot(Wh))
+
+
+@typechecked
 def cos(angle: Expr | Real) -> sp.Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
