@@ -315,11 +315,9 @@ def run_aer(job: Job):
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
+    # We reverse the qubit order after transpilation, to match the qubit ordering in Qiskit_NoiseModel
+    qiskit_circuit = transpile(qiskit_circuit, backend_sim)
     qiskit_circuit = qiskit_circuit.reverse_bits()
-
-    run_input = transpile(qiskit_circuit, backend_sim)
-    # TODO: double check this reverse stuff, maybe we need to transpile before reversing qubits ?
-    #  maybe we should reverse qubits inside the noise model also ?
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
@@ -337,7 +335,7 @@ def run_aer(job: Job):
         assert job.measure is not None
 
         job.status = JobStatus.RUNNING
-        job_sim = backend_sim.run(run_input, shots=job.measure.shots)
+        job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
         assert isinstance(job.device, IBMDevice)
         result = extract_result(result_sim, job, job.device)
