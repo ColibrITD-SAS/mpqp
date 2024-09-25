@@ -129,7 +129,7 @@ def clean_matrix(matrix: Matrix):
     return "[" + ",\n ".join(cleaned_matrix) + "]"
 
 
-def pretty_print_matrix(matrix: Matrix):
+def pprint(matrix: Matrix):
     print(clean_matrix(matrix))
 
 
