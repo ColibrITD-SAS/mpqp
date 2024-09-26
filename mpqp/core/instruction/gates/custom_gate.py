@@ -48,6 +48,9 @@ class CustomGate(Gate):
     def to_matrix(self):
         return self.matrix
 
+    def to_canonical_matrix(self):
+        return self.matrix
+
     def to_other_language(
         self,
         language: Language = Language.QISKIT,

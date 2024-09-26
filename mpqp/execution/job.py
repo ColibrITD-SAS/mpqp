@@ -1,7 +1,6 @@
-"""
-When you call :func:`run<mpqp.execution.runner.run>` or
-:func:`submit<mpqp.execution.runner.submit>`, a :class:`Job` is created by 
-:func:`generate_job<mpqp.execution.runner.generate_job>`. This job contains all
+"""When you call :func:`~mpqp.execution.runner.run` or
+:func:`~mpqp.execution.runner.submit`, a :class:`Job` is created by 
+:func:`~mpqp.execution.runner.generate_job`. This job contains all
 the needed information to configure the execution, and eventually retrieve
 remote results.
 
@@ -213,17 +212,17 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
         )
 
     status = ibm_job.status()
-    if status == 'ERROR':
+    if status == "ERROR":
         return JobStatus.ERROR
-    elif status == 'CANCELLED':
+    elif status == "CANCELLED":
         return JobStatus.CANCELLED
-    elif status == 'QUEUED':
+    elif status == "QUEUED":
         return JobStatus.QUEUED
-    elif status == 'INITIALIZING':
+    elif status == "INITIALIZING":
         return JobStatus.INIT
-    elif status == 'RUNNING':
+    elif status == "RUNNING":
         return JobStatus.RUNNING
-    elif status == 'DONE':
+    elif status == "DONE":
         return JobStatus.DONE
     else:
         raise ValueError(f"Unexpected IBM job status: {status}")
