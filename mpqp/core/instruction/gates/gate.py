@@ -174,6 +174,7 @@ class Gate(Instruction, ABC):
                     0.        +0.j        , 1.        +0.j        ]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -244,6 +245,7 @@ class Gate(Instruction, ABC):
                    [ 1,  0]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -269,6 +271,7 @@ class Gate(Instruction, ABC):
                    [0.+1.j, 0.+0.j]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -296,6 +299,7 @@ class Gate(Instruction, ABC):
                    [ 0.70710678,  0.70710678]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         subtraction = self.to_matrix() - other.to_matrix()
@@ -323,6 +327,7 @@ class Gate(Instruction, ABC):
                    [ 0.70710678, -0.70710678]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         addition = self.to_matrix() + other.to_matrix()
