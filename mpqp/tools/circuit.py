@@ -52,7 +52,7 @@ def random_circuit(
     """
 
     if gate_classes is None:
-        gate_classes = NATIVE_GATES
+        gate_classes = [gate for gate in NATIVE_GATES if gate.nb_qubits <= nb_qubits]
 
     qubits = list(range(nb_qubits))
     qcircuit = QCircuit(nb_qubits)
@@ -61,7 +61,7 @@ def random_circuit(
         and ((gate == TOF and nb_qubits <= 2) or nb_qubits <= 1)
         for gate in gate_classes
     ):
-        raise ValueError("number of qubits to low for this gates")
+        raise ValueError("number of qubits too low for this gates")
 
     for _ in range(nb_gates):
         gate_class = random.choice(gate_classes)
