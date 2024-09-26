@@ -68,6 +68,10 @@ def dist_alpha_matching(alpha: float):
     return 2 * (np.sqrt(alpha) - alpha)
 
 
+# TODO: this bound it coming out of my ass, see if these results already in
+# statistics. Some useful resources might be: jensen inequality, chernoff bound
+
+
 def trust_int(noiseless_circuit: QCircuit, p: float):
     """Given a circuit, this computes the trust interval for the output samples
     for a specific noise level.
