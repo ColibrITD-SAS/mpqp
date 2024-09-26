@@ -2,6 +2,7 @@
 too slow)"""
 
 import sys
+from itertools import product
 
 import numpy as np
 import pytest
@@ -17,7 +18,11 @@ from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUs
 from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.theoretical_simulation import theoretical_probs, validate
+from mpqp.tools.theoretical_simulation import (
+    theoretical_probs,
+    validate,
+    validate_noisy_circuit,
+)
 
 
 @pytest.fixture
@@ -146,3 +151,14 @@ def test_depol_noise_fail(
     probs = theoretical_probs(circuit.hard_copy(), depol_noise)
 
     assert not validate(experimental_counts, probs, 0.05)
+
+
+@pytest.mark.parametrize(
+    "depol_noise, shots",
+    product(
+        [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
+        [500, 1_000, 5_000, 10_000, 50_000, 100_000],
+    ),
+)
+def test_validate_noise(circuit: QCircuit, depol_noise: float, shots: int):
+    assert validate_noisy_circuit(circuit, depol_noise, shots)
