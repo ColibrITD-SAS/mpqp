@@ -9,7 +9,6 @@ from mpqp.core.instruction.gates.native_gates import *
 from mpqp.tools.maths import is_unitary
 
 
-
 @pytest.mark.parametrize(
     "matrix_1, matrix_2",
     [

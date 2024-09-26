@@ -138,7 +138,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
 @typechecked
 def closest_unitary(matrix: Matrix):
-    """ Calculate the unitary matrix that is closest with respect to the operator norm distance to the general matrix
+    """Calculate the unitary matrix that is closest with respect to the operator norm distance to the general matrix
     in parameter.
 
     Args:
@@ -151,6 +151,7 @@ def closest_unitary(matrix: Matrix):
 
     """
     from scipy.linalg import svd
+
     V, _, Wh = svd(matrix)
     return np.array(V.dot(Wh))
 

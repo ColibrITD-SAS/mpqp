@@ -3,7 +3,6 @@ corresponding unitary matrix for instance). We define a
 :class:`CustomGate<mpqp.core.instruction.gates.custom_gate.CustomGate>` class allowing the user to add his custom
 unitary operation to the circuit, that will be decomposed and executed transparently."""
 
-
 from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
@@ -36,10 +35,14 @@ class CustomGate(Gate):
         """See parameter description."""
 
         if definition.nb_qubits != len(targets):
-            raise ValueError(f"Size of the targets ({len(targets)}) must match the number of qubits of the "
-                             f"UnitaryMatrix ({definition.nb_qubits})")
-        if not all([targets[i]+1==targets[i+1] for i in range(len(targets)-1)]):
-            raise ValueError("Target qubits must be ordered and contiguous for a CustomGate.")
+            raise ValueError(
+                f"Size of the targets ({len(targets)}) must match the number of qubits of the "
+                f"UnitaryMatrix ({definition.nb_qubits})"
+            )
+        if not all([targets[i] + 1 == targets[i + 1] for i in range(len(targets) - 1)]):
+            raise ValueError(
+                "Target qubits must be ordered and contiguous for a CustomGate."
+            )
 
         # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate
 
