@@ -117,26 +117,50 @@ def test_custom_gate_with_native_gates():
         1e-05,
     )
 
+
 @pytest.mark.parametrize(
     "qubits",
-    [
-        (random.randint(1, 5)) for _ in range(10)
-    ],
+    [(random.randint(1, 5)) for _ in range(10)],
 )
 def test_custom_gate_with_random_circuit(qubits: int):
     # TODO: test CIRQ when Qasm2 parsing working
     random_circ = random_circuit(nb_qubits=qubits)
     matrix = random_circ.to_matrix()
-    custom_gate_circ = QCircuit([CustomGate(UnitaryMatrix(matrix), list(range(qubits)))])
+    custom_gate_circ = QCircuit(
+        [CustomGate(UnitaryMatrix(matrix), list(range(qubits)))]
+    )
 
-    execution_ibm_statevector = run(custom_gate_circ, IBMDevice.AER_SIMULATOR).state_vector
-    execution_aws_statevector = run(custom_gate_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
-    execution_qlm_statevector = run(custom_gate_circ, ATOSDevice.MYQLM_PYLINALG).state_vector
+    execution_ibm_statevector = run(
+        custom_gate_circ, IBMDevice.AER_SIMULATOR
+    ).state_vector
+    execution_aws_statevector = run(
+        custom_gate_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR
+    ).state_vector
+    execution_qlm_statevector = run(
+        custom_gate_circ, ATOSDevice.MYQLM_PYLINALG
+    ).state_vector
 
     expected_ibm_statevector = run(random_circ, IBMDevice.AER_SIMULATOR).state_vector
-    expected_aws_statevector = run(random_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
+    expected_aws_statevector = run(
+        random_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR
+    ).state_vector
     expected_qlm_statevector = run(random_circ, ATOSDevice.MYQLM_PYLINALG).state_vector
 
-    assert matrix_eq(execution_ibm_statevector.amplitudes, expected_qlm_statevector.amplitudes, 1e-06, 1e-05)
-    assert matrix_eq(execution_aws_statevector.amplitudes, expected_ibm_statevector.amplitudes, 1e-06, 1e-05)
-    assert matrix_eq(execution_qlm_statevector.amplitudes, expected_aws_statevector.amplitudes, 1e-06, 1e-05)
+    assert matrix_eq(
+        execution_ibm_statevector.amplitudes,
+        expected_qlm_statevector.amplitudes,
+        1e-06,
+        1e-05,
+    )
+    assert matrix_eq(
+        execution_aws_statevector.amplitudes,
+        expected_ibm_statevector.amplitudes,
+        1e-06,
+        1e-05,
+    )
+    assert matrix_eq(
+        execution_qlm_statevector.amplitudes,
+        expected_aws_statevector.amplitudes,
+        1e-06,
+        1e-05,
+    )
