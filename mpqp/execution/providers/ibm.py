@@ -148,6 +148,9 @@ def generate_qiskit_noise_model(
     Returns:
         Qiskit_NoiseModel: A Qiskit NoiseModel combining the provided noise models.
 
+    Note:
+        The qubit order is reversed to match Qiskit's qubit ordering conventions.
+
     """
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
