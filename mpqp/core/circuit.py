@@ -1031,7 +1031,7 @@ class QCircuit:
         from qiskit.circuit import CircuitInstruction
 
         def replace_custom_gate(
-                custom_unitary: CircuitInstruction, nb_qubits: int
+            custom_unitary: CircuitInstruction, nb_qubits: int
         ) -> tuple[QuantumCircuit, float]:
             """
             Decompose and replace the (custom) qiskit unitary given in parameter by a ``QuantumCircuit`` composed of
@@ -1045,6 +1045,7 @@ class QCircuit:
                 and the global phase used for final correction of the statevector.
             """
             from qiskit.exceptions import QiskitError
+
             transpilation_circuit = QuantumCircuit(nb_qubits)
             transpilation_circuit.append(custom_unitary)
             try:
@@ -1052,8 +1053,12 @@ class QCircuit:
             except QiskitError as e:
                 # if the error is arising from TwoQubitWeylDecomposition, we replace the matrix by the closest unitary
                 if "TwoQubitWeylDecomposition" in str(e):
-                    custom_unitary.operation.params[0] = closest_unitary(custom_unitary.operation.params[0])
-                    transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+                    custom_unitary.operation.params[0] = closest_unitary(
+                        custom_unitary.operation.params[0]
+                    )
+                    transpiled = transpile(
+                        transpilation_circuit, basis_gates=['u', 'cx']
+                    )
                 else:
                     raise e
             return transpiled, transpiled.global_phase
@@ -1073,14 +1078,16 @@ class QCircuit:
         new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
             if instruction.operation.name == 'unitary':
-                circuit, gphase = replace_custom_gate(instruction, qiskit_circ.num_qubits)
+                circuit, gphase = replace_custom_gate(
+                    instruction, qiskit_circ.num_qubits
+                )
                 new_circuit.compose(circuit, inplace=True)
                 global_phase += gphase
             else:
                 new_circuit.append(instruction)
 
         if global_phase != 0:
-            self.gphase = np.exp(1j*global_phase)
+            self.gphase = np.exp(1j * global_phase)
 
         return qasm2.dumps(new_circuit)
 
