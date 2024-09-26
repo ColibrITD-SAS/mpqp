@@ -1,6 +1,6 @@
 """When we measure a quantum state, we project it in an orthonormal basis of the
 associated Hilbert space. By default,
-:class:`BasisMeasure<mpqp.core.instruction.measurement.basis_measure.BasisMeasure>`
+:class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
 operates in the computational basis, but you may want to measure the state in a
 custom basis, like it can be the case in the Bell game. For this purpose, you
 can use the :class:`Basis` class.
