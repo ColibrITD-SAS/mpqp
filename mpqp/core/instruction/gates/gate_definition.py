@@ -13,7 +13,7 @@ from typeguard import typechecked
 
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.generics import Matrix
-from mpqp.tools.maths import is_unitary, matrix_eq
+from mpqp.tools.maths import is_unitary, matrix_eq, is_power_of_two
 
 
 @typechecked
@@ -123,6 +123,11 @@ class UnitaryMatrix(GateDefinition):
                 "Matrices defining gates have to be unitary. It is not the case"
                 f" for\n{definition}"
             )
+        elif not is_power_of_two(definition.shape[0]):
+            raise ValueError(
+                "The unitary matrix of a gate acting on qubits must have dimensions that are power of two, "
+                f"but got {definition.shape[0]}."
+            )
         self.matrix = definition
         """See parameter :attr:`definition`'s description."""
         self._nb_qubits = None
@@ -135,8 +140,6 @@ class UnitaryMatrix(GateDefinition):
 
     @property
     def nb_qubits(self) -> int:
-        # TODO: we don't check that the size of the unitary matrix is a power of 2, and I wouldn't put that check in
-        #  `is_unitary`, because this is specific to the quantum computing context.
         if self._nb_qubits is None:
             self._nb_qubits = int(np.log2(self.matrix.shape[0]))
         return self._nb_qubits

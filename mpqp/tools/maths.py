@@ -346,3 +346,23 @@ def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
     """
     m = np.random.rand(size, size).astype(np.complex64)
     return m + m.conjugate().transpose()
+
+
+@typechecked
+def is_power_of_two(n: int):
+    """Checks if the integer in parameter is a (positive) power of two.
+
+    Args:
+        n: Integer for which we want to check if it is a power of two.
+
+    Returns:
+        True if the integer in parameter is a power of two.
+
+    Example:
+        >>> is_power_of_two(4)
+        True
+        >>> is_power_of_two(6)
+        False
+
+    """
+    return n >= 1 and (n & (n - 1)) == 0
