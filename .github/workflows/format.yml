@@ -1,0 +1,27 @@
+name: Black Formatter
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    name: Format code using Black
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Formatting
+        run: |
+          pip install black
+          black .
+      - name: Commit
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -m "chore: Files formated" && git push || echo "No formatting needed"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ACTIONS_BLACK_TOKEN }}

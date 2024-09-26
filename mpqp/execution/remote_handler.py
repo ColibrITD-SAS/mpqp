@@ -10,6 +10,7 @@ from typeguard import typechecked
 
 from mpqp.execution import Result
 from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
+from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
 from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
@@ -18,9 +19,9 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
     AZUREDevice,
+    IBMDevice,
 )
 from mpqp.execution.job import Job
 from mpqp.execution.providers.atos import get_result_from_qlm_job_id
@@ -37,7 +38,7 @@ def get_remote_result(
     job is still running, it will wait until it is done.
 
     Args:
-        job_data: Either the :class:`Job<mpqp.execution.job.Job>` object or the
+        job_data: Either the :class:`~mpqp.execution.job.Job` object or the
             job id used to identify the job on the remote device.
         device: Remote device on which the job was launched, needed only if
             ``job_data`` is the identifier of the job.

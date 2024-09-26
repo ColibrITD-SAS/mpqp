@@ -79,12 +79,8 @@ def main_setup():
             AnswerNode("Azure", config_azure_account),
             AnswerNode("Recap", print_config_info),
         ],
+        leaf_loop_to_here=True,
     )
-
-    # TODO: to avoid having to manually set that, we could add this as an option
-    # to the run choice tree
-    for answer in setup_tree.answers:
-        answer.next_question = setup_tree
 
     run_choice_tree(setup_tree)
 

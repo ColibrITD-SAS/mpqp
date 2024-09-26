@@ -120,6 +120,7 @@ class QCircuit:
         nb_cbits: Optional[int] = None,
         label: Optional[str] = None,
     ):
+
         self.nb_cbits = nb_cbits
         """See parameter description."""
         self.label = label
@@ -237,48 +238,30 @@ class QCircuit:
             self.instructions.append(components)
 
     def hard_copy(self):
-        """
-        Creates a deep copy of the quantum circuit object, ensuring all properties,
-        including noises and instructions, are properly duplicated with necessary
-        adjustments, empty targets are replaced with all possible targets.
+        """Creates a copy of the quantum circuit and additionally hardcodes any
+        dynamic size parameter.
 
         Returns:
-            qcircuit: A deep copy of the original quantum circuit object with updated properties.
+            qcircuit: A deep copy of the circuit with the appropriate properties
+                updated.
 
         Raises:
-            ValueError: If the number of target qubits for a Depolarizing noise is less
-                        than the noise's dimension, or if BasisMeasure does not span all
-                        qubits in a noisy circuit.
+            ValueError: If the number of target qubits for a noise source is
+                smaller than the its dimension, or if BasisMeasure does not span
+                all qubits in a noisy circuit.
 
         Examples:
-            >>> circuit2 = QCircuit([H(i) for i in range(2)])
-            >>> circuit2.add(Depolarizing(0.01))
-            >>> circuit2.add(BasisMeasure())
-            >>> circuit2.add(Barrier())
-            >>> circuit2.add(BasisMeasure())
-            >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐┌─┐    ░ ┌─┐
-            q_0: ┤ H ├┤M├────░─┤M├───
-                 ├───┤└╥┘┌─┐ ░ └╥┘┌─┐
-            q_1: ┤ H ├─╫─┤M├─░──╫─┤M├
-                 └───┘ ║ └╥┘ ░  ║ └╥┘
-            c: 4/══════╩══╩═════╩══╩═
-                       0  1     2  3
-            NoiseModel:
-                Depolarizing(0.01)
-            >>> circuit2.nb_qubits = 3
-            >>> print(circuit2) # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐┌─┐    ░ ┌─┐
-            q_0: ┤ H ├┤M├────░─┤M├──────
-                 ├───┤└╥┘┌─┐ ░ └╥┘┌─┐
-            q_1: ┤ H ├─╫─┤M├─░──╫─┤M├───
-                 └┬─┬┘ ║ └╥┘ ░  ║ └╥┘┌─┐
-            q_2: ─┤M├──╫──╫──░──╫──╫─┤M├
-                  └╥┘  ║  ║  ░  ║  ║ └╥┘
-            c: 6/══╩═══╩══╩═════╩══╩══╩═
-                   2   0  1     3  4  5
-            NoiseModel:
-                Depolarizing(0.01)
+            >>> circuit = QCircuit([Depolarizing(0.01),BasisMeasure()], nb_qubits=2)
+            >>> print(repr(circuit))
+            QCircuit([BasisMeasure([], shots=1024), Depolarizing(0.01)], nb_qubits=2, nb_cbits=None, label="None")
+            >>> print(repr(circuit.hard_copy()))
+            QCircuit([BasisMeasure([0, 1], shots=1024), Depolarizing(0.01, [0, 1])], nb_qubits=2, nb_cbits=2, label="None")
+            >>> circuit.nb_qubits = 3
+            >>> print(repr(circuit))
+            QCircuit([BasisMeasure([], shots=1024), Depolarizing(0.01)], nb_qubits=3, nb_cbits=None, label="None")
+            >>> print(repr(circuit.hard_copy()))
+            QCircuit([BasisMeasure([0, 1, 2], shots=1024), Depolarizing(0.01, [0, 1, 2])], nb_qubits=3, nb_cbits=3, label="None")
+
         """
         qcircuit = deepcopy(self)
 
@@ -286,13 +269,11 @@ class QCircuit:
         for noise in noises:
             if len(noise.targets) == 0:
                 noise.targets = list(range(self.nb_qubits))
-                if (
-                    isinstance(noise, Depolarizing)
-                    and len(noise.targets) < noise.dimension
-                ):
-                    raise ValueError(
-                        f"Number of target qubits {len(noise.targets)} should be higher than the dimension {noise.dimension}."
-                    )
+            if isinstance(noise, Depolarizing) and len(noise.targets) < noise.dimension:
+                raise ValueError(
+                    f"Number of target qubits {len(noise.targets)} should "
+                    f"be higher than the dimension {noise.dimension}."
+                )
         qcircuit.noises = noises
 
         instructions = deepcopy(self.instructions)
@@ -303,11 +284,9 @@ class QCircuit:
                 if len(instruction.targets) == 0:
                     instruction.targets = list(range(self.nb_qubits))
                 if isinstance(instruction, BasisMeasure):
+                    if qcircuit.nb_cbits is None:
+                        qcircuit.nb_cbits = 0
                     if instruction.c_targets is None:
-                        if len(instruction.targets) == 0:
-                            instruction.targets = list(range(self.nb_qubits))
-                        if qcircuit.nb_cbits is None:
-                            qcircuit.nb_cbits = 0
                         instruction.c_targets = [
                             qcircuit.nb_cbits + i
                             for i in range(len(instruction.targets))
@@ -315,7 +294,8 @@ class QCircuit:
                         qcircuit.nb_cbits += self.nb_qubits
                     if qcircuit.noises and len(instruction.targets) != self.nb_qubits:
                         raise ValueError(
-                            "In noisy circuits, BasisMeasure must span all qubits in the circuit."
+                            "In noisy circuits, BasisMeasure must span all "
+                            "qubits in the circuit."
                         )
         qcircuit.instructions = instructions
         return qcircuit
@@ -569,8 +549,8 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        3M-TODO: will only work once the circuit.to_matrix is implemented
-         Also take into account Noise in the equivalence verification
+        3M-TODO: do we want to approximate ? Also take into account Noise
+         in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
@@ -606,18 +586,24 @@ class QCircuit:
 
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
-            >>> c.to_matrix()
-            array([[ 0.70710678,  0.        ,  0.70710678,  0.        ],
-                   [ 0.        ,  0.70710678,  0.        ,  0.70710678],
-                   [ 0.        ,  0.70710678,  0.        , -0.70710678],
-                   [ 0.70710678,  0.        , -0.70710678,  0.        ]])
+            >>> c.to_matrix()  #  # doctest: +NORMALIZE_WHITESPACE
+            array([[ 0.70710678+0.j,  0.        +0.j,  0.70710678+0.j, 0.        +0.j],
+                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, 0.70710678+0.j],
+                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, -0.70710678+0.j],
+                   [ 0.70710678+0.j,  0.        +0.j, -0.70710678+0.j, 0.        +0.j]])
 
-        # 3M-TODO implement and double check examples and test:
-        the idea is to compute the tensor product of the matrices associated
-        with the gates of the circuit in a clever way (to minimize the number of
-        multiplications) and then return the big matrix
         """
-        ...
+        from qiskit import QuantumCircuit
+        from qiskit.quantum_info.operators import Operator
+
+        qiskit_circuit = self.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
+        matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
+        if TYPE_CHECKING:
+            assert isinstance(matrix, np.ndarray)
+
+        return matrix
 
     def inverse(self) -> QCircuit:
         """Generate the inverse (dagger) of this circuit.
@@ -1093,15 +1079,15 @@ class QCircuit:
             ...      BasisMeasure(list(range(3)), shots=1000)]
             ... )
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───────┐┌───┐┌───┐                              ┌─┐
-            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├────────────■─────────────────┤M├───
-                 └───────┘└─┬─┘└───┘┌─────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
-            q_1: ───────────■────■──┤ P(pi/2) ├─■──────────────────╫─┤M├
-                               ┌─┴─┐└──┬───┬──┘        ┌─┐         ║ └╥┘
-            q_2: ──────────────┤ X ├───┤ X ├───────────┤M├─────────╫──╫─
-                               └───┘   └───┘           └╥┘         ║  ║
-            c: 3/═══════════════════════════════════════╩══════════╩══╩═
-                                                        2          0  1
+                 ┌───────┐┌───┐┌───┐                             ┌─┐
+            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■─────────────────┤M├───
+                 └───────┘└─┬─┘└───┘┌────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
+            q_1: ───────────■────■──┤ P(π/2) ├─■──────────────────╫─┤M├
+                               ┌─┴─┐└─┬───┬──┘        ┌─┐         ║ └╥┘
+            q_2: ──────────────┤ X ├──┤ X ├───────────┤M├─────────╫──╫─
+                               └───┘  └───┘           └╥┘         ║  ║
+            c: 3/══════════════════════════════════════╩══════════╩══╩═
+                                                       2          0  1
             >>> print(c.subs({theta: np.pi, k: 1}))  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───
@@ -1165,7 +1151,6 @@ class QCircuit:
 
     def __repr__(self) -> str:
         instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
-        instructions_repr = instructions_repr.replace("[", "").replace("]", "")
 
         if self.noises:
             noise_repr = ", ".join(map(repr, self.noises))

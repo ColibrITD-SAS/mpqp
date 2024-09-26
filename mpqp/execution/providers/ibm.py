@@ -329,7 +329,7 @@ def extract_result(
     device: IBMDevice,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
-    :class:`Result<mpqp.execution.result.Result>`.
+    :class:`~mpqp.execution.result.Result`.
 
     Args:
         result: Result returned by IBM after running of the job.

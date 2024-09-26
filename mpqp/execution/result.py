@@ -15,7 +15,7 @@ The job type affects the data contained in the :class:`Result`. For a given
 - for a job type ``OBSERVABLE`` you can retrieve the expectation value (a 
   ``float``) from ``result.expectation_value``.
 
-When several devices are given to :func:`run<mpqp.execution.runner.run>`, the 
+When several devices are given to :func:`~mpqp.execution.runner.run`, the 
 results are stored in a :class:`BatchResult`.
 """
 
@@ -31,11 +31,10 @@ import numpy.typing as npt
 from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array
 from mpqp.tools.errors import ResultAttributeError
-
-from mpqp.execution import Job, JobType
 
 
 @typechecked

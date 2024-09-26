@@ -11,7 +11,7 @@ you can find bellow:
 - :class:`GOOGLEDevice`.
 
 Not all combinations of :class:`AvailableDevice` and 
-:class:`JobType<mpqp.execution.job.JobType>` are possible. Here is the list of
+:class:`~mpqp.execution.job.JobType` are possible. Here is the list of
 compatible jobs types and devices.
 
 .. csv-table:: Job/Device Compatibility Matrix

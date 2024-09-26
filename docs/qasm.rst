@@ -13,9 +13,9 @@ circuits from OpenQASM code.
 
 .. note::
     To learn more about how we generate OpenQASM code from a 
-    :class:`QCircuit<mpqp.core.circuit.QCircuit>`, have a look at the 
-    :meth:`to_qasm2<mpqp.core.circuit.QCircuit.to_qasm2>` and 
-    :meth:`to_qasm3<mpqp.core.circuit.QCircuit.to_qasm3>` methods of this class.
+    :class:`~mpqp.core.circuit.QCircuit`, have a look at the 
+    :meth:`~mpqp.core.circuit.QCircuit.to_qasm2` and 
+    :meth:`~mpqp.core.circuit.QCircuit.to_qasm3` methods of this class.
 
 From OpenQASM2.0 to OpenQASM3.0
 -------------------------------
