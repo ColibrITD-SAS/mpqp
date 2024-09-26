@@ -6,6 +6,7 @@ import numpy as np
 
 from mpqp import QCircuit
 from mpqp.gates import *
+from mpqp.tools.circuit import random_circuit
 from mpqp.tools.maths import matrix_eq, rand_orthogonal_matrix, is_unitary
 from mpqp.execution import run, ATOSDevice, IBMDevice, AWSDevice
 
@@ -22,6 +23,7 @@ def test_custom_gate_is_unitary():
     ],
 )
 def test_random_orthogonal_matrix(n_circ: int):
+    # TODO: test CIRQ when Qasm2 parsing working
     """
     Args:
         n_circ: size of the whole circuit
@@ -52,6 +54,7 @@ def test_random_orthogonal_matrix(n_circ: int):
 
 
 def test_custom_gate_with_native_gates():
+    # TODO: test CIRQ when Qasm2 parsing working
     x = UnitaryMatrix(np.array([[0, 1], [1, 0]]))
     h = UnitaryMatrix(np.array([[1, 1], [1, -1]]) / np.sqrt(2))
     cnot = UnitaryMatrix(np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]]))
@@ -68,6 +71,31 @@ def test_custom_gate_with_native_gates():
     expected_ibm_statevector = run(c2, IBMDevice.AER_SIMULATOR).state_vector
     expected_aws_statevector = run(c2, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
     expected_qlm_statevector = run(c2, ATOSDevice.MYQLM_PYLINALG).state_vector
+
+    assert matrix_eq(execution_ibm_statevector.amplitudes, expected_qlm_statevector.amplitudes, 1e-06, 1e-05)
+    assert matrix_eq(execution_aws_statevector.amplitudes, expected_ibm_statevector.amplitudes, 1e-06, 1e-05)
+    assert matrix_eq(execution_qlm_statevector.amplitudes, expected_aws_statevector.amplitudes, 1e-06, 1e-05)
+
+
+@pytest.mark.parametrize(
+    "qubits",
+    [
+        (random.randint(1, 5)) for _ in range(10)
+    ],
+)
+def test_custom_gate_with_random_circuit(qubits: int):
+    # TODO: test CIRQ when Qasm2 parsing working
+    random_circ = random_circuit(nb_qubits=qubits)
+    matrix = random_circ.to_matrix()
+    custom_gate_circ = QCircuit([CustomGate(UnitaryMatrix(matrix), list(range(qubits)))])
+
+    execution_ibm_statevector = run(custom_gate_circ, IBMDevice.AER_SIMULATOR).state_vector
+    execution_aws_statevector = run(custom_gate_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
+    execution_qlm_statevector = run(custom_gate_circ, ATOSDevice.MYQLM_PYLINALG).state_vector
+
+    expected_ibm_statevector = run(random_circ, IBMDevice.AER_SIMULATOR).state_vector
+    expected_aws_statevector = run(random_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
+    expected_qlm_statevector = run(random_circ, ATOSDevice.MYQLM_PYLINALG).state_vector
 
     assert matrix_eq(execution_ibm_statevector.amplitudes, expected_qlm_statevector.amplitudes, 1e-06, 1e-05)
     assert matrix_eq(execution_aws_statevector.amplitudes, expected_ibm_statevector.amplitudes, 1e-06, 1e-05)
