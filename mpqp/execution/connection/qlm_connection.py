@@ -36,6 +36,14 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
     prev_configure = get_env_variable("QLM_CONFIGURED")
     if prev_configure == "":
         prev_configure = "False"
+    file_content = None
+    netrc_path = os.path.expanduser("~") + "/.netrc"
+    if global_config:
+        try:
+            with open(netrc_path, 'r') as file:
+                file_content = file.read()
+        except:
+            pass
 
     save_env_variable("QLM_USER", username)
     if not global_config:
@@ -44,7 +52,6 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
     try:
         if global_config:
             print("we are in the global part")
-            netrc_path = os.path.expanduser("~") + "/.netrc"
             # if file doesn't exist, create it, or overwrite the credentials in the ~/.netrc file
             with open(netrc_path, "w") as file:
                 file.write(
@@ -55,6 +62,13 @@ password {password}"""
                 )
             # Set the permissions to read and right for user only
             os.chmod(netrc_path, 0o600)
+        else:
+            if os.path.exists(netrc_path):
+                rename_decision = input(
+                    f"'~/.netrc' already exists and will override the configuration. Do you want to rename it in '~/.netrc_back'? [Y/n]"
+                )
+                if rename_decision.lower().strip() in ('', 'y', 'yes'):
+                    os.rename(netrc_path, netrc_path + "_back")
 
         from qat.qlmaas import (
             QLMaaSConnection,  # pyright: ignore[reportAttributeAccessIssue]
@@ -72,6 +86,15 @@ password {password}"""
         save_env_variable("QLM_USER", prev_user)
         save_env_variable("QLM_PASSWD", prev_pass)
         save_env_variable("QLM_CONFIGURED", prev_configure)
+        if global_config:
+            if file_content is None:
+                try:
+                    os.remove(netrc_path)
+                except FileNotFoundError:
+                    print(f"{netrc_path} does not exist.")
+            else:
+                with open(netrc_path, "w") as file:
+                    file.write(file_content)
         if "Invalid credential" in str(err):
             return False
         raise QLMRemoteExecutionError(

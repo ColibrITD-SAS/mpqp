@@ -179,7 +179,7 @@ def _run_single(
     """
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
-            display_kth_breakpoint(circuit, k)
+            display_kth_breakpoint(circuit, k, device)
 
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
@@ -356,7 +356,9 @@ def submit(
     return job_id, job
 
 
-def display_kth_breakpoint(circuit: QCircuit, k: int):
+def display_kth_breakpoint(
+    circuit: QCircuit, k: int, device: AvailableDevice = ATOSDevice.MYQLM_CLINALG
+):
     """Prints to the standard output the state vector corresponding to the state
     of the system when it encounters the `k^{th}` breakpoint.
 
@@ -379,7 +381,7 @@ def display_kth_breakpoint(circuit: QCircuit, k: int):
             nb_cbits=circuit.nb_cbits,
             label=circuit.label,
         )
-        res = _run_single(copy, ATOSDevice.MYQLM_CLINALG, {}, False)
+        res = _run_single(copy, device, {}, False)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
         print("       " + state_vector_ket_shape(res.amplitudes))
         if bp.draw_circuit:
