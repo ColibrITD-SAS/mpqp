@@ -129,6 +129,10 @@ def clean_matrix(matrix: Matrix):
     return "[" + ",\n ".join(cleaned_matrix) + "]"
 
 
+def pprint(matrix: Matrix):
+    print(clean_matrix(matrix))
+
+
 def one_lined_repr(obj: object):
     """One-liner returning a representation of the given object by removing
     extra whitespace.

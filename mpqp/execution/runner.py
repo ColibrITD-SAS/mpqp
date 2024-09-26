@@ -2,15 +2,15 @@
 Once the circuit is defined, you can to execute it and retrieve the result using
 the function :func:`run`. You can execute said circuit on one or several devices
 (local or remote). The function will wait (blocking) until the job is completed
-and will return a :class:`Result<mpqp.execution.result.Result>` in only one
-device was given or a :class:`BatchResult<mpqp.execution.result.BatchResult>` 
+and will return a :class:`~mpqp.execution.result.Result` in only one
+device was given or a :class:`~mpqp.execution.result.BatchResult` 
 otherwise (see :ref:`below<Results>`).
 
 Alternatively, when running jobs on a remote device, you could prefer to
 retrieve the result asynchronously, without having to wait and block the
 application until the computation is completed. In that case, you can use the
 :func:`submit` instead. It will submit the job and
-return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
+return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 .. note::
     Unlike :func:`run`, we can only submit on one device at a time.
@@ -309,8 +309,8 @@ def submit(
 ) -> tuple[str, Job]:
     """Submit the job related with the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
-    the :class:`Result<mpqp.execution.result.Result>` later, using the
-    :func:`get_remote_result<mpqp.execution.remote_handler.get_remote_result>`
+    the :class:`~mpqp.execution.result.Result` later, using the
+    :func:`~mpqp.execution.remote_handler.get_remote_result`
     function.
 
     If the circuit contains symbolic variables (see section :ref:`VQA` for more
