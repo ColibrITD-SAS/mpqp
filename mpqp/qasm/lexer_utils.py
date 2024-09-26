@@ -133,8 +133,12 @@ one_parametrized_gate_qasm = {
     "rx": Rx,
     "ry": Ry,
     "rz": Rz,
-    "p": P,
 }
+
+two_qubits_parametrized_gate_qasm = {
+    "cp": CRk,
+}
+
 
 u_gate_qasm = {
     "u": U,
@@ -145,7 +149,6 @@ u_gate_qasm = {
 
 gate_qasm = {
     "ccx": TOF,
-    "cp": CRk,
 }
 
 LexToken = Any

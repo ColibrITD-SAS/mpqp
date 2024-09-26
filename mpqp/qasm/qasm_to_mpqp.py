@@ -22,9 +22,13 @@ from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include
 # barrier: handle for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
 # no ID name handle for qreg or creg
 
+lexer = None
+
 
 def lex_openqasm(input_string: str) -> list[LexToken]:
-    lexer = lex()
+    global lexer
+    if lexer is None:
+        lexer = lex()
     lexer.input(input_string)
     tokens = []
     tok = lexer.token()
@@ -182,6 +186,10 @@ def _TokenGate(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
         return _Gate_one_parametrized(circuit, token.value, tokens, idx)
     elif token.value in u_gate_qasm:
         return _Gate_U(circuit, token.value, tokens, idx)
+    elif token.value in two_qubits_parametrized_gate_qasm:
+        return _Gate_two_qubits_parametrized(circuit, token.value, tokens, idx)
+    elif token.value == "ccx":
+        return _Gate_tof(circuit, tokens, idx)
     else:
         raise SyntaxError(f"TokenGate: {idx} {token.value}")
 
@@ -193,14 +201,45 @@ def _Gate_single_qubits(
         for i in range(circuit.nb_qubits):
             circuit.add(single_qubits_gate_qasm[gate_str](i))
         return idx + 2
+
+    multi = False
     while tokens[idx].type != 'SEMICOLON':
+        if multi:
+            if tokens[idx].type != 'COMMA':
+                raise SyntaxError(f"Gate_single_qubits: {idx} {tokens[idx]}")
+            idx += 1
         if check_Id(tokens, idx):
             raise SyntaxError(
                 f'Gate_single_qubits: {" ".join(str(token.value) for token in tokens[idx : idx + 4])}'
             )
         circuit.add(single_qubits_gate_qasm[gate_str](tokens[idx + 2].value))
         idx += 4
+        multi = True
     return idx + 1
+
+
+def _Gate_two_qubits_parametrized(
+    circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int
+) -> int:
+    if tokens[idx].type != 'LPAREN':
+        raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
+    idx += 1
+    parameter, idx = _eval_expr(tokens, idx)
+    if gate_str == 'cp':
+        parameter = np.log2(np.pi / parameter) + 1
+    if (
+        check_Id(tokens, idx)
+        or tokens[idx + 4].type != 'COMMA'
+        or check_Id(tokens, idx + 5)
+    ):
+        raise SyntaxError(
+            f'Gate_two_qubits: {" ".join(str(token.value) for token in tokens[idx : idx + 10])}'
+        )
+
+    control = tokens[idx + 2].value
+    target = tokens[idx + 7].value
+    circuit.add(two_qubits_parametrized_gate_qasm[gate_str](parameter, control, target))
+    return idx + 10
 
 
 def _Gate_two_qubits(
@@ -219,6 +258,41 @@ def _Gate_two_qubits(
     target = tokens[idx + 7].value
     circuit.add(two_qubits_gate_qasm[gate_str](control, target))
     return idx + 10
+
+
+def _Gate_tof(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+
+    if (
+        check_Id(tokens, idx)
+        or tokens[idx + 4].type != 'COMMA'
+        or check_Id(tokens, idx + 5)
+    ):
+        raise SyntaxError(
+            f'Gate_tof: {" ".join(str(token.value) for token in tokens[idx : idx + 10])}'
+        )
+
+    qubits = []
+    multi = False
+    while tokens[idx].type != 'SEMICOLON':
+        if multi:
+            if tokens[idx].type != 'COMMA':
+                raise SyntaxError(f"Gate_single_qubits: {idx} {tokens[idx]}")
+            idx += 1
+        if check_Id(tokens, idx):
+            raise SyntaxError(
+                f'_Gate_tof: {" ".join(str(token.value) for token in tokens[idx : idx + 4])}'
+            )
+        qubits.append(tokens[idx + 2].value)
+        idx += 4
+        multi = True
+
+    if len(qubits) < 2:
+        raise SyntaxError("TOF: missing control or target qubit")
+
+    control = qubits[:-1]
+    target = qubits[-1]
+    circuit.add(TOF(control, target))
+    return idx + 1
 
 
 def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
@@ -241,6 +315,7 @@ def _Gate_one_parametrized(
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
     parameter, idx = _eval_expr(tokens, idx)
+
     if check_Id(tokens, idx):
         raise SyntaxError(
             f'Gate_two_qubits: {" ".join(token.value for token in tokens[idx : idx + 3])}'

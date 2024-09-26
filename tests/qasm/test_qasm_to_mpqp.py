@@ -2,6 +2,7 @@ import pytest
 
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.core.instruction import *
+from mpqp.tools.circuit import random_circuit
 
 
 @pytest.mark.parametrize(
@@ -25,6 +26,25 @@ from mpqp.core.instruction import *
             measure q[1] -> c[1];""",
             [
                 H(0),
+                CNOT(0, 1),
+                BasisMeasure([0]),
+                BasisMeasure([1]),
+            ],
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+
+            qreg q[2];
+            creg c[2];
+            h q[0],q[1];
+            cx q[0],q[1];
+
+            measure q[0] -> c[0];
+            measure q[1] -> c[1];""",
+            [
+                H(0),
+                H(1),
                 CNOT(0, 1),
                 BasisMeasure([0]),
                 BasisMeasure([1]),
@@ -146,3 +166,10 @@ def test_invalid_qasm_code(qasm_code: str):
         qasm2_parse(qasm_code)
     except SyntaxError:
         pass
+
+
+def test_random_qasm_code():
+    for _ in range(15):
+        qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
+        qasm_code = qcircuit.to_qasm2()
+        assert qcircuit.is_equivalent(qasm2_parse(qasm_code))
