@@ -992,11 +992,10 @@ class QCircuit:
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
-    def to_qasm2(self) -> str:
+    def to_qasm2_qiskit(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 2 code.
 
-        For now, we use an intermediate conversion to a Qiskit
-        ``QuantumCircuit``.
+        we use an intermediate conversion to a Qiskit ``QuantumCircuit``.
 
         Returns:
             A string representing the OpenQASM2 code corresponding to this
@@ -1004,7 +1003,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit.to_qasm2())  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(circuit.to_qasm2_qiskit())  # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 2.0;
             include "qelib1.inc";
             qreg q[2];
@@ -1025,6 +1024,30 @@ class QCircuit:
 
         qasm_str = qasm2.dumps(qiskit_circ)
         return qasm_str
+
+    def to_qasm2(self) -> str:
+        """Converts this circuit to the corresponding OpenQASM 2 code.
+
+        Returns:
+            A string representing the OpenQASM2 code corresponding to this
+            circuit.
+
+        Example:
+            >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
+            >>> print(circuit.to_qasm2())  # doctest: +NORMALIZE_WHITESPACE
+            OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[2];
+            creg c[2];
+            x q[0];
+            cx q[0],q[1];
+            measure q[0] -> c[0];
+            measure q[1] -> c[1];
+
+        """
+        from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+
+        return mpqp_to_qasm2(self)
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.

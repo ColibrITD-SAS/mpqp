@@ -89,4 +89,4 @@ def test_mpqp_to_qasm(instructions: list[Instruction]):
 def test_random_mpqp_to_qasm():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
-        assert mpqp_to_qasm2(qcircuit) == qcircuit.to_qasm2()
+        assert qcircuit.to_qasm2_qiskit() == qcircuit.to_qasm2()
