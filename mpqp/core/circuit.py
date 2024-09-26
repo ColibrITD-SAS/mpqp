@@ -1026,6 +1026,7 @@ class QCircuit:
             qreg q[3];
             u(0,pi/2,-pi/2) q[1];
             u(pi,-pi/2,pi/2) q[2];
+
         """
         from qiskit import qasm2, transpile, QuantumCircuit
         from qiskit.circuit import CircuitInstruction
