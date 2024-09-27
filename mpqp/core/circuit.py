@@ -824,12 +824,6 @@ class QCircuit:
         method will be used only for complex objects that are not tractable by
         OpenQASM (like hybrid structures).
 
-        Note:
-            Most providers take noise into account at the job level. A notable
-            exception is Braket, where the noise is contained in the circuit
-            object. For this reason you find the noise included in the Braket
-            circuits.
-
         Args:
             language: Enum representing the target language.
             cirq_proc_id : Identifier of the processor for cirq.
@@ -853,6 +847,12 @@ class QCircuit:
             q1 : ─────────────────────┤ Z ├───────────────
                                       └───┘
             T  : │         0         │         1         │
+
+        Note:
+            Most providers take noise into account at the job level. A notable
+            exception is Braket, where the noise is contained in the circuit
+            object. For this reason you find the noise included in the Braket
+            circuits.
 
         """
         qcircuit = self.hard_copy()

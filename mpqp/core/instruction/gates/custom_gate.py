@@ -26,6 +26,19 @@ class CustomGate(Gate):
 
     Raises:
         ValueError: the target qubits must be contiguous and in order, and must match the size of the UnitaryMatrix
+
+    Example:
+        >>> u = UnitaryMatrix(np.array([[0,-1],[1,0]]))
+        >>> cg = CustomGate(u, [0])
+        >>> print(run(QCircuit([X(0), cg]), IBMDevice.AER_SIMULATOR))
+        Result: None, IBMDevice, AER_SIMULATOR
+         State vector: [0, 1]
+         Probabilities: [0, 1]
+         Number of qubits: 1
+
+    Note:
+        For the moment, only ordered and contiguous target qubits are allowed when instantiating a CustomGate.
+
     """
 
     def __init__(
@@ -44,7 +57,8 @@ class CustomGate(Gate):
                 "Target qubits must be ordered and contiguous for a CustomGate."
             )
 
-        # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate
+        # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate,
+        #  use the to_matrix() method inherited from Gate, maybe
 
         super().__init__(targets, label)
 
