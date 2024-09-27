@@ -183,7 +183,7 @@ if __name__ == "__main__":
 
     ax.set_xlabel('probs')
     ax.set_ylabel('shots')
-    ax.set_yticks(np.log(ys), ys)
+    ax.set_yticks(np.log(ys), map(str, ys))
     ax.set_zlabel('dists')
 
     plt.show()
