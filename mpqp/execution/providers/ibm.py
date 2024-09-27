@@ -262,17 +262,8 @@ def generate_qiskit_noise_model(
                             tensor_error, [gate.qiskit_string], reversed_qubits
                         )
 
-                elif len(gates_str) == 0 and len(intersection) != 0:
-                    for qubit in intersection:
-                        noise_model.add_quantum_error(
-                            qiskit_error,
-                            f"noisy_identity_{noisy_identity_counter}",
-                            [modified_circuit.nb_qubits - 1 - qubit],
-                        )
-                        noisy_identity_counter += 1
-
                 # Only some targets of the gate are included in the noise targets
-                elif intersection:
+                elif len(intersection) != 0:
                     if (not hasattr(noise, "dimension")) or (noise.dimension == 1):
                         for qubit in intersection:
                             # We add a custom identity gate on the relevant qubits to apply noise after the gate
@@ -282,7 +273,7 @@ def generate_qiskit_noise_model(
                             )
                             noise_model.add_quantum_error(
                                 qiskit_error,
-                                f"noisy_identity_{noisy_identity_counter}",
+                                [labeled_identity.label],
                                 [modified_circuit.nb_qubits - 1 - qubit],
                             )
                             gate_index = modified_circuit.instructions.index(gate)
