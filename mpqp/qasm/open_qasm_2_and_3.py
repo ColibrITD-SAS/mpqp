@@ -544,7 +544,43 @@ def open_qasm_hard_includes(
     return "\n".join(converted_code)
 
 
-def parse_user_gates(qasm_code: str) -> tuple[dict[str, str], str]:
+class UserGate:
+    def __init__(
+        self,
+        name: str,
+        parameters: list[str],
+        qubits: list[str],
+        instructions: list[str],
+    ):
+        self.name = name
+        self.parameters = parameters
+        self.qubits = qubits
+        self.instructions = instructions
+
+    def __repr__(self):
+        return f"UserGate(name={self.name}, parameters={self.parameters}, qubits={self.qubits}, instructions={self.instructions})"
+
+    def __str__(self):
+        return (
+            f"gate {self.name}({', '.join(self.parameters)}) {', '.join(self.qubits)} {{\n"
+            + '\n'.join(self.instructions)
+            + "\n}"
+        )
+
+
+GATE_PATTERN = re.compile(
+    r"gate\s+(\w+)\s*(\(([^)]+)\))?\s*(\w+\s*(?:,\s*\w+)*)\s*{([^}]*)}\n",
+    re.MULTILINE | re.DOTALL,
+)
+# Pattern to match gate calls
+GATE_CALL_PATTERN = re.compile(
+    r"(\w+)\s*(\(([^)]*)\))?\s*([^;]*);", re.MULTILINE | re.DOTALL
+)
+
+INSTRUCTION_PATTERN = re.compile(r"([^\w])(\w+)([^\w])", re.MULTILINE | re.DOTALL)
+
+
+def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
     r"""Parses user gate definitions from QASM code.
 
     Args:
@@ -561,52 +597,45 @@ def parse_user_gates(qasm_code: str) -> tuple[dict[str, str], str]:
         ...     cx a,b;
         ... }
         ... qubit[3] q;
-        ... bit[1] c0;
-        ... bit[1] c1;
+        ... creg c[2];
         ... rzz(0.2) q[1], q[2];
         ... c2[0] = measure q[2];'''
-        >>> print(parse_user_gates(qasm_str))
-        ({'rzz': [['theta'], ['a', 'b'], 'cx a,b;', 'u1(theta) b;', 'cx a,b;']}, 'qubit[3] q;\nbit[1] c0;\nbit[1] c1;\nrzz(0.2) q[1], q[2];\nc2[0] = measure q[2];')
+        >>> user_gates, qasm_code = parse_user_gates(qasm_str)
+        >>> print(user_gates)
+        [UserGate(name=rzz, parameters=['theta'], qubits=['a', 'b'], instructions=['cx a,b;', 'u1(theta) b;', 'cx a,b;'])]
+        >>> print(qasm_code)
+        qubit[3] q;
+        creg c[2];
+        rzz(0.2) q[1], q[2];
+        c2[0] = measure q[2];
     """
-    # TODO: for cleaner gate definitions, they could be objects instead of lists
-    user_gate_definitions = {}
+    matches = list(GATE_PATTERN.finditer(qasm_code))
+    user_gates = []
+    for match in matches:
+        (
+            gate_name,
+            is_param,  # pyright: ignore[reportUnusedVariable]
+            param_string,
+            qubits_string,
+            instructions_block,
+        ) = match.groups()
+        parameters = (
+            [p.strip() for p in param_string.split(',')] if param_string else []
+        )
+        qubits = [q.strip() for q in qubits_string.split(',')]
+        instructions = [
+            line.strip() for line in instructions_block.splitlines() if line.strip()
+        ]
+        user_gate = UserGate(
+            name=gate_name,
+            parameters=parameters,
+            qubits=qubits,
+            instructions=instructions,
+        )
+        user_gates.append(user_gate)
+        qasm_code = qasm_code.replace(match.group(0), "")
 
-    replaced_code = qasm_code.replace("{ ", "{\n").replace(" }", "\n}")
-
-    lines = replaced_code.split("\n")
-
-    in_user_gate = False
-    current_gate_name = ""
-    current_gate_definition = []
-
-    for line in lines:
-        if line.strip().startswith("gate"):
-            in_user_gate = True
-            current_gate_name_parameters = line.split()[1].split("(")
-            current_gate_name = current_gate_name_parameters[0]
-            current_gate_parameters = (
-                current_gate_name_parameters[1][:-1].split(",")
-                if len(current_gate_name_parameters) > 1
-                else ""
-            )
-            current_gate_definition = []
-            current_gate_qubits = ""
-            for elem in line.split()[2:]:
-                current_gate_qubits += elem
-            current_gate_qubits = current_gate_qubits.replace("{", "").split(",")
-
-            current_gate_definition.append(current_gate_parameters)
-            current_gate_definition.append(current_gate_qubits)
-            replaced_code = replaced_code.replace(line + "\n", "")
-        elif in_user_gate:
-            if line.strip().endswith("}"):
-                user_gate_definitions[current_gate_name] = current_gate_definition
-                in_user_gate = False
-            else:
-                current_gate_definition.append(line.strip())
-            replaced_code = replaced_code.replace(line + "\n", "")
-
-    return user_gate_definitions, replaced_code
+    return user_gates, qasm_code.strip()
 
 
 def remove_user_gates(qasm_code: str) -> str:
@@ -636,46 +665,53 @@ def remove_user_gates(qasm_code: str) -> str:
         cx q[0], q[1];
         measure q -> c;
     """
-    replaced_code = qasm_code
-    user_gate_definitions, replaced_code = parse_user_gates(qasm_code)
+    user_gates, qasm_code = parse_user_gates(qasm_code)
+    previous_qasm_body = None
+    while previous_qasm_body != qasm_code:
+        previous_qasm_body = qasm_code
+        for gate in user_gates:
+            for match in GATE_CALL_PATTERN.finditer(qasm_code):
+                (
+                    gate_name,
+                    is_param,  # pyright: ignore[reportUnusedVariable]
+                    param_string,
+                    qubit_string,
+                ) = match.groups()
+                if gate_name == gate.name:
+                    param_values = []
+                    if param_string:
+                        param_values = [p.strip() for p in param_string.split(',')]
+                    qubit_values = [q.strip() for q in qubit_string.split(',')]
 
-    for gate_name in user_gate_definitions:
+                    expanded = []
+                    for instruction in gate.instructions:
+                        inst = instruction
+                        for match_i in INSTRUCTION_PATTERN.finditer(instruction):
+                            start, instruction_, end = match_i.groups()
+                            if param_values:
+                                for param, value in zip(gate.parameters, param_values):
+                                    if param == instruction_:
+                                        inst = inst.replace(
+                                            match_i.group(0), start + value + end
+                                        )
+                            for qubit, value in zip(gate.qubits, qubit_values):
+                                if qubit == instruction_:
+                                    inst = inst.replace(
+                                        match_i.group(0), start + value + end
+                                    )
+                        expanded.append(inst)
 
-        lines = qasm_code.split("\n")
-        for line in lines:
-            if line.strip().startswith(gate_name + " ") or line.strip().startswith(
-                gate_name + "("
-            ):
-                current_gate_qubits = [
-                    elem.replace(",", "").replace(";", "") for elem in line.split()[1:]
-                ]
+                    expanded_instructions = "\n".join(expanded)
+                    qasm_code = qasm_code.replace(match.group(0), expanded_instructions)
 
-                current_gate_parameters = line.split()[0].split("(")
-                current_gate_parameters = (
-                    current_gate_parameters[1][:-1].split(",")
-                    if len(current_gate_parameters) > 1
-                    else []
-                )
+    return qasm_code
 
-                all_gate = ""
-                for gate in user_gate_definitions[gate_name][2:]:
-                    all_gate += gate + "\n"
 
-                for i, parameter in enumerate(user_gate_definitions[gate_name][1]):
-                    all_gate = (
-                        all_gate.replace(
-                            "," + parameter + ",", ", " + current_gate_qubits[i] + ","
-                        )
-                        .replace(
-                            " " + parameter + ",", " " + current_gate_qubits[i] + ","
-                        )
-                        .replace(parameter + ";", current_gate_qubits[i] + ";")
-                        .replace(parameter + " ;", current_gate_qubits[i] + " ;")
-                    )
-
-                for i, parameter in enumerate(user_gate_definitions[gate_name][0]):
-                    all_gate = all_gate.replace(parameter, current_gate_parameters[i])
-
-                replaced_code = replaced_code.replace(line + "\n", all_gate)
-
+def remove_include(qasm_code: str) -> str:
+    replaced_code = ""
+    for line in qasm_code.split("\n"):
+        if "include" in line:
+            pass
+        else:
+            replaced_code += line + "\n"
     return replaced_code
