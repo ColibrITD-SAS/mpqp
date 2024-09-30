@@ -24,3 +24,5 @@ class Language(Enum):
     MY_QLM = 1
     BRAKET = 2
     CIRQ = 3
+    QASM2 = 4
+    QASM3 = 5
