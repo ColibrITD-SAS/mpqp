@@ -808,7 +808,7 @@ class QCircuit:
 
     def to_other_language(
         self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -988,7 +988,10 @@ class QCircuit:
 
                 device.validate_circuit(cirq_circuit)
             return cirq_circuit
-
+        elif language == Language.QASM2:
+            return self.to_qasm2()
+        elif language == Language.QASM3:
+            return self.to_qasm3()
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
