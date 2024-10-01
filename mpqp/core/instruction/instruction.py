@@ -53,6 +53,7 @@ class Instruction(SimpleClassReprABC):
         """See parameter description."""
         self.label = label
         """See parameter description."""
+        self._dynamic = False
 
     @property
     def nb_qubits(self) -> int:
