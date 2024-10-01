@@ -286,7 +286,7 @@ class Gate(Instruction, ABC):
         Example:
             >>> pprint((X(0).product(Z(0))).to_matrix())
             [[0, -1],
-             [1, 0]]
+             [1, 0 ]]
 
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate

@@ -5,6 +5,10 @@ from typing import Union
 
 import numpy as np
 import numpy.typing as npt
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from sympy import Expr
 
 from .generics import Matrix
 
@@ -63,8 +67,12 @@ def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
     return val
 
 
-def format_element(element: Union[int, float, complex], round: int = 5) -> str:
-    if np.iscomplex(element):
+def format_element(element: Union[int, float, complex | Expr], round: int = 5) -> str:
+    from sympy import Expr
+
+    if isinstance(element, Expr):
+        return str(element.simplify())
+    elif np.iscomplex(element):
         real_part = np.round(element.real, round)
         imag_part = np.round(element.imag, round)
         if imag_part == 0:

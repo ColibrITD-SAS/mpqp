@@ -345,8 +345,8 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
     Example:
         >>> pprint(Y(0).to_matrix())
-        [[0, -1j],
-         [1j, 0]]
+        [[0 , -1j],
+         [1j, 0  ]]
 
     """
 
@@ -379,7 +379,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
     Example:
         >>> pprint(Z(0).to_matrix())
-        [[1, 0],
+        [[1, 0 ],
          [0, -1]]
 
     """
@@ -413,8 +413,8 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
     Example:
         >>> pprint(H(0).to_matrix())
-        [[0.7071068, 0.7071068],
-         [0.7071068, -0.7071068]]
+        [[0.70711, 0.70711 ],
+         [0.70711, -0.70711]]
 
     """
 
@@ -448,8 +448,8 @@ class P(RotationGate, SingleQubitGate):
 
     Example:
         >>> pprint(P(np.pi/3, 1).to_matrix())
-        [[1, 0],
-         [0, 0.5+0.8660254j]]
+        [[1, 0           ],
+         [0, 0.5+0.86603j]]
 
     """
 
@@ -494,7 +494,7 @@ class S(OneQubitNoParamGate):
 
     Example:
         >>> pprint(S(0).to_matrix())
-        [[1, 0],
+        [[1, 0 ],
          [0, 1j]]
 
     """
@@ -531,8 +531,8 @@ class T(OneQubitNoParamGate):
 
     Example:
         >>> pprint(T(0).to_matrix())
-        [[1, 0],
-         [0, 0.7071068+0.7071068j]]
+        [[1, 0                 ],
+         [0, 1.0*exp(0.25*I*pi)]]
 
     """
 
@@ -661,8 +661,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     Example:
         >>> pprint(U(np.pi/3, 0, np.pi/4, 0).to_matrix())
-        [[0.8660254, -0.3535534-0.3535534j],
-         [0.5, 0.6123724+0.6123724j]]
+        [[0.86603, -0.35355-0.35355j],
+         [0.5    , 0.61237+0.61237j ]]
 
     """
 
@@ -758,8 +758,8 @@ class Rx(RotationGate, SingleQubitGate):
 
     Example:
         >>> pprint(Rx(np.pi/5, 1).to_matrix())
-        [[0.9510565, -0.309017j],
-         [-0.309017j, 0.9510565]]
+        [[0.95106  , -0.30902j],
+         [-0.30902j, 0.95106  ]]
 
     """
 
@@ -798,8 +798,8 @@ class Ry(RotationGate, SingleQubitGate):
 
     Example:
         >>> pprint(Ry(np.pi/5, 1).to_matrix())
-        [[0.9510565, -0.309017],
-         [0.309017, 0.9510565]]
+        [[0.95106, -0.30902],
+         [0.30902, 0.95106 ]]
 
     """
 
@@ -875,8 +875,8 @@ class Rk(RotationGate, SingleQubitGate):
 
     Example:
         >>> pprint(Rk(5, 0).to_matrix())
-        [[1, 0],
-         [0, 0.9807853+0.1950903j]]
+        [[1, 0               ],
+         [0, 0.98079+0.19509j]]
 
     """
 
