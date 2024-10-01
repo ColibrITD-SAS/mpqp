@@ -324,7 +324,12 @@ def run_aer(job: Job):
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
-    qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+    qiskit_circuit = transpile(
+        qiskit_circuit,
+        backend_sim,
+        layout_method="trivial",
+        optimization_level=0,
+    )
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
