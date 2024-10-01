@@ -899,7 +899,6 @@ class QCircuit:
 
             if self.label is not None:
                 new_circ.name = self.label
-                
 
             for instruction in self.instructions:
                 if isinstance(instruction, ExpectationMeasure):
