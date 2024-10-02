@@ -883,8 +883,10 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
+                    instr = instruction.to_other_language(Language.QISKIT)
+                    assert isinstance(instr, Operator)
                     new_circ.unitary(
-                        instruction.to_other_language(),
+                        instr,
                         instruction.targets,
                         instruction.label,
                     )
