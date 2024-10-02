@@ -986,7 +986,7 @@ class QCircuit:
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
-                
+
             qasm3_code = circuit.to_other_language(Language.QASM3)
             assert isinstance(qasm3_code, str)
             return apply_noise_to_braket_circuit(
