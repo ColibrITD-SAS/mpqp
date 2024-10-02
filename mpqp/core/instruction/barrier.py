@@ -29,3 +29,6 @@ class Barrier(Instruction):
             from qiskit.circuit.library import Barrier as QiskitBarrier
 
             return QiskitBarrier(self.size)
+        elif language == Language.QASM2:
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+            return "\nbarrier " + qubits + ";"
