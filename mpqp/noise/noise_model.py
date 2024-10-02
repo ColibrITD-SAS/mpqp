@@ -503,11 +503,16 @@ class AmplitudeDamping(NoiseModel):
             AmplitudeDamping('gamma': 0.4, 'qubit_count': 1)
             >>> type(braket_ad)
             <class 'braket.circuits.noises.AmplitudeDamping'>
-            >>> braket_gad1 = AmplitudeDamping(0.2, 0.2, [1]).to_other_language(Language.BRAKET)
+            >>> braket_gad1 = AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.BRAKET)
             >>> braket_gad1
-            GeneralizedAmplitudeDamping('gamma': 0.2, 'probability': 0.2, 'qubit_count': 1)
+            GeneralizedAmplitudeDamping('gamma': 0.4, 'probability': 0.2, 'qubit_count': 1)
             >>> type(braket_gad1)
             <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
+            >>> qiskit_ad = AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.QISKIT)
+            >>> qiskit_ad
+            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f90ef4a64f0>, 1.0)])
+            >>> type(qiskit_ad)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
 
 
         """
