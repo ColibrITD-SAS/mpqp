@@ -38,11 +38,53 @@ class CustomGate(Gate):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
-        from qiskit.quantum_info.operators import Operator as QiskitOperator
+        if language == Language.QISKIT:
+            from qiskit.quantum_info.operators import Operator as QiskitOperator
 
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
-        return QiskitOperator(self.matrix)
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
+            return QiskitOperator(self.matrix)
+        elif language == Language.QASM2:
+            import collections.abc
+
+            from qiskit.qasm2.export import (
+                _define_custom_operation,  # pyright: ignore[reportPrivateUsage]
+                _instruction_call_site,  # pyright: ignore[reportPrivateUsage]
+            )
+            from qiskit.quantum_info.operators import Operator as QiskitOperator
+            from qiskit.circuit import Instruction as QiskitInstruction
+            from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
+
+            gates_to_define: collections.OrderedDict[
+                str, tuple[QiskitInstruction, str]
+            ] = collections.OrderedDict()
+
+            op = (
+                QiskitOperator(self.matrix)
+                .to_instruction()
+                ._qasm2_decomposition()  # pyright: ignore[reportPrivateUsage]
+            )
+            _define_custom_operation(op, gates_to_define)
+
+            gate_definitions_qasm = "\n".join(
+                f"{qasm}" for _, qasm in gates_to_define.values()
+            )
+
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+
+            qasm_str = remove_user_gates(
+                "\n"
+                + gate_definitions_qasm
+                + "\n"
+                + _instruction_call_site(op)
+                + " "
+                + qubits
+                + ";"
+            )
+
+            return "\n" + qasm_str
+        else:
+            raise NotImplementedError(f"Error: {language} is not supported")
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.

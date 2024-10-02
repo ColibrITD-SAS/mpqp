@@ -318,7 +318,9 @@ def test_to_qasm_2(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        assert circuit.to_qasm2() == f.read()
+        qasm2 = circuit.to_other_language(Language.QASM2)
+        assert isinstance(qasm2, str)
+        assert qasm2 == f.read()
 
 
 @pytest.mark.parametrize(
@@ -356,7 +358,9 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        assert circuit.to_qasm3().strip() == f.read().strip()
+        qasm3 = circuit.to_other_language(Language.QASM3)
+        assert isinstance(qasm3, str)
+        assert qasm3.strip() == f.read().strip()
 
 
 @pytest.mark.parametrize(
