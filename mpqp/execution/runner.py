@@ -196,7 +196,9 @@ def _run_single(
             )
 
     # TODO: remove when Cirq parsing of QASM2 is correct
-    if isinstance(device, GOOGLEDevice) and any(isinstance(gate, CustomGate) for gate in circuit.instructions):
+    if isinstance(device, GOOGLEDevice) and any(
+        isinstance(gate, CustomGate) for gate in circuit.instructions
+    ):
         raise NotImplementedError("CustomGate is not yet supported in GOOGLEDevices.")
 
     if isinstance(device, IBMDevice):
