@@ -7,8 +7,6 @@ from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
-from mpqp.tools.display import one_lined_repr
-
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
 
