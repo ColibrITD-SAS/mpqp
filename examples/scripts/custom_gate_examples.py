@@ -19,7 +19,7 @@ print(
             IBMDevice.AER_SIMULATOR,
             ATOSDevice.MYQLM_PYLINALG,
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, TODO: put it back when Cirq handles CustomGate correctly
         ],
     )
 )
