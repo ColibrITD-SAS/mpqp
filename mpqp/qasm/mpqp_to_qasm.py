@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import logging
-import numpy as np
 from typing import TYPE_CHECKING
+
+import numpy as np
 
 if TYPE_CHECKING:
     from mpqp.core.instruction import Instruction
     from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates import *
+from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.core.instruction.measurement import BasisMeasure
 
 
 def _handle_measurement(instruction: BasisMeasure) -> str:
@@ -97,21 +98,22 @@ def _simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int])
 
 
 def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
-    """
-    Converts an MPQP `QCircuit` object into a string in QASM 2.0 format.
-    It handles various quantum instructions like gates, measurements, and barriers and
-    can optionally simplify the circuit by merging consecutive single-qubit gates of the same type.
+    """Converts an :class:`~mpqp.core.circuit.QCircuit` object into a string in
+    QASM 2.0 format. It handles various quantum instructions like gates,
+    measurements, and barriers and can optionally simplify the circuit by
+    merging consecutive single-qubit gates of the same type.
 
     Args:
-        circuit: The MPQP quantum circuit to be converted.
-        simplify:  If set to True, the function will attempt to simplify the circuit
-        by merging consecutive single-qubit gates of the same type, if applicable.
+        circuit: The circuit to be converted.
+        simplify: If `True`, the function will attempt to simplify the circuit
+            by merging consecutive single-qubit gates of the same type.
 
     Returns:
-        A string containing the QASM 2.0 representation of the provided quantum circuit.
+        A string containing the QASM 2.0 representation of the provided circuit.
 
     Raises:
-        ValueError: If an unknown gate or instruction type is encountered during the conversion process.
+        ValueError: If an unknown gate or instruction type is encountered during
+            the conversion process.
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure()])
@@ -129,7 +131,8 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
     circuit_copy = circuit.hard_copy()
     if circuit_copy.noises:
         logging.warning(
-            "Instructions such as noise are not supported by QASM2 hence have been ignored."
+            "Instructions such as noise are not supported by QASM2 hence have "
+            "been ignored."
         )
 
     qasm_str = (
