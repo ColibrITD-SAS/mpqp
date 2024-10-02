@@ -986,7 +986,7 @@ class QCircuit:
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
-                
+
             qasm3_code = circuit.to_other_language(Language.QASM3)
             assert isinstance(qasm3_code, str)
             return apply_noise_to_braket_circuit(
@@ -1037,6 +1037,85 @@ class QCircuit:
             return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
+
+    @classmethod
+    def from_other_language(
+        cls, qcircuit: QuantumCircuit | cirq_Circuit | str
+    ) -> QCircuit:
+        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, or QASM2) into
+        the corresponding internal `QCircuit` format.
+
+        Args:
+            qcircuit: The input quantum circuit which can be one of the following types:
+                - `QuantumCircuit`: A Qiskit QuantumCircuit object.
+                - `cirq_Circuit`: A Cirq Circuit object.
+                - `str`: A string representing an OpenQASM 2.0 circuit.
+
+        Returns:
+            QCircuit: The circuit in the internal `QCircuit` representation.
+
+        Raises:
+            NotImplementedError: If the input circuit is a string but not in OpenQASM 2.0 format.
+
+        Examples:
+            >>> from qiskit.circuit import QuantumCircuit
+            >>> qiskit_circuit = QuantumCircuit(2)
+            >>> _ = qiskit_circuit.h(0)
+            >>> _ = qiskit_circuit.cx(0, 1)
+            >>> qcircuit1 = QCircuit.from_other_language(qiskit_circuit)
+            >>> print(qcircuit1) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+
+            >>> import cirq
+            >>> q0, q1 = cirq.LineQubit.range(2)
+            >>> cirq_circuit = cirq.Circuit()
+            >>> cirq_circuit.append(cirq.H(q0))
+            >>> cirq_circuit.append(cirq.CNOT(q0, q1))
+            >>> qcircuit2 = QCircuit.from_other_language(cirq_circuit)
+            >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+
+            >>> qasm2_code = '''
+            ... OPENQASM 2.0;
+            ... qreg q[2];
+            ... h q[0];
+            ... cx q[0], q[1];
+            ... '''
+            >>> qcircuit3 = QCircuit.from_other_language(qasm2_code)
+            >>> print(qcircuit3) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+
+        """
+        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+        from qiskit.circuit import QuantumCircuit
+        from cirq.circuits import Circuit as cirq_Circuit
+
+        if isinstance(qcircuit, QuantumCircuit):
+            from qiskit import qasm2
+
+            qasm2_code = qasm2.dumps(qcircuit)
+            return qasm2_parse(qasm2_code)
+        elif isinstance(qcircuit, cirq_Circuit):
+            qasm2_code = qcircuit.to_qasm()
+            return qasm2_parse(qasm2_code)
+        elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            if not "OPENQASM 2.0;" in qcircuit:
+                raise NotImplementedError(f"Error: only open QASM2 is supported")
+            return qasm2_parse(qcircuit)
+        else:
+            raise NotImplementedError(f"Error: {type(qcircuit)} is not supported")
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
