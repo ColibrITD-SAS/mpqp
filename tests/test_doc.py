@@ -27,8 +27,8 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
-from mpqp.tools.display import clean_1D_array, clean_matrix, pretty_print_matrix
-from mpqp.tools.generics import find, flatten, find_index
+from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
+from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import (
     is_hermitian,
     is_unitary,

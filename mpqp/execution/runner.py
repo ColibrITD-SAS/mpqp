@@ -75,8 +75,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
-        list(range(circuit.nb_qubits)),
         Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
+        list(range(circuit.nb_qubits)),
         measure.shots,
     )
     return tweaked_measure
@@ -178,6 +178,7 @@ def _run_single(
          Error: None
 
     """
+
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k)
@@ -294,7 +295,6 @@ def run(
         values = {}
 
     def namer(circ: QCircuit, i: int):
-        circ = circ.hard_copy()
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -307,7 +307,7 @@ def run(
             ]
         )
     else:
-        return _run_single(circuit.hard_copy(), device, values, display_breakpoints)
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
 @typechecked
