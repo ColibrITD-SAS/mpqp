@@ -66,8 +66,8 @@ def qasm2_parse(input_string: str) -> QCircuit:
              └───┘┌─┴─┐└╥┘┌─┐
         q_1: ─────┤ X ├─╫─┤M├
                   └───┘ ║ └╥┘
-        c: 4/═══════════╩══╩═
-                        2  3
+        c: 2/═══════════╩══╩═
+                        0  1
 
     """
     from mpqp.core.circuit import QCircuit

@@ -75,8 +75,7 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
         measure q[0] -> c[0];
         measure q[1] -> c[1];
     """
-    circuit_copy = circuit.hard_copy()
-    if circuit_copy.noises:
+    if circuit.noises:
         logging.warning(
             "Instructions such as noise are not supported by QASM2 hence have "
             "been ignored."
@@ -85,22 +84,22 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
     qasm_str = (
         "OPENQASM 2.0;"
         + "\ninclude \"qelib1.inc\";"
-        + f"\nqreg q[{circuit_copy.nb_qubits}];"
+        + f"\nqreg q[{circuit.nb_qubits}];"
     )
 
-    if circuit_copy.nb_cbits != None:
-        qasm_str += f"\ncreg c[{circuit_copy.nb_cbits}];"
+    if circuit.nb_cbits != None:
+        qasm_str += f"\ncreg c[{circuit.nb_cbits}];"
 
     previous = None
-    targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
+    targets = {i: 0 for i in range(circuit.nb_qubits)}
 
-    for instruction in circuit_copy.instructions:
+    for instruction in circuit.instructions:
         if simplify:
             if isinstance(instruction, SingleQubitGate):
                 if previous is None or not isinstance(instruction, type(previous)):
                     if previous:
                         qasm_str += _simplify_instruction(previous, targets)
-                        targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
+                        targets = {i: 0 for i in range(circuit.nb_qubits)}
                     previous = instruction
                 elif (
                     isinstance(instruction, ParametrizedGate)
@@ -108,7 +107,7 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
                     != previous.parameters  # pyright: ignore[reportAttributeAccessIssue]
                 ):
                     qasm_str += _simplify_instruction(previous, targets)
-                    targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
+                    targets = {i: 0 for i in range(circuit.nb_qubits)}
                     previous = instruction
                 for target in instruction.targets:
                     targets[target] += 1
@@ -116,7 +115,7 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
                 if previous:
                     qasm_str += _simplify_instruction(previous, targets)
                     previous = None
-                    targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
+                    targets = {i: 0 for i in range(circuit.nb_qubits)}
                 qasm_str += instruction.to_other_language(Language.QASM2)
         else:
             qasm_str += instruction.to_other_language(Language.QASM2)
