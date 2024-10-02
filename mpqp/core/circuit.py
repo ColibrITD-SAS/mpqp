@@ -1100,7 +1100,7 @@ class QCircuit:
         """
         from mpqp.qasm.qasm_to_mpqp import qasm2_parse
         from qiskit.circuit import QuantumCircuit
-        from cirq.circuits import Circuit as cirq_Circuit
+        from cirq.circuits.circuit import Circuit as cirq_Circuit
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
