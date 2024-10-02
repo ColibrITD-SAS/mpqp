@@ -28,6 +28,7 @@ from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
+from mpqp.core.instruction.gates import CustomGate
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
@@ -193,6 +194,10 @@ def _run_single(
             raise NotImplementedError(
                 f"Noisy simulations are not yet available on devices of type {type(device).name}."
             )
+
+    # TODO: remove when Cirq parsing of QASM2 is correct
+    if isinstance(device, GOOGLEDevice) and any(isinstance(gate, CustomGate) for gate in circuit.instructions):
+        raise NotImplementedError("CustomGate is not yet supported in GOOGLEDevices.")
 
     if isinstance(device, IBMDevice):
         return run_ibm(job)

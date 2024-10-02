@@ -292,14 +292,3 @@ def test_observable_ideal_case(
         assert abs(result.expectation_value - expected_value) < (
             atol + rtol * abs(expected_value)
         )
-
-
-# @pytest.mark.parametrize(
-#     "gates, observable, expected_interval",
-#     [
-#         ([], np.array([]), (0.0, 0.0)),
-#     ],
-# )
-# def test_observable_shot_noise(gates: list[Instruction], observable: Matrix, expected_interval: tuple[float, float]):
-#     pass
-# TODO
