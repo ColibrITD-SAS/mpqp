@@ -215,7 +215,7 @@ class ExpectationMeasure(Measure):
     def _check_targets_order(self):
         from mpqp.core.circuit import QCircuit
 
-        if self.targets == []:
+        if len(self.targets) == 0:
             self.pre_measure = QCircuit(0)
             return
 
