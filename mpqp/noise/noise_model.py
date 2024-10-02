@@ -239,6 +239,14 @@ class Depolarizing(NoiseModel):
             Depolarizing('probability': 0.3, 'qubit_count': 1)
             >>> type(braket_depolarizing)
             <class 'braket.circuits.noises.Depolarizing'>
+            >>> qiskit_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT)
+            >>> qiskit_depolarizing
+            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0eeccc1400>, 0.7750000000000001),
+            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0eeccc1460>, 0.07500000000000001),
+            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0eeccc19d0>, 0.07500000000000001),
+            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0ecf942220>, 0.07500000000000001)])
+            >>> type(qiskit_depolarizing)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
             >>> qlm_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
             >>> print(qlm_depolarizing)  # doctest: +NORMALIZE_WHITESPACE
             Depolarizing channel, p = 0.3:
@@ -373,6 +381,12 @@ class BitFlip(NoiseModel):
             BitFlip('probability': 0.3, 'qubit_count': 1)
             >>> type(braket_bitflip)
             <class 'braket.circuits.noises.BitFlip'>
+            >>> qiskit_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT)
+            >>> qiskit_bitflip
+            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0ecf8fb550>, 0.3),
+            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0ecf8fb1f0>, 0.7)])
+            >>> type(qiskit_bitflip)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
 
         """
 
@@ -489,16 +503,12 @@ class AmplitudeDamping(NoiseModel):
             AmplitudeDamping('gamma': 0.4, 'qubit_count': 1)
             >>> type(braket_ad)
             <class 'braket.circuits.noises.AmplitudeDamping'>
-            >>> braket_gad1 = AmplitudeDamping(0.2, 0, [1]).to_other_language(Language.BRAKET)
+            >>> braket_gad1 = AmplitudeDamping(0.2, 0.2, [1]).to_other_language(Language.BRAKET)
             >>> braket_gad1
-            GeneralizedAmplitudeDamping('gamma': 0.2, 'probability': 0.0, 'qubit_count': 1)
+            GeneralizedAmplitudeDamping('gamma': 0.2, 'probability': 0.2, 'qubit_count': 1)
             >>> type(braket_gad1)
             <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
-            >>> braket_gad2 = AmplitudeDamping(0.15, 0.2, [0]).to_other_language(Language.BRAKET)
-            >>> braket_gad2
-            GeneralizedAmplitudeDamping('gamma': 0.15, 'probability': 0.2, 'qubit_count': 1)
-            >>> type(braket_gad2)
-            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
+
 
         """
         if language == Language.BRAKET:
