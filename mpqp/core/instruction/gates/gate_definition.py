@@ -34,7 +34,7 @@ class GateDefinition(ABC):
 
     """
 
-    # TODO: put this back once we implement the other definitions
+    # TODO: put this back once we implement the other definitions. Are those definitions really useful in practice ?
     # This class permit to define a gate in 4 potential ways:
     #     1. the unitary matrix defining the gate
     #     2. a combination of several other gates

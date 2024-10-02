@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
+from mpqp.tools.display import one_lined_repr
+
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
 
@@ -79,9 +81,9 @@ class CustomGate(Gate):
             qiskit_parameters = set()
         return QiskitOperator(self.matrix)
 
-    def __repr__(self):
-        # TODO: fill the __repr__
-        return ""
+    def __repr__(self) -> str:
+        label = ", " + self.label if self.label else ""
+        return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets} {label})"
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
