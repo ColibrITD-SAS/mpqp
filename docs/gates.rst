@@ -8,9 +8,9 @@ Gates
 
 Our gates class definitions are very declarative: if the gate operates on only
 one qubit, it takes
-:class:`SingleQubitGate<mpqp.core.instruction.gates.gate.SingleQubitGate>` as
+:class:`~mpqp.core.instruction.gates.gate.SingleQubitGate` as
 parent, if it is a rotation gate, it takes
-:class:`RotationGate<mpqp.core.instruction.gates.gate.RotationGate>` as parent,
+:class:`~mpqp.core.instruction.gates.native_gates.RotationGate` as parent,
 etc... This allows us to factorize a lot of common behaviors.\ [#traits]_ 
 
 The Gate class

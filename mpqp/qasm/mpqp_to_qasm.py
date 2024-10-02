@@ -10,9 +10,11 @@ if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.barrier import Barrier
+from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import *
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.measurement import BasisMeasure
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
+from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
 
 
 def _handle_measurement(instruction: BasisMeasure) -> str:
@@ -53,7 +55,44 @@ def _handle_rotation(gate: ParametrizedGate) -> str:
 
 
 def instruction_to_qasm(instruction: Instruction, simplify: bool = False) -> str:
-    if isinstance(instruction, Gate):
+    if isinstance(instruction, CustomGate):
+        import collections.abc
+
+        from qiskit.qasm2.export import (
+            _define_custom_operation,  # pyright: ignore[reportPrivateUsage]
+        )
+        from qiskit.qasm2.export import (
+            _instruction_call_site,  # pyright: ignore[reportPrivateUsage]
+        )
+        from qiskit.quantum_info.operators import Operator as QiskitOperator
+
+        gates_to_define: collections.OrderedDict[str, tuple[Instruction, str]] = (
+            collections.OrderedDict()
+        )
+
+        op = (
+            QiskitOperator(instruction.matrix)
+            .to_instruction()
+            ._qasm2_decomposition()  # pyright: ignore[reportPrivateUsage]
+        )
+        _define_custom_operation(op, gates_to_define)
+
+        gate_definitions_qasm = "\n".join(
+            f"{qasm}" for _, qasm in gates_to_define.values()
+        )
+        qasm_str = remove_user_gates(
+            "\n"
+            + gate_definitions_qasm
+            + "\n"
+            + _instruction_call_site(op)
+            + " "
+            + _handle_connection(instruction)
+            + ";"
+        )
+
+        return "\n" + qasm_str
+
+    elif isinstance(instruction, Gate):
         instruction_str = (
             instruction.qasm2_gate  # pyright: ignore[reportAttributeAccessIssue]
         )
@@ -68,8 +107,12 @@ def instruction_to_qasm(instruction: Instruction, simplify: bool = False) -> str
         if simplify:
             return "\nbarrier q;"
         return "\nbarrier " + _handle_connection(instruction) + ";"
+    elif isinstance(instruction, Breakpoint):
+        return ""
+    elif isinstance(instruction, ExpectationMeasure):
+        return ""
     else:
-        raise ValueError("Unknown instruction")
+        raise ValueError(f"Unknown instruction: {repr(instruction)}")
 
 
 def _simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int]):
