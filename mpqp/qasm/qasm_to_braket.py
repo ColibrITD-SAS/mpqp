@@ -8,7 +8,7 @@ operations (``U`` and ``gphase``) but allows to define custom gates using a
 combination of supported standard gates (``rx``, ``ry``, ``rz``, ``cnot``,
 ``phaseshift`` for instance). Besides, the inclusion of files is not yet handled
 by Braket library meaning we use a mechanism of *hard* includes (see
-:func:`open_qasm_hard_includes<mpqp.qasm.qasm_to_myqlm.hard-open_qasm_hard_includes>`)
+:func:`~mpqp.qasm.qasm_to_myqlm.hard-open_qasm_hard_includes`)
 directly in the OpenQASM 3.0 code, to be sure the parser and interpreter have
 all definitions in there. We also hard-include all included files in the
 OpenQASM 3.0 code inputted for conversion.

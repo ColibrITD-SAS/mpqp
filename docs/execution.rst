@@ -16,6 +16,8 @@ Languages
 
 .. automodule:: mpqp.core.languages
 
+.. _Devices:
+
 Devices
 -------
 

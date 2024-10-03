@@ -59,9 +59,6 @@ def main_setup():
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
-    # def no_op():
-    #     return "", []
-
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
         [
@@ -70,27 +67,9 @@ def main_setup():
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Recap", print_config_info),
-            # AnswerNode(
-            #     "Cirq",
-            #     no_op,
-            #     next_question=QuestionNode(
-            #         "~~~~~ Cirq REMOTE CONFIGURATION ~~~~~",
-            #         [
-            #             AnswerNode("↩ Return", no_op),
-            #         ],
-            #     ),
-            # ),
         ],
+        leaf_loop_to_here=True,
     )
-
-    # TODO: to avoid having to manually set that, we could add this as an option
-    # to the run choice tree
-    for answer in setup_tree.answers:
-        if answer.label == "Cirq" and answer.next_question is not None:
-            for answer in answer.next_question.answers:
-                answer.next_question = setup_tree
-        else:
-            answer.next_question = setup_tree
 
     run_choice_tree(setup_tree)
 

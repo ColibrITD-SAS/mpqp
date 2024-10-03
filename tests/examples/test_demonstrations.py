@@ -196,7 +196,7 @@ def test_observable_demo(shots: int):
     # Constructing the circuit by adding gates and measurements
     circuit.add(H(0))
     circuit.add([H(1), CNOT(1, 0)])
-    circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=shots))
+    circuit.add(ExpectationMeasure(obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
     runner = lambda: run(
@@ -282,7 +282,7 @@ def test_aws_mpqp_executions():
     # Constructing the circuit by adding gates and measurements
     circuit.add(H(0))
     circuit.add(Rx(1.76, 1))
-    circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=0))
+    circuit.add(ExpectationMeasure(obs, shots=0))
 
     # Running the computation on myQLM and on Braket simulator, then retrieving the results
     runner = lambda: run(

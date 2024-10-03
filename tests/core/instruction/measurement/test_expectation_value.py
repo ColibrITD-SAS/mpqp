@@ -27,7 +27,7 @@ def test_expectation_measure_right_targets(targets: list[int]):
     obs = Observable(np.diag([1] * 2 ** len(targets)))
     with warnings.catch_warnings():
         warnings.simplefilter("error")
-        ExpectationMeasure(targets, obs)
+        ExpectationMeasure(obs, targets)
 
 
 @pytest.mark.parametrize(
@@ -43,7 +43,7 @@ def test_expectation_measure_wrong_targets(
 ):
     obs = Observable(np.diag([1] * 2 ** len(targets)))
     with pytest.warns(UserWarning):
-        measure = ExpectationMeasure(targets, obs)
+        measure = ExpectationMeasure(obs, targets)
     assert [
         set(swap.targets) for swap in measure.pre_measure.instructions
     ] == expected_swaps
