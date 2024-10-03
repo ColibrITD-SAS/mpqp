@@ -4,15 +4,41 @@ import sys
 
 NOTEBOOK_DIR = "examples/notebooks/"
 PYTHON_FILES_DIR = "examples/scripts/"
-SKIP_NOTEBOOK = os.path.join(NOTEBOOK_DIR, "2_Execution_Bell_circuit.ipynb")
 
 
-def run_notebooks():
-    result = subprocess.run(
-        ["python", "-m", "pytest", "--nbmake", NOTEBOOK_DIR, "--ignore", SKIP_NOTEBOOK]
-    )
-    if result.returncode != 0:
-        raise Exception(f"Some notebooks failed")
+def generate_tests_for_notebooks():
+    # nbmake: https://pypi.org/project/nbmake/
+    # Ignore a Code Cell: "metadata": { "tags": ["skip-execution"]}
+    notebook_files = [
+        file for file in os.listdir(NOTEBOOK_DIR) if file.endswith(".ipynb")
+    ]
+
+    def make_test_func(file: str):
+        def test_func():
+            env = os.environ.copy()
+            venv_path = os.environ.get('VIRTUAL_ENV')
+            if venv_path:
+                env["PATH"] = f"{os.path.join(venv_path, 'bin')}"
+                env["VIRTUAL_ENV"] = venv_path
+            env["PYTHONIOENCODING"] = "UTF-8"
+            result = subprocess.run(
+                [sys.executable, "-m", "pytest", "--nbmake", file], env=env
+            )
+            if result.returncode != 0:
+                raise Exception(f"failed with return code {result.returncode}")
+
+        return test_func
+
+    env = os.environ.copy()
+    venv_path = os.environ.get('VIRTUAL_ENV')
+    if venv_path:
+        env["PATH"] = f"{os.path.join(venv_path, 'bin')}"
+        env["VIRTUAL_ENV"] = venv_path
+    env["PYTHONIOENCODING"] = "UTF-8"
+
+    for notebook in notebook_files:
+        test_name = f"test_{os.path.splitext(notebook)[0]}"
+        globals()[test_name] = make_test_func(os.path.join(NOTEBOOK_DIR, notebook))
 
 
 def generate_tests_for_python_scripts():
@@ -23,16 +49,20 @@ def generate_tests_for_python_scripts():
     def make_test_func(py_file: str):
         def test_func():
             py_file_path = os.path.join(PYTHON_FILES_DIR, py_file)
-            print(f"Running Python script: {py_file}")
-            env = os.environ.copy()
-            env["PYTHONIOENCODING"] = "UTF-8"
-            env["MPLBACKEND"] = "Agg"  # don't show
             result = subprocess.run([sys.executable, py_file_path], env=env)
             assert (
                 result.returncode == 0
-            ), f"{py_file} failed with return code {result.returncode}"
+            ), f"failed with return code {result.returncode}"
 
         return test_func
+
+    env = os.environ.copy()
+    venv_path = os.environ.get('VIRTUAL_ENV')
+    if venv_path:
+        env["PATH"] = f"{os.path.join(venv_path, 'bin')}"
+        env["VIRTUAL_ENV"] = venv_path
+    env["PYTHONIOENCODING"] = "UTF-8"
+    env["MPLBACKEND"] = "Agg"  # don't show
 
     for py_file in python_files:
         test_name = f"test_{os.path.splitext(py_file)[0]}"
@@ -41,4 +71,4 @@ def generate_tests_for_python_scripts():
 
 if "--long-local" in sys.argv or "--long" in sys.argv:
     generate_tests_for_python_scripts()
-    test_notebooks = run_notebooks
+    generate_tests_for_notebooks()
