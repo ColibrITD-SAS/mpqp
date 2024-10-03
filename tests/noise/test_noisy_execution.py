@@ -3,6 +3,7 @@ too slow)"""
 
 import sys
 from itertools import product
+from typing import Any
 
 import numpy as np
 import pytest
@@ -13,7 +14,14 @@ from mpqp.core.instruction.measurement import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run
+from mpqp.execution import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    run,
+)
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
@@ -23,6 +31,15 @@ from mpqp.tools.theoretical_simulation import (
     validate,
     validate_noisy_circuit,
 )
+
+noisy_devices: list[Any] = [
+    dev
+    for dev in list(ATOSDevice) + list(AWSDevice) + list(IBMDevice) + list(GOOGLEDevice)
+    if dev.is_noisy_simulator()
+]
+# TODO: in the end this should be automatic as drafted above, but for now only
+# one device is stable
+noisy_devices = [AWSDevice.BRAKET_LOCAL_SIMULATOR]
 
 
 @pytest.fixture
@@ -154,11 +171,14 @@ def test_depol_noise_fail(
 
 
 @pytest.mark.parametrize(
-    "depol_noise, shots",
+    "depol_noise, shots, device",
     product(
         [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
         [500, 1_000, 5_000, 10_000, 50_000, 100_000],
+        noisy_devices,
     ),
 )
-def test_validate_noise(circuit: QCircuit, depol_noise: float, shots: int):
-    assert validate_noisy_circuit(circuit, depol_noise, shots)
+def test_validate_noise(
+    circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
+):
+    assert validate_noisy_circuit(circuit, depol_noise, shots, device)

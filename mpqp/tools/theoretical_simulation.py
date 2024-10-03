@@ -9,6 +9,7 @@ from scipy.spatial.distance import jensenshannon
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.execution import AWSDevice
+from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import Gate
 from mpqp.noise import Depolarizing
@@ -88,7 +89,12 @@ def trust_int(noiseless_circuit: QCircuit, p: float):
     return dist_alpha_matching(float(jensenshannon(noiseless_probs, noisy_probs)))
 
 
-def exp_id_dist(noiseless_circuit: QCircuit, p: float, shots: int = 1024):
+def exp_id_dist(
+    noiseless_circuit: QCircuit,
+    p: float,
+    shots: int = 1024,
+    device: AvailableDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
+):
     """This function computes Jensen-Shannon the distance between the non noisy
     distribution and the noisy distribution.
 
@@ -96,6 +102,7 @@ def exp_id_dist(noiseless_circuit: QCircuit, p: float, shots: int = 1024):
         noiseless_circuit: The circuit without any noise.
         p: The probably of the dephasing noise happening.
         shots: Number of shots in the basis measurement.
+        device: The device to be tested.
 
     Returns:
         The distance between the non noisy distribution and the noisy
@@ -105,15 +112,16 @@ def exp_id_dist(noiseless_circuit: QCircuit, p: float, shots: int = 1024):
 
     noisy_circuit = noiseless_circuit.without_measurements()
     noisy_circuit.add([BasisMeasure(shots=shots), Depolarizing(p)])
-    mpqp_counts = _run_single(
-        noisy_circuit.hard_copy(), AWSDevice.BRAKET_LOCAL_SIMULATOR, {}
-    ).counts
+    mpqp_counts = _run_single(noisy_circuit.hard_copy(), device, {}).counts
 
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
 
 
 def validate_noisy_circuit(
-    noiseless_circuit: QCircuit, p: float, shots: int = 1024
+    circuit: QCircuit,
+    p: float,
+    shots: int = 1024,
+    device: AvailableDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ) -> bool:
     """Validates our noise pipeline for a circuit.
 
@@ -121,11 +129,12 @@ def validate_noisy_circuit(
         noiseless_circuit: The circuit without any noise.
         p: The probably of the dephasing noise happening.
         shots: Number of shots in the basis measurement.
+        device: The device to be tested.
 
     Returns:
         Weather our noise pipeline matches the theory or not.
     """
-    return exp_id_dist(noiseless_circuit, p, shots) <= trust_int(noiseless_circuit, p)
+    return exp_id_dist(circuit, p, shots, device) <= trust_int(circuit, p)
 
 
 def exp_id_dist_excess(
