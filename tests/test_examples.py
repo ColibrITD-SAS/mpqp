@@ -15,14 +15,9 @@ def generate_tests_for_notebooks():
 
     def make_test_func(file: str):
         def test_func():
-            env = os.environ.copy()
-            venv_path = os.environ.get('VIRTUAL_ENV')
-            if venv_path:
-                env["PATH"] = f"{os.path.join(venv_path, 'bin')}"
-                env["VIRTUAL_ENV"] = venv_path
-            env["PYTHONIOENCODING"] = "UTF-8"
+            notebook_path = os.path.join(NOTEBOOK_DIR, file)
             result = subprocess.run(
-                [sys.executable, "-m", "pytest", "--nbmake", file], env=env
+                [sys.executable, "-m", "pytest", "--nbmake", notebook_path], env=env
             )
             if result.returncode != 0:
                 raise Exception(f"failed with return code {result.returncode}")
@@ -38,7 +33,7 @@ def generate_tests_for_notebooks():
 
     for notebook in notebook_files:
         test_name = f"test_{os.path.splitext(notebook)[0]}"
-        globals()[test_name] = make_test_func(os.path.join(NOTEBOOK_DIR, notebook))
+        globals()[test_name] = make_test_func(notebook)
 
 
 def generate_tests_for_python_scripts():
