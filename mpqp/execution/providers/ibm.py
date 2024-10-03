@@ -1,9 +1,11 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING, Optional
+from typeguard import typechecked
 
+import math
 import numpy as np
+from copy import deepcopy
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -16,8 +18,6 @@ if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
     from qiskit_ibm_runtime import RuntimeJobV2
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
@@ -156,7 +156,7 @@ def generate_qiskit_noise_model(
 
     noise_model = Qiskit_NoiseModel()
 
-    modified_circuit = circuit.hard_copy()
+    modified_circuit = deepcopy(circuit)
 
     used_qubits = set().union(
         *(
