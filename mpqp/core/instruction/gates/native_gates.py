@@ -829,10 +829,11 @@ class Ry(RotationGate, SingleQubitGate):
     def __init__(self, theta: Expr | float, target: int):
         super().__init__(theta, target)
 
+
 def to_canonical_matrix(self):
-        c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array([[c, -s], [s, c]])
+    c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+    s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+    return np.array([[c, -s], [s, c]])
 
 
 class Rz(RotationGate, SingleQubitGate):

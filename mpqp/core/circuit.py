@@ -297,7 +297,9 @@ class QCircuit:
             dynamic_components.size = self.nb_qubits
         elif isinstance(dynamic_components, ExpectationMeasure):
             dynamic_components._check_targets_order()  # pyright: ignore[reportPrivateUsage]
-        elif isinstance(dynamic_components, NoiseModel) and hasattr(dynamic_components, "dimension"):
+        elif isinstance(dynamic_components, NoiseModel) and hasattr(
+            dynamic_components, "dimension"
+        ):
             dynamic_components._check_dimension()  # pyright: ignore[reportPrivateUsage]
         elif isinstance(dynamic_components, BasisMeasure):
             if self.nb_cbits is None:
