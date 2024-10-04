@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from functools import reduce
+from itertools import product
+from math import log2
+
 import numpy as np
 import numpy.typing as npt
 from matplotlib import pyplot as plt
@@ -12,6 +16,27 @@ from mpqp.execution import AWSDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import Gate
 from mpqp.noise import Depolarizing
+
+
+def apply_global_dephasing_noise(state: npt.NDArray[np.complex64], p: float, d: int):
+    return (1 - p) * state + p * np.eye(d) / d
+
+
+def apply_global_bitflip_noise(state: npt.NDArray[np.complex64], p: float, d: int):
+    n = int(log2(d))
+    I = np.eye(2)
+    X = np.ones(2) - I
+    all_combinations = product([I, X], repeat=n)
+    I_count_and_flip = [
+        (comb.count(I), reduce(np.kron, comb)) for comb in all_combinations
+    ]
+    return sum(
+        (
+            (1 - p) ** count * p ** (n - count) * flip @ state @ flip
+            for count, flip in I_count_and_flip
+        ),
+        start=np.zeros((d, d)),
+    )
 
 
 def theoretical_probs(
@@ -37,9 +62,10 @@ def theoretical_probs(
         if isinstance(gate, Gate):
             state @= gate.to_matrix(circ.nb_qubits).astype(np.complex64).T
 
-    noisy_density_matrix = (1 - p) * np.outer(state, np.conj(state)) + p * np.eye(d) / d
+    dephased_state = apply_global_dephasing_noise(np.outer(state, np.conj(state)), p, d)
+    bitfliped_state = apply_global_bitflip_noise(dephased_state, p, d)
 
-    return noisy_density_matrix.diagonal().astype(np.float32)
+    return bitfliped_state.diagonal().astype(np.float32)
 
 
 def validate(
