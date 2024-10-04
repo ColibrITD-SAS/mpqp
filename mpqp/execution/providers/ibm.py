@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
-from typeguard import typechecked
-
 import math
-import numpy as np
 from copy import deepcopy
+from typing import TYPE_CHECKING, Optional
+
+import numpy as np
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -178,15 +178,19 @@ def generate_qiskit_noise_model(
     noisy_identity_counter = 0
 
     for noise in modified_circuit.noises:
-        qiskit_error = noise.to_other_language(
-            Language.QISKIT
-        )  # pyright : ignore[reportAssignmentType]
+        qiskit_error = noise.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            from qiskit_aer.noise.errors.quantum_error import QuantumError
+
+            assert isinstance(qiskit_error, QuantumError)
 
         # If all qubits are affected
         if len(noise.targets) == modified_circuit.nb_qubits:
             if len(noise.gates) != 0:
                 for gate in noise.gates:
                     size = gate.nb_qubits
+                    if TYPE_CHECKING:
+                        assert isinstance(size, int)
 
                     if hasattr(noise, "dimension"):
                         if (
@@ -196,19 +200,15 @@ def generate_qiskit_noise_model(
                         else:
                             noise_model.add_all_qubit_quantum_error(
                                 qiskit_error,
-                                [
-                                    gate.qiskit_string
-                                ],  # pyright: ignore[reportAttributeAccessIssue]
+                                [gate.qiskit_string],
                             )
                     else:
                         tensor_error = qiskit_error
-                        for _ in range(1, size):  # pyright: ignore[reportArgumentType]
+                        for _ in range(1, size):
                             tensor_error = tensor_error.tensor(qiskit_error)
                         noise_model.add_all_qubit_quantum_error(
                             tensor_error,
-                            [
-                                gate.qiskit_string
-                            ],  # pyright: ignore[reportAttributeAccessIssue]
+                            [gate.qiskit_string],
                         )
             else:
                 for gate in gate_instructions:
@@ -242,9 +242,7 @@ def generate_qiskit_noise_model(
                         )
 
         else:
-            gates_str = [
-                gate.qiskit_string for gate in noise.gates
-            ]  # pyright: ignore[reportAttributeAccessIssue]
+            gates_str = [gate.qiskit_string for gate in noise.gates]
 
             for gate in gate_instructions:
 
