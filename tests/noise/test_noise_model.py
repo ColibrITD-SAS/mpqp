@@ -169,7 +169,9 @@ def test_amplitudedamping_qiskit_export(
     circuit.add(noise)
 
     qiskit_error = noise.to_other_language(Language.QISKIT)
-    expected_error = amplitude_damping_error(gamma, 1 - prob)  # pyright: ignore[reportArgumentType]
+    expected_error = amplitude_damping_error(
+        gamma, 1 - prob
+    )  # pyright: ignore[reportArgumentType]
 
     qiskit_noise_model, _ = generate_qiskit_noise_model(circuit)
     noisy_instructions = qiskit_noise_model.noise_instructions
@@ -177,4 +179,3 @@ def test_amplitudedamping_qiskit_export(
     assert qiskit_error == expected_error
     assert isinstance(qiskit_noise_model, Qiskit_NoiseModel)
     assert sorted(noisy_instructions) == sorted(expected_noisy_gates)
-

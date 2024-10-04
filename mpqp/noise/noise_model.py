@@ -96,7 +96,9 @@ class NoiseModel(ABC):
         pass
 
     @abstractmethod
-    def to_other_language(self, language: Language) -> "BraketNoise" | "QLMNoise" | "QuantumError":
+    def to_other_language(
+        self, language: Language
+    ) -> "BraketNoise" | "QLMNoise" | "QuantumError":
         """Transforms this noise model into the corresponding object in the
         language specified in the ``language`` arg.
 
@@ -563,7 +565,9 @@ class AmplitudeDamping(NoiseModel):
         elif language == Language.QISKIT:
             from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
 
-            return amplitude_damping_error(self.gamma, 1 - self.prob) # pyright: ignore[reportArgumentType]
+            return amplitude_damping_error(
+                self.gamma, 1 - self.prob
+            )  # pyright: ignore[reportArgumentType]
 
         else:
             raise NotImplementedError(
