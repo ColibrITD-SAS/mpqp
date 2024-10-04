@@ -36,7 +36,7 @@ class NoiseModel(ABC):
 
     Args:
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instructions.gates.gate.Gate`
+        gates: List of :class:`~mpqp.core.instructions.gates.native_gates.NativeGate`
             affected by this noise.
 
     Raises:
@@ -129,7 +129,57 @@ class NoiseModel(ABC):
 
 
 @typechecked
-class Depolarizing(NoiseModel):
+class DimensionalNoiseModel(NoiseModel, ABC):
+    """Abstract class representing a multi-dimensional NoiseModel.
+
+    Args:
+        targets: List of qubit indices affected by this noise.
+        dimension: Dimension of the noise model.
+        gates: List of :class:`~mpqp.core.instructions.gates.native_gates.NativeGate`
+            affected by this noise.
+
+    Raises:
+        ValueError: When a negative or zero dimension is input.
+        ValueError: When the size of the specified gates is not coherent with
+            the number of targets or the dimension.
+      """
+
+    def __init__(
+            self,
+            targets: Optional[list[int]] = None,
+            dimension: int = 1,
+            gates: Optional[list[type[NativeGate]]] = None,
+    ):
+        if dimension <= 0:
+            raise ValueError(
+                "Dimension of a multi-dimensional NoiseModel must be strictly greater"
+                f" than 1, but got {dimension} instead."
+            )
+
+        if gates is not None:
+            if any(
+                gate.nb_qubits
+                != dimension  # pyright: ignore[reportUnnecessaryComparison]
+                for gate in gates
+            ):
+                raise ValueError(
+                    f"Dimension of the noise model is {dimension}, but got specified gate(s) of different size."
+                )
+
+        super().__init__(targets, gates)
+        self.dimension = dimension
+        """Dimension of the depolarizing noise model."""
+        self._check_dimension()
+
+    def _check_dimension(self):
+        if 0 < len(self.targets) < self.dimension:
+            raise ValueError(
+                f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
+            )
+
+
+@typechecked
+class Depolarizing(DimensionalNoiseModel):
     """Class representing the depolarizing noise channel, which maps a state
     onto a linear combination of itself and the maximally mixed state. It can
     applied to a single or multiple qubits, and depends on a single parameter
@@ -143,7 +193,7 @@ class Depolarizing(NoiseModel):
         prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
             affected by this noise.
 
     Raises:
@@ -183,11 +233,6 @@ class Depolarizing(NoiseModel):
         dimension: int = 1,
         gates: Optional[list[type[NativeGate]]] = None,
     ):
-        if dimension <= 0:
-            raise ValueError(
-                "Dimension of the depolarizing channel must be strictly greater"
-                f" than 1, but got {dimension} instead."
-            )
 
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
@@ -197,33 +242,13 @@ class Depolarizing(NoiseModel):
                 f"and {prob_upper_bound}."
             )
 
-        if gates is not None:
-            if any(
-                gate.nb_qubits
-                != dimension  # pyright: ignore[reportUnnecessaryComparison]
-                for gate in gates
-            ):
-                raise ValueError(
-                    f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
-                )
-        super().__init__(targets, gates)
+        super().__init__(targets, dimension, gates)
         self.prob = prob
         """Probability, or error rate, of the depolarizing noise model."""
-        self.dimension = dimension
-        """Dimension of the depolarizing noise model."""
-        self._check_dimension()
-
-    def _check_dimension(self):
-        if self.targets != [] and len(self.targets) < self.dimension:
-            raise ValueError(
-                f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
-            )
 
     def to_kraus_representation(self):
         """3M-TODO"""
-        # generate Kraus operators for depolarizing noise
-        kraus_operators = []  # list of Kraus operators
-        return KrausRepresentation(kraus_operators)
+        return NotImplementedError()
 
     def __repr__(self):
         target = (
@@ -315,6 +340,7 @@ class Depolarizing(NoiseModel):
             )
 
     def info(self, qubits: set[int]) -> str:
+        # TODO: maybe put dimension before prob, so we can move it to DimensionalNoiseModel to factorize
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
         return f"{super().info(qubits)} with probability {self.prob}{dimension}"
 
@@ -328,7 +354,7 @@ class BitFlip(NoiseModel):
     Args:
         prob: Bit flip error probability or error rate (must be within [0, 0.5]).
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
             affected by this noise. If multi-qubit gates is passed, single-qubit
             bitflip will be added for each qubit connected (target, control) with the gates.
 
@@ -451,7 +477,7 @@ class AmplitudeDamping(NoiseModel):
         prob: Probability of excitation in the generalized amplitude damping noise channel
             When set to 1, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
             affected by this noise.
 
     Raises:
