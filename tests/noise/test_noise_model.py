@@ -91,7 +91,7 @@ def test_depolarizing_qiskit_export(
     prob: float,
     targets: list[int],
     dimension: int,
-    gates: list[type[Gate]],
+    gates: list[type[NativeGate]],
     expected_noisy_gates: list[str],
 ):
     noise = Depolarizing(prob=prob, targets=targets, dimension=dimension, gates=gates)
@@ -125,7 +125,7 @@ def test_bitflip_qiskit_export(
     circuit: QCircuit,
     prob: float,
     targets: list[int],
-    gates: list[type[Gate]],
+    gates: list[type[NativeGate]],
     expected_noisy_gates: list[str],
 ):
     noise = BitFlip(prob=prob, targets=targets, gates=gates)
@@ -147,7 +147,7 @@ def test_bitflip_qiskit_export(
 @pytest.mark.parametrize(
     "gamma, prob, targets, gates, expected_noisy_gates",
     [
-        (0.3, 1, None, None, ["h", "z", "swap", "cx"]),
+        (0.3, 1.0, None, None, ["h", "z", "swap", "cx"]),
         (0.3, 0.1, [0, 1, 2], None, ["h", "z", "swap", "cx"]),
         (0.3, 0.1, None, [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
         (0.3, 0.1, [0, 1, 2], [CNOT, SWAP], ["cx", "swap"]),
@@ -160,7 +160,7 @@ def test_amplitudedamping_qiskit_export(
     gamma: float,
     prob: float,
     targets: list[int],
-    gates: list[type[Gate]],
+    gates: list[type[NativeGate]],
     expected_noisy_gates: list[str],
 ):
     noise = AmplitudeDamping(gamma=gamma, prob=prob, targets=targets, gates=gates)
@@ -169,7 +169,7 @@ def test_amplitudedamping_qiskit_export(
     circuit.add(noise)
 
     qiskit_error = noise.to_other_language(Language.QISKIT)
-    expected_error = amplitude_damping_error(gamma, 1 - prob)
+    expected_error = amplitude_damping_error(gamma, 1 - prob)  # pyright: ignore[reportArgumentType]
 
     qiskit_noise_model, _ = generate_qiskit_noise_model(circuit)
     noisy_instructions = qiskit_noise_model.noise_instructions
@@ -178,8 +178,3 @@ def test_amplitudedamping_qiskit_export(
     assert isinstance(qiskit_noise_model, Qiskit_NoiseModel)
     assert sorted(noisy_instructions) == sorted(expected_noisy_gates)
 
-
-# TODO: add tests for Qiskit provider
-# TODO: add tests for BitFlip
-# TODO: add tests for AmplitudeDamping
-# TODO: add tests for noisemodels specific to some gates

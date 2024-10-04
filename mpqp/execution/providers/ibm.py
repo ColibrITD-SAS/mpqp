@@ -178,7 +178,7 @@ def generate_qiskit_noise_model(
     noisy_identity_counter = 0
 
     for noise in modified_circuit.noises:
-        qiskit_error = noise.to_other_language(Language.QISKIT)
+        qiskit_error = noise.to_other_language(Language.QISKIT)  # pyright : ignore[reportAssignmentType]
 
         # If all qubits are affected
         if len(noise.targets) == modified_circuit.nb_qubits:
@@ -187,18 +187,18 @@ def generate_qiskit_noise_model(
                     size = gate.nb_qubits
 
                     if hasattr(noise, "dimension"):
-                        if size != noise.dimension:
+                        if size != noise.dimension:  # pyright: ignore[reportAttributeAccessIssue]
                             continue
                         else:
                             noise_model.add_all_qubit_quantum_error(
-                                qiskit_error, [gate.qiskit_string]
+                                qiskit_error, [gate.qiskit_string]  # pyright: ignore[reportAttributeAccessIssue]
                             )
                     else:
                         tensor_error = qiskit_error
-                        for _ in range(1, size):
+                        for _ in range(1, size):  # pyright: ignore[reportArgumentType]
                             tensor_error = tensor_error.tensor(qiskit_error)
                         noise_model.add_all_qubit_quantum_error(
-                            tensor_error, [gate.qiskit_string]
+                            tensor_error, [gate.qiskit_string]  # pyright: ignore[reportAttributeAccessIssue]
                         )
             else:
                 for gate in gate_instructions:
@@ -209,22 +209,22 @@ def generate_qiskit_noise_model(
                         modified_circuit.nb_qubits - 1 - qubit for qubit in connections
                     ]
 
-                    if hasattr(noise, "dimension") and noise.dimension > size:
+                    if hasattr(noise, "dimension") and noise.dimension > size:  # pyright: ignore[reportAttributeAccessIssue]
                         continue
-                    elif hasattr(noise, "dimension") and 1 < noise.dimension == size:
+                    elif hasattr(noise, "dimension") and 1 < noise.dimension == size:  # pyright: ignore[reportAttributeAccessIssue]
                         noise_model.add_quantum_error(
-                            qiskit_error, [gate.qiskit_string], reversed_qubits
+                            qiskit_error, [gate.qiskit_string], reversed_qubits  # pyright: ignore[reportAttributeAccessIssue]
                         )
                     else:
                         tensor_error = qiskit_error
                         for _ in range(1, size):
                             tensor_error = tensor_error.tensor(qiskit_error)
                         noise_model.add_quantum_error(
-                            tensor_error, [gate.qiskit_string], reversed_qubits
+                            tensor_error, [gate.qiskit_string], reversed_qubits  # pyright: ignore[reportAttributeAccessIssue]
                         )
 
         else:
-            gates_str = [gate.qiskit_string for gate in noise.gates]
+            gates_str = [gate.qiskit_string for gate in noise.gates]  # pyright: ignore[reportAttributeAccessIssue]
 
             for gate in gate_instructions:
 
@@ -243,15 +243,15 @@ def generate_qiskit_noise_model(
                     ]
 
                     # Noise model is multi-dimensional
-                    if hasattr(noise, "dimension") and noise.dimension > len(
+                    if hasattr(noise, "dimension") and noise.dimension > len(  # pyright: ignore[reportAttributeAccessIssue]
                         connections
                     ):
                         continue
-                    elif hasattr(noise, "dimension") and 1 < noise.dimension == len(
+                    elif hasattr(noise, "dimension") and 1 < noise.dimension == len(  # pyright: ignore[reportAttributeAccessIssue]
                         connections
                     ):
                         noise_model.add_quantum_error(
-                            qiskit_error, [gate.qiskit_string], reversed_qubits
+                            qiskit_error, [gate.qiskit_string], reversed_qubits  # pyright: ignore[reportAttributeAccessIssue]
                         )
                     else:
                         size = len(connections)
@@ -259,12 +259,12 @@ def generate_qiskit_noise_model(
                         for _ in range(1, size):
                             tensor_error = tensor_error.tensor(qiskit_error)
                         noise_model.add_quantum_error(
-                            tensor_error, [gate.qiskit_string], reversed_qubits
+                            tensor_error, [gate.qiskit_string], reversed_qubits  # pyright: ignore[reportAttributeAccessIssue]
                         )
 
                 # Only some targets of the gate are included in the noise targets
                 elif len(intersection) != 0:
-                    if (not hasattr(noise, "dimension")) or (noise.dimension == 1):
+                    if (not hasattr(noise, "dimension")) or (noise.dimension == 1):  # pyright: ignore[reportAttributeAccessIssue]
                         for qubit in intersection:
                             # We add a custom identity gate on the relevant qubits to apply noise after the gate
                             labeled_identity = Id(

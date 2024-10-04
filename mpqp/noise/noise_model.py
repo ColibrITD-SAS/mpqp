@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Sequence
 
-from mpqp.tools.generics import T
 
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
@@ -13,7 +12,8 @@ if TYPE_CHECKING:
 
 from typeguard import typechecked
 
-from mpqp.core.instruction.gates import Gate
+from mpqp.tools.generics import T
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
 
@@ -47,7 +47,7 @@ class NoiseModel(ABC):
     def __init__(
         self,
         targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
         if targets is None:
             targets = []
@@ -96,7 +96,7 @@ class NoiseModel(ABC):
         pass
 
     @abstractmethod
-    def to_other_language(self, language: Language) -> BraketNoise | QLMNoise:
+    def to_other_language(self, language: Language) -> "BraketNoise" | "QLMNoise" | "QuantumError":
         """Transforms this noise model into the corresponding object in the
         language specified in the ``language`` arg.
 
@@ -179,7 +179,7 @@ class Depolarizing(NoiseModel):
         prob: float,
         targets: Optional[list[int]] = None,
         dimension: int = 1,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
         if dimension <= 0:
             raise ValueError(
@@ -360,7 +360,7 @@ class BitFlip(NoiseModel):
         self,
         prob: float,
         targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
 
         if not (0 <= prob <= 0.5):
@@ -485,7 +485,7 @@ class AmplitudeDamping(NoiseModel):
         gamma: float,
         prob: float = 1,
         targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
         if not (0 <= gamma <= 1):
             raise ValueError(
@@ -498,9 +498,9 @@ class AmplitudeDamping(NoiseModel):
             )
 
         super().__init__(targets, gates)
-        self.gamma = float(gamma)
+        self.gamma = gamma
         """Decaying rate, of the amplitude damping noise channel."""
-        self.prob = float(prob)
+        self.prob = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
     def to_kraus_representation(self) -> KrausRepresentation: ...
@@ -563,7 +563,7 @@ class AmplitudeDamping(NoiseModel):
         elif language == Language.QISKIT:
             from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
 
-            return amplitude_damping_error(self.gamma, 1 - self.prob)
+            return amplitude_damping_error(self.gamma, 1 - self.prob) # pyright: ignore[reportArgumentType]
 
         else:
             raise NotImplementedError(

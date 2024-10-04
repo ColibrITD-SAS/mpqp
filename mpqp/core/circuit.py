@@ -234,10 +234,11 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             if (
                 hasattr(components, "dimension")
-                and len(components.targets) < components.dimension
+                and len(components.targets) < components.dimension  # pyright: ignore[reportAttributeAccessIssue]
             ):
                 raise ValueError(
-                    f"Number of target qubits {len(components.targets)} should be higher than the dimension {components.dimension}."
+                    f"Number of target qubits {len(components.targets)} should be higher than "
+                    f"the dimension {components.dimension}." # pyright: ignore[reportAttributeAccessIssue]
                 )
             hardcoded_basis_measures = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
@@ -300,7 +301,7 @@ class QCircuit:
         elif isinstance(dynamic_components, NoiseModel) and hasattr(
             dynamic_components, "dimension"
         ):
-            dynamic_components._check_dimension()  # pyright: ignore[reportPrivateUsage]
+            dynamic_components._check_dimension()  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
         elif isinstance(dynamic_components, BasisMeasure):
             if self.nb_cbits is None:
                 self.nb_cbits = 0

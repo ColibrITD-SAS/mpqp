@@ -95,6 +95,9 @@ class NativeGate(Gate, SimpleClassReprABC):
         label: Label used to identify the gate.
     """
 
+    qlm_aqasm_keyword: str | list[str]
+    qiskit_string: str
+
     native_gate_options = {"disable_symbol_warn": True}
 
 
@@ -235,9 +238,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | gates.I
     ]:
         pass
-
-    qlm_aqasm_keyword: str
-    qiskit_string: str
 
     """Corresponding ``qiskit``'s gate class."""
     matrix: npt.NDArray[np.complex64]
