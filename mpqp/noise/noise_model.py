@@ -498,9 +498,9 @@ class AmplitudeDamping(NoiseModel):
             )
 
         super().__init__(targets, gates)
-        self.gamma = gamma
+        self.gamma = float(gamma)
         """Decaying rate, of the amplitude damping noise channel."""
-        self.prob = prob
+        self.prob = float(prob)
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
     def to_kraus_representation(self) -> KrausRepresentation: ...

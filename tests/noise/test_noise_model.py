@@ -12,8 +12,7 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.languages import Language
 from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 from mpqp.gates import *
-from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
-from mpqp.noise.noise_model import NoiseModel
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 
 
 def test_depolarizing_valid_params():
@@ -88,7 +87,8 @@ def circuit():
     ],
 )
 def test_depolarizing_qiskit_export(
-    circuit, prob, targets, dimension, gates, expected_noisy_gates
+    circuit: QCircuit, prob: float, targets: list[int], dimension: int, gates: list[type[Gate]],
+        expected_noisy_gates: list[str]
 ):
     noise = Depolarizing(prob=prob, targets=targets, dimension=dimension, gates=gates)
 
@@ -117,7 +117,9 @@ def test_depolarizing_qiskit_export(
         (0.3, [0, 1], [H, CNOT, SWAP], ["h", "noisy_identity_0", "cx"]),
     ],
 )
-def test_bitflip_qiskit_export(circuit, prob, targets, gates, expected_noisy_gates):
+def test_bitflip_qiskit_export(
+        circuit: QCircuit, prob: float, targets: list[int], gates: list[type[Gate]], expected_noisy_gates: list[str]
+):
     noise = BitFlip(prob=prob, targets=targets, gates=gates)
 
     assert isinstance(circuit, QCircuit)
@@ -146,7 +148,8 @@ def test_bitflip_qiskit_export(circuit, prob, targets, gates, expected_noisy_gat
     ],
 )
 def test_amplitudedamping_qiskit_export(
-    circuit, gamma, prob, targets, gates, expected_noisy_gates
+    circuit: QCircuit, gamma: float, prob: float, targets: list[int], gates: list[type[Gate]],
+        expected_noisy_gates: list[str]
 ):
     noise = AmplitudeDamping(gamma=gamma, prob=prob, targets=targets, gates=gates)
 
