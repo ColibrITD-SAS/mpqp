@@ -169,9 +169,9 @@ class DimensionalNoiseModel(NoiseModel, ABC):
         super().__init__(targets, gates)
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
-        self._check_dimension()
+        self.check_dimension()
 
-    def _check_dimension(self):
+    def check_dimension(self):
         if 0 < len(self.targets) < self.dimension:
             raise ValueError(
                 f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
