@@ -129,6 +129,7 @@ a, b, c = LineQubit.range(3)
 
 def pauli_strings_in_all_languages():
     from qiskit.quantum_info import SparsePauliOp
+
     return [
         (
             Cirq_X(a) + Cirq_Y(b) + Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]

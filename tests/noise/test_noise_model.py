@@ -46,6 +46,7 @@ def noise():
 
 def test_depolarizing_braket_export(noise: NoiseModel):
     from braket.circuits.noises import Depolarizing as BraketDepolarizing
+
     braket_noise = noise.to_other_language(Language.BRAKET)
     assert isinstance(braket_noise, BraketDepolarizing)
     assert braket_noise.probability == 0.3
