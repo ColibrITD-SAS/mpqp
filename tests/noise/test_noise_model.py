@@ -73,18 +73,18 @@ def circuit():
 @pytest.mark.parametrize(
     "prob, targets, dimension, gates, expected_noisy_gates",
     [
-        (0.3, [], 1, [], ["cx", "z", "swap", "h"]),
-        (0.3, [0, 1, 2], 1, [], ["cx", "z", "swap", "h"]),
-        (0.3, [], 1, [H, Z], ["z", "h"]),
+        (0.3, None, 1, None, ["cx", "z", "swap", "h"]),
+        (0.3, [0, 1, 2], 1, None, ["cx", "z", "swap", "h"]),
+        (0.3, None, 1, [H, Z], ["z", "h"]),
         (0.3, [0, 1, 2], 1, [H, Z], ["z", "h"]),
-        (0.3, [0, 1], 1, [], ["noisy_identity_0", "cx", "h"]),
+        (0.3, [0, 1], 1, None, ["noisy_identity_0", "cx", "h"]),
         (0.3, [0, 1], 1, [H, Z], ["h"]),
-        (0.3, [], 2, [], ["swap", "cx"]),
-        (0.3, [0, 1, 2], 2, [], ["swap", "cx"]),
-        (0.3, [], 2, [CNOT, SWAP], ["swap", "cx"]),
+        (0.3, None, 2, None, ["swap", "cx"]),
+        (0.3, [0, 1, 2], 2, None, ["swap", "cx"]),
+        (0.3, None, 2, [CNOT, SWAP], ["swap", "cx"]),
         (0.3, [0, 1, 2], 2, [CNOT, SWAP], ["swap", "cx"]),
-        (0.3, [0, 1], 2, [], ["cx"]),
-        (0.3, [1, 2], 2, [], ["swap"]),
+        (0.3, [0, 1], 2, None, ["cx"]),
+        (0.3, [1, 2], 2, None, ["swap"]),
     ],
 )
 def test_depolarizing_qiskit_export(
@@ -109,11 +109,11 @@ def test_depolarizing_qiskit_export(
 @pytest.mark.parametrize(
     "prob, targets, gates, expected_noisy_gates",
     [
-        (0.3, [], [], ["h", "z", "swap", "cx"]),
-        (0.3, [0, 1, 2], [], ["h", "z", "swap", "cx"]),
-        (0.3, [], [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
+        (0.3, None, None, ["h", "z", "swap", "cx"]),
+        (0.3, [0, 1, 2], None, ["h", "z", "swap", "cx"]),
+        (0.3, None, [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
         (0.3, [0, 1, 2], [CNOT, SWAP], ["cx", "swap"]),
-        (0.3, [0, 1], [], ["h", "noisy_identity_0", "cx"]),
+        (0.3, [0, 1], None, ["h", "noisy_identity_0", "cx"]),
         (0.3, [0, 1], [H, CNOT, SWAP], ["h", "noisy_identity_0", "cx"]),
     ],
 )
@@ -137,11 +137,11 @@ def test_bitflip_qiskit_export(circuit, prob, targets, gates, expected_noisy_gat
 @pytest.mark.parametrize(
     "gamma, prob, targets, gates, expected_noisy_gates",
     [
-        (0.3, 1, [], [], ["h", "z", "swap", "cx"]),
-        (0.3, 0.1, [0, 1, 2], [], ["h", "z", "swap", "cx"]),
-        (0.3, 0.1, [], [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
+        (0.3, 1, None, None, ["h", "z", "swap", "cx"]),
+        (0.3, 0.1, [0, 1, 2], None, ["h", "z", "swap", "cx"]),
+        (0.3, 0.1, None, [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
         (0.3, 0.1, [0, 1, 2], [CNOT, SWAP], ["cx", "swap"]),
-        (0.3, 0.1, [0, 1], [], ["h", "noisy_identity_0", "cx"]),
+        (0.3, 0.1, [0, 1], None, ["h", "noisy_identity_0", "cx"]),
         (0.3, 0.1, [0, 1], [H, CNOT, SWAP], ["h", "noisy_identity_0", "cx"]),
     ],
 )

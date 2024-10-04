@@ -777,7 +777,7 @@ class QCircuit:
         Example:
             >>> circuit = QCircuit([H(0), CNOT(0, 1)])
             >>> circuit.get_gates()
-            [H(0), CNOT([0],[1])]
+            [H(0), CNOT(0, 1)]
 
         """
         return [instr for instr in self.instructions if isinstance(instr, Gate)]

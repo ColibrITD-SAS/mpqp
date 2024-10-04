@@ -248,11 +248,13 @@ class Depolarizing(NoiseModel):
             >>> type(braket_depolarizing)
             <class 'braket.circuits.noises.Depolarizing'>
             >>> qiskit_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT)
-            >>> qiskit_depolarizing
-            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0eeccc1400>, 0.7750000000000001),
-            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0eeccc1460>, 0.07500000000000001),
-            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0eeccc19d0>, 0.07500000000000001),
-            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0ecf942220>, 0.07500000000000001)])
+            >>> qiskit_depolarizing.to_quantumchannel()
+            SuperOp([[0.85+0.j, 0.  +0.j, 0.  +0.j, 0.15+0.j],
+                     [0.  +0.j, 0.7 +0.j, 0.  +0.j, 0.  +0.j],
+                     [0.  +0.j, 0.  +0.j, 0.7 +0.j, 0.  +0.j],
+                     [0.15+0.j, 0.  +0.j, 0.  +0.j, 0.85+0.j]],
+                    input_dims=(2,), output_dims=(2,))
+
             >>> type(qiskit_depolarizing)
             <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
             >>> qlm_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
@@ -396,9 +398,13 @@ class BitFlip(NoiseModel):
             >>> type(braket_bitflip)
             <class 'braket.circuits.noises.BitFlip'>
             >>> qiskit_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT)
-            >>> qiskit_bitflip
-            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0ecf8fb550>, 0.3),
-            (<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f0ecf8fb1f0>, 0.7)])
+            >>> qiskit_bitflip.to_quantumchannel()
+            SuperOp([[0.7+0.j, 0. +0.j, 0. +0.j, 0.3+0.j],
+                     [0. +0.j, 0.7+0.j, 0.3+0.j, 0. +0.j],
+                     [0. +0.j, 0.3+0.j, 0.7+0.j, 0. +0.j],
+                     [0.3+0.j, 0. +0.j, 0. +0.j, 0.7+0.j]],
+                    input_dims=(2,), output_dims=(2,))
+
             >>> type(qiskit_bitflip)
             <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
 
@@ -529,11 +535,15 @@ class AmplitudeDamping(NoiseModel):
             >>> type(braket_gad1)
             <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
             >>> qiskit_ad = AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.QISKIT)
-            >>> qiskit_ad
-            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f90ef4a64f0>, 1.0)])
+            >>> qiskit_ad.to_quantumchannel()
+            SuperOp([[0.88      +0.j, 0.        +0.j, 0.        +0.j, 0.08      +0.j],
+                     [0.        +0.j, 0.89442719+0.j, 0.        +0.j, 0.        +0.j],
+                     [0.        +0.j, 0.        +0.j, 0.89442719+0.j, 0.        +0.j],
+                     [0.12      +0.j, 0.        +0.j, 0.        +0.j, 0.92      +0.j]],
+                    input_dims=(2,), output_dims=(2,))
+
             >>> type(qiskit_ad)
             <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
-
 
         """
         if language == Language.BRAKET:
