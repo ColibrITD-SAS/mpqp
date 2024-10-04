@@ -234,8 +234,7 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             if (
                 isinstance(components, DimensionalNoiseModel)
-                and len(components.targets)
-                < components.dimension
+                and len(components.targets) < components.dimension
             ):
                 raise ValueError(
                     f"Number of target qubits {len(components.targets)} should be higher than "

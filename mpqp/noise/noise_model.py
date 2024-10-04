@@ -142,13 +142,13 @@ class DimensionalNoiseModel(NoiseModel, ABC):
         ValueError: When a negative or zero dimension is input.
         ValueError: When the size of the specified gates is not coherent with
             the number of targets or the dimension.
-      """
+    """
 
     def __init__(
-            self,
-            targets: Optional[list[int]] = None,
-            dimension: int = 1,
-            gates: Optional[list[type[NativeGate]]] = None,
+        self,
+        targets: Optional[list[int]] = None,
+        dimension: int = 1,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
         if dimension <= 0:
             raise ValueError(
