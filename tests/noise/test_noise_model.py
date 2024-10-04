@@ -87,8 +87,12 @@ def circuit():
     ],
 )
 def test_depolarizing_qiskit_export(
-    circuit: QCircuit, prob: float, targets: list[int], dimension: int, gates: list[type[Gate]],
-        expected_noisy_gates: list[str]
+    circuit: QCircuit,
+    prob: float,
+    targets: list[int],
+    dimension: int,
+    gates: list[type[Gate]],
+    expected_noisy_gates: list[str],
 ):
     noise = Depolarizing(prob=prob, targets=targets, dimension=dimension, gates=gates)
 
@@ -118,7 +122,11 @@ def test_depolarizing_qiskit_export(
     ],
 )
 def test_bitflip_qiskit_export(
-        circuit: QCircuit, prob: float, targets: list[int], gates: list[type[Gate]], expected_noisy_gates: list[str]
+    circuit: QCircuit,
+    prob: float,
+    targets: list[int],
+    gates: list[type[Gate]],
+    expected_noisy_gates: list[str],
 ):
     noise = BitFlip(prob=prob, targets=targets, gates=gates)
 
@@ -148,8 +156,12 @@ def test_bitflip_qiskit_export(
     ],
 )
 def test_amplitudedamping_qiskit_export(
-    circuit: QCircuit, gamma: float, prob: float, targets: list[int], gates: list[type[Gate]],
-        expected_noisy_gates: list[str]
+    circuit: QCircuit,
+    gamma: float,
+    prob: float,
+    targets: list[int],
+    gates: list[type[Gate]],
+    expected_noisy_gates: list[str],
 ):
     noise = AmplitudeDamping(gamma=gamma, prob=prob, targets=targets, gates=gates)
 
