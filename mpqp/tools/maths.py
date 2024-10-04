@@ -256,7 +256,12 @@ def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
     """
     from qiskit import quantum_info
 
-    return quantum_info.random_clifford(nb_qubits).to_matrix()
+    res = quantum_info.random_clifford(nb_qubits).to_matrix()
+
+    if TYPE_CHECKING:
+        assert isinstance(res, np.ndarray)
+
+    return res
 
 
 def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:
