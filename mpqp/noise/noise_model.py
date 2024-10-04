@@ -248,7 +248,7 @@ class Depolarizing(DimensionalNoiseModel):
 
     def to_kraus_representation(self):
         """3M-TODO"""
-        return NotImplementedError()
+        raise NotImplementedError()
 
     def __repr__(self):
         target = (
@@ -459,7 +459,7 @@ class BitFlip(NoiseModel):
 
 @typechecked
 class AmplitudeDamping(NoiseModel):
-    """Class representing the amplitude damping noise channel, which can model both
+    r"""Class representing the amplitude damping noise channel, which can model both
     the standard and generalized amplitude damping processes. It can be applied
     to a single qubit and depends on two parameters: the decay rate ``gamma`` and the
     probability of excitation ``prob``.
@@ -592,8 +592,8 @@ class AmplitudeDamping(NoiseModel):
             from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
 
             return amplitude_damping_error(
-                self.gamma, 1 - self.prob
-            )  # pyright: ignore[reportArgumentType]
+                self.gamma, 1 - self.prob  # pyright: ignore[reportArgumentType]
+            )
 
         else:
             raise NotImplementedError(
