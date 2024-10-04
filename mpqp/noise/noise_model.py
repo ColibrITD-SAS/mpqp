@@ -472,7 +472,7 @@ class AmplitudeDamping(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            AmplitudeDamping(0.2, 0, targets=[0])
+            AmplitudeDamping(0.2, 0.0, targets=[0])
             AmplitudeDamping(0.4, 0.1, targets=[1, 2])
             AmplitudeDamping(0.1, targets=[0, 1, 2])
             AmplitudeDamping(0.1)
