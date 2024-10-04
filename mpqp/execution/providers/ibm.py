@@ -179,12 +179,18 @@ def generate_qiskit_noise_model(
 
     for noise in modified_circuit.noises:
         qiskit_error = noise.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            from qiskit_aer.noise.errors.quantum_error import QuantumError
+
+            assert isinstance(qiskit_error, QuantumError)
 
         # If all qubits are affected
         if len(noise.targets) == modified_circuit.nb_qubits:
             if len(noise.gates) != 0:
                 for gate in noise.gates:
                     size = gate.nb_qubits
+                    if TYPE_CHECKING:
+                        assert isinstance(size, int)
 
                     if hasattr(noise, "dimension"):
                         if size != noise.dimension:
