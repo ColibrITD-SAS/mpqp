@@ -724,6 +724,20 @@ class QCircuit:
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
+    def get_gates(self) -> list[Gate]:
+        """Returns all the measurements present in this circuit.
+
+        Returns:
+            The list of all measurements present in the circuit.
+
+        Example:
+            >>> circuit = QCircuit([H(1), CNOT(0,1), Ry(.5, 1), BasisMeasure([0, 1], shots=1000)])
+            >>> circuit.get_gates()
+            [H(1), CNOT(0,1), Ry(.5, 1)]
+
+        """
+        return [inst for inst in self.instructions if isinstance(inst, Gate)]
+
     def get_measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
 

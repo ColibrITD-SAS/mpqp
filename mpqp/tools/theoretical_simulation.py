@@ -15,15 +15,23 @@ from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.execution import AWSDevice
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
-from mpqp.gates import Gate
 from mpqp.noise import Depolarizing
+from mpqp.noise.noise_model import NoiseModel
 
 
-def apply_global_dephasing_noise(state: npt.NDArray[np.complex64], p: float, d: int):
+# TODO: for now the noise is applied on the whole state and not only on the
+# targets, fix this
+def apply_global_depolarizing_noise(
+    state: npt.NDArray[np.complex64], p: float, targets: set[int]
+):
+    d = len(state)
     return (1 - p) * state + p * np.eye(d) / d
 
 
-def apply_global_bitflip_noise(state: npt.NDArray[np.complex64], p: float, d: int):
+def apply_global_bitflip_noise(
+    state: npt.NDArray[np.complex64], p: float, targets: set[int]
+):
+    d = len(state)
     n = int(log2(d))
     I = np.eye(2)
     X = np.ones(2) - I
@@ -36,37 +44,63 @@ def apply_global_bitflip_noise(state: npt.NDArray[np.complex64], p: float, d: in
             (1 - p) ** count * p ** (n - count) * flip @ state @ flip
             for count, flip in I_count_and_flip
         ),
-        start=np.zeros((d, d)),
+        start=np.zeros((d, d), dtype=np.complex64),
     )
 
 
 def theoretical_probs(
     circ: QCircuit,
-    p: float,
 ) -> npt.NDArray[np.float32]:
-    """Computes the theoretical probabilities of a circuit execution with a
-    dephasing noise happening with a specific probability.
+    """Computes the theoretical probabilities of a (potentially noisy circuit
+    execution.
 
     Args:
         circ: The circuit to run.
-        p: The probability of the dephasing noise.
 
     Returns:
         The probabilities corresponding to each basis state.
     """
     d: int = 2 ** (circ.nb_qubits)
 
-    state = np.zeros(d, dtype=np.complex64)
+    state = np.zeros((d, d), dtype=np.complex64)
     state[0] = 1
 
-    for gate in circ.instructions:
-        if isinstance(gate, Gate):
-            state @= gate.to_matrix(circ.nb_qubits).astype(np.complex64).T
+    for gate in circ.get_gates():
+        g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
+        state = g @ state @ g.T
+        for noise in circ.noises:
+            if (
+                len(noise.gates) == 0
+                or type(gate) in noise.gates
+                and gate.connections().issubset(noise.targets)
+            ):
+                if isinstance(noise, Depolarizing):
+                    state = apply_global_depolarizing_noise(
+                        state, noise.prob, gate.connections()
+                    )
+                elif isinstance(noise, BitFlip):
+                    state = apply_global_bitflip_noise(
+                        state, noise.prob, gate.connections()
+                    )
+                else:
+                    raise NotImplementedError(f"{noise} not yest implemented.")
 
-    dephased_state = apply_global_dephasing_noise(np.outer(state, np.conj(state)), p, d)
-    bitfliped_state = apply_global_bitflip_noise(dephased_state, p, d)
+    connected_qubits = set().union(gate.connections() for gate in circ.get_gates())
+    unconnected_qubits = set(range(circ.nb_qubits)).difference(connected_qubits)
+    for noise in circ.noises:
+        if len(noise.gates) == 0:
+            if isinstance(noise, Depolarizing):
+                state = apply_global_depolarizing_noise(
+                    state, noise.prob, unconnected_qubits
+                )
+            elif isinstance(noise, BitFlip):
+                state = apply_global_bitflip_noise(
+                    state, noise.prob, unconnected_qubits
+                )
+            else:
+                raise NotImplementedError(f"{noise} not yest implemented.")
 
-    return bitfliped_state.diagonal().astype(np.float32)
+    return state.diagonal().astype(np.float32)
 
 
 def validate(
@@ -99,25 +133,26 @@ def dist_alpha_matching(alpha: float):
 # statistics. Some useful resources might be: jensen inequality, chernoff bound
 
 
-def trust_int(noiseless_circuit: QCircuit, p: float):
+def trust_int(circuit: QCircuit):
     """Given a circuit, this computes the trust interval for the output samples
-    for a specific noise level.
+    given into consideration the noise in the circuit.
 
     Args:
-        noiseless_circuit: The circuit without any noise.
-        p: The probably of the dephasing noise happening.
+        circuit: The circuit.
 
     Returns:
         The size of the trust interval (related to the Jensen-Shannon distance).
     """
-    noiseless_probs = theoretical_probs(noiseless_circuit, 0)
-    noisy_probs = theoretical_probs(noiseless_circuit, p)
+    noiseless_circuit = QCircuit(
+        [inst for inst in circuit.instructions if not isinstance(inst, NoiseModel)]
+    )
+    noiseless_probs = theoretical_probs(noiseless_circuit)
+    noisy_probs = theoretical_probs(circuit)
     return dist_alpha_matching(float(jensenshannon(noiseless_probs, noisy_probs)))
 
 
 def exp_id_dist(
-    noiseless_circuit: QCircuit,
-    p: float,
+    circuit: QCircuit,
     shots: int = 1024,
     device: AvailableDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ):
@@ -125,8 +160,7 @@ def exp_id_dist(
     distribution and the noisy distribution.
 
     Args:
-        noiseless_circuit: The circuit without any noise.
-        p: The probably of the dephasing noise happening.
+        circuit: The circuit.
         shots: Number of shots in the basis measurement.
         device: The device to be tested.
 
@@ -134,10 +168,10 @@ def exp_id_dist(
         The distance between the non noisy distribution and the noisy
         distribution.
     """
-    noisy_probs = theoretical_probs(noiseless_circuit, p)
+    noisy_probs = theoretical_probs(circuit)
 
-    noisy_circuit = noiseless_circuit.without_measurements()
-    noisy_circuit.add([BasisMeasure(shots=shots), Depolarizing(p)])
+    noisy_circuit = circuit.without_measurements()
+    noisy_circuit.add(BasisMeasure(shots=shots))
     mpqp_counts = _run_single(noisy_circuit.hard_copy(), device, {}).counts
 
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
@@ -145,32 +179,27 @@ def exp_id_dist(
 
 def validate_noisy_circuit(
     circuit: QCircuit,
-    p: float,
     shots: int = 1024,
     device: AvailableDevice = AWSDevice.BRAKET_LOCAL_SIMULATOR,
 ) -> bool:
     """Validates our noise pipeline for a circuit.
 
     Args:
-        noiseless_circuit: The circuit without any noise.
-        p: The probably of the dephasing noise happening.
+        circuit: The circuit (with potential noises).
         shots: Number of shots in the basis measurement.
         device: The device to be tested.
 
     Returns:
         Weather our noise pipeline matches the theory or not.
     """
-    return exp_id_dist(circuit, p, shots, device) <= trust_int(circuit, p)
+    return exp_id_dist(circuit, shots, device) <= trust_int(circuit)
 
 
-def exp_id_dist_excess(
-    noiseless_circuit: QCircuit, p: float, shots: int = 1024
-) -> float:
+def exp_id_dist_excess(circuit: QCircuit, shots: int = 1024) -> float:
     """Computes the gap between theory and our noise pipeline for a circuit.
 
     Args:
-        noiseless_circuit: The circuit without any noise.
-        p: The probably of the dephasing noise happening.
+        circuit: The circuit (with potential noises).
         shots: Number of shots in the basis measurement.
 
     Returns:
@@ -179,38 +208,40 @@ def exp_id_dist_excess(
         1. the distance between theory and our results;
         2. and the trust interval.
     """
-    return exp_id_dist(noiseless_circuit, p, shots) - trust_int(noiseless_circuit, p)
+    return exp_id_dist(circuit, shots) - trust_int(circuit)
 
 
 if __name__ == "__main__":
     from mpqp.all import *
 
-    c = QCircuit(
-        [
-            H(0),
-            X(1),
-            Y(2),
-            Z(0),
-            S(1),
-            T(0),
-            Rx(1.2324, 2),
-            Ry(-2.43, 0),
-            Rz(1.04, 1),
-            Rk(-1, 0),
-            P(-323, 2),
-            U(1.2, 2.3, 3.4, 2),
-            SWAP(2, 1),
-            CNOT(0, 1),
-            CZ(1, 2),
-        ]
-    )
+    gates = [
+        H(0),
+        X(1),
+        Y(2),
+        Z(0),
+        S(1),
+        T(0),
+        Rx(1.2324, 2),
+        Ry(-2.43, 0),
+        Rz(1.04, 1),
+        Rk(-1, 0),
+        P(-323, 2),
+        U(1.2, 2.3, 3.4, 2),
+        SWAP(2, 1),
+        CNOT(0, 1),
+        CZ(1, 2),
+    ]
 
     probs = [0.001, 0.01, 0.1, 0.1, 0.2, 0.3]
     xs = sum(([elt] * 6 for elt in probs), start=[])
     shots_vals = [500, 1_000, 5_000, 10_000, 50_000, 100_000]
     ys = shots_vals * 6
     dists = np.array(
-        [exp_id_dist_excess(c, prob, shots) for prob in probs for shots in shots_vals]
+        [
+            exp_id_dist_excess(QCircuit(gates + [Depolarizing(prob)]), shots)
+            for prob in probs
+            for shots in shots_vals
+        ]
     )
 
     ax = Axes3D(plt.figure())
