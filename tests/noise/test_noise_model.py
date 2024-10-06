@@ -1,12 +1,4 @@
 import pytest
-from braket.circuits.noises import Depolarizing as BraketDepolarizing
-from qat.quops.quantum_channels import QuantumChannelKraus
-from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-from qiskit_aer.noise.errors.standard_errors import (
-    amplitude_damping_error,
-    depolarizing_error,
-    pauli_error,
-)
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import NativeGate
@@ -54,6 +46,8 @@ def noise():
 
 
 def test_depolarizing_braket_export(noise: NoiseModel):
+    from braket.circuits.noises import Depolarizing as BraketDepolarizing
+
     braket_noise = noise.to_other_language(Language.BRAKET)
     assert isinstance(braket_noise, BraketDepolarizing)
     assert braket_noise.probability == 0.3
@@ -61,6 +55,8 @@ def test_depolarizing_braket_export(noise: NoiseModel):
 
 
 def test_depolarizing_qlm_export(noise: NoiseModel):
+    from qat.quops.quantum_channels import QuantumChannelKraus
+
     qlm_noise = noise.to_other_language(Language.MY_QLM)
     assert isinstance(qlm_noise, QuantumChannelKraus)
 
@@ -95,6 +91,9 @@ def test_depolarizing_qiskit_export(
     gates: list[type[NativeGate]],
     expected_noisy_gates: list[str],
 ):
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer.noise.errors.standard_errors import depolarizing_error
+
     noise = Depolarizing(prob=prob, targets=targets, dimension=dimension, gates=gates)
 
     assert isinstance(circuit, QCircuit)
@@ -129,6 +128,9 @@ def test_bitflip_qiskit_export(
     gates: list[type[NativeGate]],
     expected_noisy_gates: list[str],
 ):
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer.noise.errors.standard_errors import pauli_error
+
     noise = BitFlip(prob=prob, targets=targets, gates=gates)
 
     assert isinstance(circuit, QCircuit)
@@ -164,6 +166,9 @@ def test_amplitudedamping_qiskit_export(
     gates: list[type[NativeGate]],
     expected_noisy_gates: list[str],
 ):
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
+
     noise = AmplitudeDamping(gamma=gamma, prob=prob, targets=targets, gates=gates)
 
     assert isinstance(circuit, QCircuit)
