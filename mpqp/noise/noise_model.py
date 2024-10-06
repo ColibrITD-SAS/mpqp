@@ -3,7 +3,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Sequence
 
-
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
     from braket.circuits.noises import TwoQubitDepolarizing
@@ -12,10 +11,10 @@ if TYPE_CHECKING:
 
 from typeguard import typechecked
 
-from mpqp.tools.generics import T
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
+from mpqp.tools.generics import T
 
 
 def plural_marker(items: Sequence[T]):
@@ -233,6 +232,8 @@ class Depolarizing(DimensionalNoiseModel):
         dimension: int = 1,
         gates: Optional[list[type[NativeGate]]] = None,
     ):
+        super().__init__(targets, dimension, gates)
+        self.prob = prob
 
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
@@ -241,10 +242,6 @@ class Depolarizing(DimensionalNoiseModel):
                 f"Invalid probability: {prob} but should have been between 0 "
                 f"and {prob_upper_bound}."
             )
-
-        super().__init__(targets, dimension, gates)
-        self.prob = prob
-        """Probability, or error rate, of the depolarizing noise model."""
 
     def to_kraus_representation(self):
         """3M-TODO"""
