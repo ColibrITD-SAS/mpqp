@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
@@ -27,6 +28,7 @@ from mpqp.core.instruction.gates import (
     CRk,
     Gate,
     Id,
+    NativeGate,
     P,
     Rk,
     Rx,
@@ -34,7 +36,6 @@ from mpqp.core.instruction.gates import (
     Rz,
     T,
     U,
-    NativeGate,
 )
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -225,8 +226,10 @@ def generate_qiskit_noise_model(
                 for gate in gate_instructions:
 
                     if not isinstance(gate, NativeGate):
-                        # TODO put a warning to say we ignored this gate, because we don't handle for noise other
-                        #  gates than native ones
+                        warnings.warn(
+                            f"Ignoring gate '{gate.qiskit_string}' as it's not a native gate. "
+                            "Noise is only applied to native gates."
+                        )
                         continue
 
                     connections = gate.connections()
@@ -266,8 +269,10 @@ def generate_qiskit_noise_model(
             for gate in gate_instructions:
 
                 if not isinstance(gate, NativeGate):
-                    # TODO put a warning to say we ignored this gate, because we don't handle for noise other
-                    #  gates than native ones
+                    warnings.warn(
+                        f"Ignoring gate '{gate.qiskit_string}' as it's not a native gate. "
+                        "Noise is only applied to native gates."
+                    )
                     continue
 
                 # If gates are specified in the noise and the current gate is not in the list, we move to the next one
