@@ -9,6 +9,7 @@ from qiskit_aer.noise.errors.standard_errors import (
 )
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 from mpqp.gates import *
@@ -37,8 +38,8 @@ def test_depolarizing_valid_params():
         ),
         (
             (0.1, [0], 0),
-            "Dimension of the depolarizing channel must be strictly greater "
-            "than 1, but got 0 instead.",
+            "Dimension of a multi-dimensional NoiseModel must be strictly greater"
+            " than 1, but got 0 instead.",
         ),
     ],
 )
