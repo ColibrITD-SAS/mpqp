@@ -7,8 +7,17 @@ PYTHON_FILES_DIR = "examples/scripts/"
 
 
 def generate_tests_for_notebooks():
-    # nbmake: https://pypi.org/project/nbmake/
-    # Ignore a Code Cell: "metadata": { "tags": ["skip-execution"]}
+    """
+    Generates Pytest-based test functions for each Jupyter notebook in a specified directory.
+    Each test will run the notebook through `nbmake` (https://pypi.org/project/nbmake), which ensures that the notebooks are executable
+    and error-free.
+
+    Skip execution of a specific notebook cell by adding the following tag to its metadata:
+    ```json
+    "metadata": { "tags": ["skip-execution"] }
+    ```
+
+    """
     notebook_files = [
         file for file in os.listdir(NOTEBOOK_DIR) if file.endswith(".ipynb")
     ]
