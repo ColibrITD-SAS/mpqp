@@ -7,12 +7,15 @@ PYTHON_FILES_DIR = "examples/scripts/"
 
 
 def generate_tests_for_notebooks():
-    """
-    Generates Pytest-based test functions for each Jupyter notebook in a specified directory.
-    Each test will run the notebook through `nbmake` (https://pypi.org/project/nbmake), which ensures that the notebooks are executable
-    and error-free.
+    """Generates Pytest-based test functions for each Jupyter notebook in a
+    specified directory.
 
-    Skip execution of a specific notebook cell by adding the following tag to its metadata:
+    Each test will run the notebook through `nbmake`
+    (https://pypi.org/project/nbmake), which ensures that the notebooks are
+    executable and error-free.
+
+    Skip execution of a specific notebook cell by adding the following tag to
+    its metadata (open it as a text file and and the following in a cell block):
     ```json
     "metadata": { "tags": ["skip-execution"] }
     ```
