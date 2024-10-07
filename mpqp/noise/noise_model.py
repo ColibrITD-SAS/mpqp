@@ -234,6 +234,7 @@ class Depolarizing(DimensionalNoiseModel):
     ):
         super().__init__(targets, dimension, gates)
         self.prob = prob
+        """Probability, or error rate, of the depolarizing noise model."""
 
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
@@ -337,7 +338,6 @@ class Depolarizing(DimensionalNoiseModel):
             )
 
     def info(self, qubits: set[int]) -> str:
-        # TODO: maybe put dimension before prob, so we can move it to DimensionalNoiseModel to factorize
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
         return f"{super().info(qubits)} with probability {self.prob}{dimension}"
 
