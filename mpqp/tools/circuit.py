@@ -5,7 +5,14 @@ import numpy as np
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES, TOF, Rk, U, CRk, RotationGate
+from mpqp.core.instruction.gates.native_gates import (
+    NATIVE_GATES,
+    TOF,
+    Rk,
+    U,
+    CRk,
+    RotationGate,
+)
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 
 
@@ -96,7 +103,7 @@ def random_circuit(
             control = random.choice(list(set(qubits) - {target}))
             if issubclass(gate_class, ParametrizedGate):
                 if TYPE_CHECKING:
-                    assert issubclass(gate_class,CRk)
+                    assert issubclass(gate_class, CRk)
                 qcircuit.add(
                     gate_class(
                         random.randint(0, 10),
