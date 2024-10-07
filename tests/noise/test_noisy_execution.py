@@ -137,11 +137,8 @@ def test_shot_noise(circuit: QCircuit, devices: list[AvailableDevice]):
     shots = 1024
     circuit.add([BasisMeasure()])
     result = _run_single(circuit.hard_copy(), devices[0], {})
-    experimental_counts = result.counts
 
-    probs = theoretical_probs(circuit.hard_copy(), 0)
-
-    assert validate(experimental_counts, probs, shots)
+    assert validate(result.counts, theoretical_probs(circuit.hard_copy()), shots)
 
 
 @pytest.mark.parametrize("depol_noise", [0.001, 0.01, 0.1])
@@ -150,11 +147,10 @@ def test_depol_noise(
 ):
     circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
     result = _run_single(circuit.hard_copy(), devices[0], {})
-    experimental_counts = result.counts
 
-    probs = theoretical_probs(circuit.hard_copy(), depol_noise)
+    probs = theoretical_probs(circuit.hard_copy())
 
-    assert validate(experimental_counts, probs, 0.05 + depol_noise * 10)
+    assert validate(result.counts, probs, 0.05 + depol_noise * 10)
 
 
 @pytest.mark.parametrize("depol_noise", [0.1, 0.2, 0.3])
@@ -163,11 +159,8 @@ def test_depol_noise_fail(
 ):
     circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
     result = _run_single(circuit.hard_copy(), devices[0], {})
-    experimental_counts = result.counts
 
-    probs = theoretical_probs(circuit.hard_copy(), depol_noise)
-
-    assert not validate(experimental_counts, probs, 0.05)
+    assert not validate(result.counts, theoretical_probs(circuit.hard_copy()), 0.05)
 
 
 @pytest.mark.parametrize(
@@ -181,4 +174,6 @@ def test_depol_noise_fail(
 def test_validate_noise(
     circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
 ):
-    assert validate_noisy_circuit(circuit, depol_noise, shots, device)
+    circuit.add(Depolarizing(depol_noise))
+
+    assert validate_noisy_circuit(circuit, shots, device)
