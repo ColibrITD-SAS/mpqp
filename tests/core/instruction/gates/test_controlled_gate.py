@@ -2,6 +2,7 @@ from typing import Optional, TYPE_CHECKING
 
 import numpy as np
 import pytest
+
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
 
