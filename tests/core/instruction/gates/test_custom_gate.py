@@ -1,14 +1,14 @@
 import random
 
 import pytest
-
+from typing import TYPE_CHECKING
 import numpy as np
 
 from mpqp import QCircuit
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.maths import matrix_eq, rand_orthogonal_matrix, is_unitary
-from mpqp.execution import run, ATOSDevice, IBMDevice, AWSDevice
+from mpqp.execution import run, ATOSDevice, IBMDevice, AWSDevice, Result
 
 
 def test_custom_gate_is_unitary():
@@ -43,31 +43,20 @@ def test_random_orthogonal_matrix(n_circ: int):
     for _ in range(t + n_gate, n_circ):
         exp_state_vector = np.kron(exp_state_vector, np.array([1, 0]))
 
-    execution_ibm_statevector = run(c, IBMDevice.AER_SIMULATOR).state_vector
-    execution_aws_statevector = run(c, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
-    execution_qlm_statevector = run(c, ATOSDevice.MYQLM_PYLINALG).state_vector
+    execution_ibm = run(c, IBMDevice.AER_SIMULATOR)
+    execution_aws = run(c, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    execution_qlm = run(c, ATOSDevice.MYQLM_PYLINALG)
 
-    assert matrix_eq(
-        execution_ibm_statevector.amplitudes, exp_state_vector, 1e-06, 1e-05
-    )
-    assert matrix_eq(
-        execution_aws_statevector.amplitudes, exp_state_vector, 1e-06, 1e-05
-    )
-    assert matrix_eq(
-        execution_qlm_statevector.amplitudes, exp_state_vector, 1e-06, 1e-05
-    )
-    assert matrix_eq(
-        execution_qlm_statevector.amplitudes,
-        execution_ibm_statevector.amplitudes,
-        1e-06,
-        1e-05,
-    )
-    assert matrix_eq(
-        execution_aws_statevector.amplitudes,
-        execution_ibm_statevector.amplitudes,
-        1e-06,
-        1e-05,
-    )
+    if TYPE_CHECKING:
+        assert isinstance(execution_ibm, Result)
+        assert isinstance(execution_aws, Result)
+        assert isinstance(execution_qlm, Result)
+
+    assert matrix_eq(execution_ibm.amplitudes, exp_state_vector, 1e-06, 1e-05)
+    assert matrix_eq(execution_aws.amplitudes, exp_state_vector, 1e-06, 1e-05)
+    assert matrix_eq(execution_qlm.amplitudes, exp_state_vector, 1e-06, 1e-05)
+    assert matrix_eq(execution_qlm.amplitudes, execution_ibm.amplitudes, 1e-06, 1e-05)
+    assert matrix_eq(execution_aws.amplitudes, execution_ibm.amplitudes, 1e-06, 1e-05)
 
 
 def test_custom_gate_with_native_gates():
@@ -90,29 +79,37 @@ def test_custom_gate_with_native_gates():
     )
     c2 = QCircuit([X(0), H(1), CNOT(1, 2), Z(0)], nb_qubits=4)
 
-    execution_ibm_statevector = run(c1, IBMDevice.AER_SIMULATOR).state_vector
-    execution_aws_statevector = run(c1, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
-    execution_qlm_statevector = run(c1, ATOSDevice.MYQLM_PYLINALG).state_vector
+    execution_ibm = run(c1, IBMDevice.AER_SIMULATOR)
+    execution_aws = run(c1, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    execution_qlm = run(c1, ATOSDevice.MYQLM_PYLINALG)
 
-    expected_ibm_statevector = run(c2, IBMDevice.AER_SIMULATOR).state_vector
-    expected_aws_statevector = run(c2, AWSDevice.BRAKET_LOCAL_SIMULATOR).state_vector
-    expected_qlm_statevector = run(c2, ATOSDevice.MYQLM_PYLINALG).state_vector
+    expected_ibm = run(c2, IBMDevice.AER_SIMULATOR)
+    expected_aws = run(c2, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    expected_qlm = run(c2, ATOSDevice.MYQLM_PYLINALG)
+
+    if TYPE_CHECKING:
+        assert isinstance(execution_ibm, Result)
+        assert isinstance(execution_aws, Result)
+        assert isinstance(execution_qlm, Result)
+        assert isinstance(expected_ibm, Result)
+        assert isinstance(expected_aws, Result)
+        assert isinstance(expected_qlm, Result)
 
     assert matrix_eq(
-        execution_ibm_statevector.amplitudes,
-        expected_qlm_statevector.amplitudes,
+        execution_ibm.amplitudes,
+        expected_qlm.amplitudes,
         1e-06,
         1e-05,
     )
     assert matrix_eq(
-        execution_aws_statevector.amplitudes,
-        expected_ibm_statevector.amplitudes,
+        execution_aws.amplitudes,
+        expected_ibm.amplitudes,
         1e-06,
         1e-05,
     )
     assert matrix_eq(
-        execution_qlm_statevector.amplitudes,
-        expected_aws_statevector.amplitudes,
+        execution_qlm.amplitudes,
+        expected_aws.amplitudes,
         1e-06,
         1e-05,
     )
@@ -130,37 +127,37 @@ def test_custom_gate_with_random_circuit(qubits: int):
         [CustomGate(UnitaryMatrix(matrix), list(range(qubits)))]
     )
 
-    execution_ibm_statevector = run(
-        custom_gate_circ, IBMDevice.AER_SIMULATOR
-    ).state_vector
-    execution_aws_statevector = run(
-        custom_gate_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR
-    ).state_vector
-    execution_qlm_statevector = run(
-        custom_gate_circ, ATOSDevice.MYQLM_PYLINALG
-    ).state_vector
+    execution_ibm = run(custom_gate_circ, IBMDevice.AER_SIMULATOR)
+    execution_aws = run(custom_gate_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    execution_qlm = run(custom_gate_circ, ATOSDevice.MYQLM_PYLINALG)
 
-    expected_ibm_statevector = run(random_circ, IBMDevice.AER_SIMULATOR).state_vector
-    expected_aws_statevector = run(
-        random_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR
-    ).state_vector
-    expected_qlm_statevector = run(random_circ, ATOSDevice.MYQLM_PYLINALG).state_vector
+    expected_ibm = run(random_circ, IBMDevice.AER_SIMULATOR)
+    expected_aws = run(random_circ, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    expected_qlm = run(random_circ, ATOSDevice.MYQLM_PYLINALG)
+
+    if TYPE_CHECKING:
+        assert isinstance(execution_ibm, Result)
+        assert isinstance(execution_aws, Result)
+        assert isinstance(execution_qlm, Result)
+        assert isinstance(expected_ibm, Result)
+        assert isinstance(expected_aws, Result)
+        assert isinstance(expected_qlm, Result)
 
     assert matrix_eq(
-        execution_ibm_statevector.amplitudes,
-        expected_qlm_statevector.amplitudes,
+        execution_ibm.amplitudes,
+        expected_qlm.amplitudes,
         1e-06,
         1e-05,
     )
     assert matrix_eq(
-        execution_aws_statevector.amplitudes,
-        expected_ibm_statevector.amplitudes,
+        execution_aws.amplitudes,
+        expected_ibm.amplitudes,
         1e-06,
         1e-05,
     )
     assert matrix_eq(
-        execution_qlm_statevector.amplitudes,
-        expected_aws_statevector.amplitudes,
+        execution_qlm.amplitudes,
+        expected_aws.amplitudes,
         1e-06,
         1e-05,
     )
