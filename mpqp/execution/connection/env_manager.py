@@ -2,12 +2,12 @@
 providers."""
 
 import os
-
-from dotenv import load_dotenv, set_key
-from typeguard import typechecked
 from getpass import getpass
 from typing import Callable
+
+from dotenv import load_dotenv, set_key
 from termcolor import colored
+from typeguard import typechecked
 
 MPQP_CONFIG_PATH = os.path.expanduser("~") + "/.mpqp"
 
@@ -132,17 +132,19 @@ def save_env_variable(key: str, value: str) -> bool:
 def config_key(
     key_name: str, configuration_name: str, test_connection: Callable[[str], bool]
 ):
-    """
-    Configure a key by setting the API token.
+    """Configure a key by setting the API token.
 
     Args:
         key_name: The name of the key to be saved in the environment variables.
-        configuration_name: The name of the service for which the API token is being configured.
-        test_connection: A callable function that takes a token (str) as input and returns
-            a boolean indicating whether the connection with the provided token is successful.
+        configuration_name: The name of the service for which the API token is
+            being configured.
+        test_connection: A callable function taking as input token and returning
+            a boolean indicating whether the connection setup was successful.
 
     Returns:
-        tuple: A message indicating the result of the configuration and an empty list.
+        tuple: A message indicating the result of the configuration and an empty
+        list (used to conform to the protocol needed by the functions calling
+        this one).
     """
     was_configured = get_env_variable(f"{configuration_name}_CONFIGURED") == "True"
 
