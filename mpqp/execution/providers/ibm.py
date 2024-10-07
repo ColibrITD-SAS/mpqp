@@ -227,7 +227,7 @@ def generate_qiskit_noise_model(
 
                     if not isinstance(gate, NativeGate):
                         warnings.warn(
-                            f"Ignoring gate '{gate.qiskit_string}' as it's not a native gate. "
+                            f"Ignoring gate '{type(gate)}' as it's not a native gate. "
                             "Noise is only applied to native gates."
                         )
                         continue
@@ -270,7 +270,7 @@ def generate_qiskit_noise_model(
 
                 if not isinstance(gate, NativeGate):
                     warnings.warn(
-                        f"Ignoring gate '{gate.qiskit_string}' as it's not a native gate. "
+                        f"Ignoring gate '{type(gate)}' as it's not a native gate. "
                         "Noise is only applied to native gates."
                     )
                     continue
