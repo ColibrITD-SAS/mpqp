@@ -1,8 +1,9 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import numpy as np
 import pytest
-from qiskit.circuit import Parameter
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
 
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.languages import Language
@@ -40,7 +41,7 @@ class CustomControlledGate(ControlledGate):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         assert self.non_controlled_gate is not None
         return self.non_controlled_gate.to_other_language(language, qiskit_parameters)
