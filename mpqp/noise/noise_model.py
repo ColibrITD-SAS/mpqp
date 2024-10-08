@@ -52,6 +52,9 @@ class NoiseModel(ABC):
     ):
         if targets is None:
             targets = []
+            self._dynamic = True
+        else:
+            self._dynamic = False
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate indices in targets: {targets}")
 
@@ -179,7 +182,7 @@ class Depolarizing(NoiseModel):
              └───┘
         NoiseModel:
             Depolarizing(0.32, [0, 1, 2])
-            Depolarizing(0.01, [])
+            Depolarizing(0.01)
             Depolarizing(0.05, [0, 1], dimension=2)
             Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
             Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
@@ -217,25 +220,31 @@ class Depolarizing(NoiseModel):
                 raise ValueError(
                     f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
                 )
-
-        if targets and len(targets) < dimension:
-            raise ValueError(
-                f"Number of target qubits {len(targets)} should be higher than the dimension {dimension}."
-            )
-
         super().__init__(targets, gates)
         self.prob = prob
         """Probability, or error rate, of the depolarizing noise model."""
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
+        self._check_dimension()
+
+    def _check_dimension(self):
+        if self.targets != [] and len(self.targets) < self.dimension:
+            raise ValueError(
+                f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
+            )
 
     def to_kraus_operators(self):
         return []
 
     def __repr__(self):
+        target = (
+            f", {self.targets}"
+            if (not self._dynamic and len(self.targets) != 0)
+            else ""
+        )
         dimension = f", dimension={self.dimension}" if self.dimension != 1 else ""
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
-        return f"{type(self).__name__}({self.prob}, {self.targets}{dimension}{gates})"
+        return f"Depolarizing({self.prob}{target}{dimension}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -329,7 +338,8 @@ class BitFlip(NoiseModel):
         >>> bf1 = BitFlip(0.1, [0])
         >>> bf2 = BitFlip(0.3, [1, 2])
         >>> bf3 = BitFlip(0.05, [0], gates=[H])
-        >>> circuit.add([bf1, bf2, bf3])
+        >>> bf4 = BitFlip(0.3)
+        >>> circuit.add([bf1, bf2, bf3, bf4])
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -342,6 +352,7 @@ class BitFlip(NoiseModel):
             BitFlip(0.1, [0])
             BitFlip(0.3, [1, 2])
             BitFlip(0.05, [0], gates=[H])
+            BitFlip(0.3)
 
     """
 
@@ -364,8 +375,13 @@ class BitFlip(NoiseModel):
     def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]: ...
 
     def __repr__(self):
+        targets = (
+            f", {self.targets}"
+            if (not self._dynamic and len(self.targets)) != 0
+            else ""
+        )
         gates = f", gates={self.gates}" if self.gates else ""
-        return f"{type(self).__name__}({self.prob}, {self.targets}{gates})"
+        return f"BitFlip({self.prob}{targets}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -421,8 +437,9 @@ class AmplitudeDamping(NoiseModel):
         >>> ad1 = AmplitudeDamping(0.2, 0, [0])
         >>> ad2 = AmplitudeDamping(0.4, 0.1, [1, 2])
         >>> ad3 = AmplitudeDamping(0.1, 1, [0, 1, 2])
-        >>> ad4 = AmplitudeDamping(0.7, targets=[0, 1])
-        >>> circuit.add([ad1, ad2, ad3, ad4])
+        >>> ad4 = AmplitudeDamping(0.1, 1)
+        >>> ad5 = AmplitudeDamping(0.7, targets=[0, 1])
+        >>> circuit.add([ad1, ad2, ad3, ad4, ad5])
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -432,9 +449,10 @@ class AmplitudeDamping(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            AmplitudeDamping(0.2, prob=0, targets=[0])
-            AmplitudeDamping(0.4, prob=0.1, targets=[1, 2])
+            AmplitudeDamping(0.2, 0, targets=[0])
+            AmplitudeDamping(0.4, 0.1, targets=[1, 2])
             AmplitudeDamping(0.1, targets=[0, 1, 2])
+            AmplitudeDamping(0.1)
             AmplitudeDamping(0.7, targets=[0, 1])
 
     """
@@ -465,10 +483,14 @@ class AmplitudeDamping(NoiseModel):
     def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]: ...
 
     def __repr__(self):
-        targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
+        prob = f", {self.prob}" if self.prob != 1 else ""
+        targets = (
+            f", targets={self.targets}"
+            if (not self._dynamic and len(self.targets)) != 0
+            else ""
+        )
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
-        prob = f", prob={self.prob}" if self.prob != 1 else ""
-        return f"{type(self).__name__}({self.gamma}{prob}{targets}{gates})"
+        return f"AmplitudeDamping({self.gamma}{prob}{targets}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT

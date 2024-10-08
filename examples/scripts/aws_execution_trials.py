@@ -25,7 +25,7 @@ c[1] = measure q[1];"""
 circuit = qasm3_to_braket_Circuit(qasm_str)
 print(circuit)
 result = device.run(circuit, shots=100).result()
-print(f"Measurement counts: {result.measurement_counts}")
+print(f"Measurement counts: {result.measurement_counts}")  # pyright: ignore
 
 #####################################################
 
@@ -73,7 +73,7 @@ circuit = QCircuit(2, label="Observable test")
 # Constructing the circuit by adding gates and measurements
 circuit.add(H(0))
 circuit.add(Rx(1.76, 1))
-circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=0))
+circuit.add(ExpectationMeasure(obs, shots=0))
 
 # Running the computation on myQLM and on Aer simulator, then retrieving the results
 result = run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])

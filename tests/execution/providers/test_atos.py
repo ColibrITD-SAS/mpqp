@@ -48,7 +48,6 @@ from mpqp.measures import BasisMeasure
                 H(0),
                 Rx(1.76, 1),
                 ExpectationMeasure(
-                    [0, 1],
                     observable=Observable(
                         np.array(
                             [
@@ -59,6 +58,7 @@ from mpqp.measures import BasisMeasure
                             ],
                         )
                     ),
+                    targets=[0, 1],
                     shots=1000,
                 ),
             ]

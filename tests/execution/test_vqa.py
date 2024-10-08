@@ -35,7 +35,7 @@ def with_local_devices(args: tuple[Any, ...]):
             QCircuit(
                 [
                     P(theta, 0),
-                    ExpectationMeasure([0], Observable(np.array([[0, 1], [1, 0]]))),
+                    ExpectationMeasure(Observable(np.array([[0, 1], [1, 0]])), [0]),
                 ]
             ),
             0,
@@ -68,7 +68,7 @@ def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevi
                         [
                             P(theta, 0),
                             ExpectationMeasure(
-                                [0], Observable(np.array([[0, 1], [1, 0]]))
+                                Observable(np.array([[0, 1], [1, 0]])), [0]
                             ),
                         ]
                     ),
