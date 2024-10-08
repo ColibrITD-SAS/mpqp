@@ -68,7 +68,7 @@ class AvailableDevice(Enum):
 
         Returns:
             ``True`` if this device only handles a restricted set of gates."""
-        return True
+        return False
 
 
 class IBMDevice(AvailableDevice):
@@ -330,6 +330,14 @@ class GOOGLEDevice(AvailableDevice):
             True if the device is a processor, False otherwise.
         """
         return self.name.startswith("PROCESSOR")
+    
+    def has_reduced_gate_set(self) -> bool:
+        return self in {
+            GOOGLEDevice.PROCESSOR_RAINBOW,
+            GOOGLEDevice.PROCESSOR_WEBER,
+            GOOGLEDevice.IONQ_SIMULATOR,
+            GOOGLEDevice.IONQ_QPU,
+        }
 
 
 class AZUREDevice(AvailableDevice):
