@@ -67,40 +67,39 @@ def theoretical_probs(
 
     for gate in circ.get_gates():
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
-        state = g @ state @ g.T
+        state = g @ state @ g.T.conj()
         for noise in circ.noises:
             if (
                 len(noise.gates) == 0
                 or type(gate) in noise.gates
                 and gate.connections().issubset(noise.targets)
             ):
-                if isinstance(noise, Depolarizing):
-                    state = apply_global_depolarizing_noise(
-                        state, noise.prob, gate.connections()
-                    )
-                elif isinstance(noise, BitFlip):
-                    state = apply_global_bitflip_noise(
-                        state, noise.prob, gate.connections()
-                    )
-                else:
-                    raise NotImplementedError(f"{noise} not yest implemented.")
+                state = sum(
+                    (
+                        k @ state @ k.T.conj()
+                        for k in noise.to_adjusted_kraus_operators(
+                            gate.connections(), circ.nb_qubits
+                        )
+                    ),
+                    start=np.zeros((d, d), dtype=np.complex64),
+                )
+                print(sum(state.diagonal().real))
 
-    connected_qubits = set().union(gate.connections() for gate in circ.get_gates())
+    connected_qubits = set().union(*[gate.connections() for gate in circ.get_gates()])
     unconnected_qubits = set(range(circ.nb_qubits)).difference(connected_qubits)
     for noise in circ.noises:
         if len(noise.gates) == 0:
-            if isinstance(noise, Depolarizing):
-                state = apply_global_depolarizing_noise(
-                    state, noise.prob, unconnected_qubits
-                )
-            elif isinstance(noise, BitFlip):
-                state = apply_global_bitflip_noise(
-                    state, noise.prob, unconnected_qubits
-                )
-            else:
-                raise NotImplementedError(f"{noise} not yest implemented.")
+            sum(
+                (
+                    k @ state @ k.T.conj()
+                    for k in noise.to_adjusted_kraus_operators(
+                        unconnected_qubits, circ.nb_qubits
+                    )
+                ),
+                start=np.zeros((d, d), dtype=np.complex64),
+            )
 
-    return state.diagonal().astype(np.float32)
+    return state.diagonal().real
 
 
 def validate(
@@ -172,7 +171,9 @@ def exp_id_dist(
 
     noisy_circuit = circuit.without_measurements()
     noisy_circuit.add(BasisMeasure(shots=shots))
-    mpqp_counts = _run_single(noisy_circuit.hard_copy(), device, {}).counts
+    mpqp_counts = _run_single(noisy_circuit, device, {}).counts
+
+    print(sum(noisy_probs))
 
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
 

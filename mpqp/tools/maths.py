@@ -331,3 +331,9 @@ def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
     """
     m = np.random.rand(size, size).astype(np.complex64)
     return m + m.conjugate().transpose()
+
+
+Id = np.eye(2)
+pauli_X = np.ones((2, 2)) - Id
+pauli_Z = np.diag([1, -1])
+pauli_Y = 1j * pauli_X @ pauli_Z

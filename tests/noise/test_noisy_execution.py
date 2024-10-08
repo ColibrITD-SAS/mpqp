@@ -80,9 +80,7 @@ def test_noisy_expectation_value_execution_without_error(
     circuit.add(
         [
             ExpectationMeasure(
-                [0, 1, 2],
-                observable=Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
-                shots=1023,
+                Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])), shots=1023
             ),
             Depolarizing(0.23, [0, 1]),
             BitFlip(0.1),
@@ -136,9 +134,9 @@ def test_all_native_gates_local_noise(
 def test_shot_noise(circuit: QCircuit, devices: list[AvailableDevice]):
     shots = 1024
     circuit.add([BasisMeasure()])
-    result = _run_single(circuit.hard_copy(), devices[0], {})
+    result = _run_single(circuit, devices[0], {})
 
-    assert validate(result.counts, theoretical_probs(circuit.hard_copy()), shots)
+    assert validate(result.counts, theoretical_probs(circuit), shots)
 
 
 @pytest.mark.parametrize("depol_noise", [0.001, 0.01, 0.1])
@@ -146,9 +144,9 @@ def test_depol_noise(
     circuit: QCircuit, devices: list[AvailableDevice], depol_noise: float
 ):
     circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
-    result = _run_single(circuit.hard_copy(), devices[0], {})
+    result = _run_single(circuit, devices[0], {})
 
-    probs = theoretical_probs(circuit.hard_copy())
+    probs = theoretical_probs(circuit)
 
     assert validate(result.counts, probs, 0.05 + depol_noise * 10)
 
@@ -158,9 +156,9 @@ def test_depol_noise_fail(
     circuit: QCircuit, devices: list[AvailableDevice], depol_noise: float
 ):
     circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
-    result = _run_single(circuit.hard_copy(), devices[0], {})
+    result = _run_single(circuit, devices[0], {})
 
-    assert not validate(result.counts, theoretical_probs(circuit.hard_copy()), 0.05)
+    assert not validate(result.counts, theoretical_probs(circuit), 0.05)
 
 
 @pytest.mark.parametrize(
