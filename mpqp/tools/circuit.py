@@ -95,7 +95,7 @@ def random_circuit(
                     if TYPE_CHECKING:
                         assert issubclass(gate_class, RotationGate)
                     qcircuit.add(
-                        gate_class(float(random.uniform(0, 2 * np.pi)), target)
+                        gate_class(random.uniform(0, 2 * np.pi), target)
                     )
             else:
                 qcircuit.add(gate_class(target))
