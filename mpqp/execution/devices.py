@@ -330,7 +330,7 @@ class GOOGLEDevice(AvailableDevice):
             True if the device is a processor, False otherwise.
         """
         return self.name.startswith("PROCESSOR")
-    
+
     def has_reduced_gate_set(self) -> bool:
         return self in {
             GOOGLEDevice.PROCESSOR_RAINBOW,
