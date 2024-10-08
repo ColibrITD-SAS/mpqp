@@ -3,6 +3,9 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Sequence
 
+import numpy as np
+import numpy.typing as npt
+
 from mpqp.tools.generics import T
 
 if TYPE_CHECKING:
@@ -14,7 +17,6 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
 from mpqp.core.languages import Language
-from mpqp.noise.custom_noise import KrausRepresentation
 
 
 def plural_marker(items: Sequence[T]):
@@ -87,8 +89,15 @@ class NoiseModel(ABC):
         return set(self.targets)
 
     @abstractmethod
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """3M-TODO: to be implemented"""
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+        r"""Noise can be represented by Kraus operators. They represent how the
+        state is affected by the noise following the formula
+
+        `\rho \leftarrow \sum_{K \in \mathcal{K}} K \rho K^\dagger`
+
+        Where `\mathcal{K}` is the set of Kraus operators corresponding to the
+        noise model and `\rho` is the state (as a density matrix).
+        """
         pass
 
     @abstractmethod
@@ -106,9 +115,16 @@ class NoiseModel(ABC):
         """
         pass
 
-    def info(self, qubits: set[int]) -> str:
+    def pprint(self) -> str:
+        """For usage of pretty prints, this method displays in a string all
+        information relevant to the noise at matter.
+
+        Returns:
+            The string displaying the noise information in a human readable
+            manner.
+        """
         noise_info = f"{type(self).__name__} noise:"
-        if set(self.targets) not in [qubits, set()]:
+        if len(self.targets) != 0:
             noise_info += f" on qubit{plural_marker(self.targets)}"
         if len(self.gates) != 0:
             noise_info += f" for gate{plural_marker(self.gates)}"
@@ -213,11 +229,8 @@ class Depolarizing(NoiseModel):
         self.dimension = dimension
         """Dimension of the depolarizing noise model."""
 
-    def to_kraus_representation(self):
-        """3M-TODO"""
-        # generate Kraus operators for depolarizing noise
-        kraus_operators = []  # list of Kraus operators
-        return KrausRepresentation(kraus_operators)
+    def to_kraus_operators(self):
+        return []
 
     def __repr__(self):
         dimension = f", dimension={self.dimension}" if self.dimension != 1 else ""
@@ -290,9 +303,9 @@ class Depolarizing(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def info(self, qubits: set[int]) -> str:
+    def pprint(self) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
-        return f"{super().info(qubits)} with probability {self.prob}{dimension}"
+        return f"{super().pprint()} with probability {self.prob}{dimension}"
 
 
 @typechecked
@@ -348,7 +361,7 @@ class BitFlip(NoiseModel):
         self.prob = prob
         """Probability, or error rate, of the bit-flip noise model."""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]: ...
 
     def __repr__(self):
         gates = f", gates={self.gates}" if self.gates else ""
@@ -381,8 +394,8 @@ class BitFlip(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def info(self, qubits: set[int]) -> str:
-        return f"{super().info(qubits)} with probability {self.prob}"
+    def pprint(self) -> str:
+        return f"{super().pprint()} with probability {self.prob}"
 
 
 @typechecked
@@ -449,7 +462,7 @@ class AmplitudeDamping(NoiseModel):
         self.prob = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]: ...
 
     def __repr__(self):
         targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
@@ -502,9 +515,9 @@ class AmplitudeDamping(NoiseModel):
                 f"Conversion of Amplitude Damping noise for language {language} is not supported."
             )
 
-    def info(self, qubits: set[int]) -> str:
+    def pprint(self) -> str:
         prob = f" and probability {self.prob}" if self.prob != 1 else ""
-        return f"{super().info(qubits)} with gamma {self.gamma}{prob}"
+        return f"{super().pprint()} with gamma {self.gamma}{prob}"
 
 
 class PhaseDamping(NoiseModel):

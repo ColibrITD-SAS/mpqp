@@ -1140,9 +1140,8 @@ class QCircuit:
             f" Nb instructions = {len(self)}"
         )
 
-        qubits = set(range(self.size()[0]))
         for noise in self.noises:
-            print(noise.info(qubits))
+            print(noise.pprint())
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:

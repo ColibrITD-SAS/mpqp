@@ -50,4 +50,4 @@ def test_simulation():
         label="Noise-Testing",
     )
 
-    assert np.allclose(np.array([0.5, 0, 0, 0.5]), theoretical_probs(circuit, 0))
+    assert np.allclose(np.array([0.5, 0, 0, 0.5]), theoretical_probs(circuit))
