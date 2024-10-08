@@ -1121,6 +1121,9 @@ class QCircuit:
         if global_phase != 0:
             self.gphase = np.exp(1j * global_phase)
 
+        print(new_circuit)
+        print("global phase", global_phase)
+
         return qasm2.dumps(new_circuit)
 
     def to_qasm3(self) -> str:
