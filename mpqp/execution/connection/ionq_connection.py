@@ -1,22 +1,23 @@
 from typing import Optional
+
 from termcolor import colored
 
 from mpqp.execution.connection.env_manager import config_key, get_env_variable
 
 
 def config_ionq_key():
-    """
-    Configure the IonQ account by setting the API token.
+    """Configure the IonQ account by setting the API token.
 
     Returns:
-        tuple: A message indicating the result of the configuration and an empty list.
+        tuple: A message indicating the result of the configuration and an empty
+        list (used to conform to the protocol needed by the functions calling
+        this one).
     """
     return config_key("IONQ_API_KEY", "IONQ", test_ionq_connection)
 
 
 def test_ionq_connection(key: Optional[str] = None) -> bool:
-    """
-    Test the connection to the IonQ service.
+    """Test the connection to the IonQ service.
 
     Args:
         key: The API key for authenticating with the IonQ service.
@@ -37,8 +38,7 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
 
 
 def get_ionq_account_info() -> str:
-    """
-    Get the IonQ API key from the environment variables.
+    """Get the IonQ API key from the environment variables.
 
     Returns:
         str: A string containing the IonQ API key.
@@ -53,8 +53,7 @@ def get_ionq_account_info() -> str:
 
 
 def get_ionq_job_ids() -> list[str]:
-    """
-    Retrieves ionq job IDs associated with IonQ jobs.
+    """Retrieves ionq job IDs associated with IonQ jobs.
 
     Returns:
         A list of job IDs.

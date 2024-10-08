@@ -87,35 +87,41 @@ summed up here:
   + ``AWS Access Key ID``,
   + ``AWS Secret Access Key`` and
   + ``Default region name``.
-- Azure: For this provider, you need to have an Azure account and create an Azure Quantum workspace.
-  To create an Azure Quantum workspace, follow the steps at:
+- Azure: For this provider, you need to have an Azure account and create an 
+  Azure Quantum workspace. To create an Azure Quantum workspace, follow the 
+  steps on:
   `Azure Quantum workspace <https://learn.microsoft.com/en-us/azure/quantum/how-to-create-workspace?tabs=tabid-quick>`_.
-  Once you have your Quantum workspace, you can go to the ``Overview`` section, where you will find your ``Resource ID`` and ``Location``.
+  Once you have your Quantum workspace, you can go to the ``Overview`` section, 
+  where you will find your ``Resource ID`` and ``Location``.
 
-  You might encounter a pop-up requesting Azure authentication each time you execute your script. This occurs because 
-  your security token is reset with every script run. To resolve this, you can use the Azure CLI by running ``az login``.
+  You might encounter a pop-up requesting Azure authentication for each Azure
+  job submission. This occurs because your security token is reset at the end of
+  each session. In order to avoid this, you can use the Azure CLI.
 
-  First, install the Azure CLI: Refer to `How to install the Azure CLI <https://learn.microsoft.com/en-us/cli/azure/install-azure-cli>`_.
+  First, install the Azure CLI: refer to the guide on their website
+  `How to install the Azure CLI <https://learn.microsoft.com/en-us/cli/azure/install-azure-cli>`_.
 
   Next, log in to Azure:
 
-  - Use interactive login:
+  - Using interactive login:
 
     .. code-block:: console
 
         $ az login
 
-  - For username and password authentication, note that this method doesn't work with Microsoft accounts or accounts with
-    two-factor authentication. If your password starts with a '-', use the following syntax:
+  - For username and password authentication (note that this method doesn't work 
+    with Microsoft accounts or accounts with two-factor authentication):
 
     .. code-block:: console
 
-        $ az login -u johndoe@contoso.com -p VerySecret
+        $ az login -u johndoe@contoso.com -p=VerySecret
 
-  For additional details and options, see `az login <https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-login>`_.
+  For additional details and options, see the documentation of
+  `az login <https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-login>`_.
 
-- IonQ: For this provider, you need to have an IonQ account and create an ``API token``.
-  You can obtain it from the IonQ Console under `IonQ setting keys <https://cloud.ionq.com/settings/keys>`_.
+- IonQ: For this provider, you need to have an IonQ account and create an 
+  ``API token``. You can obtain it from the IonQ Console under 
+  `IonQ setting keys <https://cloud.ionq.com/settings/keys>`_.
 
 To see which devices are available, see :ref:`Devices`.
 
