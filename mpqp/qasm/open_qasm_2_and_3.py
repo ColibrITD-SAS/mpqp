@@ -117,6 +117,7 @@ std_gates_3_to_2_map = {
     "cphase": "cu1",
 }
 
+
 @typechecked
 def qasm_code(instr: Instr) -> str:
     """Return the string corresponding of the declaration of the instruction in
@@ -707,25 +708,29 @@ def convert_instruction_3_to_2(
 
     if instr.startswith("OPENQASM 3.0"):
         header_code += "OPENQASM 2.0;\n"
-    
+
     elif instr_name == "include":
         m = re.match(r'\s*include\s+["\']([^"\']+)["\']', instr)
         if m:
             path = m.group(1).replace("_converted", "")
             header_code += f"include '{path}';\n"
 
-    elif instr_name in {"qubit", "bit"}: 
+    elif instr_name in {"qubit", "bit"}:
         m = re.match(r"\s*(qu)?bit\s*\[\s*(\d+)\s*\]\s*([\w\d_]+)\s*", instr)
         if m:
             bit_type = "q" if m.group(1) else "c"
             instructions_code += f"{bit_type}reg {m.group(3)}[{m.group(2)}];\n"
 
-    elif re.match(r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr):
-        m = re.match(r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr)
+    elif re.match(
+        r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr
+    ):
+        m = re.match(
+            r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr
+        )
         if m:
             c, nb_c, q, nb_q = m.groups()
             if nb_c and nb_q:
-                 instructions_code += f"measure {c}{nb_c} -> {q}{nb_q};\n"
+                instructions_code += f"measure {c}{nb_c} -> {q}{nb_q};\n"
             else:
                 instructions_code += f"measure {c} -> {q};\n"
     elif instr_name == "u3":
@@ -735,7 +740,9 @@ def convert_instruction_3_to_2(
 
     elif instr_name in std_gates_3_to_2_map:
         converted_instr_name = std_gates_3_to_2_map[instr_name]
-        instructions_code += re.sub(r"\b" + instr_name + r"\b", converted_instr_name, instr) + ";\n"
+        instructions_code += (
+            re.sub(r"\b" + instr_name + r"\b", converted_instr_name, instr) + ";\n"
+        )
     elif instr_name in std_gates_3:
         m = re.match(r"\s*(.*)", instr)
         if m:
@@ -748,8 +755,10 @@ def convert_instruction_3_to_2(
             params = m.group(2)
             body = m.group(3)
             g_string = f"gate {gate_name}({params}) {{\n"
-            
-            g_instructions = filter(lambda i: not re.fullmatch(r"\s*", i), body.split(";"))
+
+            g_instructions = filter(
+                lambda i: not re.fullmatch(r"\s*", i), body.split(";")
+            )
             for instruction in g_instructions:
                 instruction = instruction.strip()
                 i_code, h_code = convert_instruction_3_to_2(
