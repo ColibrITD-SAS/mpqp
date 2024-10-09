@@ -11,7 +11,7 @@ from mpqp.core.instruction.gates.native_gates import (
     Rk,
     U,
     CRk,
-    RotationGate,
+    RotationGate, NativeGate,
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 
@@ -76,7 +76,7 @@ def random_circuit(
         raise ValueError("number of qubits too low for this gates")
 
     for _ in range(nb_gates):
-        gate_class = random.choice(gate_classes)
+        gate_class: type[NativeGate] = random.choice(gate_classes)
         target = random.choice(qubits)
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
@@ -92,8 +92,7 @@ def random_circuit(
                 elif issubclass(gate_class, Rk):
                     qcircuit.add(Rk(random.randint(0, 10), target))
                 else:
-                    if TYPE_CHECKING:
-                        assert issubclass(gate_class, RotationGate)
+                    assert issubclass(gate_class, RotationGate)
                     qcircuit.add(gate_class(random.uniform(0, 2 * np.pi), target))
             else:
                 qcircuit.add(gate_class(target))
