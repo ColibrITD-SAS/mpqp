@@ -11,7 +11,8 @@ from mpqp.core.instruction.gates.native_gates import (
     Rk,
     U,
     CRk,
-    RotationGate, NativeGate,
+    RotationGate,
+    NativeGate,
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 
