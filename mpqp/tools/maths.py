@@ -6,7 +6,7 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -209,7 +209,7 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
 
 
 def rand_orthogonal_matrix(
-    size: int, seed: Optional[int] = None
+    size: int, seed: Optional[Union[int, np.random.Generator]] = None
 ) -> npt.NDArray[np.complex64]:
     """Generate a random orthogonal matrix optionally with a given seed.
 
@@ -222,22 +222,30 @@ def rand_orthogonal_matrix(
 
     Examples:
         >>> rand_orthogonal_matrix(3) # doctest: +SKIP
-        array([[ 0.94569439,  0.2903415 ,  0.14616405],
-               [-0.32503798,  0.83976928,  0.43489984],
-               [ 0.0035254 , -0.45879121,  0.88853711]])
+        array([[ 0.51186015,  0.71401714, -0.47768056],
+               [ 0.69405144, -0.0160335 ,  0.71974685],
+               [-0.50625269,  0.69994461,  0.50377153]])
 
-        >>> rand_orthogonal_matrix(3, seed=42)
-        array([[ 0.21667149,  0.1867762 ,  0.95821089],
-               [ 0.9608116 ,  0.13303749, -0.24319148],
-               [-0.17290035,  0.9733528 , -0.15063131]])
+        >>> rand_orthogonal_matrix(3, seed=123)
+        array([[ 0.75285974, -0.65782143,  0.02175293],
+               [-0.22777817, -0.22939368,  0.94630632],
+               [ 0.61751058,  0.71739077,  0.32253863]])
 
     """
-    np.random.seed(seed)
-    m = np.random.rand(size, size)
+    if seed is None:
+        rng = np.random.default_rng()
+    elif isinstance(seed, np.random.Generator):
+        rng = seed
+    else:
+        rng = np.random.default_rng(seed)
+
+    m = rng.random((size, size))
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
-def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
+def rand_clifford_matrix(
+    nb_qubits: int, seed: Optional[Union[int, np.random.Generator]] = None
+) -> npt.NDArray[np.complex64]:
     """Generate a random Clifford matrix.
 
     Args:
@@ -248,18 +256,33 @@ def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
 
     Examples:
         >>> rand_clifford_matrix(2) # doctest: +SKIP
-        array([[ 0.5+0.j, -0.5+0.j,  0.5+0.j, -0.5+0.j],
-               [-0.5+0.j,  0.5+0.j,  0.5+0.j, -0.5+0.j],
-               [ 0.5+0.j,  0.5+0.j,  0.5+0.j,  0.5+0.j],
-               [-0.5+0.j, -0.5+0.j,  0.5+0.j,  0.5+0.j]])
+        array([[ 0. +0.5j,  0. +0.5j,  0.5+0.j ,  0.5+0.j ],
+               [ 0.5+0.j , -0.5+0.j ,  0. -0.5j,  0. +0.5j],
+               [ 0.5+0.j ,  0.5+0.j ,  0. +0.5j,  0. +0.5j],
+               [ 0. -0.5j,  0. +0.5j,  0.5+0.j , -0.5+0.j ]])
+
+        >>> rand_clifford_matrix(2, seed=123)
+        array([[0.+0.70710678j, 0.+0.j        , 0.-0.70710678j, 0.+0.j        ],
+               [0.+0.j        , 0.-0.70710678j, 0.+0.j        , 0.-0.70710678j],
+               [0.+0.j        , 0.+0.70710678j, 0.+0.j        , 0.-0.70710678j],
+               [0.+0.70710678j, 0.+0.j        , 0.+0.70710678j, 0.+0.j        ]])
 
     """
     from qiskit import quantum_info
 
-    return quantum_info.random_clifford(nb_qubits).to_matrix()
+    if seed is None:
+        rng = np.random.default_rng()
+    elif isinstance(seed, np.random.Generator):
+        rng = seed
+    else:
+        rng = np.random.default_rng(seed)
+
+    return quantum_info.random_clifford(nb_qubits, seed=rng).to_matrix()
 
 
-def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:
+def rand_unitary_2x2_matrix(
+    seed: Optional[Union[int, np.random.Generator]] = None
+) -> npt.NDArray[np.complex64]:
     """Generate a random one-qubit unitary matrix.
 
     Args:
@@ -270,11 +293,22 @@ def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:
 
     Examples:
         >>> rand_unitary_2x2_matrix() # doctest: +SKIP
-        array([[ 0.86889957+0.j        ,  0.44138577+0.22403602j],
-               [-0.44138577-0.22403602j, -0.72981565-0.47154594j]])
+        array([[-0.38773402+0.j        , -0.73447267-0.55696699j],
+               [ 0.73447267+0.55696699j,  0.34132656-0.1839398j ]])
+
+        >>> rand_unitary_2x2_matrix(seed=123)
+        array([[-0.54205051+0.j        , -0.15559823-0.82581501j],
+               [ 0.15559823+0.82581501j,  0.08203889-0.53580629j]])
 
     """
-    theta, phi, gamma = np.random.rand(3) * 2 * math.pi
+    if seed is None:
+        rng = np.random.default_rng()
+    elif isinstance(seed, np.random.Generator):
+        rng = seed
+    else:
+        rng = np.random.default_rng(seed)
+
+    theta, phi, gamma = rng.random(3) * 2 * math.pi
     c, s, eg, ep = (
         np.cos(theta / 2),
         np.sin(theta / 2),
@@ -284,7 +318,9 @@ def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:
     return np.array([[c, -eg * s], [eg * s, eg * ep * c]])
 
 
-def rand_product_local_unitaries(nb_qubits: int) -> npt.NDArray[np.complex64]:
+def rand_product_local_unitaries(
+    nb_qubits: int, seed: Optional[Union[int, np.random.Generator]] = None
+) -> npt.NDArray[np.complex64]:
     """Generate a pseudo random matrix, resulting from a tensor product of
     random unitary matrices.
 
@@ -296,20 +332,29 @@ def rand_product_local_unitaries(nb_qubits: int) -> npt.NDArray[np.complex64]:
 
     Example:
         >>> rand_product_local_unitaries(2) # doctest: +SKIP
-        array([[-0.39648015+0.j        ,  0.49842218-0.16609181j,
-                   0.39826454-0.21692223j, -0.40979321+0.43953607j],
-               [-0.49842218+0.16609181j,  0.14052896-0.37073997j,
-                   0.40979321-0.43953607j,  0.06167784+0.44929471j],
-               [-0.39826454+0.21692223j,  0.40979321-0.43953607j,
-                   0.16112375-0.36226461j, -0.05079312+0.52290651j],
-               [-0.40979321+0.43953607j, -0.06167784-0.44929471j,
-                   0.05079312-0.52290651j,  0.28163685+0.27906487j]])
+        array([[ 0.91443498+0.j        , -0.34882095-0.2052623j ],
+               [ 0.34882095+0.2052623j , -0.00785861+0.91440121j]])
+
+        >>> rand_product_local_unitaries(2, seed=123)
+        array([[-0.54205051+0.j        , -0.15559823-0.82581501j],
+               [ 0.15559823+0.82581501j,  0.08203889-0.53580629j]])
 
     """
-    return reduce(np.kron, [rand_unitary_2x2_matrix() for _ in range(nb_qubits - 1)])
+    if seed is None:
+        rng = np.random.default_rng()
+    elif isinstance(seed, np.random.Generator):
+        rng = seed
+    else:
+        rng = np.random.default_rng(seed)
+
+    return reduce(
+        np.kron, [rand_unitary_2x2_matrix(seed=rng) for _ in range(nb_qubits - 1)]
+    )
 
 
-def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
+def rand_hermitian_matrix(
+    size: int, seed: Optional[Union[int, np.random.Generator]] = None
+) -> npt.NDArray[np.complex64]:
     """Generate a random Hermitian matrix.
 
     Args:
@@ -320,9 +365,20 @@ def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
 
     Example:
         >>> rand_hermitian_matrix(2) # doctest: +SKIP
-        array([[1.4488624 +0.j, 0.20804943+0.j],
-               [0.20804943+0.j, 0.7826408 +0.j]], dtype=complex64)
+        array([[0.9084826+0.j, 1.2122946+0.j],
+               [1.2122946+0.j, 1.4426157+0.j]], dtype=complex64)
+
+        >>> rand_hermitian_matrix(2, seed=123)
+        array([[1.3647038 +0.j, 0.2741809 +0.j],
+               [0.2741809 +0.j, 0.36874363+0.j]], dtype=complex64)
 
     """
-    m = np.random.rand(size, size).astype(np.complex64)
+    if seed is None:
+        rng = np.random.default_rng()
+    elif isinstance(seed, np.random.Generator):
+        rng = seed
+    else:
+        rng = np.random.default_rng(seed)
+
+    m = rng.random((size, size)).astype(np.complex64)
     return m + m.conjugate().transpose()
