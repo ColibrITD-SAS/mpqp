@@ -109,7 +109,13 @@ std_gates_3 = [
     "phase",
     "sx",
 ]
-
+std_gates_3_to_2_map = {
+    "u3": "U",
+    "cp": "cu1",
+    "p": "u1",
+    "phase": "u1",
+    "cphase": "cu1",
+}
 
 @typechecked
 def qasm_code(instr: Instr) -> str:
@@ -679,3 +685,215 @@ def remove_user_gates(qasm_code: str) -> str:
                 replaced_code = replaced_code.replace(line + "\n", all_gate)
 
     return replaced_code
+
+
+@typechecked
+def convert_instruction_3_to_2(
+    instr: str,
+    included_instr: set[Instr],
+    included_tree_current: Node,
+    defined_gates: set[str],
+    path_to_main: str = ".",
+) -> tuple[str, str]:
+    """Converts an individual OpenQASM 3.0 instruction back to OpenQASM 2.0."""
+    header_code = ""
+    instructions_code = ""
+
+    instr_match = re.match(r"\s*(\w+)\s*", instr)
+    if instr_match:
+        instr_name = instr_match.group(1)
+    else:
+        raise ValueError(f"Could not parse instruction: {instr}")
+
+    if instr.startswith("OPENQASM 3.0"):
+        header_code += "OPENQASM 2.0;\n"
+    
+    elif instr_name == "include":
+        m = re.match(r'\s*include\s+["\']([^"\']+)["\']', instr)
+        if m:
+            path = m.group(1).replace("_converted", "")
+            header_code += f"include '{path}';\n"
+
+    elif instr_name in {"qubit", "bit"}: 
+        m = re.match(r"\s*(qu)?bit\s*\[\s*(\d+)\s*\]\s*([\w\d_]+)\s*", instr)
+        if m:
+            bit_type = "q" if m.group(1) else "c"
+            instructions_code += f"{bit_type}reg {m.group(3)}[{m.group(2)}];\n"
+
+    elif re.match(r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr):
+        m = re.match(r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr)
+        if m:
+            c, nb_c, q, nb_q = m.groups()
+            if nb_c and nb_q:
+                 instructions_code += f"measure {c}{nb_c} -> {q}{nb_q};\n"
+            else:
+                instructions_code += f"measure {c} -> {q};\n"
+    elif instr_name == "u3":
+        instructions_code += re.sub(r"\bu3\b", "U", instr) + ";\n"
+    elif instr_name == "cp":
+        instructions_code += re.sub(r"\bcp\b", "cu1", instr) + ";\n"
+
+    elif instr_name in std_gates_3_to_2_map:
+        converted_instr_name = std_gates_3_to_2_map[instr_name]
+        instructions_code += re.sub(r"\b" + instr_name + r"\b", converted_instr_name, instr) + ";\n"
+    elif instr_name in std_gates_3:
+        m = re.match(r"\s*(.*)", instr)
+        if m:
+            instructions_code += m.group(1) + ";\n"
+    elif instr_name == "gate":
+        defined_gates.add(instr.split()[1])
+        m = re.match(r"\s*gate\s+(\w+)\s*\((.*?)\)\s*\{(.*?)\}", instr, re.DOTALL)
+        if m:
+            gate_name = m.group(1)
+            params = m.group(2)
+            body = m.group(3)
+            g_string = f"gate {gate_name}({params}) {{\n"
+            
+            g_instructions = filter(lambda i: not re.fullmatch(r"\s*", i), body.split(";"))
+            for instruction in g_instructions:
+                instruction = instruction.strip()
+                i_code, h_code = convert_instruction_3_to_2(
+                    instruction,
+                    included_instr,
+                    included_tree_current,
+                    defined_gates,
+                    path_to_main,
+                )
+                g_string += " " * 4 + i_code
+                header_code += h_code
+            instructions_code += g_string + "}\n"
+
+    elif re.match(r"\s*if\s*\(.*?\)\s*.+", instr):
+        m = re.match(r"(\s*if\s*\(.*?\))\s*(.+)", instr)
+        if m:
+            if_statement = m.group(1)
+            nested_instr = m.group(2)
+            i_code, h_code = convert_instruction_3_to_2(
+                nested_instr,
+                included_instr,
+                included_tree_current,
+                defined_gates,
+                path_to_main,
+            )
+            instructions_code += if_statement + i_code + ";\n"
+            header_code += h_code
+
+    else:
+        gate = instr.split()[0]
+        if gate == "ctrl":
+            gate = instr.split()[2]
+        if gate not in defined_gates:
+            raise ValueError(f"Gates undefined at the time of usage: {gate}")
+        m = re.match(r"\s*(.*)", instr)
+        if m:
+            instructions_code += m.group(1) + ";\n"
+
+    return instructions_code, header_code
+
+
+@typechecked
+def open_qasm_3_to_2(
+    code: str,
+    included_tree_current_node: Node = Node("initial_code"),
+    path_to_file: str = ".",
+    defined_gates: set[str] = set(),
+) -> str:
+    """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
+
+    This function will also recursively go through the imported files to
+    translate them too. It is a partial conversion (the ``opaque`` keyword is
+    not handled) for helping building temporary bridges between different
+    platforms using different versions.
+
+    Args:
+        code: String containing the OpenQASM 3.0 code.
+        included_tree_current_node: Current Node in the file inclusion tree.
+        path_to_file: Path to the location of the file from which the code is coming (useful for locating imports).
+        defined_gates: Set of custom gates already defined.
+
+    Returns:
+        Converted OpenQASM code in the 2.0 version.
+
+    Example:
+        >>> qasm3_str = '''OPENQASM 3.0;
+        ... qubit[2] q;
+        ... bit[2] c;
+        ... h q[0];
+        ... cx q[0],q[1];
+        ... c[0] = measure q[0];
+        ... c[1] = measure q[1];
+        ... '''
+        >>> print(open_qasm_3_to_2(qasm3_str)) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 2.0;
+        qreg q[2];
+        creg c[2];
+        h q[0];
+        cx q[0],q[1];
+        measure q[0] -> c[0];
+        measure q[1] -> c[1];
+    """
+
+    header_code = ""
+    instructions_code = ""
+
+    instructions = parse_openqasm_3_file(code)
+
+    included_instructions = set()
+
+    defined_gates.update(std_gates_3)
+
+    for instr in instructions:
+        i_code, h_code = convert_instruction_3_to_2(
+            instr,
+            included_instructions,
+            included_tree_current_node,
+            defined_gates,
+            path_to_file,
+        )
+        header_code += h_code
+        instructions_code += i_code
+
+    target_code = header_code + "\n" + instructions_code
+
+    return target_code
+
+
+@typechecked
+def parse_openqasm_3_file(code: str) -> list[str]:
+    """Splits a complete OpenQASM 3 program into individual instructions.
+
+    Args:
+        code: The complete OpenQASM 3.0 program.
+
+    Returns:
+        List of instructions.
+
+    Note:
+        We do not check for correct syntax; it is assumed that the code is well-formed.
+    """
+    cleaned_code = re.sub(r"//.*?$|/\*.*?\*/", "", code, flags=re.DOTALL | re.MULTILINE)
+
+    cleaned_code = cleaned_code.replace("\t", " ").strip()
+
+    gate_matches = list(re.finditer(r"gate .*?}", cleaned_code))
+
+    sanitized_start = (
+        cleaned_code[: gate_matches[0].span()[0]] if gate_matches else cleaned_code
+    )
+
+    instructions = sanitized_start.split(";")
+
+    for i in range(len(gate_matches)):
+        instructions.append(cleaned_code[slice(*(gate_matches[i].span()))])
+        instructions.extend(
+            cleaned_code[
+                gate_matches[i].span()[1] : (
+                    None
+                    if i == len(gate_matches) - 1
+                    else gate_matches[i + 1].span()[0]
+                )
+            ].split(";")
+        )
+
+    instructions = [i.lstrip() for i in instructions]
+    return list(filter(lambda i: i.strip() != "", instructions))
