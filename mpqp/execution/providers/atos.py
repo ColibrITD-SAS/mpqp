@@ -279,6 +279,7 @@ def generate_hardware_model(
     from qat.quops import (
         make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
     )
+
     # TODO refacto this function, shorten it, regroup similar code parts
 
     all_qubits_target = True
@@ -301,9 +302,7 @@ def generate_hardware_model(
                     Depolarizing(noise.prob, noise.targets, dimension=1, gates=[Rk])
                 )
             elif isinstance(noise, BitFlip):
-                noises.append(
-                    BitFlip(noise.prob, noise.targets, gates=[Rk])
-                )
+                noises.append(BitFlip(noise.prob, noise.targets, gates=[Rk]))
             elif isinstance(noise, AmplitudeDamping):
                 noises.append(
                     AmplitudeDamping(noise.gamma, noise.prob, noise.targets, gates=[Rk])
@@ -364,8 +363,24 @@ def generate_hardware_model(
                     )
         # Otherwise, we add channel for all possible gates and an iddle noise
         else:
-            all_aqasm_keywords = ['CNOT', 'CSIGN', 'H', 'I', 'PH', 'RX', 'RY', 'RZ', 'S', 'SWAP', 'T', 'CCNOT',
-                                  'U', 'X', 'Y', 'Z']
+            all_aqasm_keywords = [
+                'CNOT',
+                'CSIGN',
+                'H',
+                'I',
+                'PH',
+                'RX',
+                'RY',
+                'RZ',
+                'S',
+                'SWAP',
+                'T',
+                'CCNOT',
+                'U',
+                'X',
+                'Y',
+                'Z',
+            ]
 
             if this_noise_all_qubits_target:
                 for keyword in all_aqasm_keywords:
@@ -386,7 +401,9 @@ def generate_hardware_model(
                             else:
                                 gate_noise_local[keyword][target] *= channel
                         else:
-                            tuples = permutations(noise.targets, 3 if keyword == "CCNOT" else 2)
+                            tuples = permutations(
+                                noise.targets, 3 if keyword == "CCNOT" else 2
+                            )
                             for t in tuples:
                                 if t not in gate_noise_local[keyword]:
                                     gate_noise_local[keyword][t] = channel

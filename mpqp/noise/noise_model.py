@@ -449,8 +449,12 @@ class BitFlip(NoiseModel):
         elif language == Language.MY_QLM:
             from qat.quops import QuantumChannelKraus
 
-            return QuantumChannelKraus([np.sqrt(1 - self.prob) * np.eye(2),
-                                        np.sqrt(self.prob)*np.array([[0, 1], [1, 0]])])
+            return QuantumChannelKraus(
+                [
+                    np.sqrt(1 - self.prob) * np.eye(2),
+                    np.sqrt(self.prob) * np.array([[0, 1], [1, 0]]),
+                ]
+            )
 
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
