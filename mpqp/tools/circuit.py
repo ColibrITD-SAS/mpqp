@@ -1,5 +1,5 @@
 import random
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -8,11 +8,15 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
     TOF,
-    Rk,
-    U,
     CRk,
-    RotationGate,
     NativeGate,
+    P,
+    Rk,
+    RotationGate,
+    Rx,
+    Ry,
+    Rz,
+    U,
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 
@@ -92,9 +96,12 @@ def random_circuit(
                     )
                 elif issubclass(gate_class, Rk):
                     qcircuit.add(Rk(random.randint(0, 10), target))
-                else:
-                    assert issubclass(gate_class, RotationGate)
+                elif issubclass(gate_class, RotationGate):
+                    if TYPE_CHECKING:
+                        assert issubclass(gate_class, (Rx, Ry, Rz, P))
                     qcircuit.add(gate_class(random.uniform(0, 2 * np.pi), target))
+                else:
+                    raise ValueError
             else:
                 qcircuit.add(gate_class(target))
         else:
