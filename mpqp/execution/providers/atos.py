@@ -861,7 +861,7 @@ def run_QLM(job: Job) -> Result:
 def get_result_from_qlm_job_id(job_id: str) -> Result:
     """Retrieves the ``QLM`` result, described by the job_id in parameter, from
     the remote ``QLM`` and converts it in a ``MPQP``
-    :class:`Result<mpqp.execution.result.Result>`. If the job is still running,
+    :class:`~mpqp.execution.result.Result`. If the job is still running,
     we wait (blocking) until its status becomes ``DONE``.
 
     Args:

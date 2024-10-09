@@ -2,15 +2,15 @@
 Once the circuit is defined, you can to execute it and retrieve the result using
 the function :func:`run`. You can execute said circuit on one or several devices
 (local or remote). The function will wait (blocking) until the job is completed
-and will return a :class:`Result<mpqp.execution.result.Result>` in only one
-device was given or a :class:`BatchResult<mpqp.execution.result.BatchResult>` 
+and will return a :class:`~mpqp.execution.result.Result` in only one
+device was given or a :class:`~mpqp.execution.result.BatchResult` 
 otherwise (see :ref:`below<Results>`).
 
 Alternatively, when running jobs on a remote device, you could prefer to
 retrieve the result asynchronously, without having to wait and block the
 application until the computation is completed. In that case, you can use the
 :func:`submit` instead. It will submit the job and
-return the corresponding job id and :class:`Job<mpqp.execution.job.Job>` object.
+return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 .. note::
     Unlike :func:`run`, we can only submit on one device at a time.
@@ -74,8 +74,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
-        list(range(circuit.nb_qubits)),
         Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
+        list(range(circuit.nb_qubits)),
         measure.shots,
     )
     return tweaked_measure
@@ -177,6 +177,7 @@ def _run_single(
          Error: None
 
     """
+
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k)
@@ -287,7 +288,6 @@ def run(
         values = {}
 
     def namer(circ: QCircuit, i: int):
-        circ = circ.hard_copy()
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -300,7 +300,7 @@ def run(
             ]
         )
     else:
-        return _run_single(circuit.hard_copy(), device, values, display_breakpoints)
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
 @typechecked
@@ -309,8 +309,8 @@ def submit(
 ) -> tuple[str, Job]:
     """Submit the job related with the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
-    the :class:`Result<mpqp.execution.result.Result>` later, using the
-    :func:`get_remote_result<mpqp.execution.remote_handler.get_remote_result>`
+    the :class:`~mpqp.execution.result.Result` later, using the
+    :func:`~mpqp.execution.remote_handler.get_remote_result`
     function.
 
     If the circuit contains symbolic variables (see section :ref:`VQA` for more

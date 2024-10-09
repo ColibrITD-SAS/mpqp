@@ -55,7 +55,6 @@ class ParametrizedGate(Gate, ABC):
         """See parameter description."""
         self.parameters = parameters
         """See parameter description."""
-        self._numeric_parameters = False
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
@@ -72,7 +71,6 @@ class ParametrizedGate(Gate, ABC):
             caster(param.subs(values)) if isinstance(param, Expr) else param
             for param in self.parameters
         ]
-        concrete_gate._numeric_parameters = True
 
         return concrete_gate
 
