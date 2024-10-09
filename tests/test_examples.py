@@ -28,6 +28,7 @@ def generate_tests_for_notebooks():
     def make_test_func(file: str):
         def test_func():
             notebook_path = os.path.join(NOTEBOOK_DIR, file)
+            env["PYTHONPATH"] = f"{project_root};{os.path.join(project_root, 'tests')}"
             result = subprocess.run(
                 [sys.executable, "-m", "pytest", "--nbmake", notebook_path], env=env
             )
@@ -35,13 +36,6 @@ def generate_tests_for_notebooks():
                 raise Exception(f"failed with return code {result.returncode}")
 
         return test_func
-
-    env = os.environ.copy()
-    venv_path = os.environ.get('VIRTUAL_ENV')
-    if venv_path:
-        env["PATH"] = f"{os.path.join(venv_path, 'bin')}"
-        env["VIRTUAL_ENV"] = venv_path
-    env["PYTHONIOENCODING"] = "UTF-8"
 
     for notebook in notebook_files:
         test_name = f"test_{os.path.splitext(notebook)[0]}"
@@ -56,20 +50,17 @@ def generate_tests_for_python_scripts():
     def make_test_func(py_file: str):
         def test_func():
             py_file_path = os.path.join(PYTHON_FILES_DIR, py_file)
-            result = subprocess.run([sys.executable, py_file_path], env=env)
+            command = [
+                sys.executable,
+                "-c",
+                f"import sys; sys.path.insert(0, r'{project_root}'); exec(open(r'{py_file_path}').read())",
+            ]
+            result = subprocess.run(command, env=env)
             assert (
                 result.returncode == 0
             ), f"failed with return code {result.returncode}"
 
         return test_func
-
-    env = os.environ.copy()
-    venv_path = os.environ.get('VIRTUAL_ENV')
-    if venv_path:
-        env["PATH"] = f"{os.path.join(venv_path, 'bin')}"
-        env["VIRTUAL_ENV"] = venv_path
-    env["PYTHONIOENCODING"] = "UTF-8"
-    env["MPLBACKEND"] = "Agg"  # don't show
 
     for py_file in python_files:
         test_name = f"test_{os.path.splitext(py_file)[0]}"
@@ -77,5 +68,14 @@ def generate_tests_for_python_scripts():
 
 
 if "--long-local" in sys.argv or "--long" in sys.argv:
+    env = os.environ.copy()
+    project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+    venv_path = os.environ.get('VIRTUAL_ENV')
+    if venv_path:
+        env["PATH"] = f"{os.path.join(venv_path, 'bin')}"
+        env["VIRTUAL_ENV"] = venv_path
+    env["PYTHONIOENCODING"] = "UTF-8"
+    env["MPLBACKEND"] = "Agg"
+
     generate_tests_for_python_scripts()
     generate_tests_for_notebooks()
