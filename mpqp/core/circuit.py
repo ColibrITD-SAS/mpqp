@@ -176,7 +176,7 @@ class QCircuit:
             c: 2/═══════════╩══╩═
                             0  1
 
-            >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
+            >>> circuit.add(Depolarizing(0.3, dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
@@ -763,9 +763,9 @@ class QCircuit:
             The list of all measurements present in the circuit.
 
         Example:
-            >>> circuit = QCircuit([H(1), CNOT(0,1), Ry(.5, 1), BasisMeasure([0, 1], shots=1000)])
+            >>> circuit = QCircuit([H(1), CNOT(0, 1), Ry(.5, 1), BasisMeasure([0, 1], shots=1000)])
             >>> circuit.get_gates()
-            [H(1), CNOT(0,1), Ry(.5, 1)]
+            [H(1), CNOT(0, 1), Ry(0.5, 1)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Gate)]

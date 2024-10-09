@@ -63,7 +63,7 @@ def theoretical_probs(
     d: int = 2 ** (circ.nb_qubits)
 
     state = np.zeros((d, d), dtype=np.complex64)
-    state[0] = 1
+    state[0, 0] = 1
 
     for gate in circ.get_gates():
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
@@ -83,7 +83,6 @@ def theoretical_probs(
                     ),
                     start=np.zeros((d, d), dtype=np.complex64),
                 )
-                print(sum(state.diagonal().real))
 
     connected_qubits = set().union(*[gate.connections() for gate in circ.get_gates()])
     unconnected_qubits = set(range(circ.nb_qubits)).difference(connected_qubits)
@@ -125,7 +124,7 @@ def dist_alpha_matching(alpha: float):
     Returns:
         The trust interval for the distance.
     """
-    return 2 * (np.sqrt(alpha) - alpha)
+    return np.sqrt(alpha)
 
 
 # TODO: this bound it coming out of my ass, see if these results already in
@@ -172,8 +171,6 @@ def exp_id_dist(
     noisy_circuit = circuit.without_measurements()
     noisy_circuit.add(BasisMeasure(shots=shots))
     mpqp_counts = _run_single(noisy_circuit, device, {}).counts
-
-    print(sum(noisy_probs))
 
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
 

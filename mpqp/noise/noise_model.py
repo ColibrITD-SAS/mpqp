@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from functools import reduce
+from itertools import product
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
@@ -132,12 +133,12 @@ class NoiseModel(ABC):
             The Kraus operators adjusted to the targets of the gate on which the
             noise acts and the size of the circuit.
         """
+        K = self.to_kraus_operators()
         return [
-            reduce(
-                np.kron,
-                (k if t in targets else Id.astype(np.complex64) for t in range(size)),
+            reduce(np.kron, ops)
+            for ops in product(
+                *[K if t in targets else [Id.astype(np.complex64)] for t in range(size)]
             )
-            for k in self.to_kraus_operators()
         ]
 
     @abstractmethod
