@@ -62,6 +62,7 @@ def random_circuit(
 
     if nb_gates is None:
         nb_gates = rng.integers(5, 10)
+        print("nb_gates", nb_gates)
 
     qubits = list(range(nb_qubits))
     qcircuit = QCircuit(nb_qubits)
@@ -75,7 +76,7 @@ def random_circuit(
 
     for _ in range(nb_gates):
         gate_class = rng.choice(gate_classes)
-        target = rng.choice(qubits)
+        target = int(rng.choice(qubits))
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
                 if issubclass(gate_class, U):
@@ -84,19 +85,17 @@ def random_circuit(
                             rng.uniform(0, 2 * np.pi),
                             rng.uniform(0, 2 * np.pi),
                             rng.uniform(0, 2 * np.pi),
-                            int(target),
+                            target,
                         )
                     )
                 elif issubclass(gate_class, Rk):
-                    qcircuit.add(Rk(rng.integers(0, 10), int(target)))
+                    qcircuit.add(Rk(rng.integers(0, 10), target))
                 else:
-                    qcircuit.add(
-                        gate_class(float(rng.uniform(0, 2 * np.pi)), int(target))
-                    )
+                    qcircuit.add(gate_class(float(rng.uniform(0, 2 * np.pi)), target))
             else:
-                qcircuit.add(gate_class(int(target)))
+                qcircuit.add(gate_class(target))
         else:
-            control = rng.choice(list(set(qubits) - {target}))
+            control = int(rng.choice(list(set(qubits) - {target})))
             if issubclass(gate_class, ParametrizedGate):
                 qcircuit.add(
                     gate_class(
@@ -106,7 +105,7 @@ def random_circuit(
                     )
                 )
             elif issubclass(gate_class, TOF):
-                control2 = rng.choice(list(set(qubits) - {target, control}))
+                control2 = int(rng.choice(list(set(qubits) - {target, control})))
                 qcircuit.add(TOF([control, control2], target))
             else:
                 qcircuit.add(gate_class(control, target))
