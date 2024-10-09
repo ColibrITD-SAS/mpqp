@@ -117,6 +117,7 @@ std_gates_3_to_2_map = {
     "cphase": "cu1",
 }
 
+
 @typechecked
 def qasm_code(instr: Instr) -> str:
     """Return the string corresponding of the declaration of the instruction in
@@ -696,6 +697,17 @@ def convert_instruction_3_to_2(
     path_to_main: str = ".",
 ) -> tuple[str, str]:
     """Converts an individual OpenQASM 3.0 instruction back to OpenQASM 2.0."""
+
+    def add_std_lib():
+        """Add the instruction of including the standard library of OpenQASM3
+        code if it is not already done"""
+        if Instr.STD_LIB not in included_instr:
+            included_instr.add(Instr.STD_LIB)
+            to_add = qasm_code(Instr.STD_LIB)
+        else:
+            to_add = ""
+        return to_add
+
     header_code = ""
     instructions_code = ""
 
@@ -705,29 +717,51 @@ def convert_instruction_3_to_2(
     else:
         raise ValueError(f"Could not parse instruction: {instr}")
 
-    if instr.startswith("OPENQASM 3.0"):
+    if instr.startswith("OPENQASM 2.0"):
+        raise ValueError(
+            f"Only OPENQASM 3.0 is supported. OPENQASM 2.0 is not valid: {instr}"
+        )
+    elif instr.startswith("OPENQASM 3.0"):
         header_code += "OPENQASM 2.0;\n"
-    
     elif instr_name == "include":
         m = re.match(r'\s*include\s+["\']([^"\']+)["\']', instr)
         if m:
-            path = m.group(1).replace("_converted", "")
-            header_code += f"include '{path}';\n"
+            path = m.group(1).strip("'\"")
+            if path != "stdgates.inc":
+                if any(path in node.name for node in included_tree_current.ancestors):
+                    raise RuntimeError("Circular dependency detected.")
+                if not any(
+                    path in node.name
+                    for node in PreOrderIter(included_tree_current.root)
+                ):
+                    with open(f"{path_to_main}/{path}", "r") as f:
+                        child = Node(path, parent=included_tree_current)
+                        converted_content = open_qasm_3_to_2(
+                            f.read(), child, path_to_main, defined_gates
+                        )
+                    new_path = splitext(path)[0] + "_converted" + splitext(path)[1]
+                    with open(f"{path_to_main}/{new_path}", "w") as f:
+                        f.write(converted_content)
+                    header_code += f"include '{new_path}';\n"
 
-    elif instr_name in {"qubit", "bit"}: 
+    elif instr_name in {"qubit", "bit"}:
         m = re.match(r"\s*(qu)?bit\s*\[\s*(\d+)\s*\]\s*([\w\d_]+)\s*", instr)
         if m:
             bit_type = "q" if m.group(1) else "c"
             instructions_code += f"{bit_type}reg {m.group(3)}[{m.group(2)}];\n"
 
-    elif re.match(r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr):
-        m = re.match(r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr)
+    elif re.match(
+        r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr
+    ):
+        m = re.match(
+            r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr
+        )
         if m:
             c, nb_c, q, nb_q = m.groups()
             if nb_c and nb_q:
-                 instructions_code += f"measure {c}{nb_c} -> {q}{nb_q};\n"
+                instructions_code += f"measure {q}{nb_q} -> {c}{nb_c};\n"
             else:
-                instructions_code += f"measure {c} -> {q};\n"
+                instructions_code += f"measure {q} -> {c};\n"
     elif instr_name == "u3":
         instructions_code += re.sub(r"\bu3\b", "U", instr) + ";\n"
     elif instr_name == "cp":
@@ -735,21 +769,30 @@ def convert_instruction_3_to_2(
 
     elif instr_name in std_gates_3_to_2_map:
         converted_instr_name = std_gates_3_to_2_map[instr_name]
-        instructions_code += re.sub(r"\b" + instr_name + r"\b", converted_instr_name, instr) + ";\n"
+        instructions_code += (
+            re.sub(r"\b" + instr_name + r"\b", converted_instr_name, instr) + ";\n"
+        )
     elif instr_name in std_gates_3:
         m = re.match(r"\s*(.*)", instr)
         if m:
             instructions_code += m.group(1) + ";\n"
     elif instr_name == "gate":
-        defined_gates.add(instr.split()[1])
-        m = re.match(r"\s*gate\s+(\w+)\s*\((.*?)\)\s*\{(.*?)\}", instr, re.DOTALL)
+        m = re.match(
+            r"\s*gate\s+(\w+)\s*(\(([^)]*)\))?\s*([\w\s,]*)\s*{\s*([^}]*)\s*}",
+            instr,
+            re.DOTALL,
+        )
         if m:
             gate_name = m.group(1)
-            params = m.group(2)
-            body = m.group(3)
-            g_string = f"gate {gate_name}({params}) {{\n"
-            
-            g_instructions = filter(lambda i: not re.fullmatch(r"\s*", i), body.split(";"))
+            params = f"({m.group(3)})" if m.group(3) else ""
+            qubits = m.group(4).strip()
+            body = m.group(5)
+
+            defined_gates.add(gate_name)
+            g_string = f"gate {gate_name}{params} {qubits} {{\n"
+            g_instructions = filter(
+                lambda i: not re.fullmatch(r"\s*", i), body.split(";")
+            )
             for instruction in g_instructions:
                 instruction = instruction.strip()
                 i_code, h_code = convert_instruction_3_to_2(
@@ -759,8 +802,10 @@ def convert_instruction_3_to_2(
                     defined_gates,
                     path_to_main,
                 )
-                g_string += " " * 4 + i_code
+                g_string += " " * 4 + i_code  # Add indentation to body instructions
                 header_code += h_code
+
+            # Finalize the gate and add it to instructions_code
             instructions_code += g_string + "}\n"
 
     elif re.match(r"\s*if\s*\(.*?\)\s*.+", instr):
@@ -852,8 +897,7 @@ def open_qasm_3_to_2(
         )
         header_code += h_code
         instructions_code += i_code
-
-    target_code = header_code + "\n" + instructions_code
+    target_code = header_code + instructions_code
 
     return target_code
 
@@ -875,7 +919,7 @@ def parse_openqasm_3_file(code: str) -> list[str]:
 
     cleaned_code = cleaned_code.replace("\t", " ").strip()
 
-    gate_matches = list(re.finditer(r"gate .*?}", cleaned_code))
+    gate_matches = list(re.finditer(r"gate .*?}", cleaned_code, re.DOTALL))
 
     sanitized_start = (
         cleaned_code[: gate_matches[0].span()[0]] if gate_matches else cleaned_code
@@ -897,3 +941,66 @@ def parse_openqasm_3_file(code: str) -> list[str]:
 
     instructions = [i.lstrip() for i in instructions]
     return list(filter(lambda i: i.strip() != "", instructions))
+
+
+@typechecked
+def open_qasm_file_conversion_3_to_2(path: str) -> str:
+    """Converts an OpenQASM code in a file from version 3.0 and 2.0.
+
+    This function is a shorthand to initialize :func:`open_qasm_3_to_2` with the
+    correct values.
+
+    Args:
+        path: Path to the file containing the OpenQASM 3.0 code, and eventual
+            imports.
+
+    Returns:
+        Converted OpenQASM code in the 2.0 version.
+
+    Examples:
+        >>> example_dir = "examples/scripts/qasm_files/"
+        >>> with open(example_dir + "main_converted.qasm", "r") as f:
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        include 'include1_converted.qasm';
+        include 'include2_converted.qasm';
+        include "stdgates.inc";
+        qubit[2] q;
+        bit[2] c;
+        h q[0];
+        cx q[0],q[1];
+        gate2 q[0];
+        gate3 q[0], q[1];
+        c[0] = measure q[0];
+        c[1] = measure q[1];
+        >>> print(open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 2.0;
+        include 'include1_converted_converted.qasm';
+        include 'include2_converted_converted.qasm';
+        qreg q[2];
+        creg c[2];
+        h q[0];
+        cx q[0],q[1];
+        gate2 q[0];
+        gate3 q[0], q[1];
+        measure q[0] -> c[0];
+        measure q[1] -> c[1];
+        >>> with open(example_dir + "include1.qasm", "r") as f:
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 2.0;
+        gate gate2 a {
+            U(pi, -pi/2, pi/2) a;
+        }
+        >>> with open(example_dir + "include2.qasm", "r") as f:
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 2.0;
+        gate gate3 a, b {
+            U(0, -pi/2, pi/3) a;
+            cz a, b;
+        }
+
+    """
+
+    with open(path, "r") as f:
+        code = f.read()
+        return open_qasm_3_to_2(code, Node(path), str(Path(path).parent))
