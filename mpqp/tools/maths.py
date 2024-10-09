@@ -232,8 +232,8 @@ def rand_orthogonal_matrix(
                [-0.17290035,  0.9733528 , -0.15063131]])
 
     """
-    np.random.seed(seed)
-    m = np.random.rand(size, size)
+    rs = np.random.RandomState(seed)
+    m = rs.rand(size, size)
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
@@ -256,7 +256,12 @@ def rand_clifford_matrix(nb_qubits: int) -> npt.NDArray[np.complex64]:
     """
     from qiskit import quantum_info
 
-    return quantum_info.random_clifford(nb_qubits).to_matrix()
+    res = quantum_info.random_clifford(nb_qubits).to_matrix()
+
+    if TYPE_CHECKING:
+        assert isinstance(res, np.ndarray)
+
+    return res
 
 
 def rand_unitary_2x2_matrix() -> npt.NDArray[np.complex64]:
@@ -326,3 +331,9 @@ def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
     """
     m = np.random.rand(size, size).astype(np.complex64)
     return m + m.conjugate().transpose()
+
+
+Id = np.eye(2)
+pauli_X = np.ones((2, 2)) - Id
+pauli_Z = np.diag([1, -1])
+pauli_Y = 1j * pauli_X @ pauli_Z

@@ -137,12 +137,7 @@ class IBMDevice(AvailableDevice):
         return "simulator" in self.value
 
     def is_noisy_simulator(self) -> bool:
-        raise NotImplementedError()
-        # TODO: determine which devices can simulate noise or not for Qiskit remote, or local
-        noise_support_devices = {
-            IBMDevice.AER_SIMULATOR_STABILIZER: True,
-        }
-        return self in noise_support_devices
+        return self.is_simulator()
 
 
 class ATOSDevice(AvailableDevice):

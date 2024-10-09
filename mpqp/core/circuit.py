@@ -176,7 +176,7 @@ class QCircuit:
             c: 2/═══════════╩══╩═
                             0  1
 
-            >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
+            >>> circuit.add(Depolarizing(0.3, dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
@@ -756,6 +756,20 @@ class QCircuit:
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
+    def get_gates(self) -> list[Gate]:
+        """Returns all the measurements present in this circuit.
+
+        Returns:
+            The list of all measurements present in the circuit.
+
+        Example:
+            >>> circuit = QCircuit([H(1), CNOT(0, 1), Ry(.5, 1), BasisMeasure([0, 1], shots=1000)])
+            >>> circuit.get_gates()
+            [H(1), CNOT(0, 1), Ry(0.5, 1)]
+
+        """
+        return [inst for inst in self.instructions if isinstance(inst, Gate)]
+
     def get_measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
 
@@ -1157,9 +1171,8 @@ class QCircuit:
             f" Nb instructions = {len(self)}"
         )
 
-        qubits = set(range(self.size()[0]))
         for noise in self.noises:
-            print(noise.info(qubits))
+            print(noise.pprint())
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:

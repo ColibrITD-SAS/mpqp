@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from functools import reduce
+from itertools import product
 from typing import TYPE_CHECKING, Optional, Sequence
 
+import numpy as np
+import numpy.typing as npt
+
 from mpqp.tools.generics import T
+from mpqp.tools.maths import Id, pauli_X, pauli_Y, pauli_Z
 
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
@@ -14,7 +20,6 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.gates import Gate
 from mpqp.core.languages import Language
-from mpqp.noise.custom_noise import KrausRepresentation
 
 
 def plural_marker(items: Sequence[T]):
@@ -90,9 +95,51 @@ class NoiseModel(ABC):
         return set(self.targets)
 
     @abstractmethod
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """3M-TODO: to be implemented"""
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+        r"""Noise can be represented by Kraus operators. They represent how the
+        state is affected by the noise following the formula
+
+        `\rho \leftarrow \sum_{K \in \mathcal{K}} K \rho K^\dagger`
+
+        Where `\mathcal{K}` is the set of Kraus operators corresponding to the
+        noise model and `\rho` is the state (as a density matrix).
+
+        Returns:
+            The Kraus operators of the noise. Note that it is not a unique
+            representation.
+        """
         pass
+
+    def to_adjusted_kraus_operators(
+        self, targets: set[int], size: int
+    ) -> list[npt.NDArray[np.complex64]]:
+        r"""In some cases, you may prefer the Kraus operators to match the size
+        of your circuit, and the targets involved. In particular, the targets of
+        the noise application may not match the noise targets, because the noise
+        targets signifies all the qubits that the noise is applicable on, but if
+        the noise happens at a gate execution, it would only actually impact the
+        targets qubits of the gate.
+
+        Note:
+            This generic method considers that the default Kraus operators of
+            the noise are for one qubit noises. If this is not the case, this
+            method should be overloaded in the corresponding class.
+
+        Args:
+            targets: Qubits actually affected by the noise.
+            size: Size of the desired Kraus operators.
+
+        Returns:
+            The Kraus operators adjusted to the targets of the gate on which the
+            noise acts and the size of the circuit.
+        """
+        K = self.to_kraus_operators()
+        return [
+            reduce(np.kron, ops)
+            for ops in product(
+                *[K if t in targets else [Id.astype(np.complex64)] for t in range(size)]
+            )
+        ]
 
     @abstractmethod
     def to_other_language(self, language: Language) -> BraketNoise | QLMNoise:
@@ -109,9 +156,16 @@ class NoiseModel(ABC):
         """
         pass
 
-    def info(self, qubits: set[int]) -> str:
+    def pprint(self) -> str:
+        """For usage of pretty prints, this method displays in a string all
+        information relevant to the noise at matter.
+
+        Returns:
+            The string displaying the noise information in a human readable
+            manner.
+        """
         noise_info = f"{type(self).__name__} noise:"
-        if set(self.targets) not in [qubits, set()]:
+        if not self._dynamic:
             noise_info += f" on qubit{plural_marker(self.targets)}"
         if len(self.gates) != 0:
             noise_info += f" for gate{plural_marker(self.gates)}"
@@ -217,11 +271,13 @@ class Depolarizing(NoiseModel):
                 f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
             )
 
-    def to_kraus_representation(self):
-        """3M-TODO"""
-        # generate Kraus operators for depolarizing noise
-        kraus_operators = []  # list of Kraus operators
-        return KrausRepresentation(kraus_operators)
+    def to_kraus_operators(self):
+        return [
+            np.sqrt(1 - 3 * self.prob / 4) * Id,
+            np.sqrt(self.prob / 4) * pauli_X,
+            np.sqrt(self.prob / 4) * pauli_Y,
+            np.sqrt(self.prob / 4) * pauli_Z,
+        ]
 
     def __repr__(self):
         target = (
@@ -299,26 +355,29 @@ class Depolarizing(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def info(self, qubits: set[int]) -> str:
+    def pprint(self) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
-        return f"{super().info(qubits)} with probability {self.prob}{dimension}"
+        return f"{super().pprint()} with probability {self.prob}{dimension}"
 
 
 @typechecked
 class BitFlip(NoiseModel):
     """Class representing the bit flip noise channel, which flips the state of
-    a qubit with a certain probability. It can be applied to single and multi-qubit gates
-    and depends on a single parameter (probability or error rate).
+    a qubit with a certain probability. It can be applied to single and
+    multi-qubit gates and depends on a single parameter (probability or error
+    rate).
 
     Args:
         prob: Bit flip error probability or error rate (must be within [0, 0.5]).
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
-            affected by this noise. If multi-qubit gates is passed, single-qubit
-            bitflip will be added for each qubit connected (target, control) with the gates.
+        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate` affected
+            by this noise. If multi-qubit gates is passed, single-qubit bitflip
+            will be added for each qubit connected (target, control) with the
+            gates.
 
     Raises:
-        ValueError: When the probability is outside of the expected interval [0, 0.5].
+        ValueError: When the probability is outside of the expected interval
+            ``[0, 0.5]``.
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
@@ -359,7 +418,8 @@ class BitFlip(NoiseModel):
         self.prob = prob
         """Probability, or error rate, of the bit-flip noise model."""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def to_kraus_operators(self):
+        return [np.sqrt(1 - self.prob) * Id, np.sqrt(self.prob) * pauli_X]
 
     def __repr__(self):
         targets = (
@@ -397,8 +457,8 @@ class BitFlip(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def info(self, qubits: set[int]) -> str:
-        return f"{super().info(qubits)} with probability {self.prob}"
+    def pprint(self) -> str:
+        return f"{super().pprint()} with probability {self.prob}"
 
 
 @typechecked
@@ -467,7 +527,11 @@ class AmplitudeDamping(NoiseModel):
         self.prob = prob
         """Excitation probability, of the generalized amplitude damping noise channel."""
 
-    def to_kraus_representation(self) -> KrausRepresentation: ...
+    def to_kraus_operators(self):
+        return [
+            np.diag(1, np.sqrt(1 - self.prob)),
+            np.array([[0, np.sqrt(self.prob)], [0, 0]]),
+        ]
 
     def __repr__(self):
         prob = f", {self.prob}" if self.prob != 1 else ""
@@ -524,18 +588,26 @@ class AmplitudeDamping(NoiseModel):
                 f"Conversion of Amplitude Damping noise for language {language} is not supported."
             )
 
-    def info(self, qubits: set[int]) -> str:
+    def pprint(self) -> str:
         prob = f" and probability {self.prob}" if self.prob != 1 else ""
-        return f"{super().info(qubits)} with gamma {self.gamma}{prob}"
+        return f"{super().pprint()} with gamma {self.gamma}{prob}"
 
 
 class PhaseDamping(NoiseModel):
     """3M-TODO"""
 
-    def __init__(self):
+    def __init__(self, prob: float):
+        self.prob = prob
         raise NotImplementedError(
             f"{type(self).__name__} noise model is not yet implemented."
         )
+
+    def to_kraus_operators(self):
+        return [
+            np.sqrt(1 - self.prob) * Id,
+            np.diag([np.sqrt(self.prob), 0]),
+            np.diag([0, np.sqrt(self.prob)]),
+        ]
 
 
 class Pauli(NoiseModel):
