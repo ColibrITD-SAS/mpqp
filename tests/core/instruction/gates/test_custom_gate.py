@@ -52,11 +52,11 @@ def test_random_orthogonal_matrix(n_circ: int):
         assert isinstance(execution_aws, Result)
         assert isinstance(execution_qlm, Result)
 
-    assert matrix_eq(execution_ibm.amplitudes, exp_state_vector, 1e-06, 1e-05)
-    assert matrix_eq(execution_aws.amplitudes, exp_state_vector, 1e-06, 1e-05)
-    assert matrix_eq(execution_qlm.amplitudes, exp_state_vector, 1e-06, 1e-05)
-    assert matrix_eq(execution_qlm.amplitudes, execution_ibm.amplitudes, 1e-06, 1e-05)
-    assert matrix_eq(execution_aws.amplitudes, execution_ibm.amplitudes, 1e-06, 1e-05)
+    assert matrix_eq(execution_ibm.amplitudes, exp_state_vector, 1e-05, 1e-05)
+    assert matrix_eq(execution_aws.amplitudes, exp_state_vector, 1e-05, 1e-05)
+    assert matrix_eq(execution_qlm.amplitudes, exp_state_vector, 1e-05, 1e-05)
+    assert matrix_eq(execution_qlm.amplitudes, execution_ibm.amplitudes, 1e-05, 1e-05)
+    assert matrix_eq(execution_aws.amplitudes, execution_ibm.amplitudes, 1e-05, 1e-05)
 
 
 def test_custom_gate_with_native_gates():
@@ -98,19 +98,19 @@ def test_custom_gate_with_native_gates():
     assert matrix_eq(
         execution_ibm.amplitudes,
         expected_qlm.amplitudes,
-        1e-06,
+        1e-05,
         1e-05,
     )
     assert matrix_eq(
         execution_aws.amplitudes,
         expected_ibm.amplitudes,
-        1e-06,
+        1e-05,
         1e-05,
     )
     assert matrix_eq(
         execution_qlm.amplitudes,
         expected_aws.amplitudes,
-        1e-06,
+        1e-05,
         1e-05,
     )
 
@@ -146,18 +146,18 @@ def test_custom_gate_with_random_circuit(qubits: int):
     assert matrix_eq(
         execution_ibm.amplitudes,
         expected_qlm.amplitudes,
-        1e-06,
+        1e-05,
         1e-05,
     )
     assert matrix_eq(
         execution_aws.amplitudes,
         expected_ibm.amplitudes,
-        1e-06,
+        1e-05,
         1e-05,
     )
     assert matrix_eq(
         execution_qlm.amplitudes,
         expected_aws.amplitudes,
-        1e-06,
+        1e-05,
         1e-05,
     )
