@@ -1,11 +1,23 @@
 import random
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES, TOF, Rk, U
+from mpqp.core.instruction.gates.native_gates import (
+    NATIVE_GATES,
+    TOF,
+    CRk,
+    NativeGate,
+    P,
+    Rk,
+    RotationGate,
+    Rx,
+    Ry,
+    Rz,
+    U,
+)
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 
 
@@ -52,7 +64,12 @@ def random_circuit(
     """
 
     if gate_classes is None:
-        gate_classes = NATIVE_GATES
+        gate_classes = []
+        for gate in NATIVE_GATES:
+            if TYPE_CHECKING:
+                assert isinstance(gate.nb_qubits, int)
+            if gate.nb_qubits <= nb_qubits:
+                gate_classes.append(gate)
 
     qubits = list(range(nb_qubits))
     qcircuit = QCircuit(nb_qubits)
@@ -61,10 +78,10 @@ def random_circuit(
         and ((gate == TOF and nb_qubits <= 2) or nb_qubits <= 1)
         for gate in gate_classes
     ):
-        raise ValueError("number of qubits to low for this gates")
+        raise ValueError("number of qubits too low for this gates")
 
     for _ in range(nb_gates):
-        gate_class = random.choice(gate_classes)
+        gate_class: type[NativeGate] = random.choice(gate_classes)
         target = random.choice(qubits)
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
@@ -79,15 +96,19 @@ def random_circuit(
                     )
                 elif issubclass(gate_class, Rk):
                     qcircuit.add(Rk(random.randint(0, 10), target))
+                elif issubclass(gate_class, RotationGate):
+                    if TYPE_CHECKING:
+                        assert issubclass(gate_class, (Rx, Ry, Rz, P))
+                    qcircuit.add(gate_class(random.uniform(0, 2 * np.pi), target))
                 else:
-                    qcircuit.add(
-                        gate_class(float(random.uniform(0, 2 * np.pi)), target)
-                    )
+                    raise ValueError
             else:
                 qcircuit.add(gate_class(target))
         else:
             control = random.choice(list(set(qubits) - {target}))
             if issubclass(gate_class, ParametrizedGate):
+                if TYPE_CHECKING:
+                    assert issubclass(gate_class, CRk)
                 qcircuit.add(
                     gate_class(
                         random.randint(0, 10),

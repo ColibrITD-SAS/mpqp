@@ -676,7 +676,8 @@ class PauliString:
                 cirq_pauli_string = (
                     cirq_monomial
                     if cirq_pauli_string is None
-                    else cirq_pauli_string + cirq_monomial
+                    else cirq_pauli_string
+                    + cirq_monomial  # pyright: ignore[reportOperatorIssue]
                 )
 
             return cirq_pauli_string

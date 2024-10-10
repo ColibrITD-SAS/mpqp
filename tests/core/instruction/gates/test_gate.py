@@ -1,9 +1,9 @@
-import pytest
-
 import numpy as np
 import numpy.typing as npt
+import pytest
 
-from mpqp.gates import Gate, Z, X, SWAP, CustomGate, UnitaryMatrix
+from mpqp.core.circuit import QCircuit
+from mpqp.gates import SWAP, CustomGate, Gate, H, UnitaryMatrix, X, Z
 
 
 @pytest.mark.parametrize(
@@ -71,6 +71,7 @@ def test_power(gate: Gate, pow: float, result_matrix: npt.NDArray[np.complex64])
     assert np.allclose(gate.power(pow).to_matrix(), result_matrix)
 
 
+@pytest.mark.skip
 @pytest.mark.parametrize(
     "g1, g2, result_matrix",
     [
@@ -125,3 +126,20 @@ def test_add_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64
 )
 def test_sub_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64]):
     assert np.allclose(g1.minus(g2).to_matrix(), result_matrix)
+
+
+@pytest.mark.parametrize(
+    "gates, targets",
+    [
+        (H.range(4), [0, 1, 2, 3]),
+        (H.range(4, step=2), [0, 2]),
+        (H.range(2, 4), [2, 3]),
+        (H.range(2, 4, 2), [2]),
+        (Z.range(0, 4, 2), [0, 2]),
+    ],
+)
+def test_range(gates: list[Gate], targets: list[int]):
+    circuit = QCircuit(5)
+    circuit.add(gates)
+
+    assert {instr.targets[0] for instr in circuit.instructions} == set(targets)

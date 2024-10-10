@@ -219,6 +219,7 @@ class Gate(Instruction, ABC):
                     0.        +0.j        , 1.        +0.j        ]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -289,6 +290,7 @@ class Gate(Instruction, ABC):
              [1, 0]]
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -314,6 +316,7 @@ class Gate(Instruction, ABC):
                    [0.+1.j, 0.+0.j]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -341,6 +344,7 @@ class Gate(Instruction, ABC):
                    [ 0.70710678,  0.70710678]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         subtraction = self.to_matrix() - other.to_matrix()
@@ -368,6 +372,7 @@ class Gate(Instruction, ABC):
                    [ 0.70710678, -0.70710678]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         addition = self.to_matrix() + other.to_matrix()
@@ -435,3 +440,22 @@ class SingleQubitGate(Gate, ABC):
     nb_qubits = (  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
         1
     )
+
+    @classmethod
+    def range(cls, start_or_end: int, end: Optional[int] = None, step: int = 1):
+        """Apply the gate to a range of qubits.
+
+        Args:
+            start_or_end: If ``end`` is not defined, this value is treated as
+                the end value of the range, and the range starts from ``0``.
+                Otherwise, it is treated as the start value.
+            end: The upper bound of the range (exclusive).
+            step: The step or increment between indices in the range.
+
+        Returns:
+            A list of gate instances applied to the qubits in the specified
+            range.
+        """
+        if end is None:
+            start_or_end, end = 0, start_or_end
+        return [cls(index) for index in range(start_or_end, end, step)]

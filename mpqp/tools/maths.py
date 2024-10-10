@@ -137,6 +137,26 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
+def closest_unitary(matrix: Matrix):
+    """Calculate the unitary matrix that is closest with respect to the operator norm distance to the general matrix
+    in parameter.
+
+    Args:
+        matrix: Matrix for which we want to determine the closest unitary matrix.
+
+        Return U as a numpy matrix.
+
+    Example:
+        # TODO : fill examples
+
+    """
+    from scipy.linalg import svd
+
+    V, _, Wh = svd(matrix)
+    return np.array(V.dot(Wh))
+
+
+@typechecked
 def cos(angle: Expr | Real) -> sp.Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
@@ -326,3 +346,23 @@ def rand_hermitian_matrix(size: int) -> npt.NDArray[np.complex64]:
     """
     m = np.random.rand(size, size).astype(np.complex64)
     return m + m.conjugate().transpose()
+
+
+@typechecked
+def is_power_of_two(n: int):
+    """Checks if the integer in parameter is a (positive) power of two.
+
+    Args:
+        n: Integer for which we want to check if it is a power of two.
+
+    Returns:
+        True if the integer in parameter is a power of two.
+
+    Example:
+        >>> is_power_of_two(4)
+        True
+        >>> is_power_of_two(6)
+        False
+
+    """
+    return n >= 1 and (n & (n - 1)) == 0

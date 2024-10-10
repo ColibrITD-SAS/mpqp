@@ -55,8 +55,8 @@ def test_noisy_expectation_value_execution_without_error(
 ):
     circuit.add(
         ExpectationMeasure(
+            Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
             [0, 1, 2],
-            observable=Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
             shots=1023,
         )
     )

@@ -13,7 +13,7 @@ from typeguard import typechecked
 
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.generics import Matrix
-from mpqp.tools.maths import is_unitary, matrix_eq
+from mpqp.tools.maths import is_unitary, matrix_eq, is_power_of_two
 
 
 @typechecked
@@ -30,11 +30,11 @@ class GateDefinition(ABC):
     Example:
         >>> gate_matrix = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
         >>> gate_definition = UnitaryMatrix(gate_matrix)
-        >>> custom_gate = CustomGate(gate_definition, [0])
+        >>> custom_gate = CustomGate(gate_definition, [0,1])
 
     """
 
-    # TODO: put this back once we implement the other definitions
+    # TODO: put this back once we implement the other definitions. Are those definitions really useful in practice ?
     # This class permit to define a gate in 4 potential ways:
     #     1. the unitary matrix defining the gate
     #     2. a combination of several other gates
@@ -103,7 +103,7 @@ class GateDefinition(ABC):
 
 @typechecked
 class UnitaryMatrix(GateDefinition):
-    """Definition of a gate using it's matrix.
+    """Definition of a gate using its matrix.
 
     Args:
         definition: Matrix defining the unitary gate.
@@ -123,14 +123,26 @@ class UnitaryMatrix(GateDefinition):
                 "Matrices defining gates have to be unitary. It is not the case"
                 f" for\n{definition}"
             )
+        elif not is_power_of_two(definition.shape[0]):
+            raise ValueError(
+                "The unitary matrix of a gate acting on qubits must have dimensions that are power of two, "
+                f"but got {definition.shape[0]}."
+            )
         self.matrix = definition
         """See parameter :attr:`definition`'s description."""
+        self._nb_qubits = None
 
     def to_matrix(self) -> Matrix:
         return self.matrix
 
     def to_canonical_matrix(self):
         return self.matrix
+
+    @property
+    def nb_qubits(self) -> int:
+        if self._nb_qubits is None:
+            self._nb_qubits = int(np.log2(self.matrix.shape[0]))
+        return self._nb_qubits
 
     def subs(
         self,
