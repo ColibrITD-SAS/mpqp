@@ -20,8 +20,8 @@ def random_circuit(
     args:
         nb_qubits : Number of qubits in the circuit.
         gate_classes : List of native gate classes to use in the circuit.
-        nb_gates : Number of gates to add to the circuit. Defaults to a random
-         integer between 5 and 10.
+        nb_gates : Number of gates to add to the circuit.
+        seed: Seed used to control the random generation of the circuit.
 
     Returns:
         A quantum circuit with the specified number of qubits and randomly chosen gates.
@@ -30,7 +30,7 @@ def random_circuit(
         ValueError: If the number of qubits is too low for the specified gates.
 
     Examples:
-        >>> print(random_circuit([U, TOF], 3)) # doctest: +SKIP
+        >>> random_circuit([U, TOF], 3)
                                           ┌───┐          ┌─────────────────────────┐
         q_0: ─────────────────────────────┤ X ├──■────■──┤ U(2.8347,3.0652,3.7577) ├
              ┌───────────────────────────┐└─┬─┘  │    │  ├─────────────────────────┤
@@ -39,17 +39,8 @@ def random_circuit(
         q_2: ───────────────────────────────■──┤ X ├┤ X ├┤ U(5.0316,3.0011,4.0064) ├
                                                └───┘└───┘└─────────────────────────┘
 
-        >>> print(random_circuit([U, TOF], 3, seed=123))
-                  ┌───┐                           ┌───┐
-        q_0: ──■──┤ X ├───────────────────────────┤ X ├
-             ┌─┴─┐└─┬─┘┌───────────────────────── └─┬─┘
-        q_1: ┤ X ├──■──┤ U(5.1025,5.8015,1.7378) ├──■──
-             └─┬─┘  │  ├─────────────────────────┤  │
-        q_2: ──■────■──┤ U(5.5914,3.2231,1.5392) ├──■──
-                       └─────────────────────────┘
-
         >>> from mpqp.core.instruction.gates import native_gates
-        >>> print(random_circuit(native_gates.NATIVE_GATES, 4, 10))
+        >>> random_circuit(native_gates.NATIVE_GATES, 4, 10)
                                              ┌───┐┌───┐  ┌───┐  ┌───────┐
         q_0: ────────────────────────────────┤ X ├┤ X ├──┤ Z ├──┤ Rz(5) ├─X─
              ┌───┐                           └─┬─┘└─┬─┘  └───┘  └───────┘ │
@@ -60,8 +51,17 @@ def random_circuit(
         q_3: ───────────────────────────────────────■──┤ Ry(4) ├──┤ S ├─────
                                                        └───────┘  └───┘
 
+        >>> print(random_circuit([U, TOF], 3, seed=123)) # doctest: +NORMALIZE_WHITESPACE
+                  ┌───┐                           ┌───┐
+        q_0: ──■──┤ X ├───────────────────────────┤ X ├
+             ┌─┴─┐└─┬─┘┌─────────────────────────┐└─┬─┘
+        q_1: ┤ X ├──■──┤ U(5.1025,5.8015,1.7378) ├──■──
+             └─┬─┘  │  ├─────────────────────────┤  │
+        q_2: ──■────■──┤ U(5.5914,3.2231,1.5392) ├──■──
+                       └─────────────────────────┘
+
         >>> from mpqp.core.instruction.gates import native_gates
-        >>> print(random_circuit(native_gates.NATIVE_GATES, 4, 10, seed=123))
+        >>> print(random_circuit(native_gates.NATIVE_GATES, 4, 10, seed=123)) # doctest: +NORMALIZE_WHITESPACE
                                   ┌───┐           ┌────────┐┌───┐┌───┐
         q_0: ───────■─────────────┤ I ├───────────┤ P(π/4) ├┤ Y ├┤ X ├
                     │  ┌──────────┴───┴──────────┐├───────┬┘├───┤└─┬─┘
@@ -97,7 +97,7 @@ def random_circuit(
         raise ValueError("number of qubits to low for this gates")
 
     for _ in range(nb_gates):
-        gate_class = rng.choice(gate_classes)
+        gate_class = rng.choice(gate_classes)  # type: ignore[reportArgumentType]
         target = int(rng.choice(qubits))
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
@@ -113,19 +113,13 @@ def random_circuit(
                 elif issubclass(gate_class, Rk):
                     qcircuit.add(Rk(rng.integers(0, 10), target))
                 else:
-                    qcircuit.add(gate_class(int(rng.uniform(0, 2 * np.pi)), target))
+                    qcircuit.add(gate_class(int(rng.uniform(0, 2 * np.pi)), target))  # type: ignore[reportArgumentType]
             else:
                 qcircuit.add(gate_class(target))
         else:
             control = int(rng.choice(list(set(qubits) - {target})))
             if issubclass(gate_class, ParametrizedGate):
-                qcircuit.add(
-                    gate_class(
-                        rng.integers(0, 10),
-                        control,
-                        target,
-                    )
-                )
+                qcircuit.add(gate_class(rng.integers(0, 10), control, target))  # type: ignore[reportArgumentType]
             elif issubclass(gate_class, TOF):
                 control2 = int(rng.choice(list(set(qubits) - {target, control})))
                 qcircuit.add(TOF([control, control2], target))
