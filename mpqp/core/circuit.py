@@ -1103,9 +1103,7 @@ class QCircuit:
 
         qiskit_circ.reverse_bits()
 
-        if all([not isinstance(inst, CustomGate) for inst in self.instructions]):
-            return qasm2.dumps(qiskit_circ)
-
+        custom_gate_used = False
         global_phase = 0
         new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
@@ -1115,12 +1113,15 @@ class QCircuit:
                 )
                 new_circuit.compose(circuit, inplace=True)
                 global_phase += gphase
+                custom_gate_used = True
             else:
                 new_circuit.append(instruction)
 
         self.gphase = global_phase
 
-        return qasm2.dumps(new_circuit)
+        if custom_gate_used:
+            return qasm2.dumps(new_circuit)
+        return qasm2.dumps(qiskit_circ)
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.
