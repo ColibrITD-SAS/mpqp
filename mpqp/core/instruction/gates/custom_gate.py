@@ -1,7 +1,8 @@
-"""In some cases, we need to manipulate unitary operations that are not defined using native gates (by the
-corresponding unitary matrix for instance). We define a
-:class:`CustomGate<mpqp.core.instruction.gates.custom_gate.CustomGate>` class allowing the user to add his custom
-unitary operation to the circuit, that will be decomposed and executed transparently."""
+"""In some cases, we need to manipulate unitary operations that are not defined
+using native gates (by the corresponding unitary matrix for instance). For those
+cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate` 
+to add your custom unitary operation to the circuit, which will be decomposed 
+and executed transparently."""
 
 from typing import TYPE_CHECKING, Optional
 
@@ -20,12 +21,13 @@ class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 
     Args:
-        definition: The UnitaryMatrix (only way supported for now) description of the gate.
+        definition: The description of the gate.
         targets: The qubits on which the gate operates.
         label: The label of the gate. Defaults to None.
 
     Raises:
-        ValueError: the target qubits must be contiguous and in order, and must match the size of the UnitaryMatrix
+        ValueError: the target qubits must be contiguous and in order, and must
+            match the size of the UnitaryMatrix
 
     Example:
         >>> u = UnitaryMatrix(np.array([[0,-1],[1,0]]))
@@ -37,7 +39,8 @@ class CustomGate(Gate):
          Number of qubits: 1
 
     Note:
-        For the moment, only ordered and contiguous target qubits are allowed when instantiating a CustomGate.
+        For the moment, only ordered and contiguous target qubits are allowed
+        when instantiating a CustomGate.
 
     """
 
