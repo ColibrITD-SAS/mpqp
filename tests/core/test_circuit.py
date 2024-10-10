@@ -23,6 +23,7 @@ from mpqp.tools.circuit import compute_expected_matrix, random_circuit
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.generics import Matrix, OneOrMany
+from mpqp.tools.maths import matrix_eq
 
 
 @pytest.mark.parametrize(
@@ -440,14 +441,15 @@ def test_to_matrix(circuit: QCircuit, expected_matrix: Matrix):
     np.testing.assert_almost_equal(circuit.to_matrix(), expected_matrix)
 
 
-def test_to_matrix_random():
-    seed = 42
-
+def test_to_matrix_random(global_seed):
     gates = [
         gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
     ]
     for _ in range(10):
-        qcircuit = random_circuit(gates, nb_qubits=4, seed=seed)
-        expected_matrix = compute_expected_matrix(qcircuit)
+        if global_seed:
+            qcircuit = random_circuit(gates, nb_qubits=4, seed=global_seed)
+        else:
+            qcircuit = random_circuit(gates, nb_qubits=4)
 
-        np.testing.assert_equal(qcircuit.to_matrix(), expected_matrix)
+        expected_matrix = compute_expected_matrix(qcircuit)
+        assert matrix_eq(qcircuit.to_matrix(), expected_matrix)
