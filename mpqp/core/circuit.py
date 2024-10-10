@@ -132,8 +132,8 @@ class QCircuit:
         self._nb_qubits: int
         """Number of qubits of the circuit."""
 
-        self.gphase: Optional[float] = None
-        """Stores the global phase arising from the Qiskit conversion of CustomGates 
+        self.gphase: float = 0
+        """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
         to OpenQASM2. It is used to correct the global phase when the job type
         is STATE_VECTOR, and when this circuit contains CustomGate. `None`` otherwise."""
 
@@ -1120,8 +1120,7 @@ class QCircuit:
             else:
                 new_circuit.append(instruction)
 
-        if global_phase != 0:
-            self.gphase = np.exp(1j * global_phase)
+        self.gphase = global_phase
 
         return qasm2.dumps(new_circuit)
 
