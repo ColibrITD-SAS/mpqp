@@ -919,11 +919,9 @@ class QCircuit:
 
                 if isinstance(instruction, CustomGate):
                     # We reverse the target qubits to pass the unitary in the usual qubit ordering
-                    reversed_target = instruction.targets
-                    reversed_target.reverse()
                     new_circ.unitary(
                         instruction.to_other_language(),
-                        reversed_target,
+                        list(reversed(instruction.targets)),
                         instruction.label,
                     )
                     continue
