@@ -6,7 +6,6 @@ from doctest import DocTestFinder, DocTestRunner, Example
 from types import TracebackType
 from typing import Optional, Type
 
-import numpy as np
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
 
@@ -27,6 +26,7 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
+from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
 from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import *
@@ -71,7 +71,26 @@ class SafeRunner:
         load_env_variables()
 
 
-def test_documentation():
+class RandomDoctestRunner(DocTestRunner):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    def run(self, test, *args, **kwargs):
+        if "rand" in test.name or "random" in test.name:
+            if "seed=" not in test.examples[0].source:
+                for example in test.examples:
+                    import doctest
+
+                    example.options[doctest.SKIP] = True
+        return super().run(test, *args, **kwargs)
+
+
+def test_documentation(global_seed, seed=None):
+    test_seed = seed if seed is not None else global_seed
+
+    if test_seed is not None:
+        np.random.seed(test_seed)
+
     print(os.getcwd())
 
     test_globals = globals().copy()
@@ -81,7 +100,6 @@ def test_documentation():
     saf_file = ["env"]
 
     finder = DocTestFinder()
-    runner = DocTestRunner()
 
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         folder_path = "mpqp"
@@ -106,6 +124,15 @@ def test_documentation():
                             and "3M-TODO" not in test.docstring
                             and "6M-TODO" not in test.docstring
                         ):
+                            if (
+                                "rand" in test.name
+                                or "random" in test.name
+                                and "seed=" not in test.examples[0].source
+                            ):
+                                runner = RandomDoctestRunner()
+                            else:
+                                runner = DocTestRunner()
+
                             if saf:
                                 with SafeRunner():
                                     if "PYTEST_CURRENT_TEST" not in os.environ:
