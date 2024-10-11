@@ -6,7 +6,13 @@ import numpy as np
 import pytest
 
 from mpqp import QCircuit
-from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice, GOOGLEDevice
+from mpqp.execution import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    IBMDevice,
+    GOOGLEDevice,
+)
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
