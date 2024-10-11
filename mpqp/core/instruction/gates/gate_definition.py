@@ -115,18 +115,18 @@ class UnitaryMatrix(GateDefinition):
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
 
         numeric = True
-        if not disable_symbol_warn:
-            for _, elt in np.ndenumerate(definition):
-                # 3M-TODO: can we improve this situation ?
-                try:
-                    complex(elt)
-                except:
+        for _, elt in np.ndenumerate(definition):
+            # 3M-TODO: can we improve this situation ?
+            try:
+                complex(elt)
+            except TypeError:
+                if not disable_symbol_warn:
                     warn(
                         "Cannot ensure that a operator defined with symbolic "
                         "variables is unitary."
                     )
-                    numeric = False
-                    break
+                numeric = False
+                break
         if numeric and not is_unitary(definition):
             raise ValueError(
                 "Matrices defining gates have to be unitary. It is not the case"
