@@ -1,4 +1,5 @@
 from copy import deepcopy
+from typing import TYPE_CHECKING
 from itertools import product
 from operator import (
     add,
@@ -14,6 +15,9 @@ from operator import (
     truediv,
 )
 from random import randint
+
+if TYPE_CHECKING:
+    from qiskit.quantum_info import SparsePauliOp
 
 import numpy as np
 import numpy.typing as npt
