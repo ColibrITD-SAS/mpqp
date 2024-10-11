@@ -328,9 +328,7 @@ class Depolarizing(DimensionalNoiseModel):
                     "Depolarizing channel of dimension 2 for idle qubits is not supported by the QLM."
                 )
 
-            from qat.quops import (
-                make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
-            )
+            from qat.quops.quantum_channels import make_depolarizing_channel
 
             return make_depolarizing_channel(
                 prob=self.prob,
@@ -458,7 +456,7 @@ class BitFlip(NoiseModel):
             return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
         elif language == Language.MY_QLM:
-            from qat.quops import QuantumChannelKraus
+            from qat.quops.quantum_channels import QuantumChannelKraus
 
             return QuantumChannelKraus(
                 [
@@ -618,9 +616,7 @@ class AmplitudeDamping(NoiseModel):
                 return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
         elif language == Language.MY_QLM:
-            from qat.quops import (
-                make_generalized_amplitude_damping,  # pyright: ignore[reportAttributeAccessIssue]
-            )
+            from qat.quops.quantum_channels import make_generalized_amplitude_damping
 
             return make_generalized_amplitude_damping(self.prob, self.gamma)
 
