@@ -6,6 +6,7 @@ and executed transparently."""
 
 from typing import TYPE_CHECKING, Optional
 
+from mpqp.tools import Matrix
 from typeguard import typechecked
 
 if TYPE_CHECKING:
@@ -21,7 +22,7 @@ class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 
     Args:
-        definition: The description of the gate.
+        definition: The GateDefinition describing the gate.
         targets: The qubits on which the gate operates.
         label: The label of the gate. Defaults to None.
 
@@ -47,7 +48,7 @@ class CustomGate(Gate):
     def __init__(
         self, definition: UnitaryMatrix, targets: list[int], label: Optional[str] = None
     ):
-        self.matrix = definition.matrix
+        self.definition = definition
         """See parameter description."""
 
         if definition.nb_qubits != len(targets):
@@ -64,6 +65,10 @@ class CustomGate(Gate):
         #  use the to_matrix() method inherited from Gate, maybe
 
         super().__init__(targets, label)
+
+    @property
+    def matrix(self) -> Matrix:
+        return self.definition.matrix
 
     def to_matrix(self, desired_gate_size: int = 0):
         return self.matrix
