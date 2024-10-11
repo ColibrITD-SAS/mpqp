@@ -32,17 +32,17 @@ is not supported, so your milage may vary).
 Your first circuit
 ------------------
 
-A circuit is created by providing :class:`QCircuit<mpqp.core.circuit.QCircuit>`
-a list of :class:`Instruction<mpqp.core.instruction.instruction.Instruction>` 
+A circuit is created by providing :class:`~mpqp.core.circuit.QCircuit`
+a list of :class:`~mpqp.core.instruction.instruction.Instruction` 
 (gates and measurement). To run a circuit, you can then use the 
-:func:`run<mpqp.execution.runner.run>` function.
+:func:`~mpqp.execution.runner.run` function.
 
 .. code-block:: python
 
     >>> from mpqp import QCircuit
     >>> from mpqp.gates import X, CNOT
     >>> from mpqp.measures import BasisMeasure
-    >>> print(QCircuit([X(0),CNOT(0, 1), BasisMeasure([0, 1], shots=100)]))
+    >>> print(QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)]))
          ┌───┐     ┌─┐
     q_0: ┤ X ├──■──┤M├───
          └───┘┌─┴─┐└╥┘┌─┐
@@ -58,8 +58,16 @@ Setup remote accesses
 
 Installing MPQP gives you access to ``setup_connections`` a script facilitating
 the setting up of remote QPU connections. The three supported providers (qiskit,
-Qaptiva and braket) can be setup from this script. Each of these providers have
-their own set of data needed to setup the connection, summed up here:
+Qaptiva and braket) can be setup from this script.  
+
+To run the script, simply run the following command in your terminal:
+
+.. code-block:: console
+
+    $ setup_connections
+
+Each of these providers have their own set of data needed to setup the connection, 
+summed up here:
 
 - IBM quantum (qiskit): for this provider, you only need your account ``API
   token``, which you can find in your `account page <https://quantum.ibm.com/account>`_;
@@ -79,6 +87,8 @@ their own set of data needed to setup the connection, summed up here:
   + ``AWS Access Key ID``,
   + ``AWS Secret Access Key`` and
   + ``Default region name``.
+
+To see which devices are available, see :ref:`Devices`.
 
 Execute examples
 ----------------

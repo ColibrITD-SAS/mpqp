@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from copy import deepcopy
+from functools import reduce
 from typing import Optional
 
 import numpy as np
@@ -20,7 +21,7 @@ class Gate(Instruction, ABC):
 
     A gate is an measurement and the main component of a circuit. The semantics
     of a gate is defined using
-    :class:`GateDefinition<mpqp.core.instruction.gates.gate_definition.GateDefinition>`.
+    :class:`~mpqp.core.instruction.gates.gate_definition.GateDefinition`.
 
     Args:
         targets: List of indices referring to the qubits on which the gate will
@@ -38,8 +39,86 @@ class Gate(Instruction, ABC):
             raise ValueError("Expected non-empty target list")
         super().__init__(targets, label=label)
 
+    def to_matrix(self, desired_gate_size: int = 0) -> Matrix:
+        """Return the matricial semantics to this gate. Considering connections'
+        order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
+
+        Args:
+            desired_gate_size: The total number for qubits needed for the gate
+                representation. If not provided, the minimum number of qubits
+                required to generate the matrix will be used.
+
+        Returns:
+            A numpy array representing the unitary matrix of the gate.
+
+        Example:
+            >>> gd = UnitaryMatrix(
+            ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
+            ... )
+            >>> pprint(CustomGate(gd, [1, 2]).to_matrix())
+            [[0, 0, 0, 1],
+             [0, 1, 0, 0],
+             [1, 0, 0, 0],
+             [0, 0, 1, 0]]
+            >>> pprint(SWAP(0, 1).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
+            >>> pprint(TOF([1,3], 2).to_matrix())
+            [[1, 0, 0, 0, 0, 0, 0, 0],
+             [0, 1, 0, 0, 0, 0, 0, 0],
+             [0, 0, 1, 0, 0, 0, 0, 0],
+             [0, 0, 0, 1, 0, 0, 0, 0],
+             [0, 0, 0, 0, 1, 0, 0, 0],
+             [0, 0, 0, 0, 0, 0, 0, 1],
+             [0, 0, 0, 0, 0, 0, 1, 0],
+             [0, 0, 0, 0, 0, 1, 0, 0]]
+
+        """
+        from .native_gates import SWAP
+
+        first_connection = min(self.connections())
+        last_connection = max(self.connections())
+        connections_offset = 0
+
+        if desired_gate_size == 0:
+            desired_gate_size = last_connection - first_connection + 1
+            connections_offset = first_connection
+
+        if connections_offset + desired_gate_size < last_connection:
+            raise ValueError(f"`desired_gate_size` must be at least {last_connection}")
+
+        preceding_eyes = np.eye(2 ** (first_connection - connections_offset))
+        following_eyes = np.eye(
+            2
+            ** (
+                desired_gate_size
+                - len(self.targets)
+                - (first_connection - connections_offset)
+            )
+        )
+        result = np.kron(
+            preceding_eyes, np.kron(self.to_canonical_matrix(), following_eyes)
+        )
+
+        permutations = set(
+            tuple(sorted((origin + first_connection, destination)))
+            for (origin, destination) in enumerate(self.targets)
+            if origin + first_connection != destination
+        )
+
+        swaps = [
+            SWAP(o_index - connections_offset, d_index - connections_offset).to_matrix(
+                desired_gate_size
+            )
+            for o_index, d_index in permutations
+        ]
+
+        return reduce(np.dot, swaps[::-1] + [result] + swaps)
+
     @abstractmethod
-    def to_matrix(self) -> Matrix:
+    def to_canonical_matrix(self) -> Matrix:
         """Return the "base" matricial semantics to this gate. Without
         considering potential column and row permutations needed if the targets
         of the gate are not sorted.
@@ -51,16 +130,16 @@ class Gate(Instruction, ABC):
             >>> gd = UnitaryMatrix(
             ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
             ... )
-            >>> CustomGate(gd, [1, 2]).to_matrix()
-            array([[0, 0, 0, 1],
-                   [0, 1, 0, 0],
-                   [1, 0, 0, 0],
-                   [0, 0, 1, 0]])
-            >>> SWAP(0,1).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 0, 1]])
+            >>> pprint(CustomGate(gd, [1, 2]).to_canonical_matrix())
+            [[0, 0, 0, 1],
+             [0, 1, 0, 0],
+             [1, 0, 0, 0],
+             [0, 0, 1, 0]]
+            >>> pprint(SWAP(0,1).to_canonical_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
 
         """
 
@@ -77,6 +156,7 @@ class Gate(Instruction, ABC):
             array([[1.-0.j, 0.-0.j],
                    [0.-0.j, 0.-1.j]])
 
+        # 3M-TODO: test
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
@@ -103,6 +183,7 @@ class Gate(Instruction, ABC):
             >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
             True
 
+        # 3M-TODO: test
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
@@ -117,17 +198,17 @@ class Gate(Instruction, ABC):
 
         Examples:
             >>> swap_gate = SWAP(0,1)
-            >>> (swap_gate.power(2)).to_matrix()
-            array([[1, 0, 0, 0],
-                   [0, 1, 0, 0],
-                   [0, 0, 1, 0],
-                   [0, 0, 0, 1]])
-            >>> (swap_gate.power(-1)).to_matrix()
-            array([[1., 0., 0., 0.],
-                   [0., 0., 1., 0.],
-                   [0., 1., 0., 0.],
-                   [0., 0., 0., 1.]])
-            >>> (swap_gate.power(0.75)).to_matrix() # not implemented yet
+            >>> pprint((swap_gate.power(2)).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 1, 0, 0],
+             [0, 0, 1, 0],
+             [0, 0, 0, 1]]
+            >>> pprint((swap_gate.power(-1)).to_matrix())
+            [[1, 0, 0, 0],
+             [0, 0, 1, 0],
+             [0, 1, 0, 0],
+             [0, 0, 0, 1]]
+            >>> pprint((swap_gate.power(0.75)).to_matrix()) # not implemented yet #doctest: +SKIP
             array([[1.        +0.j        , 0.        +0.j        ,
                     0.        +0.j        , 0.        +0.j        ],
                    [0.        +0.j        , 0.14644661+0.35355339j,
@@ -203,9 +284,9 @@ class Gate(Instruction, ABC):
             The product of the two gates concerned.
 
         Example:
-            >>> (X(0).product(Z(0))).to_matrix()
-            array([[ 0, -1],
-                   [ 1,  0]])
+            >>> pprint((X(0).product(Z(0))).to_matrix())
+            [[0, -1],
+             [1, 0]]
 
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
@@ -354,3 +435,22 @@ class SingleQubitGate(Gate, ABC):
     nb_qubits = (  # pyright: ignore[reportIncompatibleMethodOverride, reportAssignmentType]
         1
     )
+
+    @classmethod
+    def range(cls, start_or_end: int, end: Optional[int] = None, step: int = 1):
+        """Apply the gate to a range of qubits.
+
+        Args:
+            start_or_end: If ``end`` is not defined, this value is treated as
+                the end value of the range, and the range starts from ``0``.
+                Otherwise, it is treated as the start value.
+            end: The upper bound of the range (exclusive).
+            step: The step or increment between indices in the range.
+
+        Returns:
+            A list of gate instances applied to the qubits in the specified
+            range.
+        """
+        if end is None:
+            start_or_end, end = 0, start_or_end
+        return [cls(index) for index in range(start_or_end, end, step)]

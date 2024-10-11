@@ -24,15 +24,15 @@ class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 
     An Instruction is the elementary component of a
-    :class:`QCircuit<mpqp.core.circuit>`. It consists in a manipulation of one
+    :class:`~mpqp.core.circuit`. It consists in a manipulation of one
     (or several) qubit(s) of the quantum circuit. It may involve classical bits
     as well, for defining or retrieving the result of the instruction.
 
     It can be of type:
 
-        - :class:`Gate<mpqp.core.instruction.gates.gate.Gate>`
-        - :class:`Measure<mpqp.core.instruction.measurement.measure.Measure>`
-        - :class:`Barrier<mpqp.core.instruction.barrier.Barrier>`
+        - :class:`~mpqp.core.instruction.gates.gate.Gate`
+        - :class:`~mpqp.core.instruction.measurement.measure.Measure`
+        - :class:`~mpqp.core.instruction.barrier.Barrier`
 
     Args:
         targets: List of indices referring to the qubits on which the
@@ -53,6 +53,7 @@ class Instruction(SimpleClassReprABC):
         """See parameter description."""
         self.label = label
         """See parameter description."""
+        self._dynamic = False
 
     @property
     def nb_qubits(self) -> int:
@@ -103,9 +104,11 @@ class Instruction(SimpleClassReprABC):
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(max(self.connections()) + 1)
-        c.add(self)
-        return str(c)
+        connection = self.connections()
+        circuit_size = max(connection) + 1 if connection else 1
+        circuit = QCircuit(circuit_size)
+        circuit.add(self)
+        return str(circuit)
 
     def __repr__(self) -> str:
         from mpqp.core.instruction.gates import ControlledGate

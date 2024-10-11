@@ -4,6 +4,7 @@ from .custom_gate import CustomGate, UnitaryMatrix
 from .gate import Gate
 from .gate_definition import GateDefinition
 from .native_gates import (
+    NativeGate,
     CNOT,
     CZ,
     SWAP,

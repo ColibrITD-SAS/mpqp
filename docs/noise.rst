@@ -28,7 +28,7 @@ Noise models
 ------------
 
 In order to represent a general noise model, we introduce the abstract class
-:class:`NoiseModel<mpqp.noise.noise_model.NoiseModel>`. It regroups all the
+:class:`~mpqp.noise.noise_model.NoiseModel`. It regroups all the
 attributes and methods common to all predefined noise models.
 
 While currently abstract, the class is designed with extensibility in mind to

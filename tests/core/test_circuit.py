@@ -9,12 +9,19 @@ from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
 
 from mpqp import Barrier, Instruction, Language, QCircuit
-from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Rx, Ry, Rz, S, T, X, Y, Z
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import I, Z as Pauli_Z
+from mpqp.execution.devices import ATOSDevice
+from mpqp.execution.runner import run
+from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z, TOF
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.noise.noise_model import Depolarizing
+from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
+from mpqp.core.instruction.gates import native_gates
+from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.tools.circuit import random_circuit, compute_expected_matrix
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.generics import OneOrMany
+from mpqp.tools.generics import Matrix, OneOrMany
 
 
 @pytest.mark.parametrize(
@@ -176,12 +183,12 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                 [
                     BasisMeasure([0, 1], shots=1000),
                     ExpectationMeasure(
-                        [1], Observable(np.identity(2, dtype=np.complex64)), shots=1000
+                        Observable(np.identity(2, dtype=np.complex64)), [1], shots=1000
                     ),
                 ]
             ),
-            "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure([1], "
-            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), shots=1000)]",
+            "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure("
+            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]",
         )
     ],
 )
@@ -350,3 +357,94 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         encoding="utf-8",
     ) as f:
         assert circuit.to_qasm3().strip() == f.read().strip()
+
+
+@pytest.mark.parametrize(
+    "measure",
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * I @ Pauli_Z + 1 * I @ I))],
+)
+def test_measure_no_target(measure: Measure):
+    circuit = QCircuit(2)
+    circuit.add(H(0))
+    circuit.add(CNOT(0, 1))
+    circuit.add(measure)
+
+    if isinstance(measure, ExpectationMeasure):
+        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_value, float)  # type: ignore[AttributeAccessIssue]
+    else:
+        assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
+
+
+@pytest.mark.parametrize(
+    "component",
+    [
+        Depolarizing(0.3),
+        BitFlip(0.05),
+        AmplitudeDamping(0.2),
+        Barrier(),
+        BasisMeasure(),
+    ],
+)
+def test_instruction_no_target(component: Instruction | NoiseModel):
+    circuit = QCircuit(2)
+    circuit.add(component)
+
+    qubits = list(range(circuit.nb_qubits))
+    for instruction in circuit.instructions:
+        assert qubits == instruction.targets
+    for noise in circuit.noises:
+        assert qubits == noise.targets
+
+    circuit.nb_qubits += 1
+    qubits = list(range(circuit.nb_qubits))
+    for instruction in circuit.instructions:
+        assert qubits == instruction.targets
+    for noise in circuit.noises:
+        assert qubits == noise.targets
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_matrix",
+    [
+        (QCircuit([H(0)]), H(0).to_matrix()),
+        (QCircuit([CNOT(0, 1)]), CNOT(0, 1).to_matrix()),
+        (
+            QCircuit([H(0), CNOT(0, 1)]),
+            np.dot(
+                CNOT(0, 1).to_matrix(), np.kron(H(0).to_matrix(), Id(0).to_matrix())
+            ),
+        ),
+        (QCircuit([Id(0)]), Id(0).to_matrix()),
+        (QCircuit([SWAP(0, 1)]), SWAP(0, 1).to_matrix()),
+        (QCircuit([]), np.array([[1]])),
+        (
+            QCircuit([Rz(np.pi / 4, 0)]),
+            Rz(np.pi / 4, 0).to_matrix(),
+        ),
+        (
+            QCircuit([Ry(np.pi / 2, 0)]),
+            Ry(np.pi / 2, 0).to_matrix(),
+        ),
+        (
+            QCircuit([TOF([0, 1], 2)]),
+            TOF([0, 1], 2).to_matrix(),
+        ),
+        (
+            QCircuit([TOF([0, 2], 1)]),
+            TOF([0, 2], 1).to_matrix(),
+        ),
+    ],
+)
+def test_to_matrix(circuit: QCircuit, expected_matrix: Matrix):
+    np.testing.assert_almost_equal(circuit.to_matrix(), expected_matrix)
+
+
+def test_to_matrix_random():
+    gates = [
+        gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
+    ]
+    for _ in range(10):
+        qcircuit = random_circuit(gates, nb_qubits=4)
+        expected_matrix = compute_expected_matrix(qcircuit)
+
+        np.testing.assert_almost_equal(qcircuit.to_matrix(), expected_matrix)

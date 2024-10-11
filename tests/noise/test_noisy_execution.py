@@ -44,9 +44,13 @@ def circuit():
 
 @pytest.fixture
 def devices():
-    devices: list[AvailableDevice] = [AWSDevice.BRAKET_LOCAL_SIMULATOR, IBMDevice.AER_SIMULATOR,
-                                      IBMDevice.AER_SIMULATOR_STATEVECTOR, IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-                                      IBMDevice.AER_SIMULATOR_DENSITY_MATRIX]
+    devices: list[AvailableDevice] = [
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        IBMDevice.AER_SIMULATOR,
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+    ]
     if "--long" in sys.argv:
         devices.append(ATOSDevice.QLM_NOISYQPROC)
     return devices
@@ -57,8 +61,8 @@ def test_noisy_expectation_value_execution_without_error(
 ):
     circuit.add(
         ExpectationMeasure(
+            Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
             [0, 1, 2],
-            observable=Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
             shots=1023,
         )
     )
@@ -95,7 +99,7 @@ def test_all_native_gates_local_noise(
     )
     circuit.add(Depolarizing(0.23, [0, 1], dimension=2, gates=[SWAP, CNOT, CZ]))
     circuit.add(BitFlip(0.2, [0, 2]))
-    circuit.add(BitFlip(0.1, [0,1], gates=[CNOT, H]))
+    circuit.add(BitFlip(0.1, [0, 1], gates=[CNOT, H]))
     circuit.add(AmplitudeDamping(0.4, targets=[0, 1], gates=[CNOT, H]))
     circuit.add(AmplitudeDamping(0.2, 0.3, [0, 1, 2]))
     with pytest.warns(UnsupportedBraketFeaturesWarning):

@@ -1,19 +1,11 @@
 import pytest
-from braket.circuits.noises import Depolarizing as BraketDepolarizing
-from qat.quops.quantum_channels import QuantumChannelKraus
-from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-from qiskit_aer.noise.errors.standard_errors import (
-    amplitude_damping_error,
-    depolarizing_error,
-    pauli_error,
-)
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 from mpqp.gates import *
-from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
-from mpqp.noise.noise_model import NoiseModel
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 
 
 def test_depolarizing_valid_params():
@@ -38,8 +30,8 @@ def test_depolarizing_valid_params():
         ),
         (
             (0.1, [0], 0),
-            "Dimension of the depolarizing channel must be strictly greater "
-            "than 1, but got 0 instead.",
+            "Dimension of a multi-dimensional NoiseModel must be strictly greater"
+            " than 1, but got 0 instead.",
         ),
     ],
 )
@@ -54,6 +46,8 @@ def noise():
 
 
 def test_depolarizing_braket_export(noise: NoiseModel):
+    from braket.circuits.noises import Depolarizing as BraketDepolarizing
+
     braket_noise = noise.to_other_language(Language.BRAKET)
     assert isinstance(braket_noise, BraketDepolarizing)
     assert braket_noise.probability == 0.3
@@ -61,6 +55,8 @@ def test_depolarizing_braket_export(noise: NoiseModel):
 
 
 def test_depolarizing_qlm_export(noise: NoiseModel):
+    from qat.quops.quantum_channels import QuantumChannelKraus
+
     qlm_noise = noise.to_other_language(Language.MY_QLM)
     assert isinstance(qlm_noise, QuantumChannelKraus)
 
@@ -73,23 +69,31 @@ def circuit():
 @pytest.mark.parametrize(
     "prob, targets, dimension, gates, expected_noisy_gates",
     [
-        (0.3, [], 1, [], ["cx", "z", "swap", "h"]),
-        (0.3, [0, 1, 2], 1, [], ["cx", "z", "swap", "h"]),
-        (0.3, [], 1, [H, Z], ["z", "h"]),
+        (0.3, None, 1, None, ["cx", "z", "swap", "h"]),
+        (0.3, [0, 1, 2], 1, None, ["cx", "z", "swap", "h"]),
+        (0.3, None, 1, [H, Z], ["z", "h"]),
         (0.3, [0, 1, 2], 1, [H, Z], ["z", "h"]),
-        (0.3, [0, 1], 1, [], ["noisy_identity_0", "cx", "h"]),
+        (0.3, [0, 1], 1, None, ["noisy_identity_0", "cx", "h"]),
         (0.3, [0, 1], 1, [H, Z], ["h"]),
-        (0.3, [], 2, [], ["swap", "cx"]),
-        (0.3, [0, 1, 2], 2, [], ["swap", "cx"]),
-        (0.3, [], 2, [CNOT, SWAP], ["swap", "cx"]),
+        (0.3, None, 2, None, ["swap", "cx"]),
+        (0.3, [0, 1, 2], 2, None, ["swap", "cx"]),
+        (0.3, None, 2, [CNOT, SWAP], ["swap", "cx"]),
         (0.3, [0, 1, 2], 2, [CNOT, SWAP], ["swap", "cx"]),
-        (0.3, [0, 1], 2, [], ["cx"]),
-        (0.3, [1, 2], 2, [], ["swap"]),
+        (0.3, [0, 1], 2, None, ["cx"]),
+        (0.3, [1, 2], 2, None, ["swap"]),
     ],
 )
 def test_depolarizing_qiskit_export(
-    circuit, prob, targets, dimension, gates, expected_noisy_gates
+    circuit: QCircuit,
+    prob: float,
+    targets: list[int],
+    dimension: int,
+    gates: list[type[NativeGate]],
+    expected_noisy_gates: list[str],
 ):
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer.noise.errors.standard_errors import depolarizing_error
+
     noise = Depolarizing(prob=prob, targets=targets, dimension=dimension, gates=gates)
 
     assert isinstance(circuit, QCircuit)
@@ -109,15 +113,24 @@ def test_depolarizing_qiskit_export(
 @pytest.mark.parametrize(
     "prob, targets, gates, expected_noisy_gates",
     [
-        (0.3, [], [], ["h", "z", "swap", "cx"]),
-        (0.3, [0, 1, 2], [], ["h", "z", "swap", "cx"]),
-        (0.3, [], [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
+        (0.3, None, None, ["h", "z", "swap", "cx"]),
+        (0.3, [0, 1, 2], None, ["h", "z", "swap", "cx"]),
+        (0.3, None, [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
         (0.3, [0, 1, 2], [CNOT, SWAP], ["cx", "swap"]),
-        (0.3, [0, 1], [], ["h", "noisy_identity_0", "cx"]),
+        (0.3, [0, 1], None, ["h", "noisy_identity_0", "cx"]),
         (0.3, [0, 1], [H, CNOT, SWAP], ["h", "noisy_identity_0", "cx"]),
     ],
 )
-def test_bitflip_qiskit_export(circuit, prob, targets, gates, expected_noisy_gates):
+def test_bitflip_qiskit_export(
+    circuit: QCircuit,
+    prob: float,
+    targets: list[int],
+    gates: list[type[NativeGate]],
+    expected_noisy_gates: list[str],
+):
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer.noise.errors.standard_errors import pauli_error
+
     noise = BitFlip(prob=prob, targets=targets, gates=gates)
 
     assert isinstance(circuit, QCircuit)
@@ -137,24 +150,34 @@ def test_bitflip_qiskit_export(circuit, prob, targets, gates, expected_noisy_gat
 @pytest.mark.parametrize(
     "gamma, prob, targets, gates, expected_noisy_gates",
     [
-        (0.3, 1, [], [], ["h", "z", "swap", "cx"]),
-        (0.3, 0.1, [0, 1, 2], [], ["h", "z", "swap", "cx"]),
-        (0.3, 0.1, [], [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
+        (0.3, 1.0, None, None, ["h", "z", "swap", "cx"]),
+        (0.3, 0.1, [0, 1, 2], None, ["h", "z", "swap", "cx"]),
+        (0.3, 0.1, None, [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
         (0.3, 0.1, [0, 1, 2], [CNOT, SWAP], ["cx", "swap"]),
-        (0.3, 0.1, [0, 1], [], ["h", "noisy_identity_0", "cx"]),
+        (0.3, 0.1, [0, 1], None, ["h", "noisy_identity_0", "cx"]),
         (0.3, 0.1, [0, 1], [H, CNOT, SWAP], ["h", "noisy_identity_0", "cx"]),
     ],
 )
 def test_amplitudedamping_qiskit_export(
-    circuit, gamma, prob, targets, gates, expected_noisy_gates
+    circuit: QCircuit,
+    gamma: float,
+    prob: float,
+    targets: list[int],
+    gates: list[type[NativeGate]],
+    expected_noisy_gates: list[str],
 ):
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
+
     noise = AmplitudeDamping(gamma=gamma, prob=prob, targets=targets, gates=gates)
 
     assert isinstance(circuit, QCircuit)
     circuit.add(noise)
 
     qiskit_error = noise.to_other_language(Language.QISKIT)
-    expected_error = amplitude_damping_error(gamma, 1 - prob)
+    expected_error = amplitude_damping_error(
+        gamma, 1 - prob  # pyright: ignore[reportArgumentType]
+    )
 
     qiskit_noise_model, _ = generate_qiskit_noise_model(circuit)
     noisy_instructions = qiskit_noise_model.noise_instructions
@@ -162,9 +185,3 @@ def test_amplitudedamping_qiskit_export(
     assert qiskit_error == expected_error
     assert isinstance(qiskit_noise_model, Qiskit_NoiseModel)
     assert sorted(noisy_instructions) == sorted(expected_noisy_gates)
-
-
-# TODO: add tests for Qiskit provider
-# TODO: add tests for BitFlip
-# TODO: add tests for AmplitudeDamping
-# TODO: add tests for noisemodels specific to some gates

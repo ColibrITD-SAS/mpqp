@@ -27,8 +27,8 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
-from mpqp.tools.display import clean_1D_array, clean_matrix
-from mpqp.tools.generics import find, flatten
+from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
+from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import is_hermitian, is_unitary, normalize, rand_orthogonal_matrix
 
 
@@ -71,7 +71,7 @@ class SafeRunner:
         load_env_variables()
 
 
-def documentation():
+def test_documentation():
     print(os.getcwd())
 
     test_globals = globals().copy()
@@ -112,7 +112,3 @@ def documentation():
                                         assert runner.run(test).failed == 0
                             else:
                                 assert runner.run(test).failed == 0
-
-
-if "--long-local" in sys.argv or "--long" in sys.argv:
-    test_notebooks = documentation

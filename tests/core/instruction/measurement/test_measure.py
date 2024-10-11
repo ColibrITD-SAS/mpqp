@@ -1,7 +1,9 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import pytest
-from qiskit.circuit import Parameter
+
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
 
 from mpqp.core.instruction.measurement import Measure
 from mpqp.core.languages import Language
@@ -19,7 +21,7 @@ class CustomMeasure(Measure):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QISKIT:
             pass
