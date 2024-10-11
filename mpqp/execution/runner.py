@@ -201,9 +201,6 @@ def _run_single(
     elif isinstance(device, AWSDevice):
         return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
-        # TODO: remove when Cirq parsing of QASM2 is correct
-        if any(isinstance(gate, CustomGate) for gate in circuit.instructions):
-            raise NotImplementedError(f"CustomGate is not yet supported on {device}.")
         return run_google(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
