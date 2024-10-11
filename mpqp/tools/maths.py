@@ -277,7 +277,10 @@ def rand_clifford_matrix(
     else:
         rng = np.random.default_rng(seed)
 
-    return quantum_info.random_clifford(nb_qubits, seed=rng).to_matrix()
+    return np.array(
+        quantum_info.random_clifford(nb_qubits, seed=rng).to_matrix(),
+        dtype=np.complex64,
+    )
 
 
 def rand_unitary_2x2_matrix(

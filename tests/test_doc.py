@@ -4,7 +4,7 @@ import os
 import sys
 from doctest import DocTestFinder, DocTestRunner, Example
 from types import TracebackType
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
@@ -72,10 +72,10 @@ class SafeRunner:
 
 
 class RandomDoctestRunner(DocTestRunner):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
 
-    def run(self, test, *args, **kwargs):
+    def run(self, test: Any, *args: Any, **kwargs: Any):
         if "rand" in test.name or "random" in test.name:
             if "seed=" not in test.examples[0].source:
                 for example in test.examples:
@@ -85,11 +85,10 @@ class RandomDoctestRunner(DocTestRunner):
         return super().run(test, *args, **kwargs)
 
 
-def test_documentation(global_seed, seed=None):
+def test_documentation(global_seed: int, seed: Optional[int] = None) -> None:
     test_seed = seed if seed is not None else global_seed
 
-    if test_seed is not None:
-        np.random.seed(test_seed)
+    np.random.seed(test_seed)
 
     print(os.getcwd())
 

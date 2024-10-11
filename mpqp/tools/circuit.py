@@ -111,7 +111,7 @@ def random_circuit(
                         )
                     )
                 elif issubclass(gate_class, Rk):
-                    qcircuit.add(Rk(rng.integers(0, 10), target))
+                    qcircuit.add(Rk(rng.integers(1, 10), target))
                 else:
                     qcircuit.add(gate_class(int(rng.uniform(0, 2 * np.pi)), target))  # type: ignore[reportArgumentType]
             else:
