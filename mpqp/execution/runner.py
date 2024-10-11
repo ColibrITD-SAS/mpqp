@@ -186,15 +186,13 @@ def _run_single(
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
-    if circuit.noises:
+    if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not (isinstance(device, (ATOSDevice, AWSDevice))):
-            raise NotImplementedError(
-                f"Noisy simulations are not yet available on devices of type {type(device).name}."
-            )
+        elif not isinstance(device, (ATOSDevice, AWSDevice)):
+            raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, IBMDevice):
         return run_ibm(job)
@@ -203,6 +201,9 @@ def _run_single(
     elif isinstance(device, AWSDevice):
         return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
+        # TODO: remove when Cirq parsing of QASM2 is correct
+        if any(isinstance(gate, CustomGate) for gate in circuit.instructions):
+            raise NotImplementedError(f"CustomGate is not yet supported on {device}.")
         return run_google(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")

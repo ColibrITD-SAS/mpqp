@@ -54,7 +54,7 @@ from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import OneOrMany
-from mpqp.tools.maths import matrix_eq, closest_unitary
+from mpqp.tools.maths import matrix_eq
 
 
 @typechecked
@@ -132,8 +132,8 @@ class QCircuit:
         self._nb_qubits: int
         """Number of qubits of the circuit."""
 
-        self.gphase: Optional[float] = None
-        """Stores the global phase arising from the Qiskit conversion of CustomGates 
+        self.gphase: float = 0
+        """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
         to OpenQASM2. It is used to correct the global phase when the job type
         is STATE_VECTOR, and when this circuit contains CustomGate. `None`` otherwise."""
 
@@ -906,9 +906,7 @@ class QCircuit:
                 if isinstance(instruction, ExpectationMeasure):
                     # these measures have no equivalent in Qiskit
                     continue
-                qiskit_inst = instruction.to_other_language(
-                    Language.QISKIT, qiskit_parameters
-                )
+                qiskit_inst = instruction.to_other_language(language, qiskit_parameters)
                 if TYPE_CHECKING:
                     assert (
                         isinstance(qiskit_inst, CircuitInstruction)
@@ -918,12 +916,9 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    # We reverse the target qubits to pass the unitary in the usual qubit ordering
-                    reversed_target = instruction.targets
-                    reversed_target.reverse()
                     new_circ.unitary(
-                        instruction.to_other_language(),
-                        reversed_target,
+                        instruction.to_other_language(language),
+                        list(reversed(instruction.targets)),  # dang qiskit qubits order
                         instruction.label,
                     )
                     continue
@@ -934,8 +929,9 @@ class QCircuit:
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
-                    # TODO for custom basis, check if something should be changed here, e.g. remove the condition to
-                    #  have only computational basis
+                    # TODO for custom basis, check if something should be
+                    # changed here, e.g. remove the condition to have only
+                    # computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
@@ -1052,8 +1048,10 @@ class QCircuit:
             measure q[1] -> c[1];
 
         """
-        # TODO: put back this example when we figure out why the qasm2 export is different on docker/github actions
-        # >>> c2 = QCircuit([CustomGate(UnitaryMatrix(np.array([[0,1,0,0],[1,0,0,0],[0,0,0,1],[0,0,1,0]])),[1,2])])
+        # TODO: put back this example when we figure out why the qasm2 export is
+        # different on docker/github actions
+        # >>> IxX = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
+        # >>> c2 = QCircuit([CustomGate(UnitaryMatrix(IxX),[1,2])])
         # >>> print(c2.to_qasm2())
         # OPENQASM 2.0;
         # include "qelib1.inc";
@@ -1061,41 +1059,9 @@ class QCircuit:
         # u(0,pi/2,-pi/2) q[1];
         # u(pi,-pi/2,pi/2) q[2];
 
-        from qiskit import qasm2, transpile, QuantumCircuit
-        from qiskit.circuit import CircuitInstruction
+        from qiskit import QuantumCircuit, qasm2
 
-        def replace_custom_gate(
-            custom_unitary: CircuitInstruction, nb_qubits: int
-        ) -> tuple[QuantumCircuit, float]:
-            """
-            Decompose and replace the (custom) qiskit unitary given in parameter by a ``QuantumCircuit`` composed of
-            ``U`` and ``CX`` gates, and return the global phase (related to usage of ``u`` in OpenQASM2) of the circuit.
-            Args:
-                custom_unitary: Qiskit CircuitInstruction containing the custom unitary operator.
-                nb_qubits: Number of qubits of the circuit from which the unitary instruction was taken.
-
-            Returns:
-                QuantumCircuit containing the decomposition of the unitary in terms of native gates ``U`` and ``CX``,
-                and the global phase used for final correction of the statevector.
-            """
-            from qiskit.exceptions import QiskitError
-
-            transpilation_circuit = QuantumCircuit(nb_qubits)
-            transpilation_circuit.append(custom_unitary)
-            try:
-                transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
-            except QiskitError as e:
-                # if the error is arising from TwoQubitWeylDecomposition, we replace the matrix by the closest unitary
-                if "TwoQubitWeylDecomposition" in str(e):
-                    custom_unitary.operation.params[0] = closest_unitary(
-                        custom_unitary.operation.params[0]
-                    )
-                    transpiled = transpile(
-                        transpilation_circuit, basis_gates=['u', 'cx']
-                    )
-                else:
-                    raise e
-            return transpiled, transpiled.global_phase
+        from mpqp.tools.circuit import replace_custom_gate
 
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
@@ -1105,9 +1071,7 @@ class QCircuit:
 
         qiskit_circ.reverse_bits()
 
-        if all([not isinstance(inst, CustomGate) for inst in self.instructions]):
-            return qasm2.dumps(qiskit_circ)
-
+        custom_gate_used = False
         global_phase = 0
         new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
@@ -1117,13 +1081,15 @@ class QCircuit:
                 )
                 new_circuit.compose(circuit, inplace=True)
                 global_phase += gphase
+                custom_gate_used = True
             else:
                 new_circuit.append(instruction)
 
-        if global_phase != 0:
-            self.gphase = np.exp(1j * global_phase)
+        self.gphase = global_phase
 
-        return qasm2.dumps(new_circuit)
+        if custom_gate_used:
+            return qasm2.dumps(new_circuit)
+        return qasm2.dumps(qiskit_circ)
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.

@@ -258,9 +258,9 @@ class Result:
                 )
             else:
                 self._state_vector = data
-                if job.circuit.gphase is not None:
+                if job.circuit.gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
-                    self._state_vector.vector *= job.circuit.gphase
+                    self._state_vector.vector *= np.exp(1j * job.circuit.gphase)
                 self._probabilities = data.probabilities
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):

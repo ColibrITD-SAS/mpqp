@@ -13,7 +13,7 @@ from typeguard import typechecked
 
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.generics import Matrix
-from mpqp.tools.maths import is_unitary, matrix_eq, is_power_of_two
+from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
 
 
 @typechecked
@@ -34,7 +34,8 @@ class GateDefinition(ABC):
 
     """
 
-    # TODO: put this back once we implement the other definitions. Are those definitions really useful in practice ?
+    # TODO: put this back once we implement the other definitions. Are those
+    # definitions really useful in practice ?
     # This class permit to define a gate in 4 potential ways:
     #     1. the unitary matrix defining the gate
     #     2. a combination of several other gates
@@ -112,21 +113,29 @@ class UnitaryMatrix(GateDefinition):
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
-        from sympy import Expr
 
-        if any(isinstance(elt, Expr) for _, elt in np.ndenumerate(definition)):
-            if not disable_symbol_warn:
-                # 3M-TODO: can we improve this situation ?
-                warn("Cannot ensure that a operator defined with variables is unitary.")
-        elif not is_unitary(definition):
+        numeric = True
+        for _, elt in np.ndenumerate(definition):
+            # 3M-TODO: can we improve this situation ?
+            try:
+                complex(elt)
+            except TypeError:
+                if not disable_symbol_warn:
+                    warn(
+                        "Cannot ensure that a operator defined with symbolic "
+                        "variables is unitary."
+                    )
+                numeric = False
+                break
+        if numeric and not is_unitary(definition):
             raise ValueError(
                 "Matrices defining gates have to be unitary. It is not the case"
                 f" for\n{definition}"
             )
-        elif not is_power_of_two(definition.shape[0]):
+        if not is_power_of_two(definition.shape[0]):
             raise ValueError(
-                "The unitary matrix of a gate acting on qubits must have dimensions that are power of two, "
-                f"but got {definition.shape[0]}."
+                "The unitary matrix of a gate acting on qubits must have "
+                f"dimensions that are power of two, but got {definition.shape[0]}."
             )
         self.matrix = definition
         """See parameter :attr:`definition`'s description."""
