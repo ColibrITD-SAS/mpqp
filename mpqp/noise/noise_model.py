@@ -9,8 +9,8 @@ if TYPE_CHECKING:
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
 
-from typeguard import typechecked
 import numpy as np
+from typeguard import typechecked
 
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
@@ -709,7 +709,7 @@ class PhaseDamping(NoiseModel):
             return phase_damping_error(self.gamma)
 
         elif language == Language.MY_QLM:
-            from qat.quops import QuantumChannelKraus
+            from qat.quops.quantum_channels import QuantumChannelKraus
 
             return QuantumChannelKraus(
                 [
