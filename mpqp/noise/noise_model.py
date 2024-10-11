@@ -714,7 +714,7 @@ class PhaseDamping(NoiseModel):
                     np.diag([1, np.sqrt(1 - self.gamma)]),
                     np.diag([0, np.sqrt(1 - self.gamma)]),
                 ],
-                "Phase Damping channel, gamma = " + str(self.gamma)
+                "Phase Damping channel, gamma = " + str(self.gamma),
             )
 
         else:
