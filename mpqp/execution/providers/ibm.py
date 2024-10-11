@@ -303,9 +303,8 @@ def generate_qiskit_noise_model(
                             reversed_qubits,
                         )
                     else:
-                        size = len(connections)
                         tensor_error = qiskit_error
-                        for _ in range(1, size):
+                        for _ in range(1, len(connections)):
                             tensor_error = tensor_error.tensor(qiskit_error)
                         noise_model.add_quantum_error(
                             tensor_error,
