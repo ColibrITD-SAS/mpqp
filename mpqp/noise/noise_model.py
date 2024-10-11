@@ -633,9 +633,9 @@ class PhaseDamping(NoiseModel):
         q_2: ┤ H ├
              └───┘
         NoiseModel:
-            PhaseDamping(0.32, targets=[0, 1, 2])
+            PhaseDamping(0.32, [0, 1, 2])
             PhaseDamping(0.01)
-            PhaseDamping(0.45, targets=[0, 1])
+            PhaseDamping(0.45, [0, 1])
 
     """
 
@@ -657,9 +657,13 @@ class PhaseDamping(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
-        targets = f", targets={self.targets}" if len(self.targets) != 0 else ""
-        gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
-        return f"{type(self).__name__}({self.gamma}{targets}{gates})"
+        targets = (
+            f", {self.targets}"
+            if (not self._dynamic and len(self.targets)) != 0
+            else ""
+        )
+        gates = f", gates={self.gates}" if self.gates else ""
+        return f"PhaseDamping({self.gamma}{targets}{gates})"
 
     def to_other_language(
         self, language: Language = Language.QISKIT
@@ -676,15 +680,13 @@ class PhaseDamping(NoiseModel):
             PhaseDamping('gamma': 0.4, 'qubit_count': 1)
             >>> type(braket_pd)
             <class 'braket.circuits.noises.PhaseDamping'>
-            >>> qiskit_pd = PhaseDamping(0.4, [0, 1]).to_other_language(Language.QISKIT)
-            >>> qiskit_pd
-            QuantumError([(<qiskit.circuit.quantumcircuit.QuantumCircuit object at 0x7f48f0f91dc0>, 1.0)])
-            >>> print(qiskit_pd)
-            QuantumError on 1 qubits. Noise circuits:
-              P(0) = 1.0, Circuit =
-               ┌───────┐
-            q: ┤ kraus ├
-               └───────┘
+            >>> qiskit_pd = pd.to_other_language(Language.QISKIT)
+            >>> qiskit_pd.to_quantumchannel()
+            SuperOp([[1.        +0.j, 0.        +0.j, 0.        +0.j, 0.        +0.j],
+                     [0.        +0.j, 0.77459667+0.j, 0.        +0.j, 0.        +0.j],
+                     [0.        +0.j, 0.        +0.j, 0.77459667+0.j, 0.        +0.j],
+                     [0.        +0.j, 0.        +0.j, 0.        +0.j, 1.        +0.j]],
+                    input_dims=(2,), output_dims=(2,))
             >>> type(qiskit_pd)
             <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
             >>> qlm_phase_damping = pd.to_other_language(Language.MY_QLM)
