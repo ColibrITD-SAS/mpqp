@@ -464,8 +464,8 @@ class BitFlip(NoiseModel):
                 [
                     np.sqrt(1 - self.prob) * np.eye(2),
                     np.sqrt(self.prob) * np.array([[0, 1], [1, 0]]),
-                ]
-                , "Bit Flip channel, prob=" + str(self.prob)
+                ],
+                "Bit Flip channel, prob=" + str(self.prob),
             )
 
         else:
