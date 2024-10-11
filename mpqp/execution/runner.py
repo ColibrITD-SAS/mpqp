@@ -196,12 +196,6 @@ def _run_single(
                 f"Noisy simulations are not yet available on devices of type {type(device).name}."
             )
 
-    # TODO: remove when Cirq parsing of QASM2 is correct
-    if isinstance(device, GOOGLEDevice) and any(
-        isinstance(gate, CustomGate) for gate in circuit.instructions
-    ):
-        raise NotImplementedError("CustomGate is not yet supported in GOOGLEDevices.")
-
     if isinstance(device, IBMDevice):
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):

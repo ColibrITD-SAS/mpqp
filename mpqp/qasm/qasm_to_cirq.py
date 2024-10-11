@@ -169,7 +169,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             qasm_gate="u3",
             num_params=3,
             num_args=1,
-            cirq_gate=(lambda params: QasmUGate(*[p for p in params])),
+            cirq_gate=(lambda params: QasmUGate(*[p / np.pi for p in params])),
         ),
         "rxx": QasmGateStatement(
             qasm_gate="rxx",
