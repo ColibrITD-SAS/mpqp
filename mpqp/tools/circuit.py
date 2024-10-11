@@ -176,8 +176,7 @@ def replace_custom_gate(
     custom_unitary: CircuitInstruction, nb_qubits: int
 ) -> tuple[QuantumCircuit, float]:
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
-    class:`~mpqp.core.circuit.QuantumCircuit` composed of ``U`` and ``CX``
-    gates.
+    qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
 
     Note:
         When using Qiskit, a global phase is introduced (related to usage of
