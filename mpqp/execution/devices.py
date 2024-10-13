@@ -115,7 +115,6 @@ class IBMDevice(AvailableDevice):
 
     def is_gate_based(self) -> bool:
         return True
-        # return self != IBMDevice.PULSE_SIMULATOR
 
     def has_reduced_gate_set(self) -> bool:
         return self in {
@@ -143,8 +142,6 @@ class IBMDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         return self.is_simulator()
-
-    def has_noise_model(self):
 
 
 class ATOSDevice(AvailableDevice):
