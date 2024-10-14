@@ -23,20 +23,8 @@ if TYPE_CHECKING:
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import (
-    TOF,
-    CRk,
-    Gate,
-    Id,
-    NativeGate,
-    P,
-    Rk,
-    Rx,
-    Ry,
-    Rz,
-    T,
-    U,
-)
+from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
