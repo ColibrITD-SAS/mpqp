@@ -12,7 +12,7 @@ from mpqp.core.instruction.measurement import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run
+from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run, IBMDevice
 from mpqp.gates import *
 from mpqp.noise import Depolarizing, BitFlip, AmplitudeDamping
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
@@ -44,7 +44,13 @@ def circuit():
 
 @pytest.fixture
 def devices():
-    devices: list[AvailableDevice] = [AWSDevice.BRAKET_LOCAL_SIMULATOR]
+    devices: list[AvailableDevice] = [
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        IBMDevice.AER_SIMULATOR,
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+    ]
     if "--long" in sys.argv:
         devices.append(ATOSDevice.QLM_NOISYQPROC)
     return devices
