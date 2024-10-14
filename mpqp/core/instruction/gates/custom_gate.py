@@ -6,8 +6,9 @@ and executed transparently."""
 
 from typing import TYPE_CHECKING, Optional
 
-from mpqp.tools import Matrix
 from typeguard import typechecked
+
+from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
@@ -68,6 +69,7 @@ class CustomGate(Gate):
 
     @property
     def matrix(self) -> Matrix:
+        # TODO: move this to `to_canonical_matrix` and check for the usages
         return self.definition.matrix
 
     def to_matrix(self, desired_gate_size: int = 0):
