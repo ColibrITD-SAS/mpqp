@@ -4,6 +4,7 @@ import pytest
 
 from mpqp.core.circuit import QCircuit
 from mpqp.gates import SWAP, CustomGate, Gate, H, UnitaryMatrix, X, Z
+from mpqp.tools.errors import NumberQubitsWarning
 
 
 @pytest.mark.parametrize(
@@ -82,7 +83,8 @@ def test_power(gate: Gate, pow: float, result_matrix: npt.NDArray[np.complex64])
     ],
 )
 def test_tensor_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64]):
-    assert np.allclose(g1.tensor_product(g2).to_matrix(), result_matrix)
+    with pytest.warns(NumberQubitsWarning):
+        assert np.allclose(g1.tensor_product(g2).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(

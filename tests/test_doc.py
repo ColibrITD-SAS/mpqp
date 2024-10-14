@@ -43,7 +43,7 @@ class SafeRunner:
         for key in val.keys():
             set_key(MPQP_CONFIG_PATH, key, "")
             load_env_variables()
-            if os.getenv(key) != None:
+            if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Write the content to the backup file
@@ -63,7 +63,7 @@ class SafeRunner:
         for key in val.keys():
             set_key(MPQP_CONFIG_PATH, key, "")
             load_env_variables()
-            if os.getenv(key) != None:
+            if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Reload configuration from backup file

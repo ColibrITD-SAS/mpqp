@@ -1,11 +1,26 @@
 from typing import Optional, Union
 
 import numpy as np
+from qiskit import QuantumCircuit, transpile
+from qiskit.circuit import CircuitInstruction
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES, TOF, Rk, U
+from mpqp.core.instruction.gates.native_gates import (
+    NATIVE_GATES,
+    TOF,
+    CRk,
+    NativeGate,
+    P,
+    Rk,
+    RotationGate,
+    Rx,
+    Ry,
+    Rz,
+    U,
+)
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+from mpqp.tools.maths import closest_unitary
 
 
 def random_circuit(
@@ -94,10 +109,10 @@ def random_circuit(
         and ((gate == TOF and nb_qubits <= 2) or nb_qubits <= 1)
         for gate in gate_classes
     ):
-        raise ValueError("number of qubits to low for this gates")
+        raise ValueError("number of qubits too low for this gates")
 
     for _ in range(nb_gates):
-        gate_class = rng.choice(gate_classes)  # type: ignore[reportArgumentType]
+        gate_class: type[NativeGate] = rng.choice(gate_classes)  # type: ignore[reportArgumentType]
         target = int(rng.choice(qubits))
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
@@ -112,13 +127,20 @@ def random_circuit(
                     )
                 elif issubclass(gate_class, Rk):
                     qcircuit.add(Rk(rng.integers(1, 10), target))
+                elif issubclass(gate_class, RotationGate):
+                    if TYPE_CHECKING:
+                        assert issubclass(gate_class, (Rx, Ry, Rz, P))
+                    qcircuit.add(gate_class(random.uniform(0, 2 * np.pi), target))
                 else:
                     qcircuit.add(gate_class(int(rng.uniform(0, 2 * np.pi)), target))  # type: ignore[reportArgumentType]
+                    raise ValueError
             else:
                 qcircuit.add(gate_class(target))
         else:
             control = int(rng.choice(list(set(qubits) - {target})))
             if issubclass(gate_class, ParametrizedGate):
+                if TYPE_CHECKING:
+                    assert issubclass(gate_class, CRk)
                 qcircuit.add(gate_class(rng.integers(0, 10), control, target))  # type: ignore[reportArgumentType]
             elif issubclass(gate_class, TOF):
                 control2 = int(rng.choice(list(set(qubits) - {target, control})))
@@ -171,3 +193,44 @@ def compute_expected_matrix(qcircuit: QCircuit):
         result_matrix = np.dot(result_matrix, matrix)
 
     return np.vectorize(N)(result_matrix).astype(complex)
+
+
+def replace_custom_gate(
+    custom_unitary: CircuitInstruction, nb_qubits: int
+) -> tuple[QuantumCircuit, float]:
+    """Decompose and replace the (custom) qiskit unitary given in parameter by a
+    qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
+
+    Note:
+        When using Qiskit, a global phase is introduced (related to usage of
+        ``u`` in OpenQASM2). This may be problematic in some cases, so this
+        function also returns the global phase introduced so it can be corrected
+        later on.
+
+    Args:
+        custom_unitary: instruction containing the custom unitary operator.
+        nb_qubits: Number of qubits of the circuit from which the unitary
+            instruction was taken.
+
+    Returns:
+        A circuit containing the decomposition of the unitary in terms
+        of gates ``U`` and ``CX``, and the global phase used to
+        correct the statevector if need be.
+    """
+    from qiskit.exceptions import QiskitError
+
+    transpilation_circuit = QuantumCircuit(nb_qubits)
+    transpilation_circuit.append(custom_unitary)
+    try:
+        transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+    except QiskitError as e:
+        # if the error is arising from TwoQubitWeylDecomposition, we replace the
+        # matrix by the closest unitary
+        if "TwoQubitWeylDecomposition" in str(e):
+            custom_unitary.operation.params[0] = closest_unitary(
+                custom_unitary.operation.params[0]
+            )
+            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+        else:
+            raise e
+    return transpiled, transpiled.global_phase

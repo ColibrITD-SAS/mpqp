@@ -168,7 +168,6 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     from braket.circuits import Circuit
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
-
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
