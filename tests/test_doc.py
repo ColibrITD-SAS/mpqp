@@ -2,7 +2,7 @@
 import importlib
 import os
 import sys
-from doctest import DocTestFinder, DocTestRunner, Example
+from doctest import DocTest, DocTestFinder, DocTestRunner
 from types import TracebackType
 from typing import Any, Optional, Type
 
@@ -72,10 +72,7 @@ class SafeRunner:
 
 
 class RandomDoctestRunner(DocTestRunner):
-    def __init__(self, *args: Any, **kwargs: Any):
-        super().__init__(*args, **kwargs)
-
-    def run(self, test: Any, *args: Any, **kwargs: Any):
+    def run(self, test: DocTest, *args: Any, **kwargs: Any):
         if "rand" in test.name or "random" in test.name:
             if "seed=" not in test.examples[0].source:
                 for example in test.examples:
