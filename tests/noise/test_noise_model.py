@@ -1,7 +1,7 @@
 import pytest
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import NativeGate
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 from mpqp.gates import *
