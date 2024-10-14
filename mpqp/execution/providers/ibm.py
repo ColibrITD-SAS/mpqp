@@ -9,7 +9,7 @@ import numpy as np
 from typeguard import typechecked
 
 from mpqp.noise import DimensionalNoiseModel
-from mpqp.noise.device_noise import IBMSimulatedDevice
+from mpqp.noise.simulated_device import IBMSimulatedDevice
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
