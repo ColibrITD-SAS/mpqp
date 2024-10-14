@@ -26,14 +26,14 @@ def global_seed(request: pytest.FixtureRequest) -> Optional[int]:
         print("No seed is provided, using the default random behavior.")
         return None
 
-    if isinstance(seed, str):
+    if isinstance(seed, (int, str)):
         try:
             seed = int(seed)
             print(f"\nSetting global random seed to {seed}")
             return seed
         except ValueError:
-            print(f"Invalid seed value: {seed}. Seed is an integer or None.")
+            print(f"Invalid seed: {seed}. Seed must be a valid integer or None.")
             return None
     else:
-        print(f"Invalid seed type: {type(seed)}")
+        print(f"Invalid seed type: {type(seed).__name__}. Seed is an integer or None.")
         return None
