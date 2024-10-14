@@ -135,7 +135,7 @@ class QCircuit:
         self.gphase: float = 0
         """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
         to OpenQASM2. It is used to correct the global phase when the job type
-        is STATE_VECTOR, and when this circuit contains CustomGate. `None`` otherwise."""
+        is STATE_VECTOR, and when this circuit contains CustomGate."""
 
         if isinstance(data, int):
             if data < 0:
@@ -1071,7 +1071,6 @@ class QCircuit:
 
         qiskit_circ.reverse_bits()
 
-        custom_gate_used = False
         global_phase = 0
         new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
@@ -1081,15 +1080,12 @@ class QCircuit:
                 )
                 new_circuit.compose(circuit, inplace=True)
                 global_phase += gphase
-                custom_gate_used = True
             else:
                 new_circuit.append(instruction)
 
         self.gphase = global_phase
 
-        if custom_gate_used:
-            return qasm2.dumps(new_circuit)
-        return qasm2.dumps(qiskit_circ)
+        return qasm2.dumps(new_circuit)
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.
