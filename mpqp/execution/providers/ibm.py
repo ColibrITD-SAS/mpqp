@@ -363,7 +363,9 @@ def run_aer(job: Job):
 
     if isinstance(job.device, IBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
-            warnings.warn("NoiseModel are ignored when running the circuit on a SimulatedDevice")
+            warnings.warn("NoiseModels are ignored when running the circuit on a SimulatedDevice.")
+            # TODO: handle case when we put NoiseModel + IBMSimulatedDevice (grab qiskit NoiseModel from AerSimulator
+            #  generated below)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
         noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
