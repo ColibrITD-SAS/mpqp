@@ -95,8 +95,14 @@ class NativeGate(Gate, SimpleClassReprABC):
         label: Label used to identify the gate.
     """
 
-    qlm_aqasm_keyword: str | list[str]
+    qlm_aqasm_keyword: str
+    """Keyword(s) corresponding to the gate in ``myQLM``. This needs to be
+    available at the class level and is not enforced by the type checker so be
+    careful about it!"""
     qiskit_string: str
+    """Keyword corresponding to the gate in ``qiskit``. This needs to be
+    available at the class level and is not enforced by the type checker so be
+    careful about it!"""
 
     native_gate_options = {"disable_symbol_warn": True}
 
@@ -1049,7 +1055,8 @@ class CRk(RotationGate, ControlledGate):
 
         return CPhaseGate
 
-    qlm_aqasm_keyword = ["CNOT", "PH"]
+    # TODO: this is a special case, see if it needs to be generalized
+    qlm_aqasm_keyword = "CNOT;PH"
     qiskit_string = "cp"
 
     def __init__(self, k: Expr | int, control: int, target: int):
