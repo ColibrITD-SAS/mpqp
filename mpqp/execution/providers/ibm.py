@@ -209,9 +209,7 @@ def generate_qiskit_noise_model(
                         assert isinstance(size, int)
 
                     if isinstance(noise, DimensionalNoiseModel):
-                        if size != noise.dimension:
-                            continue
-                        else:
+                        if size == noise.dimension:
                             noise_model.add_all_qubit_quantum_error(
                                 qiskit_error, [gate.qiskit_string]
                             )
