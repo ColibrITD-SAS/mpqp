@@ -9,6 +9,7 @@ import numpy as np
 from typeguard import typechecked
 
 from mpqp.noise import DimensionalNoiseModel
+from mpqp.noise.device_noise import IBMSimulatedDevice
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -125,7 +126,7 @@ def check_job_compatibility(job: Job):
             contained in the job (measure and job_type, device and job_type,
             etc...).
     """
-    assert isinstance(job.device, IBMDevice)
+    assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
     if not type(job.measure) in job.job_type.value:
         raise DeviceJobIncompatibleError(
             f"An {job.job_type.name} job is valid only if the corresponding circuit has an measure in "
@@ -360,7 +361,11 @@ def run_aer(job: Job):
 
     job_circuit = job.circuit
 
-    if len(job.circuit.noises) != 0:
+    if isinstance(job.device, IBMSimulatedDevice):
+        if len(job.circuit.noises) != 0:
+            warnings.warn("NoiseModel are ignored when running the circuit on a SimulatedDevice")
+        backend_sim = job.device.to_noisy_simulator()
+    elif len(job.circuit.noises) != 0:
         noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
         job_circuit = modified_circuit
         backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)

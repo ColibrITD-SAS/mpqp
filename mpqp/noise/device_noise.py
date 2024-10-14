@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from abc import ABC
 from enum import Enum
 from typing import TYPE_CHECKING, Union
-
 
 from typeguard import typechecked
 
@@ -16,7 +16,7 @@ from mpqp.execution import AvailableDevice
 
 @typechecked
 def get_ibm_fake_providers() -> (
-    list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
+        list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
 ):
     from qiskit_ibm_runtime import fake_provider
 
@@ -28,7 +28,11 @@ def get_ibm_fake_providers() -> (
     ]
 
 
-class AbstractFakeIBMDevice(AvailableDevice):
+class SimulatedDevice(AvailableDevice):
+    pass
+
+
+class AbstractIBMSimulatedDevice(SimulatedDevice):
 
     def is_gate_based(self) -> bool:
         return True
@@ -42,10 +46,13 @@ class AbstractFakeIBMDevice(AvailableDevice):
     def is_remote(self) -> bool:
         return False
 
+    def supports_statevector(self):
+        return True
+
     def to_noisy_simulator(self) -> "AerSimulator":
         from qiskit_aer.backends.aer_simulator import AerSimulator
 
         return AerSimulator.from_backend(self.value())
 
 
-FakeIBMDevice = AbstractFakeIBMDevice('FakeIBMDevice', get_ibm_fake_providers())
+IBMSimulatedDevice = AbstractIBMSimulatedDevice('IBMSimulatedDevice', get_ibm_fake_providers())
