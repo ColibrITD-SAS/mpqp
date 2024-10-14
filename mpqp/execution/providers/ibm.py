@@ -143,18 +143,23 @@ def check_job_compatibility(job: Job):
 def generate_qiskit_noise_model(
     circuit: QCircuit,
 ) -> tuple["Qiskit_NoiseModel", QCircuit]:
-    """
-    Generate a Qiskit Aer NoiseModel from the list of MPQP NoiseModels attached to the QCircuit in parameter.
+    """Generate a ``qiskit`` noise model packing all the
+    class:`~mpqp.noise.noise_model.NoiseModel`s attached to the given QCircuit.
+
+    In ``qiskit``, the noise cannot be applied to qubits unaffected by any
+    operations. For this reason, this function also returns a copy of the
+    circuit padded with identities on "naked" qubits.
 
     Args:
-        circuit: QCircuit used to generate the Qiskit NoiseModel.
+        circuit: Circuit containing the noise models to pack.
 
     Returns:
-        Qiskit_NoiseModel: A Qiskit NoiseModel combining the provided noise models.
+        A ``qiskit`` noise model combining the provided noise models and the
+        modified circuit, padded with identities on the "naked" qubits.
 
     Note:
-        The qubit order is reversed to match Qiskit's qubit ordering conventions.
-
+        The qubit order in the returned noise model is reversed to match
+        ``qiskit``'s qubit ordering conventions.
     """
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
