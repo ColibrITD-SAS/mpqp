@@ -1,5 +1,4 @@
 from copy import deepcopy
-from typing import TYPE_CHECKING
 from itertools import product
 from operator import (
     add,
@@ -15,6 +14,7 @@ from operator import (
     truediv,
 )
 from random import randint
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
@@ -22,11 +22,6 @@ if TYPE_CHECKING:
 import numpy as np
 import numpy.typing as npt
 import pytest
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from qiskit.quantum_info import SparsePauliOp
-
 from braket.circuits.observables import I as Braket_I
 from braket.circuits.observables import Sum as BraketSum
 from braket.circuits.observables import X as Braket_X
@@ -39,7 +34,6 @@ from cirq.ops.pauli_gates import X as Cirq_X
 from cirq.ops.pauli_gates import Y as Cirq_Y
 from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
-
 
 from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
 from mpqp.core.languages import Language
