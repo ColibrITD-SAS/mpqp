@@ -14,7 +14,7 @@ from mpqp.execution import AvailableDevice
 
 @typechecked
 def get_ibm_fake_providers() -> (
-        list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
+    list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
 ):
     from qiskit_ibm_runtime import fake_provider
 
@@ -53,4 +53,6 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         return AerSimulator.from_backend(self.value())
 
 
-IBMSimulatedDevice = AbstractIBMSimulatedDevice('IBMSimulatedDevice', get_ibm_fake_providers())
+IBMSimulatedDevice = AbstractIBMSimulatedDevice(
+    'IBMSimulatedDevice', get_ibm_fake_providers()
+)
