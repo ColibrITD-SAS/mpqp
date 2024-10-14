@@ -1,9 +1,5 @@
 from __future__ import annotations
 
-from functools import reduce
-from itertools import product
-from math import log2
-
 import numpy as np
 import numpy.typing as npt
 from matplotlib import pyplot as plt
@@ -17,35 +13,6 @@ from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.noise import Depolarizing
 from mpqp.noise.noise_model import NoiseModel
-
-
-# TODO: for now the noise is applied on the whole state and not only on the
-# targets, fix this
-def apply_global_depolarizing_noise(
-    state: npt.NDArray[np.complex64], p: float, targets: set[int]
-):
-    d = len(state)
-    return (1 - p) * state + p * np.eye(d) / d
-
-
-def apply_global_bitflip_noise(
-    state: npt.NDArray[np.complex64], p: float, targets: set[int]
-):
-    d = len(state)
-    n = int(log2(d))
-    I = np.eye(2)
-    X = np.ones(2) - I
-    all_combinations = product([I, X], repeat=n)
-    I_count_and_flip = [
-        (comb.count(I), reduce(np.kron, comb)) for comb in all_combinations
-    ]
-    return sum(
-        (
-            (1 - p) ** count * p ** (n - count) * flip @ state @ flip
-            for count, flip in I_count_and_flip
-        ),
-        start=np.zeros((d, d), dtype=np.complex64),
-    )
 
 
 def theoretical_probs(
@@ -99,16 +66,6 @@ def theoretical_probs(
             )
 
     return state.diagonal().real
-
-
-def validate(
-    mpqp_counts: list[int],
-    theoretical_probabilities: npt.NDArray[np.float32],
-    alpha: float = 0.1,
-) -> bool:
-    dist = jensenshannon(mpqp_counts, theoretical_probabilities * sum(mpqp_counts))
-
-    return float(dist) < alpha
 
 
 def dist_alpha_matching(alpha: float):

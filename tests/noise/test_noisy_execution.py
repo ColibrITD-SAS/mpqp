@@ -22,15 +22,10 @@ from mpqp.execution import (
     IBMDevice,
     run,
 )
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
-from mpqp.tools.theoretical_simulation import (
-    theoretical_probs,
-    validate,
-    validate_noisy_circuit,
-)
+from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
 noisy_devices: list[Any] = [
     dev
@@ -129,36 +124,6 @@ def test_all_native_gates_local_noise(
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
-
-
-def test_shot_noise(circuit: QCircuit, devices: list[AvailableDevice]):
-    shots = 1024
-    circuit.add([BasisMeasure()])
-    result = _run_single(circuit, devices[0], {})
-
-    assert validate(result.counts, theoretical_probs(circuit), shots)
-
-
-@pytest.mark.parametrize("depol_noise", [0.001, 0.01, 0.1])
-def test_depol_noise(
-    circuit: QCircuit, devices: list[AvailableDevice], depol_noise: float
-):
-    circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
-    result = _run_single(circuit, devices[0], {})
-
-    probs = theoretical_probs(circuit)
-
-    assert validate(result.counts, probs, 0.05 + depol_noise * 10)
-
-
-@pytest.mark.parametrize("depol_noise", [0.1, 0.2, 0.3])
-def test_depol_noise_fail(
-    circuit: QCircuit, devices: list[AvailableDevice], depol_noise: float
-):
-    circuit.add([BasisMeasure(), Depolarizing(depol_noise)])
-    result = _run_single(circuit, devices[0], {})
-
-    assert not validate(result.counts, theoretical_probs(circuit), 0.05)
 
 
 @pytest.mark.parametrize(
