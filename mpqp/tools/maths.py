@@ -250,6 +250,7 @@ def rand_clifford_matrix(
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
+        seed: Seed used to control the random generation of the matrix.
 
     Returns:
         A random Clifford matrix.
@@ -290,6 +291,7 @@ def rand_unitary_2x2_matrix(
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
+        seed: Seed used to control the random generation of the matrix.
 
     Returns:
         A random Clifford matrix.
@@ -329,6 +331,7 @@ def rand_product_local_unitaries(
 
     Args:
         nb_qubits: Number of qubits on which the product of unitaries will act.
+        seed: Seed used to control the random generation of the matrix.
 
     Returns:
         A tensor product of random unitary matrices.
@@ -362,6 +365,7 @@ def rand_hermitian_matrix(
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
+        seed: Seed used to control the random generation of the matrix.
 
     Returns:
         A random Hermitian Matrix.
