@@ -295,7 +295,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         Example:
             >>> pprint((X(0).product(Z(0))).to_matrix())
             [[0, -1],
-             [1, 0]]
+             [1, 0 ]]
 
         """
         # 3M-TODO: to test

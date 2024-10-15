@@ -9,7 +9,13 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from mpqp.execution.devices import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    IBMDevice,
+    GOOGLEDevice,
+)
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.execution.vqa import Optimizer, minimize
 from mpqp.execution.vqa.vqa import OptimizableFunc
@@ -23,7 +29,10 @@ theta: Expr = symbols("θ")
 def with_local_devices(args: tuple[Any, ...]):
     return (
         (*args, d)
-        for d in list(IBMDevice) + list(ATOSDevice) + list(AWSDevice)
+        for d in list(IBMDevice)
+        + list(ATOSDevice)
+        + list(AWSDevice)
+        + list(GOOGLEDevice)
         if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
     )
 
