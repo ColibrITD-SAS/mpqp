@@ -336,7 +336,7 @@ def estimate_cost_single_job(
                 minute_cost = 0.275
             else:
                 raise ValueError
-            return minute_cost * max(estimated_time / 60, 3/60)
+            return minute_cost * max(estimated_time / 60, 3 / 60)
         else:
             assert job.measure is not None
             if "ionq" in job.device.value:
