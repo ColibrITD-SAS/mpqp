@@ -17,7 +17,13 @@ from .execution import (
     run,
     submit,
 )
-from .execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, IBMSimulatedDevice
+from .execution.devices import (
+    ATOSDevice,
+    AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    IBMSimulatedDevice,
+)
 from .execution.remote_handler import get_all_job_ids
 from .execution.vqa import Optimizer, minimize
 from .gates import (
