@@ -409,7 +409,9 @@ def run_aer(job: Job):
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
-        assert isinstance(job.device, IBMDevice) or isinstance(job.device, IBMSimulatedDevice)
+        assert isinstance(job.device, IBMDevice) or isinstance(
+            job.device, IBMSimulatedDevice
+        )
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:

@@ -39,7 +39,8 @@ from mpqp.execution.devices import (
     AvailableDevice,
     AWSDevice,
     GOOGLEDevice,
-    IBMDevice, IBMSimulatedDevice,
+    IBMDevice,
+    IBMSimulatedDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
