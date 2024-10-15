@@ -39,7 +39,7 @@ from mpqp.execution.devices import (
     AvailableDevice,
     AWSDevice,
     GOOGLEDevice,
-    IBMDevice,
+    IBMDevice, IBMSimulatedDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -194,7 +194,7 @@ def _run_single(
         elif not isinstance(device, (ATOSDevice, AWSDevice, IBMDevice)):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, IBMDevice):
+    if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
