@@ -9,7 +9,6 @@ import numpy as np
 from typeguard import typechecked
 
 from mpqp.noise import DimensionalNoiseModel
-from mpqp.noise.simulated_device import IBMSimulatedDevice
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -45,7 +44,7 @@ from mpqp.execution.connection.ibm_connection import (
     get_backend,
     get_QiskitRuntimeService,
 )
-from mpqp.execution.devices import IBMDevice
+from mpqp.execution.devices import IBMDevice, IBMSimulatedDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
