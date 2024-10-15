@@ -319,3 +319,42 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     device = AWSDevice.from_arn(device_arn)
 
     return extract_result(result, None, device)
+
+
+def estimate_cost_single_job(
+        job: Job,
+        hybrid_iterations: Optional[int] = 1,
+        estimated_time: Optional[int] = 180
+) -> float:
+
+    if TYPE_CHECKING:
+        assert isinstance(job.device, AWSDevice)
+
+    if job.device.is_remote():
+        if job.device.is_simulator():
+            if "sv1" in job.device.value:
+                return 0.075 * (estimated_time / 60)
+        else:
+            if "ionq" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.03
+
+            elif "iqm" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.00145
+
+            elif "rigetti" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.0009
+
+            elif "quera" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.01
+
+            else:
+                raise ValueError
+
+            return (task_cost + job.measure.shots * shot_cost) * hybrid_iterations
+
+    else:
+        return 0
