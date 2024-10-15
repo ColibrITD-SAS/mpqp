@@ -384,6 +384,7 @@ def run_aer(job: Job):
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
+
     qiskit_circuit = transpile(
         qiskit_circuit,
         backend_sim,
@@ -549,7 +550,7 @@ def run_remote_ibm(job: Job) -> Result:
 def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
-    device: IBMDevice,
+    device: IBMDevice | IBMSimulatedDevice,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
