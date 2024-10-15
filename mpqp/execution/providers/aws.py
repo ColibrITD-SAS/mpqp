@@ -322,7 +322,7 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
 
 
 def estimate_cost_single_job(
-    job: Job, hybrid_iterations: Optional[int] = 1, estimated_time: Optional[int] = 180
+    job: Job, hybrid_iterations: Optional[int] = 1, estimated_time: Optional[int] = 3
 ) -> float:
 
     if TYPE_CHECKING:
@@ -336,7 +336,7 @@ def estimate_cost_single_job(
                 minute_cost = 0.275
             else:
                 raise ValueError
-            return minute_cost * (estimated_time / 60)
+            return minute_cost * max(estimated_time / 60, 3/60)
         else:
             assert job.measure is not None
             if "ionq" in job.device.value:
