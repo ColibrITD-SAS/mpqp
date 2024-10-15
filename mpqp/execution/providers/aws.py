@@ -332,9 +332,15 @@ def estimate_cost_single_job(
 
     if job.device.is_remote():
         if job.device.is_simulator():
-            if "sv1" in job.device.value:
-                return 0.075 * (estimated_time / 60)
+            if "sv1" in job.device.value or "dm1" in job.device.value:
+                minute_cost = 0.075
+            elif "tn1" in job.device.value:
+                minute_cost = 0.275
+            else:
+                raise ValueError
+            return minute_cost * (estimated_time / 60)
         else:
+            assert job.measure is not None
             if "ionq" in job.device.value:
                 task_cost = 0.3
                 shot_cost = 0.03
