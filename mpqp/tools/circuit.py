@@ -1,8 +1,8 @@
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 from qiskit import QuantumCircuit, transpile
-from qiskit.circuit import CircuitInstruction
+from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate
@@ -10,7 +10,6 @@ from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
     TOF,
     CRk,
-    NativeGate,
     P,
     Rk,
     RotationGate,
@@ -96,7 +95,12 @@ def random_circuit(
         rng = np.random.default_rng(seed)
 
     if gate_classes is None:
-        gate_classes = NATIVE_GATES
+        gate_classes = []
+        for gate in NATIVE_GATES:
+            if TYPE_CHECKING:
+                assert isinstance(gate.nb_qubits, int)
+            if gate.nb_qubits <= nb_qubits:
+                gate_classes.append(gate)
 
     if nb_gates is None:
         nb_gates = rng.integers(5, 10)
@@ -112,8 +116,8 @@ def random_circuit(
         raise ValueError("number of qubits too low for this gates")
 
     for _ in range(nb_gates):
-        gate_class: type[NativeGate] = rng.choice(gate_classes)  # type: ignore[reportArgumentType]
-        target = int(rng.choice(qubits))
+        gate_class = rng.choice(np.array(gate_classes, dtype=object))
+        target = rng.choice(qubits).item()
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
                 if issubclass(gate_class, U):
@@ -130,23 +134,23 @@ def random_circuit(
                 elif issubclass(gate_class, RotationGate):
                     if TYPE_CHECKING:
                         assert issubclass(gate_class, (Rx, Ry, Rz, P))
-                    qcircuit.add(gate_class(random.uniform(0, 2 * np.pi), target))
+                    qcircuit.add(gate_class(rng.uniform(0, 2 * np.pi), target))
                 else:
-                    qcircuit.add(gate_class(int(rng.uniform(0, 2 * np.pi)), target))  # type: ignore[reportArgumentType]
                     raise ValueError
             else:
                 qcircuit.add(gate_class(target))
         else:
-            control = int(rng.choice(list(set(qubits) - {target})))
+            control = rng.choice(list(set(qubits) - {target})).item()
             if issubclass(gate_class, ParametrizedGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, CRk)
-                qcircuit.add(gate_class(rng.integers(0, 10), control, target))  # type: ignore[reportArgumentType]
+                qcircuit.add(gate_class(rng.integers(1, 10), control, target))
             elif issubclass(gate_class, TOF):
-                control2 = int(rng.choice(list(set(qubits) - {target, control})))
+                control2 = rng.choice(list(set(qubits) - {target, control})).item()
                 qcircuit.add(TOF([control, control2], target))
             else:
                 qcircuit.add(gate_class(control, target))
+
     return qcircuit
 
 
