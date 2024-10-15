@@ -322,9 +322,7 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
 
 
 def estimate_cost_single_job(
-        job: Job,
-        hybrid_iterations: Optional[int] = 1,
-        estimated_time: Optional[int] = 180
+    job: Job, hybrid_iterations: Optional[int] = 1, estimated_time: Optional[int] = 180
 ) -> float:
 
     if TYPE_CHECKING:
