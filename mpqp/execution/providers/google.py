@@ -302,8 +302,9 @@ def extract_result_STATE_VECTOR(
         The formatted result.
     """
     from cirq.value.probability import state_vector_to_probabilities
+    from mpqp.tools.maths import normalize
 
-    state_vector = result.final_state_vector
+    state_vector = normalize(result.final_state_vector)
     state_vector = StateVector(
         state_vector, job.circuit.nb_qubits, state_vector_to_probabilities(state_vector)
     )
