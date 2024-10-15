@@ -110,10 +110,12 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
         def _decompose_(self, qubits: tuple[Qid, ...]):
             q = qubits[0]
             return [
-                GlobalPhaseGate(np.exp(1j * (self.lmda  * np.pi + self.phi  * np.pi) / 2)).on(),
-                rz(self.lmda  * np.pi).on(q),
-                ry(self.theta  * np.pi).on(q),
-                rz(self.phi  * np.pi).on(q),
+                GlobalPhaseGate(
+                    np.exp(1j * (self.lmda * np.pi + self.phi * np.pi) / 2)
+                ).on(),
+                rz(self.lmda * np.pi).on(q),
+                ry(self.theta * np.pi).on(q),
+                rz(self.phi * np.pi).on(q),
             ]
 
     # Remove the line containing the barrier keyword
