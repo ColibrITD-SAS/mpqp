@@ -82,7 +82,7 @@ class RandomDoctestRunner(DocTestRunner):
         return super().run(test, *args, **kwargs)
 
 
-def test_documentation(global_seed: int, seed: Optional[int] = None) -> None:
+def test_documentation(global_seed: Optional[int], seed: Optional[int] = None) -> None:
     test_seed = seed if seed is not None else global_seed
 
     np.random.seed(test_seed)
