@@ -1,6 +1,7 @@
 import contextlib
 import random
 from itertools import product
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -115,9 +116,11 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
         ],
     ),
 )
-def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
+def test_custom_gate_with_random_circuit(
+    global_seed: Optional[int], circ_size: int, device: AvailableDevice
+):
     # TODO: test CIRQ when Qasm2 parsing working
-    random_circ = random_circuit(nb_qubits=circ_size)
+    random_circ = random_circuit(nb_qubits=circ_size, seed=global_seed)
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit(
         [CustomGate(UnitaryMatrix(matrix), list(range(circ_size)))]
