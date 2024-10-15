@@ -195,10 +195,10 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     }
     qasm_parser.all_gates |= qs_dict
 
-    def p_new_reg2(self, p):
+    def p_new_reg2(self, p): # pyright: ignore[reportMissingParameterType]
         """new_reg : QREG ID '[' NATURAL_NUMBER ']' ';'
         | CREG ID '[' NATURAL_NUMBER ']' ';'"""
-        from cirq import NamedQubit
+        from cirq.ops.named_qubit import NamedQubit
         from cirq.contrib.qasm_import.exception import QasmException
 
         name, length = p[2], p[4]
