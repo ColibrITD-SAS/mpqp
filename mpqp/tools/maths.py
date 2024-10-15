@@ -291,7 +291,17 @@ def rand_clifford_matrix(
     """
     from qiskit import quantum_info
 
-    return quantum_info.random_clifford(nb_qubits).to_matrix()
+    if seed is None:
+        rng = np.random.default_rng()
+    elif isinstance(seed, np.random.Generator):
+        rng = seed
+    else:
+        rng = np.random.default_rng(seed)
+
+    clifford_circuit = quantum_info.random_clifford(nb_qubits, seed=rng)
+    clifford_matrix = clifford_circuit.to_matrix()
+
+    return np.array(clifford_matrix, dtype=np.complex64)
 
 
 def rand_unitary_2x2_matrix(
