@@ -28,7 +28,6 @@ from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.gates import CustomGate
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
