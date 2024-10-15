@@ -3,18 +3,18 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Optional, Sequence
 
-from mpqp.tools.generics import T
-
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
     from braket.circuits.noises import TwoQubitDepolarizing
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
+    from qiskit_aer.noise.errors.quantum_error import QuantumError
 
 from typeguard import typechecked
 
-from mpqp.core.instruction.gates import Gate
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.noise.custom_noise import KrausRepresentation
+from mpqp.tools.generics import T
 
 
 def plural_marker(items: Sequence[T]):
@@ -35,7 +35,7 @@ class NoiseModel(ABC):
 
     Args:
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instructions.gates.gate.Gate`
+        gates: List of :class:`~mpqp.core.instructions.gates.native_gates.NativeGate`
             affected by this noise.
 
     Raises:
@@ -46,7 +46,7 @@ class NoiseModel(ABC):
     def __init__(
         self,
         targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
         if targets is None:
             targets = []
@@ -95,7 +95,9 @@ class NoiseModel(ABC):
         pass
 
     @abstractmethod
-    def to_other_language(self, language: Language) -> BraketNoise | QLMNoise:
+    def to_other_language(
+        self, language: Language
+    ) -> "BraketNoise" | "QLMNoise" | "QuantumError":
         """Transforms this noise model into the corresponding object in the
         language specified in the ``language`` arg.
 
@@ -119,13 +121,64 @@ class NoiseModel(ABC):
         return noise_info
 
     # 3M-TODO: implement the possibility of having a parameterized noise
+    # param: Union[float, Expr]
     # @abstractmethod
     # def subs(self):
     #     pass
 
 
 @typechecked
-class Depolarizing(NoiseModel):
+class DimensionalNoiseModel(NoiseModel, ABC):
+    """Abstract class representing a multi-dimensional NoiseModel.
+
+    Args:
+        targets: List of qubit indices affected by this noise.
+        dimension: Dimension of the noise model.
+        gates: List of :class:`~mpqp.core.instructions.gates.native_gates.NativeGate`
+            affected by this noise.
+
+    Raises:
+        ValueError: When a negative or zero dimension is input.
+        ValueError: When the size of the specified gates is not coherent with
+            the number of targets or the dimension.
+    """
+
+    def __init__(
+        self,
+        targets: Optional[list[int]] = None,
+        dimension: int = 1,
+        gates: Optional[list[type[NativeGate]]] = None,
+    ):
+        if dimension <= 0:
+            raise ValueError(
+                "Dimension of a multi-dimensional NoiseModel must be strictly greater"
+                f" than 1, but got {dimension} instead."
+            )
+
+        if gates is not None:
+            if any(
+                gate.nb_qubits
+                != dimension  # pyright: ignore[reportUnnecessaryComparison]
+                for gate in gates
+            ):
+                raise ValueError(
+                    f"Dimension of the noise model is {dimension}, but got specified gate(s) of different size."
+                )
+
+        super().__init__(targets, gates)
+        self.dimension = dimension
+        """Dimension of the depolarizing noise model."""
+        self.check_dimension()
+
+    def check_dimension(self):
+        if 0 < len(self.targets) < self.dimension:
+            raise ValueError(
+                f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
+            )
+
+
+@typechecked
+class Depolarizing(DimensionalNoiseModel):
     """Class representing the depolarizing noise channel, which maps a state
     onto a linear combination of itself and the maximally mixed state. It can
     applied to a single or multiple qubits, and depends on a single parameter
@@ -139,7 +192,7 @@ class Depolarizing(NoiseModel):
         prob: Depolarizing error probability or error rate.
         targets: List of qubit indices affected by this noise.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
             affected by this noise.
 
     Raises:
@@ -177,16 +230,12 @@ class Depolarizing(NoiseModel):
         prob: float,
         targets: Optional[list[int]] = None,
         dimension: int = 1,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
-        if dimension <= 0:
-            raise ValueError(
-                "Dimension of the depolarizing channel must be strictly greater"
-                f" than 1, but got {dimension} instead."
-            )
+        super().__init__(targets, dimension, gates)
+        self.prob = prob
+        """Probability, or error rate, of the depolarizing noise model."""
 
-        # 3M-TODO: implement the possibility of having a parameterized noise,
-        # param: Union[float, Expr]
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
             print(dimension, prob, prob_upper_bound)
@@ -195,33 +244,9 @@ class Depolarizing(NoiseModel):
                 f"and {prob_upper_bound}."
             )
 
-        if gates is not None:
-            if any(
-                gate.nb_qubits
-                != dimension  # pyright: ignore[reportUnnecessaryComparison]
-                for gate in gates
-            ):
-                raise ValueError(
-                    f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
-                )
-        super().__init__(targets, gates)
-        self.prob = prob
-        """Probability, or error rate, of the depolarizing noise model."""
-        self.dimension = dimension
-        """Dimension of the depolarizing noise model."""
-        self._check_dimension()
-
-    def _check_dimension(self):
-        if self.targets != [] and len(self.targets) < self.dimension:
-            raise ValueError(
-                f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
-            )
-
     def to_kraus_representation(self):
         """3M-TODO"""
-        # generate Kraus operators for depolarizing noise
-        kraus_operators = []  # list of Kraus operators
-        return KrausRepresentation(kraus_operators)
+        raise NotImplementedError()
 
     def __repr__(self):
         target = (
@@ -235,7 +260,7 @@ class Depolarizing(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise:
+    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -247,6 +272,16 @@ class Depolarizing(NoiseModel):
             Depolarizing('probability': 0.3, 'qubit_count': 1)
             >>> type(braket_depolarizing)
             <class 'braket.circuits.noises.Depolarizing'>
+            >>> qiskit_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT)
+            >>> qiskit_depolarizing.to_quantumchannel()
+            SuperOp([[0.85+0.j, 0.  +0.j, 0.  +0.j, 0.15+0.j],
+                     [0.  +0.j, 0.7 +0.j, 0.  +0.j, 0.  +0.j],
+                     [0.  +0.j, 0.  +0.j, 0.7 +0.j, 0.  +0.j],
+                     [0.15+0.j, 0.  +0.j, 0.  +0.j, 0.85+0.j]],
+                    input_dims=(2,), output_dims=(2,))
+
+            >>> type(qiskit_depolarizing)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
             >>> qlm_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
             >>> print(qlm_depolarizing)  # doctest: +NORMALIZE_WHITESPACE
             Depolarizing channel, p = 0.3:
@@ -276,6 +311,11 @@ class Depolarizing(NoiseModel):
 
                 return BraketDepolarizing(probability=self.prob)
 
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import depolarizing_error
+
+            return depolarizing_error(self.prob, self.dimension)
+
         elif language == Language.MY_QLM:
             if self.dimension > 2:
                 raise NotImplementedError(
@@ -296,8 +336,6 @@ class Depolarizing(NoiseModel):
                 method_2q="equal_probs",
                 depol_type="pauli",
             )
-        else:
-            raise NotImplementedError(f"{language.name} not yet supported.")
 
     def info(self, qubits: set[int]) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
@@ -313,7 +351,7 @@ class BitFlip(NoiseModel):
     Args:
         prob: Bit flip error probability or error rate (must be within [0, 0.5]).
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
             affected by this noise. If multi-qubit gates is passed, single-qubit
             bitflip will be added for each qubit connected (target, control) with the gates.
 
@@ -347,7 +385,7 @@ class BitFlip(NoiseModel):
         self,
         prob: float,
         targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
 
         if not (0 <= prob <= 0.5):
@@ -372,7 +410,7 @@ class BitFlip(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
+    ) -> BraketNoise | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -384,6 +422,16 @@ class BitFlip(NoiseModel):
             BitFlip('probability': 0.3, 'qubit_count': 1)
             >>> type(braket_bitflip)
             <class 'braket.circuits.noises.BitFlip'>
+            >>> qiskit_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT)
+            >>> qiskit_bitflip.to_quantumchannel()
+            SuperOp([[0.7+0.j, 0. +0.j, 0. +0.j, 0.3+0.j],
+                     [0. +0.j, 0.7+0.j, 0.3+0.j, 0. +0.j],
+                     [0. +0.j, 0.3+0.j, 0.7+0.j, 0. +0.j],
+                     [0.3+0.j, 0. +0.j, 0. +0.j, 0.7+0.j]],
+                    input_dims=(2,), output_dims=(2,))
+
+            >>> type(qiskit_bitflip)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
 
         """
 
@@ -391,6 +439,11 @@ class BitFlip(NoiseModel):
             from braket.circuits.noises import BitFlip as BraketBitFlip
 
             return BraketBitFlip(probability=self.prob)
+
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import pauli_error
+
+            return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
         # TODO: MY_QLM implementation
 
@@ -403,17 +456,25 @@ class BitFlip(NoiseModel):
 
 @typechecked
 class AmplitudeDamping(NoiseModel):
-    """Class representing the amplitude damping noise channel, which can model both
+    r"""Class representing the amplitude damping noise channel, which can model both
     the standard and generalized amplitude damping processes. It can be applied
-    to a single qubit and depends on two parameters: the decay rate `gamma` and the
-    probability of excitation `prob`.
+    to a single qubit and depends on two parameters: the decay rate ``gamma`` and the
+    probability of excitation ``prob``.
+
+    We recall below the associated representation, in terms of Kraus operators, where we denote
+    by `\gamma` the decay rate ``gamma``, and by `p` the excitation probability ``prob``:
+
+    .. math:: E_0=\\sqrt{p}\\begin{pmatrix}1&0\\\\0&\\sqrt{1-\\gamma}\\end{pmatrix},
+    .. math:: E_1=\\sqrt{p}\\begin{pmatrix}0&\\sqrt{\\gamma}\\\\0&0\\end{pmatrix},
+    .. math:: E_2=\\sqrt{1-p}\\begin{pmatrix}\\sqrt{1-\\gamma}&0\\\\0&1\\end{pmatrix},
+    .. math:: E_3=\\sqrt{1-p}\\begin{pmatrix}0&0\\\\\\sqrt{\\gamma}&0\\end{pmatrix}.
 
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
         prob: Probability of excitation in the generalized amplitude damping noise channel
             When set to 1, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.gate.Gate>`
+        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
             affected by this noise.
 
     Raises:
@@ -449,7 +510,7 @@ class AmplitudeDamping(NoiseModel):
         gamma: float,
         prob: float = 1,
         targets: Optional[list[int]] = None,
-        gates: Optional[list[type[Gate]]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
     ):
         if not (0 <= gamma <= 1):
             raise ValueError(
@@ -481,7 +542,7 @@ class AmplitudeDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise:
+    ) -> BraketNoise | QLMNoise | QuantumError:
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -493,16 +554,21 @@ class AmplitudeDamping(NoiseModel):
             AmplitudeDamping('gamma': 0.4, 'qubit_count': 1)
             >>> type(braket_ad)
             <class 'braket.circuits.noises.AmplitudeDamping'>
-            >>> braket_gad1 = AmplitudeDamping(0.2, 0, [1]).to_other_language(Language.BRAKET)
+            >>> braket_gad1 = AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.BRAKET)
             >>> braket_gad1
-            GeneralizedAmplitudeDamping('gamma': 0.2, 'probability': 0.0, 'qubit_count': 1)
+            GeneralizedAmplitudeDamping('gamma': 0.4, 'probability': 0.2, 'qubit_count': 1)
             >>> type(braket_gad1)
             <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
-            >>> braket_gad2 = AmplitudeDamping(0.15, 0.2, [0]).to_other_language(Language.BRAKET)
-            >>> braket_gad2
-            GeneralizedAmplitudeDamping('gamma': 0.15, 'probability': 0.2, 'qubit_count': 1)
-            >>> type(braket_gad2)
-            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
+            >>> qiskit_ad = AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.QISKIT)
+            >>> qiskit_ad.to_quantumchannel()
+            SuperOp([[0.88      +0.j, 0.        +0.j, 0.        +0.j, 0.08      +0.j],
+                     [0.        +0.j, 0.89442719+0.j, 0.        +0.j, 0.        +0.j],
+                     [0.        +0.j, 0.        +0.j, 0.89442719+0.j, 0.        +0.j],
+                     [0.12      +0.j, 0.        +0.j, 0.        +0.j, 0.92      +0.j]],
+                    input_dims=(2,), output_dims=(2,))
+
+            >>> type(qiskit_ad)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
 
         """
         if language == Language.BRAKET:
@@ -517,7 +583,14 @@ class AmplitudeDamping(NoiseModel):
 
                 return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
-        # TODO: MY_QLM implmentation
+        # TODO: MY_QLM implementation
+
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
+
+            return amplitude_damping_error(
+                self.gamma, 1 - self.prob  # pyright: ignore[reportArgumentType]
+            )
 
         else:
             raise NotImplementedError(
