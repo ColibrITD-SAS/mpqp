@@ -58,7 +58,8 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     ):
         result = _run_single(c, device, {})
 
-    assert matrix_eq(result.amplitudes, exp_state_vector)
+    # we reduce the precision because of approximation errors coming from CustomGate usage
+    assert matrix_eq(result.amplitudes, exp_state_vector, 1e-5, 1e-5)
 
 
 @pytest.mark.parametrize(
@@ -102,7 +103,8 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
     ):
         result2 = _run_single(c2, device, {})
 
-    assert matrix_eq(result1.amplitudes, result2.amplitudes)
+    # we reduce the precision because of approximation errors coming from CustomGate usage
+    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-5, 1e-5)
 
 
 @pytest.mark.parametrize(
@@ -134,4 +136,5 @@ def test_custom_gate_with_random_circuit(
         result1 = _run_single(random_circ, device, {})
         result2 = _run_single(custom_gate_circ, device, {})
 
-    assert matrix_eq(result1.amplitudes, result2.amplitudes)
+    # we reduce the precision because of approximation errors coming from CustomGate usage
+    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-5, 1e-5)

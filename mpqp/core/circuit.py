@@ -47,7 +47,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import Depolarizing, NoiseModel
+from mpqp.noise.noise_model import NoiseModel, DimensionalNoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -237,11 +237,12 @@ class QCircuit:
                 )
         if isinstance(components, NoiseModel):
             if (
-                isinstance(components, Depolarizing)
+                isinstance(components, DimensionalNoiseModel)
                 and len(components.targets) < components.dimension
             ):
                 raise ValueError(
-                    f"Number of target qubits {len(components.targets)} should be higher than the dimension {components.dimension}."
+                    f"Number of target qubits {len(components.targets)} should be higher than "
+                    f"the dimension {components.dimension}."
                 )
             hardcoded_basis_measures = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
@@ -280,20 +281,18 @@ class QCircuit:
             [0, 1, 2]
 
         """
-
         targets = list(range(self.nb_qubits))
 
-        dynamic_components = components
-        dynamic_components.targets = targets
+        components.targets = targets
         self._check_components_targets(components)
 
-        if isinstance(dynamic_components, Barrier):
-            dynamic_components.size = self.nb_qubits
-        elif isinstance(dynamic_components, ExpectationMeasure):
-            dynamic_components._check_targets_order()  # pyright: ignore[reportPrivateUsage]
-        elif isinstance(dynamic_components, Depolarizing):
-            dynamic_components._check_dimension()  # pyright: ignore[reportPrivateUsage]
-        elif isinstance(dynamic_components, BasisMeasure):
+        if isinstance(components, Barrier):
+            components.size = self.nb_qubits
+        elif isinstance(components, ExpectationMeasure):
+            components.check_targets_order()
+        elif isinstance(components, DimensionalNoiseModel):
+            components.check_dimension()
+        elif isinstance(components, BasisMeasure):
             if self.nb_cbits is None:
                 self.nb_cbits = 0
             unique_cbits = set()
@@ -305,20 +304,21 @@ class QCircuit:
                         unique_cbits.update(basis_measure.c_targets)
             c_targets = []
             i = 0
-            for _ in range(len(dynamic_components.targets)):
+            for _ in range(len(components.targets)):
                 while i in unique_cbits:
                     warn(
-                        "Dynamic measurements don't play well with static measurements: order of classic bits might be unexpected"
+                        "Dynamic measurements don't play well with static measurements: "
+                        "order of classic bits might be unexpected"
                     )
                     i += 1
                 c_targets.append(i)
                 i += 1
-            dynamic_components.c_targets = c_targets
+            components.c_targets = c_targets
             self.nb_cbits = max(
                 max(c_targets, default=0) + 1, max(unique_cbits, default=0) + 1
             )
 
-        return dynamic_components
+        return components
 
     @property
     def nb_qubits(self) -> int:
@@ -759,6 +759,20 @@ class QCircuit:
         """
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
+
+    def get_gates(self) -> list[Gate]:
+        """Retrieve all the gates from the instructions in the circuit.
+
+        Returns:
+            The list of all gates present in the circuit.
+
+        Example:
+            >>> circuit = QCircuit([H(0), CNOT(0, 1)])
+            >>> circuit.get_gates()
+            [H(0), CNOT(0, 1)]
+
+        """
+        return [instr for instr in self.instructions if isinstance(instr, Gate)]
 
     def get_measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
