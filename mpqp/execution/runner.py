@@ -40,7 +40,7 @@ from mpqp.execution.devices import (
     AWSDevice,
     GOOGLEDevice,
     IBMDevice,
-    IBMSimulatedDevice,
+    IBMSimulatedDevice, SimulatedDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -193,7 +193,7 @@ def _run_single(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
         elif not isinstance(
-            device, (ATOSDevice, AWSDevice, IBMDevice, IBMSimulatedDevice)
+            device, (ATOSDevice, AWSDevice, IBMDevice, SimulatedDevice)
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
