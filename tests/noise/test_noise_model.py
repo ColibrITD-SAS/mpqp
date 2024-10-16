@@ -5,7 +5,7 @@ from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 from mpqp.gates import *
-from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel, PhaseDamping
 
 
 def test_depolarizing_valid_params():
@@ -178,6 +178,43 @@ def test_amplitudedamping_qiskit_export(
     expected_error = amplitude_damping_error(
         gamma, 1 - prob  # pyright: ignore[reportArgumentType]
     )
+
+    qiskit_noise_model, _ = generate_qiskit_noise_model(circuit)
+    noisy_instructions = qiskit_noise_model.noise_instructions
+
+    assert qiskit_error == expected_error
+    assert isinstance(qiskit_noise_model, Qiskit_NoiseModel)
+    assert sorted(noisy_instructions) == sorted(expected_noisy_gates)
+
+
+@pytest.mark.parametrize(
+    "gamma, targets, gates, expected_noisy_gates",
+    [
+        (0.3, None, None, ["h", "z", "swap", "cx"]),
+        (0.3, [0, 1, 2], None, ["h", "z", "swap", "cx"]),
+        (0.3, None, [H, CNOT, SWAP, Z], ["h", "z", "swap", "cx"]),
+        (0.3, [0, 1, 2], [CNOT, SWAP], ["cx", "swap"]),
+        (0.3, [0, 1], None, ["h", "noisy_identity_0", "cx"]),
+        (0.3, [0, 1], [H, CNOT, SWAP], ["h", "noisy_identity_0", "cx"]),
+    ],
+)
+def test_phasedamping_qiskit_export(
+    circuit: QCircuit,
+    gamma: float,
+    targets: list[int],
+    gates: list[type[NativeGate]],
+    expected_noisy_gates: list[str],
+):
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer.noise.errors.standard_errors import phase_damping_error
+
+    noise = PhaseDamping(gamma=gamma, targets=targets, gates=gates)
+
+    assert isinstance(circuit, QCircuit)
+    circuit.add(noise)
+
+    qiskit_error = noise.to_other_language(Language.QISKIT)
+    expected_error = phase_damping_error(gamma)
 
     qiskit_noise_model, _ = generate_qiskit_noise_model(circuit)
     noisy_instructions = qiskit_noise_model.noise_instructions

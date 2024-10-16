@@ -9,6 +9,7 @@ if TYPE_CHECKING:
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
 
+import numpy as np
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -603,12 +604,128 @@ class AmplitudeDamping(NoiseModel):
 
 
 class PhaseDamping(NoiseModel):
-    """3M-TODO"""
+    """Class representing the phase damping noise channel. It can be applied to a
+    single qubit and depends on the phase damping parameter ``gamma``. Phase damping happens
+    when a quantum system loses its phase information due to interactions with the environment,
+    leading to decoherence.
 
-    def __init__(self):
-        raise NotImplementedError(
-            f"{type(self).__name__} noise model is not yet implemented."
+    Args:
+        gamma: Probability of phase damping.
+        targets: List of qubit indices affected by this noise.
+        gates: List of :class:`Gates<mpqp.core.instruction.gates.native_gate.NativeGate>`
+            affected by this noise.
+
+    Raises:
+        ValueError: When the gamma parameter is outside of the expected interval [0, 1].
+
+    Examples:
+        >>> circuit = QCircuit([H(i) for i in range(3)])
+        >>> pd1 = PhaseDamping(0.32, list(range(circuit.nb_qubits)))
+        >>> pd2 = PhaseDamping(0.01)
+        >>> pd3 = PhaseDamping(0.45, [0, 1])
+        >>> circuit.add([pd1, pd2, pd3])
+        >>> print(circuit)
+             ┌───┐
+        q_0: ┤ H ├
+             ├───┤
+        q_1: ┤ H ├
+             ├───┤
+        q_2: ┤ H ├
+             └───┘
+        NoiseModel:
+            PhaseDamping(0.32, [0, 1, 2])
+            PhaseDamping(0.01)
+            PhaseDamping(0.45, [0, 1])
+
+    """
+
+    def __init__(
+        self,
+        gamma: float,
+        targets: Optional[list[int]] = None,
+        gates: Optional[list[type[NativeGate]]] = None,
+    ):
+        if not (0 <= gamma <= 1):
+            raise ValueError(
+                f"Invalid phase damping probability: {gamma}. It should be between 0 and 1."
+            )
+
+        super().__init__(targets, gates)
+        self.gamma = gamma
+        """Probability of phase damping."""
+
+    def to_kraus_representation(self) -> KrausRepresentation: ...
+
+    def __repr__(self):
+        targets = (
+            f", {self.targets}"
+            if (not self._dynamic and len(self.targets)) != 0
+            else ""
         )
+        gates = f", gates={self.gates}" if self.gates else ""
+        return f"PhaseDamping({self.gamma}{targets}{gates})"
+
+    def to_other_language(
+        self, language: Language = Language.QISKIT
+    ) -> BraketNoise | QLMNoise | QuantumError:
+        """See documentation of this method in abstract mother class :class:`NoiseModel`.
+
+        Args:
+            language: Enum representing the target language.
+
+        Examples:
+            >>> pd = PhaseDamping(0.4, [0, 1])
+            >>> braket_pd = pd.to_other_language(Language.BRAKET)
+            >>> braket_pd
+            PhaseDamping('gamma': 0.4, 'qubit_count': 1)
+            >>> type(braket_pd)
+            <class 'braket.circuits.noises.PhaseDamping'>
+            >>> qiskit_pd = pd.to_other_language(Language.QISKIT)
+            >>> qiskit_pd.to_quantumchannel()
+            SuperOp([[1.        +0.j, 0.        +0.j, 0.        +0.j, 0.        +0.j],
+                     [0.        +0.j, 0.77459667+0.j, 0.        +0.j, 0.        +0.j],
+                     [0.        +0.j, 0.        +0.j, 0.77459667+0.j, 0.        +0.j],
+                     [0.        +0.j, 0.        +0.j, 0.        +0.j, 1.        +0.j]],
+                    input_dims=(2,), output_dims=(2,))
+            >>> type(qiskit_pd)
+            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
+            >>> qlm_phase_damping = pd.to_other_language(Language.MY_QLM)
+            >>> print(qlm_phase_damping)  # doctest: +NORMALIZE_WHITESPACE
+            Phase Damping channel, gamma = 0.4:
+            [[1.         0.        ]
+             [0.         0.77459667]]
+            [[0.         0.        ]
+             [0.         0.77459667]]
+
+        """
+        if language == Language.BRAKET:
+            from braket.circuits.noises import PhaseDamping as BraketPhaseDamping
+
+            return BraketPhaseDamping(self.gamma)
+
+        elif language == Language.QISKIT:
+            from qiskit_aer.noise.errors.standard_errors import phase_damping_error
+
+            return phase_damping_error(self.gamma)
+
+        elif language == Language.MY_QLM:
+            from qat.quops.quantum_channels import QuantumChannelKraus
+
+            return QuantumChannelKraus(
+                [
+                    np.diag([1, np.sqrt(1 - self.gamma)]),
+                    np.diag([0, np.sqrt(1 - self.gamma)]),
+                ],
+                "Phase Damping channel, gamma = " + str(self.gamma),
+            )
+
+        else:
+            raise NotImplementedError(
+                f"Conversion of Phase Damping noise for language {language} is not supported."
+            )
+
+    def info(self, qubits: set[int]) -> str:
+        return f"{super().info(qubits)} with gamma {self.gamma}"
 
 
 class Pauli(NoiseModel):
