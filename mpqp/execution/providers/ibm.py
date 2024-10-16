@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 from typeguard import typechecked
 
-from mpqp.noise import DimensionalNoiseModel
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -21,6 +20,7 @@ if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
     from qiskit_ibm_runtime import RuntimeJobV2
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit.quantum_info import SparsePauliOp
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import (
@@ -38,15 +38,17 @@ from mpqp.core.instruction.gates import (
     U,
 )
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
+from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure, Observable
 from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
     get_QiskitRuntimeService,
 )
-from mpqp.execution.devices import IBMDevice, IBMSimulatedDevice
+from mpqp.execution.devices import IBMDevice
+from mpqp.execution.simulated_devices import IBMSimulatedDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
 
@@ -66,6 +68,39 @@ def run_ibm(job: Job) -> Result:
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
     return run_aer(job) if not job.device.is_remote() else run_remote_ibm(job)
+
+
+@typechecked
+def fill_observable_with_id(spop: "SparsePauliOp", obs_size: int, circ_size: int) -> "SparsePauliOp":
+    """
+    Fills the Pauli strings with identities to make the observable size
+    match the circuit size
+
+    Args:
+        spop:
+        obs_size:
+        circ_size:
+
+    Returns:
+
+    """
+    from qiskit.quantum_info import Pauli, PauliList, SparsePauliOp
+
+    return SparsePauliOp(
+        [
+            # for some reason, the type checker gets the type of
+            # pauli.paulis[0] wrong, and as such the wrong tensor is
+            # inferred. Because of this, the type inside it are not guessed
+            # properly either, forcing us to "ignore" this problem.
+            pauli.paulis[0].tensor(
+                PauliList(  # pyright: ignore[reportArgumentType]
+                    Pauli("I" * (circ_size - obs_size))
+                )
+            )
+            for pauli in spop
+        ],
+        coeffs=spop.coeffs,
+    )
 
 
 @typechecked
@@ -94,7 +129,15 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         )
     nb_shots = job.measure.shots
     qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_observable, SparsePauliOp)
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_observable, SparsePauliOp)
+
+    if isinstance(job.device, IBMSimulatedDevice):
+        qiskit_observable = fill_observable_with_id(
+            qiskit_observable,
+            job.measure.observable.nb_qubits,
+            job.device.value().num_qubits
+        )
 
     estimator = Estimator()
 
@@ -401,7 +444,7 @@ def run_aer(job: Job):
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=0)
         result_sim = job_sim.result()
-        assert isinstance(job.device, IBMDevice)
+        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.SAMPLE:
@@ -410,9 +453,7 @@ def run_aer(job: Job):
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
-        assert isinstance(job.device, IBMDevice) or isinstance(
-            job.device, IBMSimulatedDevice
-        )
+        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:
@@ -441,7 +482,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     """
     from qiskit import QuantumCircuit
     from qiskit.compiler import transpile
-    from qiskit.quantum_info import Pauli, PauliList, SparsePauliOp
+
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
     from qiskit_ibm_runtime import Session
@@ -479,31 +520,14 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     qiskit_circ = transpile(qiskit_circ, backend)
 
     if job.job_type == JobType.OBSERVABLE:
-        tot_size = qiskit_circ.num_qubits
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
         qiskit_observable = meas.observable.to_other_language(Language.QISKIT)
-        if TYPE_CHECKING:
-            assert isinstance(qiskit_observable, SparsePauliOp)
+        # if TYPE_CHECKING:
+        #     assert isinstance(qiskit_observable, SparsePauliOp)
 
-        # Fills the Pauli strings with identities to make the observable size
-        # match the circuit size
-        qiskit_observable = SparsePauliOp(
-            [
-                # for some reason, the type checker gets the type of
-                # pauli.paulis[0] wrong, and as such the wrong tensor is
-                # inferred. Because of this, the type inside it are not guessed
-                # properly either, forcing us to "ignore" this problem.
-                pauli.paulis[0].tensor(
-                    PauliList(  # pyright: ignore[reportArgumentType]
-                        Pauli("I" * (tot_size - meas.observable.nb_qubits))
-                    )
-                )
-                for pauli in qiskit_observable
-            ],
-            coeffs=qiskit_observable.coeffs,
-        )
+        qiskit_observable = fill_observable_with_id(qiskit_observable, meas.observable.nb_qubits, qiskit_circ.num_qubits)
 
         # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
         #  https://github.com/Qiskit/qiskit-ibm-runtime/blob/ed71c5bf8d4fa23c26a0a26c6d45373263e5ecde/qiskit_ibm_runtime/qiskit/primitives/backend_estimator_v2.py#L154
