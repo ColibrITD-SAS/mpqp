@@ -15,6 +15,7 @@ from mpqp.execution import AvailableDevice
 
 class SimulatedDevice(AvailableDevice):
     """"""
+
     # TODO : comment
     def is_gate_based(self) -> bool:
         return True
@@ -36,6 +37,7 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
     :autodoc-skip-member:
 
     """
+
     # TODO: comment
 
     def supports_statevector(self):
@@ -48,7 +50,7 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
 
     @staticmethod
     def get_ibm_fake_providers() -> (
-            list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
+        list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
     ):
         from qiskit_ibm_runtime import fake_provider
 

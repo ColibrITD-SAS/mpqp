@@ -38,7 +38,10 @@ from mpqp.core.instruction.gates import (
     U,
 )
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure, Observable
+from mpqp.core.instruction.measurement.expectation_value import (
+    ExpectationMeasure,
+    Observable,
+)
 from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
@@ -71,7 +74,9 @@ def run_ibm(job: Job) -> Result:
 
 
 @typechecked
-def fill_observable_with_id(spop: "SparsePauliOp", obs_size: int, circ_size: int) -> "SparsePauliOp":
+def fill_observable_with_id(
+    spop: "SparsePauliOp", obs_size: int, circ_size: int
+) -> "SparsePauliOp":
     """
     Fills the Pauli strings with identities to make the observable size
     match the circuit size
@@ -136,7 +141,7 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         qiskit_observable = fill_observable_with_id(
             qiskit_observable,
             job.measure.observable.nb_qubits,
-            job.device.value().num_qubits
+            job.device.value().num_qubits,
         )
 
     estimator = Estimator()
@@ -527,7 +532,9 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         # if TYPE_CHECKING:
         #     assert isinstance(qiskit_observable, SparsePauliOp)
 
-        qiskit_observable = fill_observable_with_id(qiskit_observable, meas.observable.nb_qubits, qiskit_circ.num_qubits)
+        qiskit_observable = fill_observable_with_id(
+            qiskit_observable, meas.observable.nb_qubits, qiskit_circ.num_qubits
+        )
 
         # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
         #  https://github.com/Qiskit/qiskit-ibm-runtime/blob/ed71c5bf8d4fa23c26a0a26c6d45373263e5ecde/qiskit_ibm_runtime/qiskit/primitives/backend_estimator_v2.py#L154
