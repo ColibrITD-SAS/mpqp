@@ -140,18 +140,21 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         )
 
     estimator = Estimator()
+    # TODO: update the estimator to be noisy when we have a noise model
+    #  or when device is of type IBMSimulatedDevice
 
-    # 3M-TODO: think of the possibility to compute several expectation values at
+    # 3M-TODO: implement the possibility to compute several expectation values at
     #  the same time when the circuit is the same apparently the estimator.run()
-    #  can take several circuits and observables at the same time, to verify if
-    #  putting them all together increases the performance
+    #  can take several circuits and observables at the same time, because
+    #  putting them all together will increase the performance
 
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run(
         [ibm_circuit], [qiskit_observable], shots=nb_shots if nb_shots != 0 else None
     )
     estimator_result = job_expectation.result()
-    assert isinstance(job.device, IBMDevice)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
     return extract_result(estimator_result, job, job.device)
 
 
