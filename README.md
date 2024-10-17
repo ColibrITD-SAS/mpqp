@@ -21,8 +21,7 @@ On this page, you will find:
 
 1. how to [install](#install) the library;
 2. how to [start using](#usage) it;
-3. how to [contribute](#contribute) to the development;
-4. and the current active [contributors](#contributors).
+3. and the current active [contributors](#contributors).
 
 ## Install
 
