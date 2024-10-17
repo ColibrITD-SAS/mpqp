@@ -46,7 +46,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     from cirq.protocols.circuit_diagram_info_protocol import CircuitDiagramInfoArgs
     from cirq.value.duration import Duration
 
-    qasm_str = remove_user_gates(qasm_str)
+    qasm_str = remove_user_gates(qasm_str, skip_qelib1=True)
 
     class PhaseGate(Gate):
         def __init__(self, theta: complex):

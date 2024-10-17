@@ -500,6 +500,37 @@ def test_parse_user_gates(
             CX q[1],q[2];
             measure q[2] -> c[0];""",
         ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+
+            gate MyGate a, b {
+                h a;
+                cx a, b;
+            }
+
+            gate MyGate2 a, b, c{
+                h a;
+                cx a, c;
+                h c;
+            }
+
+            qreg q[3];
+            creg c[3];
+
+            MyGate q[0], q[1];
+            MyGate2 q[0], q[1], q[2];""",
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+            
+            qreg q[3];
+            creg c[3];
+            U(pi/2,0,pi) q[0];
+            CX q[0],q[1];
+            U(pi/2,0,pi) q[0];
+            CX q[0],q[2];
+            U(pi/2,0,pi) q[2];""",
+        ),
     ],
 )
 def test_remove_user_gates(qasm_code: str, expected_output: str):

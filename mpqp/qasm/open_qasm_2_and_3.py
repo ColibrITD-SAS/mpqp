@@ -29,7 +29,6 @@ gates, requiring to replace all user gate calls by their definition. This is
 done using :func:`remove_user_gates`.
 """
 
-from copy import deepcopy
 import os
 import re
 from enum import Enum
@@ -599,7 +598,9 @@ GATE_CALL_PATTERN = re.compile(
 )
 
 
-def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
+def parse_user_gates(
+    qasm_code: str, skip_qelib1: bool = False
+) -> tuple[list[UserGate], str]:
     r"""Parses user gate definitions from QASM code.
 
     Args:
@@ -628,9 +629,14 @@ def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
         rzz(0.2) q[1], q[2];
         c2[0] = measure q[2];
     """
-    copy_qasm_code = deepcopy(qasm_code)
+    copy_qasm_code = "\n".join(
+        [line.lstrip() for line in qasm_code.splitlines() if line.strip()]
+    )
+    included_files = set()
+    if skip_qelib1:
+        included_files.add("qelib1.inc")
     qasm_code_include = open_qasm_hard_includes(
-        copy_qasm_code, set(), remove_included=False
+        copy_qasm_code, included_files, remove_included=False
     )
     matches = list(GATE_PATTERN.finditer(qasm_code_include))
     user_gates = []
@@ -658,7 +664,7 @@ def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
     return user_gates, copy_qasm_code.strip()
 
 
-def remove_user_gates(qasm_code: str) -> str:
+def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
     """Replaces instances of user gates with their definitions in the given QASM
     code. This uses :func:`parse_user_gates` to separate the gate definitions
     from the rest of the code.
@@ -685,7 +691,7 @@ def remove_user_gates(qasm_code: str) -> str:
         cx q[0], q[1];
         measure q -> c;
     """
-    user_gates, qasm_code = parse_user_gates(qasm_code)
+    user_gates, qasm_code = parse_user_gates(qasm_code, skip_qelib1)
     previous_qasm_body = None
     while previous_qasm_body != qasm_code:
         previous_qasm_body = qasm_code
