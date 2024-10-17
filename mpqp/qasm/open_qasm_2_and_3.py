@@ -566,6 +566,14 @@ class UserGate:
             + "\n}"
         )
 
+    def dict(self):
+        return {
+            "name": self.name,
+            "parameters": self.parameters,
+            "qubits": self.qubits,
+            "instructions": self.instructions,
+        }
+
 
 # example of custom gate declaration:
 # gate rotation (theta) q1, q2 { rx (theta) q1; cnot q1, q2; }
@@ -573,7 +581,7 @@ class UserGate:
 #        ^         ^      ^                  ^
 #     gate_name  param? qubits         instructions
 GATE_PATTERN = re.compile(
-    r"gate\s+(?¨P<name>\w+)\s*(\((?¨P<param>[^)]+)\))?\s*(?¨P<qubits>\w+\s*(?:,\s*\w+)*)\s*{(?¨P<instructions>[^}]*)}",
+    r"gate\s+(?P<name>\w+)\s*(\((?P<param>[^)]+)\))?\s*(?P<qubits>\w+\s*(?:,\s*\w+)*)\s*{(?P<instructions>[^}]*)}",
     re.MULTILINE | re.DOTALL,
 )
 # example of gate call:
@@ -582,7 +590,7 @@ GATE_PATTERN = re.compile(
 #    ^        ^       ^
 # gate_name  param? qubits
 GATE_CALL_PATTERN = re.compile(
-    r"(?¨P<gate>\w+)\s*(?¨P<params>\(([^)]*)\))?\s*(?¨P<qubits>[^;]*);",
+    r"(?P<gate>\w+)\s*(?P<params>\(([^)]*)\))?\s*(?P<qubits>[^;]*);",
     re.MULTILINE | re.DOTALL,
 )
 
