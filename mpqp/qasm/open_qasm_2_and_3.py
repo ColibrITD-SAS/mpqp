@@ -566,16 +566,32 @@ class UserGate:
         )
 
 
+# example of custom gate declaration:
+# gate rotation (theta) q1, q2 { rx (theta) q1; cnot q1, q2; }
+#      --------  -----  ------  -----------------------------
+#        ^         ^      ^                  ^
+#     gate_name  param  qubits         instructions
 GATE_PATTERN = re.compile(
-    r"gate\s+(\w+)\s*(\(([^)]+)\))?\s*(\w+\s*(?:,\s*\w+)*)\s*{([^}]*)}\n",
+    r"gate\s+(?¨P<name>\w+)\s*(\((?¨P<param>[^)]+)\))?\s*(?¨P<qubits>\w+\s*(?:,\s*\w+)*)\s*{(?¨P<instructions>[^}]*)}",
     re.MULTILINE | re.DOTALL,
 )
-# Pattern to match gate calls
+# example of gate call:
+# rotation (theta) q1, q2;
+# --------  -----  ------
+#    ^        ^       ^
+# gate_name  param  qubits
 GATE_CALL_PATTERN = re.compile(
-    r"(\w+)\s*(\(([^)]*)\))?\s*([^;]*);", re.MULTILINE | re.DOTALL
+    r"(?¨P<gate>\w+)\s*(?¨P<params>\(([^)]*)\))?\s*(?¨P<qubits>[^;]*);",
+    re.MULTILINE | re.DOTALL,
 )
-
-INSTRUCTION_PATTERN = re.compile(r"([^\w])(\w+)([^\w])", re.MULTILINE | re.DOTALL)
+# example of instruction: # TODO
+# rotation (theta) q1, q2;
+# --------  -----  ------
+#    ^        ^       ^
+# gate_name  param  qubits
+INSTRUCTION_PATTERN = re.compile(
+    r"(?¨P<start>[^\w])(?¨P<instruction>\w+)(?¨P<end>[^\w])", re.MULTILINE | re.DOTALL
+)
 
 
 def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
@@ -610,22 +626,19 @@ def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
     matches = list(GATE_PATTERN.finditer(qasm_code))
     user_gates = []
     for match in matches:
-        (
-            gate_name,
-            is_param,  # pyright: ignore[reportUnusedVariable]
-            param_string,
-            qubits_string,
-            instructions_block,
-        ) = match.groups()
         parameters = (
-            [p.strip() for p in param_string.split(',')] if param_string else []
+            [p.strip() for p in match.group("param").split(',')]
+            if match.group("param")
+            else []
         )
-        qubits = [q.strip() for q in qubits_string.split(',')]
+        qubits = [q.strip() for q in match.group("qubits").split(',')]
         instructions = [
-            line.strip() for line in instructions_block.splitlines() if line.strip()
+            line.strip()
+            for line in match.group("instructions").splitlines()
+            if line.strip()
         ]
         user_gate = UserGate(
-            name=gate_name,
+            name=match.group("name"),
             parameters=parameters,
             qubits=qubits,
             instructions=instructions,
@@ -669,33 +682,35 @@ def remove_user_gates(qasm_code: str) -> str:
         previous_qasm_body = qasm_code
         for gate in user_gates:
             for match in GATE_CALL_PATTERN.finditer(qasm_code):
-                (
-                    gate_name,
-                    is_param,  # pyright: ignore[reportUnusedVariable]
-                    param_string,
-                    qubit_string,
-                ) = match.groups()
-                if gate_name == gate.name:
+                if match.group("gate") == gate.name:
                     param_values = []
-                    if param_string:
-                        param_values = [p.strip() for p in param_string.split(',')]
-                    qubit_values = [q.strip() for q in qubit_string.split(',')]
+                    if match.group("params"):
+                        param_values = [
+                            p.strip() for p in match.group("params").split(',')
+                        ]
+                    qubit_values = [q.strip() for q in match.group("qubits").split(',')]
 
                     expanded = []
                     for instruction in gate.instructions:
                         inst = instruction
                         for match_i in INSTRUCTION_PATTERN.finditer(instruction):
-                            start, instruction_, end = match_i.groups()
+                            print(match_i)
                             if param_values:
                                 for param, value in zip(gate.parameters, param_values):
-                                    if param == instruction_:
+                                    if param == match.group("instruction"):
                                         inst = inst.replace(
-                                            match_i.group(0), start + value + end
+                                            match_i.group(0),
+                                            match_i.group("start")
+                                            + value
+                                            + match_i.group("end"),
                                         )
                             for qubit, value in zip(gate.qubits, qubit_values):
-                                if qubit == instruction_:
+                                if qubit == match.group("instruction"):
                                     inst = inst.replace(
-                                        match_i.group(0), start + value + end
+                                        match_i.group(0),
+                                        match_i.group("start")
+                                        + value
+                                        + match_i.group("end"),
                                     )
                         expanded.append(inst)
 
