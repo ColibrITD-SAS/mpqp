@@ -560,7 +560,8 @@ class UserGate:
 
     def __str__(self):
         return (
-            f"gate {self.name}({', '.join(self.parameters)}) {', '.join(self.qubits)} {{\n"
+            f"gate {self.name}({', '.join(self.parameters)}) {', '.join(self.qubits)} "
+            + "{\n"
             + '\n'.join(self.instructions)
             + "\n}"
         )
@@ -570,7 +571,7 @@ class UserGate:
 # gate rotation (theta) q1, q2 { rx (theta) q1; cnot q1, q2; }
 #      --------  -----  ------  -----------------------------
 #        ^         ^      ^                  ^
-#     gate_name  param  qubits         instructions
+#     gate_name  param? qubits         instructions
 GATE_PATTERN = re.compile(
     r"gate\s+(?¨P<name>\w+)\s*(\((?¨P<param>[^)]+)\))?\s*(?¨P<qubits>\w+\s*(?:,\s*\w+)*)\s*{(?¨P<instructions>[^}]*)}",
     re.MULTILINE | re.DOTALL,
@@ -579,18 +580,10 @@ GATE_PATTERN = re.compile(
 # rotation (theta) q1, q2;
 # --------  -----  ------
 #    ^        ^       ^
-# gate_name  param  qubits
+# gate_name  param? qubits
 GATE_CALL_PATTERN = re.compile(
     r"(?¨P<gate>\w+)\s*(?¨P<params>\(([^)]*)\))?\s*(?¨P<qubits>[^;]*);",
     re.MULTILINE | re.DOTALL,
-)
-# example of instruction: # TODO
-# rotation (theta) q1, q2;
-# --------  -----  ------
-#    ^        ^       ^
-# gate_name  param  qubits
-INSTRUCTION_PATTERN = re.compile(
-    r"(?¨P<start>[^\w])(?¨P<instruction>\w+)(?¨P<end>[^\w])", re.MULTILINE | re.DOTALL
 )
 
 
@@ -683,36 +676,33 @@ def remove_user_gates(qasm_code: str) -> str:
         for gate in user_gates:
             for match in GATE_CALL_PATTERN.finditer(qasm_code):
                 if match.group("gate") == gate.name:
-                    param_values = []
-                    if match.group("params"):
-                        param_values = [
-                            p.strip() for p in match.group("params").split(',')
-                        ]
+                    param_values = (
+                        [p.strip() for p in match.group("params").split(',')]
+                        if match.group("params")
+                        else []
+                    )
                     qubit_values = [q.strip() for q in match.group("qubits").split(',')]
 
                     expanded = []
+                    replacements = {}
+                    for qubit, value in zip(gate.qubits, qubit_values):
+                        replacements[qubit] = value
+                    for param, value in zip(gate.parameters, param_values):
+                        replacements[param] = value
+
+                    def replace(match: re.Match[str]):
+                        return replacements[match.group(0)]
+
                     for instruction in gate.instructions:
-                        inst = instruction
-                        for match_i in INSTRUCTION_PATTERN.finditer(instruction):
-                            print(match_i)
-                            if param_values:
-                                for param, value in zip(gate.parameters, param_values):
-                                    if param == match.group("instruction"):
-                                        inst = inst.replace(
-                                            match_i.group(0),
-                                            match_i.group("start")
-                                            + value
-                                            + match_i.group("end"),
-                                        )
-                            for qubit, value in zip(gate.qubits, qubit_values):
-                                if qubit == match.group("instruction"):
-                                    inst = inst.replace(
-                                        match_i.group(0),
-                                        match_i.group("start")
-                                        + value
-                                        + match_i.group("end"),
-                                    )
-                        expanded.append(inst)
+                        expanded.append(
+                            re.sub(
+                                '|'.join(
+                                    r'\b%s\b' % re.escape(s) for s in replacements
+                                ),
+                                replace,
+                                instruction,
+                            )
+                        )
 
                     expanded_instructions = "\n".join(expanded)
                     qasm_code = qasm_code.replace(match.group(0), expanded_instructions)
