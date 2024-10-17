@@ -8,6 +8,7 @@ import numpy as np
 if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
     from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
+    from qiskit_aer.library import save_statevector
 
 from typeguard import typechecked
 
@@ -54,12 +55,12 @@ def run_azure(job: Job) -> Result:
 
     assert isinstance(job.device, AZUREDevice)
 
-    # if job.job_type == JobType.STATE_VECTOR:
-    #     qiskit_circuit.save_statevector() pyright: ignore[reportAttributeAccessIssue]
-    #     job.status = JobStatus.RUNNING
-    #     job_sim = backend_sim.run(qiskit_circuit, shots=0)
-    #     result_sim = job_sim.result()
-    #     result = extract_result(result_sim, job, job.device)
+    if job.job_type == JobType.STATE_VECTOR:
+        save_statevector(qiskit_circuit)
+        job.status = JobStatus.RUNNING
+        job_sim = backend_sim.run(qiskit_circuit, shots=0)
+        result_sim = job_sim.result()
+        result = extract_result(result_sim, job, job.device)
     if job.job_type == JobType.SAMPLE:
         assert job.measure is not None
         job.status = JobStatus.RUNNING
