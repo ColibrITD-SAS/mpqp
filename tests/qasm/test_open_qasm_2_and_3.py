@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from mpqp.qasm.open_qasm_2_and_3 import (
@@ -8,7 +10,6 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     parse_user_gates,
     remove_user_gates,
 )
-import re
 
 qasm_folder = "tests/qasm/qasm_examples/"
 
@@ -133,10 +134,7 @@ def test_parse_user_gates(
     user_gates, stripped_code = parse_user_gates(qasm_code)
     assert len(user_gates) == len(expected_gates)
     for gate, expected_gate in zip(user_gates, expected_gates):
-        assert gate.name == expected_gate["name"]
-        assert gate.parameters == expected_gate["parameters"]
-        assert gate.qubits == expected_gate["qubits"]
-        assert gate.instructions == expected_gate["instructions"]
+        assert gate.dict() == expected_gate
     assert normalize_whitespace(stripped_code) == normalize_whitespace(
         expected_stripped_code
     )
