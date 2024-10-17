@@ -29,6 +29,7 @@ gates, requiring to replace all user gate calls by their definition. This is
 done using :func:`remove_user_gates`.
 """
 
+from copy import deepcopy
 import os
 import re
 from enum import Enum
@@ -478,6 +479,7 @@ def open_qasm_hard_includes(
     included_files: set[str],
     path_to_file: str = "./",
     is_openqasm_header_included: bool = False,
+    remove_included: bool = True,
 ) -> str:
     r"""Converts an OpenQASM code (2.0 and 3.0) to use no includes, but writes
     every instruction in previously included files, directly in the code
@@ -511,6 +513,8 @@ def open_qasm_hard_includes(
     for line in lines:
         if "include" in line:
             line_array = line.split()
+            if not remove_included:
+                converted_code.append(line)
 
             file_name = line_array[line_array.index("include") + 1].strip(";'\"")
             if file_name not in included_files:
@@ -590,7 +594,7 @@ GATE_PATTERN = re.compile(
 #    ^        ^       ^
 # gate_name  param? qubits
 GATE_CALL_PATTERN = re.compile(
-    r"(?P<gate>\w+)\s*(?P<params>\(([^)]*)\))?\s*(?P<qubits>[^;]*);",
+    r"(?P<gate>\w+)\s*(\((?P<params>[^)]*)\))?\s*(?P<qubits>[^;]*);",
     re.MULTILINE | re.DOTALL,
 )
 
@@ -624,7 +628,11 @@ def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
         rzz(0.2) q[1], q[2];
         c2[0] = measure q[2];
     """
-    matches = list(GATE_PATTERN.finditer(qasm_code))
+    copy_qasm_code = deepcopy(qasm_code)
+    qasm_code_include = open_qasm_hard_includes(
+        copy_qasm_code, set(), remove_included=False
+    )
+    matches = list(GATE_PATTERN.finditer(qasm_code_include))
     user_gates = []
     for match in matches:
         parameters = (
@@ -634,8 +642,8 @@ def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
         )
         qubits = [q.strip() for q in match.group("qubits").split(',')]
         instructions = [
-            line.strip()
-            for line in match.group("instructions").splitlines()
+            line.strip() + ";"
+            for line in match.group("instructions").split(';')
             if line.strip()
         ]
         user_gate = UserGate(
@@ -645,9 +653,9 @@ def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
             instructions=instructions,
         )
         user_gates.append(user_gate)
-        qasm_code = qasm_code.replace(match.group(0), "")
+        copy_qasm_code = copy_qasm_code.replace(match.group(0), "")
 
-    return user_gates, qasm_code.strip()
+    return user_gates, copy_qasm_code.strip()
 
 
 def remove_user_gates(qasm_code: str) -> str:
