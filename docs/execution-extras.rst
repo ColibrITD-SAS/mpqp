@@ -10,7 +10,7 @@ for you are most likely:
 - IBM's :func:`~mpqp.execution.connection.ibm_connection.get_all_job_ids`;
 - Eviden's :func:`~mpqp.execution.connection.qlm_connection.get_all_job_ids`;
 - AWS's :func:`~mpqp.execution.connection.aws_connection.get_all_task_ids`;
-- CIRQ's :func:`~mpqp.execution.connection.cirq_connection.get_all_job_ids`;
+- IonQ's :func:`~mpqp.execution.connection.ionq_connection.get_ionq_job_ids`;
 - The :ref:`con-setup` section.
 
 To setup your access to remote QPUs, see the :ref:`Remote setup` section.
@@ -72,17 +72,33 @@ __________
 
 .. automodule:: mpqp.execution.connection.google_connection
 
+.. _cirq-exec:
+
 Execution
 __________
 
 .. automodule:: mpqp.execution.providers.google
+
+IonQ
+^^^^
+
+Connection
+__________
+
+.. automodule:: mpqp.execution.connection.ionq_connection
+
+Execution
+__________
+
+IonQ's hardware is accessible through cirq, so see :ref:`cirq-exec` for
+execution functions for IonQ's hardware.
 
 .. _con-setup:
 
 Connection setup
 ^^^^^^^^^^^^^^^^
 
-key Connection
+Key Connection
 ______________
 
 .. automodule:: mpqp.execution.connection.key_connection

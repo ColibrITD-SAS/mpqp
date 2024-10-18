@@ -156,8 +156,8 @@ def run_local(job: Job) -> Result:
             )
 
     elif job.job_type == JobType.OBSERVABLE:
-        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
         from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
 
         assert isinstance(job.measure, ExpectationMeasure)
 
@@ -241,8 +241,8 @@ def run_local_processor(job: Job) -> Result:
             f"Does not handle {job.job_type} for processor for the moment"
         )
     elif job.job_type == JobType.OBSERVABLE:
-        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
         from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
 
         assert isinstance(job.measure, ExpectationMeasure)
 
@@ -332,8 +332,7 @@ def extract_result_OBSERVABLE_processors(
     results: Sequence[Sequence[float]],
     job: Job,
 ) -> Result:
-    """
-    Process measurement results for an observable from a quantum job.
+    """Process measurement results for an observable from a quantum job.
 
     Args:
         results : A sequence of measurement results, where
