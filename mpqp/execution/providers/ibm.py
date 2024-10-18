@@ -615,7 +615,11 @@ def extract_result(
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
             mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
             error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
-            shots = job.measure.shots if job.device.is_simulator() else result[0].metadata["shots"]
+            shots = (
+                job.measure.shots
+                if job.device.is_simulator()
+                else result[0].metadata["shots"]
+            )
             return Result(job, mean, error, shots)
         # If we are in sample mode
         else:
