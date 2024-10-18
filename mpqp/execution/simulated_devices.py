@@ -1,7 +1,8 @@
 """To execute a circuit on a noisy simulator that reproduces the noise model of a machine,
 one can use a :class:`SimulatedDevice`. Inheriting from :class:`~mpqp.execution.devices.AvailableDevice`
 """
-#TODO: finish doc
+
+# TODO: finish doc
 
 
 from typing import Union, TYPE_CHECKING
