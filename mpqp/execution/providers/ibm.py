@@ -124,7 +124,7 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
-    from qiskit.primitives import Estimator
+
     from qiskit.quantum_info import SparsePauliOp
 
     if not isinstance(job.measure, ExpectationMeasure):
@@ -144,9 +144,15 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
             job.device.value().num_qubits,
         )
 
+    from qiskit_aer.primitives import EstimatorV2 as Estimator
+
     estimator = Estimator()
-    # TODO: update the estimator to be noisy when we have a noise model
-    #  or when device is of type IBMSimulatedDevice
+    if isinstance(job.device, IBMSimulatedDevice):
+        estimator.options.backend_options = {"noise_model": job.device.to_noise_model()}
+        # TODO: understand why the fake model/device always use the |000> state and not the circuit to compute
+        #  expectation values
+    if nb_shots != 0:
+        estimator.options.default_precision = 1 / np.sqrt(nb_shots)
 
     # 3M-TODO: implement the possibility to compute several expectation values at
     #  the same time when the circuit is the same apparently the estimator.run()
@@ -154,9 +160,7 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
     #  putting them all together will increase the performance
 
     job.status = JobStatus.RUNNING
-    job_expectation = estimator.run(
-        [ibm_circuit], [qiskit_observable], shots=nb_shots if nb_shots != 0 else None
-    )
+    job_expectation = estimator.run([(ibm_circuit, qiskit_observable)])
     estimator_result = job_expectation.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
@@ -539,13 +543,10 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             qiskit_observable, meas.observable.nb_qubits, qiskit_circ.num_qubits
         )
 
-        # FIXME: when we precise the target precision like this, it does not give the right number of shots at the end.
-        #  https://github.com/Qiskit/qiskit-ibm-runtime/blob/ed71c5bf8d4fa23c26a0a26c6d45373263e5ecde/qiskit_ibm_runtime/qiskit/primitives/backend_estimator_v2.py#L154
-        #  Tried once with shots=1234, but got shots=1280 with the real experiment, looks like the decimal part of
-        #  precision is truncated. The problem is on the IBM side, an issue has been published :
-        #  https://github.com/Qiskit/qiskit-ibm-runtime/issues/1749
-        precision = 1 / np.sqrt(meas.shots)
-        ibm_job = estimator.run([(qiskit_circ, qiskit_observable)], precision=precision)
+        # TODO: check that default_shots gives indeed the right shots remotely
+        estimator.options.default_shots = meas.shots
+        # precision = 1 / np.sqrt(meas.shots)
+        ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(meas, BasisMeasure)
         sampler = Runtime_Sampler(session=session)
@@ -614,7 +615,7 @@ def extract_result(
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
             mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
             error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
-            shots = result[0].metadata["shots"]
+            shots = job.measure.shots if job.device.is_simulator() else result[0].metadata["shots"]
             return Result(job, mean, error, shots)
         # If we are in sample mode
         else:

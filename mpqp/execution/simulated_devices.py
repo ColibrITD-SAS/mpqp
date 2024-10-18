@@ -45,8 +45,11 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
 
     def to_noisy_simulator(self) -> "AerSimulator":
         from qiskit_aer.backends.aer_simulator import AerSimulator
-
         return AerSimulator.from_backend(self.value())
+
+    def to_noise_model(self) -> "Qiskit_NoiseModel":
+        from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+        return Qiskit_NoiseModel.from_backend(self.value())
 
     @staticmethod
     def get_ibm_fake_providers() -> (
