@@ -2,8 +2,7 @@ from mpqp.execution.connection.env_manager import get_env_variable
 
 
 def get_google_account_info() -> str:
-    """
-    Get the IonQ API key from the environment variables.
+    """Get the IonQ API key from the environment variables.
 
     Returns:
         str: A string containing the IonQ API key.
@@ -18,8 +17,7 @@ def get_google_account_info() -> str:
 
 
 def get_all_job_ids() -> list[str]:
-    """
-    Retrieves all job IDs associated with google jobs.
+    """Retrieves all job IDs associated with google jobs.
 
     Returns:
         A list of job IDs.
