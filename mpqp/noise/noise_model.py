@@ -21,7 +21,6 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
-from mpqp.noise.custom_noise import KrausRepresentation
 from mpqp.tools.generics import T
 
 
@@ -301,20 +300,6 @@ class Depolarizing(DimensionalNoiseModel):
                 f"and {prob_upper_bound}."
             )
 
-        if gates is not None:
-            if any(
-                gate.nb_qubits
-                != dimension  # pyright: ignore[reportUnnecessaryComparison]
-                for gate in gates
-            ):
-                raise ValueError(
-                    f"Dimension of Depolarizing is {dimension}, but got specified gate(s) of different size."
-                )
-        super().__init__(targets, gates)
-        self.prob = prob
-        """Probability, or error rate, of the depolarizing noise model."""
-        self.dimension = dimension
-        """Dimension of the depolarizing noise model."""
         self._check_dimension()
 
     def _check_dimension(self):
