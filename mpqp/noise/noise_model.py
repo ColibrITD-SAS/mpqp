@@ -83,10 +83,12 @@ class NoiseModel(ABC):
         """List of specific gates after which this noise model will be applied."""
 
     def connections(self) -> set[int]:
-        """Returns the indices of the qubits connected to the noise model (affected by the noise).
+        """Returns the indices of the qubits connected to the noise model
+        (affected by the noise).
 
         Returns:
-            Set of qubit indices on which this NoiseModel is connected (applied on).
+            Set of qubit indices on which this NoiseModel is connected (applied
+            on).
         """
         return set(self.targets)
 
@@ -250,11 +252,7 @@ class Depolarizing(DimensionalNoiseModel):
         raise NotImplementedError()
 
     def __repr__(self):
-        target = (
-            f", {self.targets}"
-            if (not self._dynamic and len(self.targets) != 0)
-            else ""
-        )
+        target = f", {self.targets}" if not self._dynamic else ""
         dimension = f", dimension={self.dimension}" if self.dimension != 1 else ""
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
         return f"Depolarizing({self.prob}{target}{dimension}{gates})"
@@ -401,11 +399,7 @@ class BitFlip(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
-        targets = (
-            f", {self.targets}"
-            if (not self._dynamic and len(self.targets)) != 0
-            else ""
-        )
+        targets = f", {self.targets}" if not self._dynamic else ""
         gates = f", gates={self.gates}" if self.gates else ""
         return f"BitFlip({self.prob}{targets}{gates})"
 
@@ -535,11 +529,7 @@ class AmplitudeDamping(NoiseModel):
 
     def __repr__(self):
         prob = f", {self.prob}" if self.prob != 1 else ""
-        targets = (
-            f", targets={self.targets}"
-            if (not self._dynamic and len(self.targets)) != 0
-            else ""
-        )
+        targets = f", targets={self.targets}" if not self._dynamic else ""
         gates = f", gates={self.gates}" if len(self.gates) != 0 else ""
         return f"AmplitudeDamping({self.gamma}{prob}{targets}{gates})"
 
@@ -659,11 +649,7 @@ class PhaseDamping(NoiseModel):
     def to_kraus_representation(self) -> KrausRepresentation: ...
 
     def __repr__(self):
-        targets = (
-            f", {self.targets}"
-            if (not self._dynamic and len(self.targets)) != 0
-            else ""
-        )
+        targets = f", {self.targets}" if not self._dynamic else ""
         gates = f", gates={self.gates}" if self.gates else ""
         return f"PhaseDamping({self.gamma}{targets}{gates})"
 
