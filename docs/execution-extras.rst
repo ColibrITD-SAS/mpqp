@@ -90,8 +90,8 @@ __________
 Execution
 __________
 
-IonQ's hardware is accessible through cirq, so see :ref:`cirq-exec` for
-execution functions for IonQ's hardware.
+IonQ's hardware is accessible through cirq, so see Circ's :ref:`cirq-exec` 
+section for the functions used for IonQ's hardware.
 
 .. _con-setup:
 
