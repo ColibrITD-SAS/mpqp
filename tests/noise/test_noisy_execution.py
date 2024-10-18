@@ -63,7 +63,13 @@ def circuit():
 
 @pytest.fixture
 def devices():
-    devices: list[AvailableDevice] = [AWSDevice.BRAKET_LOCAL_SIMULATOR]
+    devices: list[AvailableDevice] = [
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        IBMDevice.AER_SIMULATOR,
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+    ]
     if "--long" in sys.argv:
         devices.append(ATOSDevice.QLM_NOISYQPROC)
     return devices
