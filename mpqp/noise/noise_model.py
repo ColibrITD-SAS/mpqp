@@ -457,29 +457,31 @@ class BitFlip(NoiseModel):
 
 @typechecked
 class AmplitudeDamping(NoiseModel):
-    r"""Class representing the amplitude damping noise channel, which can model both
-    the standard and generalized amplitude damping processes. It can be applied
-    to a single qubit and depends on two parameters: the decay rate ``gamma`` and the
-    probability of excitation ``prob``.
+    r"""Class representing the amplitude damping noise channel, which can model
+    both the standard and generalized amplitude damping processes. It can be
+    applied to a single qubit and depends on two parameters: the decay rate
+    ``gamma`` and the probability of excitation ``prob``.
 
-    We recall below the associated representation, in terms of Kraus operators, where we denote
-    by `\gamma` the decay rate ``gamma``, and by `p` the excitation probability ``prob``:
+    We recall below the associated representation, in terms of Kraus operators,
+    where we denote by `\gamma` the decay rate ``gamma``, and by `p` the
+    excitation probability ``prob``:
 
-    .. math:: E_0=\\sqrt{p}\\begin{pmatrix}1&0\\\\0&\\sqrt{1-\\gamma}\\end{pmatrix},
-    .. math:: E_1=\\sqrt{p}\\begin{pmatrix}0&\\sqrt{\\gamma}\\\\0&0\\end{pmatrix},
-    .. math:: E_2=\\sqrt{1-p}\\begin{pmatrix}\\sqrt{1-\\gamma}&0\\\\0&1\\end{pmatrix},
-    .. math:: E_3=\\sqrt{1-p}\\begin{pmatrix}0&0\\\\\\sqrt{\\gamma}&0\\end{pmatrix}.
+    `E_0=\sqrt{p}\begin{pmatrix}1&0\\0&\sqrt{1-\gamma}\end{pmatrix}`,
+    `E_1=\sqrt{p}\begin{pmatrix}0&\sqrt{\gamma}\\0&0\end{pmatrix}`,
+    `E_2=\sqrt{1-p}\begin{pmatrix}\sqrt{1-\gamma}&0\\0&1\end{pmatrix}` and
+    `E_3=\sqrt{1-p}\begin{pmatrix}0&0\\\sqrt{\gamma}&0\end{pmatrix}`.
 
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
-        prob: Probability of excitation in the generalized amplitude damping noise channel
-            When set to 1, indicating standard amplitude damping.
+        prob: Probability of excitation in the generalized amplitude damping
+            noise channel When set to 1, indicating standard amplitude damping.
         targets: List of qubit indices affected by this noise.
         gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
             affected by this noise.
 
     Raises:
-        ValueError: When the gamma or prob parameters are outside of the expected interval [0, 1].
+        ValueError: When the gamma or prob parameters are outside of the
+            expected interval ``[0, 1]``.
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
