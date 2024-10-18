@@ -6,7 +6,13 @@ import numpy as np
 import pytest
 
 from mpqp import QCircuit
-from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from mpqp.execution import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    IBMDevice,
+    GOOGLEDevice,
+)
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
@@ -30,12 +36,11 @@ def test_custom_gate_is_unitary():
             IBMDevice.AER_SIMULATOR,
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             ATOSDevice.MYQLM_PYLINALG,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
     ),
 )
 def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
-    # TODO: test CIRQ when Qasm2 parsing working
-
     gate_size = random.randint(1, circ_size)
     targets_start = random.randint(0, circ_size - gate_size)
     m = UnitaryMatrix(rand_orthogonal_matrix(2**gate_size))
@@ -67,10 +72,10 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
         IBMDevice.AER_SIMULATOR,
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ATOSDevice.MYQLM_PYLINALG,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
     ],
 )
 def test_custom_gate_with_native_gates(device: AvailableDevice):
-    # TODO: test CIRQ when Qasm2 parsing working
     x = UnitaryMatrix(np.array([[0, 1], [1, 0]]))
     h = UnitaryMatrix(np.array([[1, 1], [1, -1]]) / np.sqrt(2))
     cnot = UnitaryMatrix(
@@ -114,11 +119,11 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
             IBMDevice.AER_SIMULATOR,
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             ATOSDevice.MYQLM_PYLINALG,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
     ),
 )
 def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
-    # TODO: test CIRQ when Qasm2 parsing working
     random_circ = random_circuit(nb_qubits=circ_size)
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit(
