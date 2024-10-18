@@ -96,15 +96,10 @@ execution functions for IonQ's hardware.
 .. _con-setup:
 
 Connection setup
-^^^^^^^^^^^^^^^^
-
-Key Connection
-______________
-
-.. automodule:: mpqp.execution.connection.key_connection
+----------------
 
 Connection setup script 
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: mpqp_scripts.setup_connections
 
@@ -112,7 +107,7 @@ The details on how to get these information can be found in the section
 :ref:`Remote setup`.
 
 On disk configuration manager
------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. automodule:: mpqp.execution.connection.env_manager
 
