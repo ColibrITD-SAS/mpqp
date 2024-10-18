@@ -1,6 +1,8 @@
 """To execute a circuit on a noisy simulator that reproduces the noise model of a machine,
 one can use a :class:`SimulatedDevice`. Inheriting from :class:`~mpqp.execution.devices.AvailableDevice`
 """
+#TODO: finish doc
+
 
 from typing import Union, TYPE_CHECKING
 from typeguard import typechecked
@@ -8,13 +10,14 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from qiskit_aer.backends.aer_simulator import AerSimulator
     from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit.providers import Backend
 
 from mpqp.execution import AvailableDevice
 
 
 class SimulatedDevice(AvailableDevice):
-    """"""
+    """Abstract class used to define simulators reproducing the noise of a real device."""
 
     # TODO : comment
     def is_gate_based(self) -> bool:
@@ -32,13 +35,7 @@ class SimulatedDevice(AvailableDevice):
 
 @typechecked
 class AbstractIBMSimulatedDevice(SimulatedDevice):
-    """
-
-    :autodoc-skip-member:
-
-    """
-
-    # TODO: comment
+    """Abstract class regrouping methods specific to an ``IBMSimulatedDevice``."""
 
     def supports_statevector(self):
         return True
@@ -68,4 +65,6 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
 IBMSimulatedDevice = AbstractIBMSimulatedDevice(
     'IBMSimulatedDevice', AbstractIBMSimulatedDevice.get_ibm_fake_providers()
 )
-""" LALBLZDLZZL"""
+"""Enum regrouping all fake devices used to simulate noise of real hardware.
+
+The members of this Enum are generated dynamically from ``qiskit_ibm_runtime.fake_provider``."""
