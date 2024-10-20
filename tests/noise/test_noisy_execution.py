@@ -23,7 +23,7 @@ from mpqp.execution import (
     run,
 )
 from mpqp.gates import *
-from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
@@ -87,6 +87,7 @@ def test_noisy_expectation_value_execution_without_error(
             BitFlip(0.1),
             AmplitudeDamping(0.4),
             AmplitudeDamping(0.2, 0.3),
+            PhaseDamping(0.6),
         ]
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
@@ -106,6 +107,8 @@ def test_all_native_gates_global_noise_execution_without_error(
             BitFlip(0.1, gates=[CNOT, H]),
             AmplitudeDamping(0.4, gates=[CNOT, H]),
             AmplitudeDamping(0.2, 0.3, [0, 1, 2]),
+            PhaseDamping(0.4, [0, 2]),
+            PhaseDamping(0.4, gates=[CNOT, H]),
         ]
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
@@ -125,6 +128,7 @@ def test_all_native_gates_local_noise(
             BitFlip(0.1, [0, 1], gates=[CNOT, H]),
             AmplitudeDamping(0.4, targets=[0, 1], gates=[CNOT, H]),
             AmplitudeDamping(0.2, 0.3, [0, 1, 2]),
+            PhaseDamping(0.4, [0, 1, 2], gates=[CNOT, H]),
         ]
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
