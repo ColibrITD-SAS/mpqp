@@ -524,9 +524,9 @@ class AmplitudeDamping(NoiseModel):
     excitation probability ``prob``:
 
     `E_0=\sqrt{p}\begin{pmatrix}1&0\\0&\sqrt{1-\gamma}\end{pmatrix}`,
-    `E_1=\sqrt{p}\begin{pmatrix}0&\sqrt{\gamma}\\0&0\end{pmatrix}`,
-    `E_2=\sqrt{1-p}\begin{pmatrix}\sqrt{1-\gamma}&0\\0&1\end{pmatrix}` and
-    `E_3=\sqrt{1-p}\begin{pmatrix}0&0\\\sqrt{\gamma}&0\end{pmatrix}`.
+    `~ ~ E_1=\sqrt{p}\begin{pmatrix}0&\sqrt{\gamma}\\0&0\end{pmatrix}`,
+    `~ ~ E_2=\sqrt{1-p}\begin{pmatrix}\sqrt{1-\gamma}&0\\0&1\end{pmatrix}` and
+    `~ E_3=\sqrt{1-p}\begin{pmatrix}0&0\\\sqrt{\gamma}&0\end{pmatrix}`.
 
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
@@ -715,9 +715,9 @@ class PhaseDamping(NoiseModel):
 
     def to_kraus_operators(self):
         return [
-            np.sqrt(1 - self.prob) * Id,
-            np.diag([np.sqrt(self.prob), 0]),
-            np.diag([0, np.sqrt(self.prob)]),
+            np.sqrt(1 - self.gamma) * Id,
+            np.diag([np.sqrt(self.gamma), 0]),
+            np.diag([0, np.sqrt(self.gamma)]),
         ]
 
     def __repr__(self):
