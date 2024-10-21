@@ -12,6 +12,7 @@ from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+    from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -82,12 +83,55 @@ class CustomGate(Gate):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
+        qcircuit: Optional["QCircuit"] = None,
     ):
-        from qiskit.quantum_info.operators import Operator as QiskitOperator
+        if language == Language.QISKIT:
+            from qiskit.quantum_info.operators import Operator as QiskitOperator
 
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
-        return QiskitOperator(self.matrix)
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
+            return QiskitOperator(self.matrix)
+        elif language == Language.QASM2:
+            from mpqp.tools.circuit import replace_custom_gate
+            from qiskit.quantum_info.operators import Operator as QiskitOperator
+            from qiskit import QuantumCircuit, qasm2
+
+            if qcircuit:
+                nb_qubits = qcircuit.nb_qubits
+            else:
+                nb_qubits = len(self.targets)
+
+            qiskit_circ = QuantumCircuit(nb_qubits)
+
+            qiskit_circ.unitary(
+                QiskitOperator(self.matrix).to_instruction(),
+                list(reversed(self.targets)),  # dang qiskit qubits order
+                self.label,
+            )
+            filtered_qasm = ""
+            final_gphase = 0
+            for instruction in qiskit_circ.data:
+                circuit, gphase = replace_custom_gate(instruction, nb_qubits)
+
+                qasm_str = qasm2.dumps(circuit)
+                qasm_lines = qasm_str.splitlines()
+
+                instructions_only = [
+                    line
+                    for line in qasm_lines
+                    if not (
+                        line.startswith("qreg")
+                        or line.startswith("include")
+                        or line.startswith("creg")
+                        or line.startswith("OPENQASM")
+                    )
+                ]
+
+                filtered_qasm += "\n".join(instructions_only)
+                final_gphase += gphase
+            return "\n" + filtered_qasm, final_gphase
+        else:
+            raise NotImplementedError(f"Error: {language} is not supported")
 
     def __repr__(self) -> str:
         label = ", " + self.label if self.label else ""

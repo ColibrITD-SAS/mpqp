@@ -288,6 +288,7 @@ class QCircuit:
 
         if isinstance(components, Barrier):
             components.size = self.nb_qubits
+            components.targets = [i for i in range(self.nb_qubits)]
         elif isinstance(components, ExpectationMeasure):
             components.check_targets_order()
         elif isinstance(components, DimensionalNoiseModel):
@@ -858,7 +859,7 @@ class QCircuit:
 
     def to_other_language(
         self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -930,8 +931,10 @@ class QCircuit:
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
+                    instr = instruction.to_other_language(Language.QISKIT)
+                    assert isinstance(instr, Operator)
                     new_circ.unitary(
-                        instruction.to_other_language(language),
+                        instr,
                         list(reversed(instruction.targets)),  # dang qiskit qubits order
                         instruction.label,
                     )
@@ -967,7 +970,9 @@ class QCircuit:
 
         elif language == Language.MY_QLM:
             cleaned_circuit = self.without_measurements()
-            myqlm_circuit = qasm2_to_myqlm_Circuit(cleaned_circuit.to_qasm2())
+            qasm2_code = cleaned_circuit.to_other_language(Language.QASM2)
+            assert isinstance(qasm2_code, str)
+            myqlm_circuit = qasm2_to_myqlm_Circuit(qasm2_code)
             self.gphase = cleaned_circuit.gphase
             return myqlm_circuit
 
@@ -998,15 +1003,18 @@ class QCircuit:
                         "an error on AWS Braket side."
                     )
 
-            qasm3_str = circuit.to_qasm3()
+            qasm3_code = circuit.to_other_language(Language.QASM3)
+            assert isinstance(qasm3_code, str)
             self.gphase = circuit.gphase
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(qasm3_str),
+                qasm3_to_braket_Circuit(qasm3_code),
                 self.noises,
                 self.nb_qubits,
             )
         elif language == Language.CIRQ:
-            cirq_circuit = qasm2_to_cirq_Circuit(self.to_qasm2())
+            qasm2_code = self.to_other_language(Language.QASM2)
+            assert isinstance(qasm2_code, str)
+            cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
             if cirq_proc_id:
                 from cirq.transformers.optimize_for_target_gateset import (
                     optimize_for_target_gateset,
@@ -1035,106 +1043,19 @@ class QCircuit:
 
                 device.validate_circuit(cirq_circuit)
             return cirq_circuit
+        elif language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 
+            qasm_str, gphase = mpqp_to_qasm2(self)
+            self.gphase = gphase
+            return qasm_str
+        elif language == Language.QASM3:
+            qasm2_code = self.to_other_language(Language.QASM2)
+            assert isinstance(qasm2_code, str)
+            qasm3_code = open_qasm_2_to_3(qasm2_code)
+            return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
-
-    def to_qasm2(self) -> str:
-        """Converts this circuit to the corresponding OpenQASM 2 code.
-
-        For now, we use an intermediate conversion to a Qiskit
-        ``QuantumCircuit``.
-
-        Returns:
-            A string representing the OpenQASM2 code corresponding to this
-            circuit.
-
-        Examples:
-            >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit.to_qasm2())  # doctest: +NORMALIZE_WHITESPACE
-            OPENQASM 2.0;
-            include "qelib1.inc";
-            qreg q[2];
-            creg c[2];
-            x q[0];
-            cx q[0],q[1];
-            measure q[0] -> c[0];
-            measure q[1] -> c[1];
-
-        """
-        # TODO: put back this example when we figure out why the qasm2 export is
-        # different on docker/github actions
-        # >>> IxX = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
-        # >>> c2 = QCircuit([CustomGate(UnitaryMatrix(IxX),[1,2])])
-        # >>> print(c2.to_qasm2())
-        # OPENQASM 2.0;
-        # include "qelib1.inc";
-        # qreg q[3];
-        # u(0,pi/2,-pi/2) q[1];
-        # u(pi,-pi/2,pi/2) q[2];
-
-        from qiskit import QuantumCircuit, qasm2
-
-        from mpqp.tools.circuit import replace_custom_gate
-
-        qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
-            Language.QISKIT
-        )
-        if TYPE_CHECKING:
-            assert isinstance(qiskit_circ, QuantumCircuit)
-
-        qiskit_circ.reverse_bits()
-
-        global_phase = 0
-        new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
-        for instruction in qiskit_circ.data:
-            if instruction.operation.name == 'unitary':
-                circuit, gphase = replace_custom_gate(
-                    instruction, qiskit_circ.num_qubits
-                )
-                new_circuit.compose(circuit, inplace=True)
-                global_phase += gphase
-            else:
-                new_circuit.append(instruction)
-
-        self.gphase = global_phase
-
-        return qasm2.dumps(new_circuit)
-
-    def to_qasm3(self) -> str:
-        """Converts this circuit to the corresponding OpenQASM 3 code.
-
-        For now, we use an intermediate conversion to OpenQASM 2, and then a
-        converter from 2 to 3.
-
-        Returns:
-            A string representing the OpenQASM3 code corresponding to this
-            circuit.
-
-        Example:
-            >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
-            >>> print(circuit.to_qasm3())  # doctest: +NORMALIZE_WHITESPACE
-            OPENQASM 3.0;
-            include "stdgates.inc";
-            qubit[2] q;
-            bit[2] c;
-            x q[0];
-            cx q[0],q[1];
-            c[0] = measure q[0];
-            c[1] = measure q[1];
-
-        """
-        # TODO: put back this example when we figure out why the qasm2 export is different on docker/github actions
-        # >>> c2 = QCircuit([CustomGate(UnitaryMatrix(np.array([[0,1,0,0],[1,0,0,0],[0,0,0,1],[0,0,1,0]])),[1,2])])
-        # >>> print(c2.to_qasm3()) # doctest: +NORMALIZE_WHITESPACE
-        # OPENQASM 3.0;
-        # include "stdgates.inc";
-        # qubit[3] q;
-        # u3(0,pi/2,-pi/2) q[1];
-        # u3(pi,-pi/2,pi/2) q[2];
-        qasm2_code = self.to_qasm2()
-        qasm3_code = open_qasm_2_to_3(qasm2_code)
-        return qasm3_code
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
