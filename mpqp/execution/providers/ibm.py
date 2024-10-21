@@ -151,7 +151,11 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
         qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
-        options = {"optimization_level": 0, "resilience_level": 0, "default_shots": job.measure.shots}
+        options = {
+            "optimization_level": 0,
+            "resilience_level": 0,
+            "default_shots": job.measure.shots,
+        }
 
         estimator = Runtime_Estimator(backend=backend, options=options)
 
@@ -165,6 +169,7 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         pass
     else:
         from qiskit_aer.primitives import EstimatorV2 as Estimator
+
         estimator = Estimator()
         if nb_shots != 0:
             estimator.options.default_precision = 1 / np.sqrt(nb_shots)
@@ -630,7 +635,7 @@ def extract_result(
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
             mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
             error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
-            shots = ( #TODO
+            shots = (  # TODO
                 job.measure.shots
                 if job.device.is_simulator()
                 else result[0].metadata["shots"]

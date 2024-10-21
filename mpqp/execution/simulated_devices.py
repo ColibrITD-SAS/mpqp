@@ -62,7 +62,9 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         return [
             (p, fake_imports[p])
             for p in fake_imports.keys()
-            if p.startswith("Fake") and issubclass(fake_imports[p], FakeBackendV2) and not p.startswith("FakeProvider")
+            if p.startswith("Fake")
+            and issubclass(fake_imports[p], FakeBackendV2)
+            and not p.startswith("FakeProvider")
         ]
 
 
