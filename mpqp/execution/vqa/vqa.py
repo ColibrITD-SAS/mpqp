@@ -80,8 +80,8 @@ def minimize(
         ...     CNOT(1,0),
         ...     Rz(beta, 0),
         ...     ExpectationMeasure(
+        ...         Observable(np.diag([1,2,-3,4])),
         ...         [0,1],
-        ...         observable=Observable(np.diag([1,2,-3,4])),
         ...         shots=0,
         ...     ),
         ... ])

@@ -44,7 +44,7 @@ def _simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int])
     return final_str
 
 
-def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
+def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> tuple[str, float]:
     """Converts an :class:`~mpqp.core.circuit.QCircuit` object into a string in
     QASM 2.0 format. It handles various quantum instructions like gates,
     measurements, and barriers and can optionally simplify the circuit by
@@ -56,7 +56,8 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
             by merging consecutive single-qubit gates of the same type.
 
     Returns:
-        A string containing the QASM 2.0 representation of the provided circuit.
+        A tuple containing, QASM 2.0 string representation of the provided circuit, and
+        A global phase value associated with custom gates.
 
     Raises:
         ValueError: If an unknown gate or instruction type is encountered during
@@ -64,7 +65,7 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure()])
-        >>> qasm_code = mpqp_to_qasm2(circuit, simplify=True)
+        >>> qasm_code, gphase = mpqp_to_qasm2(circuit, simplify=True)
         >>> print(qasm_code)
         OPENQASM 2.0;
         include "qelib1.inc";
@@ -75,8 +76,7 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
         measure q[0] -> c[0];
         measure q[1] -> c[1];
     """
-    circuit_copy = circuit.hard_copy()
-    if circuit_copy.noises:
+    if circuit.noises:
         logging.warning(
             "Instructions such as noise are not supported by QASM2 hence have "
             "been ignored."
@@ -85,22 +85,22 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
     qasm_str = (
         "OPENQASM 2.0;"
         + "\ninclude \"qelib1.inc\";"
-        + f"\nqreg q[{circuit_copy.nb_qubits}];"
+        + f"\nqreg q[{circuit.nb_qubits}];"
     )
-
-    if circuit_copy.nb_cbits != None:
-        qasm_str += f"\ncreg c[{circuit_copy.nb_cbits}];"
+    if circuit.nb_cbits != None and circuit.nb_cbits != 0:
+        qasm_str += f"\ncreg c[{circuit.nb_cbits}];"
 
     previous = None
-    targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
+    targets = {i: 0 for i in range(circuit.nb_qubits)}
+    gphase = 0
 
-    for instruction in circuit_copy.instructions:
+    for instruction in circuit.instructions:
         if simplify:
             if isinstance(instruction, SingleQubitGate):
                 if previous is None or not isinstance(instruction, type(previous)):
                     if previous:
                         qasm_str += _simplify_instruction(previous, targets)
-                        targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
+                        targets = {i: 0 for i in range(circuit.nb_qubits)}
                     previous = instruction
                 elif (
                     isinstance(instruction, ParametrizedGate)
@@ -108,7 +108,7 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
                     != previous.parameters  # pyright: ignore[reportAttributeAccessIssue]
                 ):
                     qasm_str += _simplify_instruction(previous, targets)
-                    targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
+                    targets = {i: 0 for i in range(circuit.nb_qubits)}
                     previous = instruction
                 for target in instruction.targets:
                     targets[target] += 1
@@ -116,11 +116,28 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> str:
                 if previous:
                     qasm_str += _simplify_instruction(previous, targets)
                     previous = None
-                    targets = {i: 0 for i in range(circuit_copy.nb_qubits)}
-                qasm_str += instruction.to_other_language(Language.QASM2)
+                    targets = {i: 0 for i in range(circuit.nb_qubits)}
+                if isinstance(instruction, CustomGate):
+                    qasm_str_gphase = instruction.to_other_language(
+                        Language.QASM2, qcircuit=circuit
+                    )
+                    assert isinstance(qasm_str_gphase, tuple)
+                    qasm_str += qasm_str_gphase[0]
+                    gphase += qasm_str_gphase[1]
+                else:
+                    qasm_str += instruction.to_other_language(Language.QASM2)
         else:
-            qasm_str += instruction.to_other_language(Language.QASM2)
+            if isinstance(instruction, CustomGate):
+                qasm_str_gphase = instruction.to_other_language(
+                    Language.QASM2, qcircuit=circuit
+                )
+                assert isinstance(qasm_str_gphase, tuple)
+                qasm_str += qasm_str_gphase[0]
+                gphase += qasm_str_gphase[1]
+            else:
+                qasm_str += instruction.to_other_language(Language.QASM2)
 
     if previous:
         qasm_str += _simplify_instruction(previous, targets)
-    return qasm_str
+
+    return qasm_str, gphase

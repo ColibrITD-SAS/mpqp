@@ -16,6 +16,6 @@ def test_get_arn():
         return_value="us-west-1",
     ):
         assert (
-            AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_arn()
-            == "arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3"
+            AWSDevice.BRAKET_RIGETTI_ANKAA_2.get_arn()
+            == "arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-2"
         )

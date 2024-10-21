@@ -168,7 +168,6 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     from braket.circuits import Circuit
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
-
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
@@ -243,8 +242,8 @@ def extract_result(
             nb_qubits = device_params.paradigmParameters.qubitCount
             shots = braket_result.task_metadata.shots
             measure = ExpectationMeasure(
-                list(range(nb_qubits)),
                 Observable(np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex64)),
+                list(range(nb_qubits)),
                 shots,
             )
         else:

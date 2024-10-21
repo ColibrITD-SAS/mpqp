@@ -1,9 +1,18 @@
+"""In some cases, we need to manipulate unitary operations that are not defined
+using native gates (by the corresponding unitary matrix for instance). For those
+cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate` 
+to add your custom unitary operation to the circuit, which will be decomposed 
+and executed transparently."""
+
 from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
+from mpqp.tools import Matrix
+
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+    from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -12,20 +21,57 @@ from mpqp.core.languages import Language
 
 @typechecked
 class CustomGate(Gate):
-    """Custom gates allow you to define your own gates.
+    """Custom gates allow you to define your own unitary gates.
 
     Args:
-        definition: The matrix (this is the only way supported to now) semantics of the gate.
+        definition: The GateDefinition describing the gate.
         targets: The qubits on which the gate operates.
         label: The label of the gate. Defaults to None.
+
+    Raises:
+        ValueError: the target qubits must be contiguous and in order, and must
+            match the size of the UnitaryMatrix
+
+    Example:
+        >>> u = UnitaryMatrix(np.array([[0,-1],[1,0]]))
+        >>> cg = CustomGate(u, [0])
+        >>> print(run(QCircuit([X(0), cg]), IBMDevice.AER_SIMULATOR))
+        Result: None, IBMDevice, AER_SIMULATOR
+         State vector: [-1, 0]
+         Probabilities: [1, 0]
+         Number of qubits: 1
+
+    Note:
+        For the moment, only ordered and contiguous target qubits are allowed
+        when instantiating a CustomGate.
+
     """
 
     def __init__(
         self, definition: UnitaryMatrix, targets: list[int], label: Optional[str] = None
     ):
-        self.matrix = definition.matrix
+        self.definition = definition
         """See parameter description."""
+
+        if definition.nb_qubits != len(targets):
+            raise ValueError(
+                f"Size of the targets ({len(targets)}) must match the number of qubits of the "
+                f"UnitaryMatrix ({definition.nb_qubits})"
+            )
+        if not all([targets[i] + 1 == targets[i + 1] for i in range(len(targets) - 1)]):
+            raise ValueError(
+                "Target qubits must be ordered and contiguous for a CustomGate."
+            )
+
+        # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate,
+        #  use the to_matrix() method inherited from Gate, maybe
+
         super().__init__(targets, label)
+
+    @property
+    def matrix(self) -> Matrix:
+        # TODO: move this to `to_canonical_matrix` and check for the usages
+        return self.definition.matrix
 
     def to_matrix(self, desired_gate_size: int = 0):
         return self.matrix
@@ -37,6 +83,7 @@ class CustomGate(Gate):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
+        qcircuit: Optional["QCircuit"] = None,
     ):
         if language == Language.QISKIT:
             from qiskit.quantum_info.operators import Operator as QiskitOperator
@@ -45,52 +92,54 @@ class CustomGate(Gate):
                 qiskit_parameters = set()
             return QiskitOperator(self.matrix)
         elif language == Language.QASM2:
-            import collections.abc
-
-            from qiskit.qasm2.export import (
-                _define_custom_operation,  # pyright: ignore[reportPrivateUsage]
-                _instruction_call_site,  # pyright: ignore[reportPrivateUsage]
-            )
+            from mpqp.tools.circuit import replace_custom_gate
             from qiskit.quantum_info.operators import Operator as QiskitOperator
-            from qiskit.circuit import Instruction as QiskitInstruction
-            from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
+            from qiskit import QuantumCircuit, qasm2
 
-            gates_to_define: collections.OrderedDict[
-                str, tuple[QiskitInstruction, str]
-            ] = collections.OrderedDict()
+            if qcircuit:
+                nb_qubits = qcircuit.nb_qubits
+            else:
+                nb_qubits = len(self.targets)
 
-            op = (
-                QiskitOperator(self.matrix)
-                .to_instruction()
-                ._qasm2_decomposition()  # pyright: ignore[reportPrivateUsage]
+            qiskit_circ = QuantumCircuit(nb_qubits)
+
+            qiskit_circ.unitary(
+                QiskitOperator(self.matrix).to_instruction(),
+                list(reversed(self.targets)),  # dang qiskit qubits order
+                self.label,
             )
-            _define_custom_operation(op, gates_to_define)
+            filtered_qasm = ""
+            final_gphase = 0
+            for instruction in qiskit_circ.data:
+                circuit, gphase = replace_custom_gate(instruction, nb_qubits)
 
-            gate_definitions_qasm = "\n".join(
-                f"{qasm}" for _, qasm in gates_to_define.values()
-            )
+                qasm_str = qasm2.dumps(circuit)
+                qasm_lines = qasm_str.splitlines()
 
-            qubits = ",".join([f"q[{j}]" for j in self.targets])
+                instructions_only = [
+                    line
+                    for line in qasm_lines
+                    if not (
+                        line.startswith("qreg")
+                        or line.startswith("include")
+                        or line.startswith("creg")
+                        or line.startswith("OPENQASM")
+                    )
+                ]
 
-            qasm_str = remove_user_gates(
-                "\n"
-                + gate_definitions_qasm
-                + "\n"
-                + _instruction_call_site(op)
-                + " "
-                + qubits
-                + ";"
-            )
-
-            return "\n" + qasm_str
+                filtered_qasm += "\n".join(instructions_only)
+                final_gphase += gphase
+            return "\n" + filtered_qasm, final_gphase
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
+
+    def __repr__(self) -> str:
+        label = ", " + self.label if self.label else ""
+        return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets} {label})"
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
 
         3M-TODO refine this doc and implement
         """
-        from mpqp.core.circuit import QCircuit
-
-        return QCircuit(self.nb_qubits)
+        raise NotImplementedError()

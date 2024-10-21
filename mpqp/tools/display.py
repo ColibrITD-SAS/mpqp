@@ -63,7 +63,7 @@ def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
 
 
 def clean_1D_array(
-    array: list[complex] | npt.NDArray[np.complex64 | np.float32],
+    array: list[complex] | npt.NDArray[np.complex64 | np.float32], round: int = 7
 ) -> str:
     """Cleans and formats elements of an array.
     This function rounds the real parts of complex numbers in the array to 7 decimal places
@@ -85,21 +85,36 @@ def clean_1D_array(
         '[1, 0, 5]'
         >>> clean_1D_array([1.0, 2.0, 3.0])
         '[1, 2, 3]'
+        >>> clean_1D_array([-0.01e-09+9.82811211e-01j,  1.90112689e-01+5.22320655e-09j,
+        ... 2.91896816e-09-2.15963155e-09j, -4.17753839e-09-5.64638430e-09j,
+        ... 9.44235988e-08-8.58300965e-01j, -5.42123454e-08+2.07957438e-07j,
+        ... 5.13144658e-01+2.91786504e-08j, -0000000.175980538-1.44108434e-07j])
+        '[0.9828112j, 0.1901127, 0, 0, 1e-07-0.858301j, -1e-07+2e-07j, 0.5131446, -0.1759805-1e-07j]'
 
     """
     array = np.array(array, dtype=np.complex64)
-    cleaned_array = [
-        (
-            int(element.real)
-            if int(element.real) == element
-            else (
-                np.round(element.real, 7)
-                if (np.imag(element) == 0)
-                else (str(np.round(element, 7)).replace("(", "").replace(")", ""))
-            )
-        )
-        for element in array
-    ]
+    cleaned_array = []
+    for element in array:
+        real_part = np.round(np.real(element), round)
+        imag_part = np.round(np.imag(element), round)
+
+        if real_part == int(real_part):
+            real_part = int(real_part)
+        if imag_part == int(imag_part):
+            imag_part = int(imag_part)
+
+        if real_part == 0 and imag_part != 0:
+            real_part = ""
+
+        if imag_part == 0:
+            imag_part = ""
+        else:
+            imag_part = str(imag_part) + "j"
+            if real_part != "" and not imag_part.startswith("-"):
+                imag_part = "+" + imag_part
+
+        cleaned_array.append(f"{str(real_part)}{str(imag_part)}")
+
     return "[" + ", ".join(map(str, cleaned_array)) + "]"
 
 
