@@ -11,17 +11,12 @@ one qubit, it takes
 :class:`~mpqp.core.instruction.gates.gate.SingleQubitGate` as
 parent, if it is a rotation gate, it takes
 :class:`~mpqp.core.instruction.gates.native_gates.RotationGate` as parent,
-etc... This allows us to factorize a lot of common behaviors.\ [#traits]_ 
+etc. This allows us to factorize a lot of common behaviors.\ [#traits]_
 
 The Gate class
 --------------
 
 .. automodule:: mpqp.core.instruction.gates.gate
-
-The gate definition
--------------------
-
-.. automodule:: mpqp.core.instruction.gates.gate_definition
 
 Controlled Gates
 ----------------
@@ -41,3 +36,13 @@ Native Gates
 .. [#traits] This in fact is somewhat twisting the way inheritance usually 
    works in python, to make it into a feature existing in other languages, such 
    as traits in rust.
+
+The GateDefinition
+------------------
+
+.. automodule:: mpqp.core.instruction.gates.gate_definition
+
+Custom Gates
+------------
+
+.. automodule:: mpqp.core.instruction.gates.custom_gate
