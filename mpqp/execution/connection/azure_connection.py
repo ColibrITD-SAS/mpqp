@@ -25,12 +25,12 @@ def config_azure_account():
         if decision.lower().strip() != "y":
             return "Canceled.", []
 
-    resource_id = getpass(f"Enter your AZURE resource_id: ")
+    resource_id = getpass(f"Enter your AZURE resource_id (hidden): ")
     if resource_id == "":
         print(colored("Empty credentials", "red"))
         getpass("Press 'Enter' to continue")
         return "", []
-    Location = getpass(f"Enter your AZURE Location: ")
+    Location = input(f"Enter your AZURE Location: ")
     if Location == "":
         print(colored("Empty Location", "red"))
         getpass("Press 'Enter' to continue")
