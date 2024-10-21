@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-from typing import Any, Collection, TypeVar, Union
-from typing import Callable, Optional
-from scipy.optimize import minimize as scipy_minimize, OptimizeResult
-from sympy import Expr
+from typing import Any, Callable, Collection, Optional, TypeVar, Union
+
 import numpy as np
 import numpy.typing as npt
+from scipy.optimize import OptimizeResult
+from scipy.optimize import minimize as scipy_minimize
+from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
@@ -17,14 +18,16 @@ T1 = TypeVar("T1")
 T2 = TypeVar("T2")
 OptimizerInput = Union[list[float], npt.NDArray[np.float32]]
 OptimizableFunc = Callable[[OptimizerInput], float]
+OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
-    [OptimizableFunc, Optional[OptimizerInput]], tuple[float, OptimizerInput]
+    [OptimizableFunc, Optional[OptimizerInput], Optional[OptimizerOptions]],
+    tuple[float, OptimizerInput],
 ]
 
-# 3M-TODO: all those functions with almost or exactly the same signature look like
+# TODO: all those functions with almost or exactly the same signature look like
 #  a code smell to me.
 
-# 3M-TODO: test the minimizer options
+# TODO: test the minimizer options
 
 
 def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
@@ -46,6 +49,29 @@ def minimize(
     minimize the measured expectation value of observables associated with the given circuit.
     Note that this means that the latter should contain an ``ExpectationMeasure``.
 
+    Args:
+        optimizable: Either the circuit, containing symbols and an expectation
+            measure, or the evaluation function.
+        method: The method used to optimize most of those methods come from
+            ``scipy``. If the choices offered in this package are not
+            covering your needs, you can define your own optimizer. This should be
+            a function taking as input a function representing the circuit, with
+            as many inputs as the circuit has parameters, and any optional
+            initialization parameters, and returning the optimal value reached
+            and the parameters used to reach this value.
+        device: The device on which the circuit should be run.
+        init_params: The optional initialization parameters (the value
+            attributed to the symbols in the first loop of the optimizer).
+        nb_params: Number of variables to input in ``optimizable``. It is only
+            useful if ``optimizable`` is a Callable and if ``init_params`` was
+            not given. If not this argument is not taken into account.
+        optimizer_options: Options used to configure the VQA optimizer (maximum
+            iterations, convergence threshold, etc...). These options are passed
+            as is to the minimizer.
+
+    Returns:
+        The optimal value reached and the parameters corresponding to this value.
+
     Examples:
         >>> alpha, beta = symbols("α β")
         >>> circuit = QCircuit([
@@ -54,8 +80,8 @@ def minimize(
         ...     CNOT(1,0),
         ...     Rz(beta, 0),
         ...     ExpectationMeasure(
+        ...         Observable(np.diag([1,2,-3,4])),
         ...         [0,1],
-        ...         observable=Observable(np.diag([1,2,-3,4])),
         ...         shots=0,
         ...     ),
         ... ])
@@ -83,28 +109,6 @@ def minimize(
         ... )
         (8.881784197001252e-16, array([0., 0.]))
 
-    Args:
-        optimizable: Either the circuit, containing symbols and an expectation
-            measure, or the evaluation function.
-        method: The method used to optimize most of those methods come from
-            ``scipy``. If the choices offered in this package are not
-            covering your needs, you can define your own optimizer. This should be
-            a function taking as input a function representing the circuit, with
-            as many inputs as the circuit has parameters, and any optional
-            initialization parameters, and returning the optimal value reached
-            and the parameters used to reach this value.
-        device: The device on which the circuit should be run.
-        init_params: The optional initialization parameters (the value
-            attributed to the symbols in the first loop of the optimizer).
-        nb_params: Number of variables to input in ``optimizable``. It is only
-            useful if ``optimizable`` is a Callable and if ``init_params`` was
-            not given. If not this argument is not taken into account.
-        optimizer_options: Options used to configure the VQA optimizer (maximum
-            iterations, convergence threshold, etc...). These options are passed
-            as is to the minimizer.
-
-    Returns:
-        The optimal value reached and the parameters corresponding to this value.
     """
     if isinstance(optimizable, QCircuit):
         if device is None:
@@ -112,7 +116,7 @@ def minimize(
         optimizer = _minimize_remote if device.is_remote() else _minimize_local
         return optimizer(optimizable, method, device, init_params, nb_params)
     else:
-        # 3M-TODO: find a way to know if the job is remote or local from the function
+        # TODO: find a way to know if the job is remote or local from the function
         return _minimize_local(
             optimizable, method, device, init_params, nb_params, optimizer_options
         )
@@ -155,7 +159,7 @@ def _minimize_remote(
     Returns:
         The optimal value reached and the parameters used to reach this value.
 
-    3M-TODO to implement on QLM first
+    TODO to implement on QLM first
     """
     raise NotImplementedError()
 
@@ -244,7 +248,8 @@ def _minimize_local_circ(
     # The sympy `free_symbols` method returns in fact sets of Basic, which
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
-    variables: set[Expr] = circ.variables()  # type: ignore
+    # TODO: bellow might be a bug, check why we need this type ignore
+    variables: set[Expr] = circ.variables()  # pyright: ignore[reportAssignmentType]
 
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:
@@ -266,7 +271,7 @@ def _minimize_local_func(
     method: Optimizer | OptimizerCallable,
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
-    optimizer_options: Optional[dict[str, Any]] = None,
+    optimizer_options: Optional[OptimizerOptions] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -313,4 +318,4 @@ def _minimize_local_func(
         )
         return res.fun, res.x
     else:
-        return method(eval_func, init_params)
+        return method(eval_func, init_params, optimizer_options)

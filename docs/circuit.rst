@@ -2,10 +2,8 @@ The Quantum Circuit
 ===================
 
 .. code-block:: python
+    :class: import
 
-   from mpqp import QCircuit 
+    from mpqp import QCircuit 
 
 .. automodule:: mpqp.core.circuit
-   :members:
-   :undoc-members:
-   :show-inheritance:

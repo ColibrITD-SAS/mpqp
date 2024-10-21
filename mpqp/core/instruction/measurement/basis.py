@@ -1,6 +1,6 @@
 """When we measure a quantum state, we project it in an orthonormal basis of the
 associated Hilbert space. By default,
-:class:`BasisMeasure<mpqp.core.instruction.measurement.basis_measure.BasisMeasure>`
+:class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
 operates in the computational basis, but you may want to measure the state in a
 custom basis, like it can be the case in the Bell game. For this purpose, you
 can use the :class:`Basis` class.
@@ -9,6 +9,7 @@ On the other hand, some common basis are available for you to use:
 :class:`ComputationalBasis` and :class:`HadamardBasis`."""
 
 from __future__ import annotations
+
 from abc import abstractmethod
 from functools import reduce
 from typing import Optional
@@ -19,7 +20,8 @@ from typeguard import typechecked
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 
-from mpqp.tools.maths import matrix_eq, atol
+from mpqp.tools.display import clean_1D_array
+from mpqp.tools.maths import atol, matrix_eq
 
 
 @typechecked
@@ -35,9 +37,10 @@ class Basis:
     Example:
         >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
         Basis: [
-            [1 0],
-            [ 0 -1]
+            [1, 0],
+            [0, -1]
         ]
+
     """
 
     def __init__(
@@ -45,11 +48,13 @@ class Basis:
         basis_vectors: list[npt.NDArray[np.complex64]],
         nb_qubits: Optional[int] = None,
     ):
-        # 3M-TODO : add the possibility to give the symbols for the '0' and '1' of the custom basis. This should then
-        #  appear in the Sample binary_representation of the basis state. For instance in the Hadamard basis, the
-        #  symbols will be '+' and '-'. If the user wants '↑' and '↓' for his custom basis, when we print samples we
-        #  would have something like:
-        #  State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
+        # TODO : add the possibility to give the symbols for the '0' and '1' of
+        # the custom basis. This should then appear in the Sample
+        # binary_representation of the basis state. For instance in the Hadamard
+        # basis, the symbols will be '+' and '-'. If the user wants '↑' and '↓'
+        # for his custom basis, when we print samples we would have something
+        # like:
+        # State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
         if len(basis_vectors) == 0:
             if nb_qubits is None:
                 raise ValueError(
@@ -69,11 +74,7 @@ class Basis:
             )
         if any(len(vector) != 2**nb_qubits for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not the same size")
-        if any(
-            abs(np.linalg.norm(vector) - 1)  # pyright: ignore[reportGeneralTypeIssues]
-            > atol
-            for vector in basis_vectors
-        ):
+        if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not normalized")
         m = np.array([vector for vector in basis_vectors])
         if not matrix_eq(
@@ -93,11 +94,12 @@ class Basis:
         Example:
             >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
             Basis: [
-                [ 1  0],
-                [ 0 -1]
+                [1, 0],
+                [0, -1]
             ]
+
         """
-        joint_vectors = ",\n    ".join(map(str, np.round(self.basis_vectors, 2)))
+        joint_vectors = ",\n    ".join(map(clean_1D_array, self.basis_vectors))
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
@@ -123,12 +125,12 @@ class VariableSizeBasis(Basis):
 
     @abstractmethod
     def __init__(self, nb_qubits: Optional[int] = None):
+        super().__init__([], nb_qubits)
         pass
 
     @abstractmethod
     def set_size(self, nb_qubits: int):
-        """
-        To allow the user to use a basis without having to specify the size
+        """To allow the user to use a basis without having to specify the size
         (because implicitly the size should be the number of qubits of the
         circuit), we use this method, that will only be called once the
         circuit's size is definitive (i.e. at the last moment before the circuit
@@ -155,24 +157,25 @@ class ComputationalBasis(VariableSizeBasis):
     Examples:
         >>> ComputationalBasis(3).pretty_print()
         Basis: [
-            [1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 0.+0.j 1.+0.j]
+            [1, 0, 0, 0, 0, 0, 0, 0],
+            [0, 1, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0, 0, 0, 0],
+            [0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0],
+            [0, 0, 0, 0, 0, 0, 1, 0],
+            [0, 0, 0, 0, 0, 0, 0, 1]
         ]
         >>> b = ComputationalBasis()
         >>> b.set_size(2)
         >>> b.pretty_print()
         Basis: [
-            [1.+0.j 0.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 1.+0.j 0.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 1.+0.j 0.+0.j],
-            [0.+0.j 0.+0.j 0.+0.j 1.+0.j]
+            [1, 0, 0, 0],
+            [0, 1, 0, 0],
+            [0, 0, 1, 0],
+            [0, 0, 0, 1]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
@@ -202,11 +205,12 @@ class HadamardBasis(VariableSizeBasis):
     Example:
         >>> HadamardBasis(2).pretty_print()
         Basis: [
-            [0.5+0.j 0.5+0.j 0.5+0.j 0.5+0.j],
-            [ 0.5+0.j -0.5+0.j  0.5+0.j -0.5+0.j],
-            [ 0.5+0.j  0.5+0.j -0.5+0.j -0.5+0.j],
-            [ 0.5+0.j -0.5+0.j -0.5+0.j  0.5-0.j]
+            [0.5, 0.5, 0.5, 0.5],
+            [0.5, -0.5, 0.5, -0.5],
+            [0.5, 0.5, -0.5, -0.5],
+            [0.5, -0.5, -0.5, 0.5]
         ]
+
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):

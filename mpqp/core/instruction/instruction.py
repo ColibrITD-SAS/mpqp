@@ -3,38 +3,41 @@ common methods to all of them."""
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from copy import deepcopy
-from typing import Any, Optional
 from numbers import Complex
+from pickle import dumps
+from typing import TYPE_CHECKING, Any, Optional
 
-from sympy import Expr
-from qiskit.circuit import Parameter
 from typeguard import typechecked
 
+if TYPE_CHECKING:
+    from sympy import Expr
+    from qiskit.circuit import Parameter
+
 from mpqp.core.languages import Language
-from mpqp.tools.generics import flatten
+from mpqp.tools.generics import SimpleClassReprABC, flatten
 
 
 @typechecked
-class Instruction(ABC):
+class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 
     An Instruction is the elementary component of a
-    :class:`QCircuit<mpqp.core.circuit>`. It consists in a manipulation of one
+    :class:`~mpqp.core.circuit`. It consists in a manipulation of one
     (or several) qubit(s) of the quantum circuit. It may involve classical bits
     as well, for defining or retrieving the result of the instruction.
 
     It can be of type:
 
-        - :class:`Gate<mpqp.core.instruction.gates.gate.Gate>`
-        - :class:`Measure<mpqp.core.instruction.measurement.measure.Measure>`
-        - :class:`Barrier<mpqp.core.instruction.barrier.Barrier>`
+        - :class:`~mpqp.core.instruction.gates.gate.Gate`
+        - :class:`~mpqp.core.instruction.measurement.measure.Measure`
+        - :class:`~mpqp.core.instruction.barrier.Barrier`
 
     Args:
         targets: List of indices referring to the qubits on which the
-            instruction will be applied
-        label: label used to identify the instruction
+            instruction will be applied.
+        label: Label used to identify the instruction.
     """
 
     def __init__(
@@ -50,15 +53,16 @@ class Instruction(ABC):
         """See parameter description."""
         self.label = label
         """See parameter description."""
+        self._dynamic = False
 
     @property
     def nb_qubits(self) -> int:
-        """Number of qubits of this instruction"""
+        """Number of qubits of this instruction."""
         return len(self.connections())
 
     @property
     def nb_cbits(self) -> int:
-        """Number of cbits of this instruction"""
+        """Number of cbits of this instruction."""
         from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 
         if isinstance(self, BasisMeasure):
@@ -83,25 +87,28 @@ class Instruction(ABC):
         OpenQASM (like hybrid structures).
 
         Args:
-            language: enum representing the target language.
+            language: Enum representing the target language.
             qiskit_parameters: We need to keep track of the parameters
                 passed to qiskit in order not to define twice the same
                 parameter. Defaults to ``set()``.
 
         Returns:
             The corresponding instruction (gate or measure) in the target
-            language
+            language.
         """
         pass
+
+    def __eq__(self, value: object) -> bool:
+        return dumps(self) == dumps(value)
 
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(
-            (self.targets if isinstance(self.targets, int) else max(self.targets)) + 1
-        )
-        c.add(self)
-        return str(c)
+        connection = self.connections()
+        circuit_size = max(connection) + 1 if connection else 1
+        circuit = QCircuit(circuit_size)
+        circuit.add(self)
+        return str(circuit)
 
     def __repr__(self) -> str:
         from mpqp.core.instruction.gates import ControlledGate
@@ -112,12 +119,13 @@ class Instruction(ABC):
     def connections(self) -> set[int]:
         """Returns the indices of the qubits connected to the instruction.
 
-        Example:
-            >>> CNOT(0,1).connections()
-            [0, 1]
-
         Returns:
             The qubits ordered connected to instruction.
+
+        Example:
+            >>> CNOT(0,1).connections()
+            {0, 1}
+
         """
         from mpqp.core.instruction.gates import ControlledGate
 
@@ -137,13 +145,6 @@ class Instruction(ABC):
         Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
 
-        Example:
-            >>> theta = symbols("θ")
-            >>> print(Rx(theta, 0).subs({theta: np.pi}))
-               ┌───────┐
-            q: ┤ Rx(π) ├
-               └───────┘
-
         Args:
             values: Mapping between the variables and the replacing values.
             remove_symbolic: If symbolic values should be replaced by their
@@ -151,5 +152,13 @@ class Instruction(ABC):
 
         Returns:
             The circuit with the replaced parameters.
+
+        Example:
+            >>> theta = symbols("θ")
+            >>> print(Rx(theta, 0).subs({theta: np.pi}))
+               ┌───────┐
+            q: ┤ Rx(π) ├
+               └───────┘
+
         """
         return deepcopy(self)

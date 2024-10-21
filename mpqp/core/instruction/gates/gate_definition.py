@@ -1,20 +1,24 @@
 from __future__ import annotations
 
-from abc import abstractmethod, ABC
+from abc import ABC, abstractmethod
+from numbers import Complex
+from typing import TYPE_CHECKING
 from warnings import warn
 
-import numpy as np
-from sympy import Expr
-from typeguard import typechecked
-from numbers import Complex
+if TYPE_CHECKING:
+    from sympy import Expr
 
-from mpqp.tools.maths import is_unitary, matrix_eq
-from mpqp.tools.generics import Matrix, one_lined_repr
+import numpy as np
+from typeguard import typechecked
+
+from mpqp.tools.display import one_lined_repr
+from mpqp.tools.generics import Matrix
+from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
 
 
 @typechecked
 class GateDefinition(ABC):
-    """A class used to handle the definition of a Gate.
+    """Abstract class used to handle the definition of a Gate.
 
     A quantum gate can be defined in several ways, and this class allows us to
     define it as we prefer. It also handles the translation from one definition
@@ -26,19 +30,27 @@ class GateDefinition(ABC):
     Example:
         >>> gate_matrix = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
         >>> gate_definition = UnitaryMatrix(gate_matrix)
-        >>> custom_gate = CustomGate(gate_definition)
+        >>> custom_gate = CustomGate(gate_definition, [0,1])
+
     """
 
-    """ TODO: put this back once we implement the other definitions
-    This class permit to define a gate in 4 potential ways:
-        1. the unitary matrix defining the gate
-        2. a combination of several other gates
-        3. a combination of Kraus operators
-        4. the decomposition of the gate in the Pauli basis (only possible for LU gates)
-    """
+    # TODO: put this back once we implement the other definitions. Are those
+    # definitions really useful in practice ?
+    # This class permit to define a gate in 4 potential ways:
+    #     1. the unitary matrix defining the gate
+    #     2. a combination of several other gates
+    #     3. a combination of Kraus operators
+    #     4. the decomposition of the gate in the Pauli basis (only possible for LU gates)
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
+        """Returns the matrix corresponding to this gate definition. Considering
+        connections' order and position, in contrast with
+        :meth:`~Gate.to_canonical_matrix`.
+        """
+
+    @abstractmethod
+    def to_canonical_matrix(self) -> Matrix:
         """Returns the matrix corresponding to this gate definition."""
 
     @abstractmethod
@@ -49,16 +61,6 @@ class GateDefinition(ABC):
         disable_symbol_warn: bool = False,
     ) -> GateDefinition:
         pass
-
-    # @abstractmethod
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """6M-TODO"""
-        raise NotImplementedError()
-
-    # @abstractmethod
-    def to_pauli_decomposition(self) -> PauliDecomposition:
-        """6M-TODO"""
-        raise NotImplementedError()
 
     def is_equivalent(self, other: GateDefinition) -> bool:
         """Determines if this definition is equivalent to the other.
@@ -71,6 +73,7 @@ class GateDefinition(ABC):
             >>> d2 = UnitaryMatrix(np.array([[2, 0], [0, -2.0]]) / 2)
             >>> d1.is_equivalent(d2)
             True
+
         """
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
@@ -82,35 +85,26 @@ class GateDefinition(ABC):
 
         Example:
             >>> UnitaryMatrix(np.array([[1, 0], [0, -1]])).inverse()
-            array([[ 1.,  0.],
-                   [-0., -1.]])
+            UnitaryMatrix(array([[ 1., 0.], [-0., -1.]]))
+
         """
         mat = self.to_matrix()
 
         if not all(
-            isinstance(elt.item(), Complex) for elt in np.nditer(mat, ["refs_ok"])  # type: ignore
+            isinstance(
+                elt.item(), Complex  # pyright: ignore[reportAttributeAccessIssue]
+            )
+            for elt in np.nditer(mat, ["refs_ok"])
         ):
             raise ValueError("Cannot invert arbitrary gates using symbolic variables")
-        return UnitaryMatrix(np.linalg.inv(mat))  # type:ignore
-
-
-class KrausRepresentation(GateDefinition):
-    """# 6M-TODO : implement and comment"""
-
-    def __init__(self):
-        self.pp = 1
-
-
-class PauliDecomposition(GateDefinition):
-    """# 6M-TODO : implement and comment"""
-
-    def __init__(self):
-        self.pp = 1
+        return UnitaryMatrix(
+            np.linalg.inv(mat)  # pyright: ignore[reportCallIssue, reportArgumentType]
+        )
 
 
 @typechecked
 class UnitaryMatrix(GateDefinition):
-    """Definition of a gate using it's matrix.
+    """Definition of a gate using its matrix.
 
     Args:
         definition: Matrix defining the unitary gate.
@@ -119,28 +113,45 @@ class UnitaryMatrix(GateDefinition):
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
-        if any(isinstance(elt, Expr) for _, elt in np.ndenumerate(definition)):
-            if not disable_symbol_warn:
-                # 3M-TODO: can we improve this situation ?
-                warn("Cannot ensure that a operator defined with variables is unitary.")
-        elif not is_unitary(definition):
+
+        numeric = True
+        for _, elt in np.ndenumerate(definition):
+            # 3M-TODO: can we improve this situation ?
+            try:
+                complex(elt)
+            except TypeError:
+                if not disable_symbol_warn:
+                    warn(
+                        "Cannot ensure that a operator defined with symbolic "
+                        "variables is unitary."
+                    )
+                numeric = False
+                break
+        if numeric and not is_unitary(definition):
             raise ValueError(
                 "Matrices defining gates have to be unitary. It is not the case"
                 f" for\n{definition}"
             )
+        if not is_power_of_two(definition.shape[0]):
+            raise ValueError(
+                "The unitary matrix of a gate acting on qubits must have "
+                f"dimensions that are power of two, but got {definition.shape[0]}."
+            )
         self.matrix = definition
         """See parameter :attr:`definition`'s description."""
+        self._nb_qubits = None
 
     def to_matrix(self) -> Matrix:
         return self.matrix
 
-    def to_kraus_representation(self) -> KrausRepresentation:
-        """6M-TODO to implement"""
-        ...
+    def to_canonical_matrix(self):
+        return self.matrix
 
-    def to_pauli_decomposition(self) -> PauliDecomposition:
-        """6M-TODO to implement"""
-        ...
+    @property
+    def nb_qubits(self) -> int:
+        if self._nb_qubits is None:
+            self._nb_qubits = int(np.log2(self.matrix.shape[0]))
+        return self._nb_qubits
 
     def subs(
         self,
@@ -165,6 +176,7 @@ class UnitaryMatrix(GateDefinition):
                 argument disables this check because in some contexts, it is
                 undesired. Defaults to False.
         """
+        from sympy import Expr
 
         def mapping(val: Expr | Complex) -> Expr | Complex:
             def caster(v: Expr | Complex) -> Expr | Complex:

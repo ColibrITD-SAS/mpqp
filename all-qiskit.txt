@@ -1,0 +1,15 @@
+qiskit-aer
+qiskit-algorithms
+qiskit_alice_bob_provider
+qiskit-aqua
+qiskit-finance
+qiskit-ibm-provider
+qiskit-ibm-runtime
+qiskit-ibmq-provider
+qiskit-ignis
+qiskit-optimization
+qiskit-qir-alice-bob-fork
+qiskit-terra
+ibm-cloud-sdk-core
+ibm-platform-services
+IBMQuantumExperience

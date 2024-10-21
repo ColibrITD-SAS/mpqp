@@ -1,20 +1,50 @@
-import os
-from pathlib import Path
-import re
-from os.path import splitext
-from enum import Enum
+"""The latest version of OpenQASM (3.0, started in 2020) has been released by
+conjoint members of IBM Quantum, AWS Quantum Computing, Zapata Computing, Zurich
+Instruments and University of Oxford. This version extends the 2.0 one, adding
+some advanced features, and modifying parts of syntax and grammar, making some
+part of OpenQASM 2.0 not fully retro-compatible (hence why we need to keep track
+of the instructions requiring custom definitions in :class:`Instr`).
 
+This being said, this "new" version was quite slow to come to SDKs, so to help
+the transition we are making a few conversion functions available. The main one
+being :func:`open_qasm_2_to_3`.
+
+The translation is performed in a two main steps:
+
+1. the OpenQASM 2.0 code is parsed by :func:`parse_openqasm_2_file` (it's a
+   basic parse, separating the instructions),
+2. each instruction is converted to it's OpenQASM 3.0 counterpart by
+   :func:`convert_instruction_2_to_3`,
+
+Since :func:`open_qasm_2_to_3` needs a few tricky parameters to function
+properly, you also have access to a shorthand accepting directly the path of the
+file you want to convert: :func:`open_qasm_file_conversion_2_to_3`.
+
+In some cases, having multiple files to deal with can be cumbersome. You can
+avoid this pain point by uniting all your source files in a single one using
+:func:`open_qasm_hard_includes`.
+
+On the other hand, some providers such as Cirq do not support user defined
+gates, requiring to replace all user gate calls by their definition. This is
+done using :func:`remove_user_gates`.
+"""
+
+import os
+import re
+from enum import Enum
+from os.path import splitext
+from pathlib import Path
 from warnings import warn
-from textwrap import dedent
+
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
 
-from mpqp.tools.errors import InstructionParsingError
+from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
 
 class Instr(Enum):
-    """Special instruction of which the definition needs to included in the
-    header of the file."""
+    """Special instruction for which the definition needs to included in the
+    file."""
 
     STD_LIB = 0
     CSX = 1
@@ -93,7 +123,8 @@ def qasm_code(instr: Instr) -> str:
         OpenQASM definition of ``instr``.
     """
 
-    # 3M-TODO: if run from outside the mpqp folder, the following line will fuck things up, fix it
+    # FIXME: if run from outside the mpqp folder, the following line will fuck
+    # things up
     headers_folder = os.path.dirname(__file__) + "/header_codes/"
     special_file_names = {
         Instr.OQASM2_ALL_STDGATES: "qelib1.inc",
@@ -115,31 +146,32 @@ def parse_openqasm_2_file(code: str) -> list[str]:
     """Splits a complete OpenQASM2 program into individual instructions.
 
     Args:
-        code: The complete OpenQASM 2.0 program, we do not check for correct syntax, it is assumed that the code is
-            well formed.
+        code: The complete OpenQASM 2.0 program.
 
     Returns:
         List of instructions.
+
+    Note:
+        we do not check for correct syntax, it is assumed that the code is well
+        formed.
     """
-    # 6M-TODO: deal with comments, for the moment we remove them all
+    # 3M-TODO: deal with comments, for the moment we remove them all
 
     # removing comment
     cleaned_code = "".join([loc.split("//")[0] for loc in code.split("\n")])
 
     cleaned_code = cleaned_code.replace("\t", " ").strip()
 
-    # gate must be registered as a single instruction
     gate_matches = list(re.finditer(r"gate .*?}", cleaned_code))
-    # we start with adding all the instructions up to the first gate definition
     sanitized_start = (
         cleaned_code[: gate_matches[0].span()[0]] if gate_matches else cleaned_code
     )
     instructions = sanitized_start.split(";")
 
-    # we then add turn by turn the following gate definition, all the
-    # instructions between it and the next one, and so on...
     for i in range(len(gate_matches)):
+        # gates definition are added as a single instruction
         instructions.append(cleaned_code[slice(*(gate_matches[i].span()))])
+        # all instructions between two gate definitions are added individually
         instructions.extend(
             cleaned_code[
                 gate_matches[i].span()[1] : (
@@ -157,7 +189,7 @@ def parse_openqasm_2_file(code: str) -> list[str]:
 def convert_instruction_2_to_3(
     instr: str,
     included_instr: set[Instr],
-    included_tree_current_node: Node,
+    included_tree_current: Node,
     defined_gates: set[str],
     path_to_main: str = ".",
 ) -> tuple[str, str]:
@@ -171,7 +203,7 @@ def convert_instruction_2_to_3(
             track of which instruction are already.
         imported in the overall scope, a dictionary of already included
             instructions is passed and modified along.
-        included_tree_current_node: Current Node in the file inclusion tree.
+        included_tree_current: Current Node in the file inclusion tree.
         defined_gates: Set of custom gates already defined.
         path_to_main: Path to the main folder from which include paths are
             described.
@@ -202,13 +234,15 @@ def convert_instruction_2_to_3(
     elif instr_name == "include":
         path = instr.split(" ")[-1].strip("'\"")
         if path != "qelib1.inc":
-            if is_path_in_ancestors(path, included_tree_current_node):
+            if any(path in node.name for node in included_tree_current.ancestors):
                 raise RuntimeError("Circular dependency detected.")
             # Convert the file included, add it to the inclusion tree,
             # and create a new file and include it in the converted code
-            if not is_path_in_tree(path, included_tree_current_node):
+            if not any(
+                path in node.name for node in PreOrderIter(included_tree_current.root)
+            ):  # checks in the path is not already included
                 with open(f"{path_to_main}/{path}", "r") as f:
-                    child = Node(path, parent=included_tree_current_node)
+                    child = Node(path, parent=included_tree_current)
                     converted_content = open_qasm_2_to_3(
                         f.read(), child, path_to_main, defined_gates
                     )
@@ -234,13 +268,12 @@ def convert_instruction_2_to_3(
         instructions_code += instr + ";\n"
     elif instr_name.lower() == "u":
         warn(
-            dedent(
-                """OpenQASMTranslationWarning: 
-                There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
-                We handled that for you by adding the extra phase at the right place. 
-                Be careful if you want to create a control gate from this circuit/gate, the
-                phase can become non-global."""
-            )
+            """
+There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
+We handled that for you by adding the extra phase at the right place. 
+Be careful if you want to create a control gate from this circuit/gate, the
+phase can become non-global.""",
+            OpenQASMTranslationWarning,
         )
         header_code += add_std_lib()
         instructions_code += "u3" + instr[1:] + ";\n"
@@ -270,7 +303,7 @@ def convert_instruction_2_to_3(
             i_code, h_code = convert_instruction_2_to_3(
                 instruction,
                 included_instr,
-                included_tree_current_node,
+                included_tree_current,
                 defined_gates,
                 path_to_main,
             )
@@ -283,7 +316,7 @@ def convert_instruction_2_to_3(
         i_code, h_code = convert_instruction_2_to_3(
             nested_instr,
             included_instr,
-            included_tree_current_node,
+            included_tree_current,
             defined_gates,
             path_to_main,
         )
@@ -312,8 +345,10 @@ def open_qasm_2_to_3(
 ) -> str:
     """Converts an OpenQASM code from version 2.0 and 3.0.
 
-    It is a partial conversion (mainly circuit structure) for helping building
-    temporary bridges between different platforms that use different versions.
+    This function will also recursively go through the imported files to
+    translate them too. It is a partial conversion (the ``opaque`` keyword is
+    not handled and comments are stripped) for helping building temporary
+    bridges between different platforms that use different versions.
 
     Args:
         code: String containing the OpenQASM 2.0 code and instructions.
@@ -326,8 +361,7 @@ def open_qasm_2_to_3(
         Converted OpenQASM code in the 3.0 version.
 
     Example:
-        >>> qasm2_str = '''\\
-        ... OPENQASM 2.0;
+        >>> qasm2_str = '''OPENQASM 2.0;
         ... qreg q[2];
         ... creg c[2];
         ... h q[0];
@@ -335,16 +369,17 @@ def open_qasm_2_to_3(
         ... measure q[0] -> c[0];
         ... measure q[1] -> c[1];
         ... '''
-        >>> open_qasm_2_to_3(qasm2_str)
-        '''OPENQASM 3.0;
-        include 'stdgates.inc';
+        >>> print(open_qasm_2_to_3(qasm2_str)) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        include "stdgates.inc";
         qubit[2] q;
         bit[2] c;
         h q[0];
         cx q[0],q[1];
         c[0] = measure q[0];
         c[1] = measure q[1];
-        '''
+
+
     """
 
     header_code = ""
@@ -376,8 +411,8 @@ def open_qasm_2_to_3(
 def open_qasm_file_conversion_2_to_3(path: str) -> str:
     """Converts an OpenQASM code in a file from version 2.0 and 3.0.
 
-    It is a partial conversion (mainly circuit structure) for helping building
-    temporary bridges between different platforms that use different versions.
+    This function is a shorthand to initialize :func:`open_qasm_2_to_3` with the
+    correct values.
 
     Args:
         path: Path to the file containing the OpenQASM 2.0 code, and eventual
@@ -386,11 +421,11 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
     Returns:
         Converted OpenQASM code in the 3.0 version.
 
-    Example:
-        >>> example_dir = "example/qasm_files/"
+    Examples:
+        >>> example_dir = "examples/scripts/qasm_files/"
         >>> with open(example_dir + "main.qasm", "r") as f:
-        ...     print(f.read())
-        '''OPENQASM 2.0;
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 2.0;
         include "include1.qasm";
         include "include2.qasm";
         qreg q[2];
@@ -400,12 +435,12 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
         gate2 q[0];
         gate3 q[0], q[1];
         measure q[0] -> c[0];
-        measure q[1] -> c[1];'''
-        >>> print(open_qasm_file_conversion_2_to_3(example_dir + "main.qasm"))
-        '''OPENQASM 3.0;
+        measure q[1] -> c[1];
+        >>> print(open_qasm_file_conversion_2_to_3(example_dir + "main.qasm")) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
         include 'include1_converted.qasm';
         include 'include2_converted.qasm';
-        include 'stdgates.inc';
+        include "stdgates.inc";
         qubit[2] q;
         bit[2] c;
         h q[0];
@@ -413,22 +448,23 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
         gate2 q[0];
         gate3 q[0], q[1];
         c[0] = measure q[0];
-        c[1] = measure q[1];'''
+        c[1] = measure q[1];
         >>> with open(example_dir + "include1_converted.qasm", "r") as f:
-        ...     print(f.read())
-        '''OPENQASM 3.0;
-        include 'stdgates.inc';
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        include "stdgates.inc";
         gate gate2 a {
             u3(pi, -pi/2, pi/2) a;
-        }'''
+        }
         >>> with open(example_dir + "include2_converted.qasm", "r") as f:
-        ...     print(f.read())
-        '''OPENQASM 3.0;
-        include 'stdgates.inc';
+        ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        include "stdgates.inc";
         gate gate3 a, b {
             u3(0, -pi/2, pi/3) a;
             cz a, b;
-        }'''
+        }
+
     """
 
     with open(path, "r") as f:
@@ -442,19 +478,11 @@ def open_qasm_hard_includes(
     included_files: set[str],
     path_to_file: str = "./",
     is_openqasm_header_included: bool = False,
+    remove_included: bool = True,
 ) -> str:
     r"""Converts an OpenQASM code (2.0 and 3.0) to use no includes, but writes
     every instruction in previously included files, directly in the code
     returned.
-
-    Example:
-        >>> examples_folder = "tests/qasm/qasm_examples"
-        >>> filename = examples_folder + "/with_include.qasm"
-        >>> with open(filename) as f:
-        ...     print(open_qasm_hard_includes(f.read(), {filename}).strip("\n"))
-        '''gate csx a, b {
-            ctrl @ sx a, b;
-        }'''
 
     Args:
         code: String containing the OpenQASM code and instructions.
@@ -467,6 +495,16 @@ def open_qasm_hard_includes(
 
     Returns:
         Include-less OpenQASM code.
+
+    Example:
+        >>> examples_folder = "tests/qasm/qasm_examples"
+        >>> filename = examples_folder + "/with_include.qasm"
+        >>> with open(filename) as f:
+        ...     print(open_qasm_hard_includes(f.read(), {filename}).strip("\n"))
+        gate csx a, b {
+            ctrl @ sx a, b;
+        }
+
     """
     lines = code.split("\n")
     converted_code = []
@@ -474,6 +512,8 @@ def open_qasm_hard_includes(
     for line in lines:
         if "include" in line:
             line_array = line.split()
+            if not remove_included:
+                converted_code.append(line)
 
             file_name = line_array[line_array.index("include") + 1].strip(";'\"")
             if file_name not in included_files:
@@ -505,31 +545,198 @@ def open_qasm_hard_includes(
     return "\n".join(converted_code)
 
 
-@typechecked
-def is_path_in_tree(path: str, any_node: Node):
-    """Checks if a path is already present in a node of the tree represented by
-    one of his nodes (in parameter).
+class UserGate:
+    def __init__(
+        self,
+        name: str,
+        parameters: list[str],
+        qubits: list[str],
+        instructions: list[str],
+    ):
+        self.name = name
+        self.parameters = parameters
+        self.qubits = qubits
+        self.instructions = instructions
+
+    def __repr__(self):
+        return f"UserGate(name={self.name}, parameters={self.parameters}, qubits={self.qubits}, instructions={self.instructions})"
+
+    def __str__(self):
+        return (
+            f"gate {self.name}({', '.join(self.parameters)}) {', '.join(self.qubits)} "
+            + "{\n"
+            + '\n'.join(self.instructions)
+            + "\n}"
+        )
+
+    def dict(self):
+        return {
+            "name": self.name,
+            "parameters": self.parameters,
+            "qubits": self.qubits,
+            "instructions": self.instructions,
+        }
+
+
+# example of custom gate declaration:
+# gate rotation (theta) q1, q2 { rx (theta) q1; cnot q1, q2; }
+#      --------  -----  ------  -----------------------------
+#        ^         ^      ^                  ^
+#     gate_name  param? qubits         instructions
+GATE_PATTERN = re.compile(
+    r"gate\s+(?P<name>\w+)\s*(\((?P<param>[^)]+)\))?\s*(?P<qubits>\w+\s*(?:,\s*\w+)*)\s*{(?P<instructions>[^}]*)}",
+    re.MULTILINE | re.DOTALL,
+)
+# example of gate call:
+# rotation (theta) q1, q2;
+# --------  -----  ------
+#    ^        ^       ^
+# gate_name  param? qubits
+GATE_CALL_PATTERN = re.compile(
+    r"(?P<gate>\w+)\s*(\((?P<params>[^)]*)\))?\s*(?P<qubits>[^;]*);",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def parse_user_gates(
+    qasm_code: str, skip_qelib1: bool = False
+) -> tuple[list[UserGate], str]:
+    r"""Parses user gate definitions from QASM code.
 
     Args:
-        path: Element to search in the tree.
-        any_node: One node of the tree on which we want to search.
+        qasm_code: The QASM code containing user gate definitions.
 
     Returns:
-        ``True`` if the path is the name of one of the nodes of the tree.
+        A tuple containing a dictionary of user gate definitions
+        and the QASM string stripped of it's user gate definitions.
+
+    Example:
+        >>> qasm_str = '''gate rzz(theta) a,b {
+        ...     cx a,b;
+        ...     u1(theta) b;
+        ...     cx a,b;
+        ... }
+        ... qubit[3] q;
+        ... creg c[2];
+        ... rzz(0.2) q[1], q[2];
+        ... c2[0] = measure q[2];'''
+        >>> user_gates, qasm_code = parse_user_gates(qasm_str)
+        >>> print(user_gates)
+        [UserGate(name=rzz, parameters=['theta'], qubits=['a', 'b'], instructions=['cx a,b;', 'u1(theta) b;', 'cx a,b;'])]
+        >>> print(qasm_code)
+        qubit[3] q;
+        creg c[2];
+        rzz(0.2) q[1], q[2];
+        c2[0] = measure q[2];
     """
-    return any([path in node.name for node in PreOrderIter(any_node.root)])
+    copy_qasm_code = "\n".join(
+        [line.lstrip() for line in qasm_code.splitlines() if line.strip()]
+    )
+    included_files = set()
+    if skip_qelib1:
+        included_files.add("qelib1.inc")
+    qasm_code_include = open_qasm_hard_includes(
+        copy_qasm_code, included_files, remove_included=False
+    )
+    matches = list(GATE_PATTERN.finditer(qasm_code_include))
+    user_gates = []
+    for match in matches:
+        parameters = (
+            [p.strip() for p in match.group("param").split(',')]
+            if match.group("param")
+            else []
+        )
+        qubits = [q.strip() for q in match.group("qubits").split(',')]
+        instructions = [
+            line.strip() + ";"
+            for line in match.group("instructions").split(';')
+            if line.strip()
+        ]
+        user_gate = UserGate(
+            name=match.group("name"),
+            parameters=parameters,
+            qubits=qubits,
+            instructions=instructions,
+        )
+        user_gates.append(user_gate)
+        copy_qasm_code = copy_qasm_code.replace(match.group(0), "")
+
+    return user_gates, copy_qasm_code.strip()
 
 
-@typechecked
-def is_path_in_ancestors(path: str, node: Node):
-    """Checks if a path is already present in an ancestor of the node in
-    parameter.
+def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
+    """Replaces instances of user gates with their definitions in the given QASM
+    code. This uses :func:`parse_user_gates` to separate the gate definitions
+    from the rest of the code.
 
     Args:
-        path: Element to search in the tree.
-        node: The node for which we want to search in his ancestors.
+        qasm_code: The QASM code containing user gate calls.
 
     Returns:
-        ``True`` if the path is the name of one of the ancestors of the node/
+        The QASM code with user gate calls replaced by their definitions.
+
+    Example:
+        >>> qasm_str = '''gate MyGate a, b {
+        ...      h a;
+        ...      cx a, b;
+        ... }
+        ... qreg q[3];
+        ... creg c[2];
+        ... MyGate q[0], q[1];
+        ... measure q -> c;'''
+        >>> print(remove_user_gates(qasm_str))
+        qreg q[3];
+        creg c[2];
+        h q[0];
+        cx q[0], q[1];
+        measure q -> c;
     """
-    return any([path in node.name for node in node.ancestors])
+    user_gates, qasm_code = parse_user_gates(qasm_code, skip_qelib1)
+    previous_qasm_body = None
+    while previous_qasm_body != qasm_code:
+        previous_qasm_body = qasm_code
+        for gate in user_gates:
+            for match in GATE_CALL_PATTERN.finditer(qasm_code):
+                if match.group("gate") == gate.name:
+                    param_values = (
+                        [p.strip() for p in match.group("params").split(',')]
+                        if match.group("params")
+                        else []
+                    )
+                    qubit_values = [q.strip() for q in match.group("qubits").split(',')]
+
+                    expanded = []
+                    replacements = {}
+                    for qubit, value in zip(gate.qubits, qubit_values):
+                        replacements[qubit] = value
+                    for param, value in zip(gate.parameters, param_values):
+                        replacements[param] = value
+
+                    def replace(match: re.Match[str]):
+                        return replacements[match.group(0)]
+
+                    for instruction in gate.instructions:
+                        expanded.append(
+                            re.sub(
+                                '|'.join(
+                                    r'\b%s\b' % re.escape(s) for s in replacements
+                                ),
+                                replace,
+                                instruction,
+                            )
+                        )
+
+                    expanded_instructions = "\n".join(expanded)
+                    qasm_code = qasm_code.replace(match.group(0), expanded_instructions)
+
+    return qasm_code
+
+
+def remove_include(qasm_code: str) -> str:
+    replaced_code = ""
+    for line in qasm_code.split("\n"):
+        if "include" in line:
+            pass
+        else:
+            replaced_code += line + "\n"
+    return replaced_code

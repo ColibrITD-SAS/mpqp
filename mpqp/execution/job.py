@@ -1,47 +1,58 @@
+"""When you call :func:`~mpqp.execution.runner.run` or
+:func:`~mpqp.execution.runner.submit`, a :class:`Job` is created by 
+:func:`~mpqp.execution.runner.generate_job`. This job contains all
+the needed information to configure the execution, and eventually retrieve
+remote results.
+
+A :class:`Job` can be of three types, given by the :class:`JobType` enum. In 
+addition, it has a status, given by the :class:`JobStatus` enum.
+
+As described above, a :class:`Job` is generated on circuit submission so you
+would in principle never need to instantiate one yourself.
+"""
+
 from __future__ import annotations
-from typing import Optional, TYPE_CHECKING
-from aenum import Enum, NoAlias
+
+from typing import TYPE_CHECKING, Optional
+
+from aenum import Enum, NoAlias, auto
+from typeguard import typechecked
+
+from mpqp.tools.generics import MessageEnum
 
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
-from typeguard import typechecked
-
 if TYPE_CHECKING:
     from enum import Enum
 
-from mpqp.core.instruction.measurement import Measure, ExpectationMeasure, BasisMeasure
-from .connection.ibm_connection import get_IBMProvider, get_QiskitRuntimeService
-from .connection.qlm_connection import get_QLMaaSConnection
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
+
 from ..core.circuit import QCircuit
-from .devices import AvailableDevice, IBMDevice, AWSDevice, ATOSDevice
-
-from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus, QLMServiceException
-from qiskit.providers import JobStatus as IBM_JobStatus
-from braket.aws import AwsQuantumTask
-
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
+from .connection.ibm_connection import get_QiskitRuntimeService
+from .connection.qlm_connection import get_QLMaaSConnection
+from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 
 
-class JobStatus(Enum):
+class JobStatus(MessageEnum):
     """Possible states of a Job."""
 
-    INIT = "initializing the job"
+    INIT = auto()
     """Initializing the job."""
-    QUEUED = "the job is in the queue"
+    QUEUED = auto()
     """The job is in the queue."""
-    RUNNING = "the job is currently running"
+    RUNNING = auto()
     """The job is currently running."""
-    CANCELLED = "the job is cancelled"
+    CANCELLED = auto()
     """The job is cancelled."""
-    ERROR = "an error occurred with the job"
+    ERROR = auto()
     """An error occurred with the job."""
-    DONE = "the job is successfully done"
+    DONE = auto()
     """The job is successfully done."""
 
 
 class JobType(Enum):
-    """
-    Possible types of Job to execute.
+    """Possible types of Job to execute.
 
     Each type of job is restricted to some measures (and to some backends, but
     this is tackled by the backends themselves).
@@ -61,8 +72,7 @@ class JobType(Enum):
 
 @typechecked
 class Job:
-    """
-    Representation of a job, an object regrouping all the information about
+    """Representation of a job, an object regrouping all the information about
     the submission of a computation/measure of a quantum circuit on a
     specific hardware.
 
@@ -88,9 +98,10 @@ class Job:
         ...     IBMDevice.AER_SIMULATOR,
         ...     circuit.get_measurements()[0],
         ... )
+
     """
 
-    # 6M-TODO: decide, when there are several measurements, if we define a
+    # 3M-TODO: decide, when there are several measurements, if we define a
     #  multi-measure job, or if we need several jobs. For the moment, a Job can
     #  handle only one measurement
 
@@ -149,6 +160,7 @@ class Job:
         self._status = job_status
 
 
+@typechecked
 def get_qlm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a QLM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -156,6 +168,9 @@ def get_qlm_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
+    from qat.comm.qlmaas.ttypes import JobStatus as QLM_JobStatus
+    from qat.comm.qlmaas.ttypes import QLMServiceException
+
     try:
         qlm_status = get_QLMaaSConnection().get_status(job_id)
     except QLMServiceException as e:
@@ -181,6 +196,7 @@ def get_qlm_job_status(job_id: str) -> JobStatus:
         return JobStatus.DONE
 
 
+@typechecked
 def get_ibm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of an IBM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -188,33 +204,31 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
-    # test with QiskitRuntimeService
     if job_id in [e.job_id() for e in get_QiskitRuntimeService().jobs()]:
         ibm_job = get_QiskitRuntimeService().job(job_id)
-
-    # if not, test with IBMProvider
-    elif job_id in [e.job_id() for e in get_IBMProvider().jobs()]:
-        ibm_job = get_IBMProvider().retrieve_job(job_id)
-
     else:
         raise IBMRemoteExecutionError(
-            f"Could not find job with id {job_id} on IBM/QiskitRuntime provider"
+            f"Could not find job with id {job_id} on QiskitRuntime service."
         )
+
     status = ibm_job.status()
-    if status == IBM_JobStatus.ERROR:
+    if status == "ERROR":
         return JobStatus.ERROR
-    elif status == IBM_JobStatus.CANCELLED:
+    elif status == "CANCELLED":
         return JobStatus.CANCELLED
-    elif status in [IBM_JobStatus.QUEUED, IBM_JobStatus.VALIDATING]:
+    elif status == "QUEUED":
         return JobStatus.QUEUED
-    elif status == IBM_JobStatus.INITIALIZING:
+    elif status == "INITIALIZING":
         return JobStatus.INIT
-    elif status == IBM_JobStatus.RUNNING:
+    elif status == "RUNNING":
         return JobStatus.RUNNING
-    else:
+    elif status == "DONE":
         return JobStatus.DONE
+    else:
+        raise ValueError(f"Unexpected IBM job status: {status}")
 
 
+@typechecked
 def get_aws_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a AWS Braket from the id in parameter, and
     returns the corresponding JobStatus of this library.
@@ -222,6 +236,8 @@ def get_aws_job_status(job_id: str) -> JobStatus:
     Args:
         job_id: Id of the job for which we want to retrieve the status.
     """
+    from braket.aws import AwsQuantumTask
+
     task = AwsQuantumTask(job_id)
     state = task.state()
     if state == "FAILED":

@@ -1,28 +1,30 @@
 from typing import Any
+
 import numpy as np
 import pytest
-from sympy import Expr
+from sympy import Expr, symbols
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.gates import *
-from mpqp.execution.devices import AWSDevice, AvailableDevice, IBMDevice, ATOSDevice
-from mpqp.execution.vqa import minimize, Optimizer
-from mpqp.execution.vqa.vqa import OptimizableFunc
+from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution.vqa import Optimizer, minimize
+from mpqp.execution.vqa.vqa import OptimizableFunc
+from mpqp.gates import *
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 # the symbols function is a bit wacky, so some manual type definition is needed here
-theta: Expr = symbols("θ")  # type: ignore
+theta: Expr = symbols("θ")
 
 
 def with_local_devices(args: tuple[Any, ...]):
     return (
         (*args, d)
         for d in list(IBMDevice) + list(ATOSDevice) + list(AWSDevice)
-        if not d.is_remote() and d.is_gate_based()
+        if not d.is_remote() and d.is_gate_based() and not d.has_reduced_gate_set()
     )
 
 
@@ -33,7 +35,7 @@ def with_local_devices(args: tuple[Any, ...]):
             QCircuit(
                 [
                     P(theta, 0),
-                    ExpectationMeasure([0], Observable(np.array([[0, 1], [1, 0]]))),
+                    ExpectationMeasure(Observable(np.array([[0, 1], [1, 0]])), [0]),
                 ]
             ),
             0,
@@ -41,8 +43,15 @@ def with_local_devices(args: tuple[Any, ...]):
     ),
 )
 def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevice):
-    try:
+    def run():
         assert minimize(circ, Optimizer.BFGS, device)[0] - minimum < 0.05
+
+    try:
+        if isinstance(device, AWSDevice):
+            with pytest.warns(UnsupportedBraketFeaturesWarning):
+                run()
+        else:
+            run()
     except (ValueError, NotImplementedError) as err:
         if "not handled" not in str(err):
             raise
@@ -59,7 +68,7 @@ def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevi
                         [
                             P(theta, 0),
                             ExpectationMeasure(
-                                [0], Observable(np.array([[0, 1], [1, 0]]))
+                                Observable(np.array([[0, 1], [1, 0]])), [0]
                             ),
                         ]
                     ),

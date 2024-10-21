@@ -2,15 +2,18 @@
 given :class:`Basis` and returns the corresponding eigenvalue."""
 
 from __future__ import annotations
-from typing import Optional
 
-import qiskit.circuit
-from qiskit.circuit import Parameter
+from typing import TYPE_CHECKING, Optional
+
 from typeguard import typechecked
 
-from .measure import Measure
-from .basis import Basis, ComputationalBasis
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
+
 from mpqp.core.languages import Language
+
+from .basis import Basis, ComputationalBasis
+from .measure import Measure
 
 
 @typechecked
@@ -23,7 +26,8 @@ class BasisMeasure(Measure):
 
     The number of shots indicates the number of time the measure is repeated.
     When shots is equal to 0 (by default), the simulator is used to produce
-    exact value of the amplitudes/probabilities.
+    exact value of the amplitudes/probabilities. If you don't specify a target,
+    the operation will apply to all qubits.
 
     Args:
         targets: List of indices referring to the qubits on which the measure
@@ -38,23 +42,24 @@ class BasisMeasure(Measure):
 
     Examples:
         >>> c1 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c1.add(BasisMeasure([0, 1, 2], shots=1024))
+        >>> c1.add(BasisMeasure([0, 1], shots=1024))
         >>> c2 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c2.add(BasisMeasure([0, 1, 2], shots=1024, basis=HadamardBasis()))
+        >>> c2.add(BasisMeasure([0, 1], shots=1024, basis=HadamardBasis()))
+
     """
 
     def __init__(
         self,
-        targets: list[int],
+        targets: Optional[list[int]] = None,
         c_targets: Optional[list[int]] = None,
-        shots: int = 0,
+        shots: int = 1024,
         basis: Optional[Basis] = None,
         label: Optional[str] = None,
     ):
         if basis is None:
             basis = ComputationalBasis()
         self.pre_measure = basis.to_computational()
-        # 6M-TODO: implement basis thing
+        # TODO: implement basis thing
         if c_targets is not None:
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
@@ -68,24 +73,37 @@ class BasisMeasure(Measure):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if qiskit_parameters is None:
             qiskit_parameters = set()
         if language == Language.QISKIT:
+            from qiskit.circuit import Measure
+
             if isinstance(self.basis, ComputationalBasis):
-                return qiskit.circuit.Measure()
+                return Measure()
             else:
                 raise NotImplementedError(f"{type(self.basis)} not handled")
         else:
             raise NotImplementedError(f"{language} is not supported")
 
     def __repr__(self) -> str:
+        targets = (
+            f"{self.targets}" if (not self._dynamic and len(self.targets)) != 0 else ""
+        )
         options = ""
-        if self.shots != 0:
-            options += f", shots={self.shots}"
+        if self.shots != 1024:
+            options += f", shots={self.shots}" if targets else f"shots={self.shots}"
         if not isinstance(self.basis, ComputationalBasis):
-            options += f", basis={self.basis}"
+            options += (
+                f", basis={self.basis}"
+                if targets and options
+                else f"basis={self.shots}"
+            )
         if self.label is not None:
-            options += f", label={self.label}"
-        return f"BasisMeasure({self.targets}{options})"
+            options += (
+                f", label={self.label}"
+                if targets and options
+                else f"label={self.shots}"
+            )
+        return f"BasisMeasure({targets}{options})"

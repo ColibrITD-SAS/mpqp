@@ -1,13 +1,14 @@
 from __future__ import annotations
 
-from numpy import pi
+import numpy as np
 import pytest
+from numpy import pi
 
 from mpqp import QCircuit
+from mpqp.execution import Job, JobType, Result, Sample, StateVector
+from mpqp.execution.devices import IBMDevice
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
-from mpqp.execution import Result, StateVector, Sample, Job, JobType
-from mpqp.execution.devices import IBMDevice
 
 
 @pytest.mark.parametrize(
@@ -16,9 +17,9 @@ from mpqp.execution.devices import IBMDevice
         (JobType.STATE_VECTOR, 0.4),
         (JobType.STATE_VECTOR, []),
         (JobType.OBSERVABLE, []),
-        (JobType.OBSERVABLE, StateVector([1])),
+        (JobType.OBSERVABLE, StateVector([1])),  # pyright: ignore[reportArgumentType]
         (JobType.SAMPLE, 0.4),
-        (JobType.SAMPLE, StateVector([1])),
+        (JobType.SAMPLE, StateVector([1])),  # pyright: ignore[reportArgumentType]
     ],
 )
 def test_result_wrong_type(job_type: JobType, data: float | StateVector | list[Sample]):
@@ -32,7 +33,7 @@ def test_result_wrong_type(job_type: JobType, data: float | StateVector | list[S
 @pytest.mark.parametrize(
     "job_type, data",
     [
-        (JobType.STATE_VECTOR, StateVector([0.5, 0.5, 0.5, 0.5])),
+        (JobType.STATE_VECTOR, StateVector(np.ones(4, dtype=np.complex64) / 2)),
         (JobType.OBSERVABLE, 0.4),
         (
             JobType.SAMPLE,
@@ -54,3 +55,58 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
         shots = 0
     r = Result(j, data, shots=shots)
     assert r.device == r.job.device
+
+
+@pytest.mark.parametrize(
+    "result, expected_string",
+    [
+        (
+            Result(
+                Job(
+                    JobType.STATE_VECTOR,
+                    QCircuit(2),
+                    IBMDevice.AER_SIMULATOR_STATEVECTOR,
+                ),
+                StateVector(np.ones(4, dtype=np.complex64) / 2),
+            ),
+            """Result: None, IBMDevice, AER_SIMULATOR_STATEVECTOR
+ State vector: [0.5, 0.5, 0.5, 0.5]
+ Probabilities: [0.25, 0.25, 0.25, 0.25]
+ Number of qubits: 2""",
+        ),
+        (
+            Result(
+                Job(
+                    JobType.SAMPLE,
+                    QCircuit(2),
+                    IBMDevice.AER_SIMULATOR,
+                    measure=BasisMeasure([0, 1]),
+                ),
+                [
+                    Sample(2, index=0, count=135),
+                    Sample(2, index=1, count=226),
+                    Sample(2, index=2, count=8),
+                    Sample(2, index=3, count=231),
+                ],
+                shots=600,
+            ),
+            """Result: None, IBMDevice, AER_SIMULATOR
+ Counts: [135, 226, 8, 231]
+ Probabilities: [0.225, 0.3766667, 0.0133333, 0.385]
+ Samples:
+  State: 00, Index: 0, Count: 135, Probability: 0.225
+  State: 01, Index: 1, Count: 226, Probability: 0.37666666666666665
+  State: 10, Index: 2, Count: 8, Probability: 0.013333333333333334
+  State: 11, Index: 3, Count: 231, Probability: 0.385
+ Error: None""",
+        ),
+        (
+            Result(Job(JobType.OBSERVABLE, QCircuit(2), IBMDevice.AER_SIMULATOR), 0.65),
+            """Result: None, IBMDevice, AER_SIMULATOR
+ Expectation value: 0.65
+ Error/Variance: None""",
+        ),
+    ],
+)
+def test_result_str(result: Result, expected_string: str):
+    assert str(result) == expected_string

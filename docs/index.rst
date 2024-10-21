@@ -17,12 +17,17 @@ fluently.
    getting-started
    circuit
    instructions
+   noise
    execution
    execution-extras
    vqa
    qasm
    tools
    changelog
+   examples
 
 Α full index can be found in the :ref:`genindex` page and a map of the module
 can be found in the :doc:`all-modules` page.
+
+MPQP is backed by `ColibrITD <https://www.colibritd.com/>`_, and you can chat with
+our community on our `Discord <https://discord.gg/yyukutWbzf>`_.

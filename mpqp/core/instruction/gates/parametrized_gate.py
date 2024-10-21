@@ -4,16 +4,18 @@ gate. This module defines the abstract class needed to define these gates as
 well as a way to handle symbolic variables.
 
 More on the topic of symbolic variable can be found in the `VQA <VQA.html>`_
-page"""
+page."""
 
 from __future__ import annotations
 
 from abc import ABC
 from copy import deepcopy
-from typing import Optional
 from numbers import Complex
+from typing import TYPE_CHECKING, Optional
 
-from sympy import Expr, symbols  # pyright: ignore [reportUnusedImport]
+if TYPE_CHECKING:
+    from sympy import Expr
+
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates.gate import Gate
@@ -29,21 +31,16 @@ from mpqp.core.instruction.gates.gate_definition import GateDefinition
 
 @typechecked
 class ParametrizedGate(Gate, ABC):
-    """
-    Define a parametrized gate.
+    """Abstract class to factorize behavior of parametrized gate.
 
     Args:
-        definition: Provide a definition of the gate (matrix, gate combination, ...).
+        definition: Provide a definition of the gate (matrix, gate combination,
+            ...).
         targets: List of indices referring to the qubits on which the gate will
             be applied.
         parameters: List of parameters used to define the gate.
         label: Label used to identify the measurement.
 
-    Example:
-        >>> theta = np.pi/3
-        >>> c, s = np.cos(theta / 2), np.sin(theta / 2)
-        >>> gate_def = UnitaryMatrix(np.array([[c, s], [-s, c]]))
-        >>> parametrized = ParametrizedGate(gate_def, 3, theta)
     """
 
     def __init__(
@@ -58,11 +55,12 @@ class ParametrizedGate(Gate, ABC):
         """See parameter description."""
         self.parameters = parameters
         """See parameter description."""
-        self._numeric_parameters = False
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> ParametrizedGate:
+        from sympy import Expr
+
         concrete_gate = deepcopy(self)
         options = getattr(self, "native_gate_options", {})
         concrete_gate.definition = concrete_gate.definition.subs(
@@ -73,6 +71,8 @@ class ParametrizedGate(Gate, ABC):
             caster(param.subs(values)) if isinstance(param, Expr) else param
             for param in self.parameters
         ]
-        concrete_gate._numeric_parameters = True
 
         return concrete_gate
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.parameters},{self.targets})"

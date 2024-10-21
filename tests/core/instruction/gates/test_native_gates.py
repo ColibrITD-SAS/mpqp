@@ -1,20 +1,19 @@
-import pytest
-
 import numpy as np
-from sympy import Expr, symbols
+import pytest
+from sympy import Expr, I, pi, symbols
 
 from mpqp.gates import *
-from mpqp.tools.maths import matrix_eq, cos, sin, exp, I, pi
 from mpqp.tools.generics import Matrix
+from mpqp.tools.maths import cos, exp, matrix_eq, sin
 
 theta: Expr
 k: Expr
-theta, k = symbols("θ k")  # pyright: ignore[reportAssignmentType]
+theta, k = symbols("θ k")
 c, s, e = cos(theta), sin(theta), exp(1.0 * I * theta)
 c2, s2, e2 = (
     cos(theta / 2),  # pyright: ignore[reportOperatorIssue]
     sin(theta / 2),  # pyright: ignore[reportOperatorIssue]
-    exp(1.0 * I * theta / 2),  # pyright: ignore[reportOperatorIssue]
+    exp(1.0 * I * theta / 2),
 )
 
 
@@ -108,9 +107,9 @@ def test_Ry(angle: float, result_matrix: Matrix):
     "angle, result_matrix",
     [
         (0, np.eye(2)),
-        (np.pi, np.diag([-1j] * 2)),
-        (np.pi / 5, np.diag([0.95105652 - 0.30901699j] * 2)),
-        (theta, np.diag([1 / e2] * 2)),  # pyright: ignore
+        (np.pi, np.diag([-1j, 1j])),
+        (np.pi / 5, np.diag([0.95105652 - 0.30901699j, 0.95105652 + 0.30901699j])),
+        (theta, np.diag([1 / e2, e2])),  # pyright: ignore
     ],
 )
 def test_Rz(angle: float, result_matrix: Matrix):
