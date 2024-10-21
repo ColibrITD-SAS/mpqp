@@ -17,6 +17,8 @@ from typing import Optional
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
+from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 
 from mpqp.tools.display import clean_1D_array
 from mpqp.tools.maths import atol, matrix_eq
@@ -54,6 +56,11 @@ class Basis:
         # like:
         # State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
         if len(basis_vectors) == 0:
+            if nb_qubits is None:
+                raise ValueError(
+                    "Empty basis and no number of qubits specified. Please at "
+                    "least specify one of these two."
+                )
             self.nb_qubits = nb_qubits
             self.basis_vectors = basis_vectors
             return
@@ -76,7 +83,7 @@ class Basis:
         ):
             raise ValueError("The given basis is not orthogonal")
 
-        self.nb_qubits = nb_qubits
+        self.nb_qubits: int = nb_qubits
         """See parameter description."""
         self.basis_vectors = basis_vectors
         """See parameter description."""
@@ -97,6 +104,19 @@ class Basis:
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.basis_vectors}, {self.nb_qubits})"
+
+    def to_computational(self):
+        # TODO: test and document
+        from mpqp.core.circuit import QCircuit
+
+        basis_change = np.array(self.basis_vectors).T.conjugate()
+        return QCircuit(
+            [
+                CustomGate(
+                    UnitaryMatrix(basis_change), targets=list(range(self.nb_qubits))
+                )
+            ]
+        )
 
 
 @typechecked
@@ -159,8 +179,7 @@ class ComputationalBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        basis = []
-        Basis.__init__(self, basis, nb_qubits)
+        Basis.__init__(self, [], nb_qubits)
         if nb_qubits is not None:
             self.set_size(nb_qubits)
 
@@ -170,6 +189,11 @@ class ComputationalBasis(VariableSizeBasis):
             for i in range(2**nb_qubits)
         ]
         self.nb_qubits = nb_qubits
+
+    def to_computational(self):
+        from mpqp.core.circuit import QCircuit
+
+        return QCircuit(self.nb_qubits)
 
 
 class HadamardBasis(VariableSizeBasis):
@@ -190,8 +214,7 @@ class HadamardBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        basis = []
-        Basis.__init__(self, basis, nb_qubits)
+        Basis.__init__(self, [], nb_qubits)
         if nb_qubits is not None:
             self.set_size(nb_qubits)
 
@@ -200,3 +223,11 @@ class HadamardBasis(VariableSizeBasis):
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits
+
+    def to_computational(self):
+        from mpqp.core.instruction.gates.native_gates import H
+        from mpqp.core.circuit import QCircuit
+
+        if self.nb_qubits == 0:
+            return QCircuit(self.nb_qubits)
+        return QCircuit([H(qb) for qb in range(self.nb_qubits)])

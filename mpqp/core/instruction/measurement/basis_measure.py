@@ -58,7 +58,8 @@ class BasisMeasure(Measure):
     ):
         if basis is None:
             basis = ComputationalBasis()
-        # 3M-TODO: implement basis thing
+        self.pre_measure = basis.to_computational()
+        # TODO: implement basis thing
         if c_targets is not None:
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
