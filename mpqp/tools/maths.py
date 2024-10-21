@@ -241,7 +241,7 @@ def rand_orthogonal_matrix(
         A random orthogonal matrix.
 
     Examples:
-        >>> rand_orthogonal_matrix(3)
+        >>> rand_orthogonal_matrix(3) # doctest: +SKIP
         array([[ 0.51186015,  0.71401714, -0.47768056],
                [ 0.69405144, -0.0160335 ,  0.71974685],
                [-0.50625269,  0.69994461,  0.50377153]])
@@ -276,7 +276,7 @@ def rand_clifford_matrix(
         A random Clifford matrix.
 
     Examples:
-        >>> rand_clifford_matrix(2)
+        >>> rand_clifford_matrix(2) # doctest: +SKIP
         array([[ 0. +0.5j,  0. +0.5j,  0.5+0.j ,  0.5+0.j ],
                [ 0.5+0.j , -0.5+0.j ,  0. -0.5j,  0. +0.5j],
                [ 0.5+0.j ,  0.5+0.j ,  0. +0.5j,  0. +0.5j],
@@ -298,10 +298,10 @@ def rand_clifford_matrix(
     else:
         rng = np.random.default_rng(seed)
 
-    clifford_circuit = quantum_info.random_clifford(nb_qubits, seed=rng)
-    clifford_matrix = clifford_circuit.to_matrix()
-
-    return np.array(clifford_matrix, dtype=np.complex64)
+    res = quantum_info.random_clifford(nb_qubits, seed=rng).to_matrix()
+    if TYPE_CHECKING:
+        assert isinstance(res, np.ndarray)
+    return res
 
 
 def rand_unitary_2x2_matrix(
@@ -317,7 +317,7 @@ def rand_unitary_2x2_matrix(
         A random Clifford matrix.
 
     Examples:
-        >>> rand_unitary_2x2_matrix()
+        >>> rand_unitary_2x2_matrix() # doctest: +SKIP
         array([[-0.38773402+0.j        , -0.73447267-0.55696699j],
                [ 0.73447267+0.55696699j,  0.34132656-0.1839398j ]])
 
@@ -357,7 +357,7 @@ def rand_product_local_unitaries(
         A tensor product of random unitary matrices.
 
     Example:
-        >>> rand_product_local_unitaries(2)
+        >>> rand_product_local_unitaries(2) # doctest: +SKIP
         array([[ 0.91443498+0.j        , -0.34882095-0.2052623j ],
                [ 0.34882095+0.2052623j , -0.00785861+0.91440121j]])
 
@@ -391,7 +391,7 @@ def rand_hermitian_matrix(
         A random Hermitian Matrix.
 
     Example:
-        >>> rand_hermitian_matrix(2)
+        >>> rand_hermitian_matrix(2) # doctest: +SKIP
         array([[0.9084826+0.j, 1.2122946+0.j],
                [1.2122946+0.j, 1.4426157+0.j]], dtype=complex64)
 
