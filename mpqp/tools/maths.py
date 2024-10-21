@@ -252,8 +252,8 @@ def rand_orthogonal_matrix(
                [-0.17290035,  0.9733528 , -0.15063131]])
 
     """
-    np.random.seed(seed)
-    m = np.random.rand(size, size)
+    rs = np.random.RandomState(seed)
+    m = rs.rand(size, size)
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
@@ -369,3 +369,9 @@ def is_power_of_two(n: int):
 
     """
     return n >= 1 and (n & (n - 1)) == 0
+
+
+Id = np.eye(2)
+pauli_X = np.ones((2, 2)) - Id
+pauli_Z = np.diag([1, -1])
+pauli_Y = 1j * pauli_X @ pauli_Z
