@@ -95,6 +95,15 @@ class NativeGate(Gate, SimpleClassReprABC):
         label: Label used to identify the gate.
     """
 
+    qlm_aqasm_keyword: str
+    """Keyword(s) corresponding to the gate in ``myQLM``. This needs to be
+    available at the class level and is not enforced by the type checker so be
+    careful about it!"""
+    qiskit_string: str
+    """Keyword corresponding to the gate in ``qiskit``. This needs to be
+    available at the class level and is not enforced by the type checker so be
+    careful about it!"""
+
     native_gate_options = {"disable_symbol_warn": True}
 
 
@@ -236,8 +245,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
     ]:
         pass
 
-    qlm_aqasm_keyword: str
-
     """Corresponding ``qiskit``'s gate class."""
     matrix: npt.NDArray[np.complex64]
     """Matricial semantics of the gate."""
@@ -296,12 +303,23 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
         return IGate
 
-    def __init__(self, target: int):
+    qlm_aqasm_keyword = "I"
+    qiskit_string = "id"
 
+    def __init__(self, target: int, label: Optional[str] = None):
         super().__init__(target)
-
-        self.qlm_aqasm_keyword = "I"
+        self.label = label
         self.matrix = np.eye(2, dtype=np.complex64)
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.QISKIT:
+            if self.label:
+                return self.qiskit_gate(label=self.label)
+            return self.qiskit_gate()
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
@@ -329,11 +347,11 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
         return XGate
 
+    qlm_aqasm_keyword = "X"
+    qiskit_string = "x"
+
     def __init__(self, target: int):
-
         super().__init__(target)
-
-        self.qlm_aqasm_keyword = "X"
         self.matrix = np.array([[0, 1], [1, 0]])
 
 
@@ -362,13 +380,12 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
         return YGate
 
+    qlm_aqasm_keyword = "Y"
+    qiskit_string = "y"
+
     def __init__(self, target: int):
-
         super().__init__(target)
-
-        self.qlm_aqasm_keyword = "Y"
-
-    matrix = np.array([[0, -1j], [1j, 0]])
+        self.matrix = np.array([[0, -1j], [1j, 0]])
 
 
 class Z(OneQubitNoParamGate, InvolutionGate):
@@ -396,13 +413,12 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
         return ZGate
 
+    qlm_aqasm_keyword = "Z"
+    qiskit_string = "z"
+
     def __init__(self, target: int):
-
         super().__init__(target)
-
-        self.qlm_aqasm_keyword = "Z"
-
-    matrix = np.array([[1, 0], [0, -1]])
+        self.matrix = np.array([[1, 0], [0, -1]])
 
 
 class H(OneQubitNoParamGate, InvolutionGate):
@@ -430,13 +446,12 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
         return HGate
 
+    qlm_aqasm_keyword = "H"
+    qiskit_string = "h"
+
     def __init__(self, target: int):
-
         super().__init__(target)
-
-        self.qlm_aqasm_keyword = "H"
-
-    matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
+        self.matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
 
 class P(RotationGate, SingleQubitGate):
@@ -465,11 +480,11 @@ class P(RotationGate, SingleQubitGate):
 
         return PhaseGate
 
+    qlm_aqasm_keyword = "PH"
+    qiskit_string = "p"
+
     def __init__(self, theta: Expr | float, target: int):
-
         super().__init__(theta, target)
-
-        self.qlm_aqasm_keyword = "PH"
 
     def to_canonical_matrix(self) -> Matrix:
         return np.array(  # pyright: ignore[reportCallIssue]
@@ -511,13 +526,12 @@ class S(OneQubitNoParamGate):
 
         return SGate
 
+    qlm_aqasm_keyword = "S"
+    qiskit_string = "s"
+
     def __init__(self, target: int):
-
         super().__init__(target)
-
-        self.qlm_aqasm_keyword = "S"
-
-    matrix = np.array([[1, 0], [0, 1j]])
+        self.matrix = np.array([[1, 0], [0, 1j]])
 
 
 class T(OneQubitNoParamGate):
@@ -548,11 +562,11 @@ class T(OneQubitNoParamGate):
 
         return TGate
 
+    qlm_aqasm_keyword = "T"
+    qiskit_string = "t"
+
     def __init__(self, target: int):
-
         super().__init__(target)
-
-        self.qlm_aqasm_keyword = "T"
 
     def to_canonical_matrix(self):
         from sympy import pi
@@ -588,13 +602,12 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         return SwapGate
 
+    qlm_aqasm_keyword = "SWAP"
+    qiskit_string = "swap"
+
     def __init__(self, a: int, b: int):
-
-        self.qlm_aqasm_keyword = "SWAP"
-
-        self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
-
         super().__init__([a, b], "SWAP")
+        self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.targets[0]}, {self.targets[1]})"
@@ -694,6 +707,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         """See corresponding argument."""
         return self.parameters[2]
 
+    qlm_aqasm_keyword = "U"
+    qiskit_string = "u"
+
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
@@ -746,8 +762,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.theta}, {self.phi}, {self.gamma}, {self.targets[0]})"
 
-    qlm_aqasm_keyword = "U"
-
 
 class Rx(RotationGate, SingleQubitGate):
     """One qubit rotation around the X axis
@@ -775,11 +789,11 @@ class Rx(RotationGate, SingleQubitGate):
 
         return RXGate
 
+    qlm_aqasm_keyword = "RX"
+    qiskit_string = "rx"
+
     def __init__(self, theta: Expr | float, target: int):
-
         super().__init__(theta, target)
-
-        self.qlm_aqasm_keyword = "RX"
 
     def to_canonical_matrix(self):
         c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
@@ -815,11 +829,11 @@ class Ry(RotationGate, SingleQubitGate):
 
         return RYGate
 
+    qlm_aqasm_keyword = "RY"
+    qiskit_string = "ry"
+
     def __init__(self, theta: Expr | float, target: int):
-
         super().__init__(theta, target)
-
-        self.qlm_aqasm_keyword = "RY"
 
     def to_canonical_matrix(self):
         c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
@@ -853,11 +867,11 @@ class Rz(RotationGate, SingleQubitGate):
 
         return RZGate
 
+    qlm_aqasm_keyword = "RZ"
+    qiskit_string = "rz"
+
     def __init__(self, theta: Expr | float, target: int):
-
         super().__init__(theta, target)
-
-        self.qlm_aqasm_keyword = "RZ"
 
     def to_canonical_matrix(self):
         e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
@@ -892,10 +906,10 @@ class Rk(RotationGate, SingleQubitGate):
 
         return PhaseGate
 
+    qlm_aqasm_keyword = "PH"
+    qiskit_string = "p"
+
     def __init__(self, k: Expr | int, target: int):
-
-        self.qlm_aqasm_keyword = "PH"
-
         self.parameters = [k]
         definition = UnitaryMatrix(
             self.to_canonical_matrix(), **self.native_gate_options
@@ -954,9 +968,10 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CXGate
 
-    def __init__(self, control: int, target: int):
+    qlm_aqasm_keyword = "CNOT"
+    qiskit_string = "cx"
 
-        self.qlm_aqasm_keyword = "CNOT"
+    def __init__(self, control: int, target: int):
         ControlledGate.__init__(self, [control], [target], X(target), "CNOT")
 
     def to_canonical_matrix(self):
@@ -995,9 +1010,10 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CZGate
 
-    def __init__(self, control: int, target: int):
+    qiskit_string = "cz"
+    qlm_aqasm_keyword = "CSIGN"
 
-        self.qlm_aqasm_keyword = "CSIGN"
+    def __init__(self, control: int, target: int):
         ControlledGate.__init__(self, [control], [target], Z(target), "CZ")
 
     def to_canonical_matrix(self):
@@ -1039,9 +1055,11 @@ class CRk(RotationGate, ControlledGate):
 
         return CPhaseGate
 
-    def __init__(self, k: Expr | int, control: int, target: int):
+    # TODO: this is a special case, see if it needs to be generalized
+    qlm_aqasm_keyword = "CNOT;PH"
+    qiskit_string = "cp"
 
-        self.qlm_aqasm_keyword = ["CNOT", "PH"]
+    def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
         definition = UnitaryMatrix(
@@ -1107,9 +1125,10 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CCXGate
 
-    def __init__(self, control: list[int], target: int):
+    qlm_aqasm_keyword = "CCNOT"
+    qiskit_string = "ccx"
 
-        self.qlm_aqasm_keyword = "CCNOT"
+    def __init__(self, control: list[int], target: int):
         if len(control) != 2:
             raise ValueError("A Toffoli gate must have exactly 2 control qubits.")
         ControlledGate.__init__(self, control, [target], X(target), "TOF")

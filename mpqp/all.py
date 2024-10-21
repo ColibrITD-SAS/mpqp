@@ -64,7 +64,7 @@ from .measures import Measure, Observable, VariableSizeBasis
 from .measures import X as Xop
 from .measures import Y as Yop
 from .measures import Z as Zop
-from .noise import AmplitudeDamping, BitFlip, Depolarizing
+from .noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
 theta, k = symbols("θ k")

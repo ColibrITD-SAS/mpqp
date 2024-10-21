@@ -26,8 +26,6 @@ from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
 from warnings import warn
 
-from mpqp.core.instruction.breakpoint import Breakpoint
-
 if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -41,6 +39,7 @@ from typeguard import TypeCheckError, typechecked
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
+from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -48,7 +47,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import Depolarizing, NoiseModel
+from mpqp.noise.noise_model import NoiseModel, DimensionalNoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -132,6 +131,11 @@ class QCircuit:
         """List of noise models attached to the circuit."""
         self._nb_qubits: int
         """Number of qubits of the circuit."""
+
+        self.gphase: float = 0
+        """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
+        to OpenQASM2. It is used to correct the global phase when the job type
+        is STATE_VECTOR, and when this circuit contains CustomGate."""
 
         if isinstance(data, int):
             if data < 0:
@@ -233,11 +237,12 @@ class QCircuit:
                 )
         if isinstance(components, NoiseModel):
             if (
-                isinstance(components, Depolarizing)
+                isinstance(components, DimensionalNoiseModel)
                 and len(components.targets) < components.dimension
             ):
                 raise ValueError(
-                    f"Number of target qubits {len(components.targets)} should be higher than the dimension {components.dimension}."
+                    f"Number of target qubits {len(components.targets)} should be higher than "
+                    f"the dimension {components.dimension}."
                 )
             hardcoded_basis_measures = [
                 instr for instr in self.instructions if isinstance(instr, BasisMeasure)
@@ -276,20 +281,18 @@ class QCircuit:
             [0, 1, 2]
 
         """
-
         targets = list(range(self.nb_qubits))
 
-        dynamic_components = components
-        dynamic_components.targets = targets
+        components.targets = targets
         self._check_components_targets(components)
 
-        if isinstance(dynamic_components, Barrier):
-            dynamic_components.size = self.nb_qubits
-        elif isinstance(dynamic_components, ExpectationMeasure):
-            dynamic_components._check_targets_order()  # pyright: ignore[reportPrivateUsage]
-        elif isinstance(dynamic_components, Depolarizing):
-            dynamic_components._check_dimension()  # pyright: ignore[reportPrivateUsage]
-        elif isinstance(dynamic_components, BasisMeasure):
+        if isinstance(components, Barrier):
+            components.size = self.nb_qubits
+        elif isinstance(components, ExpectationMeasure):
+            components.check_targets_order()
+        elif isinstance(components, DimensionalNoiseModel):
+            components.check_dimension()
+        elif isinstance(components, BasisMeasure):
             if self.nb_cbits is None:
                 self.nb_cbits = 0
             unique_cbits = set()
@@ -301,20 +304,21 @@ class QCircuit:
                         unique_cbits.update(basis_measure.c_targets)
             c_targets = []
             i = 0
-            for _ in range(len(dynamic_components.targets)):
+            for _ in range(len(components.targets)):
                 while i in unique_cbits:
                     warn(
-                        "Dynamic measurements don't play well with static measurements: order of classic bits might be unexpected"
+                        "Dynamic measurements don't play well with static measurements: "
+                        "order of classic bits might be unexpected"
                     )
                     i += 1
                 c_targets.append(i)
                 i += 1
-            dynamic_components.c_targets = c_targets
+            components.c_targets = c_targets
             self.nb_cbits = max(
                 max(c_targets, default=0) + 1, max(unique_cbits, default=0) + 1
             )
 
-        return dynamic_components
+        return components
 
     @property
     def nb_qubits(self) -> int:
@@ -756,6 +760,20 @@ class QCircuit:
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
+    def get_gates(self) -> list[Gate]:
+        """Retrieve all the gates from the instructions in the circuit.
+
+        Returns:
+            The list of all gates present in the circuit.
+
+        Example:
+            >>> circuit = QCircuit([H(0), CNOT(0, 1)])
+            >>> circuit.get_gates()
+            [H(0), CNOT(0, 1)]
+
+        """
+        return [instr for instr in self.instructions if isinstance(instr, Gate)]
+
     def get_measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
 
@@ -798,7 +816,8 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = QCircuit(self.nb_qubits)
+        new_circuit = deepcopy(self)
+        new_circuit.nb_cbits = 0
         new_circuit.instructions = [
             inst for inst in self.instructions if not isinstance(inst, Measure)
         ]
@@ -851,12 +870,6 @@ class QCircuit:
         method will be used only for complex objects that are not tractable by
         OpenQASM (like hybrid structures).
 
-        Note:
-            Most providers take noise into account at the job level. A notable
-            exception is Braket, where the noise is contained in the circuit
-            object. For this reason you find the noise included in the Braket
-            circuits.
-
         Args:
             language: Enum representing the target language.
             cirq_proc_id : Identifier of the processor for cirq.
@@ -881,6 +894,12 @@ class QCircuit:
                                       └───┘
             T  : │         0         │         1         │
 
+        Note:
+            Most providers take noise into account at the job level. A notable
+            exception is Braket, where the noise is contained in the circuit
+            object. For this reason you find the noise included in the Braket
+            circuits.
+
         """
 
         if language == Language.QISKIT:
@@ -904,9 +923,7 @@ class QCircuit:
                 if isinstance(instruction, ExpectationMeasure):
                     # these measures have no equivalent in Qiskit
                     continue
-                qiskit_inst = instruction.to_other_language(
-                    Language.QISKIT, qiskit_parameters
-                )
+                qiskit_inst = instruction.to_other_language(language, qiskit_parameters)
                 if TYPE_CHECKING:
                     assert (
                         isinstance(qiskit_inst, CircuitInstruction)
@@ -917,13 +934,10 @@ class QCircuit:
 
                 if isinstance(instruction, CustomGate):
                     new_circ.unitary(
-                        instruction.to_other_language(),
-                        instruction.targets,
+                        instruction.to_other_language(language),
+                        list(reversed(instruction.targets)),  # dang qiskit qubits order
                         instruction.label,
                     )
-                    # FIXME: minus sign appearing when it should not, seems
-                    #  there a phase added somewhere, check u gate in OpenQASM
-                    #  translation.
                     continue
                 elif isinstance(instruction, ControlledGate):
                     qargs = instruction.controls + instruction.targets
@@ -932,9 +946,9 @@ class QCircuit:
                 elif isinstance(instruction, BasisMeasure) and isinstance(
                     instruction.basis, ComputationalBasis
                 ):
-                    # TODO muhammad/henri, for custom basis, check if something
-                    #  should be changed here, otherwise remove the condition to
-                    #  have only computational basis
+                    # TODO for custom basis, check if something should be
+                    # changed here, e.g. remove the condition to have only
+                    # computational basis
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
@@ -957,6 +971,7 @@ class QCircuit:
         elif language == Language.MY_QLM:
             cleaned_circuit = self.without_measurements()
             myqlm_circuit = qasm2_to_myqlm_Circuit(cleaned_circuit.to_qasm2())
+            self.gphase = cleaned_circuit.gphase
             return myqlm_circuit
 
         elif language == Language.BRAKET:
@@ -986,8 +1001,10 @@ class QCircuit:
                         "an error on AWS Braket side."
                     )
 
+            qasm3_str = circuit.to_qasm3()
+            self.gphase = circuit.gphase
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(circuit.to_qasm3()),
+                qasm3_to_braket_Circuit(qasm3_str),
                 self.noises,
                 self.nb_qubits,
             )
@@ -1035,7 +1052,7 @@ class QCircuit:
             A string representing the OpenQASM2 code corresponding to this
             circuit.
 
-        Example:
+        Examples:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
             >>> print(circuit.to_qasm2())  # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 2.0;
@@ -1048,16 +1065,44 @@ class QCircuit:
             measure q[1] -> c[1];
 
         """
+        # TODO: put back this example when we figure out why the qasm2 export is
+        # different on docker/github actions
+        # >>> IxX = np.array([[0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
+        # >>> c2 = QCircuit([CustomGate(UnitaryMatrix(IxX),[1,2])])
+        # >>> print(c2.to_qasm2())
+        # OPENQASM 2.0;
+        # include "qelib1.inc";
+        # qreg q[3];
+        # u(0,pi/2,-pi/2) q[1];
+        # u(pi,-pi/2,pi/2) q[2];
+
+        from qiskit import QuantumCircuit, qasm2
+
+        from mpqp.tools.circuit import replace_custom_gate
+
         qiskit_circ = self.subs({}, remove_symbolic=True).to_other_language(
             Language.QISKIT
         )
         if TYPE_CHECKING:
             assert isinstance(qiskit_circ, QuantumCircuit)
 
-        from qiskit import qasm2
+        qiskit_circ.reverse_bits()
 
-        qasm_str = qasm2.dumps(qiskit_circ)
-        return qasm_str
+        global_phase = 0
+        new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
+        for instruction in qiskit_circ.data:
+            if instruction.operation.name == 'unitary':
+                circuit, gphase = replace_custom_gate(
+                    instruction, qiskit_circ.num_qubits
+                )
+                new_circuit.compose(circuit, inplace=True)
+                global_phase += gphase
+            else:
+                new_circuit.append(instruction)
+
+        self.gphase = global_phase
+
+        return qasm2.dumps(new_circuit)
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.
@@ -1082,6 +1127,14 @@ class QCircuit:
             c[1] = measure q[1];
 
         """
+        # TODO: put back this example when we figure out why the qasm2 export is different on docker/github actions
+        # >>> c2 = QCircuit([CustomGate(UnitaryMatrix(np.array([[0,1,0,0],[1,0,0,0],[0,0,0,1],[0,0,1,0]])),[1,2])])
+        # >>> print(c2.to_qasm3()) # doctest: +NORMALIZE_WHITESPACE
+        # OPENQASM 3.0;
+        # include "stdgates.inc";
+        # qubit[3] q;
+        # u3(0,pi/2,-pi/2) q[1];
+        # u3(pi,-pi/2,pi/2) q[2];
         qasm2_code = self.to_qasm2()
         qasm3_code = open_qasm_2_to_3(qasm2_code)
         return qasm3_code

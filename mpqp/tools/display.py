@@ -72,15 +72,26 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
 
     if isinstance(element, Expr):
         return str(element.simplify())
-    elif np.iscomplex(element):
-        real_part = np.round(element.real, round)
-        imag_part = np.round(element.imag, round)
-        if imag_part == 0:
-            return str(int(real_part)) if real_part.is_integer() else str(real_part)
-        return str(np.round(element, round)).replace("(", "").replace(")", "")
+
+    real_part = np.round(np.real(element), round)
+    imag_part = np.round(np.imag(element), round)
+
+    if real_part == int(real_part):
+        real_part = int(real_part)
+    if imag_part == int(imag_part):
+        imag_part = int(imag_part)
+
+    if real_part == 0 and imag_part != 0:
+        real_part = ""
+
+    if imag_part == 0:
+        imag_part = ""
     else:
-        real_part = np.round(element.real, round)
-        return str(int(real_part)) if real_part.is_integer() else str(real_part)
+        imag_part = str(imag_part) + "j"
+        if real_part != "" and not imag_part.startswith("-"):
+            imag_part = "+" + imag_part
+
+    return f"{str(real_part)}{str(imag_part)}"
 
 
 def clean_1D_array(
@@ -107,6 +118,20 @@ def clean_1D_array(
         '[1, 0.5, 5+1j]'
         >>> clean_1D_array([1.0, 2.1, 3.0])
         '[1, 2.1, 3]'
+        >>> clean_1D_array([1+0j, 0+0j, 5.])
+        '[1, 0, 5]'
+        >>> clean_1D_array([1.0, 2.0, 3.0])
+        '[1, 2, 3]'
+        >>> clean_1D_array([-0.01e-09+9.82811211e-01j,  1.90112689e-01+5.22320655e-09j,
+        ... 2.91896816e-09-2.15963155e-09j, -4.17753839e-09-5.64638430e-09j,
+        ... 9.44235988e-08-8.58300965e-01j, -5.42123454e-08+2.07957438e-07j,
+        ... 5.13144658e-01+2.91786504e-08j, -0000000.175980538-1.44108434e-07j])
+        '[0.98281j, 0.19011, 0, 0, -0.8583j, 0, 0.51314, -0.17598]'
+        >>> clean_1D_array([-0.01e-09+9.82811211e-01j,  1.90112689e-01+5.22320655e-09j,
+        ... 2.91896816e-09-2.15963155e-09j, -4.17753839e-09-5.64638430e-09j,
+        ... 9.44235988e-08-8.58300965e-01j, -5.42123454e-08+2.07957438e-07j,
+        ... 5.13144658e-01+2.91786504e-08j, -0000000.175980538-1.44108434e-07j], round=7)
+        '[0.9828112j, 0.1901127, 0, 0, 1e-07-0.858301j, -1e-07+2e-07j, 0.5131447, -0.1759805-1e-07j]'
 
     """
     cleaned_array = [format_element(element, round) for element in array]
