@@ -56,18 +56,19 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
     ):
         from qiskit_ibm_runtime import fake_provider
+        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
         fake_imports = fake_provider.__dict__
         return [
             (p, fake_imports[p])
             for p in fake_imports.keys()
-            if p.startswith("Fake") and not p.startswith("FakeProvider")
+            if p.startswith("Fake") and issubclass(fake_imports[p], FakeBackendV2) and not p.startswith("FakeProvider")
         ]
 
 
 IBMSimulatedDevice = AbstractIBMSimulatedDevice(
     'IBMSimulatedDevice', AbstractIBMSimulatedDevice.get_ibm_fake_providers()
 )
-"""Enum regrouping all fake devices used to simulate noise of real hardware.
+"""Enum regrouping all so called IBM "fake devices" used to simulate noise of real hardware.
 
 The members of this Enum are generated dynamically from ``qiskit_ibm_runtime.fake_provider``."""

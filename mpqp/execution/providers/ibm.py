@@ -40,7 +40,6 @@ from mpqp.core.instruction.gates import (
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
-    Observable,
 )
 from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
@@ -144,15 +143,31 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
             job.device.value().num_qubits,
         )
 
-    from qiskit_aer.primitives import EstimatorV2 as Estimator
-
-    estimator = Estimator()
     if isinstance(job.device, IBMSimulatedDevice):
-        estimator.options.backend_options = {"noise_model": job.device.to_noise_model()}
+        from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
+        from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+
+        backend = job.device.to_noisy_simulator()
+        pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
+        ibm_circuit = pm.run(ibm_circuit)
+        qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
+        options = {"optimization_level": 0, "resilience_level": 0, "default_shots": job.measure.shots}
+
+        estimator = Runtime_Estimator(backend=backend, options=options)
+
+        if nb_shots != 0:
+            options["default_shots"] = job.measure.shots
+
         # TODO: understand why the fake model/device always use the |000> state and not the circuit to compute
-        #  expectation values
-    if nb_shots != 0:
-        estimator.options.default_precision = 1 / np.sqrt(nb_shots)
+        #  expectation value
+    elif len(job.circuit.noises) != 0:
+        # TODO: use the generate noise model class
+        pass
+    else:
+        from qiskit_aer.primitives import EstimatorV2 as Estimator
+        estimator = Estimator()
+        if nb_shots != 0:
+            estimator.options.default_precision = 1 / np.sqrt(nb_shots)
 
     # 3M-TODO: implement the possibility to compute several expectation values at
     #  the same time when the circuit is the same apparently the estimator.run()
@@ -536,8 +551,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(session=session)
         qiskit_observable = meas.observable.to_other_language(Language.QISKIT)
-        # if TYPE_CHECKING:
-        #     assert isinstance(qiskit_observable, SparsePauliOp)
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_observable, SparsePauliOp)
 
         qiskit_observable = fill_observable_with_id(
             qiskit_observable, meas.observable.nb_qubits, qiskit_circ.num_qubits
@@ -615,7 +630,7 @@ def extract_result(
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
             mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
             error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
-            shots = (
+            shots = ( #TODO
                 job.measure.shots
                 if job.device.is_simulator()
                 else result[0].metadata["shots"]
