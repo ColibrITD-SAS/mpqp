@@ -2,9 +2,9 @@
 import importlib
 import os
 import sys
-from doctest import DocTest, DocTestFinder, DocTestRunner
+from doctest import DocTestFinder, DocTestRunner
 from types import TracebackType
-from typing import Any, Optional, Type
+from typing import Optional, Type
 
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
@@ -71,21 +71,7 @@ class SafeRunner:
         load_env_variables()
 
 
-class RandomDoctestRunner(DocTestRunner):
-    def run(self, test: DocTest, *args: Any, **kwargs: Any):
-        if "rand" in test.name or "random" in test.name:
-            if "seed=" not in test.examples[0].source:
-                for example in test.examples:
-                    import doctest
-
-                    example.options[doctest.SKIP] = True
-        return super().run(test, *args, **kwargs)
-
-
-def test_documentation(global_seed: Optional[int], seed: Optional[int] = None) -> None:
-    test_seed = seed if seed is not None else global_seed
-
-    np.random.seed(test_seed)
+def test_documentation():
 
     print(os.getcwd())
 
@@ -96,6 +82,7 @@ def test_documentation(global_seed: Optional[int], seed: Optional[int] = None) -
     saf_file = ["env"]
 
     finder = DocTestFinder()
+    runner = DocTestRunner()
 
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         folder_path = "mpqp"
@@ -120,15 +107,6 @@ def test_documentation(global_seed: Optional[int], seed: Optional[int] = None) -
                             and "3M-TODO" not in test.docstring
                             and "6M-TODO" not in test.docstring
                         ):
-                            if (
-                                "rand" in test.name
-                                or "random" in test.name
-                                and "seed=" not in test.examples[0].source
-                            ):
-                                runner = RandomDoctestRunner()
-                            else:
-                                runner = DocTestRunner()
-
                             if saf:
                                 with SafeRunner():
                                     if "PYTEST_CURRENT_TEST" not in os.environ:
