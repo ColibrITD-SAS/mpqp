@@ -12,9 +12,9 @@ from mpqp.core.instruction.measurement import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run, IBMDevice
+from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice, run
 from mpqp.gates import *
-from mpqp.noise import Depolarizing, BitFlip, AmplitudeDamping
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
@@ -70,6 +70,7 @@ def test_noisy_expectation_value_execution_without_error(
     circuit.add(BitFlip(0.1))
     circuit.add(AmplitudeDamping(0.4))
     circuit.add(AmplitudeDamping(0.2, 0.3))
+    circuit.add(PhaseDamping(0.6))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
@@ -85,6 +86,8 @@ def test_all_native_gates_global_noise_execution_without_error(
     circuit.add(BitFlip(0.1, gates=[CNOT, H]))
     circuit.add(AmplitudeDamping(0.4, gates=[CNOT, H]))
     circuit.add(AmplitudeDamping(0.2, 0.3, [0, 1, 2]))
+    circuit.add(PhaseDamping(0.4, [0, 2]))
+    circuit.add(PhaseDamping(0.4, gates=[CNOT, H]))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
@@ -102,6 +105,7 @@ def test_all_native_gates_local_noise(
     circuit.add(BitFlip(0.1, [0, 1], gates=[CNOT, H]))
     circuit.add(AmplitudeDamping(0.4, targets=[0, 1], gates=[CNOT, H]))
     circuit.add(AmplitudeDamping(0.2, 0.3, [0, 1, 2]))
+    circuit.add(PhaseDamping(0.4, [0, 1, 2], gates=[CNOT, H]))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
