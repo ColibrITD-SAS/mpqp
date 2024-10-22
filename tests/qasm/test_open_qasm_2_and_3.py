@@ -80,6 +80,8 @@ def test_circular_dependency_detection_false_positive_3_to_2():
         )
     except RuntimeError:
         assert False, f"Circular dependency raised while it shouldn't"
+
+
 def normalize_whitespace(s: str) -> str:
     """Helper function to normalize the whitespace by collapsing multiple spaces and removing leading/trailing spaces."""
     return re.sub(r'\s+', ' ', s.strip())
