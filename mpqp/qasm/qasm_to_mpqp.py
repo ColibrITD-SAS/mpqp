@@ -13,11 +13,10 @@ from mpqp.gates import *
 from mpqp.measures import *
 from mpqp.core.instruction import Barrier
 from mpqp.qasm.lexer_utils import *
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include
+from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include_and_comment
 
 
 # TODO:
-# commentary "\\": not handle
 # if: not handle
 # barrier: handle for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
 # no ID name handle for qreg or creg
@@ -72,7 +71,7 @@ def qasm2_parse(input_string: str) -> QCircuit:
     """
     from mpqp.core.circuit import QCircuit
 
-    input_string = remove_include(input_string)
+    input_string = remove_include_and_comment(input_string)
     input_string = remove_user_gates(input_string)
     tokens = lex_openqasm(input_string)
 
