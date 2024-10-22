@@ -25,7 +25,12 @@ from mpqp.execution.connection.env_manager import (
     load_env_variables,
     save_env_variable,
 )
-from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
+from mpqp.qasm import (
+    open_qasm_2_to_3,
+    remove_user_gates,
+    open_qasm_3_to_2,
+    open_qasm_file_conversion_3_to_2,
+)
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
 from mpqp.tools.generics import find, find_index, flatten
