@@ -137,30 +137,23 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         assert isinstance(qiskit_observable, SparsePauliOp)
 
     if isinstance(job.device, IBMSimulatedDevice):
-        qiskit_observable = fill_observable_with_id(
-            qiskit_observable,
-            job.measure.observable.nb_qubits,
-            job.device.value().num_qubits,
-        )
-
-    if isinstance(job.device, IBMSimulatedDevice):
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
         backend = job.device.to_noisy_simulator()
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
+
+        qiskit_observable = fill_observable_with_id(
+            qiskit_observable,
+            job.measure.observable.nb_qubits,
+            ibm_circuit.num_qubits,
+        )
+
         qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
-        options = {
-            "optimization_level": 0,
-            "resilience_level": 0,
-            "default_shots": job.measure.shots,
-        }
+        options = {"default_shots": job.measure.shots}
 
-        estimator = Runtime_Estimator(backend=backend, options=options)
-
-        if nb_shots != 0:
-            options["default_shots"] = job.measure.shots
+        estimator = Runtime_Estimator(mode=backend, options=options)
 
         # TODO: understand why the fake model/device always use the |000> state and not the circuit to compute
         #  expectation value
@@ -554,7 +547,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-        estimator = Runtime_Estimator(session=session)
+        estimator = Runtime_Estimator(mode=session)
         qiskit_observable = meas.observable.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:
             assert isinstance(qiskit_observable, SparsePauliOp)
@@ -569,7 +562,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(meas, BasisMeasure)
-        sampler = Runtime_Sampler(session=session)
+        sampler = Runtime_Sampler(mode=session)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
         raise NotImplementedError(f"{job.job_type} not handled.")

@@ -14,7 +14,8 @@ if TYPE_CHECKING:
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit.providers import Backend
 
-from mpqp.execution import AvailableDevice
+from mpqp.execution import AvailableDevice, IBMDevice
+
 
 
 class SimulatedDevice(AvailableDevice):
@@ -42,35 +43,48 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         return True
 
     def to_noisy_simulator(self) -> "AerSimulator":
+        """
+        TODO comment
+        Returns:
+
+        """
         from qiskit_aer.backends.aer_simulator import AerSimulator
+        from mpqp.execution.connection.ibm_connection import get_backend
 
-        return AerSimulator.from_backend(self.value())
+        return AerSimulator.from_backend(get_backend(self))
 
-    def to_noise_model(self) -> "Qiskit_NoiseModel":
-        from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-
-        return Qiskit_NoiseModel.from_backend(self.value())
+    # @staticmethod
+    # def get_ibm_fake_providers() -> (
+    #     list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
+    # ):
+    #     from qiskit_ibm_runtime import fake_provider
+    #     from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+    #
+    #     fake_imports = fake_provider.__dict__
+    #     return [
+    #         (p, fake_imports[p])
+    #         for p in fake_imports.keys()
+    #         if p.startswith("Fake")
+    #         and issubclass(fake_imports[p], FakeBackendV2)
+    #         and not p.startswith("FakeProvider")
+    #     ]
 
     @staticmethod
-    def get_ibm_fake_providers() -> (
-        list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
-    ):
-        from qiskit_ibm_runtime import fake_provider
-        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+    def fill_fake_backends() -> list[tuple[str, str]]:
+        # TODO comment
 
-        fake_imports = fake_provider.__dict__
         return [
-            (p, fake_imports[p])
-            for p in fake_imports.keys()
-            if p.startswith("Fake")
-            and issubclass(fake_imports[p], FakeBackendV2)
-            and not p.startswith("FakeProvider")
+            ("IBM_FAKE" + device.name[3:], device.value)
+            for device in IBMDevice
+            if device.name.startswith("IBM_")
+            and device != IBMDevice.IBM_LEAST_BUSY
         ]
 
 
 IBMSimulatedDevice = AbstractIBMSimulatedDevice(
-    'IBMSimulatedDevice', AbstractIBMSimulatedDevice.get_ibm_fake_providers()
+    'IBMSimulatedDevice', AbstractIBMSimulatedDevice.fill_fake_backends()
 )
 """Enum regrouping all so called IBM "fake devices" used to simulate noise of real hardware.
 
-The members of this Enum are generated dynamically from ``qiskit_ibm_runtime.fake_provider``."""
+The members of this Enum are generated dynamically from ``IBMDevice``."""
+# TODO finish doc
