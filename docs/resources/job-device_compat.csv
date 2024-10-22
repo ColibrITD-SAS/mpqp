@@ -35,13 +35,12 @@ AWS      ,BRAKET_LOCAL_SIMULATOR            ,✓      ,✓            ,✓      
 AWS      ,BRAKET_SV1_SIMULATOR              ,✓      ,✓            ,✓          ,
 AWS      ,BRAKET_DM1_SIMULATOR              ,✓      ,             ,✓          ,
 AWS      ,BRAKET_TN1_SIMULATOR              ,✓      ,             ,✓          ,✓
-AWS      ,BRAKET_IONQ_HARMONY               ,✓      ,             ,✓          ,
 AWS      ,BRAKET_IONQ_ARIA_1                ,✓      ,             ,✓          ,
 AWS      ,BRAKET_IONQ_ARIA_2                ,✓      ,             ,✓          ,
 AWS      ,BRAKET_IONQ_FORTE_1               ,✓      ,             ,✓          ,
-AWS      ,BRAKET_OQC_LUCY                   ,✓      ,             ,✓          ,
 AWS      ,BRAKET_QUERA_AQUILA               ,✓      ,             ,✓          ,
-AWS      ,BRAKET_RIGETTI_ASPEN_M_3          ,✓      ,             ,✓          ,
+AWS      ,BRAKET_RIGETTI_ANKAA_2            ,✓      ,             ,✓          ,
+AWS      ,BRAKET_IQM_GARNET                 ,✓      ,             ,✓           ,
 Google   ,CIRQ_LOCAL_SIMULATOR              ,✓      ,✓            ,✓          ,✓
 Google   ,PROCESSOR_RAINBOW                 ,✓      ,             ,           ,
 Google   ,PROCESSOR_WEBER                   ,✓      ,             ,           ,
