@@ -147,7 +147,15 @@ def closest_unitary(matrix: Matrix):
         Return U as a numpy matrix.
 
     Example:
-        # TODO : fill examples
+        >>> m = np.array([[1, 2], [3, 4]])
+        >>> is_unitary(m)
+        False
+        >>> u = closest_unitary(m)
+        >>> u
+        array([[-0.51449576,  0.85749293],
+               [ 0.85749293,  0.51449576]])
+        >>> is_unitary(u)
+        True
 
     """
     from scipy.linalg import svd
