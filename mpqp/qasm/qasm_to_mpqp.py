@@ -71,8 +71,8 @@ def qasm2_parse(input_string: str) -> QCircuit:
     """
     from mpqp.core.circuit import QCircuit
 
+    input_string = remove_user_gates(input_string, skip_qelib1=True)
     input_string = remove_include_and_comment(input_string)
-    input_string = remove_user_gates(input_string)
     tokens = lex_openqasm(input_string)
 
     if (
@@ -176,18 +176,18 @@ def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 def _TokenGate(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     token = tokens[idx]
     idx += 1
-
-    if token.value in single_qubits_gate_qasm:
-        return _Gate_single_qubits(circuit, token.value, tokens, idx)
-    elif token.value in two_qubits_gate_qasm:
-        return _Gate_two_qubits(circuit, token.value, tokens, idx)
-    elif token.value in one_parametrized_gate_qasm:
-        return _Gate_one_parametrized(circuit, token.value, tokens, idx)
-    elif token.value in u_gate_qasm:
-        return _Gate_U(circuit, token.value, tokens, idx)
-    elif token.value in two_qubits_parametrized_gate_qasm:
-        return _Gate_two_qubits_parametrized(circuit, token.value, tokens, idx)
-    elif token.value == "ccx":
+    token_value = token.value.lower()
+    if token_value in single_qubits_gate_qasm:
+        return _Gate_single_qubits(circuit, token_value, tokens, idx)
+    elif token_value in two_qubits_gate_qasm:
+        return _Gate_two_qubits(circuit, token_value, tokens, idx)
+    elif token_value in one_parametrized_gate_qasm:
+        return _Gate_one_parametrized(circuit, token_value, tokens, idx)
+    elif token_value in u_gate_qasm:
+        return _Gate_U(circuit, token_value, tokens, idx)
+    elif token_value in two_qubits_parametrized_gate_qasm:
+        return _Gate_two_qubits_parametrized(circuit, token_value, tokens, idx)
+    elif token_value == "ccx":
         return _Gate_tof(circuit, tokens, idx)
     else:
         raise SyntaxError(f"TokenGate: {idx} {token.value}")

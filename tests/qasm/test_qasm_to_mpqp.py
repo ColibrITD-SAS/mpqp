@@ -140,6 +140,27 @@ from mpqp.tools.circuit import random_circuit
             measure q[1] -> c[1];""",
             [H(0), BasisMeasure([1]), CNOT(0, 1), BasisMeasure([1])],
         ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+
+            qreg q[3];
+            creg c[3];
+            \\\\ this is a comment
+            
+            h q[0];
+            cx q[0], q[1];
+            measure q[0] -> c[2];
+            measure q[1] -> c[1];
+            measure q[2] -> c[0];""",
+            [
+                H(0),
+                CNOT(0, 1),
+                BasisMeasure([0], [2]),
+                BasisMeasure([1], [1]),
+                BasisMeasure([2], [0]),
+            ],
+        ),
     ],
 )
 def test_qasm2_to_mpqp(qasm_code: str, gate_names: list[str]):
