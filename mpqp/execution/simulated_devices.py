@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 from mpqp.execution import AvailableDevice, IBMDevice
 
 
-
 class SimulatedDevice(AvailableDevice):
     """Abstract class used to define simulators reproducing the noise of a real device."""
 
@@ -76,8 +75,7 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         return [
             ("IBM_FAKE" + device.name[3:], device.value)
             for device in IBMDevice
-            if device.name.startswith("IBM_")
-            and device != IBMDevice.IBM_LEAST_BUSY
+            if device.name.startswith("IBM_") and device != IBMDevice.IBM_LEAST_BUSY
         ]
 
 

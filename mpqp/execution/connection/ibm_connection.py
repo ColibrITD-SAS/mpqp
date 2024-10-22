@@ -212,7 +212,9 @@ def get_all_job_ids() -> list[str]:
     if get_env_variable("IBM_CONFIGURED") == "True":
         return [
             job.job_id()
-            for job in get_QiskitRuntimeService().jobs(limit=None,)
+            for job in get_QiskitRuntimeService().jobs(
+                limit=None,
+            )
         ]
 
     return []
