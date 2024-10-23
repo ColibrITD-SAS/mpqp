@@ -20,8 +20,7 @@ presented.
 
 
 .. note::
-    Noisy simulations are supported for IBM Qiskit, Atos QLM and AWS 
-    Braket devices.
+    Noisy simulations are supported for :class:`IBMDevice`, :class:`AtosDevice` and :class:`AWSDevice`.
 
 
 Noise models
