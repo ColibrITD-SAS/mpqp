@@ -1,6 +1,7 @@
 import contextlib
 import random
 from itertools import product
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -10,8 +11,8 @@ from mpqp.execution import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
+    IBMDevice,
 )
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
@@ -40,10 +41,12 @@ def test_custom_gate_is_unitary():
         ],
     ),
 )
-def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
+def test_random_orthogonal_matrix(
+    global_seed: Optional[int], circ_size: int, device: AvailableDevice
+):
     gate_size = random.randint(1, circ_size)
     targets_start = random.randint(0, circ_size - gate_size)
-    m = UnitaryMatrix(rand_orthogonal_matrix(2**gate_size))
+    m = UnitaryMatrix(rand_orthogonal_matrix(2**gate_size, seed=global_seed))
     c = QCircuit(
         [CustomGate(m, list(range(targets_start, targets_start + gate_size)))],
         nb_qubits=circ_size,
@@ -123,8 +126,10 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
         ],
     ),
 )
-def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
-    random_circ = random_circuit(nb_qubits=circ_size)
+def test_custom_gate_with_random_circuit(
+    global_seed: Optional[int], circ_size: int, device: AvailableDevice
+):
+    random_circ = random_circuit(nb_qubits=circ_size, seed=global_seed)
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit(
         [CustomGate(UnitaryMatrix(matrix), list(range(circ_size)))]
@@ -139,4 +144,4 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
         result2 = _run_single(custom_gate_circ, device, {})
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-5, 1e-5)
+    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)

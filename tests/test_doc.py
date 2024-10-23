@@ -2,11 +2,10 @@
 import importlib
 import os
 import sys
-from doctest import DocTestFinder, DocTestRunner, Example
+from doctest import DocTestFinder, DocTestRunner
 from types import TracebackType
 from typing import Optional, Type
 
-import numpy as np
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
 
@@ -27,15 +26,10 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
+from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
 from mpqp.tools.generics import find, find_index, flatten
-from mpqp.tools.maths import (
-    is_hermitian,
-    is_unitary,
-    normalize,
-    rand_orthogonal_matrix,
-    is_power_of_two,
-)
+from mpqp.tools.maths import *
 
 
 class SafeRunner:
@@ -78,6 +72,7 @@ class SafeRunner:
 
 
 def test_documentation():
+
     print(os.getcwd())
 
     test_globals = globals().copy()
