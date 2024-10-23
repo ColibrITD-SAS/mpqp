@@ -243,7 +243,10 @@ def rand_orthogonal_matrix(
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
-        seed: Seed used to control the random generation of the matrix.
+        seed: Seed used to control the random generation of the matrix
+            Defaults to None, unpredictable seed is pulled from the OS for random behavior
+            If a Generator is provided, it uses the existing random state
+            If an integer is provided, it initializes the Generator with a reproducible state.
 
     Returns:
         A random orthogonal matrix.
@@ -319,7 +322,10 @@ def rand_unitary_2x2_matrix(
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
-        seed: Seed used to control the random generation of the matrix.
+        seed: Seed used to control the random generation of the matrix
+            Defaults to None, unpredictable seed is pulled from the OS for random behavior
+            If a Generator is provided, it uses the existing random state
+            If an integer is provided, it initializes the Generator with a reproducible state.
 
     Returns:
         A random Clifford matrix.
@@ -359,7 +365,10 @@ def rand_product_local_unitaries(
 
     Args:
         nb_qubits: Number of qubits on which the product of unitaries will act.
-        seed: Seed used to control the random generation of the matrix.
+        seed: Seed used to control the random generation of the matrix
+            Defaults to None, unpredictable seed is pulled from the OS for random behavior
+            If a Generator is provided, it uses the existing random state
+            If an integer is provided, it initializes the Generator with a reproducible state.
 
     Returns:
         A tensor product of random unitary matrices.
@@ -405,7 +414,10 @@ def rand_hermitian_matrix(
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
-        seed: Seed used to control the random generation of the matrix.
+        seed: Seed used to control the random generation of the matrix
+            Defaults to None, unpredictable seed is pulled from the OS for random behavior
+            If a Generator is provided, it uses the existing random state
+            If an integer is provided, it initializes the Generator with a reproducible state.
 
     Returns:
         A random Hermitian Matrix.

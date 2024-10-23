@@ -35,7 +35,10 @@ def random_circuit(
         nb_qubits : Number of qubits in the circuit.
         gate_classes : List of native gate classes to use in the circuit.
         nb_gates : Number of gates to add to the circuit.
-        seed: Seed used to control the random generation of the circuit.
+        seed: Seed used to control the random generation of the circuit
+            Defaults to None, unpredictable seed is pulled from the OS for random behavior
+            If a Generator is provided, it uses the existing random state
+            If an integer is provided, it initializes the Generator with a reproducible state.
 
     Returns:
         A quantum circuit with the specified number of qubits and randomly chosen gates.
