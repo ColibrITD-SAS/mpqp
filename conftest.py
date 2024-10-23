@@ -20,9 +20,4 @@ def pytest_addoption(parser: pytest.Parser):
 @pytest.fixture
 def global_seed(request: pytest.FixtureRequest):
     seed = request.config.getoption("--seed")
-
-    if seed is None:
-        print("\nNo seed is provided, using the default random behavior.")
-    else:
-        print(f"\nSetting global random seed to {seed}.")
-        return seed
+    return seed
