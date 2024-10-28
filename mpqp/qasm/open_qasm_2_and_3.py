@@ -31,9 +31,10 @@ done using :func:`remove_user_gates`.
 
 import os
 import re
-from enum import Enum
+from enum import Enum, auto
 from os.path import splitext
 from pathlib import Path
+from typing import Optional
 from warnings import warn
 
 from anytree import Node, PreOrderIter
@@ -46,21 +47,22 @@ class Instr(Enum):
     """Special instruction for which the definition needs to included in the
     file."""
 
-    STD_LIB = 0
-    CSX = 1
-    U0 = 2
-    CU3 = 3
-    SXDG = 4
-    RZZ = 5
-    RXX = 6
-    RCCX = 7
-    RC3X = 8
-    C3X = 9
-    C4X = 10
-    C3SQRTX = 11
-    OQASM2_ALL_STDGATES = 12
-    OQASM3_ALL_STDGATES = 13
-    BRAKET_CUSTOM_INCLUDE = 14
+    STD_LIB = auto()
+    QE_LIB = auto()
+    CSX = auto()
+    U0 = auto()
+    CU3 = auto()
+    SXDG = auto()
+    RZZ = auto()
+    RXX = auto()
+    RCCX = auto()
+    RC3X = auto()
+    C3X = auto()
+    C4X = auto()
+    C3SQRTX = auto()
+    OQASM2_ALL_STDGATES = auto()
+    OQASM3_ALL_STDGATES = auto()
+    BRAKET_CUSTOM_INCLUDE = auto()
 
 
 std_gates_2 = [
@@ -198,7 +200,7 @@ def convert_instruction_2_to_3(
     included_instr: set[Instr],
     included_tree_current: Node,
     defined_gates: set[str],
-    path_to_main: str = ".",
+    path_to_main: Optional[str] = None,
 ) -> tuple[str, str]:
     """Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
@@ -219,6 +221,8 @@ def convert_instruction_2_to_3(
         The upgraded instruction and the potential code to add in the header as
         the second element.
     """
+    if path_to_main is None:
+        path_to_main = "."
 
     def add_std_lib():
         """Add the instruction of including the standard library of OpenQASM3
@@ -346,9 +350,9 @@ phase can become non-global.""",
 @typechecked
 def open_qasm_2_to_3(
     code: str,
-    included_tree_current_node: Node = Node("initial_code"),
-    path_to_file: str = ".",
-    defined_gates: set[str] = set(),
+    included_tree_current_node: Optional[Node] = None,
+    path_to_file: Optional[str] = None,
+    defined_gates: Optional[set[str]] = None,
 ) -> str:
     """Converts an OpenQASM code from version 2.0 and 3.0.
 
@@ -388,6 +392,12 @@ def open_qasm_2_to_3(
 
 
     """
+    if included_tree_current_node is None:
+        included_tree_current_node = Node("initial_code")
+    if path_to_file is None:
+        path_to_file = "."
+    if defined_gates is None:
+        defined_gates = set()
 
     header_code = ""
     instructions_code = ""
@@ -483,7 +493,7 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
 def open_qasm_hard_includes(
     code: str,
     included_files: set[str],
-    path_to_file: str = "./",
+    path_to_file: Optional[str] = None,
     is_openqasm_header_included: bool = False,
     remove_included: bool = True,
 ) -> str:
@@ -513,6 +523,9 @@ def open_qasm_hard_includes(
         }
 
     """
+    if path_to_file is None:
+        path_to_file = "./"
+
     lines = code.split("\n")
     converted_code = []
 
@@ -755,16 +768,18 @@ def convert_instruction_3_to_2(
     included_instr: set[Instr],
     included_tree_current: Node,
     defined_gates: set[str],
-    path_to_main: str = ".",
+    path_to_main: Optional[str] = None,
 ) -> tuple[str, str]:
     """Converts an individual OpenQASM 3.0 instruction back to OpenQASM 2.0."""
+    if path_to_main is None:
+        path_to_main = "."
 
-    def add_std_lib():
-        """Add the instruction of including the standard library of OpenQASM3
+    def add_qe_lib():
+        """Add the instruction of including the standard library of OpenQASM2
         code if it is not already done"""
-        if Instr.STD_LIB not in included_instr:
-            included_instr.add(Instr.STD_LIB)
-            to_add = qasm_code(Instr.STD_LIB)
+        if Instr.QE_LIB not in included_instr:
+            included_instr.add(Instr.QE_LIB)
+            to_add = qasm_code(Instr.QE_LIB)
         else:
             to_add = ""
         return to_add
@@ -824,10 +839,11 @@ def convert_instruction_3_to_2(
             else:
                 instructions_code += f"measure {q} -> {c};\n"
     elif instr_name == "u3":
+        header_code += add_qe_lib()
         instructions_code += re.sub(r"\bu3\b", "U", instr) + ";\n"
     elif instr_name == "cp":
+        header_code += add_qe_lib()
         instructions_code += re.sub(r"\bcp\b", "cu1", instr) + ";\n"
-
     elif instr_name in std_gates_3_to_2_map:
         converted_instr_name = std_gates_3_to_2_map[instr_name]
         instructions_code += (
@@ -900,9 +916,9 @@ def convert_instruction_3_to_2(
 @typechecked
 def open_qasm_3_to_2(
     code: str,
-    included_tree_current_node: Node = Node("initial_code"),
-    path_to_file: str = ".",
-    defined_gates: set[str] = set(),
+    included_tree_current_node: Optional[Node] = None,
+    path_to_file: Optional[str] = None,
+    defined_gates: Optional[set[str]] = None,
 ) -> str:
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
@@ -938,6 +954,12 @@ def open_qasm_3_to_2(
         measure q[0] -> c[0];
         measure q[1] -> c[1];
     """
+    if included_tree_current_node is None:
+        included_tree_current_node = Node("initial_code")
+    if path_to_file is None:
+        path_to_file = "."
+    if defined_gates is None:
+        defined_gates = set()
 
     header_code = ""
     instructions_code = ""

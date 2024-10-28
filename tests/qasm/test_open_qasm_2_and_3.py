@@ -43,12 +43,7 @@ def test_circular_dependency_detection():
 
 
 def test_circular_dependency_detection_false_positive():
-    try:
-        open_qasm_file_conversion_2_to_3(
-            qasm_folder + "circular_dep_a.qasm",
-        )
-    except RuntimeError:
-        assert False, f"Circular dependency raised while it shouldn't"
+    open_qasm_file_conversion_2_to_3(qasm_folder + "circular_dep_a.qasm")
 
 
 def test_in_time_gate_def_3_to_2():
@@ -74,12 +69,7 @@ def test_circular_dependency_detection_3_to_2():
 
 
 def test_circular_dependency_detection_false_positive_3_to_2():
-    try:
-        open_qasm_file_conversion_3_to_2(
-            qasm_folder + "circular_dep_a_3.qasm",
-        )
-    except RuntimeError:
-        assert False, f"Circular dependency raised while it shouldn't"
+    open_qasm_file_conversion_3_to_2(qasm_folder + "circular_dep_a_3.qasm")
 
 
 def normalize_whitespace(s: str) -> str:
