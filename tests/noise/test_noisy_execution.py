@@ -144,7 +144,7 @@ def test_all_native_gates_local_noise(
         noisy_devices,
     ),
 )
-def test_validate_noise(
+def test_validate_depolarizing_noise(
     circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
 ):
     circuit.add(Depolarizing(depol_noise))
