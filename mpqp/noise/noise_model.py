@@ -178,7 +178,7 @@ class NoiseModel(ABC):
         """
         pass
 
-    def pprint(self) -> str:
+    def info(self) -> str:
         """For usage of pretty prints, this method displays in a string all
         information relevant to the noise at matter.
 
@@ -411,9 +411,9 @@ class Depolarizing(DimensionalNoiseModel):
                 depol_type="pauli",
             )
 
-    def pprint(self) -> str:
+    def info(self) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
-        return f"{super().pprint()} with probability {self.prob}{dimension}"
+        return f"{super().info()} with probability {self.prob}{dimension}"
 
 
 @typechecked
@@ -523,8 +523,8 @@ class BitFlip(NoiseModel):
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
 
-    def pprint(self) -> str:
-        return f"{super().pprint()} with probability {self.prob}"
+    def info(self) -> str:
+        return f"{super().info()} with probability {self.prob}"
 
 
 @typechecked
@@ -672,9 +672,9 @@ class AmplitudeDamping(NoiseModel):
                 f"Conversion of Amplitude Damping noise for language {language} is not supported."
             )
 
-    def pprint(self) -> str:
+    def info(self) -> str:
         prob = f" and probability {self.prob}" if self.prob != 1 else ""
-        return f"{super().pprint()} with gamma {self.gamma}{prob}"
+        return f"{super().info()} with gamma {self.gamma}{prob}"
 
 
 class PhaseDamping(NoiseModel):
@@ -799,8 +799,8 @@ class PhaseDamping(NoiseModel):
                 f"Conversion of Phase Damping noise for language {language} is not supported."
             )
 
-    def pprint(self) -> str:
-        return f"{super().pprint()} with gamma {self.gamma}"
+    def info(self) -> str:
+        return f"{super().info()} with gamma {self.gamma}"
 
 
 class Pauli(NoiseModel):

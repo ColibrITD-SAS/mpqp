@@ -47,7 +47,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import NoiseModel, DimensionalNoiseModel
+from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -1211,7 +1211,7 @@ class QCircuit:
         )
 
         for noise in self.noises:
-            print(noise.pprint())
+            print(noise.info())
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:
