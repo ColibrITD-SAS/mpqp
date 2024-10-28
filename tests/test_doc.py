@@ -29,7 +29,13 @@ from mpqp.qasm import open_qasm_2_to_3, remove_user_gates, mpqp_to_qasm2
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
 from mpqp.tools.generics import find, find_index, flatten
-from mpqp.tools.maths import is_hermitian, is_unitary, normalize, rand_orthogonal_matrix
+from mpqp.tools.maths import (
+    is_hermitian,
+    is_unitary,
+    normalize,
+    rand_orthogonal_matrix,
+    is_power_of_two,
+)
 
 
 class SafeRunner:
@@ -43,7 +49,7 @@ class SafeRunner:
         for key in val.keys():
             set_key(MPQP_CONFIG_PATH, key, "")
             load_env_variables()
-            if os.getenv(key) != None:
+            if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Write the content to the backup file
@@ -63,7 +69,7 @@ class SafeRunner:
         for key in val.keys():
             set_key(MPQP_CONFIG_PATH, key, "")
             load_env_variables()
-            if os.getenv(key) != None:
+            if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Reload configuration from backup file

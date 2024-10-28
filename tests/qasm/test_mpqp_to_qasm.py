@@ -1,6 +1,5 @@
 import pytest
 
-from mpqp.qasm import mpqp_to_qasm2
 from mpqp.all import *
 from mpqp.tools.circuit import random_circuit
 
@@ -83,10 +82,18 @@ from mpqp.tools.circuit import random_circuit
 )
 def test_mpqp_to_qasm(instructions: list[Instruction]):
     circuit = QCircuit(instructions)
-    assert mpqp_to_qasm2(circuit, False) == circuit.to_qasm2()
+    from qiskit import qasm2, QuantumCircuit
+
+    qiskit_circuit = circuit.to_other_language(Language.QISKIT)
+    assert isinstance(qiskit_circuit, QuantumCircuit)
+    assert qasm2.dumps(qiskit_circuit) == circuit.to_other_language(Language.QASM2)
 
 
 def test_random_mpqp_to_qasm():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
-        assert qcircuit.to_qasm2_qiskit() == qcircuit.to_qasm2()
+        from qiskit import qasm2, QuantumCircuit
+
+        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
+        assert isinstance(qiskit_circuit, QuantumCircuit)
+        assert qasm2.dumps(qiskit_circuit) == qcircuit.to_other_language(Language.QASM2)

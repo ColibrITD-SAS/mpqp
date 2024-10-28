@@ -24,6 +24,8 @@ from cirq.circuits.circuit import Circuit
             measure q[0] -> c[0];
             measure q[1] -> c[1];""",
             [
+                "I",
+                "I",
                 "H",
                 "CNOT",
             ],
@@ -44,6 +46,8 @@ from cirq.circuits.circuit import Circuit
 
             measure q -> c;""",
             [
+                "I",
+                "I",
                 "H",
                 "CNOT",
             ],
@@ -71,6 +75,9 @@ from cirq.circuits.circuit import Circuit
 
             measure q -> c;""",
             [
+                "I",
+                "I",
+                "I",
                 "H",
                 "CNOT",
             ],

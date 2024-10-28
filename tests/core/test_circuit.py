@@ -9,11 +9,15 @@ from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
 
 from mpqp import Barrier, Instruction, Language, QCircuit
-from mpqp.core.instruction.gates import native_gates
-from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import I, Z as Pauli_Z
+from mpqp.execution.devices import ATOSDevice
+from mpqp.execution.runner import run
 from mpqp.gates import CNOT, CZ, SWAP, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z, TOF
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.noise.noise_model import Depolarizing
+from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
+from mpqp.core.instruction.gates import native_gates
+from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.tools.circuit import random_circuit, compute_expected_matrix
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
@@ -179,12 +183,12 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                 [
                     BasisMeasure([0, 1], shots=1000),
                     ExpectationMeasure(
-                        [1], Observable(np.identity(2, dtype=np.complex64)), shots=1000
+                        Observable(np.identity(2, dtype=np.complex64)), [1], shots=1000
                     ),
                 ]
             ),
-            "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure([1], "
-            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), shots=1000)]",
+            "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure("
+            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]",
         )
     ],
 )
@@ -314,7 +318,9 @@ def test_to_qasm_2(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        assert circuit.to_qasm2() == f.read()
+        qasm2 = circuit.to_other_language(Language.QASM2)
+        assert isinstance(qasm2, str)
+        assert qasm2 == f.read()
 
 
 @pytest.mark.parametrize(
@@ -352,7 +358,53 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        assert circuit.to_qasm3().strip() == f.read().strip()
+        qasm3 = circuit.to_other_language(Language.QASM3)
+        assert isinstance(qasm3, str)
+        assert qasm3.strip() == f.read().strip()
+
+
+@pytest.mark.parametrize(
+    "measure",
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * I @ Pauli_Z + 1 * I @ I))],
+)
+def test_measure_no_target(measure: Measure):
+    circuit = QCircuit(2)
+    circuit.add(H(0))
+    circuit.add(CNOT(0, 1))
+    circuit.add(measure)
+
+    if isinstance(measure, ExpectationMeasure):
+        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_value, float)  # type: ignore[AttributeAccessIssue]
+    else:
+        assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
+
+
+@pytest.mark.parametrize(
+    "component",
+    [
+        Depolarizing(0.3),
+        BitFlip(0.05),
+        AmplitudeDamping(0.2),
+        Barrier(),
+        BasisMeasure(),
+    ],
+)
+def test_instruction_no_target(component: Instruction | NoiseModel):
+    circuit = QCircuit(2)
+    circuit.add(component)
+
+    qubits = list(range(circuit.nb_qubits))
+    for instruction in circuit.instructions:
+        assert qubits == instruction.targets
+    for noise in circuit.noises:
+        assert qubits == noise.targets
+
+    circuit.nb_qubits += 1
+    qubits = list(range(circuit.nb_qubits))
+    for instruction in circuit.instructions:
+        assert qubits == instruction.targets
+    for noise in circuit.noises:
+        assert qubits == noise.targets
 
 
 @pytest.mark.parametrize(

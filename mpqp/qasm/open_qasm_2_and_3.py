@@ -34,13 +34,12 @@ import re
 from enum import Enum
 from os.path import splitext
 from pathlib import Path
-from textwrap import dedent
 from warnings import warn
 
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
 
-from mpqp.tools.errors import InstructionParsingError
+from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
 
 class Instr(Enum):
@@ -269,13 +268,12 @@ def convert_instruction_2_to_3(
         instructions_code += instr + ";\n"
     elif instr_name.lower() == "u":
         warn(
-            dedent(
-                """OpenQASMTranslationWarning: 
-                There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
-                We handled that for you by adding the extra phase at the right place. 
-                Be careful if you want to create a control gate from this circuit/gate, the
-                phase can become non-global."""
-            )
+            """
+There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
+We handled that for you by adding the extra phase at the right place. 
+Be careful if you want to create a control gate from this circuit/gate, the
+phase can become non-global.""",
+            OpenQASMTranslationWarning,
         )
         header_code += add_std_lib()
         instructions_code += "u3" + instr[1:] + ";\n"
@@ -480,6 +478,7 @@ def open_qasm_hard_includes(
     included_files: set[str],
     path_to_file: str = "./",
     is_openqasm_header_included: bool = False,
+    remove_included: bool = True,
 ) -> str:
     r"""Converts an OpenQASM code (2.0 and 3.0) to use no includes, but writes
     every instruction in previously included files, directly in the code
@@ -513,6 +512,8 @@ def open_qasm_hard_includes(
     for line in lines:
         if "include" in line:
             line_array = line.split()
+            if not remove_included:
+                converted_code.append(line)
 
             file_name = line_array[line_array.index("include") + 1].strip(";'\"")
             if file_name not in included_files:
@@ -562,25 +563,44 @@ class UserGate:
 
     def __str__(self):
         return (
-            f"gate {self.name}({', '.join(self.parameters)}) {', '.join(self.qubits)} {{\n"
+            f"gate {self.name}({', '.join(self.parameters)}) {', '.join(self.qubits)} "
+            + "{\n"
             + '\n'.join(self.instructions)
             + "\n}"
         )
 
+    def dict(self):
+        return {
+            "name": self.name,
+            "parameters": self.parameters,
+            "qubits": self.qubits,
+            "instructions": self.instructions,
+        }
 
+
+# example of custom gate declaration:
+# gate rotation (theta) q1, q2 { rx (theta) q1; cnot q1, q2; }
+#      --------  -----  ------  -----------------------------
+#        ^         ^      ^                  ^
+#     gate_name  param? qubits         instructions
 GATE_PATTERN = re.compile(
-    r"gate\s+(\w+)\s*(\(([^)]+)\))?\s*(\w+\s*(?:,\s*\w+)*)\s*{([^}]*)}\n",
+    r"gate\s+(?P<name>\w+)\s*(\((?P<param>[^)]+)\))?\s*(?P<qubits>\w+\s*(?:,\s*\w+)*)\s*{(?P<instructions>[^}]*)}",
     re.MULTILINE | re.DOTALL,
 )
-# Pattern to match gate calls
+# example of gate call:
+# rotation (theta) q1, q2;
+# --------  -----  ------
+#    ^        ^       ^
+# gate_name  param? qubits
 GATE_CALL_PATTERN = re.compile(
-    r"(\w+)\s*(\(([^)]*)\))?\s*([^;]*);", re.MULTILINE | re.DOTALL
+    r"(?P<gate>\w+)\s*(\((?P<params>[^)]*)\))?\s*(?P<qubits>[^;]*);",
+    re.MULTILINE | re.DOTALL,
 )
 
-INSTRUCTION_PATTERN = re.compile(r"([^\w])(\w+)([^\w])", re.MULTILINE | re.DOTALL)
 
-
-def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
+def parse_user_gates(
+    qasm_code: str, skip_qelib1: bool = False
+) -> tuple[list[UserGate], str]:
     r"""Parses user gate definitions from QASM code.
 
     Args:
@@ -609,36 +629,42 @@ def parse_user_gates(qasm_code: str) -> tuple[list[UserGate], str]:
         rzz(0.2) q[1], q[2];
         c2[0] = measure q[2];
     """
-    matches = list(GATE_PATTERN.finditer(qasm_code))
+    copy_qasm_code = "\n".join(
+        [line.lstrip() for line in qasm_code.splitlines() if line.strip()]
+    )
+    included_files = set()
+    if skip_qelib1:
+        included_files.add("qelib1.inc")
+    qasm_code_include = open_qasm_hard_includes(
+        copy_qasm_code, included_files, remove_included=False
+    )
+    matches = list(GATE_PATTERN.finditer(qasm_code_include))
     user_gates = []
     for match in matches:
-        (
-            gate_name,
-            is_param,  # pyright: ignore[reportUnusedVariable]
-            param_string,
-            qubits_string,
-            instructions_block,
-        ) = match.groups()
         parameters = (
-            [p.strip() for p in param_string.split(',')] if param_string else []
+            [p.strip() for p in match.group("param").split(',')]
+            if match.group("param")
+            else []
         )
-        qubits = [q.strip() for q in qubits_string.split(',')]
+        qubits = [q.strip() for q in match.group("qubits").split(',')]
         instructions = [
-            line.strip() for line in instructions_block.splitlines() if line.strip()
+            line.strip() + ";"
+            for line in match.group("instructions").split(';')
+            if line.strip()
         ]
         user_gate = UserGate(
-            name=gate_name,
+            name=match.group("name"),
             parameters=parameters,
             qubits=qubits,
             instructions=instructions,
         )
         user_gates.append(user_gate)
-        qasm_code = qasm_code.replace(match.group(0), "")
+        copy_qasm_code = copy_qasm_code.replace(match.group(0), "")
 
-    return user_gates, qasm_code.strip()
+    return user_gates, copy_qasm_code.strip()
 
 
-def remove_user_gates(qasm_code: str) -> str:
+def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
     """Replaces instances of user gates with their definitions in the given QASM
     code. This uses :func:`parse_user_gates` to separate the gate definitions
     from the rest of the code.
@@ -665,41 +691,40 @@ def remove_user_gates(qasm_code: str) -> str:
         cx q[0], q[1];
         measure q -> c;
     """
-    user_gates, qasm_code = parse_user_gates(qasm_code)
+    user_gates, qasm_code = parse_user_gates(qasm_code, skip_qelib1)
     previous_qasm_body = None
     while previous_qasm_body != qasm_code:
         previous_qasm_body = qasm_code
         for gate in user_gates:
             for match in GATE_CALL_PATTERN.finditer(qasm_code):
-                (
-                    gate_name,
-                    is_param,  # pyright: ignore[reportUnusedVariable]
-                    param_string,
-                    qubit_string,
-                ) = match.groups()
-                if gate_name == gate.name:
-                    param_values = []
-                    if param_string:
-                        param_values = [p.strip() for p in param_string.split(',')]
-                    qubit_values = [q.strip() for q in qubit_string.split(',')]
+                if match.group("gate") == gate.name:
+                    param_values = (
+                        [p.strip() for p in match.group("params").split(',')]
+                        if match.group("params")
+                        else []
+                    )
+                    qubit_values = [q.strip() for q in match.group("qubits").split(',')]
 
                     expanded = []
+                    replacements = {}
+                    for qubit, value in zip(gate.qubits, qubit_values):
+                        replacements[qubit] = value
+                    for param, value in zip(gate.parameters, param_values):
+                        replacements[param] = value
+
+                    def replace(match: re.Match[str]):
+                        return replacements[match.group(0)]
+
                     for instruction in gate.instructions:
-                        inst = instruction
-                        for match_i in INSTRUCTION_PATTERN.finditer(instruction):
-                            start, instruction_, end = match_i.groups()
-                            if param_values:
-                                for param, value in zip(gate.parameters, param_values):
-                                    if param == instruction_:
-                                        inst = inst.replace(
-                                            match_i.group(0), start + value + end
-                                        )
-                            for qubit, value in zip(gate.qubits, qubit_values):
-                                if qubit == instruction_:
-                                    inst = inst.replace(
-                                        match_i.group(0), start + value + end
-                                    )
-                        expanded.append(inst)
+                        expanded.append(
+                            re.sub(
+                                '|'.join(
+                                    r'\b%s\b' % re.escape(s) for s in replacements
+                                ),
+                                replace,
+                                instruction,
+                            )
+                        )
 
                     expanded_instructions = "\n".join(expanded)
                     qasm_code = qasm_code.replace(match.group(0), expanded_instructions)

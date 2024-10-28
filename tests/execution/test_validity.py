@@ -224,7 +224,7 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     "instructions",
     [
         [H(0), CNOT(0, 1), CNOT(1, 2)],
-        [CustomGate(UnitaryMatrix(np.array([[0, 1], [1, 0]])), [1])],
+        # [CustomGate(UnitaryMatrix(np.array([[0, 1], [1, 0]])), [1])], TODO: put it back when Cirq handles CustomGate
     ],
 )
 def test_sample_counts_in_trust_interval(instructions: list[Gate]):
@@ -281,7 +281,7 @@ def test_observable_ideal_case(
     gates: list[Gate], observable: npt.NDArray[np.complex64], expected_vector: Matrix
 ):
     c = QCircuit(gates)
-    c.add(ExpectationMeasure(list(range(c.nb_qubits)), Observable(observable)))
+    c.add(ExpectationMeasure(Observable(observable), list(range(c.nb_qubits))))
     expected_value = (
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
@@ -292,14 +292,3 @@ def test_observable_ideal_case(
         assert abs(result.expectation_value - expected_value) < (
             atol + rtol * abs(expected_value)
         )
-
-
-# @pytest.mark.parametrize(
-#     "gates, observable, expected_interval",
-#     [
-#         ([], np.array([]), (0.0, 0.0)),
-#     ],
-# )
-# def test_observable_shot_noise(gates: list[Instruction], observable: Matrix, expected_interval: tuple[float, float]):
-#     pass
-# TODO

@@ -74,8 +74,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
-        list(range(circuit.nb_qubits)),
         Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
+        list(range(circuit.nb_qubits)),
         measure.shots,
     )
     return tweaked_measure
@@ -177,6 +177,7 @@ def _run_single(
          Error: None
 
     """
+
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k)
@@ -184,15 +185,13 @@ def _run_single(
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
-    if circuit.noises:
+    if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not (isinstance(device, (ATOSDevice, AWSDevice))):
-            raise NotImplementedError(
-                f"Noisy simulations are not yet available on devices of type {type(device).name}."
-            )
+        elif not isinstance(device, (ATOSDevice, AWSDevice, IBMDevice)):
+            raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, IBMDevice):
         return run_ibm(job)
@@ -287,7 +286,6 @@ def run(
         values = {}
 
     def namer(circ: QCircuit, i: int):
-        circ = circ.hard_copy()
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -300,7 +298,7 @@ def run(
             ]
         )
     else:
-        return _run_single(circuit.hard_copy(), device, values, display_breakpoints)
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
 @typechecked

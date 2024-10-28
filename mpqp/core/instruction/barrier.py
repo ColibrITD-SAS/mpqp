@@ -15,10 +15,12 @@ from .instruction import Instruction
 class Barrier(Instruction):
     """Visual indicator of the grouping of circuit sections"""
 
-    def __init__(self):
-        super().__init__([0])
-        self.size = 0
+    def __init__(self, size: int = 0):
+        super().__init__(list(range(size + 1)))
+        self.size = size
         """Size of the barrier (set to 0 by default)."""
+        if size == 0:
+            self._dynamic = True
 
     def to_other_language(
         self,
@@ -29,3 +31,6 @@ class Barrier(Instruction):
             from qiskit.circuit.library import Barrier as QiskitBarrier
 
             return QiskitBarrier(self.size)
+        elif language == Language.QASM2:
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+            return "\nbarrier " + qubits + ";"
