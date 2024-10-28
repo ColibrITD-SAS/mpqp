@@ -24,7 +24,23 @@ from mpqp.core.languages import Language
 from mpqp.tools.generics import T
 
 
-def plural_marker(items: Sequence[T]):
+def _plural_marker(items: Sequence[T]):
+    """Returns the stringified version of a group of items, with a plural
+    marker for the previous word if needed.
+
+    Args:
+        items: The group of items to be stringified.
+
+    Returns:
+        The stringified version of the group.
+
+    Examples:
+        >>> print(f"In the 3rd question, you picked the number{plural_marker([1])}.")
+        In the 3rd question, you picked the number 1.
+        >>> print(f"In the 3rd question, you picked the number{plural_marker([1, 3])}.")
+        In the 3rd question, you picked the numbers [1, 3].
+
+    """
     if len(items) > 1:
         return f"s {items}"
     return f" {items[0]}"
@@ -170,9 +186,9 @@ class NoiseModel(ABC):
         """
         noise_info = f"{type(self).__name__} noise:"
         if not self._dynamic:
-            noise_info += f" on qubit{plural_marker(self.targets)}"
+            noise_info += f" on qubit{_plural_marker(self.targets)}"
         if len(self.gates) != 0:
-            noise_info += f" for gate{plural_marker(self.gates)}"
+            noise_info += f" for gate{_plural_marker(self.gates)}"
 
         return noise_info
 
