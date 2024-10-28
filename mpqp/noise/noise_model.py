@@ -35,9 +35,9 @@ def _plural_marker(items: Sequence[T]):
         The stringified version of the group.
 
     Examples:
-        >>> print(f"In the 3rd question, you picked the number{plural_marker([1])}.")
+        >>> print(f"In the 3rd question, you picked the number{_plural_marker([1])}.")
         In the 3rd question, you picked the number 1.
-        >>> print(f"In the 3rd question, you picked the number{plural_marker([1, 3])}.")
+        >>> print(f"In the 3rd question, you picked the number{_plural_marker([1, 3])}.")
         In the 3rd question, you picked the numbers [1, 3].
 
     """
