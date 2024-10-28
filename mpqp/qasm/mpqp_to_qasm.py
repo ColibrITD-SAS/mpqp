@@ -80,17 +80,13 @@ def instruction_to_qasm(instruction: Instruction, simplify: bool = False) -> str
         gate_definitions_qasm = "\n".join(
             f"{qasm}" for _, qasm in gates_to_define.values()
         )
-        qasm_str = remove_user_gates(
-            "\n"
-            + gate_definitions_qasm
-            + "\n"
-            + _instruction_call_site(op)
-            + " "
-            + _handle_connection(instruction)
-            + ";"
-        )
 
-        return "\n" + qasm_str
+        return remove_user_gates(
+            f"""
+
+{gate_definitions_qasm}
+{_instruction_call_site(op)} {_handle_connection(instruction)};"""
+        )
 
     elif isinstance(instruction, Gate):
         instruction_str = (
