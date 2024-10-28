@@ -34,7 +34,7 @@ noisy_devices: list[Any] = [
 ]
 # TODO: in the end this should be automatic as drafted above, but for now only
 # one device is stable
-noisy_devices = [AWSDevice.BRAKET_LOCAL_SIMULATOR]
+noisy_devices = [AWSDevice.BRAKET_LOCAL_SIMULATOR, IBMDevice.AER_SIMULATOR]
 
 
 @pytest.fixture
