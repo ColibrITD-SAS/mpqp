@@ -18,7 +18,7 @@ from mpqp.noise.noise_model import NoiseModel
 def theoretical_probs(
     circ: QCircuit,
 ) -> npt.NDArray[np.float32]:
-    """Computes the theoretical probabilities of a (potentially noisy circuit
+    """Computes the theoretical probabilities of a (potentially) noisy circuit
     execution.
 
     Args:
