@@ -165,7 +165,7 @@ class Gate(Instruction, ABC):
         return CustomGate(
             UnitaryMatrix(self.to_matrix().transpose().conjugate()),
             self.targets,
-            self.label,
+            self.label + "†" if self.label is not None else None,
         )
 
     def is_equivalent(self, other: Gate) -> bool:

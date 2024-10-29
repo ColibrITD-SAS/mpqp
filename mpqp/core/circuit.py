@@ -648,41 +648,50 @@ class QCircuit:
             The inverse circuit.
 
         Examples:
-            >>> c1 = QCircuit([H(0), CNOT(0,1)])
+            >>> c1 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
             >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐
-            q_0: ┤ H ├──■──
-                 └───┘┌─┴─┐
-            q_1: ─────┤ X ├
-                      └───┘
-            >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
-                      ┌───┐
-            q_0: ──■──┤ H ├
-                 ┌─┴─┐└───┘
-            q_1: ┤ X ├─────
-                 └───┘
-            >>> c2 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
-            >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ S ├─■──────────────────
                  └───┘ │ ┌───┐┌──────────┐
             q_1: ──────■─┤ H ├┤ Ry(4.56) ├
                          └───┘└──────────┘
+            >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
+                                      ┌────┐
+            q_0: ───────────────────■─┤ S† ├
+                 ┌───────────┐┌───┐ │ └────┘
+            q_1: ┤ Ry(-4.56) ├┤ H ├─■───────
+                 └───────────┘└───┘
+             >>> c2 = QCircuit([S(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1), BasisMeasure([0, 1], shots=2000)])
+            >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐          ░      ┌─┐
+            q_0: ┤ S ├─■────────░──────┤M├───────────────
+                 └───┘ │P(π/2)  ░ ┌───┐└╥┘┌──────────┐┌─┐
+            q_1: ──────■────────░─┤ H ├─╫─┤ Ry(4.56) ├┤M├
+                                ░ └───┘ ║ └──────────┘└╥┘
+            c: 2/═══════════════════════╩══════════════╩═
+                                        0              1
             >>> print(c2.inverse())  # doctest: +NORMALIZE_WHITESPACE
-                                     ┌───┐
-            q_0: ──────────────────■─┤ S ├
-                 ┌──────────┐┌───┐ │ └───┘
-            q_1: ┤ Ry(4.56) ├┤ H ├─■──────
-                 └──────────┘└───┘
+                           ┌────┐ ░              ┌─┐
+            q_0: ─■────────┤ S† ├─░──────────────┤M├────────
+                  │P(-π/2) └────┘ ░ ┌───────────┐└╥┘┌───┐┌─┐
+            q_1: ─■───────────────░─┤ Ry(-4.56) ├─╫─┤ H ├┤M├
+                                  ░ └───────────┘ ║ └───┘└╥┘
+            c: 2/═════════════════════════════════╩═══════╩═
+                                                  0       1
 
-        # TODO implement, test, fill second example
-        The inverse could be computed in several ways, depending on the
-        definition of the circuit. One can inverse each gate in the circuit, or
-        take the global unitary of the gate and inverse it.
         """
-        dagger = QCircuit(self.nb_qubits)
-        for instr in reversed(self.instructions):
-            dagger.add(instr)
+        dagger = deepcopy(self)
+        dagger.instructions = []
+        gate_list = []
+        for instr in self.instructions:
+            if isinstance(instr, Gate):
+                gate_list.append(instr.inverse())
+            else:
+                if len(gate_list) != 0:
+                    dagger.add(gate_list[::-1])
+                    gate_list = []
+                dagger.add(instr)
+        dagger.add(gate_list[::-1])
         return dagger
 
     def to_gate(self) -> Gate:
