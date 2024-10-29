@@ -35,13 +35,7 @@ from mpqp.tools.errors import (
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.generics import find, find_index, flatten
-from mpqp.tools.maths import (
-    is_hermitian,
-    is_power_of_two,
-    is_unitary,
-    normalize,
-    rand_orthogonal_matrix,
-)
+from mpqp.tools.maths import *
 
 
 class SafeRunner:

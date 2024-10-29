@@ -285,6 +285,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
         target: Index referring to the qubit on which the gate will be applied.
 
     Example:
+        >>> print(type(Id))
         >>> pprint(Id(0).to_matrix())
         [[1, 0],
          [0, 1]]
