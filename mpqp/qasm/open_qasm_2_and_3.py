@@ -111,7 +111,7 @@ std_gates_3 = [
     "sx",
 ]
 std_gates_3_to_2_map = {
-    "u3": "U",
+    "u3": "u",
     "cp": "cu1",
     "p": "u1",
     "phase": "u1",
@@ -167,7 +167,9 @@ def parse_openqasm_2_file(code: str) -> list[str]:
     # 3M-TODO: deal with comments, for the moment we remove them all
 
     # removing comment
-    cleaned_code = "".join([loc.split("//")[0] for loc in code.split("\n")])
+    cleaned_code = "\n".join(line.lstrip() for line in code.splitlines())
+
+    cleaned_code = "".join([loc.split("//")[0] for loc in cleaned_code.split("\n")])
 
     cleaned_code = cleaned_code.replace("\t", " ").strip()
 
@@ -238,7 +240,6 @@ def convert_instruction_2_to_3(
     instructions_code = ""
 
     instr_name = instr.split(" ")[0].split("(")[0]
-
     # If the line is the OpenQASM header
     if instr.startswith("OPENQASM 2.0"):
         header_code += "OPENQASM 3.0;\n"
@@ -301,7 +302,6 @@ phase can become non-global.""",
         )
         if new_instr is not None and new_instr not in included_instr:
             included_instr.add(new_instr)
-            header_code += qasm_code(new_instr)
     elif instr_name == "gate":
         defined_gates.add(instr.split()[1])
         g_string = instr.split("{")[0] + "{\n"
@@ -331,7 +331,7 @@ phase can become non-global.""",
             defined_gates,
             path_to_main,
         )
-        instructions_code += if_statement + i_code + ";\n"
+        instructions_code += if_statement + i_code
         header_code += h_code
     elif instr_name == "opaque":
         raise NotImplementedError("opaque exports not handled yet")
@@ -840,7 +840,7 @@ def convert_instruction_3_to_2(
                 instructions_code += f"measure {q} -> {c};\n"
     elif instr_name == "u3":
         header_code += add_qe_lib()
-        instructions_code += re.sub(r"\bu3\b", "U", instr) + ";\n"
+        instructions_code += re.sub(r"\bu3\b", "u", instr) + ";\n"
     elif instr_name == "cp":
         header_code += add_qe_lib()
         instructions_code += re.sub(r"\bcp\b", "cu1", instr) + ";\n"
@@ -897,15 +897,18 @@ def convert_instruction_3_to_2(
                 defined_gates,
                 path_to_main,
             )
-            instructions_code += if_statement + i_code + ";\n"
+            instructions_code += if_statement + " " + i_code
             header_code += h_code
-
+    elif instr_name in {"reset", "barrier"}:
+        instructions_code += instr + ";\n"
     else:
-        gate = instr.split()[0]
+        gate = instr.split()[0].split("(")[0]
         if gate == "ctrl":
             gate = instr.split()[2]
         if gate not in defined_gates:
-            raise ValueError(f"Gates undefined at the time of usage: {gate}")
+            raise ValueError(
+                f"Gates undefined at the time of usage: {gate}, {instr_name}"
+            )
         m = re.match(r"\s*(.*)", instr)
         if m:
             instructions_code += m.group(1) + ";\n"
