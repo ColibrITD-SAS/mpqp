@@ -4,7 +4,7 @@ gate. This module defines the abstract class needed to define these gates as
 well as a way to handle symbolic variables.
 
 More on the topic of symbolic variable can be found in the `VQA <VQA.html>`_
-page"""
+page."""
 
 from __future__ import annotations
 

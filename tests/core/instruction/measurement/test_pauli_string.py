@@ -14,6 +14,10 @@ from operator import (
     truediv,
 )
 from random import randint
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from qiskit.quantum_info import SparsePauliOp
 
 import numpy as np
 import numpy.typing as npt
@@ -30,7 +34,6 @@ from cirq.ops.pauli_gates import X as Cirq_X
 from cirq.ops.pauli_gates import Y as Cirq_Y
 from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
-from qiskit.quantum_info import SparsePauliOp
 
 from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
 from mpqp.core.languages import Language
@@ -123,6 +126,8 @@ a, b, c = LineQubit.range(3)
 
 
 def pauli_strings_in_all_languages():
+    from qiskit.quantum_info import SparsePauliOp
+
     return [
         (
             Cirq_X(a) + Cirq_Y(b) + Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
@@ -349,7 +354,7 @@ def pauli_strings_in_all_languages():
 def test_from_other_language(
     cirq_ps: PauliSum,
     braket_ps: BraketSum,
-    qiskit_ps: SparsePauliOp,
+    qiskit_ps: "SparsePauliOp",
     my_qml_ps: Term,
     mpqp_ps: PauliString,
 ):
@@ -366,7 +371,7 @@ def test_from_other_language(
 def test_to_other_language(
     cirq_ps: PauliSum,
     braket_ps: BraketSum,
-    qiskit_ps: SparsePauliOp,
+    qiskit_ps: "SparsePauliOp",
     my_qml_ps: Term,
     mpqp_ps: PauliString,
 ):

@@ -1,11 +1,25 @@
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
+from qiskit import QuantumCircuit, transpile
+from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES, TOF, Rk, U
+from mpqp.core.instruction.gates.native_gates import (
+    NATIVE_GATES,
+    TOF,
+    CRk,
+    P,
+    Rk,
+    RotationGate,
+    Rx,
+    Ry,
+    Rz,
+    U,
+)
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+from mpqp.tools.maths import closest_unitary
 
 
 def random_circuit(
@@ -21,7 +35,10 @@ def random_circuit(
         nb_qubits : Number of qubits in the circuit.
         gate_classes : List of native gate classes to use in the circuit.
         nb_gates : Number of gates to add to the circuit.
-        seed: Seed used to control the random generation of the circuit.
+        seed: Seed used to control the random generation of the circuit
+            Defaults to None, unpredictable seed is pulled from the OS for random behavior
+            If a Generator is provided, it uses the existing random state
+            If an integer is provided, it initializes the Generator with a reproducible state.
 
     Returns:
         A quantum circuit with the specified number of qubits and randomly chosen gates.
@@ -57,7 +74,12 @@ def random_circuit(
         rng = np.random.default_rng(seed)
 
     if gate_classes is None:
-        gate_classes = NATIVE_GATES
+        gate_classes = []
+        for gate in NATIVE_GATES:
+            if TYPE_CHECKING:
+                assert isinstance(gate.nb_qubits, int)
+            if gate.nb_qubits <= nb_qubits:
+                gate_classes.append(gate)
 
     if nb_gates is None:
         nb_gates = rng.integers(5, 10)
@@ -70,11 +92,11 @@ def random_circuit(
         and ((gate == TOF and nb_qubits <= 2) or nb_qubits <= 1)
         for gate in gate_classes
     ):
-        raise ValueError("number of qubits to low for this gates")
+        raise ValueError("number of qubits too low for this gates")
 
     for _ in range(nb_gates):
-        gate_class = rng.choice(gate_classes)  # type: ignore[reportArgumentType]
-        target = int(rng.choice(qubits))
+        gate_class = rng.choice(np.array(gate_classes))
+        target = rng.choice(qubits).item()
         if issubclass(gate_class, SingleQubitGate):
             if issubclass(gate_class, ParametrizedGate):
                 if issubclass(gate_class, U):
@@ -88,19 +110,26 @@ def random_circuit(
                     )
                 elif issubclass(gate_class, Rk):
                     qcircuit.add(Rk(rng.integers(1, 10), target))
+                elif issubclass(gate_class, RotationGate):
+                    if TYPE_CHECKING:
+                        assert issubclass(gate_class, (Rx, Ry, Rz, P))
+                    qcircuit.add(gate_class(rng.uniform(0, 2 * np.pi), target))
                 else:
-                    qcircuit.add(gate_class(int(rng.uniform(0, 2 * np.pi)), target))  # type: ignore[reportArgumentType]
+                    raise ValueError
             else:
                 qcircuit.add(gate_class(target))
         else:
-            control = int(rng.choice(list(set(qubits) - {target})))
+            control = rng.choice(list(set(qubits) - {target})).item()
             if issubclass(gate_class, ParametrizedGate):
-                qcircuit.add(gate_class(rng.integers(0, 10), control, target))  # type: ignore[reportArgumentType]
+                if TYPE_CHECKING:
+                    assert issubclass(gate_class, CRk)
+                qcircuit.add(gate_class(rng.integers(1, 10), control, target))
             elif issubclass(gate_class, TOF):
-                control2 = int(rng.choice(list(set(qubits) - {target, control})))
+                control2 = rng.choice(list(set(qubits) - {target, control})).item()
                 qcircuit.add(TOF([control, control2], target))
             else:
                 qcircuit.add(gate_class(control, target))
+
     return qcircuit
 
 
@@ -147,3 +176,44 @@ def compute_expected_matrix(qcircuit: QCircuit):
         result_matrix = np.dot(result_matrix, matrix)
 
     return np.vectorize(N)(result_matrix).astype(complex)
+
+
+def replace_custom_gate(
+    custom_unitary: CircuitInstruction, nb_qubits: int
+) -> tuple[QuantumCircuit, float]:
+    """Decompose and replace the (custom) qiskit unitary given in parameter by a
+    qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
+
+    Note:
+        When using Qiskit, a global phase is introduced (related to usage of
+        ``u`` in OpenQASM2). This may be problematic in some cases, so this
+        function also returns the global phase introduced so it can be corrected
+        later on.
+
+    Args:
+        custom_unitary: instruction containing the custom unitary operator.
+        nb_qubits: Number of qubits of the circuit from which the unitary
+            instruction was taken.
+
+    Returns:
+        A circuit containing the decomposition of the unitary in terms
+        of gates ``U`` and ``CX``, and the global phase used to
+        correct the statevector if need be.
+    """
+    from qiskit.exceptions import QiskitError
+
+    transpilation_circuit = QuantumCircuit(nb_qubits)
+    transpilation_circuit.append(custom_unitary)
+    try:
+        transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+    except QiskitError as e:
+        # if the error is arising from TwoQubitWeylDecomposition, we replace the
+        # matrix by the closest unitary
+        if "TwoQubitWeylDecomposition" in str(e):
+            custom_unitary.operation.params[0] = closest_unitary(
+                custom_unitary.operation.params[0]
+            )
+            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+        else:
+            raise e
+    return transpiled, transpiled.global_phase

@@ -1,9 +1,11 @@
 import numpy as np
 import numpy.typing as npt
 import pytest
+from mpqp.tools import matrix_eq
 
 from mpqp.core.circuit import QCircuit
 from mpqp.gates import SWAP, CustomGate, Gate, H, UnitaryMatrix, X, Z
+from mpqp.tools.errors import NumberQubitsWarning
 
 
 @pytest.mark.parametrize(
@@ -68,7 +70,7 @@ def test_is_not_equivalent(g1: Gate, g2: Gate):
     ],
 )
 def test_power(gate: Gate, pow: float, result_matrix: npt.NDArray[np.complex64]):
-    assert np.allclose(gate.power(pow).to_matrix(), result_matrix)
+    assert matrix_eq(gate.power(pow).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(
@@ -82,7 +84,8 @@ def test_power(gate: Gate, pow: float, result_matrix: npt.NDArray[np.complex64])
     ],
 )
 def test_tensor_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64]):
-    assert np.allclose(g1.tensor_product(g2).to_matrix(), result_matrix)
+    with pytest.warns(NumberQubitsWarning):
+        assert matrix_eq(g1.tensor_product(g2).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(
@@ -92,7 +95,7 @@ def test_tensor_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.comple
     ],
 )
 def test_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64]):
-    assert np.allclose(g1.product(g2).to_matrix(), result_matrix)
+    assert matrix_eq(g1.product(g2).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(
@@ -104,7 +107,7 @@ def test_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64]):
 def test_scalar_product(
     g1: Gate, scalar: complex, result_matrix: npt.NDArray[np.complex64]
 ):
-    assert np.allclose(g1.scalar_product(scalar).to_matrix(), result_matrix)
+    assert matrix_eq(g1.scalar_product(scalar).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(
@@ -114,7 +117,7 @@ def test_scalar_product(
     ],
 )
 def test_add_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64]):
-    assert np.allclose(g1.plus(g2).to_matrix(), result_matrix)
+    assert matrix_eq(g1.plus(g2).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(
@@ -124,7 +127,7 @@ def test_add_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64
     ],
 )
 def test_sub_product(g1: Gate, g2: Gate, result_matrix: npt.NDArray[np.complex64]):
-    assert np.allclose(g1.minus(g2).to_matrix(), result_matrix)
+    assert matrix_eq(g1.minus(g2).to_matrix(), result_matrix)
 
 
 @pytest.mark.parametrize(
