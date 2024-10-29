@@ -58,11 +58,13 @@ class BasisMeasure(Measure):
     ):
         if basis is None:
             basis = ComputationalBasis()
+
         self.pre_measure = basis.to_computational()
-        # TODO: implement basis thing
+
         if c_targets is not None:
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
+
         super().__init__(targets, shots, label)
         self.user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
@@ -80,10 +82,7 @@ class BasisMeasure(Measure):
         if language == Language.QISKIT:
             from qiskit.circuit import Measure
 
-            if isinstance(self.basis, ComputationalBasis):
-                return Measure()
-            else:
-                raise NotImplementedError(f"{type(self.basis)} not handled")
+            return Measure()
         else:
             raise NotImplementedError(f"{language} is not supported")
 
@@ -98,12 +97,12 @@ class BasisMeasure(Measure):
             options += (
                 f", basis={self.basis}"
                 if targets and options
-                else f"basis={self.shots}"
+                else f", basis={self.basis}"
             )
         if self.label is not None:
             options += (
                 f", label={self.label}"
                 if targets and options
-                else f"label={self.shots}"
+                else f", label={self.label}"
             )
         return f"BasisMeasure({targets}{options})"
