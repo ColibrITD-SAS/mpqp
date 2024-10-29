@@ -44,10 +44,10 @@ from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
-from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
+from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import NoiseModel, DimensionalNoiseModel
+from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -940,12 +940,7 @@ class QCircuit:
                     qargs = instruction.controls + instruction.targets
                 elif isinstance(instruction, Gate):
                     qargs = instruction.targets
-                elif isinstance(instruction, BasisMeasure) and isinstance(
-                    instruction.basis, ComputationalBasis
-                ):
-                    # TODO for custom basis, check if something should be
-                    # changed here, e.g. remove the condition to have only
-                    # computational basis
+                elif isinstance(instruction, BasisMeasure):
                     assert instruction.c_targets is not None
                     qargs = [instruction.targets]
                     cargs = [instruction.c_targets]
