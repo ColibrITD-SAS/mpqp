@@ -110,13 +110,12 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # TODO: handle other basis by adding the right rotation (change
-            # of basis) before measuring in the computational basis
-            # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
+            modified_circuit = circuit.without_measurements() + measurement.pre_measure
+            modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device)
+                job = Job(JobType.STATE_VECTOR, modified_circuit, device)
             else:
-                job = Job(JobType.SAMPLE, circuit, device, measurement)
+                job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):
             job = Job(
                 JobType.OBSERVABLE,
