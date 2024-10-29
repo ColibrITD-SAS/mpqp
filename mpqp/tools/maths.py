@@ -138,8 +138,8 @@ def is_unitary(matrix: Matrix) -> bool:
 
 @typechecked
 def closest_unitary(matrix: Matrix):
-    """Calculate the unitary matrix that is closest with respect to the operator norm distance to the general matrix
-    in parameter.
+    """Calculate the unitary matrix that is closest with respect to the operator
+    norm distance to the general matrix in parameter.
 
     Args:
         matrix: Matrix for which we want to determine the closest unitary matrix.
@@ -237,16 +237,13 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
 
 
 def rand_orthogonal_matrix(
-    size: int, seed: Optional[Union[int, np.random.Generator]] = None
+    size: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
     """Generate a random orthogonal matrix optionally with a given seed.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
-        seed: Seed used to control the random generation of the matrix
-            Defaults to None, unpredictable seed is pulled from the OS for random behavior
-            If a Generator is provided, it uses the existing random state
-            If an integer is provided, it initializes the Generator with a reproducible state.
+        seed: Seed used to initialize the random number generation.
 
     Returns:
         A random orthogonal matrix.
@@ -263,25 +260,20 @@ def rand_orthogonal_matrix(
                [ 0.61751058,  0.71739077,  0.32253863]])
 
     """
-    if seed is None:
-        rng = np.random.default_rng()
-    elif isinstance(seed, np.random.Generator):
-        rng = seed
-    else:
-        rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
 
     m = rng.random((size, size))
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
 def rand_clifford_matrix(
-    nb_qubits: int, seed: Optional[Union[int, np.random.Generator]] = None
+    nb_qubits: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
     """Generate a random Clifford matrix.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
-        seed: Seed used to control the random generation of the matrix.
+        seed: Seed used to initialize the random number generation.
 
     Returns:
         A random Clifford matrix.
@@ -302,12 +294,7 @@ def rand_clifford_matrix(
     """
     from qiskit import quantum_info
 
-    if seed is None:
-        rng = np.random.default_rng()
-    elif isinstance(seed, np.random.Generator):
-        rng = seed
-    else:
-        rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
 
     res = quantum_info.random_clifford(nb_qubits, seed=rng).to_matrix()
     if TYPE_CHECKING:
@@ -322,10 +309,10 @@ def rand_unitary_2x2_matrix(
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
-        seed: Seed used to control the random generation of the matrix
-            Defaults to None, unpredictable seed is pulled from the OS for random behavior
-            If a Generator is provided, it uses the existing random state
-            If an integer is provided, it initializes the Generator with a reproducible state.
+        seed: Used for the random number generation. If unspecified, a new
+            generator will be used. If a ``Generator`` is provided, it will be
+            used to generate any random number needed. Finally if an ``int`` is
+            provided, it will be used to initialize a new generator.
 
     Returns:
         A random Clifford matrix.
@@ -358,17 +345,14 @@ def rand_unitary_2x2_matrix(
 
 
 def rand_product_local_unitaries(
-    nb_qubits: int, seed: Optional[Union[int, np.random.Generator]] = None
+    nb_qubits: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
     """Generate a pseudo random matrix, resulting from a tensor product of
     random unitary matrices.
 
     Args:
         nb_qubits: Number of qubits on which the product of unitaries will act.
-        seed: Seed used to control the random generation of the matrix
-            Defaults to None, unpredictable seed is pulled from the OS for random behavior
-            If a Generator is provided, it uses the existing random state
-            If an integer is provided, it initializes the Generator with a reproducible state.
+        seed: Seed used to initialize the random number generation.
 
     Returns:
         A tensor product of random unitary matrices.
@@ -395,29 +379,19 @@ def rand_product_local_unitaries(
                 -0.25416659-0.153076j  ,  0.03468623-0.45230819j]])
 
     """
-    if seed is None:
-        rng = np.random.default_rng()
-    elif isinstance(seed, np.random.Generator):
-        rng = seed
-    else:
-        rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
 
-    return reduce(
-        np.kron, [rand_unitary_2x2_matrix(seed=rng) for _ in range(nb_qubits)]
-    )
+    return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
 
 
 def rand_hermitian_matrix(
-    size: int, seed: Optional[Union[int, np.random.Generator]] = None
+    size: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
     """Generate a random Hermitian matrix.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
-        seed: Seed used to control the random generation of the matrix
-            Defaults to None, unpredictable seed is pulled from the OS for random behavior
-            If a Generator is provided, it uses the existing random state
-            If an integer is provided, it initializes the Generator with a reproducible state.
+        seed: Seed used to initialize the random number generation.
 
     Returns:
         A random Hermitian Matrix.
@@ -432,12 +406,7 @@ def rand_hermitian_matrix(
                [0.2741809 +0.j, 0.36874363+0.j]], dtype=complex64)
 
     """
-    if seed is None:
-        rng = np.random.default_rng()
-    elif isinstance(seed, np.random.Generator):
-        rng = seed
-    else:
-        rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
 
     m = rng.random((size, size)).astype(np.complex64)
     return m + m.conjugate().transpose()

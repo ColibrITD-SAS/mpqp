@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 from qiskit import QuantumCircuit, transpile
@@ -26,7 +26,7 @@ def random_circuit(
     gate_classes: Optional[list[type]] = None,
     nb_qubits: int = 5,
     nb_gates: Optional[int] = None,
-    seed: Optional[Union[int, np.random.Generator]] = None,
+    seed: Optional[int] = None,
 ):
     """This function creates a QCircuit with a specified number of qubits and gates.
     The gates are chosen randomly from the provided list of native gate classes.
@@ -35,10 +35,7 @@ def random_circuit(
         nb_qubits : Number of qubits in the circuit.
         gate_classes : List of native gate classes to use in the circuit.
         nb_gates : Number of gates to add to the circuit.
-        seed: Seed used to control the random generation of the circuit
-            Defaults to None, unpredictable seed is pulled from the OS for random behavior
-            If a Generator is provided, it uses the existing random state
-            If an integer is provided, it initializes the Generator with a reproducible state.
+        seed: Seed used to initialize the random number generation.
 
     Returns:
         A quantum circuit with the specified number of qubits and randomly chosen gates.
@@ -66,12 +63,7 @@ def random_circuit(
                        └─────────────────────────┘
 
     """
-    if seed is None:
-        rng = np.random.default_rng()
-    elif isinstance(seed, np.random.Generator):
-        rng = seed
-    else:
-        rng = np.random.default_rng(seed)
+    rng = np.random.default_rng(seed)
 
     if gate_classes is None:
         gate_classes = []
