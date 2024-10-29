@@ -97,10 +97,11 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> tuple[str, float
     for instruction in circuit.instructions:
         if simplify:
             if isinstance(instruction, SingleQubitGate):
-                if previous is None or not isinstance(instruction, type(previous)):
-                    if previous:
-                        qasm_str += _simplify_instruction(previous, targets)
-                        targets = {i: 0 for i in range(circuit.nb_qubits)}
+                if previous is None:
+                    previous = instruction
+                elif not isinstance(instruction, type(previous)):
+                    qasm_str += _simplify_instruction(previous, targets)
+                    targets = {i: 0 for i in range(circuit.nb_qubits)}
                     previous = instruction
                 elif (
                     isinstance(instruction, ParametrizedGate)
