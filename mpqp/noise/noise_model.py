@@ -8,8 +8,8 @@ from typing import TYPE_CHECKING, Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 
+from mpqp.measures import I, X, Y, Z
 from mpqp.tools.generics import T
-from mpqp.tools.maths import Id, pauli_X, pauli_Y, pauli_Z
 
 if TYPE_CHECKING:
     from braket.circuits.noises import Noise as BraketNoise
@@ -157,7 +157,7 @@ class NoiseModel(ABC):
         return [
             reduce(np.kron, ops)
             for ops in product(
-                *[K if t in targets else [Id.astype(np.complex64)] for t in range(size)]
+                *[K if t in targets else [I.matrix] for t in range(size)]
             )
         ]
 
@@ -320,10 +320,10 @@ class Depolarizing(DimensionalNoiseModel):
 
     def to_kraus_operators(self):
         return [
-            np.sqrt(1 - 3 * self.prob / 4) * Id,
-            np.sqrt(self.prob / 4) * pauli_X,
-            np.sqrt(self.prob / 4) * pauli_Y,
-            np.sqrt(self.prob / 4) * pauli_Z,
+            np.sqrt(1 - 3 * self.prob / 4) * I.matrix,
+            np.sqrt(self.prob / 4) * X.matrix,
+            np.sqrt(self.prob / 4) * Y.matrix,
+            np.sqrt(self.prob / 4) * Z.matrix,
         ]
 
     def __repr__(self):
@@ -474,7 +474,7 @@ class BitFlip(NoiseModel):
         """Probability, or error rate, of the bit-flip noise model."""
 
     def to_kraus_operators(self):
-        return [np.sqrt(1 - self.prob) * Id, np.sqrt(self.prob) * pauli_X]
+        return [np.sqrt(1 - self.prob) * I.matrix, np.sqrt(self.prob) * X.matrix]
 
     def __repr__(self):
         targets = f", {self.targets}" if not self._dynamic else ""
@@ -730,7 +730,7 @@ class PhaseDamping(NoiseModel):
 
     def to_kraus_operators(self):
         return [
-            np.sqrt(1 - self.gamma) * Id,
+            np.sqrt(1 - self.gamma) * I.matrix,
             np.diag([np.sqrt(self.gamma), 0]),
             np.diag([0, np.sqrt(self.gamma)]),
         ]

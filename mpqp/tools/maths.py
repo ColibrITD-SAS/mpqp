@@ -430,9 +430,3 @@ def is_power_of_two(n: int):
 
     """
     return n >= 1 and (n & (n - 1)) == 0
-
-
-Id = np.eye(2)
-pauli_X = np.ones((2, 2)) - Id
-pauli_Z = np.diag([1, -1])
-pauli_Y = 1j * pauli_X @ pauli_Z
