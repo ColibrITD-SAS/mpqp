@@ -29,7 +29,10 @@ from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.tools.errors import (
+    OpenQASMTranslationWarning,
+    UnsupportedBraketFeaturesWarning,
+)
 from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import *
 
@@ -92,6 +95,7 @@ def stable_random(*args: Any, **kwargs: Any):
 def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
+    warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
     assert True
     my_module = importlib.import_module(
         os.path.join(root, filename)
