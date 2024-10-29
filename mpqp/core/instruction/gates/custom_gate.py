@@ -129,7 +129,7 @@ class CustomGate(Gate):
 
                 filtered_qasm += "\n".join(instructions_only)
                 final_gphase += gphase
-            return "\n" + filtered_qasm, final_gphase
+            return filtered_qasm, final_gphase
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 

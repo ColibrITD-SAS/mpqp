@@ -25,7 +25,7 @@ def float_to_qasm_str(f: float) -> str:
 
 
 def _simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int]):
-    instruction_str = instruction.to_other_language(Language.QASM2)
+    instruction_str = "\n" + instruction.to_other_language(Language.QASM2)
     assert isinstance(instruction_str, str)
     instruction_str = instruction_str.split(" ")[0]
 
@@ -125,28 +125,28 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> tuple[str, float
                         Language.QASM2, qcircuit=circuit
                     )
                     assert isinstance(qasm_str_gphase, tuple)
-                    qasm_str += qasm_str_gphase[0]
+                    qasm_str += "\n" + qasm_str_gphase[0]
                     gphase += qasm_str_gphase[1]
                 elif isinstance(instruction, Breakpoint) or isinstance(
                     instruction, ExpectationMeasure
                 ):
                     continue
                 else:
-                    qasm_str += instruction.to_other_language(Language.QASM2)
+                    qasm_str += "\n" + instruction.to_other_language(Language.QASM2)
         else:
             if isinstance(instruction, CustomGate):
                 qasm_str_gphase = instruction.to_other_language(
                     Language.QASM2, qcircuit=circuit
                 )
                 assert isinstance(qasm_str_gphase, tuple)
-                qasm_str += qasm_str_gphase[0]
+                qasm_str += "\n" + qasm_str_gphase[0]
                 gphase += qasm_str_gphase[1]
             elif isinstance(instruction, Breakpoint) or isinstance(
                 instruction, ExpectationMeasure
             ):
                 continue
             else:
-                qasm_str += instruction.to_other_language(Language.QASM2)
+                qasm_str += "\n" + instruction.to_other_language(Language.QASM2)
 
     if previous:
         qasm_str += _simplify_instruction(previous, targets)

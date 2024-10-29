@@ -261,7 +261,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
                 qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
             qubits += ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -353,7 +353,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
                 qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
             qubits += ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -425,7 +425,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
             instruction_str = self.qasm2_gate
             qubits = ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -891,7 +891,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             )
             qubits = ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
