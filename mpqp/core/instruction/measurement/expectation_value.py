@@ -268,8 +268,6 @@ class ExpectationMeasure(Measure):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> None | str:
-        if language == Language.QASM2:
-            return ""
         raise NotImplementedError(
             "This object should not be exported as is, because other SDKs have "
             "no equivalent. Instead, this object is used to store the "

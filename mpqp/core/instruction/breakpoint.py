@@ -40,7 +40,4 @@ class Breakpoint(Instruction):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> str:
-        if language == Language.QASM2:
-            return ""
-        else:
-            raise NotImplementedError(f"Error: {language} is not supported")
+        raise NotImplementedError(f"Error: {language} is not supported")
