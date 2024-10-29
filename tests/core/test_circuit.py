@@ -441,12 +441,12 @@ def test_to_matrix(circuit: QCircuit, expected_matrix: Matrix):
     np.testing.assert_almost_equal(circuit.to_matrix(), expected_matrix)
 
 
-def test_to_matrix_random(global_seed: Optional[int]):
+def test_to_matrix_random():
     gates = [
         gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
     ]
     for _ in range(10):
-        qcircuit = random_circuit(gates, nb_qubits=4, seed=global_seed)
+        qcircuit = random_circuit(gates, nb_qubits=4)
         expected_matrix = compute_expected_matrix(qcircuit)
 
         assert matrix_eq(qcircuit.to_matrix(), expected_matrix)

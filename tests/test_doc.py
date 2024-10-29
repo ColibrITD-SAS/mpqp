@@ -10,6 +10,7 @@ from typing import Any, Optional, Type
 
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
+from numpy.random import default_rng
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -73,15 +74,6 @@ class SafeRunner:
         load_env_variables()
 
 
-class RandomDoctestRunner(DocTestRunner):
-    def run(self, test: DocTest, *args: Any, **kwargs: Any):
-        test.filename
-        if "rand" in test.name and "seed=" not in test.examples[0].source:
-            for example in test.examples:
-                example.options[SKIP] = True
-        return super().run(test, *args, **kwargs)
-
-
 test_globals = globals().copy()
 test_globals.update(locals())
 
@@ -92,7 +84,13 @@ finder = DocTestFinder()
 runner = DocTestRunner()
 
 
-def run_doctest(root: str, filename: str):
+def stable_random(*args: Any, **kwargs: Any):
+    user_seed = args[0] if len(args) != 0 else None
+    return default_rng(user_seed or 351)
+
+
+def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr('numpy.random.default_rng', stable_random)
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     assert True
     my_module = importlib.import_module(
@@ -120,9 +118,9 @@ folder_path = "mpqp"
 for root, _, files in os.walk(folder_path):
     for filename in files:
         if all(str not in filename for str in to_pass) and filename.endswith(".py"):
-            t_function_name = "test_" + "mpqp".join(
-                (root + filename).split("mpqp")
-            ).replace("\\", "_").replace("/", "_").replace(".", "_")
+            t_function_name = "test_doc_" + "mpqp".join(
+                (root + "_" + filename).split("mpqp")
+            ).replace("\\", "_").replace("/", "_").replace(".py", "")
             print(root + "\\" + filename)
             locals()[t_function_name] = partial(
                 run_doctest, root=root, filename=filename

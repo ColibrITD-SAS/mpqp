@@ -1,4 +1,7 @@
+from typing import TYPE_CHECKING, Any
+
 import pytest
+from numpy.random import default_rng, randint
 
 
 def pytest_addoption(parser: pytest.Parser):
@@ -17,7 +20,17 @@ def pytest_addoption(parser: pytest.Parser):
     )
 
 
-@pytest.fixture
-def global_seed(request: pytest.FixtureRequest):
+@pytest.fixture(autouse=True)
+def mock_random(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
     seed = request.config.getoption("--seed")
-    return seed
+    if TYPE_CHECKING:
+        assert isinstance(seed, int) or isinstance(seed, type(None))
+    if seed is None:
+        seed = randint(0, 1024)
+    print(f"Using seed {seed}")
+
+    def stable_random(*args: Any, **kwargs: Any):
+        user_seed = args[0] if len(args) != 0 else None
+        return default_rng(user_seed or seed)
+
+    monkeypatch.setattr('numpy.random.default_rng', stable_random)

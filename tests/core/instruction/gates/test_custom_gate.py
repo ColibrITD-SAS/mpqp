@@ -1,7 +1,6 @@
 import contextlib
 import random
 from itertools import product
-from typing import Optional
 
 import numpy as np
 import pytest
@@ -41,12 +40,10 @@ def test_custom_gate_is_unitary():
         ],
     ),
 )
-def test_random_orthogonal_matrix(
-    global_seed: Optional[int], circ_size: int, device: AvailableDevice
-):
+def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     gate_size = random.randint(1, circ_size)
     targets_start = random.randint(0, circ_size - gate_size)
-    m = UnitaryMatrix(rand_orthogonal_matrix(2**gate_size, seed=global_seed))
+    m = UnitaryMatrix(rand_orthogonal_matrix(2**gate_size))
     c = QCircuit(
         [CustomGate(m, list(range(targets_start, targets_start + gate_size)))],
         nb_qubits=circ_size,
@@ -126,10 +123,8 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
         ],
     ),
 )
-def test_custom_gate_with_random_circuit(
-    global_seed: Optional[int], circ_size: int, device: AvailableDevice
-):
-    random_circ = random_circuit(nb_qubits=circ_size, seed=global_seed)
+def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
+    random_circ = random_circuit(nb_qubits=circ_size)
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit(
         [CustomGate(UnitaryMatrix(matrix), list(range(circ_size)))]
