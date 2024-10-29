@@ -12,7 +12,7 @@ from mpqp.core.instruction.gates import *
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.languages import Language
 from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.measurement import ExpectationMeasure
+from mpqp.core.instruction.measurement import ExpectationMeasure, BasisMeasure
 
 
 def float_to_qasm_str(f: float) -> str:
@@ -24,8 +24,12 @@ def float_to_qasm_str(f: float) -> str:
         return f"pi/{int(1 / f * np.pi)}" if (np.pi * (1 / f)).is_integer() else str(f)
 
 
-def _simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int]):
-    instruction_str = instruction.to_other_language(Language.QASM2)
+def _simplify_instruction(
+    instruction: SingleQubitGate | BasisMeasure,
+    targets: dict[int, int],
+    c_targets: dict[int, int],
+):
+    instruction_str = "\n" + instruction.to_other_language(Language.QASM2)
     assert isinstance(instruction_str, str)
     instruction_str = instruction_str.split(" ")[0]
 
@@ -34,14 +38,26 @@ def _simplify_instruction(instruction: SingleQubitGate, targets: dict[int, int])
     while any(target != 0 for target in targets.values()):
         final_str += instruction_str + " "
         if all(target != 0 for target in targets.values()):
-            final_str += "q;"
+            final_str += "q"
             targets = {key: value - 1 for key, value in targets.items()}
+            if isinstance(instruction, BasisMeasure):
+                final_str += f" -> c"
+                c_targets = {key: value - 1 for key, value in c_targets.items()}
+            final_str += ";"
         else:
             for key, target in targets.items():
                 if target != 0:
                     final_str += f"q[{key}],"
                     targets[key] -= 1
-            final_str = final_str[:-1] + ";"
+            final_str = final_str[:-1]
+            if isinstance(instruction, BasisMeasure):
+                final_str += " -> "
+                for key, c_target in c_targets.items():
+                    if c_target != 0:
+                        final_str += f"c[{key}],"
+                        c_targets[key] -= 1
+                final_str = final_str[:-1]
+            final_str += ";"
 
     return final_str
 
@@ -66,17 +82,16 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> tuple[str, float
             the conversion process.
 
     Example:
-        >>> circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure()])
+        >>> circuit = QCircuit([H(0), H(1), CNOT(0, 1), BasisMeasure()])
         >>> qasm_code, gphase = mpqp_to_qasm2(circuit, simplify=True)
         >>> print(qasm_code)
         OPENQASM 2.0;
         include "qelib1.inc";
         qreg q[2];
         creg c[2];
-        h q[0];
+        h q;
         cx q[0],q[1];
-        measure q[0] -> c[0];
-        measure q[1] -> c[1];
+        measure q -> c;
     """
     if circuit.noises:
         logging.warning(
@@ -94,61 +109,66 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> tuple[str, float
 
     previous = None
     targets = {i: 0 for i in range(circuit.nb_qubits)}
+    c_targets = {i: 0 for i in range(circuit.nb_qubits)}
     gphase = 0
 
     for instruction in circuit.instructions:
         if simplify:
-            if isinstance(instruction, SingleQubitGate):
+            if isinstance(instruction, SingleQubitGate) or isinstance(
+                instruction, BasisMeasure
+            ):
                 if previous is None:
                     previous = instruction
                 elif not isinstance(instruction, type(previous)):
-                    qasm_str += _simplify_instruction(previous, targets)
+                    qasm_str += _simplify_instruction(previous, targets, c_targets)
                     targets = {i: 0 for i in range(circuit.nb_qubits)}
+                    c_targets = {i: 0 for i in range(circuit.nb_qubits)}
                     previous = instruction
                 elif (
                     isinstance(instruction, ParametrizedGate)
                     and instruction.parameters
                     != previous.parameters  # pyright: ignore[reportAttributeAccessIssue]
                 ):
-                    qasm_str += _simplify_instruction(previous, targets)
+                    qasm_str += _simplify_instruction(previous, targets, c_targets)
                     targets = {i: 0 for i in range(circuit.nb_qubits)}
+                    c_targets = {i: 0 for i in range(circuit.nb_qubits)}
                     previous = instruction
                 for target in instruction.targets:
                     targets[target] += 1
+                if isinstance(instruction, BasisMeasure):
+                    if instruction.c_targets is not None:
+                        for c_target in instruction.c_targets:
+                            c_targets[c_target] += 1
+                    else:
+                        for i in range(len(instruction.targets)):
+                            c_targets[i] += 1
             else:
                 if previous:
-                    qasm_str += _simplify_instruction(previous, targets)
+                    qasm_str += _simplify_instruction(previous, targets, c_targets)
                     previous = None
                     targets = {i: 0 for i in range(circuit.nb_qubits)}
-                if isinstance(instruction, CustomGate):
-                    qasm_str_gphase = instruction.to_other_language(
-                        Language.QASM2, qcircuit=circuit
-                    )
-                    assert isinstance(qasm_str_gphase, tuple)
-                    qasm_str += qasm_str_gphase[0]
-                    gphase += qasm_str_gphase[1]
-                elif isinstance(instruction, Breakpoint) or isinstance(
-                    instruction, ExpectationMeasure
-                ):
-                    continue
-                else:
-                    qasm_str += instruction.to_other_language(Language.QASM2)
-        else:
-            if isinstance(instruction, CustomGate):
-                qasm_str_gphase = instruction.to_other_language(
-                    Language.QASM2, qcircuit=circuit
-                )
-                assert isinstance(qasm_str_gphase, tuple)
-                qasm_str += qasm_str_gphase[0]
-                gphase += qasm_str_gphase[1]
-            elif isinstance(instruction, Breakpoint) or isinstance(
-                instruction, ExpectationMeasure
-            ):
-                continue
-            else:
-                qasm_str += instruction.to_other_language(Language.QASM2)
+                    c_targets = {i: 0 for i in range(circuit.nb_qubits)}
+        if isinstance(instruction, CustomGate):
+            qasm_str_gphase = instruction.to_other_language(
+                Language.QASM2, qcircuit=circuit
+            )
+            assert isinstance(qasm_str_gphase, tuple)
+            qasm_str += "\n" + qasm_str_gphase[0]
+            gphase += qasm_str_gphase[1]
+        elif isinstance(instruction, Breakpoint) or isinstance(
+            instruction, ExpectationMeasure
+        ):
+            continue
+        elif (
+            simplify
+            and (
+                not isinstance(instruction, SingleQubitGate)
+                and not isinstance(instruction, BasisMeasure)
+            )
+        ) or not simplify:
+            qasm_str += "\n" + instruction.to_other_language(Language.QASM2)
 
     if previous:
-        qasm_str += _simplify_instruction(previous, targets)
+        qasm_str += _simplify_instruction(previous, targets, c_targets)
 
     return qasm_str, gphase

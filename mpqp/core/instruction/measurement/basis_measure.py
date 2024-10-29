@@ -84,16 +84,20 @@ class BasisMeasure(Measure):
             else:
                 raise NotImplementedError(f"{type(self.basis)} not handled")
         if language == Language.QASM2:
-            if self.c_targets is None:
-                return "\n" + "\n".join(
-                    f"measure q[{target}] -> c[{i}];"
-                    for i, target in enumerate(self.targets)
-                )
+            if isinstance(self.basis, ComputationalBasis):
+                if self.c_targets is None:
+                    return "\n".join(
+                        f"measure q[{target}] -> c[{i}];"
+                        for i, target in enumerate(self.targets)
+                    )
+                else:
+                    return "\n".join(
+                        f"measure q[{target}] -> c[{c_target}];"
+                        for target, c_target in zip(self.targets, self.c_targets)
+                    )
             else:
-                return "\n" + "\n".join(
-                    f"measure q[{target}] -> c[{c_target}];"
-                    for target, c_target in zip(self.targets, self.c_targets)
-                )
+                raise NotImplementedError(f"{type(self.basis)} not handled")
+
         else:
             raise NotImplementedError(f"{language} is not supported")
 

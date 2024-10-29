@@ -95,6 +95,10 @@ class NativeGate(Gate, SimpleClassReprABC):
         label: Label used to identify the gate.
     """
 
+    qasm2_gate: str
+    """Keyword(s) corresponding to the gate in ``QASM2``. This needs to be
+    available at the class level and is not enforced by the type checker so be
+    careful about it!"""
     qlm_aqasm_keyword: str
     """Keyword(s) corresponding to the gate in ``myQLM``. This needs to be
     available at the class level and is not enforced by the type checker so be
@@ -175,13 +179,6 @@ class NativeGate(Gate, SimpleClassReprABC):
     ]:
         pass
 
-    @classproperty
-    @abstractmethod
-    def qasm2_gate(
-        cls,
-    ) -> str:
-        pass
-
 
 @typechecked
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
@@ -242,11 +239,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
             instruction_str = self.qasm2_gate
             if isinstance(self, (Rk, CRk)):
-                instruction_str += (
-                    "("
-                    + float_to_qasm_str(2 * np.pi / (2 ** float(self.parameters[0])))
-                    + ")"
-                )
+                instruction_str += f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.parameters[0])))})"
             else:
                 instruction_str += (
                     "("
@@ -261,7 +254,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
                 qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
             qubits += ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -353,7 +346,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
                 qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
             qubits += ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -399,10 +392,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
         return IGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "id"
-
+    qasm2_gate = "id"
     qlm_aqasm_keyword = "I"
     qiskit_string = "id"
 
@@ -425,7 +415,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
             instruction_str = self.qasm2_gate
             qubits = ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -455,10 +445,7 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
         return XGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "x"
-
+    qasm2_gate = "x"
     qlm_aqasm_keyword = "X"
     qiskit_string = "x"
 
@@ -492,10 +479,7 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
         return YGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "y"
-
+    qasm2_gate = "y"
     qlm_aqasm_keyword = "Y"
     qiskit_string = "y"
 
@@ -529,10 +513,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
         return ZGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "z"
-
+    qasm2_gate = "z"
     qlm_aqasm_keyword = "Z"
     qiskit_string = "z"
 
@@ -566,10 +547,7 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
         return HGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "h"
-
+    qasm2_gate = "h"
     qlm_aqasm_keyword = "H"
     qiskit_string = "h"
 
@@ -604,10 +582,7 @@ class P(RotationGate, SingleQubitGate):
 
         return PhaseGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "p"
-
+    qasm2_gate = "p"
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
 
@@ -654,10 +629,7 @@ class S(OneQubitNoParamGate):
 
         return SGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "s"
-
+    qasm2_gate = "s"
     qlm_aqasm_keyword = "S"
     qiskit_string = "s"
 
@@ -694,10 +666,7 @@ class T(OneQubitNoParamGate):
 
         return TGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "t"
-
+    qasm2_gate = "t"
     qlm_aqasm_keyword = "T"
     qiskit_string = "t"
 
@@ -738,10 +707,7 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         return SwapGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "swap"
-
+    qasm2_gate = "swap"
     qlm_aqasm_keyword = "SWAP"
     qiskit_string = "swap"
 
@@ -891,7 +857,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             )
             qubits = ",".join([f"q[{j}]" for j in self.targets])
 
-            return "\n" + instruction_str + " " + qubits + ";"
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -926,9 +892,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
         return UGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "u"
+    qasm2_gate = "u"
 
 
 class Rx(RotationGate, SingleQubitGate):
@@ -957,10 +921,7 @@ class Rx(RotationGate, SingleQubitGate):
 
         return RXGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "rx"
-
+    qasm2_gate = "rx"
     qlm_aqasm_keyword = "RX"
     qiskit_string = "rx"
 
@@ -1001,10 +962,7 @@ class Ry(RotationGate, SingleQubitGate):
 
         return RYGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "ry"
-
+    qasm2_gate = "ry"
     qlm_aqasm_keyword = "RY"
     qiskit_string = "ry"
 
@@ -1043,10 +1001,7 @@ class Rz(RotationGate, SingleQubitGate):
 
         return RZGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "rz"
-
+    qasm2_gate = "rz"
     qlm_aqasm_keyword = "RZ"
     qiskit_string = "rz"
 
@@ -1086,10 +1041,7 @@ class Rk(RotationGate, SingleQubitGate):
 
         return PhaseGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "p"
-
+    qasm2_gate = "p"
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
 
@@ -1152,10 +1104,7 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CXGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "cx"
-
+    qasm2_gate = "cx"
     qlm_aqasm_keyword = "CNOT"
     qiskit_string = "cx"
 
@@ -1198,10 +1147,7 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CZGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "cz"
-
+    qasm2_gate = "cz"
     qiskit_string = "cz"
     qlm_aqasm_keyword = "CSIGN"
 
@@ -1247,10 +1193,7 @@ class CRk(RotationGate, ControlledGate):
 
         return CPhaseGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "cp"
-
+    qasm2_gate = "cp"
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
     qiskit_string = "cp"
@@ -1321,10 +1264,7 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CCXGate
 
-    @classproperty
-    def qasm2_gate(cls):
-        return "ccx"
-
+    qasm2_gate = "ccx"
     qlm_aqasm_keyword = "CCNOT"
     qiskit_string = "ccx"
 
