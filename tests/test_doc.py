@@ -2,14 +2,14 @@
 import importlib
 import os
 import sys
-from doctest import DocTestFinder, DocTestRunner
+import warnings
+from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
+from functools import partial
 from types import TracebackType
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
-
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -28,6 +28,7 @@ from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import *
 
@@ -72,45 +73,57 @@ class SafeRunner:
         load_env_variables()
 
 
-def test_documentation():
+class RandomDoctestRunner(DocTestRunner):
+    def run(self, test: DocTest, *args: Any, **kwargs: Any):
+        test.filename
+        if "rand" in test.name and "seed=" not in test.examples[0].source:
+            for example in test.examples:
+                example.options[SKIP] = True
+        return super().run(test, *args, **kwargs)
 
-    print(os.getcwd())
 
-    test_globals = globals().copy()
-    test_globals.update(locals())
+test_globals = globals().copy()
+test_globals.update(locals())
 
-    pass_file = ["connection", "noise_methods", "remote_handle"]
-    saf_file = ["env"]
+to_pass = ["connection", "noise_methods", "remote_handle"]
+unsafe_files = ["env"]
 
-    finder = DocTestFinder()
-    runner = DocTestRunner()
+finder = DocTestFinder()
+runner = DocTestRunner()
 
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        folder_path = "mpqp"
-        for root, _, files in os.walk(folder_path):
-            for filename in files:
-                if any(str in filename for str in pass_file):
-                    continue
-                elif filename.endswith(".py"):
-                    print(
-                        f"Running doctests in {os.path.join(os.getcwd(),root,filename)}"
-                    )
-                    my_module = importlib.import_module(
-                        os.path.join(root, filename)
-                        .replace(".py", "")
-                        .replace("\\", ".")
-                        .replace("/", ".")
-                    )
-                    safe = any(str in filename for str in saf_file)
-                    for test in finder.find(my_module, "mpqp", globs=test_globals):
-                        if (
-                            test.docstring
-                            and "3M-TODO" not in test.docstring
-                            and "6M-TODO" not in test.docstring
-                        ):
-                            if safe:
-                                with SafeRunner():
-                                    if "PYTEST_CURRENT_TEST" not in os.environ:
-                                        assert runner.run(test).failed == 0
-                            else:
-                                assert runner.run(test).failed == 0
+
+def run_doctest(root: str, filename: str):
+    warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
+    assert True
+    my_module = importlib.import_module(
+        os.path.join(root, filename)
+        .replace(".py", "")
+        .replace("\\", ".")
+        .replace("/", ".")
+    )
+    safe_needed = any(str in filename for str in unsafe_files)
+    for test in finder.find(my_module, "mpqp", globs=test_globals):
+        if (
+            test.docstring
+            and "3M-TODO" not in test.docstring
+            and "6M-TODO" not in test.docstring
+        ):
+            if safe_needed:
+                with SafeRunner():
+                    if "PYTEST_CURRENT_TEST" not in os.environ:
+                        assert runner.run(test).failed == 0
+            else:
+                assert runner.run(test).failed == 0
+
+
+folder_path = "mpqp"
+for root, _, files in os.walk(folder_path):
+    for filename in files:
+        if all(str not in filename for str in to_pass) and filename.endswith(".py"):
+            t_function_name = "test_" + "mpqp".join(
+                (root + filename).split("mpqp")
+            ).replace("\\", "_").replace("/", "_").replace(".", "_")
+            print(root + "\\" + filename)
+            locals()[t_function_name] = partial(
+                run_doctest, root=root, filename=filename
+            )
