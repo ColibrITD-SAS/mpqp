@@ -34,7 +34,8 @@ from mpqp.tools.maths import *
 
 class SafeRunner:
     def __enter__(self):
-        if not os.path.exists(MPQP_CONFIG_PATH):  # Ensure the config file exists
+        # Ensure the config file exists
+        if not os.path.exists(MPQP_CONFIG_PATH):
             open(MPQP_CONFIG_PATH, "a").close()
         env = get_existing_config_str()
 
@@ -100,14 +101,14 @@ def test_documentation():
                         .replace("\\", ".")
                         .replace("/", ".")
                     )
-                    saf = any(str in filename for str in saf_file)
+                    safe = any(str in filename for str in saf_file)
                     for test in finder.find(my_module, "mpqp", globs=test_globals):
                         if (
                             test.docstring
                             and "3M-TODO" not in test.docstring
                             and "6M-TODO" not in test.docstring
                         ):
-                            if saf:
+                            if safe:
                                 with SafeRunner():
                                     if "PYTEST_CURRENT_TEST" not in os.environ:
                                         assert runner.run(test).failed == 0
