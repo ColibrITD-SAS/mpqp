@@ -66,9 +66,6 @@ class BasisMeasure(Measure):
         if basis is None:
             basis = ComputationalBasis()
 
-        # TODO: this should be updated each time the size of the basis changes
-        self.pre_measure = basis.to_computational()
-
         self.user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
         """See parameter description."""
@@ -88,6 +85,10 @@ class BasisMeasure(Measure):
             return Measure()
         else:
             raise NotImplementedError(f"{language} is not supported")
+
+    @property
+    def pre_measure(self):
+        return self.basis.to_computational()
 
     def __repr__(self) -> str:
         targets = (
