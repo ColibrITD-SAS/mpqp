@@ -324,10 +324,10 @@ def estimate_cost_single_job(
     job: Job, hybrid_iterations: int = 1, estimated_time_seconds: int = 3
 ) -> float:
     """
-    Estimates the cost of executing a `Job` on a remote AWS Braket device.
+    Estimates the cost of executing a :class:`~mpqp.execution.job.Job` on a remote AWS Braket device.
 
     Args:
-        job: Mpqp Job for which we want to estimate the cost. The job's device must be an `AWSDevice`.
+        job: :class:`~mpqp.execution.job.Job` for which we want to estimate the cost. The job's device must be an :class:`~mpqp.execution.devices.AWSDevice`.
         hybrid_iterations: Number of iteration in a case of a hybrid (quantum-classical) job.
         estimated_time_seconds: Estimated runtime for simulator jobs (in seconds). The minimum duration billing is 3 seconds.
 
