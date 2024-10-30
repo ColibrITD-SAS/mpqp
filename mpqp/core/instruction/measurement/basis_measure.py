@@ -56,16 +56,18 @@ class BasisMeasure(Measure):
         basis: Optional[Basis] = None,
         label: Optional[str] = None,
     ):
-        if basis is None:
-            basis = ComputationalBasis()
-
-        self.pre_measure = basis.to_computational()
 
         if c_targets is not None:
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
 
         super().__init__(targets, shots, label)
+
+        if basis is None:
+            basis = ComputationalBasis(0)
+
+        self.pre_measure = basis.to_computational()
+
         self.user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
         """See parameter description."""

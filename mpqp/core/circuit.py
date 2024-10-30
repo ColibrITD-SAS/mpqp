@@ -254,7 +254,7 @@ class QCircuit:
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
 
-    def _update_targets_components(self, components: Instruction | NoiseModel):
+    def _update_targets_components(self, component: Instruction | NoiseModel):
         """update the targets of the components with the number of qubits in the circuit.
 
         Raises:
@@ -283,28 +283,36 @@ class QCircuit:
         """
         targets = list(range(self.nb_qubits))
 
-        components.targets = targets
-        self._check_components_targets(components)
+        component.targets = targets
+        self._check_components_targets(component)
 
-        if isinstance(components, Barrier):
-            components.size = self.nb_qubits
-        elif isinstance(components, ExpectationMeasure):
-            components.check_targets_order()
-        elif isinstance(components, DimensionalNoiseModel):
-            components.check_dimension()
-        elif isinstance(components, BasisMeasure):
+        if isinstance(component, Barrier):
+            component.size = self.nb_qubits
+        elif isinstance(component, ExpectationMeasure):
+            component.check_targets_order()
+        elif isinstance(component, DimensionalNoiseModel):
+            component.check_dimension()
+        elif isinstance(component, BasisMeasure):
+            from mpqp.core.instruction.measurement.basis import VariableSizeBasis
+
+            if not isinstance(component.basis, VariableSizeBasis):
+                raise ValueError(
+                    "A `BasisMeasure` with a non variable sized basis cannot be"
+                    " dynamic."
+                )
+
+            component.basis.set_size(self.nb_qubits)
+
             if self.nb_cbits is None:
                 self.nb_cbits = 0
             unique_cbits = set()
-            for basis_measure in self.instructions:
-                if basis_measure != components and isinstance(
-                    basis_measure, BasisMeasure
-                ):
-                    if basis_measure.c_targets:
-                        unique_cbits.update(basis_measure.c_targets)
+            for instruction in self.instructions:
+                if instruction != component and isinstance(instruction, BasisMeasure):
+                    if instruction.c_targets:
+                        unique_cbits.update(instruction.c_targets)
             c_targets = []
             i = 0
-            for _ in range(len(components.targets)):
+            for _ in range(len(component.targets)):
                 while i in unique_cbits:
                     warn(
                         "Dynamic measurements don't play well with static measurements: "
@@ -313,12 +321,12 @@ class QCircuit:
                     i += 1
                 c_targets.append(i)
                 i += 1
-            components.c_targets = c_targets
+            component.c_targets = c_targets
             self.nb_cbits = max(
                 max(c_targets, default=0) + 1, max(unique_cbits, default=0) + 1
             )
 
-        return components
+        return component
 
     @property
     def nb_qubits(self) -> int:

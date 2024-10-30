@@ -10,7 +10,7 @@ On the other hand, some common basis are available for you to use:
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import reduce
 from typing import Optional
 
@@ -79,7 +79,7 @@ class Basis:
         ):
             raise ValueError("The given basis is not orthogonal")
 
-        self.nb_qubits: int = nb_qubits
+        self.nb_qubits = nb_qubits
         """See parameter description."""
         self.basis_vectors = basis_vectors
         """See parameter description."""
@@ -119,7 +119,7 @@ class Basis:
 
 
 @typechecked
-class VariableSizeBasis(Basis):
+class VariableSizeBasis(Basis, ABC):
     """3M-TODO"""
 
     @abstractmethod
@@ -176,10 +176,8 @@ class ComputationalBasis(VariableSizeBasis):
 
     """
 
-    def __init__(self, nb_qubits: Optional[int] = None):
+    def __init__(self, nb_qubits: int):
         Basis.__init__(self, [], nb_qubits)
-        if nb_qubits is not None:
-            self.set_size(nb_qubits)
 
     def set_size(self, nb_qubits: int):
         self.basis_vectors = [
