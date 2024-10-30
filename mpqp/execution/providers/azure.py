@@ -1,9 +1,6 @@
 from __future__ import annotations
 
-import math
 from typing import TYPE_CHECKING, Optional
-
-import numpy as np
 
 if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
@@ -20,7 +17,7 @@ from mpqp.execution.connection.azure_connection import (
 )
 from mpqp.execution.devices import AZUREDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.execution.result import Result, Sample
 
 
 @typechecked
@@ -74,65 +71,20 @@ def extract_result(
     device: AZUREDevice,
 ) -> Result:
     from qiskit.result import Result as QiskitResult
+    from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
 
     if isinstance(result, QiskitResult):
-        if job is None:
-            job_data = result.data()
-            if "statevector" in job_data:
-                job_type = JobType.STATE_VECTOR
-                nb_qubits = int(math.log(len(result.get_statevector()), 2))
-                job = Job(job_type, QCircuit(nb_qubits), device)
-            elif "counts" in job_data:
-                job_type = JobType.SAMPLE
-                nb_qubits = len(list(result.get_counts())[0])
-                shots = result.results[0].shots
-                job = Job(
-                    job_type,
-                    QCircuit(nb_qubits),
-                    device,
-                    BasisMeasure(list(range(nb_qubits)), shots=shots),
-                )
-            else:
-                if len(result.data()) == 0:
-                    raise ValueError(
-                        "Result data is empty, cannot extract anything. Check "
-                        "if the associated job was successfully completed."
-                    )
-                else:
-                    raise ValueError(
-                        f"Data with keys {result.data().keys()} in result not handled."
-                    )
+        from mpqp.execution.providers.ibm import extract_result as extract_result_ibm
 
-        if job.job_type == JobType.STATE_VECTOR:
-            vector = np.array(result.get_statevector())
-            state_vector = StateVector(
-                vector,  # pyright: ignore[reportArgumentType]
-                job.circuit.nb_qubits,
-            )
-            return Result(job, state_vector, 0, 0)
-        elif job.job_type == JobType.SAMPLE:
-            assert job.measure is not None
-            job_data = result.data()
-            data = [
-                Sample(
-                    bin_str="".join(map(str, state)),
-                    nb_qubits=job.circuit.nb_qubits,
-                    count=int(count),
-                    probability=(
-                        job_data.get("probabilities").get(state)
-                        if "probabilities" in job_data
-                        else None
-                    ),
-                )
-                for (state, count) in job_data.get("counts").items()
-            ]
-            return Result(job, data, None, job.measure.shots)
-        else:
-            raise NotImplementedError(f"{job.job_type} not handled.")
-    else:
+        return extract_result_ibm(result, job, device)
+    elif isinstance(
+        result, MicrosoftEstimatorResult
+    ):  # pyright: ignore[reportUnnecessaryIsInstance]
         if job is None:
             job = Job(JobType.OBSERVABLE, QCircuit(1), device)
         return Result(job, 0, result.data())
+    else:
+        raise ValueError(f"result type not supported: {type(result)}")
 
 
 @typechecked
@@ -148,7 +100,6 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
         The result converted to our format.
     """
     job = get_jobs_by_id(job_id)
-
     result = job.get_results()
     nb_qubits = 0
     if job.details.metadata is not None:
@@ -193,3 +144,20 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
         BasisMeasure(list(range(nb_qubits)), shots=shots),
     )
     return Result(job_, data, None, shots)
+
+
+def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+    job_data = result.data()
+    return [
+        Sample(
+            bin_str="".join(map(str, state)),
+            nb_qubits=job.circuit.nb_qubits,
+            count=int(count),
+            probability=(
+                job_data.get("probabilities").get(state)
+                if "probabilities" in job_data
+                else None
+            ),
+        )
+        for (state, count) in job_data.get("counts").items()
+    ]

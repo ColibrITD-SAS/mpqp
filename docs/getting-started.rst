@@ -57,8 +57,8 @@ Setup remote accesses
 ---------------------
 
 Installing MPQP gives you access to ``setup_connections`` a script facilitating
-the setting up of remote QPU connections. The three supported providers (qiskit,
-Qaptiva, braket, Azure and IonQ) can be setup from this script.  
+the setting up of remote QPU connections. The supported providers are IBM,
+Atos, AWS, Azure and IonQ. It can be setup from this script.  
 
 To run the script, simply run the following command in your terminal:
 
@@ -87,7 +87,7 @@ summed up here:
   + ``AWS Access Key ID``,
   + ``AWS Secret Access Key`` and
   + ``Default region name``.
-- Azure: For this provider, you need to have an Azure account and create an 
+- Azure (Azure): For this provider, you need to have an Azure account and create an 
   Azure Quantum workspace. To create an Azure Quantum workspace, follow the 
   steps on:
   `Azure Quantum workspace <https://learn.microsoft.com/en-us/azure/quantum/how-to-create-workspace?tabs=tabid-quick>`_.
@@ -119,7 +119,7 @@ summed up here:
   For additional details and options, see the documentation of
   `az login <https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-login>`_.
 
-- IonQ: For this provider, you need to have an IonQ account and create an 
+- IonQ (Cirq): For this provider, you need to have an IonQ account and create an 
   ``API token``. You can obtain it from the IonQ Console under 
   `IonQ setting keys <https://cloud.ionq.com/settings/keys>`_.
 

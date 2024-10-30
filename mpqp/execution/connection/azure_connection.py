@@ -51,10 +51,10 @@ def config_azure_account():
 
 def get_azure_account_info() -> str:
     """
-    Get the IonQ API key from the environment variables.
+    Get Azure resource Id and Location.
 
     Returns:
-        str: A string containing the IonQ API key.
+        str: A string containing the azure resource Id and Location.
     """
     azure_resource_id = get_env_variable("AZURE_RESOURCE_ID")
     if azure_resource_id == "":
@@ -68,7 +68,7 @@ def get_azure_account_info() -> str:
 
 def test_connection(resource_id: str, Location: str) -> bool:
     """
-    Test the connection to the IonQ service.
+    Test the connection to Azure service.
 
     Returns:
         bool: True if the connection is successful, False otherwise.

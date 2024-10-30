@@ -87,6 +87,14 @@ __________
 
 .. automodule:: mpqp.execution.connection.ionq_connection
 
+Azure
+^^^^^
+
+Connection
+__________
+
+.. automodule:: mpqp.execution.connection.azure_connection
+
 Execution
 __________
 

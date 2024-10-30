@@ -32,7 +32,7 @@ from mpqp.execution.connection.ibm_connection import (
     get_backend,
     get_QiskitRuntimeService,
 )
-from mpqp.execution.devices import IBMDevice
+from mpqp.execution.devices import IBMDevice, AZUREDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
@@ -530,7 +530,7 @@ def run_remote_ibm(job: Job) -> Result:
 def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
-    device: IBMDevice,
+    device: IBMDevice | AZUREDevice,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
@@ -650,21 +650,14 @@ def extract_result(
                 return Result(job, state_vector, 0, 0)
             elif job.job_type == JobType.SAMPLE:
                 assert job.measure is not None
-                counts = result.get_counts(0)
-                job_data = result.data()
-                data = [
-                    Sample(
-                        bin_str=item,
-                        count=counts[item],
-                        nb_qubits=job.circuit.nb_qubits,
-                        probability=(
-                            job_data.get("probabilities").get(item)
-                            if "probabilities" in job_data
-                            else None
-                        ),
+                if type(device) == AZUREDevice:
+                    from mpqp.execution.providers.azure import (
+                        extract_samples as extract_samples_azure,
                     )
-                    for item in counts
-                ]
+
+                    data = extract_samples_azure(job, result)
+                else:
+                    data = extract_samples(job, result)
                 return Result(job, data, None, job.measure.shots)
             else:
                 raise NotImplementedError(f"{job.job_type} not handled.")
@@ -712,3 +705,21 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     ibm_device = IBMDevice(backend.name)
 
     return extract_result(result, None, ibm_device)
+
+
+def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+    counts = result.get_counts(0)
+    job_data = result.data()
+    return [
+        Sample(
+            bin_str=item,
+            count=counts[item],
+            nb_qubits=job.circuit.nb_qubits,
+            probability=(
+                job_data.get("probabilities").get(item)
+                if "probabilities" in job_data
+                else None
+            ),
+        )
+        for item in counts
+    ]
