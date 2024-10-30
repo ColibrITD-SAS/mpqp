@@ -178,10 +178,8 @@ class ComputationalBasis(VariableSizeBasis):
 
     """
 
-    def __init__(self, nb_qubits: Optional[int] = None):
+    def __init__(self, nb_qubits: int):
         Basis.__init__(self, [], nb_qubits)
-        if nb_qubits is not None:
-            self.set_size(nb_qubits)
 
     def set_size(self, nb_qubits: int):
         self.basis_vectors = [
