@@ -51,6 +51,8 @@ class Basis:
     ):
         if symbols is None:
             symbols = ("0", "1")
+        self.symbols = symbols
+
         if len(basis_vectors) == 0:
             if nb_qubits is None:
                 raise ValueError(
@@ -59,8 +61,6 @@ class Basis:
                 )
             self.nb_qubits = nb_qubits
             self.basis_vectors = basis_vectors
-
-            self.symbols = symbols
             return
         if nb_qubits is None:
             nb_qubits = int(np.log2(len(basis_vectors[0])))
