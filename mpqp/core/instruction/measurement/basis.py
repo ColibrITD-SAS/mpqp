@@ -47,14 +47,10 @@ class Basis:
         self,
         basis_vectors: list[npt.NDArray[np.complex64]],
         nb_qubits: Optional[int] = None,
+        symbols: Optional[tuple[str, str]] = None,
     ):
-        # TODO : add the possibility to give the symbols for the '0' and '1' of
-        # the custom basis. This should then appear in the Sample
-        # binary_representation of the basis state. For instance in the Hadamard
-        # basis, the symbols will be '+' and '-'. If the user wants '↑' and '↓'
-        # for his custom basis, when we print samples we would have something
-        # like:
-        # State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
+        if symbols is None:
+            symbols = ("0", "1")
         if len(basis_vectors) == 0:
             if nb_qubits is None:
                 raise ValueError(
@@ -63,6 +59,8 @@ class Basis:
                 )
             self.nb_qubits = nb_qubits
             self.basis_vectors = basis_vectors
+
+            self.symbols = symbols
             return
         if nb_qubits is None:
             nb_qubits = int(np.log2(len(basis_vectors[0])))
@@ -87,6 +85,9 @@ class Basis:
         """See parameter description."""
         self.basis_vectors = basis_vectors
         """See parameter description."""
+
+    def binary_to_custom(self, state: str) -> str:
+        return ''.join(self.symbols[int(bit)] for bit in state)
 
     def pretty_print(self):
         """Nicer print for the basis, with human readable formatting.
@@ -124,8 +125,12 @@ class VariableSizeBasis(Basis, ABC):
     """3M-TODO"""
 
     @abstractmethod
-    def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__([], 0)
+    def __init__(
+        self, nb_qubits: Optional[int] = None, symbols: Optional[tuple[str, str]] = None
+    ):
+        if symbols is None:
+            symbols = ("0", "1")
+        super().__init__([], 0, symbols=symbols)
         if nb_qubits is not None:
             self.set_size(nb_qubits)
 
@@ -213,7 +218,7 @@ class HadamardBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__(nb_qubits)
+        super().__init__(nb_qubits, symbols=('+', '-'))
 
     def set_size(self, nb_qubits: int):
         H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)

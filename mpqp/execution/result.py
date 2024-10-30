@@ -30,6 +30,7 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
+from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
@@ -379,7 +380,21 @@ class Result:
         header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
+            # samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
+            measures = self.job.circuit.get_measurements()
+            if not len(measures) == 1:
+                raise ValueError(
+                    "Mismatch between the number of measurements and the job " "type."
+                )
+            measure = measures[0]
+            if not isinstance(measure, BasisMeasure):
+                raise ValueError("Mismatch between measurements type and job type.")
+
+            samples_str = "\n".join(
+                f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(3))}, "
+                f"Index: {sample.index}, Count: {sample.count}, Probability: {sample.probability:.9f}"
+                for sample in self.samples
+            )
             return f"""{header}
  Counts: {self._counts}
  Probabilities: {clean_1D_array(self.probabilities)}
