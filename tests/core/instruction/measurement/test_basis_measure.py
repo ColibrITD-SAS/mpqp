@@ -20,12 +20,10 @@ def test_basis_measure_init_fails_duplicate_c_targets():
 def test_basis_measure_to_other_language():
     measure = BasisMeasure([0], basis=HadamardBasis())
     qiskit_measure = measure.to_other_language(Language.QISKIT)
-   
+
     from qiskit.circuit import Measure
 
     assert isinstance(qiskit_measure, Measure)
-
-
 
 
 def test_basis_measure_repr():
