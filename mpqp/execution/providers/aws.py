@@ -321,9 +321,7 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     return extract_result(result, None, device)
 
 
-def estimate_cost_single_job(
-    job: Job, hybrid_iterations: Optional[int] = 1, estimated_time: Optional[int] = 3
-) -> float:
+def estimate_cost_single_job(job: Job, hybrid_iterations: int = 1, estimated_time: int = 3) -> float:
 
     if TYPE_CHECKING:
         assert isinstance(job.device, AWSDevice)
@@ -338,7 +336,8 @@ def estimate_cost_single_job(
                 raise ValueError
             return minute_cost * max(estimated_time / 60, 3 / 60)
         else:
-            assert job.measure is not None
+            if TYPE_CHECKING:
+                assert job.measure is not None
             if "ionq" in job.device.value:
                 task_cost = 0.3
                 shot_cost = 0.03
