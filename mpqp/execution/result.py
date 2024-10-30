@@ -379,7 +379,17 @@ class Result:
         header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
+            # samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
+            basis_measure = self.job.circuit.get_measurements()
+
+            basis = type(basis_measure[0].basis)
+            symbols = basis_measure[0].basis.symbols
+
+            samples_str = "\n".join(
+                f"  State: {basis.binary_to_custom(bin(sample.index)[2:].zfill(3), symbols) if basis else bin(sample.index)[2:].zfill(3)}, "
+                f"Index: {sample.index}, Count: {sample.count}, Probability: {sample.probability:.9f}"
+                for sample in self.samples
+            )
             return f"""{header}
  Counts: {self._counts}
  Probabilities: {clean_1D_array(self.probabilities)}
