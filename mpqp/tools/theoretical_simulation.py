@@ -12,7 +12,6 @@ from mpqp.execution import AWSDevice
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.noise import Depolarizing
-from mpqp.noise.noise_model import NoiseModel
 
 
 def theoretical_probs(
@@ -31,8 +30,9 @@ def theoretical_probs(
 
     state = np.zeros((d, d), dtype=np.complex64)
     state[0, 0] = 1
+    gates = circ.get_gates()
 
-    for gate in circ.get_gates():
+    for gate in gates:
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
         state = g @ state @ g.T.conj()
         for noise in circ.noises:
@@ -51,11 +51,11 @@ def theoretical_probs(
                     start=np.zeros((d, d), dtype=np.complex64),
                 )
 
-    connected_qubits = set().union(*[gate.connections() for gate in circ.get_gates()])
+    connected_qubits = set().union(*[gate.connections() for gate in gates])
     unconnected_qubits = set(range(circ.nb_qubits)).difference(connected_qubits)
     for noise in circ.noises:
         if len(noise.gates) == 0:
-            sum(
+            state = sum(
                 (
                     k @ state @ k.T.conj()
                     for k in noise.to_adjusted_kraus_operators(
@@ -79,7 +79,7 @@ def dist_alpha_matching(alpha: float):
             and the noisy distribution.
 
     Returns:
-        The trust interval for the distance.
+        Diameter of the trust interval for the distance.
     """
     return np.sqrt(alpha)
 
@@ -89,8 +89,8 @@ def dist_alpha_matching(alpha: float):
 
 
 def trust_int(circuit: QCircuit):
-    """Given a circuit, this computes the trust interval for the output samples
-    given into consideration the noise in the circuit.
+    """Given a circuit, this computes the diameter of the trust interval for the
+    output samples given into consideration the noise in the circuit.
 
     Args:
         circuit: The circuit.
@@ -98,9 +98,7 @@ def trust_int(circuit: QCircuit):
     Returns:
         The size of the trust interval (related to the Jensen-Shannon distance).
     """
-    noiseless_circuit = QCircuit(
-        [inst for inst in circuit.instructions if not isinstance(inst, NoiseModel)]
-    )
+    noiseless_circuit = circuit.without_noises()
     noiseless_probs = theoretical_probs(noiseless_circuit)
     noisy_probs = theoretical_probs(circuit)
     return dist_alpha_matching(float(jensenshannon(noiseless_probs, noisy_probs)))
@@ -163,7 +161,7 @@ def exp_id_dist_excess(circuit: QCircuit, shots: int = 1024) -> float:
         1. the distance between theory and our results;
         2. and the trust interval.
     """
-    return exp_id_dist(circuit, shots) - trust_int(circuit)
+    return abs(exp_id_dist(circuit, shots) - trust_int(circuit))
 
 
 if __name__ == "__main__":
