@@ -78,7 +78,7 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
             Result(
                 Job(
                     JobType.SAMPLE,
-                    QCircuit(2),
+                    QCircuit([BasisMeasure([0, 1])]),
                     IBMDevice.AER_SIMULATOR,
                     measure=BasisMeasure([0, 1]),
                 ),
@@ -95,8 +95,8 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
  Probabilities: [0.225, 0.3766667, 0.0133333, 0.385]
  Samples:
   State: 00, Index: 0, Count: 135, Probability: 0.225
-  State: 01, Index: 1, Count: 226, Probability: 0.37666666666666665
-  State: 10, Index: 2, Count: 8, Probability: 0.013333333333333334
+  State: 01, Index: 1, Count: 226, Probability: 0.3766667
+  State: 10, Index: 2, Count: 8, Probability: 0.0133333
   State: 11, Index: 3, Count: 231, Probability: 0.385
  Error: None""",
         ),

@@ -28,7 +28,7 @@ from mpqp.execution.connection.env_manager import (
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
 from mpqp.tools.circuit import random_circuit
-from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
+from mpqp.tools.display import *
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,

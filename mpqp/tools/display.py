@@ -65,16 +65,16 @@ def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
 def clean_1D_array(
     array: list[complex] | npt.NDArray[np.complex64 | np.float32], round: int = 7
 ) -> str:
-    """Cleans and formats elements of an array.
-    This function rounds the real parts of complex numbers in the array to 7 decimal places
-    and formats them as integers if they are whole numbers. It returns a string representation
-    of the cleaned array without parentheses.
+    """Cleans and formats elements of a one dimensional array. This function
+    rounds the parts of the numbers in the array and formats them as integers if
+    appropriate. It returns a string representation of the cleaned array.
 
     Args:
-        array: An array containing numeric elements, possibly including complex numbers.
+        array: An array containing numeric elements.
+        round: precision to round the numbers to.
 
     Returns:
-        A string representation of the cleaned array without parentheses.
+        A string representation of the cleaned array.
 
     Example:
         >>> clean_1D_array([1.234567895546, 2.3456789645645, 3.45678945645])
@@ -92,43 +92,68 @@ def clean_1D_array(
         '[0.9828112j, 0.1901127, 0, 0, 1e-07-0.858301j, -1e-07+2e-07j, 0.5131446, -0.1759805-1e-07j]'
 
     """
-    array = np.array(array, dtype=np.complex64)
-    cleaned_array = []
-    for element in array:
-        real_part = np.round(np.real(element), round)
-        imag_part = np.round(np.imag(element), round)
+    return (
+        "["
+        + ", ".join(
+            clean_number_repr(element, round)
+            for element in np.array(array, dtype=np.complex64)
+        )
+        + "]"
+    )
 
-        if real_part == int(real_part):
-            real_part = int(real_part)
-        if imag_part == int(imag_part):
-            imag_part = int(imag_part)
 
-        if real_part == 0 and imag_part != 0:
-            real_part = ""
+def clean_number_repr(number: complex, round: int = 7):
+    """Cleans and formats a number. This function rounds the parts of
+    complex numbers and formats them as integers if appropriate. It returns a
+    string representation of the number.
 
-        if imag_part == 0:
-            imag_part = ""
-        else:
-            imag_part = str(imag_part) + "j"
-            if real_part != "" and not imag_part.startswith("-"):
-                imag_part = "+" + imag_part
+    Args:
+        number: The number to be formatted
 
-        cleaned_array.append(f"{str(real_part)}{str(imag_part)}")
+    Returns:
+        A string representation of the number.
 
-    return "[" + ", ".join(map(str, cleaned_array)) + "]"
+    Example:
+        >>> clean_number_repr(1.234567895546)
+        '1.2345679'
+        >>> clean_number_repr(1.0+2.0j)
+        '1+2j'
+        >>> clean_number_repr(1+0j)
+        '1'
+        >>> clean_number_repr(0.0 + 1.0j)
+        '1j'
+
+    """
+    real_part = np.round(np.real(number), round)
+    imag_part = np.round(np.imag(number), round)
+
+    if real_part == int(real_part):
+        real_part = int(real_part)
+    if imag_part == int(imag_part):
+        imag_part = int(imag_part)
+
+    if real_part == 0 and imag_part != 0:
+        real_part = ""
+
+    if imag_part == 0:
+        imag_part = ""
+    else:
+        imag_part = str(imag_part) + "j"
+        if real_part != "" and not imag_part.startswith("-"):
+            imag_part = "+" + imag_part
+    return f"{str(real_part)}{str(imag_part)}"
 
 
 def clean_matrix(matrix: Matrix):
-    """Cleans and formats elements of a matrix.
-    This function cleans and formats the elements of a matrix. It rounds the real parts of complex numbers
-    in the matrix to 7 decimal places and formats them as integers if they are whole numbers. It returns a
-    string representation of the cleaned matrix without parentheses.
+    """Cleans and formats elements of a 2D matrix. This function rounds the
+    parts of the numbers in the matrix and formats them as integers if
+    appropriate. It returns a string representation of the cleaned matrix.
 
     Args:
-        matrix: A matrix containing numeric elements, possibly including complex numbers.
+        matrix: An 2d array containing numeric elements.
 
     Returns:
-        str: A string representation of the cleaned matrix without parentheses.
+        A string representation of the cleaned matrix.
 
     Examples:
         >>> print(clean_matrix([[1.234567895546, 2.3456789645645, 3.45678945645],
