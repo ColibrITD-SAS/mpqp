@@ -319,16 +319,17 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     return extract_result(result, None, device)
 
 
+@typechecked
 def estimate_cost_single_job(
-    job: Job, hybrid_iterations: int = 1, estimated_time: int = 3
+    job: Job, hybrid_iterations: int = 1, estimated_time_seconds: int = 3
 ) -> float:
     """
     Estimates the cost of executing a `Job` on a remote AWS Braket device.
 
     Args:
-        job: Mpqp Job for which we want to estimate the cost
+        job: Mpqp Job for which we want to estimate the cost. The job's device must be an `AWSDevice`.
         hybrid_iterations: Number of iteration in a case of a hybrid (quantum-classical) job.
-        estimated_time: Estimated runtime for simulator jobs (in seconds). The minimum duration billing is 3 seconds.
+        estimated_time_seconds: Estimated runtime for simulator jobs (in seconds). The minimum duration billing is 3 seconds.
 
     Returns:
         The estimated price (in USD) for the execution of the job in parameter.
@@ -342,7 +343,7 @@ def estimate_cost_single_job(
     """
 
     if not isinstance(job.device, AWSDevice):
-        raise
+        raise ValueError(f"This function was expecting a job with an AWSDevice but got a {type(job.device).__name__}.")
 
     if job.device.is_remote():
         if job.device.is_simulator():
@@ -352,10 +353,11 @@ def estimate_cost_single_job(
                 minute_cost = 0.275
             else:
                 raise ValueError
-            return minute_cost * max(estimated_time / 60, 3 / 60)
+            return minute_cost * max(estimated_time_seconds / 60, 3 / 60)
         else:
-            if TYPE_CHECKING:
-                assert job.measure is not None
+            if job.measure is None:
+                raise DeviceJobIncompatibleError("An AWS remote job on a quantum computer requires to have a measure.")
+
             if "ionq" in job.device.value:
                 task_cost = 0.3
                 shot_cost = 0.03
@@ -373,7 +375,7 @@ def estimate_cost_single_job(
                 shot_cost = 0.01
 
             else:
-                raise ValueError
+                raise NotImplementedError(f"Cost estimation not implemented yet for {job.device.name} device.")
 
             return (task_cost + job.measure.shots * shot_cost) * hybrid_iterations
 
