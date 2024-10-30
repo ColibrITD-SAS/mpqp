@@ -321,7 +321,9 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     return extract_result(result, None, device)
 
 
-def estimate_cost_single_job(job: Job, hybrid_iterations: int = 1, estimated_time: int = 3) -> float:
+def estimate_cost_single_job(
+    job: Job, hybrid_iterations: int = 1, estimated_time: int = 3
+) -> float:
 
     if TYPE_CHECKING:
         assert isinstance(job.device, AWSDevice)
