@@ -29,9 +29,9 @@ def _simplify_instruction(
     targets: dict[int, int],
     c_targets: dict[int, int],
 ):
-    instruction_str = "\n" + instruction.to_other_language(Language.QASM2)
+    instruction_str = instruction.to_other_language(Language.QASM2)
     assert isinstance(instruction_str, str)
-    instruction_str = instruction_str.split(" ")[0]
+    instruction_str = "\n" + instruction_str.split(" ")[0]
 
     final_str = ""
 
@@ -166,7 +166,9 @@ def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> tuple[str, float
                 and not isinstance(instruction, BasisMeasure)
             )
         ) or not simplify:
-            qasm_str += "\n" + instruction.to_other_language(Language.QASM2)
+            instruction = instruction.to_other_language(Language.QASM2)
+            assert isinstance(instruction, str)
+            qasm_str += "\n" + instruction
 
     if previous:
         qasm_str += _simplify_instruction(previous, targets, c_targets)
