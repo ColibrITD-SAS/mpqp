@@ -17,10 +17,15 @@ def test_basis_measure_init_fails_duplicate_c_targets():
         BasisMeasure(targets=[0, 1], c_targets=[2, 2, 3], shots=1024)
 
 
-def test_basis_measure_to_other_language_not_implemented():
+def test_basis_measure_to_other_language():
     measure = BasisMeasure([0], basis=HadamardBasis())
-    with pytest.raises(NotImplementedError):
-        measure.to_other_language(language=Language.QISKIT)
+    qiskit_measure = measure.to_other_language(Language.QISKIT)
+   
+    from qiskit.circuit import Measure
+
+    assert isinstance(qiskit_measure, Measure)
+
+
 
 
 def test_basis_measure_repr():
