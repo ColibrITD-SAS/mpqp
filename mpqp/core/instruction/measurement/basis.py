@@ -10,16 +10,16 @@ On the other hand, some common basis are available for you to use:
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import reduce
 from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
+
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
-
 from mpqp.tools.display import clean_1D_array
 from mpqp.tools.maths import atol, matrix_eq
 
@@ -83,7 +83,7 @@ class Basis:
         ):
             raise ValueError("The given basis is not orthogonal")
 
-        self.nb_qubits: int = nb_qubits
+        self.nb_qubits = nb_qubits
         """See parameter description."""
         self.basis_vectors = basis_vectors
         """See parameter description."""
@@ -120,7 +120,7 @@ class Basis:
 
 
 @typechecked
-class VariableSizeBasis(Basis):
+class VariableSizeBasis(Basis, ABC):
     """3M-TODO"""
 
     @abstractmethod
@@ -225,8 +225,8 @@ class HadamardBasis(VariableSizeBasis):
         self.nb_qubits = nb_qubits
 
     def to_computational(self):
-        from mpqp.core.instruction.gates.native_gates import H
         from mpqp.core.circuit import QCircuit
+        from mpqp.core.instruction.gates.native_gates import H
 
         if self.nb_qubits == 0:
             return QCircuit(self.nb_qubits)
