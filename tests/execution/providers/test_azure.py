@@ -1,4 +1,5 @@
-"""Add ``--long`` to the cli args to run this test with credits (disabled by default)"""
+"""Add ``--long`` to the cli args to run free test but with account (disabled by default)
+Add ``--long-cost`` to the cli args to run test with credits (disabled by default)"""
 
 import sys
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Sequence
 
 from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.tools.errors import DeviceJobIncompatibleError
 
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
@@ -251,10 +252,13 @@ def run_local_processor(job: Job) -> Result:
         )
         assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
 
-        shots = 1000 if job.measure.shots == 0 else job.measure.shots
+        if job.measure.shots == 0:
+            raise DeviceJobIncompatibleError(
+                f"Device {job.device.name} need shots != 0."
+            )
         return extract_result_OBSERVABLE_processors(
             simulator.get_sampler(job.device.value).sample_expectation_values(
-                cirq_circuit, observables=cirq_obs, num_samples=shots
+                cirq_circuit, observables=cirq_obs, num_samples=job.measure.shots
             ),
             job,
         )

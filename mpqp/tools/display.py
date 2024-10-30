@@ -68,6 +68,33 @@ def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
 
 
 def format_element(element: Union[int, float, complex | Expr], round: int = 5) -> str:
+    """
+    Formats a numeric or symbolic element for cleaner representation. rounds the real and
+    imaginary parts of a number to a specified number of decimal places, formats whole
+    numbers as integers, and properly handles symbolic expressions by simplifying them.
+    It produces a string representation of the element, with 'j' notation for complex numbers
+    and a simplified form for symbolic expressions.
+
+    Args:
+        element: The element to format, which can be an integer, float, complex number, or symbolic expression.
+        round: The number of decimal places to round to for real and imaginary parts.
+
+    Returns:
+        str: A string representation of the formatted element.
+
+    Example:
+        >>> format_element(3.456789, round=4)
+        '3.4568'
+        >>> format_element(1+2j, round=2)
+        '1+2j'
+        >>> format_element(3+0j)
+        '3'
+        >>> from sympy import symbols, Expr
+        >>> x = symbols('x')
+        >>> format_element(x + x)
+        '2*x'
+
+    """
     from sympy import Expr
 
     if isinstance(element, Expr):
@@ -139,8 +166,7 @@ def clean_1D_array(
 
 
 def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
-    """Cleans and formats elements of a matrix.
-    This function cleans and formats the elements of a matrix. It rounds the real parts of complex numbers
+    """Cleans and formats elements of a matrix. It rounds the real parts of complex numbers
     in the matrix places and formats them as integers if they are whole numbers. It returns a
     string representation of the cleaned matrix without parentheses.
 
@@ -183,8 +209,26 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     )
 
 
-def pprint(matrix: Matrix):
-    print(clean_matrix(matrix))
+def pprint(matrix: Matrix, round: int = 5, align: bool = True):
+    """Print a cleans and formats elements of a matrix. It rounds the real parts of complex numbers
+    in the matrix places and formats them as integers if they are whole numbers. It returns a
+    string representation of the cleaned matrix without parentheses.
+
+    Args:
+        matrix: A matrix containing numeric elements, possibly including complex numbers.
+        round: The number of decimal places to round the real and imaginary parts.
+        align: Whether to align the elements for a cleaner output.
+
+    Example:
+        >>> pprint([[1.234567895546, 2.3456789645645, 3.45678945645],
+        ...                     [1+5j, 0+1j, 5.],
+        ...                     [1.223123425+0.95113462364j, 2.0, 3.0]])
+        [[1.23457         , 2.34568, 3.45679],
+         [1+5j            , 1j     , 5      ],
+         [1.22312+0.95113j, 2      , 3      ]]
+
+    """
+    print(clean_matrix(matrix, round, align))
 
 
 def one_lined_repr(obj: object):
