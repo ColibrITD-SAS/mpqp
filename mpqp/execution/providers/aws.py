@@ -343,7 +343,9 @@ def estimate_cost_single_job(
     """
 
     if not isinstance(job.device, AWSDevice):
-        raise ValueError(f"This function was expecting a job with an AWSDevice but got a {type(job.device).__name__}.")
+        raise ValueError(
+            f"This function was expecting a job with an AWSDevice but got a {type(job.device).__name__}."
+        )
 
     if job.device.is_remote():
         if job.device.is_simulator():
@@ -356,7 +358,9 @@ def estimate_cost_single_job(
             return minute_cost * max(estimated_time_seconds / 60, 3 / 60)
         else:
             if job.measure is None:
-                raise DeviceJobIncompatibleError("An AWS remote job on a quantum computer requires to have a measure.")
+                raise DeviceJobIncompatibleError(
+                    "An AWS remote job on a quantum computer requires to have a measure."
+                )
 
             if "ionq" in job.device.value:
                 task_cost = 0.3
@@ -375,7 +379,9 @@ def estimate_cost_single_job(
                 shot_cost = 0.01
 
             else:
-                raise NotImplementedError(f"Cost estimation not implemented yet for {job.device.name} device.")
+                raise NotImplementedError(
+                    f"Cost estimation not implemented yet for {job.device.name} device."
+                )
 
             return (task_cost + job.measure.shots * shot_cost) * hybrid_iterations
 
