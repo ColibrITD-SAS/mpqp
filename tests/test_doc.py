@@ -35,6 +35,8 @@ from mpqp.tools.errors import (
 )
 from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import *
+from mpqp.execution.runner import generate_job
+from mpqp.execution.providers.aws import estimate_cost_single_job
 
 
 class SafeRunner:
