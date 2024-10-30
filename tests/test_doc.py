@@ -36,6 +36,8 @@ from mpqp.tools.maths import (
     rand_orthogonal_matrix,
     is_power_of_two,
 )
+from mpqp.execution.runner import generate_job
+from mpqp.execution.providers.aws import estimate_cost_single_job
 
 
 class SafeRunner:

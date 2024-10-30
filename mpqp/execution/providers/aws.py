@@ -2,13 +2,6 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-
-if TYPE_CHECKING:
-    from braket.circuits import Circuit
-    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
-
-from typeguard import typechecked
-
 from mpqp import Language, QCircuit
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
@@ -22,6 +15,11 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise.noise_model import NoiseModel
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
+from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from braket.circuits import Circuit
+    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
 
 @typechecked
@@ -324,9 +322,27 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
 def estimate_cost_single_job(
     job: Job, hybrid_iterations: int = 1, estimated_time: int = 3
 ) -> float:
+    """
+    Estimates the cost of executing a `Job` on a remote AWS Braket device.
 
-    if TYPE_CHECKING:
-        assert isinstance(job.device, AWSDevice)
+    Args:
+        job: Mpqp Job for which we want to estimate the cost
+        hybrid_iterations: Number of iteration in a case of a hybrid (quantum-classical) job.
+        estimated_time: Estimated runtime for simulator jobs (in seconds). The minimum duration billing is 3 seconds.
+
+    Returns:
+        The estimated price (in USD) for the execution of the job in parameter.
+
+    Example:
+        >>> circuit = QCircuit([H(0), CNOT(0, 1), CNOT(1, 2), BasisMeasure(shots=245)])
+        >>> job = generate_job(circuit, AWSDevice.BRAKET_IONQ_ARIA_1)
+        >>> estimate_cost_single_job(job, hybrid_iterations=150)
+        1147.5
+
+    """
+
+    if not isinstance(job.device, AWSDevice):
+        raise
 
     if job.device.is_remote():
         if job.device.is_simulator():
