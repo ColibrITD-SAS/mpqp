@@ -64,8 +64,9 @@ class BasisMeasure(Measure):
         super().__init__(targets, shots, label)
 
         if basis is None:
-            basis = ComputationalBasis(0)
+            basis = ComputationalBasis()
 
+        # TODO: this should be updated each time the size of the basis changes
         self.pre_measure = basis.to_computational()
 
         self.user_set_c_targets = c_targets is not None

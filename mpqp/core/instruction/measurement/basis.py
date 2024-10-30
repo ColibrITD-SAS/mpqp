@@ -125,8 +125,9 @@ class VariableSizeBasis(Basis, ABC):
 
     @abstractmethod
     def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__([], nb_qubits)
-        pass
+        super().__init__([], 0)
+        if nb_qubits is not None:
+            self.set_size(nb_qubits)
 
     @abstractmethod
     def set_size(self, nb_qubits: int):
@@ -178,8 +179,8 @@ class ComputationalBasis(VariableSizeBasis):
 
     """
 
-    def __init__(self, nb_qubits: int):
-        Basis.__init__(self, [], nb_qubits)
+    def __init__(self, nb_qubits: Optional[int] = None):
+        super().__init__(nb_qubits)
 
     def set_size(self, nb_qubits: int):
         self.basis_vectors = [
@@ -212,9 +213,7 @@ class HadamardBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        Basis.__init__(self, [], nb_qubits)
-        if nb_qubits is not None:
-            self.set_size(nb_qubits)
+        super().__init__(nb_qubits)
 
     def set_size(self, nb_qubits: int):
         H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)
