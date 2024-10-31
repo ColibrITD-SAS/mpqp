@@ -66,8 +66,9 @@ class QCircuit:
     models) will be called ``components`` hereafter.
 
     Args:
-        data: Number of qubits or list of ``components`` to initialize the circuit
-            with. If the number of qubits is passed, it should be a positive int.
+        data: Number of qubits or list of ``components`` to initialize the
+            circuit with. If the number of qubits is passed, it should be a
+            positive integer.
         nb_qubits: Optional number of qubits, in case you input the sequence of
             instruction and want to hardcode the number of qubits.
         nb_cbits: Number of classical bits. It should be positive.
@@ -345,6 +346,9 @@ class QCircuit:
         the parameter ``qubits_offset`` can be used to indicate at which qubit
         the ``other`` circuit must be added.
 
+        This method can be shorthanded with the ``+=`` operator (while ``+``
+        performs the same operation without the *inplace* factor.)
+
         Args:
             other: The circuit to append at the end of this circuit.
             qubits_offset: If the circuit in parameter is smaller, this
@@ -407,6 +411,8 @@ class QCircuit:
         correspond to the first circuit, while the bottom part correspond to the
         one in parameter.
 
+        This method can be shorthanded with the ``@`` operator.
+
         Args:
             other: QCircuit being the second operand of the tensor product with
                 this circuit.
@@ -416,10 +422,12 @@ class QCircuit:
             the one in parameter.
 
         Args:
-            other: QCircuit being the second operand of the tensor product with this circuit.
+            other: QCircuit being the second operand of the tensor product with
+                this circuit.
 
         Returns:
-            The QCircuit resulting from the tensor product of this circuit with the one in parameter.
+            The QCircuit resulting from the tensor product of this circuit with
+            the one in parameter.
 
         Example:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
@@ -677,11 +685,11 @@ class QCircuit:
             q_1: ┤ Ry(4.56) ├┤ H ├─■──────
                  └──────────┘└───┘
 
-        # TODO implement, test, fill second example
-        The inverse could be computed in several ways, depending on the
-        definition of the circuit. One can inverse each gate in the circuit, or
-        take the global unitary of the gate and inverse it.
         """
+        # TODO implement, test, fill second example
+        # The inverse could be computed in several ways, depending on the
+        # definition of the circuit. One can inverse each gate in the circuit, or
+        # take the global unitary of the gate and inverse it.
         dagger = QCircuit(self.nb_qubits)
         for instr in reversed(self.instructions):
             dagger.add(instr)
@@ -1141,9 +1149,9 @@ class QCircuit:
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> QCircuit:
-        r"""Substitute the parameters of the circuit with complex values.
-        Optionally also remove all symbolic variables such as `\pi` (needed for
-        example for circuit execution).
+        r"""Substitute the parameters of the circuit with values for each of the
+        specified parameters. Optionally also remove all symbolic variables such
+        as `\pi` (needed for example for circuit execution).
 
         Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
