@@ -67,7 +67,7 @@ def random_circuit(
 
     if nb_gates is None:
         nb_gates = rng.integers(5, 10)
-        
+
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
         qcircuit.add(random_instruction(gate_classes, nb_qubits, seed))
@@ -110,7 +110,6 @@ def random_instruction(
                 gate_classes.append(gate)
     elif any(not issubclass(gate, Gate) for gate in gate_classes):
         raise ValueError("gate_classes must be an instance of Gate")
-
 
     qubits = list(range(nb_qubits))
 
