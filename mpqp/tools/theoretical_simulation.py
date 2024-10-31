@@ -34,6 +34,7 @@ from mpqp import QCircuit
 from mpqp.execution import AWSDevice
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.measures import BasisMeasure
 from scipy.spatial.distance import jensenshannon
 
 
