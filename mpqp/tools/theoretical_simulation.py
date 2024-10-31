@@ -30,14 +30,11 @@ import numpy as np
 import numpy.typing as npt
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from scipy.spatial.distance import jensenshannon
-
 from mpqp import QCircuit
-from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.execution import AWSDevice
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
-from mpqp.noise import Depolarizing
+from scipy.spatial.distance import jensenshannon
 
 
 def theoretical_probs(
@@ -52,7 +49,7 @@ def theoretical_probs(
     Returns:
         The probabilities corresponding to each basis state.
     """
-    d: int = 2 ** (circ.nb_qubits)
+    d: int = 2**circ.nb_qubits
 
     state = np.zeros((d, d), dtype=np.complex64)
     state[0, 0] = 1
