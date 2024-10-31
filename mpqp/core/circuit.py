@@ -161,10 +161,12 @@ class QCircuit:
         return dumps(self) == dumps(value)
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
-        """Adds a ``component`` or a list of ``component`` at the end of the circuit.
+        """Adds a ``component`` or a list of ``component`` at the end of the
+        circuit.
 
         Args:
-            components : Instruction(s) or NoiseModel(s) to append to the circuit.
+            components : Instruction(s) or noise model(s) to append to the
+                circuit.
 
         Examples:
             >>> circuit = QCircuit(2)
@@ -180,7 +182,7 @@ class QCircuit:
             c: 2/═══════════╩══╩═
                             0  1
 
-            >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
+            >>> circuit.add(Depolarizing(0.3, dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
@@ -1210,9 +1212,8 @@ class QCircuit:
             f" Nb instructions = {len(self)}"
         )
 
-        qubits = set(range(self.size()[0]))
         for noise in self.noises:
-            print(noise.info(qubits))
+            print(noise.info())
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:
