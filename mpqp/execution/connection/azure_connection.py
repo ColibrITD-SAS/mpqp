@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 def config_azure_account():
     """
-    Configure azure account with resource_id and  Location.
+    Configure Azure account with resource_id and  Location.
 
     Returns:
         tuple: A message indicating the result of the configuration and an empty list.
@@ -121,6 +121,6 @@ def get_all_job_ids():
 
 
 def get_jobs_by_id(job_id: str):
-    """Retrieves azure job by id"""
+    """Retrieves an Azure job by its id"""
     workspace = get_azure_workspace()
     return workspace.get_job(job_id)

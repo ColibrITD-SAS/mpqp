@@ -364,5 +364,10 @@ class AZUREDevice(AvailableDevice):
     def is_simulator(self) -> bool:
         return self == AZUREDevice.IONQ_SIMULATOR
 
+    def is_noisy_simulator(self) -> bool:
+        raise NotImplementedError(
+            'Noisy simulations are not yet implemented for Azure.'
+        )
+
     def is_ionq(self):
         return self.name.startswith("IONQ")

@@ -7,7 +7,7 @@ from numpy.random import default_rng, randint
 def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--long", action="store_false", help="If set, long tests will run")
     parser.addoption(
-        "--long-cost",
+        "--long-costly",
         action="store_false",
         help="If set, long tests that cost credit will run",
     )
