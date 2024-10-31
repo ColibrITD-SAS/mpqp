@@ -87,6 +87,21 @@ class Basis:
         """See parameter description."""
 
     def binary_to_custom(self, state: str) -> str:
+        """Converts a binary string to a custom string representation.
+        By default, it uses "0" and "1" but can be customized based on the provided `symbols`.
+
+        Args:
+            state: The binary string (e.g., "01") to be converted.
+
+        Returns:
+            The custom string representation of the binary state.
+
+        Example:
+            >>> basis = Basis([np.array([1,0]), np.array([0,-1])], symbols=("+", "-"))
+            >>> custom_state = basis.binary_to_custom("01")
+            >>> custom_state
+            '+-'
+        """
         return ''.join(self.symbols[int(bit)] for bit in state)
 
     def pretty_print(self):
@@ -107,7 +122,24 @@ class Basis:
         return f"{type(self).__name__}({self.basis_vectors}, {self.nb_qubits})"
 
     def to_computational(self):
-        # TODO: test and document
+        """Converts the custom basis to the computational basis.
+
+        This method creates a quantum circuit with a custom gate represented by
+        a unitary transformation and applies it to all qubits before measurement.
+
+        Returns:
+            A quantum circuit representing the basis change circuit.
+
+        Example:
+            >>> basis = Basis([np.array([1, 0]), np.array([0, -1])])
+            >>> circuit = basis.to_computational()
+            >>> print(circuit)
+               ┌─────────┐
+            q: ┤ Unitary ├
+               └─────────┘
+
+        """
+
         from mpqp.core.circuit import QCircuit
 
         basis_change = np.array(self.basis_vectors).T.conjugate()
