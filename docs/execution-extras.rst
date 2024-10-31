@@ -11,6 +11,7 @@ for you are most likely:
 - Eviden's :func:`~mpqp.execution.connection.qlm_connection.get_all_job_ids`;
 - AWS's :func:`~mpqp.execution.connection.aws_connection.get_all_task_ids`;
 - IonQ's :func:`~mpqp.execution.connection.ionq_connection.get_ionq_job_ids`;
+- Azure's :func:`~mpqp.execution.connection.azure_connection.get_all_job_ids`;
 - The :ref:`con-setup` section.
 
 To setup your access to remote QPUs, see the :ref:`Remote setup` section.
