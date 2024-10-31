@@ -161,10 +161,12 @@ class QCircuit:
         return dumps(self) == dumps(value)
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
-        """Adds a ``component`` or a list of ``component`` at the end of the circuit.
+        """Adds a ``component`` or a list of ``component`` at the end of the
+        circuit.
 
         Args:
-            components : Instruction(s) or NoiseModel(s) to append to the circuit.
+            components : Instruction(s) or noise model(s) to append to the
+                circuit.
 
         Examples:
             >>> circuit = QCircuit(2)

@@ -1,3 +1,29 @@
+"""This module contains the tools to check if a result obtained by running the 
+circuit on one of our provider's device produce a result compatible with the
+theory. (Which could itself be useful to find problems either in our code or in
+our provider's code.)
+
+In order to do so, :func:`theoretical_probs` performs a theoretical simulation 
+of a :class:`~mpqp.core.circuit.QCircuit`. The noise models in the circuit will
+be taken into account (but not the shot noise).
+
+This theoretical simulation will be compared against the execution on a
+:class:`~mpqp.execution.devices.AvailableDevice` in :func:`exp_id_dist`. This
+comparison is performed using a distance between statistical distribution called
+the Jensen-Shannon distance.
+
+If the distance is small enough, :func:`validate_noisy_circuit` will return
+``True``, meaning that the empirical data is within the expected range. 
+
+The size of the trust interval is computed in :func:`trust_int` by computing the
+Jensen-Shannon distance between a non noisy circuit and a noisy one. The idea
+being that the more noise you have in a circuit, the bigger your trust interval
+needs to be (the uncertainty is bigger).
+
+The interval size is not linearly related with this distance so this needs to be
+passed in a re-normalizing function before being used. This is the role
+:func:`dist_alpha_matching` is playing."""
+
 from __future__ import annotations
 
 import numpy as np
@@ -85,7 +111,8 @@ def dist_alpha_matching(alpha: float):
 
 
 # TODO: this bound it coming out of my ass, see if these results already in
-# statistics. Some useful resources might be: jensen inequality, chernoff bound
+# statistics. Some useful resources might be: Jensen inequality, Chernoff bound,
+# ...
 
 
 def trust_int(circuit: QCircuit):
