@@ -24,17 +24,16 @@ The interval size is not linearly related with this distance so this needs to be
 passed in a re-normalizing function before being used. This is the role
 :func:`dist_alpha_matching` is playing."""
 
-from __future__ import annotations
-
 import numpy as np
 import numpy.typing as npt
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-from mpqp import QCircuit
-from mpqp.execution import AWSDevice
-from mpqp.execution.devices import AvailableDevice
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from scipy.spatial.distance import jensenshannon
+
+from mpqp import QCircuit
+from mpqp.execution import AvailableDevice, AWSDevice
+from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.measures import BasisMeasure
 
 
 def theoretical_probs(
