@@ -986,7 +986,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         `\theta = -\frac{\pi}{2^{k-1}}`."""
         from sympy import pi
 
-        #TODO study the relevance of having pi from sympy
+        # TODO study the relevance of having pi from sympy
         p = np.pi if isinstance(self.k, Integral) else pi
         return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
 
