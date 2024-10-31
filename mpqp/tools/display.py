@@ -75,7 +75,7 @@ def _unpack_expr(expr: Expr | Basic):
 
 def format_element(element: Union[int, float, complex | Expr], round: int = 5) -> str:
     """
-    Formats a numeric or symbolic element for cleaner representation. rounds the real and
+    Formats a numeric or symbolic element for cleaner representation. Rounds the real and
     imaginary parts of a number to a specified number of decimal places, formats whole
     numbers as integers, and properly handles symbolic expressions by simplifying them.
     It produces a string representation of the element, with 'j' notation for complex numbers
