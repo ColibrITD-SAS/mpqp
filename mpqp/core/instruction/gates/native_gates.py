@@ -929,7 +929,7 @@ class Rk(RotationGate, SingleQubitGate):
         return p / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
 
     @property
-    def k(self) -> Expr | float:
+    def k(self) -> Expr | int:
         """See corresponding argument."""
         return self.parameters[0]
 
@@ -941,7 +941,7 @@ class Rk(RotationGate, SingleQubitGate):
         return f"{type(self).__name__}({self.k}, {self.targets[0]})"
 
     def inverse(self) -> Gate:
-        return Rk_dagger(self.parameters[0], self.targets[0])
+        return Rk_dagger(self.k, self.targets[0])
 
 
 class Rk_dagger(RotationGate, SingleQubitGate):
@@ -1212,7 +1212,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
 
     @property
-    def k(self) -> Expr | float:
+    def k(self) -> Expr | int:
         """See corresponding argument."""
         return self.parameters[0]
 
@@ -1228,7 +1228,7 @@ class CRk_dagger(RotationGate, ControlledGate):
     )
 
     def inverse(self) -> Gate:
-        return CRk(self.parameters[0], self.controls[0], self.targets[0])
+        return CRk(self.k, self.controls[0], self.targets[0])
 
 
 class TOF(InvolutionGate, ControlledGate, NoParameterGate):

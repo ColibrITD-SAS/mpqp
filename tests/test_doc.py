@@ -36,6 +36,7 @@ from mpqp.tools.maths import (
     rand_orthogonal_matrix,
     is_power_of_two,
 )
+from mpqp.tools.circuit import random_instruction
 
 
 class SafeRunner:

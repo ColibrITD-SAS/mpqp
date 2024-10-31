@@ -522,3 +522,5 @@ def test_inverse_random():
                     expected_inst.to_matrix().transpose().conjugate(),
                     inverse_inst.to_matrix(),
                 ), f"Expected {repr(expected_inst)}, but got {repr(inverse_inst)}"
+            else:
+                assert expected_inst == inverse_inst
