@@ -47,7 +47,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import NoiseModel, DimensionalNoiseModel
+from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -161,10 +161,12 @@ class QCircuit:
         return dumps(self) == dumps(value)
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
-        """Adds a ``component`` or a list of ``component`` at the end of the circuit.
+        """Adds a ``component`` or a list of ``component`` at the end of the
+        circuit.
 
         Args:
-            components : Instruction(s) or NoiseModel(s) to append to the circuit.
+            components : Instruction(s) or noise model(s) to append to the
+                circuit.
 
         Examples:
             >>> circuit = QCircuit(2)
@@ -180,7 +182,7 @@ class QCircuit:
             c: 2/═══════════╩══╩═
                             0  1
 
-            >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
+            >>> circuit.add(Depolarizing(0.3, dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
@@ -1219,9 +1221,8 @@ class QCircuit:
             f" Nb instructions = {len(self)}"
         )
 
-        qubits = set(range(self.size()[0]))
         for noise in self.noises:
-            print(noise.info(qubits))
+            print(noise.info())
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:

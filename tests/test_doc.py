@@ -2,15 +2,15 @@
 import importlib
 import os
 import sys
-from doctest import DocTestFinder, DocTestRunner, Example
+import warnings
+from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
+from functools import partial
 from types import TracebackType
-from typing import Optional, Type
+from typing import Any, Optional, Type
 
-import numpy as np
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
-
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from numpy.random import default_rng
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -25,23 +25,25 @@ from mpqp.execution.connection.env_manager import (
     load_env_variables,
     save_env_variable,
 )
+from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
+from mpqp.tools.circuit import random_circuit, random_instruction
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
-from mpqp.tools.generics import find, find_index, flatten
-from mpqp.tools.maths import (
-    is_hermitian,
-    is_unitary,
-    normalize,
-    rand_orthogonal_matrix,
-    is_power_of_two,
+from mpqp.tools.errors import (
+    OpenQASMTranslationWarning,
+    UnsupportedBraketFeaturesWarning,
 )
-from mpqp.tools.circuit import random_instruction
+from mpqp.tools.generics import find, find_index, flatten
+from mpqp.tools.maths import *
+from mpqp.execution.runner import generate_job
+from mpqp.execution.providers.aws import estimate_cost_single_job
 
 
 class SafeRunner:
     def __enter__(self):
-        if not os.path.exists(MPQP_CONFIG_PATH):  # Ensure the config file exists
+        # Ensure the config file exists
+        if not os.path.exists(MPQP_CONFIG_PATH):
             open(MPQP_CONFIG_PATH, "a").close()
         env = get_existing_config_str()
 
@@ -78,44 +80,55 @@ class SafeRunner:
         load_env_variables()
 
 
-def test_documentation():
-    print(os.getcwd())
+test_globals = globals().copy()
+test_globals.update(locals())
 
-    test_globals = globals().copy()
-    test_globals.update(locals())
+to_pass = ["connection", "noise_methods", "remote_handle"]
+unsafe_files = ["env"]
 
-    pass_file = ["connection", "noise_methods", "remote_handle"]
-    saf_file = ["env"]
+finder = DocTestFinder()
+runner = DocTestRunner()
 
-    finder = DocTestFinder()
-    runner = DocTestRunner()
 
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        folder_path = "mpqp"
-        for root, _, files in os.walk(folder_path):
-            for filename in files:
-                if any(str in filename for str in pass_file):
-                    continue
-                elif filename.endswith(".py"):
-                    print(
-                        f"Running doctests in {os.path.join(os.getcwd(),root,filename)}"
-                    )
-                    my_module = importlib.import_module(
-                        os.path.join(root, filename)
-                        .replace(".py", "")
-                        .replace("\\", ".")
-                        .replace("/", ".")
-                    )
-                    saf = any(str in filename for str in saf_file)
-                    for test in finder.find(my_module, "mpqp", globs=test_globals):
-                        if (
-                            test.docstring
-                            and "3M-TODO" not in test.docstring
-                            and "6M-TODO" not in test.docstring
-                        ):
-                            if saf:
-                                with SafeRunner():
-                                    if "PYTEST_CURRENT_TEST" not in os.environ:
-                                        assert runner.run(test).failed == 0
-                            else:
-                                assert runner.run(test).failed == 0
+def stable_random(*args: Any, **kwargs: Any):
+    user_seed = args[0] if len(args) != 0 else None
+    return default_rng(user_seed or 351)
+
+
+def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr('numpy.random.default_rng', stable_random)
+    warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
+    warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
+    assert True
+    my_module = importlib.import_module(
+        os.path.join(root, filename)
+        .replace(".py", "")
+        .replace("\\", ".")
+        .replace("/", ".")
+    )
+    safe_needed = any(str in filename for str in unsafe_files)
+    for test in finder.find(my_module, "mpqp", globs=test_globals):
+        if (
+            test.docstring
+            and "3M-TODO" not in test.docstring
+            and "6M-TODO" not in test.docstring
+        ):
+            if safe_needed:
+                with SafeRunner():
+                    if "PYTEST_CURRENT_TEST" not in os.environ:
+                        assert runner.run(test).failed == 0
+            else:
+                assert runner.run(test).failed == 0
+
+
+folder_path = "mpqp"
+for root, _, files in os.walk(folder_path):
+    for filename in files:
+        if all(str not in filename for str in to_pass) and filename.endswith(".py"):
+            t_function_name = "test_doc_" + "mpqp".join(
+                (root + "_" + filename).split("mpqp")
+            ).replace("\\", "_").replace("/", "_").replace(".py", "")
+            print(root + "\\" + filename)
+            locals()[t_function_name] = partial(
+                run_doctest, root=root, filename=filename
+            )
