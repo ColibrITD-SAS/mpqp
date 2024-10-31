@@ -7,6 +7,8 @@ import numpy as np
 import numpy.typing as npt
 from typing import TYPE_CHECKING
 
+from sympy import Basic
+
 if TYPE_CHECKING:
     from sympy import Expr
 
@@ -66,6 +68,10 @@ def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
         return int(val)
     return val
 
+def _unpack_expr(expr: Expr | Basic):
+    if str(expr).startswith("Expr"):
+        return _unpack_expr(expr.args[0])
+    return expr
 
 def format_element(element: Union[int, float, complex | Expr], round: int = 5) -> str:
     """
@@ -91,14 +97,14 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
         '3'
         >>> from sympy import symbols, Expr
         >>> x = symbols('x')
-        >>> format_element(x + x)
+        >>> format_element(Expr(x + x))
         '2*x'
 
     """
     from sympy import Expr
 
     if isinstance(element, Expr):
-        return str(element.simplify())
+        return str(_unpack_expr(element.simplify()))
 
     real_part = np.round(np.real(element), round)
     imag_part = np.round(np.imag(element), round)
