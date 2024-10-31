@@ -68,10 +68,12 @@ def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
         return int(val)
     return val
 
+
 def _unpack_expr(expr: Expr | Basic):
     if str(expr).startswith("Expr"):
         return _unpack_expr(expr.args[0])
     return expr
+
 
 def format_element(element: Union[int, float, complex | Expr], round: int = 5) -> str:
     """
