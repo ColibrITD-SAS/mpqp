@@ -8,11 +8,9 @@ from qiskit.circuit import CircuitInstruction
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate, Gate
 from mpqp.core.instruction.gates.native_gates import (
-    ControlledGate,
     NATIVE_GATES,
     TOF,
     CRk,
-    NativeGate,
     P,
     Rk,
     RotationGate,
