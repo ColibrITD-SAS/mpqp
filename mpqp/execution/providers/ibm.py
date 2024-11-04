@@ -143,7 +143,7 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
 
         estimator = Runtime_Estimator(mode=backend, options=options)
 
-        # TODO: understand why the fake model/device always use the |000> state and not the circuit to compute
+        # FIXME: understand why the fake model/device always use the |000> state and not the circuit to compute
         #  expectation value
     elif len(job.circuit.noises) != 0:
         # TODO: use the generate noise model class
