@@ -49,11 +49,11 @@ def _plural_marker(items: Sequence[T]):
 @typechecked
 class NoiseModel(ABC):
     """Abstract class used to represent a generic noise model, specifying
-    criteria for applying different noise type to a quantum circuit, or some of
+    criteria for applying different noise types to a quantum circuit or some of
     its qubits.
 
-    It allows to specify which qubits (targets) and which gates of the circuit
-    will be affected with this noise model. If you don't specify a target, the
+    This class allows one to specify which qubits (targets) and which gates of the circuit
+    will be affected by this noise model. If you do not specify a target, the
     operation will apply to all qubits.
 
     Args:
@@ -62,7 +62,7 @@ class NoiseModel(ABC):
             affected by this noise.
 
     Raises:
-        ValueError: When target list is empty, or target indices are duplicated
+        ValueError: When the target list is empty, or the target indices are duplicated
         or negative. When the size of the gate is higher than the number of target qubits.
     """
 
@@ -109,8 +109,8 @@ class NoiseModel(ABC):
         (affected by the noise).
 
         Returns:
-            Set of qubit indices on which this NoiseModel is connected (applied
-            on).
+            The set of qubit indices to which this NoiseModel is connected (applied
+            to).
         """
         return set(self.targets)
 
@@ -255,7 +255,7 @@ class DimensionalNoiseModel(NoiseModel, ABC):
 class Depolarizing(DimensionalNoiseModel):
     """Class representing the depolarizing noise channel, which maps a state
     onto a linear combination of itself and the maximally mixed state. It can
-    applied to a single or multiple qubits, and depends on a single parameter
+    be applied to a single or multiple qubits, and depends on a single parameter
     (probability or error rate).
 
     When the number of qubits in the target is higher than the dimension, the
@@ -272,7 +272,7 @@ class Depolarizing(DimensionalNoiseModel):
     Raises:
         ValueError: When a wrong dimension (negative) or probability (outside of
             the expected interval) is input.
-        ValueError: When the size of the specified gates is not coherent with
+        ValueError: When the size of the specified gates is not consistent with
             the number of targets or the dimension.
 
     Examples:
@@ -308,7 +308,7 @@ class Depolarizing(DimensionalNoiseModel):
     ):
         super().__init__(targets, dimension, gates)
         self.prob = prob
-        """Probability, or error rate, of the depolarizing noise model."""
+        """Probability or error rate of the depolarizing noise model."""
 
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
@@ -335,7 +335,7 @@ class Depolarizing(DimensionalNoiseModel):
     def to_other_language(
         self, language: Language = Language.QISKIT
     ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError:
-        """See documentation of this method in abstract mother class :class:`NoiseModel`.
+        """See the documentation for this method in the abstract mother class :class:`NoiseModel`.
 
         Args:
             language: Enum representing the target language.
