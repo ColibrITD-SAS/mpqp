@@ -483,11 +483,11 @@ def test_to_matrix_random():
             QCircuit([S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1)]),
             QCircuit(
                 [
-                    CRk(2, 1, 2),
-                    S(0),
-                    Barrier(),
                     Ry(4.56, 1),
                     H(1),
+                    Barrier(),
+                    CRk(2, 1, 2),
+                    S(0),
                 ]
             ),
         ),

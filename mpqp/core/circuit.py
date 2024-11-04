@@ -52,7 +52,7 @@ from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-from mpqp.tools.errors import NumberQubitsError
+from mpqp.tools.errors import NumberQubitsError, UninvertibleWarning
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -673,27 +673,28 @@ class QCircuit:
             c: 2/═══════════════════════╩══════════════╩═
                                         0              1
             >>> print(c2.inverse())  # doctest: +NORMALIZE_WHITESPACE
-                           ┌────┐ ░              ┌─┐
-            q_0: ─■────────┤ S† ├─░──────────────┤M├────────
-                  │P(-π/2) └────┘ ░ ┌───────────┐└╥┘┌───┐┌─┐
-            q_1: ─■───────────────░─┤ Ry(-4.56) ├─╫─┤ H ├┤M├
-                                  ░ └───────────┘ ║ └───┘└╥┘
-            c: 2/═════════════════════════════════╩═══════╩═
-                                                  0       1
+                                    ░           ┌────┐┌─┐
+            q_0: ───────────────────░──■────────┤ S† ├┤M├
+                 ┌───────────┐┌───┐ ░  │P(-π/2) └┬─┬─┘└╥┘
+            q_1: ┤ Ry(-4.56) ├┤ H ├─░──■─────────┤M├───╫─
+                 └───────────┘└───┘ ░            └╥┘   ║
+            c: 2/═════════════════════════════════╩════╩═
+                                                  1    0
 
         """
         dagger = deepcopy(self)
         dagger.instructions = []
-        gate_list = []
         for instr in self.instructions:
             if isinstance(instr, Gate):
-                gate_list.append(instr.inverse())
+                dagger.instructions.insert(0, instr.inverse())
+            elif isinstance(instr, Barrier):
+                dagger.instructions.insert(0, instr)
             else:
-                if len(gate_list) != 0:
-                    dagger.add(gate_list[::-1])
-                    gate_list = []
-                dagger.add(instr)
-        dagger.add(gate_list[::-1])
+                warn(
+                    f"{type(instr).__name__} is not invertible and has been added at the end of the circuit.",
+                    UninvertibleWarning,
+                )
+                dagger.instructions.append(instr)
         return dagger
 
     def to_gate(self) -> Gate:

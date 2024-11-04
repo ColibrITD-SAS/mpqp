@@ -978,7 +978,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         definition = UnitaryMatrix(
             self.to_canonical_matrix(), **self.native_gate_options
         )
-        ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk")
+        ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk†")
 
     @property
     def theta(self) -> Expr | float:
@@ -1197,11 +1197,11 @@ class CRk_dagger(RotationGate, ControlledGate):
 
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
-        ControlledGate.__init__(self, [control], [target], Rk_dagger(k, target), "CRk")
+        ControlledGate.__init__(self, [control], [target], Rk_dagger(k, target), "CRk†")
         definition = UnitaryMatrix(
             self.to_canonical_matrix(), **self.native_gate_options
         )
-        ParametrizedGate.__init__(self, definition, [target], [k], "CRk")
+        ParametrizedGate.__init__(self, definition, [target], [k], "CRk†")
 
     @property
     def theta(self) -> Expr | float:

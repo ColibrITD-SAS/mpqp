@@ -1,6 +1,8 @@
+from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from numpy.random import Generator
 from qiskit import QuantumCircuit, transpile
 from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
@@ -67,17 +69,17 @@ def random_circuit(
 
     if nb_gates is None:
         nb_gates = rng.integers(5, 10)
-        
+
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
-        qcircuit.add(random_instruction(gate_classes, nb_qubits, seed))
+        qcircuit.add(random_instruction(gate_classes, nb_qubits, rng))
     return qcircuit
 
 
 def random_instruction(
-    gate_classes: Optional[list[type]] = None,
+    gate_classes: Optional[list[type[Gate]]] = None,
     nb_qubits: int = 5,
-    seed: Optional[int] = None,
+    seed: Optional[int | Generator] = None,
 ) -> Gate:
     """This function creates a instruction with a specified number of qubits.
     The gates are chosen randomly from the provided list of native gate classes.
@@ -108,9 +110,6 @@ def random_instruction(
                 assert isinstance(gate.nb_qubits, int)
             if gate.nb_qubits <= nb_qubits:
                 gate_classes.append(gate)
-    elif any(not issubclass(gate, Gate) for gate in gate_classes):
-        raise ValueError("gate_classes must be an instance of Gate")
-
 
     qubits = list(range(nb_qubits))
 
