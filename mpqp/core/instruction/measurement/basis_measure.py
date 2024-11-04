@@ -96,17 +96,18 @@ class BasisMeasure(Measure):
         )
         options = ""
         if self.shots != 1024:
-            options += f", shots={self.shots}" if targets else f"shots={self.shots}"
+            options += f"shots={self.shots}"
         if not isinstance(self.basis, ComputationalBasis):
             options += (
                 f", basis={self.basis}"
-                if targets and options
-                else f", basis={self.basis}"
+                if len(options) != 0 or len(targets) != 0
+                else f"basis={self.basis}"
             )
         if self.label is not None:
             options += (
                 f", label={self.label}"
-                if targets and options
-                else f", label={self.label}"
+                if len(options) != 0 or len(targets) != 0
+                else f"label={self.label}"
             )
-        return f"BasisMeasure({targets}{options})"
+        separator = ", " if len(options) != 0 and len(targets) != 0 else ""
+        return f"BasisMeasure({targets}{separator}{options})"
