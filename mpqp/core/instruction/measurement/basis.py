@@ -130,9 +130,9 @@ class ComputationalBasis(VariableSizeBasis):
     canonical basis.
 
     Args:
-        nb_qubits: number of qubits of the space, if not given as input (for
-            example if unknown at the moment of creation) ``set_size`` will have
-            to be executed before the basis is used (in a measure for example).
+        nb_qubits: number of qubits to measure, if not specified, the size will
+            be dynamic and automatically span across the whole circuit, even
+            through dimension change of the circuit.
 
     Examples:
         >>> ComputationalBasis(3).pretty_print()
@@ -176,7 +176,9 @@ class HadamardBasis(VariableSizeBasis):
     """Basis representing the Hadamard basis, also called X-basis or +/- basis.
 
     Args:
-        nb_qubits: number of qubits in the basis
+        nb_qubits: number of qubits to measure, if not specified, the size will
+            be dynamic and automatically span across the whole circuit, even
+            through dimension change of the circuit.
 
     Example:
         >>> HadamardBasis(2).pretty_print()
