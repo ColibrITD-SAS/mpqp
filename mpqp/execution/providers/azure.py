@@ -153,11 +153,6 @@ def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
             bin_str="".join(map(str, state)),
             nb_qubits=job.circuit.nb_qubits,
             count=int(count),
-            probability=(
-                job_data.get("probabilities").get(state)
-                if "probabilities" in job_data
-                else None
-            ),
         )
         for (state, count) in job_data.get("counts").items()
     ]
