@@ -1,9 +1,8 @@
 """An :class:`AvailableDevice` is a device on which one can run or submit a 
-circuit. While it is an abstract class, all it's concrete implementations are
+circuit. While it is an abstract class, all its concrete implementations are
 enums with a few methods, required by :class:`AvailableDevice`.
 
-Each supported provider has its available devices listed as these enums, which
-you can find bellow:
+Each supported provider has its available devices listed as these enums:
 
 - :class:`IBMDevice`,
 - :class:`ATOSDevice`,
@@ -27,7 +26,7 @@ from mpqp.execution.connection.env_manager import get_env_variable
 
 
 class AvailableDevice(Enum):
-    """Class used to define a generic device (quantum computer, or simulator)."""
+    """Class used to define a generic device (quantum computer or simulator)."""
 
     @abstractmethod
     def is_remote(self) -> bool:
@@ -40,7 +39,7 @@ class AvailableDevice(Enum):
 
     @abstractmethod
     def is_gate_based(self) -> bool:
-        """Indicates whether a device is gate based or not.
+        """Indicates whether a device is gate-based or not.
 
         Returns:
             ``True`` if this device is a gate-based simulator/QPU."""
@@ -75,8 +74,8 @@ class IBMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by IBM Quantum.
 
     Warning:
-        Since previous version, many devices were disabled by IBM. This may
-        affect your code. We are currently investigating the issue to check if a
+        Since previous versions, many devices have been disabled by IBM. This may
+        affect your code. We are currently investigating this issue to check if a
         workaround is possible for some of them (like replacing a simulator by
         an equivalent one for instance).
     """
@@ -227,7 +226,7 @@ class AWSDevice(AvailableDevice):
         ]
 
     def get_arn(self) -> str:
-        """Retrieve the AwsDevice arn from this AWSDevice element.
+        """Retrieve the AWSDevice arn from this AWSDevice element.
 
         Returns:
             The arn of the device.
@@ -247,7 +246,7 @@ class AWSDevice(AvailableDevice):
         return "arn:aws:braket:" + region + "::device/" + self.value
 
     def get_region(self) -> str:
-        """Retrieve the Aws region from this AWSDevice element.
+        """Retrieve the AWS region from this AWSDevice element.
 
         Returns:
             The region of the device.
@@ -265,7 +264,7 @@ class AWSDevice(AvailableDevice):
             raise ValueError("No arn for a local simulator")
         elif self == AWSDevice.BRAKET_RIGETTI_ANKAA_2:
             return "us-west-1"
-        elif self == AWSDevice.BRAKET_IQM_GARNET:
+        elif self == AWSDevice.BRAKET_IQM_GARNET:A
             return "eu-north-1"
         elif self in [
             AWSDevice.BRAKET_IONQ_ARIA_1,
@@ -282,7 +281,7 @@ class AWSDevice(AvailableDevice):
         """Returns the right AWSDevice from the arn given in parameter.
 
         Args:
-            arn: The AWS arn identifying the AwsDevice.
+            arn: The AWS arn identifying the AWSDevice.
 
         Examples:
             >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1')
