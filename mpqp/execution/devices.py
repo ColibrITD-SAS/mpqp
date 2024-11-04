@@ -68,7 +68,7 @@ class AvailableDevice(Enum):
 
         Returns:
             ``True`` if this device only handles a restricted set of gates."""
-        return True
+        return False
 
 
 class IBMDevice(AvailableDevice):
@@ -328,3 +328,46 @@ class GOOGLEDevice(AvailableDevice):
             True if the device is a processor, False otherwise.
         """
         return self.name.startswith("PROCESSOR")
+
+    def has_reduced_gate_set(self) -> bool:
+        return self in {
+            GOOGLEDevice.PROCESSOR_RAINBOW,
+            GOOGLEDevice.PROCESSOR_WEBER,
+            GOOGLEDevice.IONQ_SIMULATOR,
+            GOOGLEDevice.IONQ_QPU,
+        }
+
+
+class AZUREDevice(AvailableDevice):
+    """Enum regrouping all available devices provided by AZURE."""
+
+    IONQ_SIMULATOR = "ionq.simulator"
+    IONQ_QPU = "ionq.qpu"
+    IONQ_QPU_ARIA_1 = "ionq.qpu.aria-1"
+    IONQ_QPU_ARIA_2 = "ionq.qpu.aria-2"
+
+    QUANTUM_SIM_H1_1 = "quantinuum.qpu.h1-1"
+    QUANTUM_SIM_H1_1SC = "quantinuum.sim.h1-1sc"
+    QUANTUM_SIM_H1_1E = "quantinuum.sim.h1-1e"
+
+    RIGETTI_SIM_QVM = "rigetti.sim.qvm"
+    RIGETTI_SIM_QPU_ANKAA_2 = "rigetti.qpu.ankaa-2"
+
+    MICROSOFT_ESTIMATOR = "microsoft.estimator"
+
+    def is_remote(self):
+        return True
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return self == AZUREDevice.IONQ_SIMULATOR
+
+    def is_noisy_simulator(self) -> bool:
+        raise NotImplementedError(
+            'Noisy simulations are not yet implemented for Azure.'
+        )
+
+    def is_ionq(self):
+        return self.name.startswith("IONQ")
