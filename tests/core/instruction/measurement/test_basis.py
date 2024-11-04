@@ -13,6 +13,7 @@ from mpqp.measures import (
     HadamardBasis,
     VariableSizeBasis,
 )
+from mpqp.tools.maths import matrix_eq
 
 
 @pytest.mark.parametrize(
@@ -110,19 +111,32 @@ def test_basis_implementations(
     assert captured.out == result_pp
 
 
-def test_run_with_custom_basis():
-    expected_probabilities = {'0': 0.5, '5': 0.5}
-
-    basis_vectors = [np.eye(8)[i] for i in range(8)]
-    custom_basis = Basis(basis_vectors)
-
-    circuit = QCircuit([H(0), CNOT(0, 1), SWAP(1, 2), Z(2)])
-    circuit.add(BasisMeasure([0, 1, 2], basis=custom_basis, shots=1024))
-
+@pytest.mark.parametrize(
+    "circuit, expected_probabilities",
+    [
+        (
+            QCircuit(
+                [
+                    H(0),
+                    CNOT(0, 1),
+                    SWAP(1, 2),
+                    Z(2),
+                    BasisMeasure(
+                        [0, 1, 2],
+                        basis=Basis([np.eye(8)[i] for i in range(8)]),
+                        shots=10000,
+                    ),
+                ]
+            ),
+            np.array([0.5, 0, 0, 0, 0, 0.5, 0, 0]),
+        )
+    ],
+)
+def test_run_with_custom_basis(
+    circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex64]
+):
     res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
-    actual_probabilities = {sample.index: sample.probability for sample in res.samples}
 
-    assert all(
-        abs((actual_probabilities.get(int(index)) or 0) - expected_prob) < 0.02
-        for index, expected_prob in expected_probabilities.items()
+    assert matrix_eq(
+        expected_probabilities, res.probabilities.astype(np.complex64), atol=1e-2
     )
