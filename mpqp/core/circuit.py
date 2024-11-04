@@ -131,7 +131,6 @@ class QCircuit:
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._nb_qubits: int
-        """Number of qubits of the circuit."""
 
         self.gphase: float = 0
         """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
@@ -325,6 +324,7 @@ class QCircuit:
 
     @property
     def nb_qubits(self) -> int:
+        """Number of qubits of the circuit."""
         return self._nb_qubits
 
     @nb_qubits.setter
@@ -1250,7 +1250,7 @@ class QCircuit:
             return f'QCircuit([{instructions_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
 
     def variables(self) -> set[Basic]:
-        """Returns all the parameters involved in this circuit.
+        """Returns all the symbolic parameters involved in this circuit.
 
         Returns:
             All the parameters of the circuit.

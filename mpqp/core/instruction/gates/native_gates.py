@@ -127,6 +127,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     @classproperty
     @abstractmethod
     def qiskit_gate(cls) -> type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]:
+        """Returns the corresponding ``qiskit`` class for this gate."""
         pass
 
     @classproperty
@@ -134,6 +135,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     def braket_gate(
         cls,
     ) -> type[gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift]:
+        """Returns the corresponding ``braket`` class for this gate."""
         pass
 
     def __init__(self, theta: Expr | float, target: int):
@@ -224,6 +226,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | CCXGate
         | IGate
     ]:
+        """Returns the corresponding ``qiskit`` class for this gate."""
         pass
 
     @classproperty
@@ -243,6 +246,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | gates.CCNot
         | gates.I
     ]:
+        """Returns the corresponding ``braket`` class for this gate."""
         pass
 
     """Corresponding ``qiskit``'s gate class."""

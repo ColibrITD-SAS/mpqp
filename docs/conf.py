@@ -49,6 +49,7 @@ autodoc_type_aliases = {
     "AvailableDevice": "AvailableDevice",
     "Gate": "Gate",
     "Measure": "Measure",
+    "Breakpoint": "Breakpoint",
 }
 autodoc_mock_imports = ["braket.circuits.measure"]
 simplify_optional_unions = True

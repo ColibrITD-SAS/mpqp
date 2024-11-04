@@ -133,6 +133,7 @@ def is_unitary(matrix: Matrix) -> bool:
     return matrix_eq(
         np.eye(len(matrix), dtype=np.complex64),
         matrix.transpose().conjugate().dot(matrix),
+        atol=1e-5,
     )
 
 
