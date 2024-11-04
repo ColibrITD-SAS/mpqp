@@ -113,7 +113,7 @@ window.onload = () => {
 };
 
 function getEndOfClassHeader(elt) {
-  admonition = elt.querySelectorAll(".admonition");
+  admonition = elt.querySelectorAll(":scope>dd>.admonition");
   if (admonition.length != 0) return admonition[admonition.length - 1];
   field_list = elt.querySelector(".class>dd>.field-list");
   if (field_list !== null) return elt.querySelector(".class>dd>.field-list");
