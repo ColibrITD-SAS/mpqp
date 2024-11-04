@@ -239,7 +239,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
             instruction_str = self.qasm2_gate
             if isinstance(self, (Rk, CRk)):
-                instruction_str += f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.parameters[0])))})"
+                instruction_str += (
+                    f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.k)))})"
+                )
             else:
                 instruction_str += (
                     "("
