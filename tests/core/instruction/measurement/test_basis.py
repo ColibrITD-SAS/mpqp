@@ -111,29 +111,18 @@ def test_basis_implementations(
 
 
 def test_run_with_custom_basis():
-    theoretical_results = {'0': 0.5, '5': 0.5}
+    expected_probabilities = {'0': 0.5, '5': 0.5}
 
-    v0 = np.array([1, 0, 0, 0, 0, 0, 0, 0])
-    v1 = np.array([0, 1, 0, 0, 0, 0, 0, 0])
-    v2 = np.array([0, 0, 1, 0, 0, 0, 0, 0])
-    v3 = np.array([0, 0, 0, 1, 0, 0, 0, 0])
-    v4 = np.array([0, 0, 0, 0, 1, 0, 0, 0])
-    v5 = np.array([0, 0, 0, 0, 0, 1, 0, 0])
-    v6 = np.array([0, 0, 0, 0, 0, 0, 1, 0])
-    v7 = np.array([0, 0, 0, 0, 0, 0, 0, 1])
+    basis_vectors = [np.eye(8)[i] for i in range(8)]
+    custom_basis = Basis(basis_vectors)
 
-    custom_basis = Basis([v0, v1, v2, v3, v4, v5, v6, v7])
     circuit = QCircuit([H(0), CNOT(0, 1), SWAP(1, 2), Z(2)])
     circuit.add(BasisMeasure([0, 1, 2], basis=custom_basis, shots=1024))
 
     res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
+    actual_probabilities = {sample.index: sample.probability for sample in res.samples}
 
-    actual_probabilities = {}
-    for sample in res.samples:
-        index = sample.index
-        probability = sample.probability
-        actual_probabilities[index] = probability
-
-    for index, theoretical_prob in theoretical_results.items():
-        actual_prob = actual_probabilities.get(int(index), 0)
-        assert np.isclose(actual_prob, theoretical_prob, atol=0.02)
+    assert all(
+        abs((actual_probabilities.get(int(index)) or 0) - expected_prob) < 0.02
+        for index, expected_prob in expected_probabilities.items()
+    )
