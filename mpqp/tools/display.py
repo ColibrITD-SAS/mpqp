@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import re
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt
-from typing import TYPE_CHECKING
-
 from sympy import Basic
 
 if TYPE_CHECKING:
@@ -220,13 +218,15 @@ def clean_number_repr(number: complex, round: int = 7):
     return f"{str(real_part)}{str(imag_part)}"
 
 
-def clean_matrix(matrix: Matrix):
+def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     """Cleans and formats elements of a 2D matrix. This function rounds the
     parts of the numbers in the matrix and formats them as integers if
     appropriate. It returns a string representation of the cleaned matrix.
 
     Args:
         matrix: An 2d array containing numeric elements.
+        round: The number of decimal places to round the real and imaginary parts.
+        align: Whether to align the elements for a cleaner output.
 
     Returns:
         A string representation of the cleaned matrix.
