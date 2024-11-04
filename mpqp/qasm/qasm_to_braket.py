@@ -108,6 +108,7 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
                 "\n" + braket_warning_message, UnsupportedBraketFeaturesWarning
             )
         else:
-            braket_logger.warning(message)
+            if message != "":
+                braket_logger.warning(message)
 
     return circuit

@@ -92,7 +92,7 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
             ),
             """Result: None, IBMDevice, AER_SIMULATOR
  Counts: [135, 226, 8, 231]
- Probabilities: [0.225, 0.3766667, 0.0133333, 0.385]
+ Probabilities: [0.225, 0.37667, 0.01333, 0.385]
  Samples:
   State: 00, Index: 0, Count: 135, Probability: 0.225
   State: 01, Index: 1, Count: 226, Probability: 0.3766667
