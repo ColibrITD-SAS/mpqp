@@ -154,7 +154,15 @@ class Basis:
 
 @typechecked
 class VariableSizeBasis(Basis, ABC):
-    """3M-TODO"""
+    """A variable-size basis with a dynamically adjustable size to different qubit numbers
+    during circuit execution.
+
+    Args:
+        nb_qubits: number of qubits in the basis. If not provided,
+            the basis can be dynamically sized later using the `set_size` method.
+
+        symbols: custom symbols for representing basis states, defaults to ("0", "1").
+    """
 
     @abstractmethod
     def __init__(

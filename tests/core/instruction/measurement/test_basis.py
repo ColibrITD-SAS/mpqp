@@ -1,10 +1,14 @@
-import pytest
-
 import numpy as np
 import numpy.typing as npt
+import pytest
 
+from mpqp import QCircuit
+from mpqp.execution import IBMDevice
+from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.gates import *
 from mpqp.measures import (
     Basis,
+    BasisMeasure,
     ComputationalBasis,
     HadamardBasis,
     VariableSizeBasis,
@@ -104,3 +108,21 @@ def test_basis_implementations(
     b.pretty_print()
     captured = capsys.readouterr()
     assert captured.out == result_pp
+
+
+def test_run_with_custom_basis():
+    expected_probabilities = {'0': 0.5, '5': 0.5}
+
+    basis_vectors = [np.eye(8)[i] for i in range(8)]
+    custom_basis = Basis(basis_vectors)
+
+    circuit = QCircuit([H(0), CNOT(0, 1), SWAP(1, 2), Z(2)])
+    circuit.add(BasisMeasure([0, 1, 2], basis=custom_basis, shots=1024))
+
+    res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
+    actual_probabilities = {sample.index: sample.probability for sample in res.samples}
+
+    assert all(
+        abs((actual_probabilities.get(int(index)) or 0) - expected_prob) < 0.02
+        for index, expected_prob in expected_probabilities.items()
+    )
