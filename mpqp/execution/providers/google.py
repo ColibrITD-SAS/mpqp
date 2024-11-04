@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Sequence
 
 from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.tools.errors import DeviceJobIncompatibleError
 
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
@@ -156,11 +157,15 @@ def run_local(job: Job) -> Result:
             )
 
     elif job.job_type == JobType.OBSERVABLE:
+        from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
+
         assert isinstance(job.measure, ExpectationMeasure)
 
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
+        assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
@@ -237,8 +242,25 @@ def run_local_processor(job: Job) -> Result:
             f"Does not handle {job.job_type} for processor for the moment"
         )
     elif job.job_type == JobType.OBSERVABLE:
-        raise NotImplementedError(
-            f"Does not handle {job.job_type} for processor for the moment"
+        from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
+
+        assert isinstance(job.measure, ExpectationMeasure)
+
+        cirq_obs = job.measure.observable.to_other_language(
+            language=Language.CIRQ, circuit=cirq_circuit
+        )
+        assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
+
+        if job.measure.shots == 0:
+            raise DeviceJobIncompatibleError(
+                f"Device {job.device.name} need shots != 0."
+            )
+        return extract_result_OBSERVABLE_processors(
+            simulator.get_sampler(job.device.value).sample_expectation_values(
+                cirq_circuit, observables=cirq_obs, num_samples=job.measure.shots
+            ),
+            job,
         )
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
@@ -278,7 +300,7 @@ def extract_result_SAMPLE(
     data = [
         Sample(
             bin_str="".join(map(str, state)),
-            probability=count / sum(counts.values()),
+            count=count,
             nb_qubits=nb_qubits,
         )
         for (state, count) in counts.items()
@@ -301,13 +323,36 @@ def extract_result_STATE_VECTOR(
     Returns:
         The formatted result.
     """
-    from cirq.value.probability import state_vector_to_probabilities
+    from mpqp.tools.maths import normalize
 
-    state_vector = result.final_state_vector
-    state_vector = StateVector(
-        state_vector, job.circuit.nb_qubits, state_vector_to_probabilities(state_vector)
-    )
+    state_vector = normalize(result.final_state_vector)
+    state_vector = StateVector(state_vector, job.circuit.nb_qubits)
     return Result(job, state_vector, 0, 0)
+
+
+def extract_result_OBSERVABLE_processors(
+    results: Sequence[Sequence[float]],
+    job: Job,
+) -> Result:
+    """Process measurement results for an observable from a quantum job.
+
+    Args:
+        results : A sequence of measurement results, where
+            each inner sequence represents a set of results for a particular shot.
+        job: The original job.
+
+    Returns:
+        The formatted result.
+
+    Raises:
+        NotImplementedError: If the job does not contain a measurement (i.e., `job.measure` is `None`).
+    """
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+    mean = 0
+    for result in results:
+        mean += sum(result) / len(result)
+    return Result(job, mean, 0, job.measure.shots)
 
 
 def extract_result_OBSERVABLE_ideal(

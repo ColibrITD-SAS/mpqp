@@ -99,3 +99,13 @@ Example
     choice_tree.answers[-1].next_question.answers[0].next_question = choice_tree
 
     run_choice_tree(choice_tree)
+
+Theoretical simulations
+-----------------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.theoretical_simulation import *
+
+.. automodule:: mpqp.tools.theoretical_simulation

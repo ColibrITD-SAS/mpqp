@@ -28,7 +28,6 @@ from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.gates import CustomGate
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
@@ -40,11 +39,13 @@ from mpqp.execution.devices import (
     AWSDevice,
     GOOGLEDevice,
     IBMDevice,
+    AZUREDevice,
 )
 from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
+from mpqp.execution.providers.azure import run_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
@@ -204,10 +205,9 @@ def _run_single(
     elif isinstance(device, AWSDevice):
         return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
-        # TODO: remove when Cirq parsing of QASM2 is correct
-        if any(isinstance(gate, CustomGate) for gate in circuit.instructions):
-            raise NotImplementedError(f"CustomGate is not yet supported on {device}.")
         return run_google(job)
+    elif isinstance(device, AZUREDevice):
+        return run_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 

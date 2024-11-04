@@ -23,20 +23,8 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import (
-    TOF,
-    CRk,
-    Gate,
-    Id,
-    NativeGate,
-    P,
-    Rk,
-    Rx,
-    Ry,
-    Rz,
-    T,
-    U,
-)
+from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
@@ -46,8 +34,8 @@ from mpqp.execution.connection.ibm_connection import (
     get_backend,
     get_QiskitRuntimeService,
 )
-from mpqp.execution.devices import IBMDevice
 from mpqp.execution.simulated_devices import IBMSimulatedDevice
+from mpqp.execution.devices import IBMDevice, AZUREDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
@@ -223,18 +211,23 @@ def check_job_compatibility(job: Job):
 def generate_qiskit_noise_model(
     circuit: QCircuit,
 ) -> tuple["Qiskit_NoiseModel", QCircuit]:
-    """
-    Generate a Qiskit Aer NoiseModel from the list of MPQP NoiseModels attached to the QCircuit in parameter.
+    """Generate a ``qiskit`` noise model packing all the
+    class:`~mpqp.noise.noise_model.NoiseModel`s attached to the given QCircuit.
+
+    In ``qiskit``, the noise cannot be applied to qubits unaffected by any
+    operations. For this reason, this function also returns a copy of the
+    circuit padded with identities on "naked" qubits.
 
     Args:
-        circuit: QCircuit used to generate the Qiskit NoiseModel.
+        circuit: Circuit containing the noise models to pack.
 
     Returns:
-        Qiskit_NoiseModel: A Qiskit NoiseModel combining the provided noise models.
+        A ``qiskit`` noise model combining the provided noise models and the
+        modified circuit, padded with identities on the "naked" qubits.
 
     Note:
-        The qubit order is reversed to match Qiskit's qubit ordering conventions.
-
+        The qubit order in the returned noise model is reversed to match
+        ``qiskit``'s qubit ordering conventions.
     """
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
@@ -277,9 +270,7 @@ def generate_qiskit_noise_model(
                         assert isinstance(size, int)
 
                     if isinstance(noise, DimensionalNoiseModel):
-                        if size != noise.dimension:
-                            continue
-                        else:
+                        if size == noise.dimension:
                             noise_model.add_all_qubit_quantum_error(
                                 qiskit_error, [gate.qiskit_string]
                             )
@@ -598,7 +589,7 @@ def run_remote_ibm(job: Job) -> Result:
 def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
-    device: IBMDevice | IBMSimulatedDevice,
+    device: IBMDevice | IBMSimulatedDevice | AZUREDevice,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
@@ -722,15 +713,14 @@ def extract_result(
                 return Result(job, state_vector, 0, 0)
             elif job.job_type == JobType.SAMPLE:
                 assert job.measure is not None
-                counts = result.get_counts(0)
-                data = [
-                    Sample(
-                        bin_str=item,
-                        count=counts[item],
-                        nb_qubits=job.circuit.nb_qubits,
+                if type(device) == AZUREDevice:
+                    from mpqp.execution.providers.azure import (
+                        extract_samples as extract_samples_azure,
                     )
-                    for item in counts
-                ]
+
+                    data = extract_samples_azure(job, result)
+                else:
+                    data = extract_samples(job, result)
                 return Result(job, data, None, job.measure.shots)
             else:
                 raise NotImplementedError(f"{job.job_type} not handled.")
@@ -778,3 +768,21 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     ibm_device = IBMDevice(backend.name)
 
     return extract_result(result, None, ibm_device)
+
+
+def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+    counts = result.get_counts(0)
+    job_data = result.data()
+    return [
+        Sample(
+            bin_str=item,
+            count=counts[item],
+            nb_qubits=job.circuit.nb_qubits,
+            probability=(
+                job_data.get("probabilities").get(item)
+                if "probabilities" in job_data
+                else None
+            ),
+        )
+        for item in counts
+    ]

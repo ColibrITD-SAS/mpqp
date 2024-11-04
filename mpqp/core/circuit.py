@@ -47,7 +47,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.noise.noise_model import NoiseModel, DimensionalNoiseModel
+from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
@@ -135,7 +135,7 @@ class QCircuit:
         self.gphase: float = 0
         """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
         to OpenQASM2. It is used to correct the global phase when the job type
-        is STATE_VECTOR, and when this circuit contains CustomGate. `None`` otherwise."""
+        is STATE_VECTOR, and when this circuit contains CustomGate."""
 
         if isinstance(data, int):
             if data < 0:
@@ -161,10 +161,12 @@ class QCircuit:
         return dumps(self) == dumps(value)
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
-        """Adds a ``component`` or a list of ``component`` at the end of the circuit.
+        """Adds a ``component`` or a list of ``component`` at the end of the
+        circuit.
 
         Args:
-            components : Instruction(s) or NoiseModel(s) to append to the circuit.
+            components : Instruction(s) or noise model(s) to append to the
+                circuit.
 
         Examples:
             >>> circuit = QCircuit(2)
@@ -180,7 +182,7 @@ class QCircuit:
             c: 2/═══════════╩══╩═
                             0  1
 
-            >>> circuit.add(Depolarizing(0.3, [0,1], dimension=2, gates=[CNOT]))
+            >>> circuit.add(Depolarizing(0.3, dimension=2, gates=[CNOT]))
             >>> circuit.add([Depolarizing(0.02, [0])])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
@@ -916,6 +918,9 @@ class QCircuit:
             else:
                 new_circ = QuantumCircuit(self.nb_qubits, self.nb_cbits)
 
+            if self.label is not None:
+                new_circ.name = self.label
+
             for instruction in self.instructions:
                 if isinstance(instruction, ExpectationMeasure):
                     # these measures have no equivalent in Qiskit
@@ -1085,7 +1090,6 @@ class QCircuit:
 
         qiskit_circ.reverse_bits()
 
-        custom_gate_used = False
         global_phase = 0
         new_circuit = QuantumCircuit(qiskit_circ.num_qubits, qiskit_circ.num_clbits)
         for instruction in qiskit_circ.data:
@@ -1095,15 +1099,12 @@ class QCircuit:
                 )
                 new_circuit.compose(circuit, inplace=True)
                 global_phase += gphase
-                custom_gate_used = True
             else:
                 new_circuit.append(instruction)
 
         self.gphase = global_phase
 
-        if custom_gate_used:
-            return qasm2.dumps(new_circuit)
-        return qasm2.dumps(qiskit_circ)
+        return qasm2.dumps(new_circuit)
 
     def to_qasm3(self) -> str:
         """Converts this circuit to the corresponding OpenQASM 3 code.
@@ -1214,9 +1215,8 @@ class QCircuit:
             f" Nb instructions = {len(self)}"
         )
 
-        qubits = set(range(self.size()[0]))
         for noise in self.noises:
-            print(noise.info(qubits))
+            print(noise.info())
 
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:
