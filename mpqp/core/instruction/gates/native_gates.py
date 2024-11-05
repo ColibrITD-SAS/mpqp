@@ -787,6 +787,22 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     """
 
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits.gates import U as braket_U
+
+        return braket_U
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import UGate
+
+        return UGate
+
+    qasm2_gate = "u"
+    qlm_aqasm_keyword = "U"
+    qiskit_string = "u"
+
     def __init__(
         self,
         theta: Expr | float,
@@ -814,9 +830,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
     def gamma(self):
         """See corresponding argument."""
         return self.parameters[2]
-
-    qlm_aqasm_keyword = "U"
-    qiskit_string = "u"
 
     def to_other_language(
         self,
@@ -879,22 +892,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.theta}, {self.phi}, {self.gamma}, {self.targets[0]})"
-
-    qlm_aqasm_keyword = "U"
-
-    @classproperty
-    def braket_gate(cls):
-        from braket.circuits.gates import U as braket_U
-
-        return braket_U
-
-    @classproperty
-    def qiskit_gate(cls):
-        from qiskit.circuit.library import UGate
-
-        return UGate
-
-    qasm2_gate = "u"
 
 
 class Rx(RotationGate, SingleQubitGate):
