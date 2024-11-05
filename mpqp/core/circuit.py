@@ -928,6 +928,9 @@ class QCircuit:
             else:
                 new_circ = QuantumCircuit(self.nb_qubits, self.nb_cbits)
 
+            if self.label is not None:
+                new_circ.name = self.label
+
             for instruction in self.instructions:
                 if isinstance(instruction, ExpectationMeasure):
                     # these measures have no equivalent in Qiskit

@@ -39,10 +39,12 @@ from mpqp.execution.devices import (
     AWSDevice,
     GOOGLEDevice,
     IBMDevice,
+    AZUREDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
+from mpqp.execution.providers.azure import run_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
@@ -201,6 +203,8 @@ def _run_single(
         return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
+    elif isinstance(device, AZUREDevice):
+        return run_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
