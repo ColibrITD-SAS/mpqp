@@ -4,6 +4,7 @@ import logging
 from typing import TYPE_CHECKING
 
 import numpy as np
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
@@ -15,6 +16,7 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement import ExpectationMeasure, BasisMeasure
 
 
+@typechecked
 def float_to_qasm_str(f: float) -> str:
     if f.is_integer():
         return str(int(f))
@@ -24,6 +26,7 @@ def float_to_qasm_str(f: float) -> str:
         return f"pi/{int(1 / f * np.pi)}" if (np.pi * (1 / f)).is_integer() else str(f)
 
 
+@typechecked
 def _simplify_instruction(
     instruction: SingleQubitGate | BasisMeasure,
     targets: dict[int, int],
@@ -62,8 +65,9 @@ def _simplify_instruction(
     return final_str
 
 
+@typechecked
 def mpqp_to_qasm2(circuit: QCircuit, simplify: bool = False) -> tuple[str, float]:
-    """Converts an :class:`~mpqp.core.circuit.QCircuit` object into a string in
+    """Converts a :class:`~mpqp.core.circuit.QCircuit` object into a string in
     QASM 2.0 format. It handles various quantum instructions like gates,
     measurements, and barriers and can optionally simplify the circuit by
     merging consecutive single-qubit gates of the same type.

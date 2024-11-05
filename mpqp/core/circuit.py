@@ -290,7 +290,7 @@ class QCircuit:
 
         if isinstance(components, Barrier):
             components.size = self.nb_qubits
-            components.targets = [i for i in range(self.nb_qubits)]
+            components.targets = list(range(self.nb_qubits))
         elif isinstance(components, ExpectationMeasure):
             components.check_targets_order()
         elif isinstance(components, DimensionalNoiseModel):
@@ -885,9 +885,8 @@ class QCircuit:
             >>> qc = circuit.to_other_language()
             >>> type(qc)
             <class 'qiskit.circuit.quantumcircuit.QuantumCircuit'>
-            >>> circuit2 = QCircuit([H(0), CZ(0,1), Depolarizing(0.6, [0])])
-            >>> braket_circuit = circuit2.to_other_language(Language.BRAKET)
-            >>> print(braket_circuit)  # doctest: +NORMALIZE_WHITESPACE
+            >>> circuit2 = QCircuit([H(0), CZ(0,1), Depolarizing(0.6, [0]), BasisMeasure()])
+            >>> print(circuit2.to_other_language(Language.BRAKET))  # doctest: +NORMALIZE_WHITESPACE
             T  : │         0         │         1         │
                   ┌───┐ ┌───────────┐       ┌───────────┐
             q0 : ─┤ H ├─┤ DEPO(0.6) ├───●───┤ DEPO(0.6) ├─
@@ -896,6 +895,24 @@ class QCircuit:
             q1 : ─────────────────────┤ Z ├───────────────
                                       └───┘
             T  : │         0         │         1         │
+            >>> print(circuit2.to_other_language(Language.QASM2))  # doctest: +NORMALIZE_WHITESPACE
+            OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[2];
+            creg c[2];
+            h q[0];
+            cz q[0],q[1];
+            measure q[0] -> c[0];
+            measure q[1] -> c[1];
+            >>> print(circuit2.to_other_language(Language.QASM3))  # doctest: +NORMALIZE_WHITESPACE
+            OPENQASM 3.0;
+            include "stdgates.inc";
+            qubit[2] q;
+            bit[2] c;
+            h q[0];
+            cz q[0],q[1];
+            c[0] = measure q[0];
+            c[1] = measure q[1];
 
         Note:
             Most providers take noise into account at the job level. A notable
