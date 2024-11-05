@@ -29,6 +29,7 @@ import numpy.typing as npt
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.distance import jensenshannon
+from typeguard import typechecked
 
 from mpqp import QCircuit
 from mpqp.execution import AvailableDevice, AWSDevice
@@ -36,6 +37,7 @@ from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUs
 from mpqp.measures import BasisMeasure
 
 
+@typechecked
 def theoretical_probs(
     circ: QCircuit,
 ) -> npt.NDArray[np.float32]:
@@ -90,6 +92,7 @@ def theoretical_probs(
     return state.diagonal().real
 
 
+@typechecked
 def dist_alpha_matching(alpha: float):
     """The trust interval is computed from the distance between the circuit
     without noise and the noisy circuits probability distributions. This
@@ -111,6 +114,7 @@ def dist_alpha_matching(alpha: float):
 # ...
 
 
+@typechecked
 def trust_int(circuit: QCircuit):
     """Given a circuit, this computes the diameter of the trust interval for the
     output samples given into consideration the noise in the circuit.
@@ -127,6 +131,7 @@ def trust_int(circuit: QCircuit):
     return dist_alpha_matching(float(jensenshannon(noiseless_probs, noisy_probs)))
 
 
+@typechecked
 def exp_id_dist(
     circuit: QCircuit,
     shots: int = 1024,
@@ -153,6 +158,7 @@ def exp_id_dist(
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
 
 
+@typechecked
 def validate_noisy_circuit(
     circuit: QCircuit,
     shots: int = 1024,
@@ -171,6 +177,7 @@ def validate_noisy_circuit(
     return exp_id_dist(circuit, shots, device) <= trust_int(circuit)
 
 
+@typechecked
 def exp_id_dist_excess(circuit: QCircuit, shots: int = 1024) -> float:
     """Computes the gap between theory and our noise pipeline for a circuit.
 
