@@ -860,7 +860,10 @@ class QCircuit:
         return new_circuit
 
     def to_other_language(
-        self, language: Language = Language.QISKIT, cirq_proc_id: Optional[str] = None
+        self,
+        language: Language = Language.QISKIT,
+        cirq_proc_id: Optional[str] = None,
+        translation_warning: bool = True,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
@@ -904,7 +907,7 @@ class QCircuit:
             cz q[0],q[1];
             measure q[0] -> c[0];
             measure q[1] -> c[1];
-            >>> print(circuit2.to_other_language(Language.QASM3))  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(circuit2.to_other_language(Language.QASM3, translation_warning=False))  # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 3.0;
             include "stdgates.inc";
             qubit[2] q;
@@ -1025,7 +1028,9 @@ class QCircuit:
                         "an error on AWS Braket side."
                     )
 
-            qasm3_code = circuit.to_other_language(Language.QASM3)
+            qasm3_code = circuit.to_other_language(
+                Language.QASM3, translation_warning=False
+            )
             assert isinstance(qasm3_code, str)
             self.gphase = circuit.gphase
             return apply_noise_to_braket_circuit(
@@ -1074,7 +1079,9 @@ class QCircuit:
         elif language == Language.QASM3:
             qasm2_code = self.to_other_language(Language.QASM2)
             assert isinstance(qasm2_code, str)
-            qasm3_code = open_qasm_2_to_3(qasm2_code)
+            qasm3_code = open_qasm_2_to_3(
+                qasm2_code, translation_warning=translation_warning
+            )
             return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")

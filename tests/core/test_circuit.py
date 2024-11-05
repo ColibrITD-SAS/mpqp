@@ -360,7 +360,7 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        qasm3 = circuit.to_other_language(Language.QASM3)
+        qasm3 = circuit.to_other_language(Language.QASM3, translation_warning=False)
         assert isinstance(qasm3, str)
         assert qasm3.strip() == f.read().strip()
 
