@@ -26,7 +26,13 @@ from mpqp.execution.connection.env_manager import (
     save_env_variable,
 )
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
-from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates, open_qasm_2_to_3, remove_user_gates, open_qasm_3_to_2,  open_qasm_file_conversion_3_to_2
+from mpqp.qasm.open_qasm_2_and_3 import (
+    parse_user_gates,
+    open_qasm_2_to_3,
+    remove_user_gates,
+    open_qasm_3_to_2,
+    open_qasm_file_conversion_3_to_2,
+)
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint, format_element
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.errors import (
