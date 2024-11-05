@@ -129,7 +129,46 @@ def test_basis_implementations(
                 ]
             ),
             np.array([0.5, 0, 0, 0, 0, 0.5, 0, 0]),
-        )
+        ),
+        (
+            QCircuit(
+                [
+                    X(0),
+                    H(1),
+                    CNOT(1, 2),
+                    Y(2),
+                    BasisMeasure(
+                        [0, 1, 2],
+                        basis=Basis(
+                            [
+                                np.array([1, 0, 0, 0, 0, 0, 0, 0]),
+                                np.array([0, 1, 0, 0, 0, 0, 0, 0]),
+                                np.array(
+                                    [0, 0, 1 / np.sqrt(2), 1 / np.sqrt(2), 0, 0, 0, 0]
+                                ),
+                                np.array(
+                                    [0, 0, 1 / np.sqrt(2), -1 / np.sqrt(2), 0, 0, 0, 0]
+                                ),
+                                np.array(
+                                    [0, 0, 0, 0, 1 / np.sqrt(2), 0, 1 / np.sqrt(2), 0]
+                                ),
+                                np.array(
+                                    [0, 0, 0, 0, 1 / np.sqrt(2), 0, -1 / np.sqrt(2), 0]
+                                ),
+                                np.array(
+                                    [0, 0, 0, 0, 0, 1 / np.sqrt(2), 0, 1 / np.sqrt(2)]
+                                ),
+                                np.array(
+                                    [0, 0, 0, 0, 0, 1 / np.sqrt(2), 0, -1 / np.sqrt(2)]
+                                ),
+                            ]
+                        ),
+                        shots=10000,
+                    ),
+                ]
+            ),
+            np.array([0, 0, 0, 0, 0.25, 0.25, 0.25, 0.25]),
+        ),
     ],
 )
 def test_run_with_custom_basis(
