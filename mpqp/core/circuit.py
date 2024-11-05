@@ -663,7 +663,7 @@ class QCircuit:
                  ┌───────────┐┌───┐ │ └────┘
             q_1: ┤ Ry(-4.56) ├┤ H ├─■───────
                  └───────────┘└───┘
-             >>> c2 = QCircuit([S(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1), BasisMeasure([0, 1], shots=2000)])
+             >>> c2 = QCircuit([S(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1))
             >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐          ░      ┌─┐
             q_0: ┤ S ├─■────────░──────┤M├───────────────
