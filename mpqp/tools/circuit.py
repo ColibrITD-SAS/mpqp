@@ -25,7 +25,7 @@ from mpqp.tools.maths import closest_unitary
 
 
 def random_circuit(
-    gate_classes: Optional[list[type]] = None,
+    gate_classes: Optional[list[type[Gate]]] = None,
     nb_qubits: int = 5,
     nb_gates: Optional[int] = None,
     seed: Optional[int] = None,

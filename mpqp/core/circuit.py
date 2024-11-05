@@ -52,7 +52,7 @@ from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-from mpqp.tools.errors import NumberQubitsError, UninvertibleWarning
+from mpqp.tools.errors import NumberQubitsError, NonReversibleWarning
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -692,7 +692,7 @@ class QCircuit:
             else:
                 warn(
                     f"{type(instr).__name__} is not invertible and has been added at the end of the circuit.",
-                    UninvertibleWarning,
+                    NonReversibleWarning,
                 )
                 dagger.instructions.append(instr)
         return dagger

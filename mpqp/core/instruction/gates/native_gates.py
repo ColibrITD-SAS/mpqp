@@ -953,8 +953,8 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
     Example:
         >>> pprint(Rk_dagger(5, 0).to_matrix())
-        [[1, 0],
-         [0, 0.9807853-0.1950903j]]
+        [[1, 0               ],
+         [0, 0.98079-0.19509j]]
 
     """
 
@@ -1172,10 +1172,10 @@ class CRk_dagger(RotationGate, ControlledGate):
 
     Example:
         >>> pprint(CRk_dagger(4, 0, 1).to_matrix())
-        [[1, 0, 0, 0],
-         [0, 1, 0, 0],
-         [0, 0, 1, 0],
-         [0, 0, 0, 0.9238795-0.3826834j]]
+        [[1, 0, 0, 0               ],
+         [0, 1, 0, 0               ],
+         [0, 0, 1, 0               ],
+         [0, 0, 0, 0.92388-0.38268j]]
 
     """
 

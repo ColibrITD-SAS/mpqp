@@ -62,5 +62,5 @@ class AdditionalGateNoiseWarning(UserWarning):
     noisy gate."""
 
 
-class UninvertibleWarning(UserWarning):
-    """Warning for uninvertible instruction used in inverse function."""
+class NonReversibleWarning(UserWarning):
+    """Warning for nonreversible instruction used in inverse function."""
