@@ -302,6 +302,7 @@ def rand_clifford_matrix(
     return res
 
 
+@typechecked
 def rand_unitary_2x2_matrix(
     seed: Optional[Union[int, np.random.Generator]] = None
 ) -> npt.NDArray[np.complex64]:
@@ -344,6 +345,7 @@ def rand_unitary_2x2_matrix(
     return np.array([[c, -eg * s], [eg * s, eg * ep * c]])
 
 
+@typechecked
 def rand_product_local_unitaries(
     nb_qubits: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
