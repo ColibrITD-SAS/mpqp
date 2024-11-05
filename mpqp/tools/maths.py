@@ -236,7 +236,6 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
         return res
 
 
-@typechecked
 def rand_orthogonal_matrix(
     size: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
@@ -267,7 +266,6 @@ def rand_orthogonal_matrix(
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
-@typechecked
 def rand_clifford_matrix(
     nb_qubits: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
@@ -388,7 +386,6 @@ def rand_product_local_unitaries(
     return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
 
 
-@typechecked
 def rand_hermitian_matrix(
     size: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
