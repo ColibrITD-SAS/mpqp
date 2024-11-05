@@ -35,11 +35,22 @@ class Basis:
             ``basis_vectors``'s dimensions.
 
     Example:
-        >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
+        >>> custom_basis = Basis([np.array([1,0]), np.array([0,-1])], symbols=("↑", "↓"))
+        >>> custom_basis.pretty_print()
         Basis: [
             [1, 0],
             [0, -1]
         ]
+        >>> circ = QCircuit([X(0), H(1), CNOT(1, 2), Y(2)])
+        >>> circ.add(BasisMeasure([0, 1, 2], basis=custom_basis, shots=10000))
+        >>> print(run(circ, IBMDevice.AER_SIMULATOR)) # doctest: +SKIP
+        Result: None, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 0, 0, 4936, 5064, 0]
+         Probabilities: [0, 0, 0, 0, 0, 0.4936, 0.5064, 0]
+         Samples:
+          State: ↓↑↓, Index: 5, Count: 4936, Probability: 0.4936
+          State: ↓↓↑, Index: 6, Count: 5064, Probability: 0.5064
+         Error: None
 
     """
 
@@ -254,7 +265,18 @@ class HadamardBasis(VariableSizeBasis):
             [0.5, 0.5, -0.5, -0.5],
             [0.5, -0.5, -0.5, 0.5]
         ]
-
+        >>> circ = QCircuit([X(0), H(1), CNOT(1, 2), Y(2)])
+        >>> circ.add(BasisMeasure(basis=HadamardBasis()))
+        >>> print(run(circ, IBMDevice.AER_SIMULATOR)) # doctest: +SKIP
+        Result: None, IBMDevice, AER_SIMULATOR
+         Counts: [0, 261, 253, 0, 0, 244, 266, 0]
+         Probabilities: [0, 0.25488, 0.24707, 0, 0, 0.23828, 0.25977, 0]
+         Samples:
+          State: ++-, Index: 1, Count: 261, Probability: 0.2548828
+          State: +-+, Index: 2, Count: 253, Probability: 0.2470703
+          State: -+-, Index: 5, Count: 244, Probability: 0.2382812
+          State: --+, Index: 6, Count: 266, Probability: 0.2597656
+         Error: None
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
