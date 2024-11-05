@@ -5,7 +5,6 @@ import numpy as np
 from numpy.random import Generator
 from qiskit import QuantumCircuit, transpile
 from qiskit.circuit.quantumcircuitdata import CircuitInstruction
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate, Gate

@@ -29,7 +29,6 @@ import numpy.typing as npt
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.distance import jensenshannon
-from typeguard import typechecked
 
 from mpqp import QCircuit
 from mpqp.execution import AvailableDevice, AWSDevice
