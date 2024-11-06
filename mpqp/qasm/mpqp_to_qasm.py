@@ -20,7 +20,7 @@ from mpqp.core.instruction.measurement import ExpectationMeasure, BasisMeasure
 def float_to_qasm_str(f: float) -> str:
     if f.is_integer():
         return str(int(f))
-    elif f % np.pi == 0:
+    elif round(f % np.pi, 5) == 0:
         return f"{int(f/np.pi)}*pi" if f != np.pi else "pi"
     else:
         return f"pi/{int(1 / f * np.pi)}" if (np.pi * (1 / f)).is_integer() else str(f)

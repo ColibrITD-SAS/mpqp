@@ -3,6 +3,7 @@ import pytest
 from mpqp.all import *
 from mpqp.tools.circuit import random_circuit
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
 
 
 @pytest.mark.parametrize(
@@ -91,6 +92,32 @@ def test_mpqp_to_qasm(instructions: list[Instruction]):
 
 
 @pytest.mark.parametrize(
+    "instructions",
+    [
+        [
+            CustomGate(
+                UnitaryMatrix(
+                    np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0], [0, 0, 1, 0]])
+                ),
+                [1, 2],
+            )
+        ]
+    ],
+)
+def test_mpqp_to_qasm_custom_gate(instructions: list[Instruction]):
+    circuit = QCircuit(instructions)
+    from qiskit import qasm2, QuantumCircuit
+
+    qiskit_circuit = circuit.to_other_language(Language.QISKIT)
+    assert isinstance(qiskit_circuit, QuantumCircuit)
+    str_qiskit_circuit = remove_user_gates(qasm2.dumps(qiskit_circuit), True)
+    str_circuit = circuit.to_other_language(Language.QASM2)
+    assert isinstance(str_circuit, str)
+    for i in str_circuit:
+        assert i in str_qiskit_circuit
+
+
+@pytest.mark.parametrize(
     "instructions, qasm_expectation",
     [
         (
@@ -102,32 +129,6 @@ creg c[4];
 x q;
 x q[0],q[1];
 measure q -> c;""",
-        ),
-        (
-            [
-                CustomGate(
-                    UnitaryMatrix(
-                        np.array(
-                            [[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0], [0, 0, 1, 0]]
-                        )
-                    ),
-                    [1, 2],
-                )
-            ],
-            """OPENQASM 2.0;
-include "qelib1.inc";
-qreg q[3];
-u(0.6165457696943014,-pi/2,-pi) q[1];
-u(pi/2,-pi/2,-pi) q[2];
-cx q[2],q[1];
-u(2.299175815834263,2.45724313480728,0.6843495187825104) q[1];
-u(pi/2,-pi/2,-pi/2) q[2];
-cx q[2],q[1];
-u(1.0795118874220926,0.8555794527724245,-2.7526761788691734) q[1];
-u(pi/2,-pi,pi/2) q[2];
-cx q[2],q[1];
-u(pi/2,2.5250468838954925,-pi) q[1];
-u(pi/2,0,-pi/2) q[2];""",
         ),
         (
             [

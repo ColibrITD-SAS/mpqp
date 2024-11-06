@@ -102,9 +102,10 @@ class CustomGate(Gate):
                 nb_qubits = len(self.targets)
 
             qiskit_circ = QuantumCircuit(nb_qubits)
-
+            instr = self.to_other_language(Language.QISKIT)
+            assert isinstance(instr, QiskitOperator)
             qiskit_circ.unitary(
-                QiskitOperator(self.matrix).to_instruction(),
+                instr,
                 list(reversed(self.targets)),  # dang qiskit qubits order
                 self.label,
             )
