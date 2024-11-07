@@ -12,7 +12,6 @@ from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
-    from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -83,7 +82,6 @@ class CustomGate(Gate):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
-        qcircuit: Optional["QCircuit"] = None,
     ):
         if language == Language.QISKIT:
             from qiskit.quantum_info.operators import Operator as QiskitOperator
@@ -95,10 +93,7 @@ class CustomGate(Gate):
             from mpqp.tools.circuit import replace_custom_gate
             from qiskit import QuantumCircuit, qasm2
 
-            if qcircuit:
-                nb_qubits = qcircuit.nb_qubits
-            else:
-                nb_qubits = len(self.targets)
+            nb_qubits = max(self.targets) + 1
 
             qiskit_circ = QuantumCircuit(nb_qubits)
             instr = self.to_other_language(Language.QISKIT)

@@ -67,15 +67,11 @@ def _simplify_instruction_to_qasm(
     return final_str
 
 
-def _instruction_to_qasm2(
-    instruction: Instruction, qcircuit: QCircuit
-) -> tuple[str, float]:
+def _instruction_to_qasm2(instruction: Instruction) -> tuple[str, float]:
     if isinstance(instruction, (Breakpoint, ExpectationMeasure)):
         return "", 0
     elif isinstance(instruction, CustomGate):
-        qasm_str_gphase = instruction.to_other_language(
-            Language.QASM2, qcircuit=qcircuit
-        )
+        qasm_str_gphase = instruction.to_other_language(Language.QASM2)
         if TYPE_CHECKING:
             assert isinstance(qasm_str_gphase, tuple)
         return "\n" + qasm_str_gphase[0], qasm_str_gphase[1]
@@ -182,14 +178,14 @@ def mpqp_to_qasm2(qcircuit: QCircuit, simplify: bool = False) -> tuple[str, floa
                     previous = None
                     targets = {i: 0 for i in range(qcircuit.nb_qubits)}
                     c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
-                qasm, phase = _instruction_to_qasm2(instruction, qcircuit)
+                qasm, phase = _instruction_to_qasm2(instruction)
                 if isinstance(instruction, BasisMeasure):
                     qasm_measure += qasm
                 else:
                     qasm_str += qasm
                 gphase += phase
         else:
-            qasm, phase = _instruction_to_qasm2(instruction, qcircuit)
+            qasm, phase = _instruction_to_qasm2(instruction)
             if isinstance(instruction, BasisMeasure):
                 qasm_measure += qasm
             else:
