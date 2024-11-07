@@ -82,16 +82,7 @@ class Basis:
         """See parameter description."""
 
     def pretty_print(self):
-        """Nicer print for the basis, with human readable formatting.
-
-        Example:
-            >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
-            Basis: [
-                [1, 0],
-                [0, -1]
-            ]
-
-        """
+        """Nicer print for the basis, with human readable formatting."""
         joint_vectors = ",\n    ".join(map(clean_1D_array, self.basis_vectors))
         print(f"Basis: [\n    {joint_vectors}\n]")
 

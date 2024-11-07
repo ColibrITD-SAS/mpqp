@@ -169,8 +169,8 @@ class ExpectationMeasure(Measure):
 
     If the ``targets`` are not sorted and contiguous, some additional swaps will
     be needed. This will affect the performance of your circuit if run on noisy
-    hardware. The swaps added can be checked out in the ``pre_measure``
-    attribute of the :class:`ExpectationMeasure`.
+    hardware. The swaps added can be checked out in the :attr:`pre_measure`
+    attribute.
 
     Args:
         targets: List of indices referring to the qubits on which the measure
@@ -178,13 +178,6 @@ class ExpectationMeasure(Measure):
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
         label: Label used to identify the measure.
-
-    Attributes:
-        observable: Observable used for the measure.
-        pre_measure: Circuit added before the expectation measurement to correctly swap
-                target qubits when their are note ordered or contiguous.
-        rearranged_targets: Adjusted list of target qubits when they are not initially sorted and
-                contiguous.
 
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
@@ -198,6 +191,8 @@ class ExpectationMeasure(Measure):
             your circuit is run on noisy hardware.
 
     """
+
+    # TODO: problem here with the doc generation, the arguments are messed up
 
     def __init__(
         self,
@@ -226,6 +221,8 @@ class ExpectationMeasure(Measure):
             )
 
         self.pre_measure = QCircuit(max(self.targets) + 1)
+        """Circuit added before the expectation measurement to correctly swap
+        target qubits when their are note ordered or contiguous."""
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )
@@ -252,6 +249,8 @@ class ExpectationMeasure(Measure):
                     self.pre_measure.add(SWAP(target, tweaked_tgt[t_index - 1] + 1))
                     tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
         self.rearranged_targets = tweaked_tgt
+        """Adjusted list of target qubits when they are not initially sorted and
+        contiguous."""
 
     def __repr__(self) -> str:
         targets = (
