@@ -276,10 +276,10 @@ def convert_instruction_2_to_3(
         if translation_warning:
             warn(
                 """
-    There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
-    We handled that for you by adding the extra phase at the right place. 
-    Be careful if you want to create a control gate from this circuit/gate, the
-    phase can become non-global.""",
+There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
+We handled that for you by adding the extra phase at the right place. 
+Be careful if you want to create a control gate from this circuit/gate, the
+phase can become non-global.""",
                 OpenQASMTranslationWarning,
             )
         header_code += add_std_lib()

@@ -95,10 +95,6 @@ class NativeGate(Gate, SimpleClassReprABC):
         label: Label used to identify the gate.
     """
 
-    qasm2_gate: str
-    """Keyword(s) corresponding to the gate in ``QASM2``. This needs to be
-    available at the class level and is not enforced by the type checker so be
-    careful about it!"""
     qlm_aqasm_keyword: str
     """Keyword(s) corresponding to the gate in ``myQLM``. This needs to be
     available at the class level and is not enforced by the type checker so be
@@ -107,6 +103,11 @@ class NativeGate(Gate, SimpleClassReprABC):
     """Keyword corresponding to the gate in ``qiskit``. This needs to be
     available at the class level and is not enforced by the type checker so be
     careful about it!"""
+
+    @classproperty
+    def qasm2_gate(cls) -> str:
+        """Keyword(s) corresponding to the gate in ``QASM2``."""
+        return cls.qiskit_string
 
     native_gate_options = {"disable_symbol_warn": True}
 
@@ -238,18 +239,11 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
             from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
-            if isinstance(self, (Rk, CRk)):
-                instruction_str += (
-                    f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.k)))})"
-                )
-            else:
-                instruction_str += (
-                    "("
-                    + ",".join(
-                        float_to_qasm_str(float(param)) for param in self.parameters
-                    )
-                    + ")"
-                )
+            instruction_str += (
+                "("
+                + ",".join(float_to_qasm_str(float(param)) for param in self.parameters)
+                + ")"
+            )
 
             qubits = ""
             if isinstance(self, ControlledGate):
@@ -394,7 +388,6 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
         return IGate
 
-    qasm2_gate = "id"
     qlm_aqasm_keyword = "I"
     qiskit_string = "id"
 
@@ -447,7 +440,6 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
         return XGate
 
-    qasm2_gate = "x"
     qlm_aqasm_keyword = "X"
     qiskit_string = "x"
 
@@ -481,7 +473,6 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
         return YGate
 
-    qasm2_gate = "y"
     qlm_aqasm_keyword = "Y"
     qiskit_string = "y"
 
@@ -515,7 +506,6 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
         return ZGate
 
-    qasm2_gate = "z"
     qlm_aqasm_keyword = "Z"
     qiskit_string = "z"
 
@@ -549,7 +539,6 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
         return HGate
 
-    qasm2_gate = "h"
     qlm_aqasm_keyword = "H"
     qiskit_string = "h"
 
@@ -584,7 +573,6 @@ class P(RotationGate, SingleQubitGate):
 
         return PhaseGate
 
-    qasm2_gate = "p"
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
 
@@ -631,7 +619,6 @@ class S(OneQubitNoParamGate):
 
         return SGate
 
-    qasm2_gate = "s"
     qlm_aqasm_keyword = "S"
     qiskit_string = "s"
 
@@ -668,7 +655,6 @@ class T(OneQubitNoParamGate):
 
         return TGate
 
-    qasm2_gate = "t"
     qlm_aqasm_keyword = "T"
     qiskit_string = "t"
 
@@ -709,7 +695,6 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         return SwapGate
 
-    qasm2_gate = "swap"
     qlm_aqasm_keyword = "SWAP"
     qiskit_string = "swap"
 
@@ -799,7 +784,6 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
         return UGate
 
-    qasm2_gate = "u"
     qlm_aqasm_keyword = "U"
     qiskit_string = "u"
 
@@ -920,7 +904,6 @@ class Rx(RotationGate, SingleQubitGate):
 
         return RXGate
 
-    qasm2_gate = "rx"
     qlm_aqasm_keyword = "RX"
     qiskit_string = "rx"
 
@@ -961,7 +944,6 @@ class Ry(RotationGate, SingleQubitGate):
 
         return RYGate
 
-    qasm2_gate = "ry"
     qlm_aqasm_keyword = "RY"
     qiskit_string = "ry"
 
@@ -1000,7 +982,6 @@ class Rz(RotationGate, SingleQubitGate):
 
         return RZGate
 
-    qasm2_gate = "rz"
     qlm_aqasm_keyword = "RZ"
     qiskit_string = "rz"
 
@@ -1040,7 +1021,6 @@ class Rk(RotationGate, SingleQubitGate):
 
         return PhaseGate
 
-    qasm2_gate = "p"
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
 
@@ -1070,6 +1050,25 @@ class Rk(RotationGate, SingleQubitGate):
         p = np.pi if isinstance(self.k, Integral) else pi
         e = exp(p * 1j / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0], [0, e]])
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.k)))})"
+            )
+
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+        else:
+            return super().to_other_language(language, qiskit_parameters)
 
     def __repr__(self):
         return f"{type(self).__name__}({self.k}, {self.targets[0]})"
@@ -1103,7 +1102,6 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CXGate
 
-    qasm2_gate = "cx"
     qlm_aqasm_keyword = "CNOT"
     qiskit_string = "cx"
 
@@ -1146,7 +1144,6 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CZGate
 
-    qasm2_gate = "cz"
     qiskit_string = "cz"
     qlm_aqasm_keyword = "CSIGN"
 
@@ -1192,7 +1189,6 @@ class CRk(RotationGate, ControlledGate):
 
         return CPhaseGate
 
-    qasm2_gate = "cp"
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
     qiskit_string = "cp"
@@ -1222,6 +1218,26 @@ class CRk(RotationGate, ControlledGate):
     def to_canonical_matrix(self):
         e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.k)))})"
+            )
+
+            qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
+            qubits += ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+        else:
+            return super().to_other_language(language, qiskit_parameters)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
@@ -1263,7 +1279,6 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CCXGate
 
-    qasm2_gate = "ccx"
     qlm_aqasm_keyword = "CCNOT"
     qiskit_string = "ccx"
 

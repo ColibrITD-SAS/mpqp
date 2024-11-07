@@ -73,7 +73,8 @@ def run_google_remote(job: Job) -> Result:
     from cirq_ionq.ionq_gateset import IonQTargetGateset
 
     job_CirqCircuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(job_CirqCircuit, CirqCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.device.is_ionq():
         from mpqp.execution.connection.env_manager import load_env_variables
@@ -139,7 +140,8 @@ def run_local(job: Job) -> Result:
         return run_local_processor(job)
 
     cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(cirq_circuit, CirqCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(cirq_circuit, CirqCircuit)
 
     simulator = Simulator(noise=None)
 

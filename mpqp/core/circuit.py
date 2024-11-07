@@ -943,8 +943,7 @@ class QCircuit:
                 new_circ.name = self.label
 
             for instruction in self.instructions:
-                if isinstance(instruction, ExpectationMeasure):
-                    # these measures have no equivalent in Qiskit
+                if isinstance(instruction, Measure):
                     continue
                 qiskit_inst = instruction.to_other_language(language, qiskit_parameters)
                 if TYPE_CHECKING:
@@ -957,7 +956,8 @@ class QCircuit:
 
                 if isinstance(instruction, CustomGate):
                     instr = instruction.to_other_language(Language.QISKIT)
-                    assert isinstance(instr, Operator)
+                    if TYPE_CHECKING:
+                        assert isinstance(instr, Operator)
                     new_circ.unitary(
                         instr,
                         list(reversed(instruction.targets)),  # dang qiskit qubits order
@@ -968,15 +968,6 @@ class QCircuit:
                     qargs = instruction.controls + instruction.targets
                 elif isinstance(instruction, Gate):
                     qargs = instruction.targets
-                elif isinstance(instruction, BasisMeasure) and isinstance(
-                    instruction.basis, ComputationalBasis
-                ):
-                    # TODO for custom basis, check if something should be
-                    # changed here, e.g. remove the condition to have only
-                    # computational basis
-                    assert instruction.c_targets is not None
-                    qargs = [instruction.targets]
-                    cargs = [instruction.c_targets]
                 elif isinstance(instruction, Barrier):
                     qargs = range(self.nb_qubits)
                 elif isinstance(instruction, Breakpoint):
@@ -991,12 +982,39 @@ class QCircuit:
                     qargs,
                     cargs,
                 )
+
+            for measurement in self.get_measurements():
+                if isinstance(measurement, ExpectationMeasure):
+                    # these measures have no equivalent in Qiskit
+                    continue
+                qiskit_inst = measurement.to_other_language(language, qiskit_parameters)
+                if isinstance(measurement, BasisMeasure) and isinstance(
+                    measurement.basis, ComputationalBasis
+                ):
+                    # TODO for custom basis, check if something should be
+                    # changed here, e.g. remove the condition to have only
+                    # computational basis
+                    assert measurement.c_targets is not None
+                    qargs = [measurement.targets]
+                    cargs = [measurement.c_targets]
+                else:
+                    raise ValueError(f"measurement not handled: {measurement}")
+
+                if TYPE_CHECKING:
+                    assert not isinstance(qiskit_inst, Operator)
+                new_circ.append(
+                    qiskit_inst,
+                    qargs,
+                    cargs,
+                )
+
             return new_circ
 
         elif language == Language.MY_QLM:
             cleaned_circuit = self.without_measurements()
             qasm2_code = cleaned_circuit.to_other_language(Language.QASM2)
-            assert isinstance(qasm2_code, str)
+            if TYPE_CHECKING:
+                assert isinstance(qasm2_code, str)
             myqlm_circuit = qasm2_to_myqlm_Circuit(qasm2_code)
             self.gphase = cleaned_circuit.gphase
             return myqlm_circuit
@@ -1031,7 +1049,8 @@ class QCircuit:
             qasm3_code = circuit.to_other_language(
                 Language.QASM3, translation_warning=False
             )
-            assert isinstance(qasm3_code, str)
+            if TYPE_CHECKING:
+                assert isinstance(qasm3_code, str)
             self.gphase = circuit.gphase
             return apply_noise_to_braket_circuit(
                 qasm3_to_braket_Circuit(qasm3_code),
@@ -1040,7 +1059,8 @@ class QCircuit:
             )
         elif language == Language.CIRQ:
             qasm2_code = self.to_other_language(Language.QASM2)
-            assert isinstance(qasm2_code, str)
+            if TYPE_CHECKING:
+                assert isinstance(qasm2_code, str)
             cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
             if cirq_proc_id:
                 from cirq.transformers.optimize_for_target_gateset import (
@@ -1078,7 +1098,8 @@ class QCircuit:
             return qasm_str
         elif language == Language.QASM3:
             qasm2_code = self.to_other_language(Language.QASM2)
-            assert isinstance(qasm2_code, str)
+            if TYPE_CHECKING:
+                assert isinstance(qasm2_code, str)
             qasm3_code = open_qasm_2_to_3(
                 qasm2_code, translation_warning=translation_warning
             )

@@ -79,6 +79,7 @@ from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
         ],
         [Barrier()],
         [X(0), Y(1), BasisMeasure([0])],
+        [X(0), BasisMeasure([0]), Y(0)],
         [CNOT(1, 0), CNOT(0, 1)],
     ],
 )
@@ -115,6 +116,8 @@ def test_mpqp_to_qasm_custom_gate(instructions: list[Instruction]):
     assert isinstance(str_circuit, str)
     for i in str_circuit:
         assert i in str_qiskit_circuit
+    for i in str_qiskit_circuit:
+        assert i in str_circuit
 
 
 @pytest.mark.parametrize(
@@ -128,6 +131,16 @@ qreg q[4];
 creg c[4];
 x q;
 x q[0],q[1];
+measure q -> c;""",
+        ),
+        (
+            [X(0), BasisMeasure([0]), Y(0)],
+            """OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[1];
+creg c[1];
+x q;
+y q;
 measure q -> c;""",
         ),
         (

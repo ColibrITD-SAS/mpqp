@@ -93,7 +93,6 @@ class CustomGate(Gate):
             return QiskitOperator(self.matrix)
         elif language == Language.QASM2:
             from mpqp.tools.circuit import replace_custom_gate
-            from qiskit.quantum_info.operators import Operator as QiskitOperator
             from qiskit import QuantumCircuit, qasm2
 
             if qcircuit:
@@ -103,7 +102,10 @@ class CustomGate(Gate):
 
             qiskit_circ = QuantumCircuit(nb_qubits)
             instr = self.to_other_language(Language.QISKIT)
-            assert isinstance(instr, QiskitOperator)
+            if TYPE_CHECKING:
+                from qiskit.quantum_info.operators import Operator as QiskitOperator
+
+                assert isinstance(instr, QiskitOperator)
             qiskit_circ.unitary(
                 instr,
                 list(reversed(self.targets)),  # dang qiskit qubits order
