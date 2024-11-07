@@ -208,9 +208,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.parameters[0]
 
     def __repr__(self):
-        return (
-            f"{type(self).__name__}({f'{self.theta}'.rstrip('0')}, {self.targets[0]})"
-        )
+        return f"{type(self).__name__}({self.theta}, {self.targets[0]})"
 
     def to_other_language(
         self,
