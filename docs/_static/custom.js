@@ -113,13 +113,17 @@ window.onload = () => {
 };
 
 function getEndOfClassHeader(elt) {
+  const endElements = [elt];
   admonition = elt.querySelectorAll(":scope>dd>.admonition");
-  if (admonition.length != 0) return admonition[admonition.length - 1];
+  if (admonition.length != 0)
+    endElements.push(admonition[admonition.length - 1]);
   field_list = elt.querySelector(".class>dd>.field-list");
-  if (field_list !== null) return elt.querySelector(".class>dd>.field-list");
+  if (field_list !== null)
+    endElements.push(elt.querySelector(".class>dd>.field-list"));
   examples = elt.querySelectorAll(".class>dd>div.doctest");
-  if (examples.length != 0) return examples[examples.length - 1];
-  return elt;
+  if (examples.length != 0) endElements.push(examples[examples.length - 1]);
+  offsets = endElements.map((elt) => elt.offsetTop);
+  return endElements[offsets.indexOf(Math.max(...offsets))];
 }
 
 function isABC(elt) {
