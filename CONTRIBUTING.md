@@ -122,10 +122,11 @@ following (even though each of these sections is optional):
 
 1. `Args`
 2. `Returns`
-3. `Raises`
-4. `Example(s)`
-5. `Note`
-6. `Warning`
+3. `Warns`
+4. `Raises`
+5. `Example(s)`
+6. `Note`
+7. `Warning`
 
 ### When you're done
 
