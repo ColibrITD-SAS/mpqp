@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
     from qiskit_ibm_runtime import RuntimeJobV2
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_aer import AerSimulator
     from qiskit.quantum_info import SparsePauliOp
 
 from mpqp.core.circuit import QCircuit
@@ -66,8 +67,8 @@ def fill_observable_with_id(
 ) -> "SparsePauliOp":
     """
     Fills the Pauli strings with identities to make the observable size
-    match the circuit size
-
+    match the circuit size.
+    TODO: fill doc.
     Args:
         spop:
         obs_size:
@@ -96,13 +97,14 @@ def fill_observable_with_id(
 
 
 @typechecked
-def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
+def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job, simulator: "AerSimulator") -> Result:
     """Configures observable job and run it locally, and returns the
     corresponding Result.
 
     Args:
-        ibm_circuit: QuantumCircuit (already reversed bits)
+        ibm_circuit: QuantumCircuit (already reversed bits) for which we want to estimate the expectation value.
         job: Mpqp job describing the observable job to run.
+        simulator: The AerSimulator used to initialize the Estimator.
 
     Returns:
         The result of the job.
@@ -128,28 +130,25 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
-        backend = job.device.to_noisy_simulator()
+        backend = job.device.value()
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
-        qiskit_observable = fill_observable_with_id(
-            qiskit_observable,
-            job.measure.observable.nb_qubits,
-            ibm_circuit.num_qubits,
-        )
+        # qiskit_observable = fill_observable_with_id(
+        #     qiskit_observable,
+        #     job.measure.observable.nb_qubits,
+        #     ibm_circuit.num_qubits,
+        # )
 
         qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
         options = {"default_shots": job.measure.shots}
 
         estimator = Runtime_Estimator(mode=backend, options=options)
 
-        # FIXME: understand why the fake model/device always use the |000> state and not the circuit to compute
-        #  expectation value
-    elif len(job.circuit.noises) != 0:
-        # TODO: use the generate noise model class
-        pass
     else:
         from qiskit_aer.primitives import EstimatorV2 as Estimator
+
+        # TODO: handle the case when we have noise models in the circuit
 
         estimator = Estimator()
         if nb_shots != 0:
@@ -424,8 +423,8 @@ def run_aer(job: Job):
             warnings.warn(
                 "NoiseModel are ignored when running the circuit on a SimulatedDevice"
             )
-            # TODO: handle case when we put NoiseModel + IBMSimulatedDevice (grab qiskit NoiseModel from AerSimulator
-            #  generated below)
+            # 3M-TODO: handle case when we put NoiseModel + IBMSimulatedDevice (grab qiskit NoiseModel from AerSimulator
+            #  generated below, and add to it directly)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
         noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
@@ -444,18 +443,20 @@ def run_aer(job: Job):
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
 
-    qiskit_circuit = transpile(
-        qiskit_circuit,
-        backend_sim,
-        layout_method="trivial",
-        optimization_level=0,
-    )
+    #TODO check if it is the reason why expectation values are not working for IBMSimulatedDevices
+    # TODO: may be this is only needed for sampling mode ?
+    # qiskit_circuit = transpile(
+    #     qiskit_circuit,
+    #     backend_sim,
+    #     layout_method="trivial",
+    #     optimization_level=0,
+    # )
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.
         # this explains the `type: ignore`. This method is needed to get a
-        # statevector our of the statevector simulator...
+        # statevector out of the statevector simulator.
         qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=0)
@@ -473,7 +474,7 @@ def run_aer(job: Job):
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:
-        result = compute_expectation_value(qiskit_circuit, job)
+        result = compute_expectation_value(qiskit_circuit, job, backend_sim)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled.")
