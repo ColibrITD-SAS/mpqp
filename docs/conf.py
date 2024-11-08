@@ -50,6 +50,7 @@ autodoc_type_aliases = {
     "Gate": "Gate",
     "Measure": "Measure",
     "Breakpoint": "Breakpoint",
+    "PauliStringMonomial": "PauliStringMonomial",
 }
 autodoc_mock_imports = ["braket.circuits.measure"]
 simplify_optional_unions = True
