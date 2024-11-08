@@ -52,7 +52,7 @@ from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-from mpqp.tools.errors import NumberQubitsError
+from mpqp.tools.errors import NumberQubitsError, NonReversibleWarning
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -658,41 +658,51 @@ class QCircuit:
             The inverse circuit.
 
         Examples:
-            >>> c1 = QCircuit([H(0), CNOT(0,1)])
+            >>> c1 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
             >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐
-            q_0: ┤ H ├──■──
-                 └───┘┌─┴─┐
-            q_1: ─────┤ X ├
-                      └───┘
-            >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
-                      ┌───┐
-            q_0: ──■──┤ H ├
-                 ┌─┴─┐└───┘
-            q_1: ┤ X ├─────
-                 └───┘
-            >>> c2 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
-            >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ S ├─■──────────────────
                  └───┘ │ ┌───┐┌──────────┐
             q_1: ──────■─┤ H ├┤ Ry(4.56) ├
                          └───┘└──────────┘
+            >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
+                                      ┌────┐
+            q_0: ───────────────────■─┤ S† ├
+                 ┌───────────┐┌───┐ │ └────┘
+            q_1: ┤ Ry(-4.56) ├┤ H ├─■───────
+                 └───────────┘└───┘
+             >>> c2 = QCircuit([S(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1), BasisMeasure([0, 1], shots=2000)])
+            >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐          ░      ┌─┐
+            q_0: ┤ S ├─■────────░──────┤M├───────────────
+                 └───┘ │P(π/2)  ░ ┌───┐└╥┘┌──────────┐┌─┐
+            q_1: ──────■────────░─┤ H ├─╫─┤ Ry(4.56) ├┤M├
+                                ░ └───┘ ║ └──────────┘└╥┘
+            c: 2/═══════════════════════╩══════════════╩═
+                                        0              1
             >>> print(c2.inverse())  # doctest: +NORMALIZE_WHITESPACE
-                                     ┌───┐
-            q_0: ──────────────────■─┤ S ├
-                 ┌──────────┐┌───┐ │ └───┘
-            q_1: ┤ Ry(4.56) ├┤ H ├─■──────
-                 └──────────┘└───┘
+                                    ░           ┌────┐┌─┐
+            q_0: ───────────────────░──■────────┤ S† ├┤M├
+                 ┌───────────┐┌───┐ ░  │P(-π/2) └┬─┬─┘└╥┘
+            q_1: ┤ Ry(-4.56) ├┤ H ├─░──■─────────┤M├───╫─
+                 └───────────┘└───┘ ░            └╥┘   ║
+            c: 2/═════════════════════════════════╩════╩═
+                                                  1    0
 
-        # TODO implement, test, fill second example
-        The inverse could be computed in several ways, depending on the
-        definition of the circuit. One can inverse each gate in the circuit, or
-        take the global unitary of the gate and inverse it.
         """
-        dagger = QCircuit(self.nb_qubits)
-        for instr in reversed(self.instructions):
-            dagger.add(instr)
+        dagger = deepcopy(self)
+        dagger.instructions = []
+        for instr in self.instructions:
+            if isinstance(instr, Gate):
+                dagger.instructions.insert(0, instr.inverse())
+            elif isinstance(instr, Barrier):
+                dagger.instructions.insert(0, instr)
+            else:
+                warn(
+                    f"{type(instr).__name__} is not invertible and has been added at the end of the circuit.",
+                    NonReversibleWarning,
+                )
+                dagger.instructions.append(instr)
         return dagger
 
     def to_gate(self) -> Gate:
