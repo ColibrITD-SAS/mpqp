@@ -71,6 +71,7 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
             and issubclass(fake_imports[p], FakeBackendV2)
             and not p.startswith("FakeProvider")
         ]
+
     # TODO: remove maybe the devices that are deprecated (not FakeBackendV2) or generate bugs.
 
 

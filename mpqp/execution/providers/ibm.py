@@ -97,7 +97,9 @@ def fill_observable_with_id(
 
 
 @typechecked
-def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job, simulator: "AerSimulator") -> Result:
+def compute_expectation_value(
+    ibm_circuit: QuantumCircuit, job: Job, simulator: "AerSimulator"
+) -> Result:
     """Configures observable job and run it locally, and returns the
     corresponding Result.
 
@@ -443,7 +445,7 @@ def run_aer(job: Job):
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
 
-    #TODO check if it is the reason why expectation values are not working for IBMSimulatedDevices
+    # TODO check if it is the reason why expectation values are not working for IBMSimulatedDevices
     # TODO: may be this is only needed for sampling mode ?
     # qiskit_circuit = transpile(
     #     qiskit_circuit,
