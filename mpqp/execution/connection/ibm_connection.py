@@ -1,18 +1,16 @@
 from getpass import getpass
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
 
+from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.execution.devices import IBMDevice
+from mpqp.tools.errors import IBMRemoteExecutionError
 from termcolor import colored
 from typeguard import typechecked
-
-from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 if TYPE_CHECKING:
     from qiskit.providers.backend import BackendV2
     from qiskit_ibm_runtime import QiskitRuntimeService
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
-from mpqp.execution.devices import IBMDevice
-from mpqp.tools.errors import IBMRemoteExecutionError
 
 Runtime_Service = None
 
@@ -154,7 +152,7 @@ def get_active_account_info() -> str:
 
 
 @typechecked
-def get_backend(device: Union[IBMDevice, IBMSimulatedDevice]) -> "BackendV2":
+def get_backend(device: IBMDevice) -> "BackendV2":
     """Retrieves the IBM Q remote device corresponding to the device in
     parameter.
 
@@ -175,7 +173,7 @@ def get_backend(device: Union[IBMDevice, IBMSimulatedDevice]) -> "BackendV2":
          Nduv(datetime.datetime(2024, 1, 9, 15, 41, 39, tzinfo=tzlocal()), gate_length, ns, 60)]
 
     """
-    if not device.is_remote() and not isinstance(device, IBMSimulatedDevice):
+    if not device.is_remote():
         raise ValueError("Expected a remote IBM device but got a local simulator.")
     from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
@@ -210,11 +208,5 @@ def get_all_job_ids() -> list[str]:
 
     """
     if get_env_variable("IBM_CONFIGURED") == "True":
-        return [
-            job.job_id()
-            for job in get_QiskitRuntimeService().jobs(
-                limit=None,
-            )
-        ]
-
+        return [job.job_id() for job in get_QiskitRuntimeService().jobs(limit=None)]
     return []
