@@ -179,16 +179,16 @@ class ExpectationMeasure(Measure):
         shots: Number of shots to be performed.
         label: Label used to identify the measure.
 
+    Warns:
+        UserWarning: If the ``targets`` are not sorted and contiguous, some
+            additional swaps will be needed. This will change the performance of
+            your circuit is run on noisy hardware.
+
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value # doctest: +SKIP
         0.85918
-
-    Warns:
-        UserWarning: If the ``targets`` are not sorted and contiguous, some
-            additional swaps will be needed. This will change the performance of
-            your circuit is run on noisy hardware.
 
     """
 
