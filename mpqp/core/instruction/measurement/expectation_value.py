@@ -205,9 +205,9 @@ class ExpectationMeasure(Measure):
         super().__init__(targets, shots, label)
         self.observable = observable
         """See parameter description."""
-        self.check_targets_order()
+        self._check_targets_order()
 
-    def check_targets_order(self):
+    def _check_targets_order(self):
         from mpqp.core.circuit import QCircuit
 
         if len(self.targets) == 0:

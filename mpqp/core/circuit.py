@@ -291,7 +291,7 @@ class QCircuit:
         if isinstance(components, Barrier):
             components.size = self.nb_qubits
         elif isinstance(components, ExpectationMeasure):
-            components.check_targets_order()
+            components._check_targets_order()  # pyright: ignore[reportPrivateUsage]
         elif isinstance(components, DimensionalNoiseModel):
             components.check_dimension()
         elif isinstance(components, BasisMeasure):
