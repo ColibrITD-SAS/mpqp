@@ -39,7 +39,6 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
 
 
-
 @typechecked
 def run_ibm(job: Job) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
