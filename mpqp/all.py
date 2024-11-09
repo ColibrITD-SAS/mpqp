@@ -67,6 +67,8 @@ from .measures import Y as Yop
 from .measures import Z as Zop
 from .noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
+from .tools.circuit import random_circuit
+from .tools.display import pprint
 
 theta, k = symbols("θ k")
 obs = Observable(np.array([[0, 1], [1, 0]]))

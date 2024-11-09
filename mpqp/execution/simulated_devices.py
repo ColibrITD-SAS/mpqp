@@ -42,16 +42,14 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         return True
 
     def to_noisy_simulator(self) -> "AerSimulator":
-        """
-        TODO comment
-        Returns:
-
-        """
+        """Instantiates and returns an ``AerSimulator`` (from qiskit_aer) with the noise model corresponding
+        to this IBM fake device."""
         from qiskit_aer.backends.aer_simulator import AerSimulator
 
         return AerSimulator.from_backend(self.value())
 
     def to_noise_model(self) -> "Qiskit_NoiseModel":
+        """Generates the qiskit ``NoiseModel`` corresponding to this IBM fake device."""
         from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
         return Qiskit_NoiseModel.from_backend(self.value())
