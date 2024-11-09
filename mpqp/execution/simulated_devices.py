@@ -39,7 +39,7 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
     """Abstract class regrouping methods specific to an ``IBMSimulatedDevice``."""
 
     def supports_statevector(self):
-        return True
+        return False
 
     def to_noisy_simulator(self) -> "AerSimulator":
         """Instantiates and returns an ``AerSimulator`` (from qiskit_aer) with the noise model corresponding

@@ -58,41 +58,6 @@ def run_ibm(job: Job) -> Result:
 
 
 @typechecked
-def fill_observable_with_id(
-    spop: "SparsePauliOp", obs_size: int, circ_size: int
-) -> "SparsePauliOp":
-    """
-    Fills the Pauli strings with identities to make the observable size
-    match the circuit size.
-    TODO: fill doc.
-    Args:
-        spop:
-        obs_size:
-        circ_size:
-
-    Returns:
-
-    """
-    from qiskit.quantum_info import Pauli, PauliList, SparsePauliOp
-
-    return SparsePauliOp(
-        [
-            # for some reason, the type checker gets the type of
-            # pauli.paulis[0] wrong, and as such the wrong tensor is
-            # inferred. Because of this, the type inside it are not guessed
-            # properly either, forcing us to "ignore" this problem.
-            pauli.paulis[0].tensor(
-                PauliList(  # pyright: ignore[reportArgumentType]
-                    Pauli("I" * (circ_size - obs_size))
-                )
-            )
-            for pauli in spop
-        ],
-        coeffs=spop.coeffs,
-    )
-
-
-@typechecked
 def compute_expectation_value(
     ibm_circuit: QuantumCircuit, job: Job, simulator: "AerSimulator"
 ) -> Result:
@@ -131,12 +96,6 @@ def compute_expectation_value(
         backend = job.device.value()
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
-
-        # qiskit_observable = fill_observable_with_id(
-        #     qiskit_observable,
-        #     job.measure.observable.nb_qubits,
-        #     ibm_circuit.num_qubits,
-        # )
 
         qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
         options = {"default_shots": job.measure.shots}
@@ -178,19 +137,33 @@ def check_job_compatibility(job: Job):
             contained in the job (measure and job_type, device and job_type,
             etc...).
     """
-    assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+    if TYPE_CHECKING:
+        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+
     if not type(job.measure) in job.job_type.value:
         raise DeviceJobIncompatibleError(
             f"An {job.job_type.name} job is valid only if the corresponding circuit has an measure in "
             f"{list(map(lambda cls: cls.__name__, job.job_type.value))}. "
             f"{type(job.measure).__name__} was given instead."
         )
+
     if job.job_type == JobType.STATE_VECTOR and not job.device.supports_statevector():
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
-            f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "
+            "a local device supporting state vector jobs instead (or change the job "
             "type, for example by giving a number of shots to a BasisMeasure)."
         )
+
+    if (
+        job.job_type == JobType.OBSERVABLE
+        and job.device.is_remote()
+        and job.measure.shots == 0
+    ):
+        raise DeviceJobIncompatibleError(
+            "Expectation values cannot be computed exactly using IBM remote"
+            " simulators and devices. Please use a local simulator instead."
+        )
+
     incompatibilities = {
         IBMDevice.AER_SIMULATOR_STABILIZER: {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U},
         IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER: {Rx, Rz},
@@ -496,31 +469,16 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
     from qiskit import QuantumCircuit
-    from qiskit.compiler import transpile
+    from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
 
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
     from qiskit_ibm_runtime import Session
 
-    if job.job_type == JobType.STATE_VECTOR:
-        raise DeviceJobIncompatibleError(
-            "State vector cannot be computed using IBM remote simulators and"
-            " devices. Please use a local simulator instead."
-        )
+    # TODO: put all those checks in check_job_compatibility
 
     meas = job.measure
 
-    if job.job_type == JobType.OBSERVABLE:
-        if not isinstance(meas, ExpectationMeasure):
-            raise ValueError(
-                "An observable job must is valid only if the corresponding "
-                "circuit has an expectation measure."
-            )
-        if meas.shots == 0:
-            raise DeviceJobIncompatibleError(
-                "Expectation values cannot be computed exactly using IBM remote"
-                " simulators and devices. Please use a local simulator instead."
-            )
     check_job_compatibility(job)
 
     qiskit_circ = job.circuit.to_other_language(Language.QISKIT)
@@ -528,11 +486,15 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         assert isinstance(qiskit_circ, QuantumCircuit)
 
     qiskit_circ = qiskit_circ.reverse_bits()
+
     service = get_QiskitRuntimeService()
+
     assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     session = Session(service=service, backend=backend)
-    qiskit_circ = transpile(qiskit_circ, backend)
+
+    pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+    qiskit_circ = pm.run(qiskit_circ)
 
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
@@ -542,9 +504,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         if TYPE_CHECKING:
             assert isinstance(qiskit_observable, SparsePauliOp)
 
-        qiskit_observable = fill_observable_with_id(
-            qiskit_observable, meas.observable.nb_qubits, qiskit_circ.num_qubits
-        )
+        qiskit_observable = qiskit_observable.apply_layout(qiskit_circ.layout)
 
         # TODO: check that default_shots gives indeed the right shots remotely
         estimator.options.default_shots = meas.shots
@@ -555,7 +515,9 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         sampler = Runtime_Sampler(mode=session)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
-        raise NotImplementedError(f"{job.job_type} not handled.")
+        raise NotImplementedError(
+            f"{job.job_type} not handled by remote remote IBM devices."
+        )
 
     job.id = ibm_job.job_id()
 
