@@ -98,7 +98,7 @@ def compute_expectation_value(
         ibm_circuit = pm.run(ibm_circuit)
 
         qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
-        #TODO : check that default shtos is taken into account here
+        # TODO : check that default shtos is taken into account here
         options = {"default_shots": job.measure.shots}
 
         estimator = Runtime_Estimator(mode=backend, options=options)
