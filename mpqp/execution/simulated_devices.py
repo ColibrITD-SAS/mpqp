@@ -7,7 +7,7 @@ one can use a :class:`SimulatedDevice`. Inheriting from :class:`~mpqp.execution.
 
 from typing import TYPE_CHECKING, Union
 
-from mpqp.execution import AvailableDevice, IBMDevice
+from mpqp.execution import AvailableDevice
 from typeguard import typechecked
 
 if TYPE_CHECKING:

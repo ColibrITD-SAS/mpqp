@@ -98,6 +98,7 @@ def compute_expectation_value(
         ibm_circuit = pm.run(ibm_circuit)
 
         qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
+        #TODO : check that default shtos is taken into account here
         options = {"default_shots": job.measure.shots}
 
         estimator = Runtime_Estimator(mode=backend, options=options)
@@ -157,6 +158,7 @@ def check_job_compatibility(job: Job):
     if (
         job.job_type == JobType.OBSERVABLE
         and job.device.is_remote()
+        and job.measure is not None
         and job.measure.shots == 0
     ):
         raise DeviceJobIncompatibleError(
@@ -384,7 +386,6 @@ def run_aer(job: Job):
     check_job_compatibility(job)
 
     from qiskit import QuantumCircuit
-    from qiskit.compiler import transpile
     from qiskit_aer import AerSimulator
 
     job_circuit = job.circuit
@@ -578,11 +579,12 @@ def extract_result(
         if hasattr(res_data, "evs"):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+
             mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
             error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
             shots = (  # TODO
                 job.measure.shots
-                if job.device.is_simulator()
+                if job.device.is_simulator() and job.measure is not None
                 else result[0].metadata["shots"]
             )
             return Result(job, mean, error, shots)
