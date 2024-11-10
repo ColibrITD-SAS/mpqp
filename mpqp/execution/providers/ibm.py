@@ -594,10 +594,10 @@ def extract_result(
         else:
             if job is None:
                 shots = (
-                    res_data.meas.num_shots  # pyright: ignore[reportAttributeAccessIssue]
+                    res_data.c.num_shots  # pyright: ignore[reportAttributeAccessIssue]
                 )
                 nb_qubits = (
-                    res_data.meas.num_bits  # pyright: ignore[reportAttributeAccessIssue]
+                    res_data.c.num_bits  # pyright: ignore[reportAttributeAccessIssue]
                 )
                 job = Job(
                     JobType.SAMPLE,
@@ -608,7 +608,7 @@ def extract_result(
             assert job.measure is not None
 
             counts = (
-                res_data.meas.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
+                res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
             )
             data = [
                 Sample(
