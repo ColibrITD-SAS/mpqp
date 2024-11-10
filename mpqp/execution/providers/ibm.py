@@ -59,7 +59,7 @@ def run_ibm(job: Job) -> Result:
 
 @typechecked
 def compute_expectation_value(
-    ibm_circuit: QuantumCircuit, job: Job, simulator: "AerSimulator"
+    ibm_circuit: QuantumCircuit, job: Job, simulator: Optional["AerSimulator"]
 ) -> Result:
     """Configures observable job and run it locally, and returns the
     corresponding Result.
@@ -107,6 +107,8 @@ def compute_expectation_value(
         from qiskit_aer.primitives import EstimatorV2 as Estimator
 
         # TODO: handle the case when we have noise models in the circuit
+
+        # TODO: maybe use the parameter simulator in that case
 
         estimator = Estimator()
         if nb_shots != 0:
