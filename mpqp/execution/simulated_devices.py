@@ -55,22 +55,16 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         return Qiskit_NoiseModel.from_backend(self.value())
 
     @staticmethod
-    def get_ibm_fake_providers() -> (
-        list[tuple[str, Union[type["Backend"], type["FakeBackendV2"]]]]
-    ):
+    def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
         from qiskit_ibm_runtime import fake_provider
-        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
         fake_imports = fake_provider.__dict__
         return [
             (p, fake_imports[p])
             for p in fake_imports.keys()
             if p.startswith("Fake")
-            and issubclass(fake_imports[p], FakeBackendV2)
-            and not p.startswith("FakeProvider")
+            and not p.startswith(("FakeProvider", "FakeFractional"))
         ]
-
-    # TODO: remove maybe the devices that are deprecated (not FakeBackendV2) or generate bugs.
 
 
 IBMSimulatedDevice = AbstractIBMSimulatedDevice(

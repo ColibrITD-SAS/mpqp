@@ -6,6 +6,8 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from typeguard import typechecked
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -22,7 +24,6 @@ from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.execution.simulated_devices import IBMSimulatedDevice
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -387,7 +388,7 @@ def run_aer(job: Job):
     """
     check_job_compatibility(job)
 
-    from qiskit import QuantumCircuit
+    from qiskit import QuantumCircuit, transpile
     from qiskit_aer import AerSimulator
 
     job_circuit = job.circuit
@@ -419,12 +420,6 @@ def run_aer(job: Job):
 
     # TODO check if it is the reason why expectation values are not working for IBMSimulatedDevices
     # TODO: may be this is only needed for sampling mode ?
-    # qiskit_circuit = transpile(
-    #     qiskit_circuit,
-    #     backend_sim,
-    #     layout_method="trivial",
-    #     optimization_level=0,
-    # )
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
@@ -435,13 +430,16 @@ def run_aer(job: Job):
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=0)
         result_sim = job_sim.result()
-        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+        assert isinstance(job.device, IBMDevice)
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.SAMPLE:
         assert job.measure is not None
-
         job.status = JobStatus.RUNNING
+
+        if isinstance(job.device, IBMSimulatedDevice):
+            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
         assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
