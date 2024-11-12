@@ -4,6 +4,7 @@ import re
 
 import pytest
 
+from mpqp.all import *
 from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_file_conversion_3_to_2,
     open_qasm_file_conversion_2_to_3,
@@ -57,9 +58,8 @@ def test_in_time_gate_def_3_to_2():
     converted_file_name = qasm_folder + "in_time_gate_def.qasm"
     file_name = qasm_folder + "in_time_gate_def_converted.qasm"
     with open(converted_file_name, "r") as f:
-        assert ' '.join(
-            open_qasm_file_conversion_3_to_2(file_name).split()
-        ) == ' '.join(f.read().split())
+        qasm, _ = open_qasm_file_conversion_3_to_2(file_name)
+        assert ' '.join(qasm.split()) == ' '.join(f.read().split())
 
 
 def test_late_gate_def_3_to_2():
@@ -88,7 +88,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
 
             gate rzz(theta) a,b {
                 cx a,b;
-                u(theta,theta,theta) b;
+                u3(theta,theta,theta) b;
                 cx a,b;
             }
             qreg q[3];
@@ -98,6 +98,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
         ),
         (
             """OPENQASM 2.0;
+            include "qelib1.inc";
             gate my_gate a,b {
                 h a;
                 cx a,b;
@@ -109,12 +110,14 @@ def test_circular_dependency_detection_false_positive_3_to_2():
         ),
         (
             """OPENQASM 2.0;
+            include "qelib1.inc";
             qreg q[3];
             cx q[0],q[1];
             cx q[1],q[2];"""
         ),
         (
             """OPENQASM 2.0;
+            include "qelib1.inc";
             qreg q[3];
             creg c[2];
             u1(0.2) q[1], q[2];
@@ -122,7 +125,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
         ),
         (
             """OPENQASM 2.0;
-
+            include "qelib1.inc";
             gate rzz(theta) a,b {
                 cx a,b;
                 u1(theta) b;
@@ -144,7 +147,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
 
             gate MyGate2 a, b, c {
                 h a;
-                cu1 a, c;
+                cp a, c;
                 h c;
             }
 
@@ -157,7 +160,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
     ],
 )
 def test_conversion_2_and_3(qasm_code: str):
-    convert = open_qasm_3_to_2(open_qasm_2_to_3(qasm_code))
+    convert, _ = open_qasm_3_to_2(open_qasm_2_to_3(qasm_code))
     assert normalize_whitespace(convert) == normalize_whitespace(qasm_code)
 
 
@@ -254,6 +257,7 @@ def test_conversion_2_to_3(qasm_code: str, expected_output: str):
         ("""OPENQASM 2.0;""", """OPENQASM 3.0;"""),
         (
             """OPENQASM 2.0;
+            include "qelib1.inc";
                qreg q[2];
                h q[0];""",
             """OPENQASM 3.0;
@@ -273,6 +277,7 @@ def test_conversion_2_to_3(qasm_code: str, expected_output: str):
         ),
         (
             """OPENQASM 2.0;
+               include "qelib1.inc";
                qreg q[1];
                creg c[1];
                measure q[0] -> c[0];
@@ -285,6 +290,7 @@ def test_conversion_2_to_3(qasm_code: str, expected_output: str):
         ),
         (
             """OPENQASM 2.0;
+            include "qelib1.inc";
                qreg q[3];
                cx q[0], q[1];
                cx q[1], q[2];""",
@@ -302,10 +308,11 @@ def test_conversion_2_to_3(qasm_code: str, expected_output: str):
             """OPENQASM 3.0;
                include "stdgates.inc";
                qubit[1] q;
-               u3(0.5, 0.2, 0.3) q[0];""",
+               u(0.5, 0.2, 0.3) q[0];""",
         ),
         (
             """OPENQASM 2.0;
+               include "qelib1.inc";
                gate mygate a, b {
                  h a;
                  cx a, b;
@@ -332,7 +339,7 @@ def test_conversion_2_to_3(qasm_code: str, expected_output: str):
     ],
 )
 def test_conversion_3_to_2(expected_output: str, qasm_code: str):
-    convert = open_qasm_3_to_2(qasm_code)
+    convert, _ = open_qasm_3_to_2(qasm_code)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 
@@ -817,3 +824,75 @@ def test_parse_user_gates(
 def test_remove_user_gates(qasm_code: str, expected_output: str):
     output = remove_user_gates(qasm_code)
     assert normalize_whitespace(output) == normalize_whitespace(expected_output)
+
+
+# @pytest.mark.parametrize(
+#    "instructions",
+#    [
+#        (
+#            """OPENQASM 3.0;
+#            include "stdgates.inc";
+#               qubit[2] q;
+#               h q[0];""",
+#        ),
+#        (
+#            """OPENQASM 3.0;
+#               qubit[1] q;
+#               bit[1] c;
+#               c[0] = measure q[0];
+#               if (c == 1) x q[0];""",
+#        ),
+#        (
+#            """OPENQASM 3.0;
+#            include "stdgates.inc";
+#               qubit[3] q;
+#               cx q[0], q[1];
+#               cx q[1], q[2];""",
+#        ),
+#        (
+#            """OPENQASM 3.0;
+#               include "stdgates.inc";
+#               qubit[1] q;
+#               u(0.5, 0.2, 0.3) q[0];""",
+#        ),
+#        (
+#            """OPENQASM 3.0;
+#               include "stdgates.inc";
+#               gate mygate a, b {
+#                 h a;
+#                 cx a, b;
+#               }
+#               qubit[2] q;
+#               mygate q[0], q[1];""",
+#        ),
+#    ],
+# )
+# def test_sample_counts_in_trust_interval(instructions: str):
+#    convert, _ = open_qasm_3_to_2(instructions)
+#    c = QCircuit(instructions)
+#    shots = 50000
+#    err_rate = 0.2
+#    err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
+#    res = run(c, IBMDevice.AER_SIMULATOR)
+#    assert isinstance(res, Result)
+#    expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
+#    c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
+#    with pytest.warns(UnsupportedBraketFeaturesWarning):
+#        batch = run(c, sampling_devices)
+#    assert isinstance(batch, BatchResult)
+#    for result in batch:
+#        print(result)
+#        print("expected_counts: " + str(expected_counts))
+#        counts = result.counts
+#        # check if the true value is inside the trust interval
+#        for i in range(len(counts)):
+#            trust_interval = np.ceil(
+#                err_rate_pourcentage * expected_counts[i] + shots / 15
+#            )
+#            print(trust_interval)
+#            assert (
+#                np.floor(counts[i] - trust_interval)
+#                <= expected_counts[i]
+#                <= np.ceil(counts[i] + trust_interval)
+#            )
+#

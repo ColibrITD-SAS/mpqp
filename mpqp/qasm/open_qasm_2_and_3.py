@@ -79,6 +79,42 @@ std_gates_2 = [
     "c4x",
 ]
 std_gates_2_3 = ["u", "swap", "cswap", "cp"]
+qelib1_gates = [
+    "u3",
+    "u2",
+    "u1",
+    "u0",
+    "cx",
+    "id",
+    "u",
+    "p",
+    "x",
+    "y",
+    "z",
+    "h",
+    "s",
+    "sdg",
+    "t",
+    "tdg",
+    "sx",
+    "sxdg",
+    "rx",
+    "ry",
+    "rz",
+    "swap",
+    "cz",
+    "cy",
+    "ch",
+    "ccx",
+    "crz",
+    "cu1",
+    "cu3",
+    "cswap",
+    "crx",
+    "cry",
+    "cp",
+    "cu",
+]
 std_gates_3 = [
     "u1",
     "u2",
@@ -111,9 +147,6 @@ std_gates_3 = [
     "sx",
 ]
 std_gates_3_to_2_map = {
-    "u3": "u",
-    "cp": "cu1",
-    "p": "u1",
     "phase": "u1",
     "cphase": "cu1",
 }
@@ -769,7 +802,8 @@ def convert_instruction_3_to_2(
     included_tree_current: Node,
     defined_gates: set[str],
     path_to_main: Optional[str] = None,
-) -> tuple[str, str]:
+    gphase: float = 0.0,
+) -> tuple[str, str, float]:
     """Converts an individual OpenQASM 3.0 instruction back to OpenQASM 2.0."""
     if path_to_main is None:
         path_to_main = "."
@@ -793,12 +827,18 @@ def convert_instruction_3_to_2(
     else:
         raise ValueError(f"Could not parse instruction: {instr}")
 
-    if instr.startswith("OPENQASM 2.0"):
-        raise ValueError(
-            f"Only OPENQASM 3.0 is supported. OPENQASM 2.0 is not valid: {instr}"
-        )
-    elif instr.startswith("OPENQASM 3.0"):
-        header_code += "OPENQASM 2.0;\n"
+    if instr_name == "OPENQASM":
+        instr_match = re.match(r"OPENQASM\s*(\d+.\d+)\s*", instr)
+        if instr_match:
+            version = float(instr_match.group(1))
+            if version != 3.0:
+                raise ValueError(
+                    f"Only OPENQASM 3.0 is supported. OPENQASM {version} is not valid: {instr}"
+                )
+            else:
+                header_code += "OPENQASM 2.0;\n"
+        else:
+            raise ValueError(f"Could not parse OPENQASM (version): {instr}")
     elif instr_name == "include":
         m = re.match(r'\s*include\s+["\']([^"\']+)["\']', instr)
         if m:
@@ -812,8 +852,8 @@ def convert_instruction_3_to_2(
                 ):
                     with open(f"{path_to_main}/{path}", "r") as f:
                         child = Node(path, parent=included_tree_current)
-                        converted_content = open_qasm_3_to_2(
-                            f.read(), child, path_to_main, defined_gates
+                        converted_content, gphase = open_qasm_3_to_2(
+                            f.read(), child, path_to_main, defined_gates, gphase
                         )
                     new_path = splitext(path)[0] + "_converted" + splitext(path)[1]
                     with open(f"{path_to_main}/{new_path}", "w") as f:
@@ -838,21 +878,18 @@ def convert_instruction_3_to_2(
                 instructions_code += f"measure {q}{nb_q} -> {c}{nb_c};\n"
             else:
                 instructions_code += f"measure {q} -> {c};\n"
-    elif instr_name == "u3":
+    elif instr_name in qelib1_gates:
         header_code += add_qe_lib()
-        instructions_code += re.sub(r"\bu3\b", "u", instr) + ";\n"
-    elif instr_name == "cp":
-        header_code += add_qe_lib()
-        instructions_code += re.sub(r"\bcp\b", "cu1", instr) + ";\n"
+        instructions_code += instr + ";\n"
     elif instr_name in std_gates_3_to_2_map:
         converted_instr_name = std_gates_3_to_2_map[instr_name]
         instructions_code += (
             re.sub(r"\b" + instr_name + r"\b", converted_instr_name, instr) + ";\n"
         )
-    elif instr_name in std_gates_3:
-        m = re.match(r"\s*(.*)", instr)
-        if m:
-            instructions_code += m.group(1) + ";\n"
+    # elif instr_name in std_gates_3:
+    #    m = re.match(r"\s*(.*)", instr)
+    #    if m:
+    #        instructions_code += m.group(1) + ";\n"
     elif instr_name == "gate":
         m = re.match(
             r"\s*gate\s+(\w+)\s*(\(([^)]*)\))?\s*([\w\s,]*)\s*{\s*([^}]*)\s*}",
@@ -872,12 +909,13 @@ def convert_instruction_3_to_2(
             )
             for instruction in g_instructions:
                 instruction = instruction.strip()
-                i_code, h_code = convert_instruction_3_to_2(
+                i_code, h_code, gphase = convert_instruction_3_to_2(
                     instruction,
                     included_instr,
                     included_tree_current,
                     defined_gates,
                     path_to_main,
+                    gphase,
                 )
                 g_string += " " * 4 + i_code  # Add indentation to body instructions
                 header_code += h_code
@@ -890,30 +928,41 @@ def convert_instruction_3_to_2(
         if m:
             if_statement = m.group(1)
             nested_instr = m.group(2)
-            i_code, h_code = convert_instruction_3_to_2(
+            i_code, h_code, gphase = convert_instruction_3_to_2(
                 nested_instr,
                 included_instr,
                 included_tree_current,
                 defined_gates,
                 path_to_main,
+                gphase,
             )
             instructions_code += if_statement + " " + i_code
             header_code += h_code
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
+    elif instr_name == "gphase":
+        instr_match = re.match(r"gphase\((.*)\)\s*", instr)
+        if instr_match:
+            try:
+                version = float(instr_match.group(1))
+            except ValueError:
+                raise ValueError(
+                    f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
+                )
+            gphase += version
     else:
         gate = instr.split()[0].split("(")[0]
         if gate == "ctrl":
             gate = instr.split()[2]
         if gate not in defined_gates:
             raise ValueError(
-                f"Gates undefined at the time of usage: {gate}, {instr_name}"
+                f"Gates not defined/handled at the time of usage: {gate}, {instr_name}"
             )
         m = re.match(r"\s*(.*)", instr)
         if m:
             instructions_code += m.group(1) + ";\n"
 
-    return instructions_code, header_code
+    return instructions_code, header_code, gphase
 
 
 @typechecked
@@ -922,11 +971,12 @@ def open_qasm_3_to_2(
     included_tree_current_node: Optional[Node] = None,
     path_to_file: Optional[str] = None,
     defined_gates: Optional[set[str]] = None,
-) -> str:
+    gphase: float = 0.0,
+) -> tuple[str, float]:
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
     This function will also recursively go through the imported files to
-    translate them too. It is a partial conversion (the ``opaque`` keyword is
+    translate them too. It is a partial conversion (the ``opaque``, ``for``, ``switch`` keyword is
     not handled) for helping building temporary bridges between different
     platforms using different versions.
 
@@ -948,14 +998,17 @@ def open_qasm_3_to_2(
         ... c[0] = measure q[0];
         ... c[1] = measure q[1];
         ... '''
-        >>> print(open_qasm_3_to_2(qasm3_str)) # doctest: +NORMALIZE_WHITESPACE
+        >>> qasm_3, gphase = open_qasm_3_to_2(qasm3_str)
+        >>> print(qasm_3)  # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
+        include "qelib1.inc";
         qreg q[2];
         creg c[2];
         h q[0];
         cx q[0],q[1];
         measure q[0] -> c[0];
         measure q[1] -> c[1];
+
     """
     if included_tree_current_node is None:
         included_tree_current_node = Node("initial_code")
@@ -970,22 +1023,23 @@ def open_qasm_3_to_2(
     instructions = parse_openqasm_3_file(code)
 
     included_instructions = set()
-
     defined_gates.update(std_gates_3)
 
     for instr in instructions:
-        i_code, h_code = convert_instruction_3_to_2(
+        i_code, h_code, gphase = convert_instruction_3_to_2(
             instr,
             included_instructions,
             included_tree_current_node,
             defined_gates,
             path_to_file,
+            gphase,
         )
         header_code += h_code
         instructions_code += i_code
-    target_code = header_code + instructions_code
+    gphase_code = f"\\\\ gphase {gphase}" if gphase != 0 else ""
+    target_code = header_code + gphase_code + instructions_code
 
-    return target_code
+    return target_code, gphase
 
 
 @typechecked
@@ -1030,7 +1084,7 @@ def parse_openqasm_3_file(code: str) -> list[str]:
 
 
 @typechecked
-def open_qasm_file_conversion_3_to_2(path: str) -> str:
+def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
     """Converts an OpenQASM code in a file from version 3.0 and 2.0.
 
     This function is a shorthand to initialize :func:`open_qasm_3_to_2` with the
@@ -1059,10 +1113,12 @@ def open_qasm_file_conversion_3_to_2(path: str) -> str:
         gate3 q[0], q[1];
         c[0] = measure q[0];
         c[1] = measure q[1];
-        >>> print(open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")) # doctest: +NORMALIZE_WHITESPACE
+        >>> qasm_3, gphase = open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")
+        >>> print(qasm_3) # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
         include 'include1_converted_converted.qasm';
         include 'include2_converted_converted.qasm';
+        include "qelib1.inc";
         qreg q[2];
         creg c[2];
         h q[0];
@@ -1071,17 +1127,19 @@ def open_qasm_file_conversion_3_to_2(path: str) -> str:
         gate3 q[0], q[1];
         measure q[0] -> c[0];
         measure q[1] -> c[1];
-        >>> with open(example_dir + "include1.qasm", "r") as f:
+        >>> with open(example_dir + "include1_converted_converted.qasm", "r") as f:
         ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
+        include "qelib1.inc";
         gate gate2 a {
-            U(pi, -pi/2, pi/2) a;
+            u3(pi, -pi/2, pi/2) a;
         }
-        >>> with open(example_dir + "include2.qasm", "r") as f:
+        >>> with open(example_dir + "include2_converted_converted.qasm", "r") as f:
         ...     print(f.read()) # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
+        include "qelib1.inc";
         gate gate3 a, b {
-            U(0, -pi/2, pi/3) a;
+            u3(0, -pi/2, pi/3) a;
             cz a, b;
         }
 
