@@ -33,6 +33,14 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_3_to_2,
     open_qasm_file_conversion_3_to_2,
 )
+from mpqp.qasm.qasm2_to_mpqp import qasm2_parse
+from mpqp.tools.maths import (
+    is_hermitian,
+    is_unitary,
+    normalize,
+    rand_orthogonal_matrix,
+    is_power_of_two,
+)
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint, format_element
 from mpqp.tools.circuit import random_circuit, random_instruction
 from mpqp.tools.errors import (
