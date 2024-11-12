@@ -20,5 +20,6 @@ Instructions can be of type:
    gates
    measures
    barrier
+   breakpoint
 
 Each of there are described on their respective page.

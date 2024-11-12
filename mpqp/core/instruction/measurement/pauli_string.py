@@ -84,20 +84,12 @@ class PauliString:
 
     @property
     def monomials(self) -> list[PauliStringMonomial]:
-        """Gets the monomials of the PauliString.
-
-        Returns:
-            The list of monomials in the PauliString.
-        """
+        """Monomials of the PauliString."""
         return self._monomials
 
     @property
     def nb_qubits(self) -> int:
-        """Gets the number of qubits associated with the PauliString.
-
-        Returns:
-            The number of qubits associated with the PauliString.
-        """
+        """Number of qubits associated with the PauliString."""
         return 0 if len(self._monomials) == 0 else self._monomials[0].nb_qubits
 
     def __str__(self):
@@ -597,20 +589,20 @@ class PauliString:
 
         Example:
             >>> from mpqp.measures import I, X, Y, Z
-            >>> ps = X@I@I + I@Y@I + I@I@Z
+            >>> ps = X @ X @ I + I @ Y @ I + I @ I @ Z
             >>> print(ps.to_other_language(Language.CIRQ))
-            1.000*X(q(0))+1.000*Y(q(1))+1.000*Z(q(2))
+            1.000*X(q(0))*X(q(1))+1.000*Y(q(1))+1.000*Z(q(2))
             >>> for term in ps.to_other_language(Language.MY_QLM):
             ...     print(term.op, term.qbits)
-            X [0]
+            XX [0, 1]
             Y [1]
             Z [2]
             >>> print(ps.to_other_language(Language.QISKIT))
-            SparsePauliOp(['IIX', 'IYI', 'ZII'],
+            SparsePauliOp(['IXX', 'IYI', 'ZII'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
             >>> for tensor in ps.to_other_language(Language.BRAKET).summands:
             ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors))
-            1 XII
+            1 XXI
             1 IYI
             1 IIZ
 

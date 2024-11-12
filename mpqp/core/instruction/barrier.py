@@ -13,12 +13,17 @@ from .instruction import Instruction
 
 
 class Barrier(Instruction):
-    """Visual indicator of the grouping of circuit sections"""
+    """Visual indicator of how the circuit can be divided.
+
+    Args:
+        size: Size of the barrier. If set to 0, it will be a dynamic
+            instruction, always spanning the entirety of the circuit.
+    """
 
     def __init__(self, size: int = 0):
-        super().__init__(list(range(size + 1)))
+        super().__init__(list(range(size)))
         self.size = size
-        """Size of the barrier (set to 0 by default)."""
+        """See parameter description."""
         if size == 0:
             self._dynamic = True
 
