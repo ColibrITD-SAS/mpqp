@@ -124,7 +124,7 @@ def test_basis_implementations(
                     BasisMeasure(
                         [0, 1, 2],
                         basis=Basis([np.eye(8)[i] for i in range(8)]),
-                        shots=10000,
+                        shots=0,
                     ),
                 ]
             ),
@@ -143,27 +143,15 @@ def test_basis_implementations(
                             [
                                 np.array([1, 0, 0, 0, 0, 0, 0, 0]),
                                 np.array([0, 1, 0, 0, 0, 0, 0, 0]),
-                                np.array(
-                                    [0, 0, 1 / np.sqrt(2), 1 / np.sqrt(2), 0, 0, 0, 0]
-                                ),
-                                np.array(
-                                    [0, 0, 1 / np.sqrt(2), -1 / np.sqrt(2), 0, 0, 0, 0]
-                                ),
-                                np.array(
-                                    [0, 0, 0, 0, 1 / np.sqrt(2), 0, 1 / np.sqrt(2), 0]
-                                ),
-                                np.array(
-                                    [0, 0, 0, 0, 1 / np.sqrt(2), 0, -1 / np.sqrt(2), 0]
-                                ),
-                                np.array(
-                                    [0, 0, 0, 0, 0, 1 / np.sqrt(2), 0, 1 / np.sqrt(2)]
-                                ),
-                                np.array(
-                                    [0, 0, 0, 0, 0, 1 / np.sqrt(2), 0, -1 / np.sqrt(2)]
-                                ),
+                                np.array([0, 0, 1, 1, 0, 0, 0, 0]) / np.sqrt(2),
+                                np.array([0, 0, 1, -1, 0, 0, 0, 0]) / np.sqrt(2),
+                                np.array([0, 0, 0, 0, 1, 0, 1, 0]) / np.sqrt(2),
+                                np.array([0, 0, 0, 0, 1, 0, -1, 0]) / np.sqrt(2),
+                                np.array([0, 0, 0, 0, 0, 1, 0, 1]) / np.sqrt(2),
+                                np.array([0, 0, 0, 0, 0, 1, 0, -1]) / np.sqrt(2),
                             ]
                         ),
-                        shots=10000,
+                        shots=0,
                     ),
                 ]
             ),
@@ -176,6 +164,4 @@ def test_run_with_custom_basis(
 ):
     res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
 
-    assert matrix_eq(
-        expected_probabilities, res.probabilities.astype(np.complex64), atol=1e-2
-    )
+    assert matrix_eq(expected_probabilities, res.probabilities.astype(np.complex64))
