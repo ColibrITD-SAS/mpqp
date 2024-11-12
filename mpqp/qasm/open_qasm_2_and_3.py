@@ -147,6 +147,7 @@ std_gates_3 = [
     "sx",
 ]
 std_gates_3_to_2_map = {
+    "U": "u",
     "phase": "u1",
     "cphase": "cu1",
 }
@@ -999,8 +1000,8 @@ def open_qasm_3_to_2(
         ... c[0] = measure q[0];
         ... c[1] = measure q[1];
         ... '''
-        >>> qasm_3, gphase = open_qasm_3_to_2(qasm3_str)
-        >>> print(qasm_3)  # doctest: +NORMALIZE_WHITESPACE
+        >>> qasm_2, gphase = open_qasm_3_to_2(qasm3_str)
+        >>> print(qasm_2)  # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
         include "qelib1.inc";
         qreg q[2];
@@ -1037,7 +1038,7 @@ def open_qasm_3_to_2(
         )
         header_code += h_code
         instructions_code += i_code
-    gphase_code = f"\\\\ gphase {gphase}" if gphase != 0 else ""
+    gphase_code = f"\\\\ gphase {gphase}\n" if gphase != 0 else ""
     target_code = header_code + gphase_code + instructions_code
 
     return target_code, gphase
@@ -1114,8 +1115,8 @@ def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
         gate3 q[0], q[1];
         c[0] = measure q[0];
         c[1] = measure q[1];
-        >>> qasm_3, gphase = open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")
-        >>> print(qasm_3) # doctest: +NORMALIZE_WHITESPACE
+        >>> qasm_2, gphase = open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")
+        >>> print(qasm_2) # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
         include 'include1_converted_converted.qasm';
         include 'include2_converted_converted.qasm';

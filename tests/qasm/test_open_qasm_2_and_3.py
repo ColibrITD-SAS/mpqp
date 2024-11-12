@@ -826,73 +826,70 @@ def test_remove_user_gates(qasm_code: str, expected_output: str):
     assert normalize_whitespace(output) == normalize_whitespace(expected_output)
 
 
-# @pytest.mark.parametrize(
-#    "instructions",
-#    [
-#        (
-#            """OPENQASM 3.0;
-#            include "stdgates.inc";
-#               qubit[2] q;
-#               h q[0];""",
-#        ),
-#        (
-#            """OPENQASM 3.0;
-#               qubit[1] q;
-#               bit[1] c;
-#               c[0] = measure q[0];
-#               if (c == 1) x q[0];""",
-#        ),
-#        (
-#            """OPENQASM 3.0;
-#            include "stdgates.inc";
-#               qubit[3] q;
-#               cx q[0], q[1];
-#               cx q[1], q[2];""",
-#        ),
-#        (
-#            """OPENQASM 3.0;
-#               include "stdgates.inc";
-#               qubit[1] q;
-#               u(0.5, 0.2, 0.3) q[0];""",
-#        ),
-#        (
-#            """OPENQASM 3.0;
-#               include "stdgates.inc";
-#               gate mygate a, b {
-#                 h a;
-#                 cx a, b;
-#               }
-#               qubit[2] q;
-#               mygate q[0], q[1];""",
-#        ),
-#    ],
-# )
-# def test_sample_counts_in_trust_interval(instructions: str):
-#    convert, _ = open_qasm_3_to_2(instructions)
-#    c = QCircuit(instructions)
-#    shots = 50000
-#    err_rate = 0.2
-#    err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
-#    res = run(c, IBMDevice.AER_SIMULATOR)
-#    assert isinstance(res, Result)
-#    expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
-#    c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
-#    with pytest.warns(UnsupportedBraketFeaturesWarning):
-#        batch = run(c, sampling_devices)
-#    assert isinstance(batch, BatchResult)
-#    for result in batch:
-#        print(result)
-#        print("expected_counts: " + str(expected_counts))
-#        counts = result.counts
-#        # check if the true value is inside the trust interval
-#        for i in range(len(counts)):
-#            trust_interval = np.ceil(
-#                err_rate_pourcentage * expected_counts[i] + shots / 15
-#            )
-#            print(trust_interval)
-#            assert (
-#                np.floor(counts[i] - trust_interval)
-#                <= expected_counts[i]
-#                <= np.ceil(counts[i] + trust_interval)
-#            )
-#
+@pytest.mark.parametrize(
+    "qasm3",
+    [
+        (
+            """OPENQASM 3.0;
+           include "stdgates.inc";
+              qubit[1] q;
+              h q[0];"""
+        ),
+        (
+            """OPENQASM 3.0;
+           include "stdgates.inc";
+                qubit[2] q;
+                gphase(0.5);
+                CX q[0], q[1];
+              """
+        ),
+        (
+            """OPENQASM 3.0;
+              include "stdgates.inc";
+              qubit[1] q;
+              U(0.5, 0.2, 0.3) q[0];"""
+        ),
+    ],
+)
+def test_sample_counts_in_trust_interval(qasm3: str):
+    qasm_2, gphase = open_qasm_3_to_2(qasm3)
+    print(qasm_2)
+    from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+
+    c = qasm2_parse(qasm_2)
+    c.gphase = gphase
+    print(gphase)
+    print(c)
+    err_rate = 0.1
+    err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
+
+    from qiskit.circuit import QuantumCircuit
+    from mpqp.execution.runner import generate_job
+    from mpqp.execution.providers.ibm import extract_result
+    from qiskit.qasm3 import loads
+    from qiskit_aer import AerSimulator
+
+    expectation = loads(qasm3)
+    job = generate_job(c, IBMDevice.AER_SIMULATOR)
+    expectation.save_statevector()
+    backend_sim = AerSimulator(method=job.device.value)
+    job_sim = backend_sim.run(expectation, shots=0)
+    result_sim = job_sim.result()
+    res = extract_result(result_sim, job, IBMDevice.AER_SIMULATOR)
+    assert isinstance(res, Result)
+    expected_amplitudes = res.amplitudes
+
+    result = run(c, IBMDevice.AER_SIMULATOR)
+    assert isinstance(result, Result)
+    print("result_amplitudes: " + str(result.amplitudes))
+    print("expected_amplitudes: " + str(expected_amplitudes))
+    counts = result.amplitudes
+    # check if the true value is inside the trust interval
+    for i in range(len(counts)):
+        trust_interval = err_rate_pourcentage * expected_amplitudes[i]
+        print(trust_interval)
+        assert (
+            counts[i] - trust_interval
+            <= expected_amplitudes[i]
+            <= counts[i] + trust_interval
+        )

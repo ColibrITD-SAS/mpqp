@@ -33,7 +33,7 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_3_to_2,
     open_qasm_file_conversion_3_to_2,
 )
-from mpqp.qasm.qasm2_to_mpqp import qasm2_parse
+from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.maths import (
     is_hermitian,
     is_unitary,
