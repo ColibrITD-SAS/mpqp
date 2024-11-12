@@ -39,6 +39,7 @@ from warnings import warn
 
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
+from typing import Optional
 
 from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
@@ -237,6 +238,7 @@ def convert_instruction_2_to_3(
     included_tree_current: Node,
     defined_gates: set[str],
     path_to_main: Optional[str] = None,
+    translation_warning: bool = True,
 ) -> tuple[str, str]:
     """Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
@@ -290,7 +292,11 @@ def convert_instruction_2_to_3(
                 with open(f"{path_to_main}/{path}", "r") as f:
                     child = Node(path, parent=included_tree_current)
                     converted_content = open_qasm_2_to_3(
-                        f.read(), child, path_to_main, defined_gates
+                        f.read(),
+                        child,
+                        path_to_main,
+                        defined_gates,
+                        translation_warning,
                     )
                 new_path = splitext(path)[0] + "_converted" + splitext(path)[1]
                 with open(f"{path_to_main}/{new_path}", "w") as f:
@@ -313,14 +319,15 @@ def convert_instruction_2_to_3(
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
     elif instr_name.lower() == "u":
-        warn(
-            """
+        if translation_warning:
+            warn(
+                """
 There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
 We handled that for you by adding the extra phase at the right place. 
 Be careful if you want to create a control gate from this circuit/gate, the
 phase can become non-global.""",
-            OpenQASMTranslationWarning,
-        )
+                OpenQASMTranslationWarning,
+            )
         header_code += add_std_lib()
         instructions_code += "u3" + instr[1:] + ";\n"
     elif instr_name == "cu1":
@@ -351,6 +358,7 @@ phase can become non-global.""",
                 included_tree_current,
                 defined_gates,
                 path_to_main,
+                translation_warning,
             )
             g_string += " " * 4 + i_code
             header_code += h_code
@@ -364,6 +372,7 @@ phase can become non-global.""",
             included_tree_current,
             defined_gates,
             path_to_main,
+            translation_warning,
         )
         instructions_code += if_statement + i_code
         header_code += h_code
@@ -387,6 +396,7 @@ def open_qasm_2_to_3(
     included_tree_current_node: Optional[Node] = None,
     path_to_file: Optional[str] = None,
     defined_gates: Optional[set[str]] = None,
+    translation_warning: bool = True,
 ) -> str:
     """Converts an OpenQASM code from version 2.0 and 3.0.
 
@@ -449,6 +459,7 @@ def open_qasm_2_to_3(
             included_tree_current_node,
             defined_gates,
             path_to_file,
+            translation_warning,
         )
         header_code += h_code
         instructions_code += i_code
@@ -459,7 +470,9 @@ def open_qasm_2_to_3(
 
 
 @typechecked
-def open_qasm_file_conversion_2_to_3(path: str) -> str:
+def open_qasm_file_conversion_2_to_3(
+    path: str, translation_warning: bool = True
+) -> str:
     """Converts an OpenQASM code in a file from version 2.0 and 3.0.
 
     This function is a shorthand to initialize :func:`open_qasm_2_to_3` with the
@@ -520,7 +533,12 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
 
     with open(path, "r") as f:
         code = f.read()
-        return open_qasm_2_to_3(code, Node(path), str(Path(path).parent))
+        return open_qasm_2_to_3(
+            code,
+            Node(path),
+            str(Path(path).parent),
+            translation_warning=translation_warning,
+        )
 
 
 @typechecked

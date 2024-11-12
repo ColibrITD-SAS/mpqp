@@ -12,3 +12,4 @@ from .qasm_to_cirq import qasm2_to_cirq_Circuit
 from .qasm_to_myqlm import qasm2_to_myqlm_Circuit
 from .qasm_to_qiskit import qasm2_to_Qiskit_Circuit
 from .qasm_to_mpqp import qasm2_parse
+from .mpqp_to_qasm import mpqp_to_qasm2

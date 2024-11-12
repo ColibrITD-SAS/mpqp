@@ -83,11 +83,53 @@ class CustomGate(Gate):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
-        from qiskit.quantum_info.operators import Operator as QiskitOperator
+        if language == Language.QISKIT:
+            from qiskit.quantum_info.operators import Operator as QiskitOperator
 
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
-        return QiskitOperator(self.matrix)
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
+            return QiskitOperator(self.matrix)
+        elif language == Language.QASM2:
+            from mpqp.tools.circuit import replace_custom_gate
+            from qiskit import QuantumCircuit, qasm2
+
+            nb_qubits = max(self.targets) + 1
+
+            qiskit_circ = QuantumCircuit(nb_qubits)
+            instr = self.to_other_language(Language.QISKIT)
+            if TYPE_CHECKING:
+                from qiskit.quantum_info.operators import Operator as QiskitOperator
+
+                assert isinstance(instr, QiskitOperator)
+            qiskit_circ.unitary(
+                instr,
+                list(reversed(self.targets)),  # dang qiskit qubits order
+                self.label,
+            )
+            filtered_qasm = ""
+            final_gphase = 0
+            for instruction in qiskit_circ.data:
+                circuit, gphase = replace_custom_gate(instruction, nb_qubits)
+
+                qasm_str = qasm2.dumps(circuit)
+                qasm_lines = qasm_str.splitlines()
+
+                instructions_only = [
+                    line
+                    for line in qasm_lines
+                    if not (
+                        line.startswith("qreg")
+                        or line.startswith("include")
+                        or line.startswith("creg")
+                        or line.startswith("OPENQASM")
+                    )
+                ]
+
+                filtered_qasm += "\n".join(instructions_only)
+                final_gphase += gphase
+            return filtered_qasm, final_gphase
+        else:
+            raise NotImplementedError(f"Error: {language} is not supported")
 
     def __repr__(self) -> str:
         label = ", " + self.label if self.label else ""

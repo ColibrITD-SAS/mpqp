@@ -104,7 +104,81 @@ class NativeGate(Gate, SimpleClassReprABC):
     available at the class level and is not enforced by the type checker so be
     careful about it!"""
 
+    @classproperty
+    def qasm2_gate(cls) -> str:
+        """Keyword(s) corresponding to the gate in ``QASM2``."""
+        return cls.qiskit_string
+
     native_gate_options = {"disable_symbol_warn": True}
+
+    if TYPE_CHECKING:
+        from braket.circuits import gates
+        from qiskit.circuit.library import (
+            CCXGate,
+            CXGate,
+            CZGate,
+            HGate,
+            IGate,
+            SGate,
+            SwapGate,
+            TGate,
+            XGate,
+            YGate,
+            ZGate,
+            CPhaseGate,
+            PhaseGate,
+            RXGate,
+            RYGate,
+            RZGate,
+        )
+
+    @classproperty
+    @abstractmethod
+    def qiskit_gate(
+        cls,
+    ) -> type[
+        XGate
+        | YGate
+        | ZGate
+        | HGate
+        | TGate
+        | SGate
+        | SwapGate
+        | CXGate
+        | CZGate
+        | CCXGate
+        | IGate
+        | RXGate
+        | RYGate
+        | RZGate
+        | PhaseGate
+        | CPhaseGate
+    ]:
+        pass
+
+    @classproperty
+    @abstractmethod
+    def braket_gate(
+        cls,
+    ) -> type[
+        gates.X
+        | gates.Y
+        | gates.Z
+        | gates.H
+        | gates.T
+        | gates.S
+        | gates.Swap
+        | gates.CNot
+        | gates.CZ
+        | gates.CCNot
+        | gates.I
+        | gates.Rx
+        | gates.Ry
+        | gates.Rz
+        | gates.PhaseShift
+        | gates.CPhaseShift
+    ]:
+        pass
 
 
 @typechecked
@@ -120,22 +194,6 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         target: Index referring to the qubits on which the gate will be applied.
     """
 
-    if TYPE_CHECKING:
-        from braket.circuits import gates
-        from qiskit.circuit.library import CPhaseGate, PhaseGate, RXGate, RYGate, RZGate
-
-    @classproperty
-    @abstractmethod
-    def qiskit_gate(cls) -> type[RXGate | RYGate | RZGate | PhaseGate | CPhaseGate]:
-        pass
-
-    @classproperty
-    @abstractmethod
-    def braket_gate(
-        cls,
-    ) -> type[gates.Rx | gates.Ry | gates.Rz | gates.PhaseShift | gates.CPhaseShift]:
-        pass
-
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
         definition = UnitaryMatrix(
@@ -150,9 +208,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.parameters[0]
 
     def __repr__(self):
-        return (
-            f"{type(self).__name__}({f'{self.theta}'.rstrip('0')}, {self.targets[0]})"
-        )
+        return f"{type(self).__name__}({self.theta}, {self.targets[0]})"
 
     def to_other_language(
         self,
@@ -177,6 +233,22 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
                     "export, this feature is coming very soon!"
                 )
             return self.braket_gate(theta)
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                "("
+                + ",".join(float_to_qasm_str(float(param)) for param in self.parameters)
+                + ")"
+            )
+
+            qubits = ""
+            if isinstance(self, ControlledGate):
+                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
+            qubits += ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -193,6 +265,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             be applied.
         label: Label used to identify the gate.
     """
+
+    qlm_aqasm_keyword: str
 
     if TYPE_CHECKING:
         from braket.circuits import gates
@@ -261,6 +335,15 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             return self.qiskit_gate()
         elif language == Language.BRAKET:
             return self.braket_gate()
+        elif language == Language.QASM2:
+            instruction_str = self.qasm2_gate
+
+            qubits = ""
+            if isinstance(self, ControlledGate):
+                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
+            qubits += ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -323,6 +406,14 @@ class Id(OneQubitNoParamGate, InvolutionGate):
             if self.label:
                 return self.qiskit_gate(label=self.label)
             return self.qiskit_gate()
+        elif language == Language.QASM2:
+
+            instruction_str = self.qasm2_gate
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+        else:
+            raise NotImplementedError(f"Error: {language} is not supported")
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
@@ -682,6 +773,21 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     """
 
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits.gates import U as braket_U
+
+        return braket_U
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import UGate
+
+        return UGate
+
+    qlm_aqasm_keyword = "U"
+    qiskit_string = "u"
+
     def __init__(
         self,
         theta: Expr | float,
@@ -710,27 +816,22 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         """See corresponding argument."""
         return self.parameters[2]
 
-    qlm_aqasm_keyword = "U"
-    qiskit_string = "u"
-
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QISKIT:
-            from qiskit.circuit.library import UGate
 
             if qiskit_parameters is None:
                 qiskit_parameters = set()
 
-            return UGate(
+            return self.qiskit_gate(
                 theta=_qiskit_parameter_adder(self.theta, qiskit_parameters),
                 phi=_qiskit_parameter_adder(self.phi, qiskit_parameters),
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
         elif language == Language.BRAKET:
-            from braket.circuits.gates import U as braket_U
             from sympy import Expr
 
             # TODO handle symbolic parameters
@@ -744,7 +845,19 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                     "export, this feature is coming very soon!"
                 )
 
-            return braket_U(self.theta, self.phi, self.gamma)
+            return self.braket_gate(self.theta, self.phi, self.gamma)
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                "("
+                + ",".join(float_to_qasm_str(float(param)) for param in self.parameters)
+                + ")"
+            )
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -999,6 +1112,25 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0], [0, e]])
 
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.k)))})"
+            )
+
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+        else:
+            return super().to_other_language(language, qiskit_parameters)
+
     def __repr__(self):
         return f"{type(self).__name__}({self.k}, {self.targets[0]})"
 
@@ -1150,6 +1282,26 @@ class CRk(RotationGate, ControlledGate):
     def to_canonical_matrix(self):
         e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.k)))})"
+            )
+
+            qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
+            qubits += ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+        else:
+            return super().to_other_language(language, qiskit_parameters)
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
