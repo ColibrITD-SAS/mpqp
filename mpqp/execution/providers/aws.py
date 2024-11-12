@@ -100,7 +100,7 @@ def run_braket(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`run<mpqp.execution.runner.run>` instead.
     """
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
@@ -132,14 +132,14 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     Raises:
         ValueError: If the job type is not supported for noisy simulations,
-            or if it is of type ``OBSERVABLE`` but got no
-            ``ExpectationMeasure``.
-        NotImplementedError: If the job type is not ``STATE_VECTOR``, ``SAMPLE``
-            or ``OBSERVABLE``.
+            or if it is of type `OBSERVABLE` but got no
+            `ExpectationMeasure`.
+        NotImplementedError: If the job type is not `STATE_VECTOR`, `SAMPLE`
+            or `OBSERVABLE`.
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`run<mpqp.execution.runner.run>` instead.
     """
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
@@ -215,7 +215,7 @@ def extract_result(
         device: AWSDevice on which the job was submitted.
 
     Returns:
-        The ``braket`` result converted to our format.
+        The `braket` result converted to our format.
     """
     from braket.device_schema.ionq import IonqDeviceParameters
     from braket.device_schema.oqc import OqcDeviceParameters

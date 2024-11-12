@@ -34,7 +34,7 @@ def run_google(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`run<mpqp.execution.runner.run>` instead.
     """
     return run_local(job) if not job.device.is_remote() else run_google_remote(job)
 
