@@ -33,11 +33,11 @@ if TYPE_CHECKING:
         PubResult,
         SamplerPubResult,
     )
-    from qiskit.result import Result as QiskitResult
-    from qiskit_ibm_runtime import RuntimeJobV2
-    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-    from qiskit_aer import AerSimulator
     from qiskit.quantum_info import SparsePauliOp
+    from qiskit.result import Result as QiskitResult
+    from qiskit_aer import AerSimulator
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+    from qiskit_ibm_runtime import RuntimeJobV2
 
 
 @typechecked
@@ -87,33 +87,35 @@ def compute_expectation_value(
         )
     nb_shots = job.measure.shots
     qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
+
     if TYPE_CHECKING:
         assert isinstance(qiskit_observable, SparsePauliOp)
 
     if isinstance(job.device, IBMSimulatedDevice):
-        from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
+        from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
         backend = job.device.value()
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
         qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
-        # TODO : check that default shtos is taken into account here
-        options = {"default_shots": job.measure.shots}
+
+        options = {"default_shots": nb_shots}
 
         estimator = Runtime_Estimator(mode=backend, options=options)
 
     else:
         from qiskit_aer.primitives import EstimatorV2 as Estimator
 
-        # TODO: handle the case when we have noise models in the circuit
+        if simulator is None:
+            raise ValueError("Simulator is required for noisy simulations.")
 
-        # TODO: maybe use the parameter simulator in that case
-
-        estimator = Estimator()
-        if nb_shots != 0:
-            estimator.options.default_precision = 1 / np.sqrt(nb_shots)
+        simulator.set_options(shots=nb_shots)
+        options = {
+            "backend_options": simulator.options,
+        }
+        estimator = Estimator(options=options)
 
     # 3M-TODO: implement the possibility to compute several expectation values at
     #  the same time when the circuit is the same apparently the estimator.run()
@@ -123,8 +125,10 @@ def compute_expectation_value(
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run([(ibm_circuit, qiskit_observable)])
     estimator_result = job_expectation.result()
+
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+
     return extract_result(estimator_result, job, job.device)
 
 
@@ -471,7 +475,6 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     """
     from qiskit import QuantumCircuit
     from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
-
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
     from qiskit_ibm_runtime import Session
@@ -508,7 +511,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         qiskit_observable = qiskit_observable.apply_layout(qiskit_circ.layout)
 
         # TODO: check that default_shots gives indeed the right shots remotely
-        estimator.options.default_shots = meas.shots
+
         # precision = 1 / np.sqrt(meas.shots)
         ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
     elif job.job_type == JobType.SAMPLE:
