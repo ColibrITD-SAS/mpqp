@@ -422,9 +422,6 @@ def run_aer(job: Job):
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
 
-    # TODO check if it is the reason why expectation values are not working for IBMSimulatedDevices
-    # TODO: may be this is only needed for sampling mode ?
-
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.
@@ -478,8 +475,6 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
     from qiskit_ibm_runtime import Session
-
-    # TODO: put all those checks in check_job_compatibility
 
     meas = job.measure
 
@@ -591,7 +586,7 @@ def extract_result(
 
             mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
             error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
-            shots = (  # TODO
+            shots = (
                 job.measure.shots
                 if job.device.is_simulator() and job.measure is not None
                 else result[0].metadata["shots"]
