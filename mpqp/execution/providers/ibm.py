@@ -510,9 +510,15 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         qiskit_observable = qiskit_observable.apply_layout(qiskit_circ.layout)
 
-        # TODO: check that default_shots gives indeed the right shots remotely
+        default_shots = getattr(estimator.options, "default_shots", None)
+        if meas.shots != default_shots:
+            raise ValueError(
+                f"Number of shots mismatch: expected {meas.shots}, "
+                f"but got {getattr(estimator.options, 'default_shots')}."
+            )
 
-        # precision = 1 / np.sqrt(meas.shots)
+        setattr(estimator.options, "default_shots", meas.shots)
+
         ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(meas, BasisMeasure)
