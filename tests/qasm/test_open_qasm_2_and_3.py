@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from numpy import exp
 import pytest
 
 from mpqp.all import *
@@ -14,6 +15,8 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_2_to_3,
     open_qasm_3_to_2,
 )
+from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.tools.theoretical_simulation import amplitude
 
 qasm_folder = "tests/qasm/qasm_examples/"
 
@@ -827,13 +830,14 @@ def test_remove_user_gates(qasm_code: str, expected_output: str):
 
 
 @pytest.mark.parametrize(
-    "qasm3",
+    "qasm3, expected",
     [
         (
             """OPENQASM 3.0;
            include "stdgates.inc";
               qubit[1] q;
-              h q[0];"""
+              h q[0];""",
+            [[H(0)], 0],
         ),
         (
             """OPENQASM 3.0;
@@ -841,65 +845,58 @@ def test_remove_user_gates(qasm_code: str, expected_output: str):
                 qubit[2] q;
                 gphase(0.5);
                 CX q[0], q[1];
-              """
+              """,
+            [[CNOT(0, 1)], 0.5],
         ),
         (
             """OPENQASM 3.0;
               include "stdgates.inc";
               qubit[1] q;
-              U(0.5, 0.2, 0.3) q[0];"""
+              U(0.5, 0.2, 0.3) q[0];""",
+            [[U(0.5, 0.2, 0.3, 0)], 0],
         ),
         (
             """OPENQASM 3.0;
               include "stdgates.inc";
               qubit[1] q;
-              U(0, 0.1, 2) q[0];"""
+              U(0, 0.1, 2) q[0];""",
+            [[U(0, 0.1, 2, 0)], 0],
         ),
         (
             """OPENQASM 3.0;
               include "stdgates.inc";
               qubit[1] q;
-              U(0.8, 0.7, 0.4) q[0];"""
+              U(0.8, 0.7, 0.4) q[0];""",
+            [[U(0.8, 0.7, 0.4, 0)], 0],
         ),
     ],
 )
-def test_sample_counts_in_trust_interval(qasm3: str):
+def test_sample_counts_in_trust_interval(
+    qasm3: str, expected: tuple[list[Instruction], float]
+):
     qasm_2, gphase = open_qasm_3_to_2(qasm3)
     print(gphase)
     print(qasm_2)
-    from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
-    c = qasm2_parse(qasm_2)
+    circuit = qasm2_parse(qasm_2)
+    instructions, expected_gphase = expected
+    expected_circuit = QCircuit(instructions)
     err_rate = 0.05
-    err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
+    err_rate_percentage = 1 - np.power(1 - err_rate, (1 / 2))
 
-    from mpqp.execution.runner import generate_job
-    from mpqp.execution.providers.ibm import extract_result
-    from qiskit.qasm3 import loads
-    from qiskit_aer import AerSimulator
+    expected_amplitudes = amplitude(expected_circuit) * exp(expected_gphase * 1j)
 
-    expectation = loads(qasm3)
-    print(repr(expectation))
-    job = generate_job(c, IBMDevice.AER_SIMULATOR)
-    expectation.save_statevector()
-    backend_sim = AerSimulator(method=job.device.value)
-    job_sim = backend_sim.run(expectation, shots=0)
-    result_sim = job_sim.result()
-    res = extract_result(result_sim, job, IBMDevice.AER_SIMULATOR)
-    assert isinstance(res, Result)
-    expected_amplitudes = res.amplitudes
-
-    print(c.gphase)
-    c.gphase = gphase
-    print(c.gphase)
-    result = run(c, IBMDevice.AER_SIMULATOR)
+    print(circuit.gphase)
+    circuit.gphase = gphase
+    print(circuit.gphase)
+    result = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(result, Result)
     print("result_amplitudes: " + str(result.amplitudes))
     print("expected_amplitudes: " + str(expected_amplitudes))
     counts = result.amplitudes
     # check if the true value is inside the trust interval
     for i in range(len(counts)):
-        trust_interval = err_rate_pourcentage * expected_amplitudes[i]
+        trust_interval = err_rate_percentage * expected_amplitudes[i]
         print(trust_interval)
         assert (
             counts[i] - trust_interval
