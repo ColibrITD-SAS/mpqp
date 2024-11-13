@@ -1,32 +1,52 @@
-"""The latest version of OpenQASM (3.0, started in 2020) has been released by
-conjoint members of IBM Quantum, AWS Quantum Computing, Zapata Computing, Zurich
-Instruments and University of Oxford. This version extends the 2.0 one, adding
-some advanced features, and modifying parts of syntax and grammar, making some
-part of OpenQASM 2.0 not fully retro-compatible (hence why we need to keep track
-of the instructions requiring custom definitions in :class:`Instr`).
+"""
+The latest version of OpenQASM (3.0, started in 2020) has been released by a
+collaborative group from IBM Quantum, AWS Quantum Computing, Zapata Computing,
+Zurich Instruments, and the University of Oxford. This version extends OpenQASM
+2.0, adding advanced features and modifying parts of the syntax and grammar.
+Some aspects of OpenQASM 2.0 are not fully backward compatible, hence the need
+to keep track of instructions requiring custom definitions in :class:`Instr`.
 
-This being said, this "new" version was quite slow to come to SDKs, so to help
-the transition we are making a few conversion functions available. The main one
-being :func:`open_qasm_2_to_3`.
+To aid in the transition, this module provides conversion functions for moving
+between OpenQASM 2.0 and 3.0, as well as managing user-defined gates and handling
+code transformations. Key functionalities include:
 
-The translation is performed in a two main steps:
+1. **OpenQASM 2.0 to 3.0 Conversion**:
+    - :func:`convert_instruction_2_to_3`: Converts individual instructions from QASM 2.0
+      syntax to 3.0, handling specific syntax adjustments.
+    - :func:`parse_openqasm_2_file`: Splits OpenQASM 2.0 code into individual instructions,
+      preserving gate declarations to ensure proper handling during conversion.
+    - :func:`open_qasm_2_to_3`: Main function for converting OpenQASM 2.0 code to 3.0. 
+    It adds necessary library includes.
+    - :func:`open_qasm_file_conversion_2_to_3`: Reads from the specified file, and outputs
+      the converted file in QASM 2.0 syntax.
 
-1. the OpenQASM 2.0 code is parsed by :func:`parse_openqasm_2_file` (it's a
-   basic parse, separating the instructions),
-2. each instruction is converted to it's OpenQASM 3.0 counterpart by
-   :func:`convert_instruction_2_to_3`,
+2. **OpenQASM 3.0 to 2.0 Conversion**:
+    - :func:`convert_instruction_3_to_2`: Converts individual instructions from QASM 3.0
+      syntax to 2.0, handling specific syntax adjustments.
+    - :func:`parse_openqasm_3_file`: Splits OpenQASM 3.0 code into individual instructions,
+      preserving gate declarations to ensure proper handling during conversion.
+    - :func:`open_qasm_3_to_2`: Main function for converting OpenQASM 3.0 code to 2.0. 
+    It adds necessary library includes, tracks cumulative global phases. 
+    - :func:`open_qasm_file_conversion_3_to_2`: Reads from the specified file, and outputs
+      the converted file in QASM 2.0 syntax.
 
-Since :func:`open_qasm_2_to_3` needs a few tricky parameters to function
-properly, you also have access to a shorthand accepting directly the path of the
-file you want to convert: :func:`open_qasm_file_conversion_2_to_3`.
+3. **User-Defined Gate Handling**:
+    - **UserGate Class**: Represents user-defined gates in OpenQASM. Each `UserGate` instance
+      stores the gate's name, parameters, qubits, and instruction sequence.
+    - :func:`parse_user_gates`: Extracts and stores user-defined gate definitions 
+      from OpenQASM code, removing them from the main code to allow separate handling. 
+      Custom gates are identified using the `GATE_PATTERN` regex and stored as `UserGate` instances.
+    - :func:`remove_user_gates`: Replaces calls to user-defined gates in OpenQASM code with
+      their expanded definitions. This function relies on `parse_user_gates` to retrieve 
+      gate definitions, and it substitutes parameter and qubit values within each gate's body 
+      instructions for accurate expansion.
+  
+4. **Supporting Functions**:
+    - :func:`remove_include_and_comment`: Removes OpenQASM `include` statements and comments 
+    to simplify parsing and ensure a clean conversion base.
+    - :func:`open_qasm_hard_includes`: Combines multiple OpenQASM files into a single file 
+    with resolved includes, simplifying code management for projects with multiple source files.
 
-In some cases, having multiple files to deal with can be cumbersome. You can
-avoid this pain point by uniting all your source files in a single one using
-:func:`open_qasm_hard_includes`.
-
-On the other hand, some providers such as Cirq do not support user defined
-gates, requiring to replace all user gate calls by their definition. This is
-done using :func:`remove_user_gates`.
 """
 
 import os
@@ -824,7 +844,28 @@ def convert_instruction_3_to_2(
     path_to_main: Optional[str] = None,
     gphase: float = 0.0,
 ) -> tuple[str, str, float]:
-    """Converts an individual OpenQASM 3.0 instruction back to OpenQASM 2.0."""
+    """Some instructions changed name from QASM 3 to QASM 2, also the way to
+    import files changed slightly. This function operates those changes on a
+    single instruction.
+
+    Args:
+        instr: Instruction to be upgraded.
+        included_instr: Some instructions need new imports, in order to keep
+            track of which instruction are already.
+        imported in the overall scope, a dictionary of already included
+            instructions is passed and modified along.
+        included_tree_current: Current Node in the file inclusion tree.
+        defined_gates: Set of custom gates already defined.
+        path_to_main: Path to the main folder from which include paths are
+            described.
+        gphase: The global phase of a circuit, which is not handled in QASM2.
+
+    Returns:
+        The upgraded instruction, the potential code to add in the header as
+        the second element and the global phase of the circuit.
+
+    """
+    # 6M-TODO: not handled for loop, or a switch case, or pulse and low level quantum operations, etc.
     if path_to_main is None:
         path_to_main = "."
 
@@ -972,8 +1013,6 @@ def convert_instruction_3_to_2(
             gphase += version
     else:
         gate = instr.split()[0].split("(")[0]
-        if gate == "ctrl":
-            gate = instr.split()[2]
         if gate not in defined_gates:
             raise ValueError(
                 f"Gates not defined/handled at the time of usage: {gate}, {instr_name}"
