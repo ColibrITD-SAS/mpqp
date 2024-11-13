@@ -58,7 +58,7 @@ def amplitude(
     for gate in gates:
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
         print(g)
-        state = g @ state 
+        state = g @ state
         print(state)
         for noise in circ.noises:
             if (
@@ -91,6 +91,7 @@ def amplitude(
             )
 
     return state
+
 
 def theoretical_probs(
     circ: QCircuit,
