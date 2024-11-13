@@ -56,8 +56,6 @@ class BasisMeasure(Measure):
         basis: Optional[Basis] = None,
         label: Optional[str] = None,
     ):
-        if targets is None:
-            targets = []
         if basis is None:
             basis = ComputationalBasis()
         # 3M-TODO: implement basis thing
@@ -89,11 +87,22 @@ class BasisMeasure(Measure):
             raise NotImplementedError(f"{language} is not supported")
 
     def __repr__(self) -> str:
+        targets = (
+            f"{self.targets}" if (not self._dynamic and len(self.targets)) != 0 else ""
+        )
         options = ""
-        if self.shots != 0:
-            options += f", shots={self.shots}"
+        if self.shots != 1024:
+            options += f", shots={self.shots}" if targets else f"shots={self.shots}"
         if not isinstance(self.basis, ComputationalBasis):
-            options += f", basis={self.basis}"
+            options += (
+                f", basis={self.basis}"
+                if targets and options
+                else f"basis={self.shots}"
+            )
         if self.label is not None:
-            options += f", label={self.label}"
-        return f"BasisMeasure({self.targets}{options})"
+            options += (
+                f", label={self.label}"
+                if targets and options
+                else f"label={self.shots}"
+            )
+        return f"BasisMeasure({targets}{options})"

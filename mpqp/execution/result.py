@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -161,7 +161,10 @@ class Sample:
                     )
 
     def __str__(self):
-        return f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}, Probability: {self.probability}"
+        return (
+            f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}"
+            + f", Probability: {np.round(self.probability, 5) if self.probability is not None else None}"
+        )
 
     def __repr__(self):
         return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
@@ -226,7 +229,7 @@ class Result:
         self,
         job: Job,
         data: float | StateVector | list[Sample],
-        errors: Optional[float | dict[PauliString, float]] = None,
+        errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -258,6 +261,9 @@ class Result:
                 )
             else:
                 self._state_vector = data
+                if job.circuit.gphase != 0:
+                    # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
+                    self._state_vector.vector *= np.exp(1j * job.circuit.gphase)
                 self._probabilities = data.probabilities
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):
@@ -277,24 +283,28 @@ class Result:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
-                counts = [
-                    int(count)
-                    for count in np.round(self.job.measure.shots * self._probabilities)
-                ]
-                self._counts = counts
-                for sample in self._samples:
-                    sample.count = self._counts[sample.index]
-            elif is_counts:
+                if not is_counts:
+                    counts = [
+                        int(count)
+                        for count in np.round(
+                            self.job.measure.shots * self._probabilities
+                        )
+                    ]
+                    self._counts = counts
+                    for sample in self._samples:
+                        sample.count = self._counts[sample.index]
+            if is_counts:
                 counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
                 for sample in data:
                     assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
                 assert shots != 0
-                self._probabilities = np.array(counts, dtype=float) / self.shots
-                for sample in self._samples:
-                    sample.probability = self._probabilities[sample.index]
-            else:
+                if not is_probas:
+                    self._probabilities = np.array(counts, dtype=float) / self.shots
+                    for sample in self._samples:
+                        sample.probability = self._probabilities[sample.index]
+            elif not is_probas:
                 raise ValueError(
                     f"For {JobType.SAMPLE.name} jobs, all samples must contain"
                     " either `count` or `probability` (and the non-None "

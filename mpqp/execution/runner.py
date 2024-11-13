@@ -39,10 +39,12 @@ from mpqp.execution.devices import (
     AWSDevice,
     GOOGLEDevice,
     IBMDevice,
+    AZUREDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
+from mpqp.execution.providers.azure import run_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
@@ -74,8 +76,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
-        list(range(circuit.nb_qubits)),
         Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
+        list(range(circuit.nb_qubits)),
         measure.shots,
     )
     return tweaked_measure
@@ -177,6 +179,7 @@ def _run_single(
          Error: None
 
     """
+
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
@@ -184,15 +187,13 @@ def _run_single(
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
-    if circuit.noises:
+    if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not (isinstance(device, (ATOSDevice, AWSDevice))):
-            raise NotImplementedError(
-                f"Noisy simulations are not yet available on devices of type {type(device).name}."
-            )
+        elif not isinstance(device, (ATOSDevice, AWSDevice, IBMDevice)):
+            raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, IBMDevice):
         return run_ibm(job)
@@ -202,6 +203,8 @@ def _run_single(
         return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
+    elif isinstance(device, AZUREDevice):
+        return run_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -287,7 +290,6 @@ def run(
         values = {}
 
     def namer(circ: QCircuit, i: int):
-        circ = circ.hard_copy()
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -300,7 +302,7 @@ def run(
             ]
         )
     else:
-        return _run_single(circuit.hard_copy(), device, values, display_breakpoints)
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
 @typechecked

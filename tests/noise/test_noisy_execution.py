@@ -2,6 +2,8 @@
 too slow)"""
 
 import sys
+from itertools import product
+from typing import Any, Callable, Iterable
 
 import numpy as np
 import pytest
@@ -12,10 +14,46 @@ from mpqp.core.instruction.measurement import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.execution import ATOSDevice, AvailableDevice, AWSDevice, run
+from mpqp.execution import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    run,
+)
 from mpqp.gates import *
-from mpqp.noise import Depolarizing, BitFlip, AmplitudeDamping
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
+from mpqp.tools.errors import (
+    OpenQASMTranslationWarning,
+    UnsupportedBraketFeaturesWarning,
+)
+from mpqp.tools.theoretical_simulation import validate_noisy_circuit
+
+noisy_devices: list[Any] = [
+    dev
+    for dev in list(ATOSDevice) + list(AWSDevice) + list(IBMDevice) + list(GOOGLEDevice)
+    if dev.is_noisy_simulator()
+]
+# TODO: in the end this should be automatic as drafted above, but for now only
+# one device is stable
+noisy_devices = [AWSDevice.BRAKET_LOCAL_SIMULATOR, IBMDevice.AER_SIMULATOR]
+
+
+def filter_braket_warning(
+    action: Callable[[AvailableDevice], Any],
+    devices: AvailableDevice,
+):
+    if (
+        isinstance(devices, Iterable)
+        and any(isinstance(device, AWSDevice) for device in devices)
+    ) or isinstance(devices, AWSDevice):
+        with pytest.warns(
+            (UnsupportedBraketFeaturesWarning, OpenQASMTranslationWarning)
+        ):
+            return action(devices)
+    else:
+        return action(devices)
 
 
 @pytest.fixture
@@ -44,7 +82,13 @@ def circuit():
 
 @pytest.fixture
 def devices():
-    devices: list[AvailableDevice] = [AWSDevice.BRAKET_LOCAL_SIMULATOR]
+    devices: list[AvailableDevice] = [
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        IBMDevice.AER_SIMULATOR,
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+    ]
     if "--long" in sys.argv:
         devices.append(ATOSDevice.QLM_NOISYQPROC)
     return devices
@@ -54,16 +98,17 @@ def test_noisy_expectation_value_execution_without_error(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
     circuit.add(
-        ExpectationMeasure(
-            [0, 1, 2],
-            observable=Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])),
-            shots=1023,
-        )
+        [
+            ExpectationMeasure(
+                Observable(np.diag([4, 1, 2, 3, 6, 3, 4, 5])), shots=1023
+            ),
+            Depolarizing(0.23, [0, 1]),
+            BitFlip(0.1),
+            AmplitudeDamping(0.4),
+            AmplitudeDamping(0.2, 0.3),
+            PhaseDamping(0.6),
+        ]
     )
-    circuit.add(Depolarizing(0.23, [0, 1]))
-    circuit.add(BitFlip(0.1))
-    circuit.add(AmplitudeDamping(0.4))
-    circuit.add(AmplitudeDamping(0.2, 0.3))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
@@ -72,13 +117,19 @@ def test_noisy_expectation_value_execution_without_error(
 def test_all_native_gates_global_noise_execution_without_error(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
-    circuit.add(BasisMeasure([0, 1, 2], shots=1023))
-    circuit.add(Depolarizing(0.23))
-    circuit.add(Depolarizing(0.23, [0, 1, 2], dimension=2, gates=[SWAP, CNOT, CZ]))
-    circuit.add(BitFlip(0.2, [0, 1, 2]))
-    circuit.add(BitFlip(0.1, gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.4, gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.2, 0.3, [0, 1, 2]))
+    circuit.add(
+        [
+            BasisMeasure([0, 1, 2], shots=1023),
+            Depolarizing(0.23),
+            Depolarizing(0.23, [0, 1, 2], dimension=2, gates=[SWAP, CNOT, CZ]),
+            BitFlip(0.2, [0, 1, 2]),
+            BitFlip(0.1, gates=[CNOT, H]),
+            AmplitudeDamping(0.4, gates=[CNOT, H]),
+            AmplitudeDamping(0.2, 0.3, [0, 1, 2]),
+            PhaseDamping(0.4, [0, 2]),
+            PhaseDamping(0.4, gates=[CNOT, H]),
+        ]
+    )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
@@ -87,15 +138,35 @@ def test_all_native_gates_global_noise_execution_without_error(
 def test_all_native_gates_local_noise(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
-    circuit.add(BasisMeasure([0, 1, 2], shots=1023))
     circuit.add(
-        Depolarizing(0.23, [0, 2], gates=[H, X, Y, Z, S, T, Rx, Ry, Rz, Rk, P, U])
+        [
+            BasisMeasure([0, 1, 2], shots=1023),
+            Depolarizing(0.23, [0, 2], gates=[H, X, Y, Z, S, T, Rx, Ry, Rz, Rk, P, U]),
+            Depolarizing(0.23, [0, 1], dimension=2, gates=[SWAP, CNOT, CZ]),
+            BitFlip(0.2, [0, 2]),
+            BitFlip(0.1, [0, 1], gates=[CNOT, H]),
+            AmplitudeDamping(0.4, targets=[0, 1], gates=[CNOT, H]),
+            AmplitudeDamping(0.2, 0.3, [0, 1, 2]),
+            PhaseDamping(0.4, [0, 1, 2], gates=[CNOT, H]),
+        ]
     )
-    circuit.add(Depolarizing(0.23, [0, 1], dimension=2, gates=[SWAP, CNOT, CZ]))
-    circuit.add(BitFlip(0.2, [0, 2]))
-    circuit.add(BitFlip(0.1, [0, 1], gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.4, targets=[0, 1], gates=[CNOT, H]))
-    circuit.add(AmplitudeDamping(0.2, 0.3, [0, 1, 2]))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(circuit, devices)
     assert True
+
+
+@pytest.mark.parametrize(
+    "depol_noise, shots, device",
+    product(
+        [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
+        [500, 1_000, 5_000, 10_000, 50_000, 100_000],
+        noisy_devices,
+    ),
+)
+def test_validate_depolarizing_noise(
+    circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
+):
+    circuit.add(Depolarizing(depol_noise))
+    assert filter_braket_warning(
+        lambda d: validate_noisy_circuit(circuit, shots, d), device
+    )

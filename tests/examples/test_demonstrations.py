@@ -100,24 +100,25 @@ def test_sample_demo_aer_stabilizers():
 
 
 def test_statevector_demo():
-    # Declaration of the circuit with the right size
-    circuit = QCircuit(4)
-
-    # Constructing the circuit by adding gates
-    circuit.add(T(0))
-    circuit.add(CNOT(0, 1))
-    circuit.add(X(0))
-    circuit.add(H(1))
-    circuit.add(Z(2))
-    circuit.add(CZ(2, 1))
-    circuit.add([SWAP(2, 0), CNOT(0, 2)])
-    circuit.add(Ry(1.7, 2))
-    circuit.add(S(1))
-    circuit.add(H(3))
-    circuit.add(CNOT(1, 2))
-    circuit.add(Rx(3.14, 1))
-    circuit.add(CNOT(3, 0))
-    circuit.add(Rz(3.14, 0))
+    circuit = QCircuit(
+        [
+            T(0),
+            CNOT(0, 1),
+            X(0),
+            H(1),
+            Z(2),
+            CZ(2, 1),
+            SWAP(2, 0),
+            CNOT(0, 2),
+            Ry(1.7, 2),
+            S(1),
+            H(3),
+            CNOT(1, 2),
+            Rx(3.14, 1),
+            CNOT(3, 0),
+            Rz(3.14, 0),
+        ]
+    )
 
     # when no measure in the circuit, must run in statevector mode
     runner = lambda: run(
@@ -196,7 +197,7 @@ def test_observable_demo(shots: int):
     # Constructing the circuit by adding gates and measurements
     circuit.add(H(0))
     circuit.add([H(1), CNOT(1, 0)])
-    circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=shots))
+    circuit.add(ExpectationMeasure(obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
     runner = lambda: run(
@@ -282,7 +283,7 @@ def test_aws_mpqp_executions():
     # Constructing the circuit by adding gates and measurements
     circuit.add(H(0))
     circuit.add(Rx(1.76, 1))
-    circuit.add(ExpectationMeasure([0, 1], observable=obs, shots=0))
+    circuit.add(ExpectationMeasure(obs, shots=0))
 
     # Running the computation on myQLM and on Braket simulator, then retrieving the results
     runner = lambda: run(

@@ -1,9 +1,14 @@
 from __future__ import annotations
 
 import math
+import warnings
+from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from typeguard import typechecked
+
+from mpqp.noise import DimensionalNoiseModel
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -15,14 +20,11 @@ if TYPE_CHECKING:
     )
     from qiskit.result import Result as QiskitResult
     from qiskit_ibm_runtime import RuntimeJobV2
-
-# from qiskit.primitives import PrimitiveResult, EstimatorResult
-
-
-from typeguard import typechecked
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import TOF, CRk, P, Rk, Rx, Ry, Rz, T, U
+from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
@@ -30,7 +32,7 @@ from mpqp.execution.connection.ibm_connection import (
     get_backend,
     get_QiskitRuntimeService,
 )
-from mpqp.execution.devices import IBMDevice
+from mpqp.execution.devices import IBMDevice, AZUREDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
@@ -138,6 +140,195 @@ def check_job_compatibility(job: Job):
 
 
 @typechecked
+def generate_qiskit_noise_model(
+    circuit: QCircuit,
+) -> tuple["Qiskit_NoiseModel", QCircuit]:
+    """Generate a ``qiskit`` noise model packing all the
+    class:`~mpqp.noise.noise_model.NoiseModel`s attached to the given QCircuit.
+
+    In ``qiskit``, the noise cannot be applied to qubits unaffected by any
+    operations. For this reason, this function also returns a copy of the
+    circuit padded with identities on "naked" qubits.
+
+    Args:
+        circuit: Circuit containing the noise models to pack.
+
+    Returns:
+        A ``qiskit`` noise model combining the provided noise models and the
+        modified circuit, padded with identities on the "naked" qubits.
+
+    Note:
+        The qubit order in the returned noise model is reversed to match
+        ``qiskit``'s qubit ordering conventions.
+    """
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
+
+    noise_model = Qiskit_NoiseModel()
+
+    modified_circuit = deepcopy(circuit)
+
+    used_qubits = set().union(
+        *(
+            inst.connections()
+            for inst in modified_circuit.instructions
+            if isinstance(inst, Gate)
+        )
+    )
+    modified_circuit.instructions.extend(
+        [
+            Id(qubit)
+            for qubit in range(modified_circuit.nb_qubits)
+            if qubit not in used_qubits
+        ]
+    )
+
+    gate_instructions = modified_circuit.get_gates()
+
+    noisy_identity_counter = 0
+
+    for noise in modified_circuit.noises:
+        qiskit_error = noise.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            from qiskit_aer.noise.errors.quantum_error import QuantumError
+
+            assert isinstance(qiskit_error, QuantumError)
+
+        # If all qubits are affected
+        if len(noise.targets) == modified_circuit.nb_qubits:
+            if len(noise.gates) != 0:
+                for gate in noise.gates:
+                    size = gate.nb_qubits
+                    if TYPE_CHECKING:
+                        assert isinstance(size, int)
+
+                    if isinstance(noise, DimensionalNoiseModel):
+                        if size == noise.dimension:
+                            noise_model.add_all_qubit_quantum_error(
+                                qiskit_error, [gate.qiskit_string]
+                            )
+                    else:
+                        tensor_error = qiskit_error
+                        for _ in range(1, size):
+                            tensor_error = tensor_error.tensor(qiskit_error)
+                        noise_model.add_all_qubit_quantum_error(
+                            tensor_error, [gate.qiskit_string]
+                        )
+            else:
+                for gate in gate_instructions:
+
+                    if not isinstance(gate, NativeGate):
+                        warnings.warn(
+                            f"Ignoring gate '{type(gate)}' as it's not a native gate. "
+                            "Noise is only applied to native gates."
+                        )
+                        continue
+
+                    connections = gate.connections()
+                    size = len(connections)
+
+                    reversed_qubits = [
+                        modified_circuit.nb_qubits - 1 - qubit for qubit in connections
+                    ]
+
+                    if (
+                        isinstance(noise, DimensionalNoiseModel)
+                        and noise.dimension > size
+                    ):
+                        continue
+                    elif (
+                        isinstance(noise, DimensionalNoiseModel)
+                        and 1 < noise.dimension == size
+                    ):
+                        noise_model.add_quantum_error(
+                            qiskit_error,
+                            [gate.qiskit_string],
+                            reversed_qubits,
+                        )
+                    else:
+                        tensor_error = qiskit_error
+                        for _ in range(1, size):
+                            tensor_error = tensor_error.tensor(qiskit_error)
+                        noise_model.add_quantum_error(
+                            tensor_error,
+                            [gate.qiskit_string],
+                            reversed_qubits,
+                        )
+
+        else:
+            gates_str = [gate.qiskit_string for gate in noise.gates]
+
+            for gate in gate_instructions:
+
+                if not isinstance(gate, NativeGate):
+                    warnings.warn(
+                        f"Ignoring gate '{type(gate)}' as it's not a native gate. "
+                        "Noise is only applied to native gates."
+                    )
+                    continue
+
+                # If gates are specified in the noise and the current gate is not in the list, we move to the next one
+                if len(gates_str) != 0 and gate.qiskit_string not in gates_str:
+                    continue
+
+                connections = gate.connections()
+                intersection = connections.intersection(set(noise.targets))
+
+                # Gate targets are included in the noise targets
+                if intersection == connections:
+
+                    reversed_qubits = [
+                        modified_circuit.nb_qubits - 1 - qubit for qubit in connections
+                    ]
+
+                    # Noise model is multi-dimensional
+                    if isinstance(
+                        noise, DimensionalNoiseModel
+                    ) and noise.dimension > len(connections):
+                        continue
+                    elif isinstance(
+                        noise, DimensionalNoiseModel
+                    ) and 1 < noise.dimension == len(connections):
+                        noise_model.add_quantum_error(
+                            qiskit_error,
+                            [gate.qiskit_string],
+                            reversed_qubits,
+                        )
+                    else:
+                        tensor_error = qiskit_error
+                        for _ in range(1, len(connections)):
+                            tensor_error = tensor_error.tensor(qiskit_error)
+                        noise_model.add_quantum_error(
+                            tensor_error,
+                            [gate.qiskit_string],
+                            reversed_qubits,
+                        )
+
+                # Only some targets of the gate are included in the noise targets
+                elif len(intersection) != 0:
+                    if (not isinstance(noise, DimensionalNoiseModel)) or (
+                        noise.dimension == 1
+                    ):
+                        for qubit in intersection:
+                            # We add a custom identity gate on the relevant qubits to apply noise after the gate
+                            labeled_identity = Id(
+                                target=qubit,
+                                label=f"noisy_identity_{noisy_identity_counter}",
+                            )
+                            noise_model.add_quantum_error(
+                                qiskit_error,
+                                [labeled_identity.label],
+                                [modified_circuit.nb_qubits - 1 - qubit],
+                            )
+                            gate_index = modified_circuit.instructions.index(gate)
+                            modified_circuit.instructions.insert(
+                                gate_index + 1, labeled_identity
+                            )
+                            noisy_identity_counter += 1
+
+    return noise_model, modified_circuit
+
+
+@typechecked
 def run_aer(job: Job):
     """Executes the job on the right AER local simulator precised in the job in
     parameter.
@@ -158,17 +349,30 @@ def run_aer(job: Job):
     from qiskit.compiler import transpile
     from qiskit_aer import AerSimulator
 
+    job_circuit = job.circuit
+
+    if len(job.circuit.noises) != 0:
+        noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
+        job_circuit = modified_circuit
+        backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
+    else:
+        backend_sim = AerSimulator(method=job.device.value)
+
     qiskit_circuit = (
-        job.circuit.without_measurements().to_other_language(Language.QISKIT)
+        job_circuit.without_measurements().to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
-        else job.circuit.to_other_language(Language.QISKIT)
+        else job_circuit.to_other_language(Language.QISKIT)
     )
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
     qiskit_circuit = qiskit_circuit.reverse_bits()
-    backend_sim = AerSimulator(method=job.device.value)
-    run_input = transpile(qiskit_circuit, backend_sim)
+    qiskit_circuit = transpile(
+        qiskit_circuit,
+        backend_sim,
+        layout_method="trivial",
+        optimization_level=0,
+    )
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
@@ -186,7 +390,7 @@ def run_aer(job: Job):
         assert job.measure is not None
 
         job.status = JobStatus.RUNNING
-        job_sim = backend_sim.run(run_input, shots=job.measure.shots)
+        job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
         assert isinstance(job.device, IBMDevice)
         result = extract_result(result_sim, job, job.device)
@@ -326,7 +530,7 @@ def run_remote_ibm(job: Job) -> Result:
 def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
-    device: IBMDevice,
+    device: IBMDevice | AZUREDevice,
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
@@ -446,15 +650,14 @@ def extract_result(
                 return Result(job, state_vector, 0, 0)
             elif job.job_type == JobType.SAMPLE:
                 assert job.measure is not None
-                counts = result.get_counts(0)
-                data = [
-                    Sample(
-                        bin_str=item,
-                        count=counts[item],
-                        nb_qubits=job.circuit.nb_qubits,
+                if type(device) == AZUREDevice:
+                    from mpqp.execution.providers.azure import (
+                        extract_samples as extract_samples_azure,
                     )
-                    for item in counts
-                ]
+
+                    data = extract_samples_azure(job, result)
+                else:
+                    data = extract_samples(job, result)
                 return Result(job, data, None, job.measure.shots)
             else:
                 raise NotImplementedError(f"{job.job_type} not handled.")
@@ -502,3 +705,21 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     ibm_device = IBMDevice(backend.name)
 
     return extract_result(result, None, ibm_device)
+
+
+def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+    counts = result.get_counts(0)
+    job_data = result.data()
+    return [
+        Sample(
+            bin_str=item,
+            count=counts[item],
+            nb_qubits=job.circuit.nb_qubits,
+            probability=(
+                job_data.get("probabilities").get(item)
+                if "probabilities" in job_data
+                else None
+            ),
+        )
+        for item in counts
+    ]
