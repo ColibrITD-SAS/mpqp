@@ -5,16 +5,16 @@ one can use a :class:`SimulatedDevice`. Inheriting from :class:`~mpqp.execution.
 # TODO: finish doc
 
 
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING
+
+from typeguard import typechecked
 
 from mpqp.execution import AvailableDevice
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit_aer.backends.aer_simulator import AerSimulator
-    from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
-    from qiskit.providers import Backend
+    from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
 
 class SimulatedDevice(AvailableDevice):
