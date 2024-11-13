@@ -100,7 +100,7 @@ def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
     Raises:
         ValueError: If the required backend is a remote simulator.
     """
-    from qat.qpus import CLinalg  # qat.clinalg.qpu
+    from qat.clinalg.qpu import CLinalg
     from qat.pylinalg import PyLinalg
 
     if device.is_remote():
