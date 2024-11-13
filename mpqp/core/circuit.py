@@ -48,10 +48,6 @@ from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, 
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
-from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
-from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 from mpqp.tools.errors import NumberQubitsError, NonReversibleWarning
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -1019,10 +1015,12 @@ class QCircuit:
         elif language == Language.MY_QLM:
             cleaned_circuit = self.without_measurements()
             qasm2_code = cleaned_circuit.to_other_language(Language.QASM2)
+            self.gphase = cleaned_circuit.gphase
             if TYPE_CHECKING:
                 assert isinstance(qasm2_code, str)
+            from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
+
             myqlm_circuit = qasm2_to_myqlm_Circuit(qasm2_code)
-            self.gphase = cleaned_circuit.gphase
             return myqlm_circuit
 
         elif language == Language.BRAKET:
@@ -1055,9 +1053,11 @@ class QCircuit:
             qasm3_code = circuit.to_other_language(
                 Language.QASM3, translation_warning=False
             )
+            self.gphase = circuit.gphase
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, str)
-            self.gphase = circuit.gphase
+            from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+
             return apply_noise_to_braket_circuit(
                 qasm3_to_braket_Circuit(qasm3_code),
                 self.noises,
@@ -1067,6 +1067,8 @@ class QCircuit:
             qasm2_code = self.to_other_language(Language.QASM2)
             if TYPE_CHECKING:
                 assert isinstance(qasm2_code, str)
+            from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
+
             cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
             if cirq_proc_id:
                 from cirq.transformers.optimize_for_target_gateset import (
@@ -1106,6 +1108,8 @@ class QCircuit:
             qasm2_code = self.to_other_language(Language.QASM2)
             if TYPE_CHECKING:
                 assert isinstance(qasm2_code, str)
+            from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
+
             qasm3_code = open_qasm_2_to_3(
                 qasm2_code, translation_warning=translation_warning
             )
@@ -1159,14 +1163,11 @@ class QCircuit:
                                                  2    0  1
 
         """
-        return QCircuit(
-            data=[inst.subs(values, remove_symbolic) for inst in self.instructions]
-            + self.noises,  # 3M-TODO: modify this line when noise will be
-            # parameterized, do subs, like we do for inst
-            nb_qubits=self.nb_qubits,
-            nb_cbits=self.nb_cbits,
-            label=self.label,
-        )
+        new_circuit = deepcopy(self)
+        new_circuit.instructions = [
+            inst.subs(values, remove_symbolic) for inst in self.instructions
+        ]
+        return new_circuit
 
     def pretty_print(self):
         """Provides a pretty print of the QCircuit.

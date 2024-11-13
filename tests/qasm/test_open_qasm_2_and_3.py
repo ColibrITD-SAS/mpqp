@@ -247,7 +247,7 @@ def test_conversion_2_and_3(qasm_code: str):
     ],
 )
 def test_conversion_2_to_3(qasm_code: str, expected_output: str):
-    convert = open_qasm_2_to_3(qasm_code)
+    convert = open_qasm_2_to_3(qasm_code, translation_warning=False)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 
@@ -849,27 +849,37 @@ def test_remove_user_gates(qasm_code: str, expected_output: str):
               qubit[1] q;
               U(0.5, 0.2, 0.3) q[0];"""
         ),
+        (
+            """OPENQASM 3.0;
+              include "stdgates.inc";
+              qubit[1] q;
+              U(0, 0.1, 2) q[0];"""
+        ),
+        (
+            """OPENQASM 3.0;
+              include "stdgates.inc";
+              qubit[1] q;
+              U(0.8, 0.7, 0.4) q[0];"""
+        ),
     ],
 )
 def test_sample_counts_in_trust_interval(qasm3: str):
     qasm_2, gphase = open_qasm_3_to_2(qasm3)
+    print(gphase)
     print(qasm_2)
     from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
     c = qasm2_parse(qasm_2)
-    c.gphase = gphase
-    print(gphase)
-    print(c)
-    err_rate = 0.1
+    err_rate = 0.05
     err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
 
-    from qiskit.circuit import QuantumCircuit
     from mpqp.execution.runner import generate_job
     from mpqp.execution.providers.ibm import extract_result
     from qiskit.qasm3 import loads
     from qiskit_aer import AerSimulator
 
     expectation = loads(qasm3)
+    print(repr(expectation))
     job = generate_job(c, IBMDevice.AER_SIMULATOR)
     expectation.save_statevector()
     backend_sim = AerSimulator(method=job.device.value)
@@ -879,6 +889,9 @@ def test_sample_counts_in_trust_interval(qasm3: str):
     assert isinstance(res, Result)
     expected_amplitudes = res.amplitudes
 
+    print(c.gphase)
+    c.gphase = gphase
+    print(c.gphase)
     result = run(c, IBMDevice.AER_SIMULATOR)
     assert isinstance(result, Result)
     print("result_amplitudes: " + str(result.amplitudes))

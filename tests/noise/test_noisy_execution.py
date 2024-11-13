@@ -24,10 +24,7 @@ from mpqp.execution import (
 )
 from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
-from mpqp.tools.errors import (
-    OpenQASMTranslationWarning,
-    UnsupportedBraketFeaturesWarning,
-)
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
 noisy_devices: list[Any] = [
@@ -48,9 +45,7 @@ def filter_braket_warning(
         isinstance(devices, Iterable)
         and any(isinstance(device, AWSDevice) for device in devices)
     ) or isinstance(devices, AWSDevice):
-        with pytest.warns(
-            (UnsupportedBraketFeaturesWarning, OpenQASMTranslationWarning)
-        ):
+        with pytest.warns((UnsupportedBraketFeaturesWarning)):
             return action(devices)
     else:
         return action(devices)
