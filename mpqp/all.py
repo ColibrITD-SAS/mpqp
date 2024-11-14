@@ -17,7 +17,13 @@ from .execution import (
     run,
     submit,
 )
-from .execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from .execution.devices import (
+    ATOSDevice,
+    AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    AZUREDevice,
+)
 from .execution.remote_handler import get_all_job_ids
 from .execution.vqa import Optimizer, minimize
 from .gates import (
@@ -27,6 +33,7 @@ from .gates import (
     TOF,
     ControlledGate,
     CRk,
+    CRk_dagger,
     CustomGate,
     Gate,
     GateDefinition,
@@ -35,6 +42,7 @@ from .gates import (
     P,
     ParametrizedGate,
     Rk,
+    Rk_dagger,
     Rx,
     Ry,
     Rz,
