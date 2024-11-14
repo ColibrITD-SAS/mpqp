@@ -210,8 +210,10 @@ html[data-theme="dark"] .rst-content .highlighted {
 }
 html[data-theme="dark"] #native-gates-list {
    
-  box-shadow: 0px 0px 10px 0px #595959;
+  box-shadow: 0px 6px 9px 0px #595959;
 }
+
+/* .output_area.stderr { display: none; } */
 
 html[data-theme="dark"] #native-gates-list > * {
   border-color: white;
