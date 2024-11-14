@@ -51,6 +51,7 @@ autodoc_type_aliases = {
     "Measure": "Measure",
     "Breakpoint": "Breakpoint",
     "PauliStringMonomial": "PauliStringMonomial",
+    "npt.NDArray[np.complex64]": "np.array[np.complex64]",
 }
 autodoc_mock_imports = ["braket.circuits.measure"]
 simplify_optional_unions = True

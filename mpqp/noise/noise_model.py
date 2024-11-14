@@ -57,13 +57,13 @@ class NoiseModel(ABC):
     operation will apply to all qubits.
 
     Args:
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instructions.gates.native_gates.NativeGate`
-            affected by this noise.
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
         ValueError: When target list is empty, or target indices are duplicated
-        or negative. When the size of the gate is higher than the number of target qubits.
+            or negative. When the size of the gate is higher than the number of
+            target qubits.
     """
 
     def __init__(
@@ -100,18 +100,12 @@ class NoiseModel(ABC):
                     )
 
         self.targets = targets
-        """List of target qubits that will be affected by this noise model."""
+        """See parameter description."""
         self.gates = gates if gates is not None else []
-        """List of specific gates after which this noise model will be applied."""
+        """See parameter description."""
 
     def connections(self) -> set[int]:
-        """Returns the indices of the qubits connected to the noise model
-        (affected by the noise).
-
-        Returns:
-            Set of qubit indices on which this NoiseModel is connected (applied
-            on).
-        """
+        """Qubits to which this is connected (applied on)."""
         return set(self.targets)
 
     @abstractmethod
@@ -164,7 +158,7 @@ class NoiseModel(ABC):
     @abstractmethod
     def to_other_language(
         self, language: Language
-    ) -> "BraketNoise" | "QLMNoise" | "QuantumError":
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """Transforms this noise model into the corresponding object in the
         language specified in the ``language`` arg.
 
@@ -263,17 +257,15 @@ class Depolarizing(DimensionalNoiseModel):
     ``dimension``.
 
     Args:
-        prob: Depolarizing error probability or error rate.
-        targets: List of qubit indices affected by this noise.
+        prob: Depolarizing error probability (also called error rate).
+        targets: Qubits affected by this noise. Defaults to all qubits.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
-            affected by this noise.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
         ValueError: When a wrong dimension (negative) or probability (outside of
-            the expected interval) is input.
-        ValueError: When the size of the specified gates is not coherent with
-            the number of targets or the dimension.
+            the expected interval) is input. When the size of the specified
+            gates is not coherent with the number of targets or the dimension.
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
@@ -318,7 +310,7 @@ class Depolarizing(DimensionalNoiseModel):
                 f"and {prob_upper_bound}."
             )
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [
             np.sqrt(1 - 3 * self.prob / 4) * I.matrix,
             np.sqrt(self.prob / 4) * X.matrix,
@@ -334,7 +326,7 @@ class Depolarizing(DimensionalNoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError:
+    ) -> "BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -424,11 +416,12 @@ class BitFlip(NoiseModel):
     rate).
 
     Args:
-        prob: Bit flip error probability or error rate (must be within [0, 0.5]).
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
-            affected by this noise. If multi-qubit gates is passed, single-qubit
-            bitflip will be added for each qubit connected (target, control) with the gates.
+        prob: Bit flip error probability or error rate (must be within
+            ``[0, 0.5]``).
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. If multi-qubit gates is passed,
+            single-qubit bitflip will be added for each qubit connected (target,
+            control) with the gates. Defaults to all gates.
 
     Raises:
         ValueError: When the probability is outside of the expected interval
@@ -471,9 +464,9 @@ class BitFlip(NoiseModel):
 
         super().__init__(targets, gates)
         self.prob = prob
-        """Probability, or error rate, of the bit-flip noise model."""
+        """See parameter description."""
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [np.sqrt(1 - self.prob) * I.matrix, np.sqrt(self.prob) * X.matrix]
 
     def __repr__(self):
@@ -483,7 +476,7 @@ class BitFlip(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise | QuantumError:
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -546,10 +539,10 @@ class AmplitudeDamping(NoiseModel):
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
         prob: Probability of excitation in the generalized amplitude damping
-            noise channel When set to 1, indicating standard amplitude damping.
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
-            affected by this noise.
+            noise channel. A value of 1, corresponds to the standard amplitude
+            damping. It must be in the ``[0, 1]`` interval.
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
         ValueError: When the gamma or prob parameters are outside of the
@@ -599,11 +592,11 @@ class AmplitudeDamping(NoiseModel):
 
         super().__init__(targets, gates)
         self.gamma = gamma
-        """Decaying rate, of the amplitude damping noise channel."""
+        """See parameter description."""
         self.prob = prob
-        """Excitation probability, of the generalized amplitude damping noise channel."""
+        """See parameter description."""
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [
             np.diag(1, np.sqrt(1 - self.prob)),
             np.array([[0, np.sqrt(self.prob)], [0, 0]]),
@@ -617,7 +610,7 @@ class AmplitudeDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise | QuantumError:
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -678,19 +671,19 @@ class AmplitudeDamping(NoiseModel):
 
 
 class PhaseDamping(NoiseModel):
-    """Class representing the phase damping noise channel. It can be applied to a
-    single qubit and depends on the phase damping parameter ``gamma``. Phase damping happens
-    when a quantum system loses its phase information due to interactions with the environment,
-    leading to decoherence.
+    """Class representing the phase damping noise channel. It can be applied to
+    a single qubit and depends on the phase damping parameter ``gamma``. Phase
+    damping happens when a quantum system loses its phase information due to
+    interactions with the environment, leading to decoherence.
 
     Args:
         gamma: Probability of phase damping.
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.native_gate.NativeGate>`
-            affected by this noise.
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
-        ValueError: When the gamma parameter is outside of the expected interval [0, 1].
+        ValueError: When the gamma parameter is outside of the expected interval
+            ``[0, 1]``.
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
@@ -728,7 +721,7 @@ class PhaseDamping(NoiseModel):
         self.gamma = gamma
         """Probability of phase damping."""
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [
             np.sqrt(1 - self.gamma) * I.matrix,
             np.diag([np.sqrt(self.gamma), 0]),
@@ -742,7 +735,7 @@ class PhaseDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise | QuantumError:
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
