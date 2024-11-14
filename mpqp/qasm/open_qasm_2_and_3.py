@@ -59,7 +59,6 @@ from warnings import warn
 
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
-from typing import Optional
 
 from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
@@ -844,7 +843,7 @@ def convert_instruction_3_to_2(
     path_to_main: Optional[str] = None,
     gphase: float = 0.0,
 ) -> tuple[str, str, float]:
-    """Some instructions changed name from QASM 3 to QASM 2, also the way to
+    """Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
     single instruction.
 
@@ -858,11 +857,15 @@ def convert_instruction_3_to_2(
         defined_gates: Set of custom gates already defined.
         path_to_main: Path to the main folder from which include paths are
             described.
-        gphase: The global phase of a circuit, which is not handled in QASM2.
+        gphase: The global phase of a circuit, which is not handled in OpenQASM2.
 
     Returns:
         The upgraded instruction, the potential code to add in the header as
         the second element and the global phase of the circuit.
+
+    Example:
+        >>> convert_instruction_3_to_2("phase(0.3) q1[0];",set(),Node(""),set())
+        ('u1(0.3) q1[0];;\n', '', 0.0)
 
     """
     # 6M-TODO: not handled for loop, or a switch case, or pulse and low level quantum operations, etc.
@@ -1035,15 +1038,17 @@ def open_qasm_3_to_2(
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
     This function will also recursively go through the imported files to
-    translate them too. It is a partial conversion (the ``opaque``, ``for``, ``switch`` keyword is
-    not handled) for helping building temporary bridges between different
-    platforms using different versions.
+    translate them too. It is a partial conversion (the ``opaque``, ``for``,
+    ``switch``, and many others keywords are not handled) for helping
+    building temporary bridges between different platforms using different
+    versions.
 
     Args:
         code: String containing the OpenQASM 3.0 code.
         included_tree_current_node: Current Node in the file inclusion tree.
         path_to_file: Path to the location of the file from which the code is coming (useful for locating imports).
         defined_gates: Set of custom gates already defined.
+        gphase: The global phase of a circuit, which is not handled in OpenQASM2.
 
     Returns:
         Converted OpenQASM code in the 2.0 version.
