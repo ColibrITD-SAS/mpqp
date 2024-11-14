@@ -413,7 +413,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         job: Job to be executed.
 
     Returns:
-        IBM's job id and the `qiskit` job itself.
+        IBM's job id and the ``qiskit`` job itself.
 
     Note:
         This function is not meant to be used directly, please use

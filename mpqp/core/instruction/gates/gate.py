@@ -155,8 +155,8 @@ class Gate(Instruction, ABC):
         Example:
             >>> Z(0).inverse()
             Z(0)
-            >>> gate = CustomGate(UnitaryMatrix(np.diag([1,1j])),[0]).inverse().to_matrix()
-            >>> pprint(gate)
+            >>> gate = CustomGate(UnitaryMatrix(np.diag([1,1j])),[0])
+            >>> pprint(gate.inverse().to_matrix())
             [[1, 0],
              [0, -1j]]
 
