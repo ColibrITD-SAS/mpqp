@@ -621,7 +621,6 @@ class SWAP(InvolutionGate, NoParameterGate):
     )
     """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
 
-
     def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex64]:
         """Constructs the matrix representation of a SWAP gate for two qubits.
 
@@ -893,14 +892,14 @@ class Rk(RotationGate, SingleQubitGate):
     Args:
         k: Parameter used in the definition of the phase to apply.
         target: Index referring to the qubit on which the gate will be applied.
- 
+
     Examples:
         >>> pprint(Rk(5, 0).to_matrix())
         [[1, 0],
          [0, 0.9807853+0.1950903j]]
 
         >>> pprint(Rk(k, 0).to_matrix())
-        [[1.0 0.0]             
+        [[1.0 0.0]
          [0.0 1.0*exp(1.0*2**(1 - k)*I*pi)]]
 
     """
@@ -987,12 +986,11 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
 
     def to_canonical_matrix(self):
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
-    
+
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
     """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
-
 
 
 class CZ(InvolutionGate, ControlledGate, NoParameterGate):
@@ -1009,7 +1007,7 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
          [0, 1, 0, 0],
          [0, 0, 1, 0],
          [0, 0, 0, -1]]
- 
+
     """
 
     @classproperty
@@ -1034,7 +1032,7 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
         m = np.eye(4, dtype=complex)
         m[-1, -1] = -1
         return m
-    
+
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
@@ -1056,13 +1054,13 @@ class CRk(RotationGate, ControlledGate):
          [0, 0, 1, 0],
          [0, 0, 0, 0.9238795+0.3826834j]]
 
-        >>> k = symbols("k") 
+        >>> k = symbols("k")
         >>> pprint(CRk(k, 0, 1).to_matrix())
-           [[(1+0j) 0j 0j 0j]           
-                [0j 1.00000000000000 0j 0]       
-                        [0j 0j (1+0j) 0j]           
+           [[(1+0j) 0j 0j 0j]
+                [0j 1.00000000000000 0j 0]
+                        [0j 0j (1+0j) 0j]
             [0j 0 0j 1.0*exp(1.0*2**(1 - k)*I*pi)]]
- 
+
     """
 
     @classproperty
@@ -1109,6 +1107,7 @@ class CRk(RotationGate, ControlledGate):
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
+
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
@@ -1164,7 +1163,6 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
         3
     )
     """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
-
 
 
 NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]
