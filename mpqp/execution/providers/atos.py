@@ -12,7 +12,6 @@ from mpqp import Language
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
-    ComputationalBasis,
     ExpectationMeasure,
     Observable,
 )
@@ -707,12 +706,7 @@ def run_myQLM(job: Job) -> Result:
 
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            myqlm_job = generate_sample_job(myqlm_circuit, job)
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
@@ -764,12 +758,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            myqlm_job = generate_sample_job(myqlm_circuit, job)
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
