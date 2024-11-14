@@ -622,7 +622,7 @@ class SWAP(InvolutionGate, NoParameterGate):
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
-    """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
+    """Size of the gate."""
 
     def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex64]:
         """Constructs the matrix representation of a SWAP gate for two qubits.
@@ -1056,7 +1056,7 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
-    """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
+    """Size of the gate."""
 
 
 class CZ(InvolutionGate, ControlledGate, NoParameterGate):
@@ -1102,7 +1102,7 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
-    """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
+    """Size of the gate."""
 
 
 class CRk(RotationGate, ControlledGate):
@@ -1177,7 +1177,7 @@ class CRk(RotationGate, ControlledGate):
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
-    """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
+    """Size of the gate."""
 
     def inverse(self) -> Gate:
         return CRk_dagger(self.parameters[0], self.controls[0], self.targets[0])
@@ -1248,6 +1248,7 @@ class CRk_dagger(RotationGate, ControlledGate):
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
+    """Size of the gate."""
 
     def inverse(self) -> Gate:
         return CRk(self.k, self.controls[0], self.targets[0])
@@ -1301,7 +1302,7 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         3
     )
-    """attribute specifies the number of qubits that the gate operates on indicating the gate's dimensionality"""
+    """Size of the gate."""
 
 
 NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]
