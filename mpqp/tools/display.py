@@ -1,12 +1,10 @@
 from __future__ import annotations
 
 import re
-from typing import Union
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt
-from typing import TYPE_CHECKING
-
 from sympy import Basic
 
 if TYPE_CHECKING:
@@ -106,14 +104,17 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
     from sympy import Expr
 
     if isinstance(element, Expr):
-        return str(_unpack_expr(element.simplify()))
+        if element.is_Float:
+            element = float(element)
+        else:
+            return str(_unpack_expr(element.simplify()))
 
     real_part = np.round(np.real(element), round)
     imag_part = np.round(np.imag(element), round)
 
-    if real_part == int(real_part):
+    if abs(real_part - int(real_part)) < 10 ** (-round):
         real_part = int(real_part)
-    if imag_part == int(imag_part):
+    if abs(imag_part - int(imag_part)) < 10 ** (-round):
         imag_part = int(imag_part)
 
     if real_part == 0 and imag_part != 0:

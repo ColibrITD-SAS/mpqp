@@ -157,7 +157,7 @@ class Gate(Instruction, ABC):
             Z(0)
             >>> gate = CustomGate(UnitaryMatrix(np.diag([1,1j])),[0])
             >>> pprint(gate.inverse().to_matrix())
-            [[1, 0],
+            [[1, 0  ],
              [0, -1j]]
 
         """
@@ -217,10 +217,10 @@ class Gate(Instruction, ABC):
              [0, 1, 0, 0],
              [0, 0, 0, 1]]
             >>> pprint((swap_gate.power(0.75)).to_matrix())
-            [[0.9999999, 0, 0, 0],
-             [0, 0.1464466+0.3535534j, 0.8535534-0.3535534j, 0],
-             [0, 0.8535534-0.3535534j, 0.1464466+0.3535534j, 0],
-             [0, 0, 0, 0.9999999]]
+            [[1, 0               , 0               , 0],
+             [0, 0.14645+0.35355j, 0.85355-0.35355j, 0],
+             [0, 0.85355-0.35355j, 0.14645+0.35355j, 0],
+             [0, 0               , 0               , 1]]
 
         """
         # TODO: test
@@ -339,8 +339,8 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
 
         Example:
             >>> pprint((X(0).scalar_product(1j)).to_matrix())
-            [[0, 1j],
-             [1j, 0]]
+            [[0 , 1j],
+             [1j, 0 ]]
 
         """
         # 3M-TODO: to test

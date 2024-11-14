@@ -902,8 +902,8 @@ class Rk(RotationGate, SingleQubitGate):
          [0, 0.98079+0.19509j]]
 
         >>> pprint(Rk(k, 0).to_matrix())
-        [[1.0 0.0]
-         [0.0 1.0*exp(1.0*2**(1 - k)*I*pi)]]
+        [[1, 0                     ],
+         [0, 1.0*exp(2.0*I*pi/2**k)]]
 
     """
 
@@ -1122,10 +1122,10 @@ class CRk(RotationGate, ControlledGate):
 
         >>> k = symbols("k")
         >>> pprint(CRk(k, 0, 1).to_matrix())
-           [[(1+0j) 0j 0j 0j]
-                [0j 1.00000000000000 0j 0]
-                        [0j 0j (1+0j) 0j]
-            [0j 0 0j 1.0*exp(1.0*2**(1 - k)*I*pi)]]
+        [[1, 0, 0, 0                     ],
+         [0, 1, 0, 0                     ],
+         [0, 0, 1, 0                     ],
+         [0, 0, 0, 1.0*exp(2.0*I*pi/2**k)]]
 
     """
 
