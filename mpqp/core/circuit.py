@@ -52,7 +52,7 @@ from mpqp.qasm import qasm2_to_myqlm_Circuit
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-from mpqp.tools.errors import NumberQubitsError, NonReversibleWarning
+from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -155,7 +155,7 @@ class QCircuit:
                     self._nb_qubits = max(connections) + 1
             else:
                 self._nb_qubits = nb_qubits
-            self.add(list(map(deepcopy, data)))
+            self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
         return dumps(self) == dumps(value)

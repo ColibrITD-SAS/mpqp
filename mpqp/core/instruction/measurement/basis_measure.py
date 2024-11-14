@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 
 from mpqp.core.languages import Language
 
-from .basis import Basis, ComputationalBasis
+from .basis import Basis, ComputationalBasis, VariableSizeBasis
 from .measure import Measure
 
 
@@ -31,13 +31,15 @@ class BasisMeasure(Measure):
 
     Args:
         targets: List of indices referring to the qubits on which the measure
-            will be applied.
+            will be applied. Defaults to the entire circuit for
+            :class:`~mpqp.core.instruction.measurement.basis.VariableSizeBasis`
+            and the first qubits matching the size of the basis for other basis.
         c_targets: List of indices referring to the classical bits on which the
             measure will be applied.
         shots: Number of shots to be performed basis: basis in which the qubits
             should be measured.
         basis: Basis in which the measure is performed. Defaults to
-            :class:`ComputationalBasis()<mpqp.core.instruction.measurement.basis.ComputationalBasis>`
+            :class:`~mpqp.core.instruction.measurement.basis.ComputationalBasis`
         label: Label used to identify the measure.
 
     Examples:
@@ -65,6 +67,10 @@ class BasisMeasure(Measure):
 
         if basis is None:
             basis = ComputationalBasis()
+
+        if not isinstance(basis, VariableSizeBasis):
+            self._dynamic = False
+            self.targets = list(range(basis.nb_qubits))
 
         self.user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
