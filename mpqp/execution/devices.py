@@ -312,6 +312,7 @@ class GOOGLEDevice(AvailableDevice):
         return False
 
     def is_ionq(self):
+        """method checks if the device's name starts with "IONQ" indicating that the device is from IonQ"""
         return self.name.startswith("IONQ")
 
     def is_gate_based(self) -> bool:
