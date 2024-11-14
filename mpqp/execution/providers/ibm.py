@@ -51,7 +51,7 @@ def run_ibm(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     return run_aer(job) if not job.device.is_remote() else run_remote_ibm(job)
 
@@ -70,7 +70,7 @@ def compute_expectation_value(ibm_circuit: QuantumCircuit, job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit.primitives import Estimator
     from qiskit.quantum_info import SparsePauliOp
@@ -143,10 +143,10 @@ def check_job_compatibility(job: Job):
 def generate_qiskit_noise_model(
     circuit: QCircuit,
 ) -> tuple["Qiskit_NoiseModel", QCircuit]:
-    """Generate a `qiskit` noise model packing all the
+    """Generate a ``qiskit`` noise model packing all the
     class:`~mpqp.noise.noise_model.NoiseModel`s attached to the given QCircuit.
 
-    In `qiskit`, the noise cannot be applied to qubits unaffected by any
+    In ``qiskit``, the noise cannot be applied to qubits unaffected by any
     operations. For this reason, this function also returns a copy of the
     circuit padded with identities on "naked" qubits.
 
@@ -154,12 +154,12 @@ def generate_qiskit_noise_model(
         circuit: Circuit containing the noise models to pack.
 
     Returns:
-        A `qiskit` noise model combining the provided noise models and the
+        A ``qiskit`` noise model combining the provided noise models and the
         modified circuit, padded with identities on the "naked" qubits.
 
     Note:
         The qubit order in the returned noise model is reversed to match
-        `qiskit`'s qubit ordering conventions.
+        ``qiskit``'s qubit ordering conventions.
     """
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
@@ -341,7 +341,7 @@ def run_aer(job: Job):
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     check_job_compatibility(job)
 
@@ -417,7 +417,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit import QuantumCircuit
     from qiskit.compiler import transpile
@@ -517,7 +517,7 @@ def run_remote_ibm(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     _, remote_job = submit_remote_ibm(job)
     ibm_result = remote_job.result()
@@ -532,18 +532,18 @@ def extract_result(
     job: Optional[Job],
     device: IBMDevice,
 ) -> Result:
-    """Parses a result from `IBM` execution (remote or local) in a `MPQP`
+    """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
 
     Args:
         result: Result returned by IBM after running of the job.
-        job: `MPQP` job used to generate the run. Enables a more complete
+        job: ``MPQP`` job used to generate the run. Enables a more complete
             result.
         device: IBMDevice on which the job was submitted. Used to know if the
             run was remote or local
 
     Returns:
-        The `qiskit` result converted to our format.
+        The ``qiskit`` result converted to our format.
     """
     from qiskit.primitives import EstimatorResult, PrimitiveResult
     from qiskit.result import Result as QiskitResult
@@ -671,7 +671,7 @@ def extract_result(
 def get_result_from_ibm_job_id(job_id: str) -> Result:
     """Retrieves from IBM remote platform and parse the result of the job_id
     given in parameter. If the job is still running, we wait (blocking) until it
-    is `DONE`.
+    is ``DONE``.
 
     Args:
         job_id: Id of the remote IBM job.

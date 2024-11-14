@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 
 @typechecked
 def job_pre_processing(job: Job) -> "Circuit":
-    """Extracts the myQLM circuit and check if `job.type` and `job.measure`
+    """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
     are coherent.
 
     Args:
@@ -243,7 +243,7 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
 
     Args:
         myqlm_circuit: MyQLM circuit of the job.
-        job: Original `MPQP` job used to generate the myQLM job.
+        job: Original ``MPQP`` job used to generate the myQLM job.
 
     Returns:
         A myQLM Job for retrieving the expectation value of the observable.
@@ -487,7 +487,7 @@ def extract_state_vector_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original `MPQP` job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -527,7 +527,7 @@ def extract_sample_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original `MPQP` job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -582,7 +582,7 @@ def extract_observable_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original `MPQP` job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -628,7 +628,7 @@ def extract_result(
 
     Args:
         myqlm_result: Result returned by myQLM/QLM after running of the job.
-        job: Original `MPQP` job used to generate the run. Used to retrieve more
+        job: Original ``MPQP`` job used to generate the run. Used to retrieve more
             easily info to instantiate the result.
         device: ATOSDevice on which the job was submitted. Used to know if the
             run was remote or local.
@@ -668,7 +668,7 @@ def run_atos(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     return run_myQLM(job) if not job.device.is_remote() else run_QLM(job)
 
@@ -685,7 +685,7 @@ def run_myQLM(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     result = None
@@ -747,7 +747,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     myqlm_job = None
@@ -801,13 +801,13 @@ def run_QLM(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:`run<mpqp.execution.runner.run>` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     if not isinstance(job.device, ATOSDevice) or not job.device.is_remote():
         raise ValueError(
-            "This job's device is not a QLM one, so it cannot be handled by this "
-            "function. Use `run` instead."
+            "This job's device is not a QLM one, so it cannot be handled by "
+            "this function. Use `run` instead."
         )
 
     _, async_result = submit_QLM(job)
@@ -818,10 +818,10 @@ def run_QLM(job: Job) -> Result:
 
 @typechecked
 def get_result_from_qlm_job_id(job_id: str) -> Result:
-    """Retrieves the `QLM` result, described by the job_id in parameter, from
-    the remote `QLM` and converts it in a `MPQP`
+    """Retrieves the ``QLM`` result, described by the job_id in parameter, from
+    the remote ``QLM`` and converts it in a ``MPQP``
     :class:`~mpqp.execution.result.Result`. If the job is still running,
-    we wait (blocking) until its status becomes `DONE`.
+    we wait (blocking) until its status becomes ``DONE``.
 
     Args:
         job_id: Id of the remote QLM job.
