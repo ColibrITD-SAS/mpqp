@@ -20,7 +20,7 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
-from mpqp.tools.display import clean_1D_array
+from mpqp.tools.display import clean_1D_array, one_lined_repr
 from mpqp.tools.maths import atol, matrix_eq
 
 
@@ -130,7 +130,9 @@ class Basis:
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.basis_vectors}, {self.nb_qubits})"
+        joint_vectors = ", ".join(map(one_lined_repr, self.basis_vectors))
+        qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
+        return f"{type(self).__name__}({joint_vectors}{qubits})"
 
     def to_computational(self):
         """Converts the custom basis to the computational basis.
