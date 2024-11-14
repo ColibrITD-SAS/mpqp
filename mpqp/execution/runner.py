@@ -37,9 +37,9 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
+    AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
-    AZUREDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -115,7 +115,7 @@ def generate_job(
             modified_circuit = circuit.without_measurements() + measurement.pre_measure
             modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, modified_circuit, device)
+                job = Job(JobType.STATE_VECTOR, modified_circuit, device, measurement)
             else:
                 job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):

@@ -139,6 +139,12 @@ def run_local(job: Job) -> Result:
     simulator = Simulator(noise=None)
 
     if job.job_type == JobType.STATE_VECTOR:
+        if job.measure is not None:
+            assert isinstance(job.measure, BasisMeasure)
+            cirq_circuit = (job.circuit + job.measure.pre_measure).to_other_language(
+                Language.CIRQ
+            )
+            assert isinstance(cirq_circuit, CirqCircuit)
         return extract_result_STATE_VECTOR(simulator.simulate(cirq_circuit), job)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
