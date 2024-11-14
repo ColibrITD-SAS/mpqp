@@ -692,6 +692,7 @@ class PauliStringMonomial(PauliString):
     ):
         self.coef = coef
         self.atoms = [] if atoms is None else atoms
+        """The list of atoms in the monomial."""
 
     @property
     def nb_qubits(self) -> int:

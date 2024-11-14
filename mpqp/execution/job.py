@@ -31,7 +31,8 @@ from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.ibm_connection import get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
-from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from .connection.azure_connection import get_jobs_by_id
+from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice, AZUREDevice
 
 
 class JobStatus(MessageEnum):
@@ -142,13 +143,12 @@ class Job:
                 assert isinstance(self.id, str)
                 if isinstance(self.device, ATOSDevice):
                     self._status = get_qlm_job_status(self.id)
-
                 elif isinstance(self.device, IBMDevice):
                     self._status = get_ibm_job_status(self.id)
-
                 elif isinstance(self.device, AWSDevice):
                     self._status = get_aws_job_status(self.id)
-
+                elif isinstance(self.device, AZUREDevice):
+                    self._status = get_azure_job_status(self.id)
                 else:
                     raise NotImplementedError(
                         f"Cannot update job status for the device {self.device} yet"
@@ -252,3 +252,31 @@ def get_aws_job_status(job_id: str) -> JobStatus:
         return JobStatus.RUNNING
     else:
         return JobStatus.DONE
+
+
+@typechecked
+def get_azure_job_status(job_id: str) -> JobStatus:
+    """Retrieves the status of a azure from the id in parameter, and
+    returns the corresponding JobStatus of this library.
+
+    Args:
+        job_id: Id of the job for which we want to retrieve the status.
+    """
+
+    job = get_jobs_by_id(job_id)
+
+    status = job.details.status
+    if status is None:
+        raise ValueError(f"Unexpected azure job status: {status}")
+    if status == "failed":
+        return JobStatus.ERROR
+    elif status == "cancelled":
+        return JobStatus.CANCELLED
+    elif status == "succeeded":
+        return JobStatus.DONE
+    elif status == "waiting":
+        return JobStatus.QUEUED
+    elif status == "executing":
+        return JobStatus.RUNNING
+    else:
+        raise ValueError(f"Unexpected azure job status: {status}")
