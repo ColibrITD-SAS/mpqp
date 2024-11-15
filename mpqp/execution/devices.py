@@ -170,10 +170,10 @@ class ATOSDevice(AvailableDevice):
 
     @staticmethod
     def from_str_remote(name: str):
-        """Returns the first remote ATOSDevice containing the name given in parameter.
+        """Returns the first remote ATOSDevice matching the given name.
 
         Args:
-            name: A string containing the name of the device.
+            name: A substring of the desired device name.
 
         Raises:
             ValueError: If no device corresponding to the given name could be
