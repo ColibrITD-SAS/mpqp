@@ -76,13 +76,13 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
 
 @typechecked
 def is_orthogonal(matrix: Matrix) -> bool:
-    """Checks whether the matrix in parameter is hermitian.
+    """Checks whether the matrix in parameter is orthogonal.
 
     Args:
-        matrix: matrix for which we want to know if it is hermitian.
+        matrix: matrix for which we want to know if it is orthogonal.
 
     Returns:
-        ``True`` if the matrix in parameter is Hermitian.
+        ``True`` if the matrix in parameter is orthogonal.
 
     Examples:
         >>> is_orthogonal(np.array([[0,1],[1,0]]))
