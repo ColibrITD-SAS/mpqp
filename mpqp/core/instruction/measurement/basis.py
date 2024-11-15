@@ -21,7 +21,7 @@ from typeguard import typechecked
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.tools.display import clean_1D_array, one_lined_repr
-from mpqp.tools.maths import atol, matrix_eq
+from mpqp.tools.maths import atol, is_orthogonal
 
 
 @typechecked
@@ -79,18 +79,14 @@ class Basis:
         if len(basis_vectors) != 2**nb_qubits:
             raise ValueError(
                 "Incorrect number of vector for the basis: given "
-                f"{len(basis_vectors)} but there should be {2**nb_qubits}"
+                f"{len(basis_vectors)} but there should be {2**nb_qubits}."
             )
         if any(len(vector) != 2**nb_qubits for vector in basis_vectors):
-            raise ValueError("All vectors of the given basis are not the same size")
+            raise ValueError("All vectors of the given basis are not the same size.")
         if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
-            raise ValueError("All vectors of the given basis are not normalized")
-        m = np.array([vector for vector in basis_vectors])
-        if not matrix_eq(
-            m.transpose().dot(m),  # fixme
-            np.eye(len(basis_vectors)),  # pyright: ignore[reportArgumentType]
-        ):
-            raise ValueError("The given basis is not orthogonal")
+            raise ValueError("Some vectors of the given basis are not normalized.")
+        if is_orthogonal(np.array([vector for vector in basis_vectors])):
+            raise ValueError("The given basis is not orthogonal.")
 
         self.nb_qubits = nb_qubits
         """See parameter description."""
