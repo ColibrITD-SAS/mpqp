@@ -87,7 +87,7 @@ def is_orthogonal(matrix: Matrix) -> bool:
     Examples:
         >>> is_orthogonal(np.array([[0,1],[1,0]]))
         True
-        >>> is_orthogonal(np.array([1,1],[1,0]))
+        >>> is_orthogonal(np.array([[1,1],[1,0]]))
         False
         >>> is_orthogonal(rand_orthogonal_matrix(3))
         True

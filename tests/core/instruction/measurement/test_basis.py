@@ -3,11 +3,10 @@ import numpy.typing as npt
 import pytest
 
 from mpqp import QCircuit
-from mpqp.execution import IBMDevice, ATOSDevice, AWSDevice, GOOGLEDevice
-from mpqp.execution.runner import (
-    _run_single,
-    run,
-)  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from mpqp.execution.result import BatchResult
+from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution.runner import run
 from mpqp.gates import *
 from mpqp.measures import (
     Basis,
@@ -190,6 +189,7 @@ def test_valid_run_custom_basis_state_vector_one_qubit():
     ]
 
     for batch, vector in zip(batches, vectors):
+        assert isinstance(batch, BatchResult)
         for result in batch:
             assert matrix_eq(vector, result.amplitudes, 1e-04, 1e-04)
 
