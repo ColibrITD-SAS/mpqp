@@ -59,10 +59,17 @@ class Basis:
         basis_vectors: list[npt.NDArray[np.complex64]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
+        basis_vectors_labels: Optional[list[str]] = None,
     ):
+        if symbols is not None and basis_vectors_labels is not None:
+            raise ValueError(
+                "You can only specify either symbols or basis_vectors_labels, not both."
+            )
+
         if symbols is None:
             symbols = ("0", "1")
         self.symbols = symbols
+        self.basis_vectors_labels = basis_vectors_labels
 
         if len(basis_vectors) == 0:
             if nb_qubits is None:
@@ -113,6 +120,10 @@ class Basis:
             >>> custom_state
             '+-'
         """
+        if self.basis_vectors_labels is not None:
+            index = int(state, 2)
+            return self.basis_vectors_labels[index]
+
         return ''.join(self.symbols[int(bit)] for bit in state)
 
     def pretty_print(self):
