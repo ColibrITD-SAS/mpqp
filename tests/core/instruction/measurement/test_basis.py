@@ -3,8 +3,11 @@ import numpy.typing as npt
 import pytest
 
 from mpqp import QCircuit
-from mpqp.execution import IBMDevice
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution import IBMDevice, ATOSDevice, AWSDevice, GOOGLEDevice
+from mpqp.execution.runner import (
+    _run_single,
+    run,
+)  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.measures import (
     Basis,
@@ -159,9 +162,48 @@ def test_basis_implementations(
         ),
     ],
 )
-def test_run_with_custom_basis(
+def test_run_with_custom_basis_probas(
     circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex64]
 ):
     res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
 
     assert matrix_eq(expected_probabilities, res.probabilities.astype(np.complex64))
+
+
+def test_valid_run_custom_basis_state_vector_one_qubit():
+    vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
+    basis = Basis(vectors)
+    c1 = QCircuit([X(0), X(0), BasisMeasure(basis=basis, shots=0)])
+    c2 = QCircuit([X(0), BasisMeasure(basis=basis, shots=0)])
+
+    batches = [
+        run(
+            c,
+            [
+                IBMDevice.AER_SIMULATOR,
+                ATOSDevice.MYQLM_PYLINALG,
+                AWSDevice.BRAKET_LOCAL_SIMULATOR,
+                GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            ],
+        )
+        for c in [c1, c2]
+    ]
+
+    for batch, vector in zip(batches, vectors):
+        for result in batch:
+            assert matrix_eq(vector, result.amplitudes, 1e-04, 1e-04)
+
+
+def test_run_custom_basis_sampling_one_qubit():
+    vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
+    basis = Basis(vectors)
+    run(
+        QCircuit([X(0), X(0), BasisMeasure(basis=basis)]),
+        [
+            IBMDevice.AER_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+    assert True
