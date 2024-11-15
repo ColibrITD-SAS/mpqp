@@ -1008,12 +1008,12 @@ def convert_instruction_3_to_2(
         instr_match = re.match(r"gphase\((.*)\)\s*", instr)
         if instr_match:
             try:
-                version = float(instr_match.group(1))
+                phase = float(instr_match.group(1))
             except ValueError:
                 raise ValueError(
                     f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
                 )
-            gphase += version
+            gphase += phase
     else:
         gate = instr.split()[0].split("(")[0]
         if gate not in defined_gates:
