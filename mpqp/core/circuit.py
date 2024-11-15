@@ -57,8 +57,6 @@ if TYPE_CHECKING:
     from sympy import Basic, Expr
 
 
-
-
 @typechecked
 class QCircuit:
     """This class models a quantum circuit.
