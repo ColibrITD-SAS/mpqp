@@ -87,7 +87,7 @@ class Basis:
             raise ValueError("All vectors of the given basis are not normalized")
         m = np.array([vector for vector in basis_vectors])
         if not matrix_eq(
-            m.transpose().dot(m), #fixme
+            m.transpose().dot(m),  # fixme
             np.eye(len(basis_vectors)),  # pyright: ignore[reportArgumentType]
         ):
             raise ValueError("The given basis is not orthogonal")
