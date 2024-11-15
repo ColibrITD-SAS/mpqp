@@ -1,10 +1,12 @@
+from itertools import product
+
 import numpy as np
 import numpy.typing as npt
 import pytest
 
 from mpqp import QCircuit
 from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
-from mpqp.execution.result import BatchResult
+from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.execution.runner import run
 from mpqp.gates import *
@@ -169,15 +171,15 @@ def test_run_with_custom_basis_probas(
     assert matrix_eq(expected_probabilities, res.probabilities.astype(np.complex64))
 
 
-def test_valid_run_custom_basis_state_vector_one_qubit():
-    vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
-    basis = Basis(vectors)
-    c1 = QCircuit([X(0), X(0), BasisMeasure(basis=basis, shots=0)])
-    c2 = QCircuit([X(0), BasisMeasure(basis=basis, shots=0)])
-
-    batches = [
-        run(
-            c,
+@pytest.mark.parametrize(
+    "circuit, expected_vector_index, device",
+    [
+        (circuit, v_index, device)
+        for ((circuit, v_index), device) in product(
+            [
+                (QCircuit([X(0), X(0)]), 0),
+                (QCircuit([X(0)]), 1),
+            ],
             [
                 IBMDevice.AER_SIMULATOR,
                 ATOSDevice.MYQLM_PYLINALG,
@@ -185,13 +187,18 @@ def test_valid_run_custom_basis_state_vector_one_qubit():
                 GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
             ],
         )
-        for c in [c1, c2]
-    ]
+    ],
+)
+def test_valid_run_custom_basis_state_vector_one_qubit(
+    circuit: QCircuit, expected_vector_index: int, device: AvailableDevice
+):
+    vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
 
-    for batch, vector in zip(batches, vectors):
-        assert isinstance(batch, BatchResult)
-        for result in batch:
-            assert matrix_eq(vector, result.amplitudes, 1e-04, 1e-04)
+    result = _run_single(
+        circuit + QCircuit([BasisMeasure(basis=Basis(vectors), shots=0)]), device, {}
+    )
+
+    assert matrix_eq(vectors[expected_vector_index], result.amplitudes)
 
 
 def test_run_custom_basis_sampling_one_qubit():
