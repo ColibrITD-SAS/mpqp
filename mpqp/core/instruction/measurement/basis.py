@@ -85,7 +85,7 @@ class Basis:
             raise ValueError("All vectors of the given basis are not the same size.")
         if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
             raise ValueError("Some vectors of the given basis are not normalized.")
-        if is_orthogonal(np.array([vector for vector in basis_vectors])):
+        if not is_orthogonal(np.array([vector for vector in basis_vectors])):
             raise ValueError("The given basis is not orthogonal.")
 
         self.nb_qubits = nb_qubits
