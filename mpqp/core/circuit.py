@@ -26,13 +26,6 @@ from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
 from warnings import warn
 
-if TYPE_CHECKING:
-    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-    from cirq.circuits.circuit import Circuit as cirq_Circuit
-    from braket.circuits import Circuit as braket_Circuit
-    from qiskit.circuit import QuantumCircuit
-    from sympy import Basic, Expr
-
 import numpy as np
 import numpy.typing as npt
 from typeguard import TypeCheckError, typechecked
@@ -55,6 +48,15 @@ from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
+
+if TYPE_CHECKING:
+    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from braket.circuits import Circuit as braket_Circuit
+    from qiskit.circuit import QuantumCircuit
+    from sympy import Basic, Expr
+
+
 
 
 @typechecked
@@ -257,11 +259,14 @@ class QCircuit:
                 )
 
     def _update_targets_components(self, component: Instruction | NoiseModel):
-        """update the targets of the components with the number of qubits in the circuit.
+        """Update the targets of the component with the number of qubits in the circuit.
+
+        Args:
+            component: Instruction or NoiseModel for which we want to update the `targets` attribute.
 
         Raises:
-            ValueError: If the number of target qubits for a noise source is
-                smaller than the its dimension, or if BasisMeasure does not span
+            ValueError: If the number of target qubits for a NoiseModel is
+                smaller than its dimension, or if BasisMeasure does not span
                 all qubits in a noisy circuit.
 
         Examples:
