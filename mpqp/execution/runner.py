@@ -2,19 +2,15 @@
 Once the circuit is defined, you can to execute it and retrieve the result using
 the function :func:`run`. You can execute said circuit on one or several devices
 (local or remote). The function will wait (blocking) until the job is completed
-and will return a :class:`~mpqp.execution.result.Result` in only one
+and will return a :class:`~mpqp.execution.result.Result` if a single
 device was given or a :class:`~mpqp.execution.result.BatchResult` 
-otherwise (see :ref:`below<Results>`).
+otherwise (see the section :ref:`Results` for more details).
 
 Alternatively, when running jobs on a remote device, you could prefer to
 retrieve the result asynchronously, without having to wait and block the
 application until the computation is completed. In that case, you can use the
 :func:`submit` instead. It will submit the job and
-return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
-
-.. note::
-    Unlike :func:`run`, we can only submit on one device at a time.
-"""
+return the corresponding job id and :class:`~mpqp.execution.job.Job` object."""
 
 from __future__ import annotations
 
@@ -37,9 +33,9 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
+    AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
-    AZUREDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
@@ -307,7 +303,9 @@ def run(
 
 @typechecked
 def submit(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> tuple[str, Job]:
     """Submit the job related with the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -324,7 +322,7 @@ def submit(
     Args:
         circuit: QCircuit to be run.
         device: Remote device on which the circuit will be submitted.
-        values: Set of values to substitute symbolic variables.
+        values: Set of values to substitute symbolic variables. Defaults to ``{}``.
 
     Returns:
         The job id provided by the remote device after submission of the job.
@@ -334,10 +332,14 @@ def submit(
         >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG) #doctest: +SKIP
         Logging as user <qlm_user>...
         Submitted a new batch: Job766
-        >>> print("Status of " +job_id +":", job.job_status) #doctest: +SKIP
+        >>> print(f"Status of {job_id}: {job.job_status}") #doctest: +SKIP
         Status of Job766: JobStatus.RUNNING
 
+    Note:
+        Unlike :func:`run`, you can only submit on one device at a time.
     """
+    if values is None:
+        values = {}
     if not device.is_remote():
         raise RemoteExecutionError(
             "submit(...) function is only made for remote device."
@@ -364,9 +366,14 @@ def display_kth_breakpoint(
     """Prints to the standard output the state vector corresponding to the state
     of the system when it encounters the `k^{th}` breakpoint.
 
+    See the documentation of
+    :class:`~mpqp.core.instruction.breakpoint.Breakpoint` for examples of
+    breakpoints.
+
     Args:
         circuit: The circuit to be examined.
         k: The state desired is met at the `k^{th}` breakpoint.
+        device: The device to use for the simulation.
     """
     bp = circuit.breakpoints[k]
     if bp.enabled:

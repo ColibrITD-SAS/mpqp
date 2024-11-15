@@ -29,10 +29,10 @@ from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, 
 
 from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
+from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
-from .connection.azure_connection import get_jobs_by_id
-from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice, AZUREDevice
+from .devices import ATOSDevice, AvailableDevice, AWSDevice, AZUREDevice, IBMDevice
 
 
 class JobStatus(MessageEnum):
@@ -126,8 +126,10 @@ class Job:
 
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
-        the remote provider.  ``None`` if the job is local. If the job is not 
-        local, it will be set later on."""
+        the remote provider.  ``None`` if the job is local. It can take a little
+        while before it is set to the right value (For instance, a job
+        submission can require handshake protocols to conclude before
+        attributing an id to the job)."""
 
     @property
     def status(self):

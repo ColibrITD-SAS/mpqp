@@ -173,7 +173,7 @@ class ATOSDevice(AvailableDevice):
         """Returns the first remote ATOSDevice matching the given name.
 
         Args:
-            name: A substring of the desired device name.
+            name: A substring of the desired device's name.
 
         Raises:
             ValueError: If no device corresponding to the given name could be
@@ -196,7 +196,7 @@ class ATOSDevice(AvailableDevice):
 
 
 class AWSDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by AWS Braket."""
+    """Enum regrouping all available devices provided by AWS."""
 
     BRAKET_LOCAL_SIMULATOR = "LocalSimulator"
 
@@ -298,7 +298,7 @@ class AWSDevice(AvailableDevice):
 
 
 class GOOGLEDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by CIRQ."""
+    """Enum regrouping all available devices provided by Google."""
 
     CIRQ_LOCAL_SIMULATOR = "LocalSimulator"
     PROCESSOR_RAINBOW = "rainbow"
@@ -340,7 +340,7 @@ class GOOGLEDevice(AvailableDevice):
 
 
 class AZUREDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by AZURE."""
+    """Enum regrouping all available devices provided by Azure."""
 
     IONQ_SIMULATOR = "ionq.simulator"
     IONQ_QPU = "ionq.qpu"

@@ -274,8 +274,8 @@ class PauliString:
             start=np.zeros((2**self.nb_qubits, 2**self.nb_qubits), dtype=np.complex64),
         )
 
-    @classmethod
-    def from_matrix(cls, matrix: Matrix) -> PauliString:
+    @staticmethod
+    def from_matrix(matrix: Matrix) -> PauliString:
         """Constructs a PauliString from a matrix.
 
         Args:
@@ -319,9 +319,9 @@ class PauliString:
             )
         return pauli_list
 
-    @classmethod
+    @staticmethod
     def _get_dimension_cirq_pauli(
-        cls, pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation]
+        pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation]
     ):
         from cirq.ops.gate_operation import GateOperation as CirqGateOperation
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
@@ -351,9 +351,8 @@ class PauliString:
                 dimension = max(dimension, nb_qubits + 1)
         return dimension
 
-    @classmethod
+    @staticmethod
     def _from_cirq(
-        cls,
         pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation],
         min_dimension: int = 1,
     ) -> PauliString:
@@ -396,9 +395,8 @@ class PauliString:
 
         return pauli_string
 
-    @classmethod
+    @staticmethod
     def _from_qiskit(
-        cls,
         pauli: SparsePauliOp,
     ) -> PauliString:
         pauli_string = PauliString()
@@ -410,9 +408,8 @@ class PauliString:
             pauli_string += monomial
         return pauli_string
 
-    @classmethod
+    @staticmethod
     def _from_braket(
-        cls,
         pauli: BraketObservable,
     ) -> PauliString:
         from braket.circuits.observables import I as Braket_I
@@ -450,9 +447,8 @@ class PauliString:
         else:
             raise NotImplementedError(f"Unsupported input type: {type(pauli)}.")
 
-    @classmethod
+    @staticmethod
     def _from_my_qml(
-        cls,
         pauli: Term,
         min_dimension: int = 0,
     ) -> PauliStringMonomial:
@@ -466,9 +462,8 @@ class PauliString:
             monomial[pauli.qbits[index]] = _pauli_atom_dict[atom]
         return PauliStringMonomial(pauli.coeff, monomial)
 
-    @classmethod
+    @staticmethod
     def from_other_language(
-        cls,
         pauli: Union[
             SparsePauliOp,
             BraketObservable,
