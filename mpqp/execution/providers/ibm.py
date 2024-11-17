@@ -505,14 +505,12 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         qiskit_observable = qiskit_observable.apply_layout(qiskit_circ.layout)
 
-        default_shots = getattr(estimator.options, "default_shots", None)
-        if meas.shots != default_shots:
-            raise ValueError(
-                f"Number of shots mismatch: expected {meas.shots}, "
-                f"but got {getattr(estimator.options, 'default_shots')}."
-            )
-
+        # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
         setattr(estimator.options, "default_shots", meas.shots)
+        estimator.options.twirling.enable_gates = False
+        estimator.options.twirling.enable_measure = False
+        estimator.options.twirling.num_randomizations = 1
+        estimator.options.twirling.shots_per_randomization = meas.shots
 
         ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
     elif job.job_type == JobType.SAMPLE:
