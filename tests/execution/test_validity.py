@@ -1,4 +1,5 @@
 from copy import deepcopy
+
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -8,28 +9,32 @@ from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
 from mpqp.core.instruction.measurement import BasisMeasure
+from mpqp.core.instruction.measurement.pauli_string import I as Ip
+from mpqp.core.instruction.measurement.pauli_string import X as Xp
+from mpqp.core.instruction.measurement.pauli_string import Y as Yp
+from mpqp.core.instruction.measurement.pauli_string import Z as Zp
 from mpqp.core.languages import Language
 from mpqp.execution import (
     ATOSDevice,
+    AvailableDevice,
     AWSDevice,
+    AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
-    AZUREDevice,
     run,
-    AvailableDevice,
 )
 from mpqp.execution.result import BatchResult, Result
 from mpqp.gates import *
 from mpqp.measures import (
-    ExpectationMeasure,
-    Observable,
+    Basis,
     BasisMeasure,
     ComputationalBasis,
+    ExpectationMeasure,
     HadamardBasis,
+    Observable,
     VariableSizeBasis,
-    Basis,
 )
-from mpqp.noise.noise_model import NOISE_MODEL, Depolarizing, PhaseDamping
+from mpqp.noise.noise_model import NOISE_MODELS, Depolarizing, PhaseDamping
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
@@ -37,13 +42,6 @@ from mpqp.tools.errors import (
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.maths import matrix_eq
-from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.measurement.pauli_string import (
-    I as Ip,
-    X as Xp,
-    Y as Yp,
-    Z as Zp,
-)
 
 pi = np.pi
 s = np.sqrt
@@ -452,7 +450,7 @@ def test_validity_pauli_string_to_other_language(language: Language):
 
 @pytest.mark.parametrize("language", list(Language))
 def test_validity_noise_to_other_language(language: Language):
-    for noise in NOISE_MODEL:
+    for noise in NOISE_MODELS:
         noise_build = random_noise([noise])
 
         if language in [Language.CIRQ]:

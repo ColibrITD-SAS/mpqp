@@ -13,6 +13,8 @@ You will find bellow the list of available native gates:
 
 from __future__ import annotations
 
+import inspect
+import sys
 from abc import abstractmethod
 from numbers import Integral
 from typing import TYPE_CHECKING, Optional
@@ -1286,19 +1288,10 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
     )
 
 
-import sys
-import inspect
-
-
-# Collect all classes inheriting from NativeGate but exclude abstract classes
-def get_native_gates():
-    return [
-        cls
-        for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass)
-        if issubclass(cls, NativeGate)
-        and cls not in [NativeGate, NoParameterGate, OneQubitNoParamGate, RotationGate]
-    ]
-
-
-# Generate the list of native gates
-NATIVE_GATES = get_native_gates()
+NATIVE_GATES = [
+    cls
+    for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass)
+    if issubclass(cls, NativeGate)
+    and not any("ABC" in base.__name__ for base in cls.__bases__)
+]
+"""All concrete native gates."""

@@ -1,13 +1,12 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 from numpy.random import Generator
-from qiskit import QuantumCircuit, transpile
-from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.gate import SingleQubitGate, Gate
+from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
     TOF,
@@ -22,15 +21,19 @@ from mpqp.core.instruction.gates.native_gates import (
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.noise.noise_model import (
-    NOISE_MODEL,
+    NOISE_MODELS,
     AmplitudeDamping,
-    NoiseModel,
     BitFlip,
     Dephasing,
     Depolarizing,
+    NoiseModel,
     PhaseDamping,
 )
 from mpqp.tools.maths import closest_unitary
+
+if TYPE_CHECKING:
+    from qiskit import QuantumCircuit
+    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 
 def random_circuit(
@@ -192,25 +195,25 @@ def random_noise(
     rng = np.random.default_rng(seed)
 
     if noise_model is None:
-        noise_model = NOISE_MODEL
+        noise_model = NOISE_MODELS
 
     noise = rng.choice(np.array(noise_model))
 
     if issubclass(noise, AmplitudeDamping):
-        proba = rng.uniform(0, 1)
-        return AmplitudeDamping(proba)
+        prob = rng.uniform(0, 1)
+        return AmplitudeDamping(prob)
     elif issubclass(noise, BitFlip):
-        proba = rng.uniform(0, 0.5)
-        return BitFlip(proba)
+        prob = rng.uniform(0, 0.5)
+        return BitFlip(prob)
     elif issubclass(noise, Dephasing):
-        proba = rng.uniform(0, 1)
-        return Depolarizing(proba)
+        prob = rng.uniform(0, 1)
+        return Depolarizing(prob)
     elif issubclass(noise, Depolarizing):
-        proba = rng.uniform(0, 0.75)
-        return Depolarizing(proba)
+        prob = rng.uniform(0, 0.75)
+        return Depolarizing(prob)
     elif issubclass(noise, PhaseDamping):
-        proba = rng.uniform(0, 1)
-        return PhaseDamping(proba)
+        prob = rng.uniform(0, 1)
+        return PhaseDamping(prob)
     else:
         raise NotImplementedError(f"{noise} model not implemented")
 
@@ -282,6 +285,7 @@ def replace_custom_gate(
         of gates ``U`` and ``CX``, and the global phase used to
         correct the statevector if need be.
     """
+    from qiskit import QuantumCircuit, transpile
     from qiskit.exceptions import QiskitError
 
     transpilation_circuit = QuantumCircuit(nb_qubits)

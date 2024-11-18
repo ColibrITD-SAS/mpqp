@@ -312,7 +312,6 @@ class Depolarizing(DimensionalNoiseModel):
 
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
-            print(dimension, prob, prob_upper_bound)
             raise ValueError(
                 f"Invalid probability: {prob} but should have been between 0 "
                 f"and {prob_upper_bound}."
@@ -832,8 +831,8 @@ class PhaseFlip(NoiseModel):
         )
 
 
-import sys
 import inspect
+import sys
 
 
 def get_noise_model():
@@ -854,5 +853,12 @@ def get_noise_model():
     return noise_models
 
 
-NOISE_MODEL = get_noise_model()
-print(NOISE_MODEL)
+NOISE_MODELS = [
+    cls
+    for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass)
+    if issubclass(cls, NoiseModel)
+    and not (
+        any("ABC" in base.__name__ for base in cls.__bases__)
+        or "M-TODO" in (cls.__doc__ or "")
+    )
+]
