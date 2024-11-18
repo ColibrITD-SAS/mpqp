@@ -13,7 +13,6 @@ if TYPE_CHECKING:
 from typeguard import typechecked
 
 from mpqp import Language
-from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
@@ -85,23 +84,19 @@ def run_google_remote(job: Job) -> Result:
             raise ValueError(
                 f"{job.device}: job_type must be {JobType.SAMPLE} but got job type {job.job_type}"
             )
-        assert isinstance(job.measure, BasisMeasure)
 
-        if isinstance(job.measure.basis, ComputationalBasis):
-            service = ionq.Service(default_target=job.device.value)
-            job_CirqCircuit = optimize_for_target_gateset(
-                job_CirqCircuit, gateset=IonQTargetGateset()
-            )
-            job_CirqCircuit = job_CirqCircuit.transform_qubits(
-                {qb: LineQubit(i) for i, qb in enumerate(job_CirqCircuit.all_qubits())}
-            )
-            return extract_result_SAMPLE(
-                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
-            )
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        assert isinstance(job.measure, BasisMeasure)
+        service = ionq.Service(default_target=job.device.value)
+        job_CirqCircuit = optimize_for_target_gateset(
+            job_CirqCircuit, gateset=IonQTargetGateset()
+        )
+        job_CirqCircuit = job_CirqCircuit.transform_qubits(
+            {qb: LineQubit(i) for i, qb in enumerate(job_CirqCircuit.all_qubits())}
+        )
+
+        return extract_result_SAMPLE(
+            service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
+        )
     else:
         raise NotImplementedError(
             f"{job.device} is not handled for the moment. Only IonQ is supported"
@@ -146,18 +141,19 @@ def run_local(job: Job) -> Result:
     simulator = Simulator(noise=None)
 
     if job.job_type == JobType.STATE_VECTOR:
+        if job.measure is not None:
+            assert isinstance(job.measure, BasisMeasure)
+            cirq_circuit = (job.circuit + job.measure.pre_measure).to_other_language(
+                Language.CIRQ
+            )
+            assert isinstance(cirq_circuit, CirqCircuit)
         return extract_result_STATE_VECTOR(simulator.simulate(cirq_circuit), job)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            return extract_result_SAMPLE(
-                simulator.run(cirq_circuit, repetitions=job.measure.shots), job
-            )
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
 
+        return extract_result_SAMPLE(
+            simulator.run(cirq_circuit, repetitions=job.measure.shots), job
+        )
     elif job.job_type == JobType.OBSERVABLE:
         from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
         from cirq.ops.pauli_string import PauliString as Cirq_PauliString
@@ -266,17 +262,13 @@ def run_local_processor(job: Job) -> Result:
         )
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            return extract_result_SAMPLE(
-                simulator.get_sampler(job.device.value).run(
-                    cirq_circuit, repetitions=job.measure.shots
-                ),
-                job,
-            )
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+
+        return extract_result_SAMPLE(
+            simulator.get_sampler(job.device.value).run(
+                cirq_circuit, repetitions=job.measure.shots
+            ),
+            job,
+        )
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 

@@ -10,7 +10,7 @@ On the other hand, some common basis are available for you to use:
 
 from __future__ import annotations
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from functools import reduce
 from typing import Optional
 
@@ -18,8 +18,10 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
-from mpqp.tools.display import clean_1D_array
-from mpqp.tools.maths import atol, matrix_eq
+from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
+from mpqp.tools.display import clean_1D_array, one_lined_repr
+from mpqp.tools.maths import atol, is_orthogonal
 
 
 @typechecked
@@ -33,11 +35,22 @@ class Basis:
             ``basis_vectors``'s dimensions.
 
     Example:
-        >>> Basis([np.array([1,0]), np.array([0,-1])]).pretty_print()
+        >>> custom_basis = Basis([np.array([1,0]), np.array([0,-1])], symbols=("↑", "↓"))
+        >>> custom_basis.pretty_print()
         Basis: [
             [1, 0],
             [0, -1]
         ]
+        >>> circ = QCircuit([X(0), H(1), CNOT(1, 2), Y(2)])
+        >>> circ.add(BasisMeasure([0, 1, 2], basis=custom_basis, shots=10000))
+        >>> print(run(circ, IBMDevice.AER_SIMULATOR)) # doctest: +SKIP
+        Result: None, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 0, 0, 4936, 5064, 0]
+         Probabilities: [0, 0, 0, 0, 0, 0.4936, 0.5064, 0]
+         Samples:
+          State: ↓↑↓, Index: 5, Count: 4936, Probability: 0.4936
+          State: ↓↓↑, Index: 6, Count: 5064, Probability: 0.5064
+         Error: None
 
     """
 
@@ -45,15 +58,25 @@ class Basis:
         self,
         basis_vectors: list[npt.NDArray[np.complex64]],
         nb_qubits: Optional[int] = None,
+        symbols: Optional[tuple[str, str]] = None,
+        basis_vectors_labels: Optional[list[str]] = None,
     ):
-        # TODO : add the possibility to give the symbols for the '0' and '1' of
-        # the custom basis. This should then appear in the Sample
-        # binary_representation of the basis state. For instance in the Hadamard
-        # basis, the symbols will be '+' and '-'. If the user wants '↑' and '↓'
-        # for his custom basis, when we print samples we would have something
-        # like:
-        # State: ↑↑↓, Index: 1, Count: 512, Probability: 0.512
+        if symbols is not None and basis_vectors_labels is not None:
+            raise ValueError(
+                "You can only specify either symbols or basis_vectors_labels, not both."
+            )
+
+        if symbols is None:
+            symbols = ("0", "1")
+        self.symbols = symbols
+        self.basis_vectors_labels = basis_vectors_labels
+
         if len(basis_vectors) == 0:
+            if nb_qubits is None:
+                raise ValueError(
+                    "Empty basis and no number of qubits specified. Please at "
+                    "least specify one of these two."
+                )
             self.nb_qubits = nb_qubits
             self.basis_vectors = basis_vectors
             return
@@ -63,23 +86,41 @@ class Basis:
         if len(basis_vectors) != 2**nb_qubits:
             raise ValueError(
                 "Incorrect number of vector for the basis: given "
-                f"{len(basis_vectors)} but there should be {2**nb_qubits}"
+                f"{len(basis_vectors)} but there should be {2**nb_qubits}."
             )
         if any(len(vector) != 2**nb_qubits for vector in basis_vectors):
-            raise ValueError("All vectors of the given basis are not the same size")
+            raise ValueError("All vectors of the given basis are not the same size.")
         if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
-            raise ValueError("All vectors of the given basis are not normalized")
-        m = np.array([vector for vector in basis_vectors])
-        if not matrix_eq(
-            m.transpose().dot(m),
-            np.eye(len(basis_vectors)),  # pyright: ignore[reportArgumentType]
-        ):
-            raise ValueError("The given basis is not orthogonal")
+            raise ValueError("Some vectors of the given basis are not normalized.")
+        if not is_orthogonal(np.array([vector for vector in basis_vectors])):
+            raise ValueError("The given basis is not orthogonal.")
 
         self.nb_qubits = nb_qubits
         """See parameter description."""
         self.basis_vectors = basis_vectors
         """See parameter description."""
+
+    def binary_to_custom(self, state: str) -> str:
+        """Converts a binary string to a custom string representation.
+        By default, it uses "0" and "1" but can be customized based on the provided `symbols`.
+
+        Args:
+            state: The binary string (e.g., "01") to be converted.
+
+        Returns:
+            The custom string representation of the binary state.
+
+        Example:
+            >>> basis = Basis([np.array([1,0]), np.array([0,-1])], symbols=("+", "-"))
+            >>> custom_state = basis.binary_to_custom("01")
+            >>> custom_state
+            '+-'
+        """
+        if self.basis_vectors_labels is not None:
+            index = int(state, 2)
+            return self.basis_vectors_labels[index]
+
+        return ''.join(self.symbols[int(bit)] for bit in state)
 
     def pretty_print(self):
         """Nicer print for the basis, with human readable formatting.
@@ -96,17 +137,62 @@ class Basis:
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.basis_vectors}, {self.nb_qubits})"
+        joint_vectors = ", ".join(map(one_lined_repr, self.basis_vectors))
+        qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
+        return f"{type(self).__name__}({joint_vectors}{qubits})"
+
+    def to_computational(self):
+        """Converts the custom basis to the computational basis.
+
+        This method creates a quantum circuit with a custom gate represented by
+        a unitary transformation and applies it to all qubits before measurement.
+
+        Returns:
+            A quantum circuit representing the basis change circuit.
+
+        Example:
+            >>> basis = Basis([np.array([1, 0]), np.array([0, -1])])
+            >>> circuit = basis.to_computational()
+            >>> print(circuit)
+               ┌─────────┐
+            q: ┤ Unitary ├
+               └─────────┘
+
+        """
+
+        from mpqp.core.circuit import QCircuit
+
+        basis_change = np.array(self.basis_vectors).T.conjugate()
+        return QCircuit(
+            [
+                CustomGate(
+                    UnitaryMatrix(basis_change), targets=list(range(self.nb_qubits))
+                )
+            ]
+        )
 
 
 @typechecked
-class VariableSizeBasis(Basis):
-    """3M-TODO"""
+class VariableSizeBasis(Basis, ABC):
+    """A variable-size basis with a dynamically adjustable size to different qubit numbers
+    during circuit execution.
+
+    Args:
+        nb_qubits: number of qubits in the basis. If not provided,
+            the basis can be dynamically sized later using the `set_size` method.
+
+        symbols: custom symbols for representing basis states, defaults to ("0", "1").
+    """
 
     @abstractmethod
-    def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__([], nb_qubits)
-        pass
+    def __init__(
+        self, nb_qubits: Optional[int] = None, symbols: Optional[tuple[str, str]] = None
+    ):
+        if symbols is None:
+            symbols = ("0", "1")
+        super().__init__([], 0, symbols=symbols)
+        if nb_qubits is not None:
+            self.set_size(nb_qubits)
 
     @abstractmethod
     def set_size(self, nb_qubits: int):
@@ -159,10 +245,7 @@ class ComputationalBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        basis = []
-        Basis.__init__(self, basis, nb_qubits)
-        if nb_qubits is not None:
-            self.set_size(nb_qubits)
+        super().__init__(nb_qubits)
 
     def set_size(self, nb_qubits: int):
         self.basis_vectors = [
@@ -170,6 +253,11 @@ class ComputationalBasis(VariableSizeBasis):
             for i in range(2**nb_qubits)
         ]
         self.nb_qubits = nb_qubits
+
+    def to_computational(self):
+        from mpqp.core.circuit import QCircuit
+
+        return QCircuit(self.nb_qubits)
 
 
 class HadamardBasis(VariableSizeBasis):
@@ -186,17 +274,33 @@ class HadamardBasis(VariableSizeBasis):
             [0.5, 0.5, -0.5, -0.5],
             [0.5, -0.5, -0.5, 0.5]
         ]
-
+        >>> circ = QCircuit([X(0), H(1), CNOT(1, 2), Y(2)])
+        >>> circ.add(BasisMeasure(basis=HadamardBasis()))
+        >>> print(run(circ, IBMDevice.AER_SIMULATOR)) # doctest: +SKIP
+        Result: None, IBMDevice, AER_SIMULATOR
+         Counts: [0, 261, 253, 0, 0, 244, 266, 0]
+         Probabilities: [0, 0.25488, 0.24707, 0, 0, 0.23828, 0.25977, 0]
+         Samples:
+          State: ++-, Index: 1, Count: 261, Probability: 0.2548828
+          State: +-+, Index: 2, Count: 253, Probability: 0.2470703
+          State: -+-, Index: 5, Count: 244, Probability: 0.2382812
+          State: --+, Index: 6, Count: 266, Probability: 0.2597656
+         Error: None
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        basis = []
-        Basis.__init__(self, basis, nb_qubits)
-        if nb_qubits is not None:
-            self.set_size(nb_qubits)
+        super().__init__(nb_qubits, symbols=('+', '-'))
 
     def set_size(self, nb_qubits: int):
         H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits
+
+    def to_computational(self):
+        from mpqp.core.circuit import QCircuit
+        from mpqp.core.instruction.gates.native_gates import H
+
+        if self.nb_qubits == 0:
+            return QCircuit(self.nb_qubits)
+        return QCircuit([H(qb) for qb in range(self.nb_qubits)])

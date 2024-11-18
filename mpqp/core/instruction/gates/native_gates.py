@@ -252,6 +252,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
+    def inverse(self) -> Gate:
+        return self.__class__(-self.parameters[0], self.targets[0])
+
 
 @typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
@@ -1035,7 +1038,70 @@ class Rk(RotationGate, SingleQubitGate):
         `\theta = \frac{\pi}{2^{k-1}}`."""
         from sympy import pi
 
-        return pi / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
+        p = np.pi if isinstance(self.k, Integral) else pi
+        return p / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
+
+    @property
+    def k(self) -> Expr | int:
+        """See corresponding argument."""
+        return self.parameters[0]
+
+    def to_canonical_matrix(self):
+        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        return np.array([[1, 0], [0, e]])
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.k}, {self.targets[0]})"
+
+    def inverse(self) -> Gate:
+        return Rk_dagger(self.k, self.targets[0])
+
+
+class Rk_dagger(RotationGate, SingleQubitGate):
+    r"""One qubit Phase gate of angle `-\frac{2i\pi}{2^k}`.
+
+    Args:
+        k: Parameter used in the definition of the phase to apply.
+        target: Index referring to the qubit on which the gate will be applied.
+
+    Example:
+        >>> pprint(Rk_dagger(5, 0).to_matrix())
+        [[1, 0               ],
+         [0, 0.98079-0.19509j]]
+
+    """
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.PhaseShift
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import PhaseGate
+
+        return PhaseGate
+
+    qlm_aqasm_keyword = "PH"
+    qiskit_string = "p"
+
+    def __init__(self, k: Expr | int, target: int):
+        self.parameters = [k]
+        definition = UnitaryMatrix(
+            self.to_canonical_matrix(), **self.native_gate_options
+        )
+        ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk†")
+
+    @property
+    def theta(self) -> Expr | float:
+        r"""Value of the rotation angle, parametrized by ``k`` with the relation
+        `\theta = -\frac{\pi}{2^{k-1}}`."""
+        from sympy import pi
+
+        # TODO study the relevance of having pi from sympy
+        p = np.pi if isinstance(self.k, Integral) else pi
+        return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
 
     @property
     def k(self) -> Expr | float:
@@ -1043,10 +1109,7 @@ class Rk(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        from sympy import pi
-
-        p = np.pi if isinstance(self.k, Integral) else pi
-        e = exp(p * 1j / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
         return np.array([[1, 0], [0, e]])
 
     def to_other_language(
@@ -1070,6 +1133,9 @@ class Rk(RotationGate, SingleQubitGate):
 
     def __repr__(self):
         return f"{type(self).__name__}({self.k}, {self.targets[0]})"
+
+    def inverse(self) -> Gate:
+        return Rk(self.parameters[0], self.targets[0])
 
 
 class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
@@ -1243,6 +1309,79 @@ class CRk(RotationGate, ControlledGate):
     nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
         2
     )
+
+    def inverse(self) -> Gate:
+        return CRk_dagger(self.parameters[0], self.controls[0], self.targets[0])
+
+
+class CRk_dagger(RotationGate, ControlledGate):
+    """Two-qubit Controlled-Rk-dagger gate.
+
+    Args:
+        k: Parameter used in the definition of the phase to apply.
+        control: Index referring to the qubit used to control the gate.
+        target: Index referring to the qubit on which the gate will be applied.
+
+    Example:
+        >>> pprint(CRk_dagger(4, 0, 1).to_matrix())
+        [[1, 0, 0, 0               ],
+         [0, 1, 0, 0               ],
+         [0, 0, 1, 0               ],
+         [0, 0, 0, 0.92388-0.38268j]]
+
+    """
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.CPhaseShift
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import CPhaseGate
+
+        return CPhaseGate
+
+    # TODO: this is a special case, see if it needs to be generalized
+    qlm_aqasm_keyword = "CNOT;PH"
+    qiskit_string = "cp"
+
+    def __init__(self, k: Expr | int, control: int, target: int):
+        self.parameters = [k]
+        ControlledGate.__init__(self, [control], [target], Rk_dagger(k, target), "CRk†")
+        definition = UnitaryMatrix(
+            self.to_canonical_matrix(), **self.native_gate_options
+        )
+        ParametrizedGate.__init__(self, definition, [target], [k], "CRk†")
+
+    @property
+    def theta(self) -> Expr | float:
+        r"""Value of the rotation angle, parametrized by ``k`` with the relation
+        `\theta = -\frac{\pi}{2^{k-1}}`."""
+        from sympy import pi
+
+        p = np.pi if isinstance(self.k, Integral) else pi
+        return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
+
+    @property
+    def k(self) -> Expr | int:
+        """See corresponding argument."""
+        return self.parameters[0]
+
+    def to_canonical_matrix(self):
+        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.k}, {self.controls[0]}, {self.targets[0]})"
+
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        2
+    )
+
+    def inverse(self) -> Gate:
+        return CRk(self.k, self.controls[0], self.targets[0])
 
 
 class TOF(InvolutionGate, ControlledGate, NoParameterGate):

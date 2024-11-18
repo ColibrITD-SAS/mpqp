@@ -32,8 +32,8 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_2_to_3,
     remove_user_gates,
 )
-from mpqp.tools.display import clean_1D_array, clean_matrix, pprint, format_element
-from mpqp.tools.circuit import random_circuit
+from mpqp.tools.display import *
+from mpqp.tools.circuit import random_circuit, random_instruction
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
