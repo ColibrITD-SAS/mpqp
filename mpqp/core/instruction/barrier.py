@@ -31,3 +31,5 @@ class Barrier(Instruction):
             from qiskit.circuit.library import Barrier as QiskitBarrier
 
             return QiskitBarrier(self.size)
+        else:
+            raise NotImplementedError(f"{language} is not supported")

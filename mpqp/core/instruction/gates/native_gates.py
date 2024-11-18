@@ -323,6 +323,10 @@ class Id(OneQubitNoParamGate, InvolutionGate):
             if self.label:
                 return self.qiskit_gate(label=self.label)
             return self.qiskit_gate()
+        elif language == Language.BRAKET:
+            return self.braket_gate()
+        else:
+            raise NotImplementedError(f"Error: {language} is not supported")
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
@@ -1282,6 +1286,19 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
     )
 
 
-NATIVE_GATES = [CNOT, CRk, CZ, H, Id, P, Rk, Rx, Ry, Rz, S, SWAP, T, TOF, U, X, Y, Z]
-# 3M-TODO : check the possibility to detect when a custom gate can be defined as a native gate, problem with
-#  parametrized gates maybe
+import sys
+import inspect
+
+
+# Collect all classes inheriting from NativeGate but exclude abstract classes
+def get_native_gates():
+    return [
+        cls
+        for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass)
+        if issubclass(cls, NativeGate)
+        and cls not in [NativeGate, NoParameterGate, OneQubitNoParamGate, RotationGate]
+    ]
+
+
+# Generate the list of native gates
+NATIVE_GATES = get_native_gates()

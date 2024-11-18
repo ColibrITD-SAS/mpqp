@@ -1,5 +1,5 @@
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
-from mpqp.tools.circuit import random_instruction
+from mpqp.core.instruction.gates.native_gates import *
+from mpqp.tools.circuit import random_gate
 from mpqp.tools.maths import matrix_eq
 import numpy as np
 import pytest
@@ -7,7 +7,7 @@ import pytest
 
 @pytest.mark.parametrize("gate", NATIVE_GATES)
 def test_inverse_gate(gate: type):
-    gate_build = random_instruction([gate])
+    gate_build = random_gate([gate])
     gate_build_matrix = gate_build.to_matrix()
     gate_build_dagger = gate_build.inverse()
     gate_build_dagger_dagger = gate_build_dagger.inverse()

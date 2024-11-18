@@ -120,7 +120,7 @@ def check_job_compatibility(job: Job):
             f"{list(map(lambda cls: cls.__name__, job.job_type.value))}. "
             f"{type(job.measure).__name__} was given instead."
         )
-    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_statevector():
+    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_state_vector():
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
             f"{IBMDevice.AER_SIMULATOR_STATEVECTOR} instead (or change the job "

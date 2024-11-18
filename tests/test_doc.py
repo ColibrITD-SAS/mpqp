@@ -29,7 +29,7 @@ from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPriva
 from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
 from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
 from mpqp.tools.display import clean_1D_array, clean_matrix, pprint, format_element
-from mpqp.tools.circuit import random_circuit, random_instruction
+from mpqp.tools.circuit import random_circuit, random_gate, random_noise
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
