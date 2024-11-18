@@ -38,7 +38,7 @@ def test_right_init_basis(init_vectors: list[npt.NDArray[np.complex64]], size: i
         ([np.array([1, 0]), np.array([0, -1]), np.array([0, -1])], "number of vector"),
         ([np.array([1, 0])], "number of vector"),
         ([np.array([1, 0, 0]), np.array([0, -1])], "same size"),
-        ([np.array([1, 1]), np.array([1, -1])], "normalized"),
+        ([np.array([1, 1]), np.array([1, -1])], "orthogonal"),
         ([np.array([1, 1]) / np.sqrt(2), np.array([0, -1])], "orthogonal"),
     ],
 )
