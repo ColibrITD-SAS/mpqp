@@ -9,14 +9,13 @@ from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
 
 from mpqp import Barrier, Instruction, Language, QCircuit
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import I, Z as Pauli_Z
 from mpqp.core.instruction.gates import native_gates
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import I
-from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
 from mpqp.execution.devices import ATOSDevice
 from mpqp.execution.runner import run
-from mpqp.gates import CNOT, CZ, SWAP, TOF, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
+from mpqp.gates import CNOT, CZ, SWAP, TOF, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z, CRk
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 from mpqp.tools.circuit import compute_expected_matrix, random_circuit
@@ -438,7 +437,7 @@ def test_instruction_no_target(component: Instruction | NoiseModel):
     ],
 )
 def test_to_matrix(circuit: QCircuit, expected_matrix: Matrix):
-    np.testing.assert_almost_equal(circuit.to_matrix(), expected_matrix)
+    matrix_eq(circuit.to_matrix(), expected_matrix)
 
 
 def test_to_matrix_random():
@@ -448,5 +447,79 @@ def test_to_matrix_random():
     for _ in range(10):
         qcircuit = random_circuit(gates, nb_qubits=4)
         expected_matrix = compute_expected_matrix(qcircuit)
+        matrix_eq(qcircuit.to_matrix(), expected_matrix)
 
-        assert matrix_eq(qcircuit.to_matrix(), expected_matrix)
+
+@pytest.mark.parametrize(
+    "circuit, expected_inverse",
+    [
+        (
+            QCircuit([H(0), CNOT(0, 1)]),
+            QCircuit([CNOT(0, 1), H(0)]),
+        ),
+        (
+            QCircuit([S(0), CZ(0, 1), H(1), Ry(4.56, 1)]),
+            QCircuit(
+                [
+                    Ry(4.56, 1),
+                    H(1),
+                    CZ(0, 1),
+                    S(0),
+                ]
+            ),
+        ),
+        (
+            QCircuit([S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)]),
+            QCircuit(
+                [
+                    H(1),
+                    CZ(0, 1),
+                    S(0),
+                    BasisMeasure([0, 1, 2, 3], shots=2000),
+                ]
+            ),
+        ),
+        (
+            QCircuit([S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1)]),
+            QCircuit(
+                [
+                    Ry(4.56, 1),
+                    H(1),
+                    Barrier(),
+                    CRk(2, 1, 2),
+                    S(0),
+                ]
+            ),
+        ),
+    ],
+)
+def test_inverse(circuit: QCircuit, expected_inverse: QCircuit):
+    inverse_circuit = circuit.inverse()
+    for inverse_inst, expected_inst in zip(
+        inverse_circuit.instructions, expected_inverse.instructions
+    ):
+        if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
+            assert matrix_eq(
+                expected_inst.to_matrix().transpose().conjugate(),
+                inverse_inst.to_matrix(),
+            ), f"Expected {repr(expected_inst)}, but got {repr(inverse_inst)}"
+        else:
+            assert (
+                expected_inst == inverse_inst
+            ), f"Expected {repr(expected_inst)}, but got {repr(inverse_inst)}"
+
+
+def test_inverse_random():
+    for _ in range(10):
+        qcircuit = random_circuit(nb_qubits=4)
+        inverse_circuit = qcircuit.inverse()
+        for inverse_inst, expected_inst in zip(
+            inverse_circuit.instructions, reversed(qcircuit.instructions)
+        ):
+            if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
+                assert matrix_eq(
+                    expected_inst.to_matrix().transpose().conjugate(),
+                    inverse_inst.to_matrix(),
+                ), f"Expected {repr(expected_inst)}, but got {repr(inverse_inst)}"
+            else:
+                assert expected_inst == inverse_inst
