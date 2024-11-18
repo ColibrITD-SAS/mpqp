@@ -87,7 +87,7 @@ class BasisMeasure(Measure):
             qiskit_parameters = set()
         if language == Language.QISKIT:
             from qiskit.circuit import Measure
-           
+
             return Measure()
         if language == Language.QASM2:
             if isinstance(self.basis, ComputationalBasis):
