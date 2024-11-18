@@ -932,7 +932,7 @@ class QCircuit:
                 new_circ.name = self.label
 
             for instruction in self.instructions:
-                if isinstance(instruction, ExpectationMeasure):
+                if isinstance(instruction, (ExpectationMeasure, Breakpoint)):
                     # these measures have no equivalent in Qiskit
                     continue
                 qiskit_inst = instruction.to_other_language(language, qiskit_parameters)

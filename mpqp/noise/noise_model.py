@@ -410,6 +410,8 @@ class Depolarizing(DimensionalNoiseModel):
                 method_2q="equal_probs",
                 depol_type="pauli",
             )
+        else:
+            raise NotImplementedError(f"Depolarizing is not implemented for {language}")
 
     def info(self) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
@@ -828,3 +830,29 @@ class PhaseFlip(NoiseModel):
         raise NotImplementedError(
             f"{type(self).__name__} noise model is not yet implemented."
         )
+
+
+import sys
+import inspect
+
+
+def get_noise_model():
+    """Get all concrete noise model classes inheriting from NoiseModel."""
+    noise_models = []
+    for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass):
+        if issubclass(cls, NoiseModel) and cls not in [
+            NoiseModel,
+            DimensionalNoiseModel,
+        ]:
+            try:
+                cls()
+                noise_models.append(cls)
+            except NotImplementedError:
+                continue
+            except:
+                noise_models.append(cls)
+    return noise_models
+
+
+NOISE_MODEL = get_noise_model()
+print(NOISE_MODEL)

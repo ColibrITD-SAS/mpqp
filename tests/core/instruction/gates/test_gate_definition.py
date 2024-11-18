@@ -32,7 +32,7 @@ def test_unitary_matrix_inverse_failing(matrix: npt.NDArray[np.complex64]):
     ):
         with pytest.warns(
             UserWarning,
-            match="Cannot ensure that a operator defined with variables is unitary.",
+            match="Cannot ensure that a operator defined with symbolic variables is unitary.",
         ):
             UnitaryMatrix(matrix).inverse()
 
