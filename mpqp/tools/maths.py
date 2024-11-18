@@ -75,30 +75,6 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
 
 
 @typechecked
-def is_orthogonal(matrix: Matrix) -> bool:
-    """Checks whether the matrix in parameter is orthogonal.
-
-    Args:
-        matrix: matrix for which we want to know if it is orthogonal.
-
-    Returns:
-        ``True`` if the matrix in parameter is orthogonal.
-
-    Examples:
-        >>> is_orthogonal(np.array([[0,1],[1,0]]))
-        True
-        >>> is_orthogonal(np.array([[1,1],[1,0]]))
-        False
-        >>> is_orthogonal(rand_orthogonal_matrix(3))
-        True
-
-    """
-    return matrix_eq(
-        matrix.T.conj().dot(matrix), np.eye(len(matrix), dtype=np.complex64)
-    )
-
-
-@typechecked
 def is_hermitian(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is hermitian.
 

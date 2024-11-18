@@ -21,7 +21,7 @@ from typeguard import typechecked
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.tools.display import clean_1D_array, one_lined_repr
-from mpqp.tools.maths import atol, is_orthogonal
+from mpqp.tools.maths import is_unitary
 
 
 @typechecked
@@ -63,7 +63,8 @@ class Basis:
     ):
         if symbols is not None and basis_vectors_labels is not None:
             raise ValueError(
-                "You can only specify either symbols or basis_vectors_labels, not both."
+                "You can only specify either symbols or basis_vectors_labels, "
+                "not both."
             )
 
         if symbols is None:
@@ -90,10 +91,11 @@ class Basis:
             )
         if any(len(vector) != 2**nb_qubits for vector in basis_vectors):
             raise ValueError("All vectors of the given basis are not the same size.")
-        if any(abs(np.linalg.norm(vector) - 1) > atol for vector in basis_vectors):
-            raise ValueError("Some vectors of the given basis are not normalized.")
-        if not is_orthogonal(np.array([vector for vector in basis_vectors])):
-            raise ValueError("The given basis is not orthogonal.")
+        if not is_unitary(np.array([vector for vector in basis_vectors])):
+            raise ValueError(
+                "The given basis is not orthogonal: the matrix of the "
+                "concatenated vectors of the basis should be unitary."
+            )
 
         self.nb_qubits = nb_qubits
         """See parameter description."""
@@ -117,8 +119,7 @@ class Basis:
             '+-'
         """
         if self.basis_vectors_labels is not None:
-            index = int(state, 2)
-            return self.basis_vectors_labels[index]
+            return self.basis_vectors_labels[int(state, 2)]
 
         return ''.join(self.symbols[int(bit)] for bit in state)
 
@@ -188,8 +189,6 @@ class VariableSizeBasis(Basis, ABC):
     def __init__(
         self, nb_qubits: Optional[int] = None, symbols: Optional[tuple[str, str]] = None
     ):
-        if symbols is None:
-            symbols = ("0", "1")
         super().__init__([], 0, symbols=symbols)
         if nb_qubits is not None:
             self.set_size(nb_qubits)
