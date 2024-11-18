@@ -1,13 +1,14 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 from numpy.random import Generator
-from qiskit import QuantumCircuit, transpile
+from qiskit import QuantumCircuit
 from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.gate import SingleQubitGate, Gate
+from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
     TOF,
@@ -24,8 +25,8 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
-    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
     from qiskit import QuantumCircuit
+    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 
 def random_circuit(
@@ -230,8 +231,8 @@ def replace_custom_gate(
         of gates ``U`` and ``CX``, and the global phase used to
         correct the statevector if need be.
     """
-    from qiskit.exceptions import QiskitError
     from qiskit import QuantumCircuit, transpile
+    from qiskit.exceptions import QiskitError
 
     transpilation_circuit = QuantumCircuit(nb_qubits)
     transpilation_circuit.append(custom_unitary)
