@@ -173,6 +173,13 @@ def check_job_compatibility(job: Job):
             " simulators and devices. Please use a local simulator instead."
         )
 
+    if isinstance(job.device, IBMSimulatedDevice):
+        if job.device.value().num_qubits < job.circuit.nb_qubits:
+            raise DeviceJobIncompatibleError(
+                f"Number of qubits of the circuit ({job.circuit.nb_qubits}) is higher "
+                f"than the one of the IBMSimulatedDevice ({job.device.value().num_qubits})."
+            )
+
     incompatibilities = {
         IBMDevice.AER_SIMULATOR_STABILIZER: {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U},
         IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER: {Rx, Rz},
