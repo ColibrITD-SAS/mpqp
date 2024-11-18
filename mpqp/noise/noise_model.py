@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import inspect
+import sys
 from abc import ABC, abstractmethod
 from functools import reduce
 from itertools import product
@@ -829,28 +831,6 @@ class PhaseFlip(NoiseModel):
         raise NotImplementedError(
             f"{type(self).__name__} noise model is not yet implemented."
         )
-
-
-import inspect
-import sys
-
-
-def get_noise_model():
-    """Get all concrete noise model classes inheriting from NoiseModel."""
-    noise_models = []
-    for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass):
-        if issubclass(cls, NoiseModel) and cls not in [
-            NoiseModel,
-            DimensionalNoiseModel,
-        ]:
-            try:
-                cls()
-                noise_models.append(cls)
-            except NotImplementedError:
-                continue
-            except:
-                noise_models.append(cls)
-    return noise_models
 
 
 NOISE_MODELS = [
