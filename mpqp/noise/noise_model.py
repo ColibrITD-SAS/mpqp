@@ -862,3 +862,4 @@ NOISE_MODELS = [
         or "M-TODO" in (cls.__doc__ or "")
     )
 ]
+"""All concrete noise models."""
