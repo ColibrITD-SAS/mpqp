@@ -1,6 +1,9 @@
 """To execute a circuit on a noisy simulator that reproduces the noise model of a machine,
-one can use a :class:`SimulatedDevice`. Inheriting from :class:`~mpqp.execution.devices.AvailableDevice`
-"""
+one can use a :class:`SimulatedDevice`. Inheriting from :class:`~mpqp.execution.devices.AvailableDevice`, it is the
+mother class of all noisy devices reproducing real hardware for several providers.
+
+For the moment, only IBM simulated devices are available (so called `FakeBackend`), but the structure is ready to allow
+other simulated devices (QLM has this feature for instance."""
 
 # TODO: finish doc
 
@@ -18,7 +21,9 @@ if TYPE_CHECKING:
 
 
 class SimulatedDevice(AvailableDevice):
-    """A class used to define simulators reproducing the noise of a real device."""
+    """A class used to define simulators reproducing the noise of a real device.
+    It implements the abstract methods of ``AvailableDevice``, and is used as a blueprint for all possible
+    simulated devices (IBM, QLM, ...)."""
 
     # TODO : comment
     def is_gate_based(self) -> bool:
