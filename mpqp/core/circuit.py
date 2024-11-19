@@ -341,6 +341,7 @@ class QCircuit:
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.
+
         If the size of the ``other`` is smaller than this circuit,
         the parameter ``qubits_offset`` can be used to indicate at which qubit
         the ``other`` circuit must be added.
@@ -359,7 +360,29 @@ class QCircuit:
                 circuit or if the ``qubits_offset`` is too big such that the
                 ``other`` circuit would "stick out".
 
-        Example:
+        Examples:
+            >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
+            >>> c2 = QCircuit([X(1),CNOT(1,2)])
+            >>> c1.append(c2)
+            >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
+            q_0: ──■─────────────────
+                 ┌─┴─┐     ┌───┐
+            q_1: ┤ X ├──■──┤ X ├──■──
+                 └───┘┌─┴─┐└───┘┌─┴─┐
+            q_2: ─────┤ X ├─────┤ X ├
+                      └───┘     └───┘
+
+            >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
+            >>> c2 = QCircuit([X(1),CNOT(1,2)])
+            >>> c1 += c2
+            >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
+            q_0: ──■─────────────────
+                 ┌─┴─┐     ┌───┐
+            q_1: ┤ X ├──■──┤ X ├──■──
+                 └───┘┌─┴─┐└───┘┌─┴─┐
+            q_2: ─────┤ X ├─────┤ X ├
+                      └───┘     └───┘
+
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> c3 = c1 + c2
