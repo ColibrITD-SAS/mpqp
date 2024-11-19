@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 
 
 class SimulatedDevice(AvailableDevice):
-    """Abstract class used to define simulators reproducing the noise of a real device."""
+    """A class used to define simulators reproducing the noise of a real device."""
 
     # TODO : comment
     def is_gate_based(self) -> bool:
@@ -35,8 +35,8 @@ class SimulatedDevice(AvailableDevice):
 
 
 @typechecked
-class AbstractIBMSimulatedDevice(SimulatedDevice):
-    """Abstract class regrouping methods specific to an ``IBMSimulatedDevice``."""
+class StaticIBMSimulatedDevice(SimulatedDevice):
+    """A class regrouping methods specific to an ``IBMSimulatedDevice``."""
 
     def supports_statevector(self):
         return False
@@ -67,8 +67,8 @@ class AbstractIBMSimulatedDevice(SimulatedDevice):
         ]
 
 
-IBMSimulatedDevice = AbstractIBMSimulatedDevice(
-    'IBMSimulatedDevice', AbstractIBMSimulatedDevice.get_ibm_fake_providers()
+IBMSimulatedDevice = StaticIBMSimulatedDevice(
+    'IBMSimulatedDevice', StaticIBMSimulatedDevice.get_ibm_fake_providers()
 )
 """Enum regrouping all so called IBM "fake devices" used to simulate noise of real hardware.
 
