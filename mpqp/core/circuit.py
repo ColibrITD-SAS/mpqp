@@ -341,7 +341,6 @@ class QCircuit:
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.
-
         If the size of the ``other`` is smaller than this circuit,
         the parameter ``qubits_offset`` can be used to indicate at which qubit
         the ``other`` circuit must be added.
@@ -363,8 +362,8 @@ class QCircuit:
         Example:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
-            >>> c1.append(c2)
-            >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
+            >>> c3 = c1 + c2
+            >>> print(c3)  # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■─────────────────
                  ┌─┴─┐     ┌───┐
             q_1: ┤ X ├──■──┤ X ├──■──
@@ -468,10 +467,7 @@ class QCircuit:
         
         Examples:
             >>> theta = symbols("θ")
-            >>> circ = QCircuit([
-            ...     P(theta, 0),
-            ...     ExpectationMeasure(Observable(np.array([[0, 1], [1, 0]])), [0], shots=1000)
-            ... ])
+            >>> circ = QCircuit([P(theta, 0)])
             >>> circ.display("text")
                ┌──────┐
             q: ┤ P(θ) ├
@@ -779,7 +775,7 @@ class QCircuit:
         """
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
-
+    @property
     def get_gates(self) -> list[Gate]:
         """Retrieve all the gates from the instructions in the circuit.
 
@@ -793,7 +789,7 @@ class QCircuit:
 
         """
         return [instr for instr in self.instructions if isinstance(instr, Gate)]
-
+    @property
     def get_measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
 

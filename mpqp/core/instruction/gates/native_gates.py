@@ -149,6 +149,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
     @property
     def theta(self):
+        """Theta is the rotation angle in radians"""
         return self.parameters[0]
 
     def __repr__(self):
