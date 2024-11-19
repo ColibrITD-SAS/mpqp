@@ -494,14 +494,17 @@ def test_mpqp_to_qasm_simplify(instructions: list[Instruction], qasm_expectation
 
 
 def normalize_string(string: str):
-    from sympy import sympify
     import re
     from typing import Match
 
     def simplify_expression(match: Match[str]):
-        expression = match.group(1)
-        simplified = str(sympify(expression))
-        return f"{simplified}"
+        from numpy import pi, e
+
+        components = match.group(1).split(',')
+        simplified = [
+            str(np.round(eval(comp, {"pi": pi, "e": e}), 4)) for comp in components
+        ]
+        return f"({','.join(simplified)})"
 
     pattern = r'\(([^()]+)\)'
     return re.sub(pattern, simplify_expression, string)
