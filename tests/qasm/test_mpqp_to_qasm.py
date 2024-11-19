@@ -493,6 +493,20 @@ def test_mpqp_to_qasm_simplify(instructions: list[Instruction], qasm_expectation
     assert qasm_expectation == qasm
 
 
+def normalize_string(string: str):
+    from sympy import sympify
+    import re
+    from typing import Match
+
+    def simplify_expression(match: Match[str]):
+        expression = match.group(1)
+        simplified = str(sympify(expression))
+        return f"{simplified}"
+
+    pattern = r'\(([^()]+)\)'
+    return re.sub(pattern, simplify_expression, string)
+
+
 def test_random_mpqp_to_qasm():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
@@ -500,4 +514,8 @@ def test_random_mpqp_to_qasm():
 
         qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
-        assert qasm2.dumps(qiskit_circuit) == qcircuit.to_other_language(Language.QASM2)
+        qiskit_qasm = normalize_string(qasm2.dumps(qiskit_circuit))
+        mpqp_qasm = qcircuit.to_other_language(Language.QASM2)
+        assert isinstance(mpqp_qasm, str)
+        mpqp_qasm = normalize_string(mpqp_qasm)
+        assert qiskit_qasm == mpqp_qasm

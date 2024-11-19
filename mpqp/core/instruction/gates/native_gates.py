@@ -1145,7 +1145,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
             instruction_str = self.qasm2_gate
             instruction_str += (
-                f"({float_to_qasm_str(2 * np.pi / (2 ** float(self.k)))})"
+                f"({float_to_qasm_str(-2 * np.pi / (2 ** float(self.k)))})"
             )
 
             qubits = ",".join([f"q[{j}]" for j in self.targets])
@@ -1405,6 +1405,26 @@ class CRk_dagger(RotationGate, ControlledGate):
 
     def inverse(self) -> Gate:
         return CRk(self.k, self.controls[0], self.targets[0])
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                f"({float_to_qasm_str(-2 * np.pi / (2 ** float(self.k)))})"
+            )
+
+            qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
+            qubits += ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+        else:
+            return super().to_other_language(language, qiskit_parameters)
 
 
 class TOF(InvolutionGate, ControlledGate, NoParameterGate):

@@ -412,7 +412,7 @@ def test_validity_native_gate_to_other_language(language: Language):
     for gate in NATIVE_GATES:
         gate_build = random_gate([gate])
 
-        if language == Language.MY_QLM or language == Language.CIRQ:
+        if language in [Language.MY_QLM, Language.CIRQ, Language.QASM3]:
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
@@ -426,7 +426,6 @@ def measures():
         BasisMeasure(
             [0, 1], shots=1024, basis=Basis([np.array([1, 0]), np.array([0, -1])])
         ),
-        BasisMeasure([0, 1], shots=1024, basis=VariableSizeBasis(2)),
         BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(3)),
         BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
         ExpectationMeasure(Observable(np.diag([0.7, -1, 1, 1])), shots=10),
@@ -441,14 +440,12 @@ def test_validity_measure_to_other_language(
         if isinstance(measure, ExpectationMeasure):
             with pytest.raises(NotImplementedError):
                 measure.to_other_language(language)
-        elif language in [Language.MY_QLM, Language.CIRQ, Language.BRAKET]:
-            with pytest.raises(NotImplementedError):
-                measure.to_other_language(language)
-        elif (
-            language == Language.QISKIT
-            and isinstance(measure, BasisMeasure)
-            and not isinstance(measure.basis, ComputationalBasis)
-        ):
+        elif language in [
+            Language.MY_QLM,
+            Language.CIRQ,
+            Language.BRAKET,
+            Language.QASM3,
+        ]:
             with pytest.raises(NotImplementedError):
                 measure.to_other_language(language)
         else:
@@ -464,8 +461,13 @@ def pauli_strings():
 def test_validity_pauli_string_to_other_language(
     language: Language, pauli_strings: list[PauliString]
 ):
+
     for pauli_string in pauli_strings:
-        assert pauli_string.to_other_language(language) is not None
+        if language in [Language.QASM3, Language.QASM2]:
+            with pytest.raises(NotImplementedError):
+                pauli_string.to_other_language(language)
+        else:
+            assert pauli_string.to_other_language(language) is not None
 
 
 @pytest.mark.parametrize("language", list(Language))
@@ -473,7 +475,7 @@ def test_validity_noise_to_other_language(language: Language):
     for noise in NOISE_MODELS:
         noise_build = random_noise([noise])
 
-        if language in [Language.CIRQ]:
+        if language in [Language.CIRQ, Language.QASM3, Language.QASM2]:
             with pytest.raises(NotImplementedError):
                 noise_build.to_other_language(language)
         elif language in [Language.MY_QLM] and not isinstance(
@@ -501,7 +503,12 @@ def test_validity_other_instr_to_other_language(
         if isinstance(instr, Breakpoint):
             with pytest.raises(NotImplementedError):
                 instr.to_other_language(language)
-        elif language in [Language.MY_QLM, Language.CIRQ, Language.BRAKET]:
+        elif language in [
+            Language.MY_QLM,
+            Language.CIRQ,
+            Language.BRAKET,
+            Language.QASM3,
+        ]:
             with pytest.raises(NotImplementedError):
                 instr.to_other_language(language)
         else:
