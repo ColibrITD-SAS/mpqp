@@ -72,7 +72,8 @@ def run_google_remote(job: Job) -> Result:
     from cirq_ionq.ionq_gateset import IonQTargetGateset
 
     job_CirqCircuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(job_CirqCircuit, CirqCircuit)
+    if TYPE_CHECKING:
+        assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.device.is_ionq():
         from mpqp.execution.connection.env_manager import load_env_variables
@@ -133,8 +134,14 @@ def run_local(job: Job) -> Result:
     if job.device.is_processor():
         return run_local_processor(job)
 
-    cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(cirq_circuit, CirqCircuit)
+    if job.job_type == JobType.STATE_VECTOR:
+        circuit = job.circuit.without_measurements()
+        cirq_circuit = circuit.to_other_language(Language.CIRQ)
+        job.circuit.gphase = circuit.gphase
+    else:
+        cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
+    if TYPE_CHECKING:
+        assert isinstance(cirq_circuit, CirqCircuit)
 
     simulator = Simulator(noise=None)
 
@@ -142,7 +149,6 @@ def run_local(job: Job) -> Result:
         return extract_result_STATE_VECTOR(simulator.simulate(cirq_circuit), job)
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
-
         return extract_result_SAMPLE(
             simulator.run(cirq_circuit, repetitions=job.measure.shots), job
         )

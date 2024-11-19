@@ -17,7 +17,6 @@ from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUs
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.errors import (
-    OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
@@ -56,7 +55,7 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
         exp_state_vector = np.kron(exp_state_vector, np.array([1, 0]))
 
     with (
-        pytest.warns(OpenQASMTranslationWarning)
+        pytest.warns(UnsupportedBraketFeaturesWarning)
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
@@ -94,7 +93,7 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
     c2 = QCircuit([X(0), H(1), CNOT(1, 2), Z(0)])
 
     with (
-        pytest.warns(OpenQASMTranslationWarning)
+        pytest.warns(UnsupportedBraketFeaturesWarning)
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
@@ -131,7 +130,7 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     )
 
     with (
-        pytest.warns(OpenQASMTranslationWarning)
+        pytest.warns(UnsupportedBraketFeaturesWarning)
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
