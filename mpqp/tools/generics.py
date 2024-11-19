@@ -219,7 +219,8 @@ class MessageEnum(Enum):
     """
 
     message: str
-    """Each of the members of the eum will have the ``message`` attribute."""
+    """This is an attribute for each member of the enum, giving more information
+    about it."""
 
     def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
         super().__init__(*args, **kwds)
