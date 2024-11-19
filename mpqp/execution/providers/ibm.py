@@ -32,7 +32,7 @@ from mpqp.execution.connection.ibm_connection import (
     get_backend,
     get_QiskitRuntimeService,
 )
-from mpqp.execution.devices import IBMDevice, AZUREDevice
+from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
@@ -182,7 +182,7 @@ def generate_qiskit_noise_model(
         ]
     )
 
-    gate_instructions = modified_circuit.get_gates()
+    gate_instructions = modified_circuit.gates
 
     noisy_identity_counter = 0
 

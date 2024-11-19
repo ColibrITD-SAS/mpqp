@@ -800,7 +800,7 @@ class QCircuit:
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
     @property
-    def get_gates(self) -> list[Gate]:
+    def gates(self) -> list[Gate]:
         """Retrieve all the gates from the instructions in the circuit.
 
         Returns:
@@ -815,7 +815,7 @@ class QCircuit:
         return [instr for instr in self.instructions if isinstance(instr, Gate)]
 
     @property
-    def get_measurements(self) -> list[Measure]:
+    def measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
 
         Returns:

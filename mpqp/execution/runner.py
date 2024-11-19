@@ -100,7 +100,7 @@ def generate_job(
     """
     circuit = circuit.subs(values, True)
 
-    m_list = circuit.get_measurements()
+    m_list = circuit.measurements
     nb_meas = len(m_list)
 
     if nb_meas == 0:
