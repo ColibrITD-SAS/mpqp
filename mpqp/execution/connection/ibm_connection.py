@@ -1,11 +1,12 @@
 from getpass import getpass
 from typing import TYPE_CHECKING
 
+from termcolor import colored
+from typeguard import typechecked
+
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import IBMDevice
 from mpqp.tools.errors import IBMRemoteExecutionError
-from termcolor import colored
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit.providers.backend import BackendV2
@@ -42,7 +43,8 @@ def config_ibm_account(token: str):
 
 
 def setup_ibm_account():
-    """Setups and updates the IBM Q account using the existing configuration and by asking for the token ."""
+    """Setups and updates the IBM Quantum account using the existing
+    configuration (or by asking for the token if not already configured)."""
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
     if was_configured:
@@ -128,7 +130,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
 
 
 def get_active_account_info() -> str:
-    """Returns the information concerning the active IBMQ account.
+    """Returns the information concerning the active IBM Quantum account.
 
     Returns:
         The description containing the account information.
@@ -153,11 +155,10 @@ def get_active_account_info() -> str:
 
 @typechecked
 def get_backend(device: IBMDevice) -> "BackendV2":
-    """Retrieves the IBM Q remote device corresponding to the device in
-    parameter.
+    """Retrieves the corresponding ``qiskit`` remote device.
 
     Args:
-        device: The IBMDevice to get from the qiskit Runtime service.
+        device: The device to get from the qiskit Runtime service.
 
     Returns:
         The requested backend.
@@ -192,8 +193,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
 
 
 def get_all_job_ids() -> list[str]:
-    """Retrieves all the job ids of this account from the several IBM remote
-    providers (IBMProvider, QiskitRuntimeService, ...).
+    """Retrieves all the job ids of this account.
 
     Returns:
         The list of job ids.
