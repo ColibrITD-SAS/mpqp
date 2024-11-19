@@ -52,7 +52,7 @@ def theoretical_probs(
 
     state = np.zeros((d, d), dtype=np.complex64)
     state[0, 0] = 1
-    gates = circ.gates()
+    gates = circ.gates
 
     for gate in gates:
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)

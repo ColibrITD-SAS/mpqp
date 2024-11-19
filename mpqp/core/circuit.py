@@ -823,7 +823,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([H(0), CNOT(0, 1)])
-            >>> circuit.get_gates()
+            >>> circuit.gates
             [H(0), CNOT(0, 1)]
 
         """
@@ -841,7 +841,7 @@ class QCircuit:
             ...     BasisMeasure([0, 1], shots=1000),
             ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
             ... ])
-            >>> circuit.get_measurements()  # doctest: +NORMALIZE_WHITESPACE
+            >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure([0, 1], shots=1000),
             ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
 

@@ -97,7 +97,7 @@ class Job:
         ...     JobType.STATE_VECTOR,
         ...     circuit,
         ...     IBMDevice.AER_SIMULATOR,
-        ...     circuit.get_measurements()[0],
+        ...     circuit.measurements[0],
         ... )
 
     """
