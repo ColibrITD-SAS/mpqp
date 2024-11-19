@@ -25,7 +25,6 @@ class SimulatedDevice(AvailableDevice):
     It implements the abstract methods of ``AvailableDevice``, and is used as a blueprint for all possible
     simulated devices (IBM, QLM, ...)."""
 
-    # TODO : comment
     def is_gate_based(self) -> bool:
         return True
 
