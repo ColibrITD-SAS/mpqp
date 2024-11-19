@@ -34,7 +34,6 @@ from mpqp.measures import (
     ExpectationMeasure,
     HadamardBasis,
     Observable,
-    VariableSizeBasis,
 )
 from mpqp.noise.noise_model import NOISE_MODELS, Depolarizing, PhaseDamping
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
