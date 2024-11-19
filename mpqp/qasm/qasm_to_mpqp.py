@@ -18,7 +18,7 @@ from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include_and_co
 
 # TODO:
 # if: not handle
-# barrier: handle for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
+# barrier: handled for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
 # no ID name handle for qreg or creg
 
 lexer = None
