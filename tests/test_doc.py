@@ -7,6 +7,7 @@ from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
 from functools import partial
 from types import TracebackType
 from typing import Any, Optional, Type
+from anytree import Node
 
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
@@ -32,6 +33,7 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_2_to_3,
     remove_user_gates,
     open_qasm_3_to_2,
+    convert_instruction_3_to_2,
     open_qasm_file_conversion_3_to_2,
 )
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse

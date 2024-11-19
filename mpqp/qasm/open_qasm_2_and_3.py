@@ -865,7 +865,7 @@ def convert_instruction_3_to_2(
 
     Example:
         >>> convert_instruction_3_to_2("phase(0.3) q1[0];",set(),Node(""),set())
-        ('u1(0.3) q1[0];;\n', '', 0.0)
+        (\'u1(0.3) q1[0];;\\n\', \'\', 0.0)
 
     """
     # 6M-TODO: not handled for loop, or a switch case, or pulse and low level quantum operations, etc.

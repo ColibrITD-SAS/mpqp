@@ -58,11 +58,9 @@ def test_circular_dependency_detection_false_positive():
 
 
 def test_in_time_gate_def_3_to_2():
-    converted_file_name = qasm_folder + "in_time_gate_def.qasm"
     file_name = qasm_folder + "in_time_gate_def_converted.qasm"
-    with open(converted_file_name, "r") as f:
-        qasm, _ = open_qasm_file_conversion_3_to_2(file_name)
-        assert ' '.join(qasm.split()) == ' '.join(f.read().split())
+    with pytest.raises(ValueError):
+        open_qasm_file_conversion_3_to_2(file_name)
 
 
 def test_late_gate_def_3_to_2():
