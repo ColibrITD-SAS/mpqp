@@ -510,8 +510,9 @@ def extract_state_vector_result(
     amplitudes = np.zeros(nb_states, np.complex64)
     probas = np.zeros(nb_states, np.float32)
     for sample in myqlm_result:
-        amplitudes[sample._state] = sample.amplitude
-        probas[sample._state] = sample.probability
+        state = sample.state.int
+        amplitudes[state] = sample.amplitude
+        probas[state] = sample.probability
 
     return Result(job, StateVector(amplitudes, nb_qubits, probas), 0, 0)
 
@@ -561,9 +562,9 @@ def extract_sample_result(
     samples = [
         Sample(
             nb_qubits,
-            index=sample._state,
+            index=sample.state.int,
             probability=sample.probability,
-            bin_str=str(sample.state)[1:-1],
+            bin_str=sample.state.bitstring,
         )
         for sample in myqlm_result
     ]

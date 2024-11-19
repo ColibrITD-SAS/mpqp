@@ -179,6 +179,13 @@ def check_job_compatibility(job: Job):
             " simulators and devices. Please use a local simulator instead."
         )
 
+    if isinstance(job.device, IBMSimulatedDevice):
+        if job.device.value().num_qubits < job.circuit.nb_qubits:
+            raise DeviceJobIncompatibleError(
+                f"Number of qubits of the circuit ({job.circuit.nb_qubits}) is higher "
+                f"than the one of the IBMSimulatedDevice ({job.device.value().num_qubits})."
+            )
+
     incompatibilities = {
         IBMDevice.AER_SIMULATOR_STABILIZER: {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U},
         IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER: {Rx, Rz},
@@ -514,12 +521,13 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         qiskit_observable = qiskit_observable.apply_layout(qiskit_circ.layout)
 
-        default_shots = getattr(estimator.options, "default_shots", None)
-        if meas.shots != default_shots:
-            raise ValueError(
-                f"Number of shots mismatch: expected {meas.shots}, "
-                f"but got {getattr(estimator.options, 'default_shots')}."
-            )
+        # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
+        twirling = getattr(estimator.options, "twirling", None)
+        if twirling is not None:
+            twirling.enable_gates = False
+            twirling.enable_measure = False
+            twirling.num_randomizations = 1
+            twirling.shots_per_randomization = meas.shots
 
         setattr(estimator.options, "default_shots", meas.shots)
 

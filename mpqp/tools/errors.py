@@ -60,3 +60,7 @@ class OpenQASMTranslationWarning(UserWarning):
 class AdditionalGateNoiseWarning(UserWarning):
     """Warning for additional noise on native gate used in the decomposition of
     noisy gate."""
+
+
+class NonReversibleWarning(UserWarning):
+    """Warning for nonreversible instruction used in inverse function."""
