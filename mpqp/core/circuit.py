@@ -150,7 +150,7 @@ class QCircuit:
                     self._nb_qubits = 0
                 else:
                     connections: set[int] = set.union(
-                        *(item.connections() for item in data)
+                        *(instruction.connections() for instruction in data)
                     )
                     self._nb_qubits = max(connections) + 1
             else:
@@ -892,6 +892,18 @@ class QCircuit:
 
         return new_circuit
 
+    def without_breakpoints(self) -> QCircuit:
+        """Provides a copy of this circuit with all the breakpoints removed.
+
+        Returns:
+            A copy of this circuit with all the breakpoints removed.
+        """
+        new_circuit = deepcopy(self)
+        new_circuit.instructions = [
+            inst for inst in self.instructions if not isinstance(inst, Breakpoint)
+        ]
+        return new_circuit
+
     def without_noises(self) -> QCircuit:
         """Provides a copy of this circuit with all the noise models removed.
 
@@ -1048,7 +1060,7 @@ class QCircuit:
                     cargs,
                 )
 
-            for measurement in self.get_measurements():
+            for measurement in self.measurements:
                 if isinstance(measurement, ExpectationMeasure):
                     # these measures have no equivalent in Qiskit
                     continue

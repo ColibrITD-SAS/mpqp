@@ -392,7 +392,7 @@ class Result:
         header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
-            measures = self.job.circuit.get_measurements()
+            measures = self.job.circuit.measurements
             if not len(measures) == 1:
                 raise ValueError(
                     "Mismatch between the number of measurements and the job type."
