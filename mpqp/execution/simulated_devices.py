@@ -61,7 +61,7 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
         fake_imports = fake_provider.__dict__
         return [
             (p, fake_imports[p])
-            for p in fake_imports.keys()
+            for p in fake_imports
             if p.startswith("Fake")
             and not p.startswith(("FakeProvider", "FakeFractional"))
         ]
