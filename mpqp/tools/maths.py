@@ -85,24 +85,20 @@ def is_hermitian(matrix: Matrix) -> bool:
         ``True`` if the matrix in parameter is Hermitian.
 
     Examples:
-        >>> m1 = np.array([[1,2j,3j],[-2j,4,5j],[-3j,-5j,6]])
-        >>> is_hermitian(m1)
+        >>> is_hermitian(np.array([[1,2j,3j],[-2j,4,5j],[-3j,-5j,6]]))
         True
-        >>> m2 = np.diag([1,2,3,4])
-        >>> is_hermitian(m2)
+        >>> is_hermitian(np.diag([1,2,3,4]))
         True
         >>> m3 = np.array([[1,2,3],[2,4,5],[3,5,6]])
-        >>> is_hermitian(m3)
+        >>> is_hermitian(np.array([[1,2,3],[2,4,5],[3,5,6]]))
         True
         >>> m4 = np.array([[1,2,3],[4,5,6],[7,8,9]])
-        >>> is_hermitian(m4)
+        >>> is_hermitian(np.array([[1,2,3],[4,5,6],[7,8,9]]))
         False
         >>> x = symbols("x", real=True)
-        >>> m5 = np.diag([1,x])
-        >>> is_hermitian(m5)
+        >>> is_hermitian(np.diag([1,x]))
         True
-        >>> m6 = np.array([[1,x],[-x,2]])
-        >>> is_hermitian(m6)
+        >>> is_hermitian(np.array([[1,x],[-x,2]]))
         False
 
     """
@@ -123,10 +119,9 @@ def is_unitary(matrix: Matrix) -> bool:
         ``True`` if the matrix in parameter is Unitary.
 
     Example:
-        >>> a = np.array([[1,1],[1,-1]])
-        >>> is_unitary(a)
+        >>> is_unitary(np.array([[1,1],[1,-1]]))
         False
-        >>> is_unitary(a/np.sqrt(2))
+        >>> is_unitary(np.array([[1,1],[1,-1]])/np.sqrt(2))
         True
 
     """
@@ -148,10 +143,9 @@ def closest_unitary(matrix: Matrix):
         Return U as a numpy matrix.
 
     Example:
-        >>> m = np.array([[1, 2], [3, 4]])
-        >>> is_unitary(m)
+        >>> is_unitary(np.array([[1, 2], [3, 4]]))
         False
-        >>> u = closest_unitary(m)
+        >>> u = closest_unitary(np.array([[1, 2], [3, 4]]))
         >>> u
         array([[-0.51449576,  0.85749293],
                [ 0.85749293,  0.51449576]])

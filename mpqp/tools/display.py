@@ -133,17 +133,16 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
 def clean_1D_array(
     array: list[complex] | npt.NDArray[np.complex64 | np.float32], round: int = 5
 ) -> str:
-    """Cleans and formats elements of an array.
-    This function rounds the real parts of complex numbers in the array to 7 decimal places
-    and formats them as integers if they are whole numbers. It returns a string representation
-    of the cleaned array without parentheses.
+    """Cleans and formats elements of a one dimensional array. This function
+    rounds the parts of the numbers in the array and formats them as integers if
+    appropriate. It returns a string representation of the cleaned array.
 
     Args:
-        array: An array containing numeric elements, possibly including complex numbers.
-        round: The number of decimal places to round the real and imaginary parts.
+        array: An array containing numeric elements.
+        round: precision to round the numbers to.
 
     Returns:
-        A string representation of the cleaned array without parentheses.
+        A string representation of the cleaned array.
 
     Example:
         >>> clean_1D_array([1.234567895546, 2.3456789645645, 3.45678945645])
@@ -167,25 +166,73 @@ def clean_1D_array(
         ... 2.91896816e-09-2.15963155e-09j, -4.17753839e-09-5.64638430e-09j,
         ... 9.44235988e-08-8.58300965e-01j, -5.42123454e-08+2.07957438e-07j,
         ... 5.13144658e-01+2.91786504e-08j, -0000000.175980538-1.44108434e-07j], round=7)
-        '[0.9828112j, 0.1901127, 0, 0, 1e-07-0.858301j, -1e-07+2e-07j, 0.5131447, -0.1759805-1e-07j]'
+        '[0.9828112j, 0.1901127, 0, 0, 1e-07-0.858301j, -1e-07+2e-07j, 0.5131446, -0.1759805-1e-07j]'
 
     """
-    cleaned_array = [format_element(element, round) for element in array]
-    return "[" + ", ".join(map(str, cleaned_array)) + "]"
+    return (
+        "["
+        + ", ".join(
+            clean_number_repr(element, round)
+            for element in np.array(array, dtype=np.complex64)
+        )
+        + "]"
+    )
+
+
+def clean_number_repr(number: complex, round: int = 7):
+    """Cleans and formats a number. This function rounds the parts of
+    complex numbers and formats them as integers if appropriate. It returns a
+    string representation of the number.
+
+    Args:
+        number: The number to be formatted
+
+    Returns:
+        A string representation of the number.
+
+    Example:
+        >>> clean_number_repr(1.234567895546)
+        '1.2345679'
+        >>> clean_number_repr(1.0+2.0j)
+        '1+2j'
+        >>> clean_number_repr(1+0j)
+        '1'
+        >>> clean_number_repr(0.0 + 1.0j)
+        '1j'
+
+    """
+    real_part = np.round(np.real(number), round)
+    imag_part = np.round(np.imag(number), round)
+
+    if real_part == int(real_part):
+        real_part = int(real_part)
+    if imag_part == int(imag_part):
+        imag_part = int(imag_part)
+
+    if real_part == 0 and imag_part != 0:
+        real_part = ""
+
+    if imag_part == 0:
+        imag_part = ""
+    else:
+        imag_part = str(imag_part) + "j"
+        if real_part != "" and not imag_part.startswith("-"):
+            imag_part = "+" + imag_part
+    return f"{str(real_part)}{str(imag_part)}"
 
 
 def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
-    """Cleans and formats elements of a matrix. It rounds the real parts of complex numbers
-    in the matrix places and formats them as integers if they are whole numbers. It returns a
-    string representation of the cleaned matrix without parentheses.
+    """Cleans and formats elements of a 2D matrix. This function rounds the
+    parts of the numbers in the matrix and formats them as integers if
+    appropriate. It returns a string representation of the cleaned matrix.
 
     Args:
-        matrix: A matrix containing numeric elements, possibly including complex numbers.
+        matrix: An 2d array containing numeric elements.
         round: The number of decimal places to round the real and imaginary parts.
         align: Whether to align the elements for a cleaner output.
 
     Returns:
-        str: A string representation of the cleaned matrix without parentheses.
+        A string representation of the cleaned matrix.
 
     Examples:
         >>> print(clean_matrix([[1.234567895546, 2.3456789645645, 3.45678945645],

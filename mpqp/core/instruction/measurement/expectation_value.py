@@ -274,7 +274,7 @@ class ExpectationMeasure(Measure):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
-    ) -> None:
+    ) -> None | str:
         raise NotImplementedError(
             "This object should not be exported as is, because other SDKs have "
             "no equivalent. Instead, this object is used to store the "

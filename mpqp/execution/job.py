@@ -83,7 +83,9 @@ class Job:
 
     Args:
         job_type: Type of the job (sample, observable, ...).
-        circuit: Circuit to execute.
+        circuit: Circuit to execute. In addition of what the user input, this
+            circuit may contain additional parts such as measure adjustment
+            sections.
         device: Device (simulator, quantum computer) on which we want to execute
             the job.
         measure: Object representing the measure to perform.
