@@ -44,7 +44,7 @@ from mpqp.tools.maths import (
     rand_orthogonal_matrix,
     is_power_of_two,
 )
-from mpqp.tools.display import clean_1D_array, clean_matrix, pprint, format_element
+from mpqp.tools.display import *
 from mpqp.tools.circuit import random_circuit, random_instruction
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,

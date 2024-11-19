@@ -26,13 +26,6 @@ from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
 from warnings import warn
 
-if TYPE_CHECKING:
-    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-    from cirq.circuits.circuit import Circuit as cirq_Circuit
-    from braket.circuits import Circuit as braket_Circuit
-    from qiskit.circuit import QuantumCircuit
-    from sympy import Basic, Expr
-
 import numpy as np
 import numpy.typing as npt
 from typeguard import TypeCheckError, typechecked
@@ -44,13 +37,24 @@ from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
-from mpqp.core.instruction.measurement import BasisMeasure, ComputationalBasis, Measure
+from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
-from mpqp.tools.errors import NumberQubitsError, NonReversibleWarning
+from mpqp.qasm import qasm2_to_myqlm_Circuit
+from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
+from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
+from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
+
+if TYPE_CHECKING:
+    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from braket.circuits import Circuit as braket_Circuit
+    from qiskit.circuit import QuantumCircuit
+    from sympy import Basic, Expr
 
 
 @typechecked
@@ -151,7 +155,7 @@ class QCircuit:
                     self._nb_qubits = max(connections) + 1
             else:
                 self._nb_qubits = nb_qubits
-            self.add(list(map(deepcopy, data)))
+            self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
         return dumps(self) == dumps(value)
@@ -252,12 +256,15 @@ class QCircuit:
                     "In noisy circuits, BasisMeasure must span all qubits in the circuit."
                 )
 
-    def _update_targets_components(self, components: Instruction | NoiseModel):
-        """update the targets of the components with the number of qubits in the circuit.
+    def _update_targets_components(self, component: Instruction | NoiseModel):
+        """Update the targets of the component with the number of qubits in the circuit.
+
+        Args:
+            component: Instruction or NoiseModel for which we want to update the `targets` attribute.
 
         Raises:
-            ValueError: If the number of target qubits for a noise source is
-                smaller than the its dimension, or if BasisMeasure does not span
+            ValueError: If the number of target qubits for a NoiseModel is
+                smaller than its dimension, or if BasisMeasure does not span
                 all qubits in a noisy circuit.
 
         Examples:
@@ -281,29 +288,37 @@ class QCircuit:
         """
         targets = list(range(self.nb_qubits))
 
-        components.targets = targets
-        self._check_components_targets(components)
+        component.targets = targets
+        self._check_components_targets(component)
 
-        if isinstance(components, Barrier):
-            components.size = self.nb_qubits
-            components.targets = list(range(self.nb_qubits))
-        elif isinstance(components, ExpectationMeasure):
-            components.check_targets_order()
-        elif isinstance(components, DimensionalNoiseModel):
-            components.check_dimension()
-        elif isinstance(components, BasisMeasure):
+        if isinstance(component, Barrier):
+            component.size = self.nb_qubits
+            component.targets = list(range(self.nb_qubits))
+        elif isinstance(component, ExpectationMeasure):
+            component.check_targets_order()
+        elif isinstance(component, DimensionalNoiseModel):
+            component.check_dimension()
+        elif isinstance(component, BasisMeasure):
+            from mpqp.core.instruction.measurement.basis import VariableSizeBasis
+
+            if not isinstance(component.basis, VariableSizeBasis):
+                raise ValueError(
+                    "A `BasisMeasure` with a non variable sized basis cannot be"
+                    " dynamic."
+                )
+
+            component.basis.set_size(self.nb_qubits)
+
             if self.nb_cbits is None:
                 self.nb_cbits = 0
             unique_cbits = set()
-            for basis_measure in self.instructions:
-                if basis_measure != components and isinstance(
-                    basis_measure, BasisMeasure
-                ):
-                    if basis_measure.c_targets:
-                        unique_cbits.update(basis_measure.c_targets)
+            for instruction in self.instructions:
+                if instruction != component and isinstance(instruction, BasisMeasure):
+                    if instruction.c_targets:
+                        unique_cbits.update(instruction.c_targets)
             c_targets = []
             i = 0
-            for _ in range(len(components.targets)):
+            for _ in range(len(component.targets)):
                 while i in unique_cbits:
                     warn(
                         "Dynamic measurements don't play well with static measurements: "
@@ -312,12 +327,12 @@ class QCircuit:
                     i += 1
                 c_targets.append(i)
                 i += 1
-            components.c_targets = c_targets
+            component.c_targets = c_targets
             self.nb_cbits = max(
                 max(c_targets, default=0) + 1, max(unique_cbits, default=0) + 1
             )
 
-        return components
+        return component
 
     @property
     def nb_qubits(self) -> int:
@@ -990,12 +1005,7 @@ class QCircuit:
                     # these measures have no equivalent in Qiskit
                     continue
                 qiskit_inst = measurement.to_other_language(language, qiskit_parameters)
-                if isinstance(measurement, BasisMeasure) and isinstance(
-                    measurement.basis, ComputationalBasis
-                ):
-                    # TODO for custom basis, check if something should be
-                    # changed here, e.g. remove the condition to have only
-                    # computational basis
+                if isinstance(measurement, BasisMeasure):
                     assert measurement.c_targets is not None
                     qargs = [measurement.targets]
                     cargs = [measurement.c_targets]
