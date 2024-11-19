@@ -488,6 +488,8 @@ cx q[0],q[1];""",
 def test_mpqp_to_qasm_simplify(instructions: list[Instruction], qasm_expectation: str):
     circuit = QCircuit(instructions)
     qasm, _ = mpqp_to_qasm2(circuit, True)
+    print(qasm)
+    print(qasm_expectation)
     assert qasm_expectation == qasm
 
 

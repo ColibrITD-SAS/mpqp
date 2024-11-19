@@ -989,10 +989,6 @@ class QCircuit:
                     qargs = instruction.controls + instruction.targets
                 elif isinstance(instruction, Gate):
                     qargs = instruction.targets
-                elif isinstance(instruction, BasisMeasure):
-                    assert instruction.c_targets is not None
-                    qargs = [instruction.targets]
-                    cargs = [instruction.c_targets]
                 elif isinstance(instruction, Barrier):
                     qargs = range(self.nb_qubits)
                 elif isinstance(instruction, Breakpoint):
@@ -1013,12 +1009,7 @@ class QCircuit:
                     # these measures have no equivalent in Qiskit
                     continue
                 qiskit_inst = measurement.to_other_language(language, qiskit_parameters)
-                if isinstance(measurement, BasisMeasure) and isinstance(
-                    measurement.basis, ComputationalBasis
-                ):
-                    # TODO for custom basis, check if something should be
-                    # changed here, e.g. remove the condition to have only
-                    # computational basis
+                if isinstance(measurement, BasisMeasure):
                     assert measurement.c_targets is not None
                     qargs = [measurement.targets]
                     cargs = [measurement.c_targets]

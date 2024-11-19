@@ -105,24 +105,26 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             return f"Rzz({self.theta})"
 
     class MyQasmUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
+        def __init__(self, theta, phi, lmda) -> None:
+            self.lmda = lmda
+            self.theta = theta
+            self.phi = phi
 
         def __repr__(self) -> str:
             return (
-                f'cirq.circuits.qasm_output.QasmUGate('
-                f'theta={self.theta * np.pi !r}, '
-                f'phi={self.phi * np.pi!r}, '
-                f'lmda={self.lmda * np.pi})'
+                f'U('
+                f'theta={self.theta !r}, '
+                f'phi={self.phi!r}, '
+                f'lmda={self.lmda})'
             )
 
         def _decompose_(self, qubits: tuple[Qid, ...]):
             q = qubits[0]
             return [
-                GlobalPhaseGate(
-                    np.exp(1j * (self.lmda * np.pi + self.phi * np.pi) / 2)
-                ).on(),
-                rz(self.lmda * np.pi).on(q),
-                ry(self.theta * np.pi).on(q),
-                rz(self.phi * np.pi).on(q),
+                GlobalPhaseGate(np.exp(1j * (self.lmda + self.phi) / 2)).on(),
+                rz(self.lmda).on(q),
+                ry(self.theta).on(q),
+                rz(self.phi).on(q),
             ]
 
     # Remove the line containing the barrier keyword
@@ -135,16 +137,14 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             qasm_gate="cu1",
             num_params=1,
             num_args=2,
-            cirq_gate=(
-                lambda params: ControlledGate(MyQasmUGate(0, 0, params[0] / np.pi))
-            ),
+            cirq_gate=(lambda params: ControlledGate(MyQasmUGate(0, 0, params[0]))),
         ),
         "cu3": QasmGateStatement(
             qasm_gate="cu3",
             num_params=3,
             num_args=2,
             cirq_gate=(
-                lambda params: ControlledGate(MyQasmUGate(*[p / np.pi for p in params]))
+                lambda params: ControlledGate(MyQasmUGate(*[p for p in params]))
             ),
         ),
         "crz": QasmGateStatement(
@@ -178,7 +178,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             qasm_gate="u3",
             num_params=3,
             num_args=1,
-            cirq_gate=(lambda params: MyQasmUGate(*[p / np.pi for p in params])),
+            cirq_gate=(lambda params: MyQasmUGate(*[p for p in params])),
         ),
         "rxx": QasmGateStatement(
             qasm_gate="rxx",
