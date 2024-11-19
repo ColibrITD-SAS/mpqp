@@ -66,16 +66,22 @@ def compute_expectation_value(
     corresponding Result.
 
     Args:
-        ibm_circuit: QuantumCircuit (already reversed bits) for which we want to estimate the expectation value.
-        job: Mpqp job describing the observable job to run.
-        simulator: The AerSimulator used to initialize the Estimator.
+        ibm_circuit: Circuit (with its qbits already reversed) for which we want
+            to estimate the expectation value.
+        job: Job containing the execution input data.
+        simulator: Simulator to be used. This is required for noisy simulations.
 
     Returns:
         The result of the job.
 
+    Raises:
+        ValueError: If the job's device is not a
+            :class:`~mpqp.execution.simulated_devices.pyIBMSimulatedDevice` and
+            ``simulator`` is ``None``.
+
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:``~mpqp.execution.runner.run`` instead.
     """
 
     from qiskit.quantum_info import SparsePauliOp
@@ -356,7 +362,8 @@ def generate_qiskit_noise_model(
                         noise.dimension == 1
                     ):
                         for qubit in intersection:
-                            # We add a custom identity gate on the relevant qubits to apply noise after the gate
+                            # We add a custom identity gate on the relevant
+                            # qubits to apply noise after the gate
                             labeled_identity = Id(
                                 target=qubit,
                                 label=f"noisy_identity_{noisy_identity_counter}",
@@ -400,10 +407,12 @@ def run_aer(job: Job):
     if isinstance(job.device, IBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
             warnings.warn(
-                "NoiseModel are ignored when running the circuit on a SimulatedDevice"
+                "NoiseModel are ignored when running the circuit on a "
+                "SimulatedDevice"
             )
-            # 3M-TODO: handle case when we put NoiseModel + IBMSimulatedDevice (grab qiskit NoiseModel from AerSimulator
-            #  generated below, and add to it directly)
+            # 3M-TODO: handle case when we put NoiseModel + IBMSimulatedDevice
+            # (grab qiskit NoiseModel from AerSimulator generated below, and add
+            # to it directly)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
         noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
