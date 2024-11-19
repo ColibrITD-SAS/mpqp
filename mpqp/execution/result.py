@@ -24,16 +24,17 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Optional
+from typing import Any, Optional
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
+from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
-from mpqp.tools.display import clean_1D_array
+from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
 
 
@@ -161,7 +162,10 @@ class Sample:
                     )
 
     def __str__(self):
-        return f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}, Probability: {self.probability}"
+        return (
+            f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}"
+            + f", Probability: {np.round(self.probability, 5) if self.probability is not None else None}"
+        )
 
     def __repr__(self):
         return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
@@ -199,7 +203,12 @@ class Result:
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
-        >>> job = Job(JobType.SAMPLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG, BasisMeasure([0, 1], shots=1000))
+        >>> job = Job(
+        ...     JobType.SAMPLE,
+        ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
+        ...     ATOSDevice.MYQLM_CLINALG,
+        ...     BasisMeasure([0, 1], shots=1000),
+        ... )
         >>> print(Result(job, [
         ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
@@ -226,7 +235,7 @@ class Result:
         self,
         job: Job,
         data: float | StateVector | list[Sample],
-        errors: Optional[float | dict[PauliString, float]] = None,
+        errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -280,24 +289,28 @@ class Result:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
-                counts = [
-                    int(count)
-                    for count in np.round(self.job.measure.shots * self._probabilities)
-                ]
-                self._counts = counts
-                for sample in self._samples:
-                    sample.count = self._counts[sample.index]
-            elif is_counts:
+                if not is_counts:
+                    counts = [
+                        int(count)
+                        for count in np.round(
+                            self.job.measure.shots * self._probabilities
+                        )
+                    ]
+                    self._counts = counts
+                    for sample in self._samples:
+                        sample.count = self._counts[sample.index]
+            if is_counts:
                 counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
                 for sample in data:
                     assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
                 assert shots != 0
-                self._probabilities = np.array(counts, dtype=float) / self.shots
-                for sample in self._samples:
-                    sample.probability = self._probabilities[sample.index]
-            else:
+                if not is_probas:
+                    self._probabilities = np.array(counts, dtype=float) / self.shots
+                    for sample in self._samples:
+                        sample.probability = self._probabilities[sample.index]
+            elif not is_probas:
                 raise ValueError(
                     f"For {JobType.SAMPLE.name} jobs, all samples must contain"
                     " either `count` or `probability` (and the non-None "
@@ -379,7 +392,29 @@ class Result:
         header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
+            measures = self.job.circuit.get_measurements()
+            if not len(measures) == 1:
+                raise ValueError(
+                    "Mismatch between the number of measurements and the job type."
+                )
+            measure = measures[0]
+            if not isinstance(measure, BasisMeasure):
+                raise ValueError("Mismatch between measurements type and job type.")
+
+            assert all(sample.probability is not None for sample in self.samples)
+
+            probabilities = [
+                sample.probability
+                for sample in self.samples
+                if sample.probability is not None
+            ]
+            assert len(probabilities) == len(self.samples)
+
+            samples_str = "\n".join(
+                f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
+                f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
+                for sample, probability in zip(self.samples, probabilities)
+            )
             return f"""{header}
  Counts: {self._counts}
  Probabilities: {clean_1D_array(self.probabilities)}
@@ -470,7 +505,7 @@ class BatchResult:
         >>> result2 = Result(
         ...     Job(
         ...         JobType.SAMPLE,
-        ...         QCircuit(0),
+        ...         QCircuit([BasisMeasure([0,1],shots=500)]),
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         BasisMeasure([0,1],shots=500)
         ...     ),

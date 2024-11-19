@@ -165,7 +165,11 @@ class Gate(Instruction, ABC):
         return CustomGate(
             UnitaryMatrix(self.to_matrix().transpose().conjugate()),
             self.targets,
-            self.label,
+            (
+                None
+                if self.label is None
+                else (self.label[:-1] if self.label.endswith("†") else self.label + "†")
+            ),
         )
 
     def is_equivalent(self, other: Gate) -> bool:
@@ -295,7 +299,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         Example:
             >>> pprint((X(0).product(Z(0))).to_matrix())
             [[0, -1],
-             [1, 0]]
+             [1, 0 ]]
 
         """
         # 3M-TODO: to test

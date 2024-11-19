@@ -3,7 +3,7 @@ import pytest
 from sympy import symbols
 
 from mpqp.tools.generics import Matrix
-from mpqp.tools.maths import is_hermitian
+from mpqp.tools.maths import is_hermitian, rand_hermitian_matrix
 
 x = symbols("x", real=True)
 
@@ -21,3 +21,7 @@ x = symbols("x", real=True)
 )
 def test_is_hermitian(matrix: Matrix, isHermitian: bool):
     assert is_hermitian(matrix) == isHermitian
+
+
+def test_rand_hermitian():
+    assert is_hermitian(rand_hermitian_matrix(3))

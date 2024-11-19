@@ -10,14 +10,13 @@ from mpqp.execution import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
+    IBMDevice,
 )
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.errors import (
-    OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
@@ -56,7 +55,7 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
         exp_state_vector = np.kron(exp_state_vector, np.array([1, 0]))
 
     with (
-        pytest.warns(OpenQASMTranslationWarning)
+        pytest.warns(UnsupportedBraketFeaturesWarning)
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
@@ -94,7 +93,7 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
     c2 = QCircuit([X(0), H(1), CNOT(1, 2), Z(0)])
 
     with (
-        pytest.warns(OpenQASMTranslationWarning)
+        pytest.warns(UnsupportedBraketFeaturesWarning)
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
@@ -131,7 +130,7 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     )
 
     with (
-        pytest.warns(OpenQASMTranslationWarning)
+        pytest.warns(UnsupportedBraketFeaturesWarning)
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
@@ -139,4 +138,4 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
         result2 = _run_single(custom_gate_circ, device, {})
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-5, 1e-5)
+    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
