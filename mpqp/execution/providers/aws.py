@@ -70,7 +70,7 @@ def apply_noise_to_braket_circuit(
             braket_noise,  # pyright: ignore[reportArgumentType]
             target_gates=(
                 [
-                    gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
+                    gate.braket_gate
                     for gate in noise.gates
                     if hasattr(gate, "braket_gate")
                 ]

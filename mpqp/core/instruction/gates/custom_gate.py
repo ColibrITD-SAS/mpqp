@@ -106,28 +106,24 @@ class CustomGate(Gate):
                 list(reversed(self.targets)),  # dang qiskit qubits order
                 self.label,
             )
-            filtered_qasm = ""
-            final_gphase = 0
-            for instruction in qiskit_circ.data:
-                circuit, gphase = replace_custom_gate(instruction, nb_qubits)
 
-                qasm_str = qasm2.dumps(circuit)
-                qasm_lines = qasm_str.splitlines()
+            circuit, gphase = replace_custom_gate(qiskit_circ.data[0], nb_qubits)
 
-                instructions_only = [
-                    line
-                    for line in qasm_lines
-                    if not (
-                        line.startswith("qreg")
-                        or line.startswith("include")
-                        or line.startswith("creg")
-                        or line.startswith("OPENQASM")
-                    )
-                ]
+            qasm_str = qasm2.dumps(circuit)
+            qasm_lines = qasm_str.splitlines()
 
-                filtered_qasm += "\n".join(instructions_only)
-                final_gphase += gphase
-            return filtered_qasm, final_gphase
+            instructions_only = [
+                line
+                for line in qasm_lines
+                if not (
+                    line.startswith("qreg")
+                    or line.startswith("include")
+                    or line.startswith("creg")
+                    or line.startswith("OPENQASM")
+                )
+            ]
+
+            return "\n".join(instructions_only), gphase
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 

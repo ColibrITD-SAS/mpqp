@@ -105,7 +105,9 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             return f"Rzz({self.theta})"
 
     class MyQasmUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
-        def __init__(self, theta, phi, lmda) -> None:
+        def __init__(
+            self, theta, phi, lmda  # pyright: ignore[reportMissingParameterType]
+        ) -> None:
             self.lmda = lmda
             self.theta = theta
             self.phi = phi
