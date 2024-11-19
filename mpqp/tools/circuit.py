@@ -212,8 +212,8 @@ def random_noise(
         prob = rng.uniform(0, 0.75)
         return Depolarizing(prob)
     elif issubclass(noise, PhaseDamping):
-        prob = rng.uniform(0, 1)
-        return PhaseDamping(prob)
+        gamma = rng.uniform(0, 1)
+        return PhaseDamping(gamma)
     else:
         raise NotImplementedError(f"{noise} model not implemented")
 

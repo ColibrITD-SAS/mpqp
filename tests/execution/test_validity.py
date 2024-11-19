@@ -8,8 +8,10 @@ from mpqp import QCircuit
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.measurement.pauli_string import I as Ip
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import I as Ip, PauliString
 from mpqp.core.instruction.measurement.pauli_string import X as Xp
 from mpqp.core.instruction.measurement.pauli_string import Y as Yp
 from mpqp.core.instruction.measurement.pauli_string import Z as Zp
@@ -325,18 +327,26 @@ def test_observable_ideal_case(
         )
 
 
-circuit_state_vector = QCircuit([H(0), CNOT(0, 1)])
+@pytest.fixture
+def circuits_type():
+    circuit_state_vector = QCircuit([H(0), CNOT(0, 1)])
 
-circuit_samples = deepcopy(circuit_state_vector)
-circuit_samples.add(BasisMeasure())
+    circuit_samples = deepcopy(circuit_state_vector)
+    circuit_samples.add(BasisMeasure())
 
-observable = np.array([[4, 2, 3, 8], [2, -3, 1, 0], [3, 1, -1, 5], [8, 0, 5, 2]])
-circuit_observable = deepcopy(circuit_state_vector)
-circuit_observable.add(ExpectationMeasure(Observable(observable)))
+    observable = np.array([[4, 2, 3, 8], [2, -3, 1, 0], [3, 1, -1, 5], [8, 0, 5, 2]])
+    circuit_observable = deepcopy(circuit_state_vector)
+    circuit_observable.add(ExpectationMeasure(Observable(observable)))
 
-observable_ideal = rand_hermitian_matrix(2**2)
-circuit_observable_ideal = deepcopy(circuit_state_vector)
-circuit_observable_ideal.add(ExpectationMeasure(Observable(observable_ideal)))
+    observable_ideal = rand_hermitian_matrix(2**2)
+    circuit_observable_ideal = deepcopy(circuit_state_vector)
+    circuit_observable_ideal.add(ExpectationMeasure(Observable(observable_ideal)))
+    return [
+        circuit_state_vector,
+        circuit_samples,
+        circuit_observable,
+        circuit_observable_ideal,
+    ]
 
 
 @pytest.mark.parametrize(
@@ -347,7 +357,12 @@ circuit_observable_ideal.add(ExpectationMeasure(Observable(observable_ideal)))
     + list(GOOGLEDevice)
     + list(AZUREDevice),
 )
-def test_validity_run_job_type(device: AvailableDevice):
+def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCircuit]):
+    circuit_state_vector = circuits_type[0]
+    circuit_samples = circuits_type[1]
+    circuit_observable = circuits_type[2]
+    circuit_observable_ideal = circuits_type[3]
+
     if not device.is_remote():
         if device.supports_samples():
             assert run(circuit_samples, device) is not None
@@ -369,9 +384,8 @@ def test_validity_run_job_type(device: AvailableDevice):
             if isinstance(device, GOOGLEDevice) and device.is_processor():
                 with pytest.raises(DeviceJobIncompatibleError):
                     run(circuit_observable, device)
-                c2 = deepcopy(circuit_observable)
-                c2.get_measurements()[0].shots = 10
-                assert run(c2, device) is not None
+                circuit_observable.get_measurements()[0].shots = 10
+                assert run(circuit_observable, device) is not None
             else:
                 assert run(circuit_observable, device) is not None
 
@@ -383,9 +397,8 @@ def test_validity_run_job_type(device: AvailableDevice):
             if isinstance(device, GOOGLEDevice) and device.is_processor():
                 with pytest.raises(DeviceJobIncompatibleError):
                     run(circuit_observable_ideal, device)
-                c2 = deepcopy(circuit_observable_ideal)
-                c2.get_measurements()[0].shots = 10
-                run(c2, device)
+                circuit_observable_ideal.get_measurements()[0].shots = 10
+                assert run(circuit_observable_ideal, device) is not None
             else:
                 assert run(circuit_observable_ideal, device) is not None
         else:
@@ -405,20 +418,24 @@ def test_validity_native_gate_to_other_language(language: Language):
             assert gate_build.to_other_language(language) is not None
 
 
-measures = [
-    BasisMeasure([0, 1]),
-    BasisMeasure(
-        [0, 1], shots=1024, basis=Basis([np.array([1, 0]), np.array([0, -1])])
-    ),
-    BasisMeasure([0, 1], shots=1024, basis=VariableSizeBasis(2)),
-    BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(3)),
-    BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
-    ExpectationMeasure(Observable(np.diag([0.7, -1, 1, 1])), shots=10),
-]
+@pytest.fixture
+def measures():
+    return [
+        BasisMeasure([0, 1]),
+        BasisMeasure(
+            [0, 1], shots=1024, basis=Basis([np.array([1, 0]), np.array([0, -1])])
+        ),
+        BasisMeasure([0, 1], shots=1024, basis=VariableSizeBasis(2)),
+        BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(3)),
+        BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
+        ExpectationMeasure(Observable(np.diag([0.7, -1, 1, 1])), shots=10),
+    ]
 
 
 @pytest.mark.parametrize("language", list(Language))
-def test_validity_measure_to_other_language(language: Language):
+def test_validity_measure_to_other_language(
+    language: Language, measures: list[Measure]
+):
     for measure in measures:
         if isinstance(measure, ExpectationMeasure):
             with pytest.raises(NotImplementedError):
@@ -428,9 +445,7 @@ def test_validity_measure_to_other_language(language: Language):
                 measure.to_other_language(language)
         elif (
             language == Language.QISKIT
-            and isinstance(
-                measure, BasisMeasure
-            )  # pyright: ignore[reportUnnecessaryIsInstance]
+            and isinstance(measure, BasisMeasure)
             and not isinstance(measure.basis, ComputationalBasis)
         ):
             with pytest.raises(NotImplementedError):
@@ -439,13 +454,17 @@ def test_validity_measure_to_other_language(language: Language):
             assert measure.to_other_language(language) is not None
 
 
-pauli_strings = [Ip @ Xp @ Yp @ Zp, Xp + Zp, Yp]
+@pytest.fixture
+def pauli_strings():
+    return [Ip @ Xp @ Yp @ Zp, Xp + Zp, Yp]
 
 
 @pytest.mark.parametrize("language", list(Language))
-def test_validity_pauli_string_to_other_language(language: Language):
+def test_validity_pauli_string_to_other_language(
+    language: Language, pauli_strings: list[PauliString]
+):
     for pauli_string in pauli_strings:
-        assert pauli_string.to_other_language(language)
+        assert pauli_string.to_other_language(language) is not None
 
 
 @pytest.mark.parametrize("language", list(Language))
@@ -465,16 +484,19 @@ def test_validity_noise_to_other_language(language: Language):
             assert noise_build.to_other_language(language) is not None
 
 
-other_instr = [
-    Breakpoint(),
-    Barrier(),
-]
+@pytest.fixture
+def other_instr():
+    return [
+        Breakpoint(),
+        Barrier(),
+    ]
 
 
 @pytest.mark.parametrize("language", list(Language))
-def test_validity_other_instr_to_other_language(language: Language):
+def test_validity_other_instr_to_other_language(
+    language: Language, other_instr: list[Instruction]
+):
     for instr in other_instr:
-
         if isinstance(instr, Breakpoint):
             with pytest.raises(NotImplementedError):
                 instr.to_other_language(language)
