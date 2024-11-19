@@ -40,5 +40,5 @@ class Breakpoint(Instruction):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
-    ):
-        raise NotImplementedError(f"{language} is not supported")
+    ) -> str:
+        raise NotImplementedError(f"Error: {language} is not supported")

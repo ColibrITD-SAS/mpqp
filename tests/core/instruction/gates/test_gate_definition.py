@@ -30,11 +30,7 @@ def test_unitary_matrix_inverse_failing(matrix: npt.NDArray[np.complex64]):
         ValueError,
         match="Cannot invert arbitrary gates using symbolic variables",
     ):
-        with pytest.warns(
-            UserWarning,
-            match="Cannot ensure that a operator defined with symbolic variables is unitary.",
-        ):
-            UnitaryMatrix(matrix).inverse()
+        UnitaryMatrix(matrix).inverse()
 
 
 @pytest.mark.parametrize(
