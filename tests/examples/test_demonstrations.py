@@ -6,6 +6,7 @@ from braket.devices import LocalSimulator
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
+from mpqp.core.languages import Language
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 from mpqp.gates import *
@@ -316,12 +317,12 @@ def test_all_native_gates():
     circuit.add([CNOT(0, 1), CRk(4, 2, 1), CZ(1, 2)])
     circuit.add(TOF([0, 1], 2))
 
-    circuit.to_qasm2()
+    circuit.to_other_language(Language.QASM2)
     with pytest.warns(
         UserWarning,
         match=r"There is a phase e\^\(i\(a\+c\)/2\) difference between U\(a,b,c\) gate in 2.0 and 3.0.",
     ):
-        circuit.to_qasm3()
+        circuit.to_other_language(Language.QASM3)
         run(
             circuit,
             [
