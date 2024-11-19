@@ -385,8 +385,7 @@ class QCircuit:
 
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
-            >>> c3 = c1 + c2
-            >>> print(c3)  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(c1 + c2)  # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■─────────────────
                  ┌─┴─┐     ┌───┐
             q_1: ┤ X ├──■──┤ X ├──■──
@@ -451,10 +450,26 @@ class QCircuit:
             The QCircuit resulting from the tensor product of this circuit with
             the one in parameter.
 
-        Example:
+        Examples:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> print(c1.tensor(c2))  # doctest: +NORMALIZE_WHITESPACE
+            q_0: ──■───────
+                 ┌─┴─┐
+            q_1: ┤ X ├──■──
+                 └───┘┌─┴─┐
+            q_2: ─────┤ X ├
+                      └───┘
+            q_3: ──────────
+                 ┌───┐
+            q_4: ┤ X ├──■──
+                 └───┘┌─┴─┐
+            q_5: ─────┤ X ├
+                      └───┘
+
+            >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
+            >>> c2 = QCircuit([X(1),CNOT(1,2)])
+            >>> print(c1 @ c2)  # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■───────
                  ┌─┴─┐
             q_1: ┤ X ├──■──
