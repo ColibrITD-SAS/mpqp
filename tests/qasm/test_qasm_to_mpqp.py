@@ -1,8 +1,10 @@
 import pytest
+from typing import TYPE_CHECKING
 
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.core.instruction import *
 from mpqp.tools.circuit import random_circuit
+from mpqp import Language
 
 
 @pytest.mark.parametrize(
@@ -192,5 +194,7 @@ def test_invalid_qasm_code(qasm_code: str):
 def test_random_qasm_code():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
-        qasm_code = qcircuit.to_qasm2()
+        qasm_code = qcircuit.to_other_language(Language.QASM2)
+        if TYPE_CHECKING:
+            assert isinstance(qasm_code, str)
         assert qcircuit.is_equivalent(qasm2_parse(qasm_code))
