@@ -138,3 +138,5 @@ executing them as follows:
     $ python -m examples.scripts.bell_pair
     $ python -m examples.scripts.demonstration
     $ python -m examples.scripts.observable_job
+
+For more information, please refer to the `notebook page <./examples.html>`_.
