@@ -20,7 +20,6 @@ if TYPE_CHECKING:
 class SimulatedDevice(AvailableDevice):
     """A class used to define simulators reproducing the noise of a real device."""
 
-    # TODO : comment
     def is_gate_based(self) -> bool:
         return True
 
