@@ -66,18 +66,18 @@ def compute_expectation_value(
     corresponding Result.
 
     Args:
-        ibm_circuit: Circuit (with its qbits already reversed) for which we want
+        ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
             to estimate the expectation value.
         job: Job containing the execution input data.
-        simulator: Simulator to be used. This is required for noisy simulations.
+        simulator: AerSimulator to be used to set the EstimatorV2 options.
 
     Returns:
-        The result of the job.
+        The Result of the job.
 
     Raises:
         ValueError: If the job's device is not a
-            :class:`~mpqp.execution.simulated_devices.pyIBMSimulatedDevice` and
-            ``simulator`` is ``None``.
+            :class:`~mpqp.execution.simulated_devices.IBMSimulatedDevice`
+            and ``simulator`` is ``None``.
 
     Note:
         This function is not meant to be used directly, please use
