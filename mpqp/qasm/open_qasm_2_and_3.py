@@ -567,6 +567,17 @@ def open_qasm_hard_includes(
 
 
 class UserGate:
+    """Represents a custom user-defined quantum gate with specified parameters, qubits, and instructions.
+    This class serves as a template for custom gates that can be used in a quantum circuit.
+
+    Args:
+        name: The name of the user-defined gate.
+        parameters: A list of parameter names that the gate requires (e.g., angles, coefficients).
+        qubits: A list of qubit identifiers that the gate operates on.
+        instructions: A list of instructions (quantum operations) that define the gate's behavior.
+
+    """
+
     def __init__(
         self,
         name: str,
@@ -754,6 +765,21 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
 
 
 def remove_include(qasm_code: str) -> str:
+    """
+    Removes all lines containing the word 'include' from the given QASM code.
+
+    Args:
+        qasm_code: The QASM code as a string.
+
+    Returns:
+        str: The QASM code with 'include' lines removed.
+
+    Example:
+        >>> qasm_code = "include 'file.qasm';\nmeasure q[0];"
+        >>> remove_include(qasm_code)
+        'measure q[0];\n'
+
+    """
     replaced_code = ""
     for line in qasm_code.split("\n"):
         if "include" in line:

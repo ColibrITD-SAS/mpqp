@@ -11,10 +11,18 @@ if TYPE_CHECKING:
 
 def config_azure_account():
     """
-    Configure Azure account with resource_id and  Location.
+    Configure the Azure account by setting the resource ID and location.
+
+    This function will prompt the user for their Azure resource ID and location. If
+    the account is already configured, the user will be given the option to update
+    the configuration. The function validates the connection to Azure before saving
+    the credentials.
 
     Returns:
-        tuple: A message indicating the result of the configuration and an empty list.
+        tuple: A tuple containing a message indicating the result of the configuration
+               and an empty list. If the configuration is successful, the message
+               indicates the success, otherwise, it indicates a failure or cancellation.
+
     """
     was_configured = get_env_variable(f"AZURE_CONFIGURED") == "True"
 
@@ -51,10 +59,16 @@ def config_azure_account():
 
 def get_azure_account_info() -> str:
     """
-    Get Azure resource Id and Location.
+    Retrieve Azure resource ID and location information from the environment
+    variables.
 
     Returns:
         str: A string containing the azure resource Id and Location.
+
+    Example:
+        AZURE_RESOURCE_ID: /subs*****
+        AZURE_LOCATION: East US
+
     """
     azure_resource_id = get_env_variable("AZURE_RESOURCE_ID")
     if azure_resource_id == "":
@@ -70,8 +84,17 @@ def test_connection(resource_id: str, Location: str) -> bool:
     """
     Test the connection to Azure service.
 
+    Args:
+        resource_id: The Azure resource ID.
+        location: The Azure resource location.
+
     Returns:
         bool: True if the connection is successful, False otherwise.
+
+    Example:
+        >>> test_connection("/subscriptions/...", "East US")
+        True
+
     """
     from azure.quantum import Workspace
     from azure.quantum.qiskit import AzureQuantumProvider
@@ -89,6 +112,18 @@ def test_connection(resource_id: str, Location: str) -> bool:
 
 
 def get_azure_workspace() -> "Workspace":
+    """
+    Retrieve the Azure Quantum Workspace instance.
+
+    Returns:
+        Workspace: An instance of the Azure Quantum Workspace configured with the
+        resource ID and location from the environment variables.
+
+    Example:
+        >>> workspace = get_azure_workspace()
+        <azure.quantum.workspace.Workspace object at 0x000000000000>
+
+    """
     from azure.quantum import Workspace
 
     return Workspace(
@@ -98,13 +133,29 @@ def get_azure_workspace() -> "Workspace":
 
 
 def get_azure_provider() -> "AzureQuantumProvider":
+    """
+    Retrieve the Azure Quantum Provider.
+
+    Returns:
+        AzureQuantumProvider: An instance of Azure Quantum Provider linked to the
+        Azure Quantum Workspace.
+
+    Example:
+        >>> provider = get_azure_provider()
+        <azure.quantum.qiskit.provider.AzureQuantumProvider object at 0x000000000000>
+
+    """
     from azure.quantum.qiskit import AzureQuantumProvider
 
     return AzureQuantumProvider(get_azure_workspace())
 
 
 def get_all_job_ids():
-    """Retrieves all the task ids of this account/group from Azure.
+    """
+    Retrieve all job IDs associated with the current Azure account/group.
+
+    Returns:
+        list: A list of job IDs for tasks in the Azure Quantum Workspace.
 
     Example:
         >>> get_all_jobs_ids()
@@ -121,6 +172,19 @@ def get_all_job_ids():
 
 
 def get_jobs_by_id(job_id: str):
-    """Retrieves an Azure job by its id."""
+    """
+    Retrieve a specific Azure Quantum job by its ID.
+
+    Args:
+        job_id: The ID of the job to retrieve.
+
+    Returns:
+        Job: The Azure Quantum job object.
+
+    Example:
+        >>> job = get_jobs_by_id('6a46ae9a-d02f-4a23-b46f-eae43471bc22')
+        <azure.quantum.job.job.Job object at 0x0000000000000>
+
+    """
     workspace = get_azure_workspace()
     return workspace.get_job(job_id)
