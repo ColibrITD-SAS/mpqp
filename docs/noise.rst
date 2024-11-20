@@ -13,6 +13,9 @@ We strongly encourage the user to have a look at the
 details about the manipulation, usage, and simulation of noise models are 
 presented.
 
+For more details on how to use noise models taken from real hardware, you can
+look at :ref:`SimulatedDevices`.
+
 .. code-block:: python
     :class: import
 

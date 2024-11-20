@@ -5,13 +5,15 @@ most objects of ``MPQP``, taking a ``language`` argument. This language
 corresponds to said SDK, and you can find the list of available languages in the
 :class:`Language` enum."""
 
-from enum import Enum
+from enum import Enum, auto
 
 
 class Language(Enum):
     """Enumerate containing all the supported languages."""
 
-    QISKIT = 0
-    MY_QLM = 1
-    BRAKET = 2
-    CIRQ = 3
+    QISKIT = auto()
+    MY_QLM = auto()
+    BRAKET = auto()
+    CIRQ = auto()
+    QASM2 = auto()
+    QASM3 = auto()

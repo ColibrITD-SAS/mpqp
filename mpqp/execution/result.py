@@ -30,10 +30,11 @@ import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
+from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
-from mpqp.tools.display import clean_1D_array
+from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
 
 
@@ -202,7 +203,12 @@ class Result:
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
-        >>> job = Job(JobType.SAMPLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG, BasisMeasure([0, 1], shots=1000))
+        >>> job = Job(
+        ...     JobType.SAMPLE,
+        ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
+        ...     ATOSDevice.MYQLM_CLINALG,
+        ...     BasisMeasure([0, 1], shots=1000),
+        ... )
         >>> print(Result(job, [
         ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
@@ -386,7 +392,29 @@ class Result:
         header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
+            measures = self.job.circuit.measurements
+            if not len(measures) == 1:
+                raise ValueError(
+                    "Mismatch between the number of measurements and the job type."
+                )
+            measure = measures[0]
+            if not isinstance(measure, BasisMeasure):
+                raise ValueError("Mismatch between measurements type and job type.")
+
+            assert all(sample.probability is not None for sample in self.samples)
+
+            probabilities = [
+                sample.probability
+                for sample in self.samples
+                if sample.probability is not None
+            ]
+            assert len(probabilities) == len(self.samples)
+
+            samples_str = "\n".join(
+                f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
+                f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
+                for sample, probability in zip(self.samples, probabilities)
+            )
             return f"""{header}
  Counts: {self._counts}
  Probabilities: {clean_1D_array(self.probabilities)}
@@ -477,7 +505,7 @@ class BatchResult:
         >>> result2 = Result(
         ...     Job(
         ...         JobType.SAMPLE,
-        ...         QCircuit(0),
+        ...         QCircuit([BasisMeasure([0,1],shots=500)]),
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         BasisMeasure([0,1],shots=500)
         ...     ),

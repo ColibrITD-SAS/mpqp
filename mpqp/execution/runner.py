@@ -44,6 +44,7 @@ from mpqp.execution.providers.azure import run_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
+from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
@@ -108,13 +109,12 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # TODO: handle other basis by adding the right rotation (change
-            # of basis) before measuring in the computational basis
-            # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
+            modified_circuit = circuit.without_measurements() + measurement.pre_measure
+            modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device)
+                job = Job(JobType.STATE_VECTOR, modified_circuit, device, measurement)
             else:
-                job = Job(JobType.SAMPLE, circuit, device, measurement)
+                job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):
             job = Job(
                 JobType.OBSERVABLE,
@@ -180,6 +180,7 @@ def _run_single(
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
+    circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
@@ -188,10 +189,12 @@ def _run_single(
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not isinstance(device, (ATOSDevice, AWSDevice, IBMDevice)):
+        elif not isinstance(
+            device, (ATOSDevice, AWSDevice, IBMDevice, SimulatedDevice)
+        ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, IBMDevice):
+    if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
@@ -241,7 +244,7 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         >>> batch_result = run(
         ...     c,
@@ -253,13 +256,13 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: 0.0
         Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
@@ -272,13 +275,13 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         Result: X circuit, IBMDevice, AER_SIMULATOR
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
 
     """
