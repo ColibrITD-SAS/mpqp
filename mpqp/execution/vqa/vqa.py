@@ -312,8 +312,6 @@ def _minimize_local_func(
             init_params = [0.0] * nb_params
 
     if isinstance(method, Optimizer):
-        if TYPE_CHECKING:
-            assert method is not None
         res: OptimizeResult = scipy_minimize(
             eval_func,
             x0=np.array(init_params),

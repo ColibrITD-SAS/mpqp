@@ -231,11 +231,14 @@ def extract_result(
             job_type = JobType.OBSERVABLE
             device_params = braket_result.task_metadata.deviceParameters
             if TYPE_CHECKING:
-                assert (
-                    isinstance(device_params, IonqDeviceParameters)
-                    or isinstance(device_params, OqcDeviceParameters)
-                    or isinstance(device_params, RigettiDeviceParameters)
-                    or isinstance(device_params, GateModelSimulatorDeviceParameters)
+                assert isinstance(
+                    device_params,
+                    (
+                        IonqDeviceParameters,
+                        OqcDeviceParameters,
+                        RigettiDeviceParameters,
+                        GateModelSimulatorDeviceParameters,
+                    ),
                 )
             nb_qubits = device_params.paradigmParameters.qubitCount
             shots = braket_result.task_metadata.shots
