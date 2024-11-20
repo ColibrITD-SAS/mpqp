@@ -30,10 +30,6 @@ class BasisMeasure(Measure):
     the operation will apply to all qubits.
 
     Args:
-        targets: List of indices referring to the qubits on which the measure
-            will be applied. Defaults to the entire circuit for
-            :class:`~mpqp.core.instruction.measurement.basis.VariableSizeBasis`
-            and the first qubits matching the size of the basis for other basis.
         c_targets: List of indices referring to the classical bits on which the
             measure will be applied.
         shots: Number of shots to be performed basis: basis in which the qubits
@@ -55,7 +51,6 @@ class BasisMeasure(Measure):
 
     def __init__(
         self,
-        targets: Optional[list[int]] = None,
         c_targets: Optional[list[int]] = None,
         shots: int = 1024,
         basis: Optional[Basis] = None,
@@ -66,7 +61,7 @@ class BasisMeasure(Measure):
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
 
-        super().__init__(targets, shots, label)
+        super().__init__(c_targets, shots, label)
 
         if basis is None:
             basis = ComputationalBasis()
