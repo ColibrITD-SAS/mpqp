@@ -17,7 +17,13 @@ from .execution import (
     run,
     submit,
 )
-from .execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from .execution.devices import (
+    ATOSDevice,
+    AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    AZUREDevice,
+)
 from .execution.remote_handler import get_all_job_ids
 from .execution.vqa import Optimizer, minimize
 from .gates import (
@@ -27,6 +33,7 @@ from .gates import (
     TOF,
     ControlledGate,
     CRk,
+    CRk_dagger,
     CustomGate,
     Gate,
     GateDefinition,
@@ -35,6 +42,7 @@ from .gates import (
     P,
     ParametrizedGate,
     Rk,
+    Rk_dagger,
     Rx,
     Ry,
     Rz,
@@ -58,7 +66,7 @@ from .measures import Measure, Observable, VariableSizeBasis
 from .measures import X as Xop
 from .measures import Y as Yop
 from .measures import Z as Zop
-from .noise import AmplitudeDamping, BitFlip, Depolarizing
+from .noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 
 theta, k = symbols("θ k")

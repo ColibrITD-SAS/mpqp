@@ -68,7 +68,7 @@ class AvailableDevice(Enum):
 
         Returns:
             ``True`` if this device only handles a restricted set of gates."""
-        return True
+        return False
 
 
 class IBMDevice(AvailableDevice):
@@ -204,13 +204,12 @@ class AWSDevice(AvailableDevice):
     BRAKET_DM1_SIMULATOR = "quantum-simulator/amazon/dm1"
     BRAKET_TN1_SIMULATOR = "quantum-simulator/amazon/tn1"
 
-    BRAKET_IONQ_HARMONY = "qpu/ionq/Harmony"
     BRAKET_IONQ_ARIA_1 = "qpu/ionq/Aria-1"
     BRAKET_IONQ_ARIA_2 = "qpu/ionq/Aria-2"
     BRAKET_IONQ_FORTE_1 = "qpu/ionq/Forte-1"
-    BRAKET_OQC_LUCY = "qpu/oqc/Lucy"
     BRAKET_QUERA_AQUILA = "qpu/quera/Aquila"
-    BRAKET_RIGETTI_ASPEN_M_3 = "qpu/rigetti/Aspen-M-3"
+    BRAKET_RIGETTI_ANKAA_2 = "qpu/rigetti/Ankaa-2"
+    BRAKET_IQM_GARNET = "qpu/iqm/Garnet"
 
     def is_remote(self):
         return self != AWSDevice.BRAKET_LOCAL_SIMULATOR
@@ -234,12 +233,12 @@ class AWSDevice(AvailableDevice):
             The arn of the device.
 
         Examples:
-            >>> AWSDevice.BRAKET_IONQ_HARMONY.get_arn()
-            'arn:aws:braket:us-east-1::device/qpu/ionq/Harmony'
+            >>> AWSDevice.BRAKET_IONQ_ARIA_1.get_arn()
+            'arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_arn()
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
-            >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_arn()
-            'arn:aws:braket:us-west-1::device/qpu/rigetti/Aspen-M-3'
+            >>> AWSDevice.BRAKET_RIGETTI_ANKAA_2.get_arn()
+            'arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-2'
 
         """
         region = self.get_region()
@@ -254,22 +253,21 @@ class AWSDevice(AvailableDevice):
             The region of the device.
 
         Examples:
-            >>> AWSDevice.BRAKET_IONQ_HARMONY.get_region()
+            >>> AWSDevice.BRAKET_IONQ_ARIA_1.get_region()
             'us-east-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
             True
-            >>> AWSDevice.BRAKET_RIGETTI_ASPEN_M_3.get_region()
+            >>> AWSDevice.BRAKET_RIGETTI_ANKAA_2.get_region()
             'us-west-1'
 
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
-        elif self == AWSDevice.BRAKET_RIGETTI_ASPEN_M_3:
+        elif self == AWSDevice.BRAKET_RIGETTI_ANKAA_2:
             return "us-west-1"
-        elif self == AWSDevice.BRAKET_OQC_LUCY:
-            return "eu-west-2"
+        elif self == AWSDevice.BRAKET_IQM_GARNET:
+            return "eu-north-1"
         elif self in [
-            AWSDevice.BRAKET_IONQ_HARMONY,
             AWSDevice.BRAKET_IONQ_ARIA_1,
             AWSDevice.BRAKET_IONQ_ARIA_2,
             AWSDevice.BRAKET_IONQ_FORTE_1,
@@ -287,8 +285,8 @@ class AWSDevice(AvailableDevice):
             arn: The AWS arn identifying the AwsDevice.
 
         Examples:
-            >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Harmony')
-            <AWSDevice.BRAKET_IONQ_HARMONY: 'qpu/ionq/Harmony'>
+            >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1')
+            <AWSDevice.BRAKET_IONQ_ARIA_1: 'qpu/ionq/Aria-1'>
             >>> AWSDevice.from_arn('arn:aws:braket:::device/quantum-simulator/amazon/sv1')
             <AWSDevice.BRAKET_SV1_SIMULATOR: 'quantum-simulator/amazon/sv1'>
 
@@ -330,3 +328,46 @@ class GOOGLEDevice(AvailableDevice):
             True if the device is a processor, False otherwise.
         """
         return self.name.startswith("PROCESSOR")
+
+    def has_reduced_gate_set(self) -> bool:
+        return self in {
+            GOOGLEDevice.PROCESSOR_RAINBOW,
+            GOOGLEDevice.PROCESSOR_WEBER,
+            GOOGLEDevice.IONQ_SIMULATOR,
+            GOOGLEDevice.IONQ_QPU,
+        }
+
+
+class AZUREDevice(AvailableDevice):
+    """Enum regrouping all available devices provided by AZURE."""
+
+    IONQ_SIMULATOR = "ionq.simulator"
+    IONQ_QPU = "ionq.qpu"
+    IONQ_QPU_ARIA_1 = "ionq.qpu.aria-1"
+    IONQ_QPU_ARIA_2 = "ionq.qpu.aria-2"
+
+    QUANTUM_SIM_H1_1 = "quantinuum.qpu.h1-1"
+    QUANTUM_SIM_H1_1SC = "quantinuum.sim.h1-1sc"
+    QUANTUM_SIM_H1_1E = "quantinuum.sim.h1-1e"
+
+    RIGETTI_SIM_QVM = "rigetti.sim.qvm"
+    RIGETTI_SIM_QPU_ANKAA_2 = "rigetti.qpu.ankaa-2"
+
+    MICROSOFT_ESTIMATOR = "microsoft.estimator"
+
+    def is_remote(self):
+        return True
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return self == AZUREDevice.IONQ_SIMULATOR
+
+    def is_noisy_simulator(self) -> bool:
+        raise NotImplementedError(
+            'Noisy simulations are not yet implemented for Azure.'
+        )
+
+    def is_ionq(self):
+        return self.name.startswith("IONQ")

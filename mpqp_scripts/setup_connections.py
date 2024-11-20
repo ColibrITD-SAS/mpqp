@@ -15,9 +15,10 @@ os.environ["FOR_DISABLE_CONSOLE_CTRL_HANDLER"] = "1"
 def print_config_info():
     """Displays the information stored for each provider."""
     import mpqp.execution.connection.aws_connection as awsc
+    import mpqp.execution.connection.azure_connection as azuc
     import mpqp.execution.connection.env_manager as env_m
-    import mpqp.execution.connection.google_connection as cirqc
     import mpqp.execution.connection.ibm_connection as ibmqc
+    import mpqp.execution.connection.ionq_connection as ionqc
     from mpqp.tools.errors import IBMRemoteExecutionError
 
     """Prints the info concerning each provider's registered account."""
@@ -42,8 +43,16 @@ def print_config_info():
             print("Account not configured")
         else:
             print("Error occurred when getting AWS account info.")
-    print("===== Cirq info : ===== ")
-    print(cirqc.get_google_account_info())
+    print("===== IonQ info : ===== ")
+    try:
+        print(ionqc.get_ionq_account_info())
+    except Exception as err:
+        print("Error occurred when getting IonQ account info.")
+    print("===== Azure info : ===== ")
+    try:
+        print(azuc.get_azure_account_info())
+    except Exception as err:
+        print("Error occurred when getting Azure account info.")
     input("Press 'Enter' to continue")
     return "", []
 
@@ -54,8 +63,9 @@ def main_setup():
     function has to be executed from a terminal like environment, allowing you
     to type tokens and alike."""
     from mpqp.execution.connection.aws_connection import setup_aws_braket_account
+    from mpqp.execution.connection.azure_connection import config_azure_account
     from mpqp.execution.connection.ibm_connection import setup_ibm_account
-    from mpqp.execution.connection.key_connection import config_ionq_key
+    from mpqp.execution.connection.ionq_connection import config_ionq_key
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
@@ -66,6 +76,7 @@ def main_setup():
             AnswerNode("QLM", setup_qlm_account),
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
+            AnswerNode("Azure", config_azure_account),
             AnswerNode("Recap", print_config_info),
         ],
         leaf_loop_to_here=True,

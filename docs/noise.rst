@@ -53,3 +53,8 @@ Amplitude Damping
 -----------------
 
 .. autoclass:: mpqp.noise.noise_model.AmplitudeDamping
+
+Phase Damping Noise Model
+-----------------------------
+
+.. autoclass:: mpqp.noise.noise_model.PhaseDamping

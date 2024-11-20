@@ -1,6 +1,10 @@
 from __future__ import annotations
+from typing import Optional
+
+from qiskit.circuit import Parameter
 
 from mpqp.core.instruction import Instruction
+from mpqp.core.languages import Language
 
 
 class Breakpoint(Instruction):
@@ -30,3 +34,10 @@ class Breakpoint(Instruction):
             f"Breakpoint(targets={self.targets}, draw_circuit={self.draw_circuit},"
             f" enabled={self.enabled}, label={self.label})"
         )
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ) -> str:
+        raise NotImplementedError(f"Error: {language} is not supported")

@@ -29,9 +29,10 @@ from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, 
 
 from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
+from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
-from .devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from .devices import ATOSDevice, AvailableDevice, AWSDevice, AZUREDevice, IBMDevice
 
 
 class JobStatus(MessageEnum):
@@ -82,7 +83,9 @@ class Job:
 
     Args:
         job_type: Type of the job (sample, observable, ...).
-        circuit: Circuit to execute.
+        circuit: Circuit to execute. In addition of what the user input, this
+            circuit may contain additional parts such as measure adjustment
+            sections.
         device: Device (simulator, quantum computer) on which we want to execute
             the job.
         measure: Object representing the measure to perform.
@@ -142,13 +145,12 @@ class Job:
                 assert isinstance(self.id, str)
                 if isinstance(self.device, ATOSDevice):
                     self._status = get_qlm_job_status(self.id)
-
                 elif isinstance(self.device, IBMDevice):
                     self._status = get_ibm_job_status(self.id)
-
                 elif isinstance(self.device, AWSDevice):
                     self._status = get_aws_job_status(self.id)
-
+                elif isinstance(self.device, AZUREDevice):
+                    self._status = get_azure_job_status(self.id)
                 else:
                     raise NotImplementedError(
                         f"Cannot update job status for the device {self.device} yet"
@@ -160,6 +162,7 @@ class Job:
         self._status = job_status
 
 
+@typechecked
 def get_qlm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a QLM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -195,6 +198,7 @@ def get_qlm_job_status(job_id: str) -> JobStatus:
         return JobStatus.DONE
 
 
+@typechecked
 def get_ibm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of an IBM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -226,6 +230,7 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
         raise ValueError(f"Unexpected IBM job status: {status}")
 
 
+@typechecked
 def get_aws_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a AWS Braket from the id in parameter, and
     returns the corresponding JobStatus of this library.
@@ -249,3 +254,31 @@ def get_aws_job_status(job_id: str) -> JobStatus:
         return JobStatus.RUNNING
     else:
         return JobStatus.DONE
+
+
+@typechecked
+def get_azure_job_status(job_id: str) -> JobStatus:
+    """Retrieves the status of a azure from the id in parameter, and
+    returns the corresponding JobStatus of this library.
+
+    Args:
+        job_id: Id of the job for which we want to retrieve the status.
+    """
+
+    job = get_jobs_by_id(job_id)
+
+    status = job.details.status
+    if status is None:
+        raise ValueError(f"Unexpected azure job status: {status}")
+    if status == "failed":
+        return JobStatus.ERROR
+    elif status == "cancelled":
+        return JobStatus.CANCELLED
+    elif status == "succeeded":
+        return JobStatus.DONE
+    elif status == "waiting":
+        return JobStatus.QUEUED
+    elif status == "executing":
+        return JobStatus.RUNNING
+    else:
+        raise ValueError(f"Unexpected azure job status: {status}")

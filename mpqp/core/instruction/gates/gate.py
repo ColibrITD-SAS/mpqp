@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from copy import deepcopy
 from functools import reduce
 from typing import Optional
+from warnings import warn
 
 import numpy as np
 from scipy.linalg import fractional_matrix_power
@@ -11,6 +12,7 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.instruction import Instruction
+from mpqp.tools.errors import NumberQubitsWarning
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
 
@@ -163,7 +165,11 @@ class Gate(Instruction, ABC):
         return CustomGate(
             UnitaryMatrix(self.to_matrix().transpose().conjugate()),
             self.targets,
-            self.label,
+            (
+                None
+                if self.label is None
+                else (self.label[:-1] if self.label.endswith("†") else self.label + "†")
+            ),
         )
 
     def is_equivalent(self, other: Gate) -> bool:
@@ -219,6 +225,7 @@ class Gate(Instruction, ABC):
                     0.        +0.j        , 1.        +0.j        ]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -229,11 +236,14 @@ class Gate(Instruction, ABC):
             label=None if self.label is None else self.label + f"^{exponent}",
         )
 
-    def tensor_product(self, other: Gate) -> Gate:
+    def tensor_product(self, other: Gate, targets: Optional[list[int]] = None) -> Gate:
         """Compute the tensor product of the current gate.
 
         Args:
             other: Second operand of the tensor product.
+            targets: If need be, the targets of the gates can be overridden
+                using this value. Leave it empty to use the default automatic
+                inference.
 
         Returns:
             A Gate representing a tensor product of this gate with the gate in
@@ -250,23 +260,26 @@ class Gate(Instruction, ABC):
         """
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
-        gd = UnitaryMatrix(
-            np.kron(self.to_matrix(), other.to_matrix())
-        )  # self, gate, type="tensor"
+        if targets is None:
+            if len(set(self.targets).intersection(other.targets)) != 0:
+                warn(
+                    f"""
+Targets have to change gecause the two gates overlap on qubits 
+{set(self.targets).intersection(other.targets)}
+If need be, please use the optional argument `targets` to remove all ambiguity. 
+Naive attribution will be used (targets start at 0 and of the right length)""",
+                    NumberQubitsWarning,
+                )
+                targets = list(range(self.nb_qubits + other.nb_qubits))
+            else:
+                targets = self.targets + other.targets
 
-        # compute the list of qubits that will be targeted by these gates
-        ...
-
-        # instantiate the definition
+        gd = UnitaryMatrix(np.kron(self.to_matrix(), other.to_matrix()))
 
         l1 = "g1" if self.label is None else self.label
         l2 = "g2" if self.label is None else self.label
 
-        return CustomGate(
-            definition=gd,
-            targets=[0],
-            label=f"{l1}⊗{l2}",
-        )
+        return CustomGate(definition=gd, targets=targets, label=f"{l1}⊗{l2}")
 
     def _mandatory_label(self, postfix: str = ""):
         return "g" + postfix if self.label is None else self.label
@@ -286,9 +299,10 @@ class Gate(Instruction, ABC):
         Example:
             >>> pprint((X(0).product(Z(0))).to_matrix())
             [[0, -1],
-             [1, 0]]
+             [1, 0 ]]
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -314,6 +328,7 @@ class Gate(Instruction, ABC):
                    [0.+1.j, 0.+0.j]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -341,6 +356,7 @@ class Gate(Instruction, ABC):
                    [ 0.70710678,  0.70710678]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         subtraction = self.to_matrix() - other.to_matrix()
@@ -368,6 +384,7 @@ class Gate(Instruction, ABC):
                    [ 0.70710678, -0.70710678]])
 
         """
+        # 3M-TODO: to test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         addition = self.to_matrix() + other.to_matrix()
