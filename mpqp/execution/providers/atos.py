@@ -16,7 +16,7 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.gates import CNOT, CRk, Rk
-from mpqp.noise.noise_model import Depolarizing, NoiseModel
+from mpqp.noise import *
 
 from ...tools.errors import (
     AdditionalGateNoiseWarning,
@@ -138,6 +138,7 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
             hw_model = generate_hardware_model(
                 job.circuit.noises, job.circuit.nb_qubits
             )
+
             qpu = NoisyQProc(
                 hw_model,
                 sim_method="stochastic",
@@ -279,6 +280,8 @@ def generate_hardware_model(
     )
     from qat.quops.class_concepts import QuantumChannel
 
+    # TODO refacto this function, shorten it, regroup similar code parts
+
     all_qubits_target = True
 
     gate_noise_global: dict[str, QuantumChannel] = {}
@@ -292,17 +295,22 @@ def generate_hardware_model(
 
     # For each noise model
     for noise in noises:
-        if not isinstance(noise, Depolarizing):
-            raise NotImplementedError("So far, only depolarizing noise is supported.")
         this_noise_all_qubits_target = True
 
         if CRk in noise.gates:
             noise.gates.remove(CRk)
             if CNOT not in noise.gates:
                 noise.gates.append(CNOT)
-            noises.append(
-                Depolarizing(noise.prob, noise.targets, dimension=1, gates=[Rk])
-            )
+            if isinstance(noise, Depolarizing):
+                noises.append(
+                    Depolarizing(noise.prob, noise.targets, dimension=1, gates=[Rk])
+                )
+            elif isinstance(noise, BitFlip):
+                noises.append(BitFlip(noise.prob, noise.targets, gates=[Rk]))
+            elif isinstance(noise, AmplitudeDamping):
+                noises.append(
+                    AmplitudeDamping(noise.gamma, noise.prob, noise.targets, gates=[Rk])
+                )
             warnings.warn(
                 "Requested noise on CRk gate will introduce noise on CNOT and "
                 "Rk (PH) due to its decomposition in my_QLM",

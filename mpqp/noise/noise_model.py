@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from functools import reduce
 from itertools import product
 from typing import TYPE_CHECKING, Optional, Sequence
+import numpy as np
 
 import numpy as np
 import numpy.typing as npt
@@ -341,12 +342,13 @@ class Depolarizing(DimensionalNoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
+            >>> depo = Depolarizing(0.3, [0,1], dimension=1)
+            >>> braket_depolarizing = depo.to_other_language(Language.BRAKET)
             >>> braket_depolarizing
             Depolarizing('probability': 0.3, 'qubit_count': 1)
             >>> type(braket_depolarizing)
             <class 'braket.circuits.noises.Depolarizing'>
-            >>> qiskit_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT)
+            >>> qiskit_depolarizing = depo.to_other_language(Language.QISKIT)
             >>> qiskit_depolarizing.to_quantumchannel()
             SuperOp([[0.85+0.j, 0.  +0.j, 0.  +0.j, 0.15+0.j],
                      [0.  +0.j, 0.7 +0.j, 0.  +0.j, 0.  +0.j],
@@ -356,7 +358,7 @@ class Depolarizing(DimensionalNoiseModel):
 
             >>> type(qiskit_depolarizing)
             <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
-            >>> qlm_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
+            >>> qlm_depolarizing = depo.to_other_language(Language.MY_QLM)
             >>> print(qlm_depolarizing)  # doctest: +NORMALIZE_WHITESPACE
             Depolarizing channel, p = 0.3:
             [[0.83666003 0.        ]
@@ -400,9 +402,7 @@ class Depolarizing(DimensionalNoiseModel):
                     "Depolarizing channel of dimension 2 for idle qubits is not supported by the QLM."
                 )
 
-            from qat.quops import (
-                make_depolarizing_channel,  # pyright: ignore[reportAttributeAccessIssue]
-            )
+            from qat.quops.quantum_channels import make_depolarizing_channel
 
             return make_depolarizing_channel(
                 prob=self.prob,
@@ -490,12 +490,13 @@ class BitFlip(NoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET)
+            >>> bp = BitFlip(0.3, [0,1])
+            >>> braket_bitflip = bp.to_other_language(Language.BRAKET)
             >>> braket_bitflip
             BitFlip('probability': 0.3, 'qubit_count': 1)
             >>> type(braket_bitflip)
             <class 'braket.circuits.noises.BitFlip'>
-            >>> qiskit_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT)
+            >>> qiskit_bitflip = bp.to_other_language(Language.QISKIT)
             >>> qiskit_bitflip.to_quantumchannel()
             SuperOp([[0.7+0.j, 0. +0.j, 0. +0.j, 0.3+0.j],
                      [0. +0.j, 0.7+0.j, 0.3+0.j, 0. +0.j],
@@ -505,6 +506,15 @@ class BitFlip(NoiseModel):
 
             >>> type(qiskit_bitflip)
             <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
+            >>> qlm_bp = bp.to_other_language(Language.MY_QLM)
+            >>> print(qlm_bp)  # doctest: +NORMALIZE_WHITESPACE
+            Bit Flip channel, prob=0.3:
+            [[0.83666003 0.        ]
+             [0.         0.83666003]]
+            [[0.         0.54772256]
+             [0.54772256 0.        ]]
+            >>> type(qlm_bp)
+            <class 'qat.quops.quantum_channels.QuantumChannelKraus'>
 
         """
 
@@ -518,7 +528,16 @@ class BitFlip(NoiseModel):
 
             return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
-        # TODO: MY_QLM implementation
+        elif language == Language.MY_QLM:
+            from qat.quops.quantum_channels import QuantumChannelKraus
+
+            return QuantumChannelKraus(
+                [
+                    np.sqrt(1 - self.prob) * np.eye(2),
+                    np.sqrt(self.prob) * np.array([[0, 1], [1, 0]]),
+                ],
+                "Bit Flip channel, prob=" + str(self.prob),
+            )
 
         else:
             raise NotImplementedError(f"{language.name} not yet supported.")
@@ -644,6 +663,19 @@ class AmplitudeDamping(NoiseModel):
 
             >>> type(qiskit_ad)
             <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
+            >>> qlm_ad = AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.MY_QLM)
+            >>> print(qlm_ad)  # doctest: +NORMALIZE_WHITESPACE
+            generalized amplitude damping, p = 0.4, lambda = 0.2:
+            [[0.63245553 0.        ]
+             [0.         0.56568542]]
+            [[0.         0.28284271]
+             [0.         0.        ]]
+            [[0.69282032 0.        ]
+             [0.         0.77459667]]
+            [[0.         0.        ]
+             [0.34641016 0.        ]]
+            >>> type(qlm_ad)
+            <class 'qat.quops.quantum_channels.QuantumChannelKraus'>
 
         """
         if language == Language.BRAKET:
@@ -658,7 +690,10 @@ class AmplitudeDamping(NoiseModel):
 
                 return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
-        # TODO: MY_QLM implementation
+        elif language == Language.MY_QLM:
+            from qat.quops.quantum_channels import make_generalized_amplitude_damping
+
+            return make_generalized_amplitude_damping(self.prob, self.gamma)
 
         elif language == Language.QISKIT:
             from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
@@ -677,6 +712,7 @@ class AmplitudeDamping(NoiseModel):
         return f"{super().info()} with gamma {self.gamma}{prob}"
 
 
+@typechecked
 class PhaseDamping(NoiseModel):
     """Class representing the phase damping noise channel. It can be applied to a
     single qubit and depends on the phase damping parameter ``gamma``. Phase damping happens
@@ -803,6 +839,7 @@ class PhaseDamping(NoiseModel):
         return f"{super().info()} with gamma {self.gamma}"
 
 
+@typechecked
 class Pauli(NoiseModel):
     """3M-TODO"""
 
@@ -812,6 +849,7 @@ class Pauli(NoiseModel):
         )
 
 
+@typechecked
 class Dephasing(NoiseModel):
     """3M-TODO"""
 
@@ -821,6 +859,7 @@ class Dephasing(NoiseModel):
         )
 
 
+@typechecked
 class PhaseFlip(NoiseModel):
     """3M-TODO"""
 
