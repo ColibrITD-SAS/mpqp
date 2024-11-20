@@ -1201,7 +1201,7 @@ class QCircuit:
             >>> theta, k = symbols("θ k")
             >>> c = QCircuit(
             ...     [Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1), H(0), CRk(k, 0, 1),
-            ...      BasisMeasure(list(range(3)), shots=1000)]
+            ...      BasisMeasure(shots=1000)]
             ... )
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                             ┌─┐
