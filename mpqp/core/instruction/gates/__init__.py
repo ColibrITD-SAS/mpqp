@@ -13,6 +13,7 @@ from .native_gates import (
     H,
     Id,
     P,
+    CP,
     Rk,
     Rk_dagger,
     Rx,

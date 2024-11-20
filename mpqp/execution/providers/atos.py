@@ -225,7 +225,8 @@ def generate_sample_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
         A myQLM Job for sampling the circuit according to the mpqp Job parameters.
     """
 
-    assert job.measure is not None
+    if TYPE_CHECKING:
+        assert job.measure is not None
 
     myqlm_job = myqlm_circuit.to_job(
         job_type="SAMPLE",
@@ -247,7 +248,8 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     Returns:
         A myQLM Job for retrieving the expectation value of the observable.
     """
-    assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
+    if TYPE_CHECKING:
+        assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
     qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
@@ -537,7 +539,8 @@ def extract_sample_result(
         result.
     """
     if job is None:
-        assert isinstance(myqlm_result.qregs[0].length, int)
+        if TYPE_CHECKING:
+            assert isinstance(myqlm_result.qregs[0].length, int)
         nb_qubits = (
             myqlm_result.qregs[0].length
             if device.is_remote()
@@ -695,7 +698,8 @@ def run_myQLM(job: Job) -> Result:
 
     myqlm_circuit = job_pre_processing(job)
 
-    assert isinstance(job.device, ATOSDevice)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, ATOSDevice)
     qpu = get_local_qpu(job.device)
     if job.job_type == JobType.OBSERVABLE:
         from qat.plugins.observable_splitter import ObservableSplitter
@@ -706,11 +710,9 @@ def run_myQLM(job: Job) -> Result:
         myqlm_job = generate_state_vector_job(myqlm_circuit)
 
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(job.measure, BasisMeasure)
         myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
-        assert isinstance(job.measure, ExpectationMeasure)
         myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
@@ -750,19 +752,17 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
     myqlm_circuit = job_pre_processing(job)
 
-    assert isinstance(job.device, ATOSDevice)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, ATOSDevice)
     qpu = get_remote_qpu(job.device, job)
 
     if job.job_type == JobType.STATE_VECTOR:
-        assert isinstance(job.device, ATOSDevice)
         myqlm_job = generate_state_vector_job(myqlm_circuit)
 
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(job.measure, BasisMeasure)
         myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
-        assert isinstance(job.measure, ExpectationMeasure)
         myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:

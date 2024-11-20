@@ -66,24 +66,24 @@ def compute_expectation_value(
     corresponding Result.
 
     Args:
-        ibm_circuit: Circuit (with its qbits already reversed) for which we want
+        ibm_circuit: QuantumCircuit (with its qubits already reversed) for which we want
             to estimate the expectation value.
         job: Job containing the execution input data.
-        simulator: Simulator to be used. This is required for noisy simulations.
+        simulator: AerSimulator to be used to set the EstimatorV2 options.
 
     Returns:
-        The result of the job.
+        The Result of the job.
 
     Raises:
         ValueError: If the job's device is not a
-            :class:`~mpqp.execution.simulated_devices.pyIBMSimulatedDevice` and
-            ``simulator`` is ``None``.
+            :class:`~mpqp.execution.simulated_devices.IBMSimulatedDevice`
+            and ``simulator`` is ``None``.
 
     Note:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    from qiskit.primitives import Estimator
+    from qiskit.quantum_info import SparsePauliOp
 
     if not isinstance(job.measure, ExpectationMeasure):
         raise ValueError(
@@ -92,9 +92,8 @@ def compute_expectation_value(
         )
     nb_shots = job.measure.shots
     qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
-    if TYPE_CHECKING:
-        from qiskit.quantum_info import SparsePauliOp
 
+    if TYPE_CHECKING:
         assert isinstance(qiskit_observable, SparsePauliOp)
 
     if isinstance(job.device, IBMSimulatedDevice):
@@ -161,7 +160,7 @@ def check_job_compatibility(job: Job):
             f"{type(job.measure).__name__} was given instead."
         )
 
-    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_statevector():
+    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_state_vector():
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
             "a local device supporting state vector jobs instead (or change the job "
@@ -179,6 +178,12 @@ def check_job_compatibility(job: Job):
             " simulators and devices. Please use a local simulator instead."
         )
 
+    if job.job_type == JobType.OBSERVABLE and not (
+        job.device.supports_observable_ideal() or job.device.supports_observable()
+    ):
+        raise DeviceJobIncompatibleError(
+            f"Expectation values cannot be computed with {job.device.name} device"
+        )
     if isinstance(job.device, IBMSimulatedDevice):
         if job.device.value().num_qubits < job.circuit.nb_qubits:
             raise DeviceJobIncompatibleError(
@@ -452,7 +457,9 @@ def run_aer(job: Job):
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.SAMPLE:
-        assert job.measure is not None
+        if TYPE_CHECKING:
+            assert job.measure is not None
+
         job.status = JobStatus.RUNNING
 
         if isinstance(job.device, IBMSimulatedDevice):
@@ -461,7 +468,7 @@ def run_aer(job: Job):
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
         if TYPE_CHECKING:
-            assert isinstance(job.device, IBMDevice)
+            assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:
@@ -535,7 +542,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(meas, BasisMeasure)
+        if TYPE_CHECKING:
+            assert isinstance(meas, BasisMeasure)
         sampler = Runtime_Sampler(mode=session)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
@@ -626,7 +634,8 @@ def extract_result(
                     device,
                     BasisMeasure(list(range(nb_qubits)), shots=shots),
                 )
-            assert job.measure is not None
+            if TYPE_CHECKING:
+                assert job.measure is not None
 
             counts = (
                 res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
@@ -698,7 +707,8 @@ def extract_result(
                 )
                 return Result(job, state_vector, 0, 0)
             elif job.job_type == JobType.SAMPLE:
-                assert job.measure is not None
+                if TYPE_CHECKING:
+                    assert job.measure is not None
                 if type(device) == AZUREDevice:
                     from mpqp.execution.providers.azure import (
                         extract_samples as extract_samples_azure,
@@ -750,7 +760,8 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     # If the job is finished, it will get the result, if still running it is block until it finishes
     result = ibm_job.result()
     backend = ibm_job.backend()
-    assert isinstance(backend, (BackendV1, BackendV2))
+    if TYPE_CHECKING:
+        assert isinstance(backend, (BackendV1, BackendV2))
     ibm_device = IBMDevice(backend.name)
 
     return extract_result(result, None, ibm_device)

@@ -1,9 +1,10 @@
 import pytest
 
 from mpqp.all import *
+from mpqp.tools.circuit import random_circuit
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
-from mpqp.tools.circuit import random_circuit
+from mpqp.tools.display import format_element
 
 
 @pytest.mark.parametrize(
@@ -435,6 +436,7 @@ y q;""",
                 T(0),
                 CNOT(0, 1),
                 CRk(1, 1, 0),
+                CP(1, 1, 0),
                 Rk(1, 1),
                 CZ(0, 1),
                 Ry(0, 0),
@@ -454,6 +456,7 @@ u(pi,pi/2,2.5) q[0];
 t q[0];
 cx q[0],q[1];
 cp(pi) q[1],q[0];
+cp(1) q[1],q[0];
 p(pi) q[1];
 cz q[0],q[1];
 ry(0) q;
@@ -491,6 +494,23 @@ def test_mpqp_to_qasm_simplify(instructions: list[Instruction], qasm_expectation
     assert qasm_expectation == qasm
 
 
+def normalize_string(string: str):
+    import re
+    from typing import Match
+
+    def simplify_expression(match: Match[str]):
+        from numpy import pi, e
+
+        components = match.group(1).split(',')
+        simplified = [
+            format_element(eval(comp, {"pi": pi, "e": e}), 4) for comp in components
+        ]
+        return f"({','.join(simplified)})"
+
+    pattern = r'\(([^()]+)\)'
+    return re.sub(pattern, simplify_expression, string)
+
+
 def test_random_mpqp_to_qasm():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
@@ -498,4 +518,8 @@ def test_random_mpqp_to_qasm():
 
         qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
-        assert qasm2.dumps(qiskit_circuit) == qcircuit.to_other_language(Language.QASM2)
+        qiskit_qasm = normalize_string(qasm2.dumps(qiskit_circuit))
+        mpqp_qasm = qcircuit.to_other_language(Language.QASM2)
+        assert isinstance(mpqp_qasm, str)
+        mpqp_qasm = normalize_string(mpqp_qasm)
+        assert qiskit_qasm == mpqp_qasm

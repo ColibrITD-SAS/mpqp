@@ -145,6 +145,7 @@ class Gate(Instruction, ABC):
              [0, 0, 0, 1]]
 
         """
+        pass
 
     def inverse(self) -> Gate:
         """Computing the inverse of this gate.

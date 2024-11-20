@@ -319,12 +319,13 @@ def test_all_native_gates():
 
     circuit.to_other_language(Language.QASM2)
     circuit.to_other_language(Language.QASM3, translation_warning=False)
-    run(
-        circuit,
-        [
-            ATOSDevice.MYQLM_PYLINALG,
-            ATOSDevice.MYQLM_CLINALG,
-            IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        ],
-    )
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        run(
+            circuit,
+            [
+                ATOSDevice.MYQLM_PYLINALG,
+                ATOSDevice.MYQLM_CLINALG,
+                IBMDevice.AER_SIMULATOR_STATEVECTOR,
+                AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            ],
+        )

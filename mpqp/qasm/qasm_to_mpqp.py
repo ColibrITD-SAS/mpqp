@@ -8,7 +8,6 @@ from ply.lex import lex
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
-import numpy as np
 from mpqp.gates import *
 from mpqp.measures import *
 from mpqp.core.instruction import Barrier
@@ -18,7 +17,7 @@ from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include_and_co
 
 # TODO:
 # if: not handle
-# barrier: handle for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
+# barrier: handled for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
 # no ID name handle for qreg or creg
 
 lexer = None
@@ -224,8 +223,6 @@ def _Gate_two_qubits_parametrized(
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
     parameter, idx = _eval_expr(tokens, idx)
-    if gate_str == 'cp':
-        parameter = np.log2(np.pi / parameter) + 1
     if (
         check_Id(tokens, idx)
         or tokens[idx + 4].type != 'COMMA'
@@ -295,6 +292,8 @@ def _Gate_tof(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 
 def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
+    import numpy as np  # pyright: ignore[reportUnusedImport]
+
     expr = ""
     while tokens[idx].type != 'COMMA' and tokens[idx].type != 'RPAREN':
         if check_num_expr(tokens[idx].type):
@@ -335,7 +334,7 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     elif gate_str == 'u2':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
-    elif gate_str == 'u3' or gate_str == 'u':
+    elif gate_str == 'u3' or gate_str == 'u' or gate_str == 'U':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
         lbda, idx = _eval_expr(tokens, idx)

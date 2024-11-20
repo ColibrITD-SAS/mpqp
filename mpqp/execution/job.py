@@ -144,7 +144,8 @@ class Job:
             # in the remote case, we need to check the current status of the job.
             # in the local case, it is updated automatically after each step
             if self.device.is_remote():
-                assert isinstance(self.id, str)
+                if TYPE_CHECKING:
+                    assert isinstance(self.id, str)
                 if isinstance(self.device, ATOSDevice):
                     self._status = get_qlm_job_status(self.id)
                 elif isinstance(self.device, IBMDevice):

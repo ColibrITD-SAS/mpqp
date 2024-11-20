@@ -6,12 +6,13 @@ breakpoints is in fact once per breakpoint, and for each run the circuit is
 truncated up to the breakpoint."""
 
 from __future__ import annotations
-from typing import Optional
-
-from qiskit.circuit import Parameter
+from typing import TYPE_CHECKING, Optional
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.languages import Language
+
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
 
 
 class Breakpoint(Instruction):

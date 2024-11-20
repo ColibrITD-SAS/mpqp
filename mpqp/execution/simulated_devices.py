@@ -5,9 +5,6 @@ mother class of all noisy devices reproducing real hardware for several provider
 For the moment, only IBM simulated devices are available (so called `FakeBackend`), but the structure is ready to allow
 other simulated devices (QLM has this feature for instance."""
 
-# TODO: finish doc
-
-
 from typing import TYPE_CHECKING
 
 from typeguard import typechecked
@@ -42,7 +39,7 @@ class SimulatedDevice(AvailableDevice):
 class StaticIBMSimulatedDevice(SimulatedDevice):
     """A class regrouping methods specific to an ``IBMSimulatedDevice``."""
 
-    def supports_statevector(self):
+    def supports_state_vector(self):
         return False
 
     def to_noisy_simulator(self) -> "AerSimulator":

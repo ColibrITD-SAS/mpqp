@@ -1,9 +1,11 @@
 import pytest
+from typing import TYPE_CHECKING
 
 from mpqp.core.instruction.barrier import Language
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.core.instruction import *
 from mpqp.tools.circuit import random_circuit
+from mpqp import Language
 
 
 @pytest.mark.parametrize(
@@ -151,12 +153,14 @@ from mpqp.tools.circuit import random_circuit
             
             h q[0];
             cx q[0], q[1];
+            cp(0.5) q[0], q[1];
             measure q[0] -> c[2];
             measure q[1] -> c[1];
             measure q[2] -> c[0];""",
             [
                 H(0),
                 CNOT(0, 1),
+                CP(0.5, 0, 1),
                 BasisMeasure([0], [2]),
                 BasisMeasure([1], [1]),
                 BasisMeasure([2], [0]),
@@ -193,8 +197,7 @@ def test_invalid_qasm_code(qasm_code: str):
 def test_random_qasm_code():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
-        from qiskit import qasm2, QuantumCircuit
-
-        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
-        assert isinstance(qiskit_circuit, QuantumCircuit)
-        assert qcircuit.is_equivalent(qasm2_parse(qasm2.dumps(qiskit_circuit)))
+        qasm_code = qcircuit.to_other_language(Language.QASM2)
+        if TYPE_CHECKING:
+            assert isinstance(qasm_code, str)
+        assert qcircuit.is_equivalent(qasm2_parse(qasm_code))

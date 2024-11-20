@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import inspect
+import sys
 from abc import ABC, abstractmethod
 from functools import reduce
 from itertools import product
@@ -316,7 +318,6 @@ class Depolarizing(DimensionalNoiseModel):
 
         prob_upper_bound = 1 if dimension == 1 else 1 + 1 / (dimension**2 - 1)
         if not (0 <= prob <= prob_upper_bound):
-            print(dimension, prob, prob_upper_bound)
             raise ValueError(
                 f"Invalid probability: {prob} but should have been between 0 "
                 f"and {prob_upper_bound}."
@@ -406,6 +407,8 @@ class Depolarizing(DimensionalNoiseModel):
                 method_2q="equal_probs",
                 depol_type="pauli",
             )
+        else:
+            raise NotImplementedError(f"Depolarizing is not implemented for {language}")
 
     def info(self) -> str:
         dimension = f" and dimension {self.dimension}" if self.dimension != 1 else ""
@@ -851,3 +854,15 @@ class PhaseFlip(NoiseModel):
         raise NotImplementedError(
             f"{type(self).__name__} noise model is not yet implemented."
         )
+
+
+NOISE_MODELS = [
+    cls
+    for _, cls in inspect.getmembers(sys.modules[__name__], inspect.isclass)
+    if issubclass(cls, NoiseModel)
+    and not (
+        any("ABC" in base.__name__ for base in cls.__bases__)
+        or "M-TODO" in (cls.__doc__ or "")
+    )
+]
+"""All concrete noise models."""

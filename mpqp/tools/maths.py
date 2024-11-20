@@ -180,7 +180,8 @@ def cos(angle: Expr | Real) -> sp.Expr | float:
         from sympy import Expr
 
         res = sp.cos(angle)
-        assert isinstance(res, Expr)
+        if TYPE_CHECKING:
+            assert isinstance(res, Expr)
         return res
 
 
@@ -204,7 +205,8 @@ def sin(angle: Expr | Real) -> sp.Expr | float:
         from sympy import Expr
 
         res = sp.sin(angle)
-        assert isinstance(res, Expr)
+        if TYPE_CHECKING:
+            assert isinstance(res, Expr)
         return res
 
 
@@ -228,7 +230,8 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
         from sympy import Expr
 
         res = sp.exp(angle)
-        assert isinstance(res, Expr)
+        if TYPE_CHECKING:
+            assert isinstance(res, Expr)
         return res
 
 
