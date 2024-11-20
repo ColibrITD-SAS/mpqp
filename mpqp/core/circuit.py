@@ -956,7 +956,7 @@ class QCircuit:
                 new_circ.name = self.label
 
             for instruction in self.instructions:
-                if isinstance(instruction, Measure):
+                if isinstance(instruction, (Measure, Breakpoint)):
                     continue
                 qiskit_inst = instruction.to_other_language(language, qiskit_parameters)
                 if TYPE_CHECKING:
@@ -983,8 +983,6 @@ class QCircuit:
                     qargs = instruction.targets
                 elif isinstance(instruction, Barrier):
                     qargs = range(self.nb_qubits)
-                elif isinstance(instruction, Breakpoint):
-                    continue
                 else:
                     raise ValueError(f"Instruction not handled: {instruction}")
 
