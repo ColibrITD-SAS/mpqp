@@ -152,12 +152,14 @@ from mpqp import Language
             
             h q[0];
             cx q[0], q[1];
+            cp(0.5) q[0], q[1];
             measure q[0] -> c[2];
             measure q[1] -> c[1];
             measure q[2] -> c[0];""",
             [
                 H(0),
                 CNOT(0, 1),
+                CRk(3.651496129472319, 0, 1),  # pyright: ignore[reportArgumentType]
                 BasisMeasure([0], [2]),
                 BasisMeasure([1], [1]),
                 BasisMeasure([2], [0]),

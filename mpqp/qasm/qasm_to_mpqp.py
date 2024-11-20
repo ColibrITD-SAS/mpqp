@@ -335,7 +335,7 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     elif gate_str == 'u2':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
-    elif gate_str == 'u3' or gate_str == 'u':
+    elif gate_str == 'u3' or gate_str == 'u' or gate_str == 'U':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
         lbda, idx = _eval_expr(tokens, idx)
