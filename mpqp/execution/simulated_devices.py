@@ -5,9 +5,6 @@ mother class of all noisy devices reproducing real hardware for several provider
 For the moment, only IBM simulated devices are available (so called `FakeBackend`), but the structure is ready to allow
 other simulated devices (QLM has this feature for instance."""
 
-# TODO: finish doc
-
-
 from typing import TYPE_CHECKING
 
 from typeguard import typechecked
