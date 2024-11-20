@@ -37,9 +37,9 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
+    AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
-    AZUREDevice,
 )
 from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.execution.job import Job, JobStatus, JobType
@@ -113,13 +113,12 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # TODO: handle other basis by adding the right rotation (change
-            # of basis) before measuring in the computational basis
-            # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
+            modified_circuit = circuit.without_measurements() + measurement.pre_measure
+            modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device)
+                job = Job(JobType.STATE_VECTOR, modified_circuit, device, measurement)
             else:
-                job = Job(JobType.SAMPLE, circuit, device, measurement)
+                job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):
             job = Job(
                 JobType.OBSERVABLE,
@@ -248,7 +247,7 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         >>> batch_result = run(
         ...     c,
@@ -260,13 +259,13 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: 0.0
         Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
@@ -279,13 +278,13 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         Result: X circuit, IBMDevice, AER_SIMULATOR
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
 
     """

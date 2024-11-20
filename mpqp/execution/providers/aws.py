@@ -70,7 +70,7 @@ def apply_noise_to_braket_circuit(
             braket_noise,  # pyright: ignore[reportArgumentType]
             target_gates=(
                 [
-                    gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
+                    gate.braket_gate
                     for gate in noise.gates
                     if hasattr(gate, "braket_gate")
                 ]
@@ -171,7 +171,6 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         assert isinstance(braket_circuit, Circuit)
 
     if job.job_type == JobType.STATE_VECTOR:
-        job.circuit = job.circuit.without_measurements()
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=0, inputs=None)

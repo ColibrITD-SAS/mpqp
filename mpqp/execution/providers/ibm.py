@@ -83,7 +83,6 @@ def compute_expectation_value(
         This function is not meant to be used directly, please use
         :func:``~mpqp.execution.runner.run`` instead.
     """
-
     from qiskit.quantum_info import SparsePauliOp
 
     if not isinstance(job.measure, ExpectationMeasure):
@@ -447,7 +446,8 @@ def run_aer(job: Job):
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=0)
         result_sim = job_sim.result()
-        assert isinstance(job.device, IBMDevice)
+        if TYPE_CHECKING:
+            assert isinstance(job.device, IBMDevice)
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.SAMPLE:
@@ -459,7 +459,8 @@ def run_aer(job: Job):
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
-        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+        if TYPE_CHECKING:
+            assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:
@@ -503,8 +504,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     qiskit_circ = qiskit_circ.reverse_bits()
 
     service = get_QiskitRuntimeService()
-
-    assert isinstance(job.device, IBMDevice)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     session = Session(service=service, backend=backend)
 
@@ -563,8 +564,8 @@ def run_remote_ibm(job: Job) -> Result:
     """
     _, remote_job = submit_remote_ibm(job)
     ibm_result = remote_job.result()
-
-    assert isinstance(job.device, IBMDevice)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, IBMDevice)
     return extract_result(ibm_result, job, job.device)
 
 
