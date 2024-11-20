@@ -177,7 +177,7 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
             IBMDevice.AER_SIMULATOR_STABILIZER,
-            #IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 
