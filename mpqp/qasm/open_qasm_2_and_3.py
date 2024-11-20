@@ -762,27 +762,3 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
                     qasm_code = qasm_code.replace(match.group(0), expanded_instructions)
 
     return qasm_code
-
-
-def remove_include(qasm_code: str) -> str:
-    r"""Removes all lines containing the word 'include' from the given QASM code.
-
-    Args:
-        qasm_code: The QASM code as a string.
-
-    Returns:
-        The QASM code with 'include' lines removed.
-
-    Example:
-        >>> qasm_code = "include 'file.qasm';\nmeasure q[0];"
-        >>> remove_include(qasm_code)
-        'measure q[0];\n'
-
-    """
-    replaced_code = ""
-    for line in qasm_code.split("\n"):
-        if "include" in line:
-            pass
-        else:
-            replaced_code += line + "\n"
-    return replaced_code
