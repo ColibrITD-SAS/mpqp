@@ -13,12 +13,11 @@ circuits from OpenQASM code.
 
 .. note::
     To learn more about how we generate OpenQASM code from a 
-    :class:`~mpqp.core.circuit.QCircuit`, have a look at the 
-    :meth:`~mpqp.core.circuit.QCircuit.to_qasm2` and 
-    :meth:`~mpqp.core.circuit.QCircuit.to_qasm3` methods of this class.
+    :class:`~mpqp.core.circuit.QCircuit`, have a look at the
+    :meth:`~mpqp.core.circuit.QCircuit.to_other_language`.
 
-From OpenQASM2.0 to OpenQASM3.0
--------------------------------
+OpenQASM2.0 and OpenQASM3.0 utility 
+-----------------------------------
 
 .. automodule:: mpqp.qasm.open_qasm_2_and_3
 

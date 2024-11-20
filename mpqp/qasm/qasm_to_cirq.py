@@ -33,6 +33,21 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
 
     Returns:
         a Circuit equivalent to the QASM code in parameter
+
+     Example:
+        >>> qasm_code = '''
+        ... OPENQASM 2.0;
+        ... include "qelib1.inc";
+        ... qreg q[2];
+        ... h q[0];
+        ... cx q[0], q[1];
+        ... '''
+        >>> circuit = qasm2_to_cirq_Circuit(qasm_code)
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
+        q_0: ───I───H───@───
+                        │
+        q_1: ───I───────X───
+
     """
     import numpy as np
     from cirq.circuits.qasm_output import QasmUGate

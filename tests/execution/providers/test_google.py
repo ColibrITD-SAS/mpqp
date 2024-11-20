@@ -66,7 +66,7 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
     ],
 )
 def test_running_local_cirq(circuit: QCircuit):
-    return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+    run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
 @pytest.mark.parametrize(

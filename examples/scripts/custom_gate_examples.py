@@ -1,6 +1,7 @@
 """CustomGate examples"""
 
 from mpqp import QCircuit
+from mpqp.core.instruction.barrier import Language
 from mpqp.execution import *
 from mpqp.gates import *
 import numpy as np
@@ -26,6 +27,6 @@ print(
 
 ######
 print(circuit.to_other_language())
-print(circuit.to_qasm2())
-print(circuit.to_qasm3())
+print(circuit.to_other_language(Language.QASM2))
+print(circuit.to_other_language(Language.QASM3))
 print(circuit.gphase)
