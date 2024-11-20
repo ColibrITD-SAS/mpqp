@@ -26,11 +26,16 @@ def test_unitary_matrix_is_equivalent(
     [np.array([[symbols("theta"), 0], [0, 1]])],
 )
 def test_unitary_matrix_inverse_failing(matrix: npt.NDArray[np.complex64]):
+    with pytest.warns(
+        UserWarning,
+        match="Cannot ensure that a operator defined with symbolic variables is unitary.",
+    ):
+        unitary_matrix = UnitaryMatrix(matrix)
     with pytest.raises(
         ValueError,
         match="Cannot invert arbitrary gates using symbolic variables",
     ):
-        UnitaryMatrix(matrix).inverse()
+        unitary_matrix.inverse()
 
 
 @pytest.mark.parametrize(
