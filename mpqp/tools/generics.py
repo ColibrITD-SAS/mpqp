@@ -125,6 +125,7 @@ def find(sequence: Sequence[T], oracle: Callable[[T], bool]) -> T:
     return sequence[find_index(sequence, oracle)]
 
 
+@typechecked
 def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     """Finds the index of the first element in the iterable that satisfies the
     given oracle.
@@ -175,6 +176,7 @@ class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
     pass
 
 
+@typechecked
 class classproperty:
     """Decorator yo unite the ``classmethod`` and ``property`` decorators."""
 
@@ -185,6 +187,7 @@ class classproperty:
         return self.fget(owner)
 
 
+@typechecked
 def _get_doc(enum: type[Any], member: str):
     src = getsource(enum)
     member_pointer = src.find(member)
@@ -193,6 +196,7 @@ def _get_doc(enum: type[Any], member: str):
     return src[docstr_start:docstr_end]
 
 
+@typechecked
 class MessageEnum(Enum):
     """Enum subclass allowing you to access the docstring of the members of your
     enum through the ``message`` property.
