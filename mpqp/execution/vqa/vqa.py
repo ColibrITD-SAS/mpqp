@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Collection, Optional, TypeVar, Union, TYPE_CHECKING
+from typing import Any, Callable, Collection, Optional, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -312,8 +312,6 @@ def _minimize_local_func(
             init_params = [0.0] * nb_params
 
     if isinstance(method, Optimizer):
-        if TYPE_CHECKING:
-            assert method is not None
         res: OptimizeResult = scipy_minimize(
             eval_func,
             x0=np.array(init_params),
