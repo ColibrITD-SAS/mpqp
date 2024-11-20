@@ -1010,7 +1010,8 @@ class QCircuit:
                     continue
                 qiskit_inst = measurement.to_other_language(language, qiskit_parameters)
                 if isinstance(measurement, BasisMeasure):
-                    assert measurement.c_targets is not None
+                    if TYPE_CHECKING:
+                        assert measurement.c_targets is not None
                     qargs = [measurement.targets]
                     cargs = [measurement.c_targets]
                 else:

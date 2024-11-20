@@ -85,7 +85,6 @@ def run_google_remote(job: Job) -> Result:
                 f"{job.device}: job_type must be {JobType.SAMPLE} but got job type {job.job_type}"
             )
 
-        assert isinstance(job.measure, BasisMeasure)
         service = ionq.Service(default_target=job.device.value)
         job_CirqCircuit = optimize_for_target_gateset(
             job_CirqCircuit, gateset=IonQTargetGateset()
@@ -94,6 +93,8 @@ def run_google_remote(job: Job) -> Result:
             {qb: LineQubit(i) for i, qb in enumerate(job_CirqCircuit.all_qubits())}
         )
 
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, BasisMeasure)
         return extract_result_SAMPLE(
             service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
         )
@@ -148,7 +149,8 @@ def run_local(job: Job) -> Result:
     if job.job_type == JobType.STATE_VECTOR:
         return extract_result_STATE_VECTOR(simulator.simulate(cirq_circuit), job)
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(job.measure, BasisMeasure)
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, BasisMeasure)
         return extract_result_SAMPLE(
             simulator.run(cirq_circuit, repetitions=job.measure.shots), job
         )
@@ -156,12 +158,14 @@ def run_local(job: Job) -> Result:
         from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
         from cirq.ops.pauli_string import PauliString as Cirq_PauliString
 
-        assert isinstance(job.measure, ExpectationMeasure)
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, ExpectationMeasure)
 
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
-        assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
+        if TYPE_CHECKING:
+            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
@@ -241,12 +245,14 @@ def run_local_processor(job: Job) -> Result:
         from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
         from cirq.ops.pauli_string import PauliString as Cirq_PauliString
 
-        assert isinstance(job.measure, ExpectationMeasure)
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, ExpectationMeasure)
 
         cirq_obs = job.measure.observable.to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
-        assert type(cirq_obs) == Cirq_PauliSum or type(cirq_obs) == Cirq_PauliString
+        if TYPE_CHECKING:
+            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
 
         if job.measure.shots == 0:
             raise DeviceJobIncompatibleError(
@@ -259,7 +265,8 @@ def run_local_processor(job: Job) -> Result:
             job,
         )
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(job.measure, BasisMeasure)
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, BasisMeasure)
 
         return extract_result_SAMPLE(
             simulator.get_sampler(job.device.value).run(
@@ -394,7 +401,8 @@ def extract_result_OBSERVABLE_shot_noise(
     pauli_mono = PauliString.from_other_language(
         [r.observable for r in results], job.measure.nb_qubits
     )
-    assert isinstance(pauli_mono, list)
+    if TYPE_CHECKING:
+        assert isinstance(pauli_mono, list)
     variances = {pm: r.variance for pm, r in zip(pauli_mono, results)}
     return Result(
         job,
