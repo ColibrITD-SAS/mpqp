@@ -33,7 +33,9 @@ OptimizerCallable = Callable[
 def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
     """Does like zip, but with a dictionary instead of a list of tuples"""
     if len(l1) != len(l2):
-        ValueError(f"Length of the two collections are not equal ({len(l1)} and {len(l2)}).")
+        ValueError(
+            f"Length of the two collections are not equal ({len(l1)} and {len(l2)})."
+        )
     return {e1: e2 for e1, e2 in zip(l1, l2)}
 
 
