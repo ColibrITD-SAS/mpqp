@@ -147,7 +147,7 @@ from mpqp.tools.circuit import random_circuit
 
             qreg q[3];
             creg c[3];
-            \\\\ this is a comment
+            // this is a comment
             
             h q[0];
             cx q[0], q[1];

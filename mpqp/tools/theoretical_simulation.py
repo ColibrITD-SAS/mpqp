@@ -52,7 +52,7 @@ def amplitude(
 
     state = np.zeros((d), dtype=np.complex64)
     state[0] = 1
-    gates = circ.get_gates()
+    gates = circ.gates
     print(state)
 
     for gate in gates:
