@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 from numpy.random import Generator
-from qiskit import QuantumCircuit, transpile
+from qiskit import QuantumCircuit
 from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 from typeguard import typechecked
 
