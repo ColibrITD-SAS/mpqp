@@ -18,7 +18,7 @@ from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include_and_co
 
 # TODO:
 # if: not handle
-# barrier: handle for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
+# barrier: handled for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
 # no ID name handle for qreg or creg
 
 lexer = None
@@ -335,7 +335,7 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     elif gate_str == 'u2':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
-    elif gate_str == 'u3' or gate_str == 'u':
+    elif gate_str == 'u3' or gate_str == 'u' or gate_str == 'U':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
         lbda, idx = _eval_expr(tokens, idx)
