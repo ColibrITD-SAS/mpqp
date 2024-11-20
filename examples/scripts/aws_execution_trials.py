@@ -48,8 +48,8 @@ circuit.add(CNOT(1, 2))
 circuit.add(Rx(3.14, 1))
 circuit.add(CNOT(3, 0))
 circuit.add(Rz(3.14, 0))
-# Add measurement
-circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
+# Add measurement for all qubits (implicit target)
+circuit.add(BasisMeasure(shots=2000))
 
 res = run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 print(res)
@@ -73,9 +73,9 @@ circuit = QCircuit(2, label="Observable test")
 # Constructing the circuit by adding gates and measurements
 circuit.add(H(0))
 circuit.add(Rx(1.76, 1))
-circuit.add(ExpectationMeasure(obs, shots=0))
+circuit.add(ExpectationMeasure(obs))
 
-# Running the computation on myQLM and on Aer simulator, then retrieving the results
+# Running the ideal computation on Braket and myQLM simulators, then retrieving the results
 result = run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 print(result)
 

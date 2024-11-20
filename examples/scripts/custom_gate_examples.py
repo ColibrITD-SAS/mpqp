@@ -1,9 +1,10 @@
 """CustomGate examples"""
 
-from mpqp import QCircuit
+import numpy as np
+
+from mpqp import Language, QCircuit
 from mpqp.execution import *
 from mpqp.gates import *
-import numpy as np
 
 unitary = UnitaryMatrix(
     np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0], [0, 0, 1, 0]])
@@ -19,13 +20,12 @@ print(
             IBMDevice.AER_SIMULATOR,
             ATOSDevice.MYQLM_PYLINALG,
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, TODO: put it back when Cirq handles CustomGate correctly
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
     )
 )
 
-######
-print(circuit.to_other_language())
-print(circuit.to_qasm2())
-print(circuit.to_qasm3())
+print(circuit.to_other_language(Language.QISKIT))
+print(circuit.to_other_language(Language.QASM2))
+print(circuit.to_other_language(Language.QASM3))
 print(circuit.gphase)
