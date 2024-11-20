@@ -9,14 +9,17 @@ you can find bellow:
 - :class:`ATOSDevice`,
 - :class:`AWSDevice`,
 - :class:`GOOGLEDevice`.
+- :class:`AZUREDevice`.
 
 Not all combinations of :class:`AvailableDevice` and 
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
 compatible jobs types and devices.
 
+For more information about handling Remote devices, please refer to the `Remote devices handling <execution-extras.html>`_ section.
+
 .. csv-table:: Job/Device Compatibility Matrix
    :file: ../../docs/resources/job-device_compat.csv
-   :widths: 7, 25, 7, 10, 10, 15
+   :widths: 7, 25, 6, 7, 10, 10, 15
    :header-rows: 1
 """
 
@@ -208,12 +211,12 @@ class AWSDevice(AvailableDevice):
     BRAKET_DM1_SIMULATOR = "quantum-simulator/amazon/dm1"
     BRAKET_TN1_SIMULATOR = "quantum-simulator/amazon/tn1"
 
-    BRAKET_IONQ_ARIA_1 = "qpu/ionq/Aria-1"
-    BRAKET_IONQ_ARIA_2 = "qpu/ionq/Aria-2"
-    BRAKET_IONQ_FORTE_1 = "qpu/ionq/Forte-1"
-    BRAKET_QUERA_AQUILA = "qpu/quera/Aquila"
-    BRAKET_RIGETTI_ANKAA_2 = "qpu/rigetti/Ankaa-2"
-    BRAKET_IQM_GARNET = "qpu/iqm/Garnet"
+    IONQ_ARIA_1 = "qpu/ionq/Aria-1"
+    IONQ_ARIA_2 = "qpu/ionq/Aria-2"
+    IONQ_FORTE_1 = "qpu/ionq/Forte-1"
+    QUERA_AQUILA = "qpu/quera/Aquila"
+    RIGETTI_ANKAA_2 = "qpu/rigetti/Ankaa-2"
+    IQM_GARNET = "qpu/iqm/Garnet"
 
     def is_remote(self):
         return self != AWSDevice.BRAKET_LOCAL_SIMULATOR
@@ -237,11 +240,11 @@ class AWSDevice(AvailableDevice):
             The arn of the device.
 
         Examples:
-            >>> AWSDevice.BRAKET_IONQ_ARIA_1.get_arn()
+            >>> AWSDevice.IONQ_ARIA_1.get_arn()
             'arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_arn()
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
-            >>> AWSDevice.BRAKET_RIGETTI_ANKAA_2.get_arn()
+            >>> AWSDevice.RIGETTI_ANKAA_2.get_arn()
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-2'
 
         """
@@ -257,25 +260,25 @@ class AWSDevice(AvailableDevice):
             The region of the device.
 
         Examples:
-            >>> AWSDevice.BRAKET_IONQ_ARIA_1.get_region()
+            >>> AWSDevice.IONQ_ARIA_1.get_region()
             'us-east-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
             True
-            >>> AWSDevice.BRAKET_RIGETTI_ANKAA_2.get_region()
+            >>> AWSDevice.RIGETTI_ANKAA_2.get_region()
             'us-west-1'
 
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
-        elif self == AWSDevice.BRAKET_RIGETTI_ANKAA_2:
+        elif self == AWSDevice.RIGETTI_ANKAA_2:
             return "us-west-1"
-        elif self == AWSDevice.BRAKET_IQM_GARNET:
+        elif self == AWSDevice.IQM_GARNET:
             return "eu-north-1"
         elif self in [
-            AWSDevice.BRAKET_IONQ_ARIA_1,
-            AWSDevice.BRAKET_IONQ_ARIA_2,
-            AWSDevice.BRAKET_IONQ_FORTE_1,
-            AWSDevice.BRAKET_QUERA_AQUILA,
+            AWSDevice.IONQ_ARIA_1,
+            AWSDevice.IONQ_ARIA_2,
+            AWSDevice.IONQ_FORTE_1,
+            AWSDevice.QUERA_AQUILA,
         ]:
             return "us-east-1"
         else:
@@ -290,7 +293,7 @@ class AWSDevice(AvailableDevice):
 
         Examples:
             >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1')
-            <AWSDevice.BRAKET_IONQ_ARIA_1: 'qpu/ionq/Aria-1'>
+            <AWSDevice.IONQ_ARIA_1: 'qpu/ionq/Aria-1'>
             >>> AWSDevice.from_arn('arn:aws:braket:::device/quantum-simulator/amazon/sv1')
             <AWSDevice.BRAKET_SV1_SIMULATOR: 'quantum-simulator/amazon/sv1'>
 
@@ -351,9 +354,9 @@ class AZUREDevice(AvailableDevice):
     IONQ_QPU_ARIA_1 = "ionq.qpu.aria-1"
     IONQ_QPU_ARIA_2 = "ionq.qpu.aria-2"
 
-    QUANTUM_SIM_H1_1 = "quantinuum.qpu.h1-1"
-    QUANTUM_SIM_H1_1SC = "quantinuum.sim.h1-1sc"
-    QUANTUM_SIM_H1_1E = "quantinuum.sim.h1-1e"
+    QUANTINUUM_SIM_H1_1 = "quantinuum.qpu.h1-1"
+    QUANTINUUM_SIM_H1_1SC = "quantinuum.sim.h1-1sc"
+    QUANTINUUM_SIM_H1_1E = "quantinuum.sim.h1-1e"
 
     RIGETTI_SIM_QVM = "rigetti.sim.qvm"
     RIGETTI_SIM_QPU_ANKAA_2 = "rigetti.qpu.ankaa-2"

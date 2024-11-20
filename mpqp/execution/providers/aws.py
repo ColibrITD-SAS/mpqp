@@ -336,7 +336,7 @@ def estimate_cost_single_job(
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0, 1), CNOT(1, 2), BasisMeasure(shots=245)])
-        >>> job = generate_job(circuit, AWSDevice.BRAKET_IONQ_ARIA_1)
+        >>> job = generate_job(circuit, AWSDevice.IONQ_ARIA_1)
         >>> estimate_cost_single_job(job, hybrid_iterations=150)
         1147.5
 

@@ -106,7 +106,7 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
             retrieved.
 
     Example:
-        >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ANKAA_2)
+        >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_2)
         >>> device.properties.action['braket.ir.openqasm.program'].supportedResultTypes
         [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
