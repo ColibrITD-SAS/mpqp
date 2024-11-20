@@ -54,7 +54,7 @@ def amplitude(
 
     state = np.zeros((d), dtype=np.complex64)
     state[0] = 1
-    gates = circ.get_gates()
+    gates = circ.gates
     print(state)
 
     for gate in gates:
@@ -112,7 +112,7 @@ def theoretical_probs(
 
     state = np.zeros((d, d), dtype=np.complex64)
     state[0, 0] = 1
-    gates = circ.get_gates()
+    gates = circ.gates
 
     for gate in gates:
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)

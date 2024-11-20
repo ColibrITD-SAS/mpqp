@@ -205,7 +205,7 @@ rz(0) q[1];
 ccx q[0],q[1],q[2];""",
         ),
         (
-            [Barrier(0)],
+            [Barrier(1)],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];
@@ -262,7 +262,7 @@ def test_mpqp_to_qasm_gate(instructions: list[Instruction], qasm_expectation: st
 )
 def test_mpqp_to_qasm_custom_gate(instructions: list[Instruction]):
     circuit = QCircuit(instructions)
-    from qiskit import qasm2, QuantumCircuit
+    from qiskit import QuantumCircuit, qasm2
 
     qiskit_circuit = circuit.to_other_language(Language.QISKIT)
     assert isinstance(qiskit_circuit, QuantumCircuit)
@@ -463,7 +463,7 @@ ry(0) q;
 ccx q[0],q[1],q[2];""",
         ),
         (
-            [Barrier()],
+            [Barrier(1)],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];
@@ -514,7 +514,7 @@ def normalize_string(string: str):
 def test_random_mpqp_to_qasm():
     for _ in range(15):
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
-        from qiskit import qasm2, QuantumCircuit
+        from qiskit import QuantumCircuit, qasm2
 
         qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)

@@ -43,10 +43,13 @@ class BasisMeasure(Measure):
         label: Label used to identify the measure.
 
     Examples:
-        >>> c1 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c1.add(BasisMeasure([0, 1], shots=1024))
-        >>> c2 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c2.add(BasisMeasure([0, 1], shots=1024, basis=HadamardBasis()))
+        >>> c1 = QCircuit([H(0), H(1), CNOT(0,1), BasisMeasure()])
+        >>> c2 = QCircuit([
+        ...     H(0),
+        ...     H(2),
+        ...     CNOT(0,1),
+        ...     BasisMeasure([0, 1], shots=512, basis=HadamardBasis())
+        ... ])
 
     """
 

@@ -44,13 +44,24 @@ from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 @typechecked
 def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
-    """Converting a OpenQASM 3.0 code into a Braket Program.
+    r"""Converting a OpenQASM 3.0 code into a Braket Program.
 
     Args:
         qasm3_str: A string representing the OpenQASM 3.0 code.
 
     Returns:
         A Program equivalent to the QASM code in parameter.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 3.0;
+        ... qubit[2] q;
+        ... h q[0];
+        ... '''
+        >>> program = qasm3_to_braket_Program(qasm_code)
+        >>> print(program)
+        braketSchemaHeader=BraketSchemaHeader(name='braket.ir.openqasm.program', version='1') source='\nOPENQASM 3.0;\nqubit[2] q;\nh q[0];\n' inputs=None
+
     """
     from braket.ir.openqasm import Program
 
@@ -73,6 +84,21 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
 
     Returns:
         A Circuit equivalent to the QASM code in parameter.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 3.0;
+        ... qubit[2] q;
+        ... h q[0];
+        ... '''
+        >>> circuit = qasm3_to_braket_Circuit(qasm_code)
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
+        T  : │  0  │
+              ┌───┐
+        q0 : ─┤ H ├─
+              └───┘
+        T  : │  0  │
+
     """
     # PROBLEM: import and standard gates are not supported by Braket
     # NOTE: however custom OpenQASM 3 gates declaration is supported by Braket,

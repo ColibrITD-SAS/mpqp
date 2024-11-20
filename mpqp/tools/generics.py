@@ -18,6 +18,8 @@ restrictive. :func:`find` allow us a much more versatile search using an
 from __future__ import annotations
 
 from abc import ABCMeta
+
+# from functools import update_wrapper
 from inspect import getsource
 from typing import (
     TYPE_CHECKING,
@@ -182,6 +184,9 @@ class classproperty:
 
     def __init__(self, func: Callable[..., Any]):
         self.fget = func
+        # update_wrapper(self, func) sadly, this is not enough since the doc
+        # accessed by sphinx is in fact the doc of the returned object, I don't
+        # know what we could do about that TODO: investigate the question
 
     def __get__(self, instance: object, owner: object):
         return self.fget(owner)
@@ -218,7 +223,8 @@ class MessageEnum(Enum):
     """
 
     message: str
-    """Each of the members of the eum will have the ``message`` attribute."""
+    """This is an attribute for each member of the enum, giving more information
+    about it."""
 
     def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
         super().__init__(*args, **kwds)

@@ -53,7 +53,7 @@ def run_ibm(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     return run_aer(job) if not job.device.is_remote() else run_remote_ibm(job)
 
@@ -81,7 +81,7 @@ def compute_expectation_value(
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``~mpqp.execution.runner.run`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit.quantum_info import SparsePauliOp
 
@@ -247,7 +247,7 @@ def generate_qiskit_noise_model(
         ]
     )
 
-    gate_instructions = modified_circuit.get_gates()
+    gate_instructions = modified_circuit.gates
 
     noisy_identity_counter = 0
 
@@ -407,7 +407,7 @@ def run_aer(job: Job):
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     check_job_compatibility(job)
 
@@ -493,7 +493,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit import QuantumCircuit
     from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
@@ -569,7 +569,7 @@ def run_remote_ibm(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     _, remote_job = submit_remote_ibm(job)
     ibm_result = remote_job.result()

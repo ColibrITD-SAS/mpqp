@@ -35,7 +35,7 @@ class CustomGate(Gate):
         >>> u = UnitaryMatrix(np.array([[0,-1],[1,0]]))
         >>> cg = CustomGate(u, [0])
         >>> print(run(QCircuit([X(0), cg]), IBMDevice.AER_SIMULATOR))
-        Result: None, IBMDevice, AER_SIMULATOR
+        Result: IBMDevice, AER_SIMULATOR
          State vector: [-1, 0]
          Probabilities: [1, 0]
          Number of qubits: 1
@@ -90,8 +90,9 @@ class CustomGate(Gate):
                 qiskit_parameters = set()
             return QiskitOperator(self.matrix)
         elif language == Language.QASM2:
-            from mpqp.tools.circuit import replace_custom_gate
             from qiskit import QuantumCircuit, qasm2
+
+            from mpqp.tools.circuit import replace_custom_gate
 
             nb_qubits = max(self.targets) + 1
 

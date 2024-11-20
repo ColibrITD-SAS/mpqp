@@ -9,13 +9,14 @@ from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
 
 from mpqp import Barrier, Instruction, Language, QCircuit
-from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import I, Z as Pauli_Z
 from mpqp.core.instruction.gates import native_gates
 from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import I
+from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
 from mpqp.execution.devices import ATOSDevice
 from mpqp.execution.runner import run
-from mpqp.gates import CNOT, CZ, SWAP, TOF, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z, CRk
+from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 from mpqp.tools.circuit import compute_expected_matrix, random_circuit
@@ -194,7 +195,7 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
     ],
 )
 def test_get_measurements(circuit: QCircuit, result_repr: str):
-    assert one_lined_repr(circuit.get_measurements()) == result_repr
+    assert one_lined_repr(circuit.measurements) == result_repr
 
 
 @pytest.mark.parametrize(

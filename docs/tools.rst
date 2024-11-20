@@ -29,6 +29,16 @@ Generics
 
 .. automodule:: mpqp.tools.generics
 
+Display helpers
+---------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.display import *
+
+.. automodule:: mpqp.tools.display
+
 Errors
 ------
 
@@ -38,6 +48,16 @@ Errors
     from mpqp.tools.errors import *
 
 .. automodule:: mpqp.tools.errors
+
+Circuit tricks
+--------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.circuit import *
+
+.. automodule:: mpqp.tools.circuit
 
 Choice Tree
 -----------

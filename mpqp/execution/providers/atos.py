@@ -671,7 +671,7 @@ def run_atos(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     return run_myQLM(job) if not job.device.is_remote() else run_QLM(job)
 
@@ -688,7 +688,7 @@ def run_myQLM(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     result = None
@@ -744,7 +744,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     myqlm_job = None
@@ -791,13 +791,13 @@ def run_QLM(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     if not isinstance(job.device, ATOSDevice) or not job.device.is_remote():
         raise ValueError(
-            "This job's device is not a QLM one, so it cannot be handled by this "
-            "function. Use ``run`` instead."
+            "This job's device is not a QLM one, so it cannot be handled by "
+            "this function. Use `run` instead."
         )
 
     _, async_result = submit_QLM(job)

@@ -199,7 +199,7 @@ class Result:
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
-        Result: None, ATOSDevice, MYQLM_CLINALG
+        Result: ATOSDevice, MYQLM_CLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
@@ -213,7 +213,7 @@ class Result:
         ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
-        Result: None, ATOSDevice, MYQLM_CLINALG
+        Result: ATOSDevice, MYQLM_CLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
          Samples:
@@ -222,7 +222,7 @@ class Result:
          Error: 0.034
         >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
-        Result: None, ATOSDevice, MYQLM_CLINALG
+        Result: ATOSDevice, MYQLM_CLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
 
@@ -396,10 +396,11 @@ class Result:
         return self._counts
 
     def __str__(self):
-        header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
+        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
+        header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
-            measures = self.job.circuit.get_measurements()
+            measures = self.job.circuit.measurements
             if not len(measures) == 1:
                 raise ValueError(
                     "Mismatch between the number of measurements and the job type."
@@ -508,7 +509,8 @@ class BatchResult:
 
     Example:
         >>> result1 = Result(
-        ...     Job(JobType.STATE_VECTOR,QCircuit(0),ATOSDevice.MYQLM_PYLINALG),
+        ...     Job(JobType.STATE_VECTOR,QCircuit(0, label="StateVector circuit"),
+        ...     ATOSDevice.MYQLM_PYLINALG),
         ...     StateVector(np.array([1, 1, 1, -1])/2, 2),
         ...     0,
         ...     0
@@ -516,7 +518,7 @@ class BatchResult:
         >>> result2 = Result(
         ...     Job(
         ...         JobType.SAMPLE,
-        ...         QCircuit([BasisMeasure([0,1],shots=500)]),
+        ...         QCircuit([BasisMeasure([0,1],shots=500)], label="Sample circuit"),
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         BasisMeasure([0,1],shots=500)
         ...     ),
@@ -524,7 +526,8 @@ class BatchResult:
         ...     0.034,
         ...     500)
         >>> result3 = Result(
-        ...     Job(JobType.OBSERVABLE,QCircuit(0),ATOSDevice.MYQLM_PYLINALG),
+        ...     Job(JobType.OBSERVABLE,QCircuit(0, label="Observable circuit"),
+        ...     ATOSDevice.MYQLM_PYLINALG),
         ...     -3.09834,
         ...     0.021,
         ...     2048
@@ -532,22 +535,22 @@ class BatchResult:
         >>> batch_result = BatchResult([result1, result2, result3])
         >>> print(batch_result)
         BatchResult: 3 results
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
          Samples:
           State: 00, Index: 0, Count: 250, Probability: 0.5
           State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
         >>> print(batch_result[0])
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
