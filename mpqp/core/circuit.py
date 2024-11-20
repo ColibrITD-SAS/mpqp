@@ -13,6 +13,19 @@ specific registers using python features, for instance
     >>> ancillas = range(3,6)
     >>> for i in range(3):
     ...     circ.add(CNOT(targets[i], ancillas[i]))
+    >>> print(circ)  # doctest: +NORMALIZE_WHITESPACE
+    q_0: ──■────────────
+           │
+    q_1: ──┼────■───────
+           │    │
+    q_2: ──┼────┼────■──
+         ┌─┴─┐  │    │
+    q_3: ┤ X ├──┼────┼──
+         └───┘┌─┴─┐  │
+    q_4: ─────┤ X ├──┼──
+              └───┘┌─┴─┐
+    q_5: ──────────┤ X ├
+                   └───┘
     
 could be use to add CNOT gates to your circuit, using the two registers
 ``targets`` and ``ancillas``.
@@ -77,22 +90,20 @@ class QCircuit:
         q_0:
         q_1:
 
-        >>> circuit = QCircuit(5, nb_cbits=2, label="Circuit 1")
-        >>> circuit.add(Rx(1.23, 3))
+        >>> circuit = QCircuit([Rx(1.23, 2)], nb_qubits=4, nb_cbits=2, label="Circuit 1")
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-        QCircuit Circuit 1: Size (Qubits, Cbits) = (5, 2), Nb instructions = 1
+        QCircuit Circuit 1: Size (Qubits, Cbits) = (4, 2), Nb instructions = 1
         q_0: ────────────
         q_1: ────────────
-        q_2: ────────────
              ┌──────────┐
-        q_3: ┤ Rx(1.23) ├
+        q_2: ┤ Rx(1.23) ├
              └──────────┘
-        q_4: ────────────
+        q_3: ────────────
         c: 2/════════════
 
         >>> circuit = QCircuit(3, label="NoiseExample")
         >>> circuit.add([H(0), T(1), CNOT(0,1), S(2)])
-        >>> circuit.add(BasisMeasure(list(range(3)), shots=2345))
+        >>> circuit.add(BasisMeasure(shots=2345))
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
         QCircuit NoiseExample: Size (Qubits, Cbits) = (3, 3), Nb instructions = 5
@@ -167,7 +178,7 @@ class QCircuit:
         Examples:
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
-            >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
+            >>> circuit.add([CNOT(0, 1), BasisMeasure(shots=100)])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
                  ┌───┐     ┌─┐
@@ -557,7 +568,7 @@ class QCircuit:
             >>> c2 = QCircuit(3,nb_cbits=2)
             >>> c2.size()
             (3, 2)
-            >>> c3 = QCircuit([CNOT(0,1),CNOT(1,2), BasisMeasure([0,1,2], shots=200)])
+            >>> c3 = QCircuit([CNOT(0,1),CNOT(1,2), BasisMeasure(shots=200)])
             >>> c3.size()
             (3, 3)
 
@@ -842,11 +853,11 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([
-            ...     BasisMeasure([0, 1], shots=1000),
+            ...     BasisMeasure(shots=1000),
             ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
-            [BasisMeasure([0, 1], shots=1000),
+            [BasisMeasure(shots=1000),
             ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
 
         """
@@ -859,7 +870,7 @@ class QCircuit:
             A copy of this circuit with all the measurements removed.
 
         Example:
-            >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
+            >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure(shots=100)])
             >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
@@ -904,7 +915,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit(2)
-            >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure([0, 1], shots=100)])
+            >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure(shots=100)])
             >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
                       ┌─┐
             q_0: ──■──┤M├───
