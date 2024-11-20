@@ -1,6 +1,7 @@
 import pytest
 from typing import TYPE_CHECKING
 
+from mpqp.core.instruction.barrier import Language
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.core.instruction import *
 from mpqp.tools.circuit import random_circuit
