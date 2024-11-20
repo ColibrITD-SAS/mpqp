@@ -2,16 +2,28 @@ from __future__ import annotations
 
 import re
 
+from numpy import exp
 import pytest
 
+from mpqp.all import *
 from mpqp.qasm.open_qasm_2_and_3 import (
+    open_qasm_file_conversion_3_to_2,
     open_qasm_file_conversion_2_to_3,
     open_qasm_hard_includes,
     parse_user_gates,
     remove_user_gates,
+    open_qasm_2_to_3,
+    open_qasm_3_to_2,
 )
+from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.tools.theoretical_simulation import amplitude
 
 qasm_folder = "tests/qasm/qasm_examples/"
+
+
+def normalize_whitespace(s: str) -> str:
+    """Helper function to normalize the whitespace by collapsing multiple spaces and removing leading/trailing spaces."""
+    return re.sub(r'\s+', ' ', s.strip())
 
 
 def test_qasm_hard_import():
@@ -42,17 +54,294 @@ def test_circular_dependency_detection():
 
 
 def test_circular_dependency_detection_false_positive():
-    try:
-        open_qasm_file_conversion_2_to_3(
-            qasm_folder + "circular_dep_a.qasm",
+    open_qasm_file_conversion_2_to_3(qasm_folder + "circular_dep_a.qasm")
+
+
+def test_in_time_gate_def_3_to_2():
+    file_name = qasm_folder + "in_time_gate_def_converted.qasm"
+    with pytest.raises(ValueError):
+        open_qasm_file_conversion_3_to_2(file_name)
+
+
+def test_late_gate_def_3_to_2():
+    with pytest.raises(ValueError):
+        open_qasm_file_conversion_3_to_2(qasm_folder + "late_gate_def.qasm")
+
+
+def test_circular_dependency_detection_3_to_2():
+    with pytest.raises(RuntimeError) as e:
+        open_qasm_file_conversion_3_to_2(
+            qasm_folder + "circular_dep1.qasm",
         )
-    except RuntimeError:
-        assert False, f"Circular dependency raised while it shouldn't"
+    assert "Circular dependency" in str(e.value)
 
 
-def normalize_whitespace(s: str) -> str:
-    """Helper function to normalize the whitespace by collapsing multiple spaces and removing leading/trailing spaces."""
-    return re.sub(r'\s+', ' ', s.strip())
+def test_circular_dependency_detection_false_positive_3_to_2():
+    open_qasm_file_conversion_3_to_2(qasm_folder + "circular_dep_a_3.qasm")
+
+
+@pytest.mark.parametrize(
+    "qasm_code",
+    [
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+
+            gate rzz(theta) a,b {
+                cx a,b;
+                u3(theta,theta,theta) b;
+                cx a,b;
+            }
+            qreg q[3];
+            creg c[2];
+            rzz(0.2) q[1], q[2];
+            measure q[2] -> c[0];"""
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+            gate my_gate a,b {
+                h a;
+                cx a,b;
+            }
+            qreg q[2];
+            creg c[2];
+            my_gate q[0], q[1];
+            measure q -> c;"""
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[3];
+            cx q[0],q[1];
+            cx q[1],q[2];"""
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[3];
+            creg c[2];
+            u1(0.2) q[1], q[2];
+            measure q[2] -> c[0];"""
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+            gate rzz(theta) a,b {
+                cx a,b;
+                u1(theta) b;
+                cx a,b;
+            }
+            qreg q[3];
+            creg c[2];
+            rzz(0.2) q[1] , q[2];
+            measure q[2] ->  c[0];"""
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+
+            gate MyGate a, b {
+                h a;
+                cx a, b;
+            }
+
+            gate MyGate2 a, b, c {
+                h a;
+                cp a, c;
+                h c;
+            }
+
+            qreg q[3];
+            creg c[3];
+
+            MyGate q[0], q[1];
+            MyGate2 q[0], q[1], q[2];"""
+        ),
+    ],
+)
+def test_conversion_2_and_3(qasm_code: str):
+    convert, _ = open_qasm_3_to_2(open_qasm_2_to_3(qasm_code))
+    assert normalize_whitespace(convert) == normalize_whitespace(qasm_code)
+
+
+@pytest.mark.parametrize(
+    "qasm_code, expected_output",
+    [
+        ("""OPENQASM 2.0;""", """OPENQASM 3.0;"""),
+        (
+            """OPENQASM 2.0;
+               qreg q[2];
+               h q[0];""",
+            """OPENQASM 3.0;
+            include "stdgates.inc";
+               qubit[2] q;
+               h q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               qreg q[2];
+               creg c[2];
+               measure q[0] -> c[0];""",
+            """OPENQASM 3.0;
+               qubit[2] q;
+               bit[2] c;
+               c[0] = measure q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               qreg q[1];
+               creg c[1];
+               measure q[0] -> c[0];
+               if (c == 1) x q[0];""",
+            """OPENQASM 3.0;
+               qubit[1] q;
+               bit[1] c;
+               c[0] = measure q[0];
+               if (c == 1) x q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               qreg q[3];
+               cx q[0], q[1];
+               cx q[1], q[2];""",
+            """OPENQASM 3.0;
+            include "stdgates.inc";
+               qubit[3] q;
+               cx q[0], q[1];
+               cx q[1], q[2];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               qreg q[1];
+               u(0.5, 0.2, 0.3) q[0];""",
+            """OPENQASM 3.0;
+               include "stdgates.inc";
+               qubit[1] q;
+               u3(0.5, 0.2, 0.3) q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               gate mygate a, b {
+                 h a;
+                 cx a, b;
+               }
+               qreg q[2];
+               mygate q[0], q[1];""",
+            """OPENQASM 3.0;
+               include "stdgates.inc";
+               gate mygate a, b {
+                 h a;
+                 cx a, b;
+               }
+               qubit[2] q;
+               mygate q[0], q[1];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               qreg q[1];
+               reset q[0];""",
+            """OPENQASM 3.0;
+               qubit[1] q;
+               reset q[0];""",
+        ),
+    ],
+)
+def test_conversion_2_to_3(qasm_code: str, expected_output: str):
+    convert = open_qasm_2_to_3(qasm_code, translation_warning=False)
+    assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
+
+
+@pytest.mark.parametrize(
+    "expected_output, qasm_code",
+    [
+        ("""OPENQASM 2.0;""", """OPENQASM 3.0;"""),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+               qreg q[2];
+               h q[0];""",
+            """OPENQASM 3.0;
+            include "stdgates.inc";
+               qubit[2] q;
+               h q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               qreg q[2];
+               creg c[2];
+               measure q[0] -> c[0];""",
+            """OPENQASM 3.0;
+               qubit[2] q;
+               bit[2] c;
+               c[0] = measure q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               include "qelib1.inc";
+               qreg q[1];
+               creg c[1];
+               measure q[0] -> c[0];
+               if (c == 1) x q[0];""",
+            """OPENQASM 3.0;
+               qubit[1] q;
+               bit[1] c;
+               c[0] = measure q[0];
+               if (c == 1) x q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+               qreg q[3];
+               cx q[0], q[1];
+               cx q[1], q[2];""",
+            """OPENQASM 3.0;
+            include "stdgates.inc";
+               qubit[3] q;
+               cx q[0], q[1];
+               cx q[1], q[2];""",
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+               qreg q[1];
+               u(0.5, 0.2, 0.3) q[0];""",
+            """OPENQASM 3.0;
+               include "stdgates.inc";
+               qubit[1] q;
+               u(0.5, 0.2, 0.3) q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               include "qelib1.inc";
+               gate mygate a, b {
+                 h a;
+                 cx a, b;
+               }
+               qreg q[2];
+               mygate q[0], q[1];""",
+            """OPENQASM 3.0;
+               include "stdgates.inc";
+               gate mygate a, b {
+                 h a;
+                 cx a, b;
+               }
+               qubit[2] q;
+               mygate q[0], q[1];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               qreg q[1];
+               reset q[0];""",
+            """OPENQASM 3.0;
+               qubit[1] q;
+               reset q[0];""",
+        ),
+    ],
+)
+def test_conversion_3_to_2(expected_output: str, qasm_code: str):
+    convert, _ = open_qasm_3_to_2(qasm_code)
+    assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 
 @pytest.mark.parametrize(
@@ -536,3 +825,79 @@ def test_parse_user_gates(
 def test_remove_user_gates(qasm_code: str, expected_output: str):
     output = remove_user_gates(qasm_code)
     assert normalize_whitespace(output) == normalize_whitespace(expected_output)
+
+
+@pytest.mark.parametrize(
+    "qasm3, expected",
+    [
+        (
+            """OPENQASM 3.0;
+           include "stdgates.inc";
+              qubit[1] q;
+              h q[0];""",
+            [[H(0)], 0],
+        ),
+        (
+            """OPENQASM 3.0;
+           include "stdgates.inc";
+                qubit[2] q;
+                gphase(0.5);
+                CX q[0], q[1];
+              """,
+            [[CNOT(0, 1)], 0.5],
+        ),
+        (
+            """OPENQASM 3.0;
+              include "stdgates.inc";
+              qubit[1] q;
+              U(0.5, 0.2, 0.3) q[0];""",
+            [[U(0.5, 0.2, 0.3, 0)], 0],
+        ),
+        (
+            """OPENQASM 3.0;
+              include "stdgates.inc";
+              qubit[1] q;
+              U(0, 0.1, 2) q[0];""",
+            [[U(0, 0.1, 2, 0)], 0],
+        ),
+        (
+            """OPENQASM 3.0;
+              include "stdgates.inc";
+              qubit[1] q;
+              U(0.8, 0.7, 0.4) q[0];""",
+            [[U(0.8, 0.7, 0.4, 0)], 0],
+        ),
+    ],
+)
+def test_sample_counts_in_trust_interval(
+    qasm3: str, expected: tuple[list[Instruction], float]
+):
+    qasm_2, gphase = open_qasm_3_to_2(qasm3)
+    print(gphase)
+    print(qasm_2)
+
+    circuit = qasm2_parse(qasm_2)
+    instructions, expected_gphase = expected
+    expected_circuit = QCircuit(instructions)
+    err_rate = 0.05
+    err_rate_percentage = 1 - np.power(1 - err_rate, (1 / 2))
+
+    expected_amplitudes = amplitude(expected_circuit) * exp(expected_gphase * 1j)
+
+    print(circuit.gphase)
+    circuit.gphase = gphase
+    print(circuit.gphase)
+    result = run(circuit, IBMDevice.AER_SIMULATOR)
+    assert isinstance(result, Result)
+    print("result_amplitudes: " + str(result.amplitudes))
+    print("expected_amplitudes: " + str(expected_amplitudes))
+    counts = result.amplitudes
+    # check if the true value is inside the trust interval
+    for i in range(len(counts)):
+        trust_interval = err_rate_percentage * expected_amplitudes[i]
+        print(trust_interval)
+        assert (
+            counts[i] - trust_interval
+            <= expected_amplitudes[i]
+            <= counts[i] + trust_interval
+        )
