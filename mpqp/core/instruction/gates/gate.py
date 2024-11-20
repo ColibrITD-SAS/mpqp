@@ -487,6 +487,15 @@ class SingleQubitGate(Gate, ABC):
         Returns:
             A list of gate instances applied to the qubits in the specified
             range.
+
+        Examples:
+            >>> H.range(3)
+            [H(0), H(1), H(2)]
+            >>> S.range(1, 4)
+            [S(1), S(2), S(3)]
+            >>> Z.range(7, step=2)
+            [Z(0), Z(2), Z(4), Z(6)]
+
         """
         if end is None:
             start_or_end, end = 0, start_or_end

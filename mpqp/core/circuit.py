@@ -837,7 +837,7 @@ class QCircuit:
             The list of all gates present in the circuit.
 
         Example:
-            >>> circuit = QCircuit([H(0), CNOT(0, 1)])
+            >>> circuit = QCircuit([H(0), Barrier(), CNOT(0, 1), BasisMeasure()])
             >>> circuit.gates
             [H(0), CNOT(0, 1)]
 
