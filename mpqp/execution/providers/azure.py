@@ -49,10 +49,12 @@ def run_azure(job: Job) -> Result:
 
     backend_sim = get_azure_provider().get_backend(job.device.value)
 
-    assert isinstance(job.device, AZUREDevice)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, AZUREDevice)
 
     if job.job_type == JobType.SAMPLE:
-        assert job.measure is not None
+        if TYPE_CHECKING:
+            assert job.measure is not None
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
