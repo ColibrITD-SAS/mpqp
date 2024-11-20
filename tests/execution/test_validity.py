@@ -1,3 +1,4 @@
+import contextlib
 from copy import deepcopy
 
 import numpy as np
@@ -365,13 +366,23 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
 
     if not device.is_remote():
         if device.supports_samples():
-            assert run(circuit_samples, device) is not None
+            with (
+                pytest.warns(UnsupportedBraketFeaturesWarning)
+                if isinstance(device, AWSDevice)
+                else contextlib.suppress()
+            ):
+                assert run(circuit_samples, device) is not None
         else:
             with pytest.raises(NotImplementedError):
                 run(circuit_samples, device)
 
         if device.supports_state_vector():
-            assert run(circuit_state_vector, device) is not None
+            with (
+                pytest.warns(UnsupportedBraketFeaturesWarning)
+                if isinstance(device, AWSDevice)
+                else contextlib.suppress()
+            ):
+                assert run(circuit_state_vector, device) is not None
         else:
             if isinstance(device, IBMDevice) and not device.supports_state_vector():
                 with pytest.raises(DeviceJobIncompatibleError):
@@ -387,7 +398,12 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
                 circuit_observable.get_measurements()[0].shots = 10
                 assert run(circuit_observable, device) is not None
             else:
-                assert run(circuit_observable, device) is not None
+                with (
+                    pytest.warns(UnsupportedBraketFeaturesWarning)
+                    if isinstance(device, AWSDevice)
+                    else contextlib.suppress()
+                ):
+                    assert run(circuit_observable, device) is not None
 
         else:
             with pytest.raises(NotImplementedError):
@@ -400,7 +416,12 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
                 circuit_observable_ideal.get_measurements()[0].shots = 10
                 assert run(circuit_observable_ideal, device) is not None
             else:
-                assert run(circuit_observable_ideal, device) is not None
+                with (
+                    pytest.warns(UnsupportedBraketFeaturesWarning)
+                    if isinstance(device, AWSDevice)
+                    else contextlib.suppress()
+                ):
+                    assert run(circuit_observable_ideal, device) is not None
         else:
             with pytest.raises(NotImplementedError):
                 run(circuit_observable_ideal, device)

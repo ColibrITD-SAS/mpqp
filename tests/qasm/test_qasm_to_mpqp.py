@@ -160,7 +160,7 @@ from mpqp import Language
             [
                 H(0),
                 CNOT(0, 1),
-                CRk(3.651496129472319, 0, 1),  # pyright: ignore[reportArgumentType]
+                CP(0.5, 0, 1),
                 BasisMeasure([0], [2]),
                 BasisMeasure([1], [1]),
                 BasisMeasure([2], [0]),

@@ -598,6 +598,63 @@ class P(RotationGate, SingleQubitGate):
         )
 
 
+class CP(RotationGate, ControlledGate):
+    """Two-qubit Controlled-P gate.
+
+    Args:
+        theta: Parameter representing the phase to apply.
+        control: Index referring to the qubit used to control the gate.
+        target: Index referring to the qubit on which the gate will be applied.
+
+    Example:
+        >>> pprint(CP(0.5, 0, 1).to_matrix())
+        [[1, 0, 0, 0               ],
+         [0, 1, 0, 0               ],
+         [0, 0, 1, 0               ],
+         [0, 0, 0, 0.87758+0.47943j]]
+
+    """
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.CPhaseShift
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import CPhaseGate
+
+        return CPhaseGate
+
+    # TODO: this is a special case, see if it needs to be generalized
+    qlm_aqasm_keyword = "CNOT;PH"
+    qiskit_string = "cp"
+
+    def __init__(self, theta: Expr | float, control: int, target: int):
+        self.parameters = [theta]
+        ControlledGate.__init__(self, [control], [target], P(theta, target), "CP")
+        definition = UnitaryMatrix(
+            self.to_canonical_matrix(), **self.native_gate_options
+        )
+        ParametrizedGate.__init__(self, definition, [target], [theta], "CP")
+
+    def to_canonical_matrix(self):
+        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
+
+    def __repr__(self) -> str:
+        theta = int(self.theta) if self.theta == int(self.theta) else self.theta
+        return f"{type(self).__name__}({theta}, {self.controls[0]}, {self.targets[0]})"
+
+    def inverse(self) -> Gate:
+        return self.__class__(-self.parameters[0], self.controls[0], self.targets[0])
+
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        2
+    )
+
+
 class S(OneQubitNoParamGate):
     """One qubit S gate. It's equivalent to ``P(pi/2)``.
     It can also be defined as the square-root of the Z (Pauli) gate.
