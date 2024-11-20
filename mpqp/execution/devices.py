@@ -167,7 +167,9 @@ class IBMDevice(AvailableDevice):
         }
 
     def supports_observable(self) -> bool:
-        return True
+        return self not in {
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+        }
 
     def supports_observable_ideal(self) -> bool:
         return self in {
@@ -175,7 +177,7 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
             IBMDevice.AER_SIMULATOR_STABILIZER,
-            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            #IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 

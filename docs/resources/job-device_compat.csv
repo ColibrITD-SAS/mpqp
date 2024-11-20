@@ -3,7 +3,7 @@ IBM      ,AER_SIMULATOR                     ,✓      ,✓            ,✓      
 IBM      ,AER_SIMULATOR_STATEVECTOR         ,✓      ,✓            ,✓          ,✓
 IBM      ,AER_SIMULATOR_DENSITY_MATRIX      ,✓      ,             ,✓          ,✓
 IBM      ,AER_SIMULATOR_STABILIZER          ,✓      ,             ,✓          ,✓
-IBM      ,AER_SIMULATOR_EXTENDED_STABILIZER ,✓      ,✓            ,✓          ,✓
+IBM      ,AER_SIMULATOR_EXTENDED_STABILIZER ,✓      ,✓            ,           ,
 IBM      ,AER_SIMULATOR_MATRIX_PRODUCT_STATE,✓      ,✓            ,✓          ,✓
 IBM      ,IBM_BRISBANE                      ,✓      ,             ,✓          ,
 IBM      ,IBM_SHERBROOKE                    ,✓      ,             ,✓          ,

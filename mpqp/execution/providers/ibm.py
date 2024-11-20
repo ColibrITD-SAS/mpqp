@@ -178,6 +178,12 @@ def check_job_compatibility(job: Job):
             " simulators and devices. Please use a local simulator instead."
         )
 
+    if job.job_type == JobType.OBSERVABLE and not (
+        job.device.supports_observable_ideal() or job.device.supports_observable()
+    ):
+        raise DeviceJobIncompatibleError(
+            f"Expectation values cannot be computed with {job.device.name} device"
+        )
     if isinstance(job.device, IBMSimulatedDevice):
         if job.device.value().num_qubits < job.circuit.nb_qubits:
             raise DeviceJobIncompatibleError(
