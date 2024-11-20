@@ -368,7 +368,9 @@ class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
 
 
 class Id(OneQubitNoParamGate, InvolutionGate):
-    """One qubit identity gate.
+    r"""One qubit identity gate.
+
+    `\begin{pmatrix}1&0\\0&1\end{pmatrix}`
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.
@@ -420,7 +422,9 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
 
 class X(OneQubitNoParamGate, InvolutionGate):
-    """One qubit X (NOT) Pauli gate.
+    r"""One qubit X (NOT) Pauli gate.
+
+    `\begin{pmatrix}0&1\\1&0\end{pmatrix}`
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.
@@ -453,7 +457,9 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
 
 class Y(OneQubitNoParamGate, InvolutionGate):
-    """One qubit Y Pauli gate.
+    r"""One qubit Y Pauli gate.
+
+    `\begin{pmatrix}0&-i\\i&0\end{pmatrix}`
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.
@@ -486,7 +492,9 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
 
 class Z(OneQubitNoParamGate, InvolutionGate):
-    """One qubit Z Pauli gate.
+    r"""One qubit Z Pauli gate.
+
+    `\begin{pmatrix}1&0\\0&-1\end{pmatrix}`
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.
@@ -519,7 +527,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
 
 class H(OneQubitNoParamGate, InvolutionGate):
-    """One qubit Hadamard gate.
+    r"""One qubit Hadamard gate. `\frac{1}{\sqrt{2}}\begin{pmatrix}1&1\\1&-1\end{pmatrix}`
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.
@@ -552,7 +560,9 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
 
 class P(RotationGate, SingleQubitGate):
-    """One qubit parametrized Phase gate. Consist in a rotation around Z axis.
+    r"""One qubit parametrized Phase gate. Consist in a rotation around Z axis.
+
+    `\begin{pmatrix}1&0\\0&e^{i\theta}\end{pmatrix}`
 
     Args:
         theta: Parameter representing the phase to apply.
@@ -598,8 +608,10 @@ class P(RotationGate, SingleQubitGate):
 
 
 class S(OneQubitNoParamGate):
-    """One qubit S gate. It's equivalent to ``P(pi/2)``.
+    r"""One qubit S gate. It's equivalent to ``P(pi/2)``.
     It can also be defined as the square-root of the Z (Pauli) gate.
+
+    `\begin{pmatrix}1&0\\0&i\end{pmatrix}`
 
     Args:
         target: Index referring to the qubit on which the gate will be applied.
@@ -634,6 +646,8 @@ class S(OneQubitNoParamGate):
 class T(OneQubitNoParamGate):
     r"""One qubit T gate. It is also referred to as the `\pi/4` gate because it
     consists in applying the phase gate with a phase of `\pi/4`.
+
+    `\begin{pmatrix}1&0\\0&e^{i\pi/4}\end{pmatrix}`
 
     The T gate can also be defined as the fourth-root of the Z (Pauli) gate.
 
@@ -672,7 +686,9 @@ class T(OneQubitNoParamGate):
 
 
 class SWAP(InvolutionGate, NoParameterGate):
-    """Two-qubit SWAP gate.
+    r"""Two-qubit SWAP gate.
+
+    `\begin{pmatrix}1&0&0&0\\0&0&1&0\\0&1&0&0\\0&0&0&1\end{pmatrix}`
 
     Args:
         a: First target of the swapping operation.
@@ -762,7 +778,9 @@ class SWAP(InvolutionGate, NoParameterGate):
 
 
 class U(NativeGate, ParametrizedGate, SingleQubitGate):
-    """Generic one qubit unitary gate. It is parametrized by 3 Euler angles.
+    r"""Generic one qubit unitary gate. It is parametrized by 3 Euler angles.
+
+    `\begin{pmatrix}\cos(\theta/2)&-e^{i\gamma}\sin(\theta/2)\\e^{i\phi}\sin(\theta/2)&e^{i(\gamma+\phi)}\cos(\theta/2)\end{pmatrix}`
 
     Args:
         theta: Parameter representing the first angle of the gate U.
@@ -884,7 +902,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
 
 class Rx(RotationGate, SingleQubitGate):
-    """One qubit rotation around the X axis
+    r"""One qubit rotation around the X axis.
+
+    `\begin{pmatrix}\cos(\theta/2)&-i\sin(\theta/2)\\-i\sin(\theta/2)&\cos(\theta/2)\end{pmatrix}`
 
     Args:
         theta: Parameter representing the angle of the gate.
@@ -924,7 +944,9 @@ class Rx(RotationGate, SingleQubitGate):
 
 
 class Ry(RotationGate, SingleQubitGate):
-    """One qubit rotation around the Y axis
+    r"""One qubit rotation around the Y axis.
+
+    `\begin{pmatrix}\cos(\theta/2)&-\sin(\theta/2)\\\sin(\theta/2)&\cos(\theta/2)\end{pmatrix}`
 
     Args:
         theta: Parameter representing the angle of the gate.
@@ -962,7 +984,9 @@ class Ry(RotationGate, SingleQubitGate):
 
 
 class Rz(RotationGate, SingleQubitGate):
-    """One qubit rotation around the Z axis
+    r"""One qubit rotation around the Z axis.
+
+    `\begin{pmatrix}e^{i\theta/2}&0\\0&e^{-i\theta/2}\end{pmatrix}`
 
     Args:
         theta: Parameter representing the angle of the gate.
@@ -1003,7 +1027,8 @@ class Rz(RotationGate, SingleQubitGate):
 class Rk(RotationGate, SingleQubitGate):
     r"""One qubit Phase gate of angle `\frac{2i\pi}{2^k}`.
 
-        k: Parameter used in the definition of the phase to apply.
+    `\begin{pmatrix}1&0\\0&e^{i\pi/2^{k-1}}\end{pmatrix}`
+
     Args:
         k: Parameter used in the definition of the phase to apply.
         target: Index referring to the qubit on which the gate will be applied.
@@ -1088,6 +1113,8 @@ class Rk(RotationGate, SingleQubitGate):
 class Rk_dagger(RotationGate, SingleQubitGate):
     r"""One qubit Phase gate of angle `-\frac{2i\pi}{2^k}`.
 
+    `\begin{pmatrix}1&0\\0&e^{-i\pi/2^{k-1}}\end{pmatrix}`
+
     Args:
         k: Parameter used in the definition of the phase to apply.
         target: Index referring to the qubit on which the gate will be applied.
@@ -1167,7 +1194,9 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
 
 class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
-    """Two-qubit Controlled-NOT gate.
+    r"""Two-qubit Controlled-NOT gate.
+
+    `\begin{pmatrix}1&0&0&0\\0&1&0&0\\0&0&0&1\\0&0&1&0\end{pmatrix}`
 
     Args:
         control: index referring to the qubit used to control the gate
@@ -1210,7 +1239,9 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
 
 
 class CZ(InvolutionGate, ControlledGate, NoParameterGate):
-    """Two-qubit Controlled-Z gate.
+    r"""Two-qubit Controlled-Z gate.
+
+    `\begin{pmatrix}1&0&0&0\\0&1&0&0\\0&0&1&0\\0&0&0&-1\end{pmatrix}`
 
     Args:
         k: Parameter used in the definition of the phase to apply.
@@ -1256,7 +1287,9 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
 
 
 class CRk(RotationGate, ControlledGate):
-    """Two-qubit Controlled-Rk gate.
+    r"""Two-qubit Controlled-Rk gate.
+
+    `\begin{pmatrix}1&0&0&0\\0&1&0&0\\0&0&1&0\\0&0&0&e^{i\pi/2^{k-1}}\end{pmatrix}`
 
     Args:
         k: Parameter used in the definition of the phase to apply.
@@ -1354,7 +1387,9 @@ class CRk(RotationGate, ControlledGate):
 
 
 class CRk_dagger(RotationGate, ControlledGate):
-    """Two-qubit Controlled-Rk-dagger gate.
+    r"""Two-qubit Controlled-Rk-dagger gate.
+
+    `\begin{pmatrix}1&0&0&0\\0&1&0&0\\0&0&1&0\\0&0&0&e^{-i\pi/2^{k-1}}\end{pmatrix}`
 
     Args:
         k: Parameter used in the definition of the phase to apply.
@@ -1425,7 +1460,9 @@ class CRk_dagger(RotationGate, ControlledGate):
 
 
 class TOF(InvolutionGate, ControlledGate, NoParameterGate):
-    """Three-qubit Controlled-Controlled-NOT gate, also known as Toffoli Gate
+    r"""Three-qubit Controlled-Controlled-NOT gate, also known as Toffoli Gate.
+
+    `\begin{pmatrix}1&0&0&0&0&0&0&0\\0&1&0&0&0&0&0&0\\0&0&1&0&0&0&0&0\\0&0&0&1&0&0&0&0\\0&0&0&0&1&0&0&0\\0&0&0&0&0&1&0&0\\0&0&0&0&0&0&0&1\\0&0&0&0&0&0&1&0\end{pmatrix}`
 
     Args:
         control: List of indices referring to the qubits used to control the gate.
