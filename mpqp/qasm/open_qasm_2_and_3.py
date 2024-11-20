@@ -34,11 +34,11 @@ import re
 from enum import Enum
 from os.path import splitext
 from pathlib import Path
+from typing import Optional
 from warnings import warn
 
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
-from typing import Optional
 
 from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
@@ -765,14 +765,13 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
 
 
 def remove_include(qasm_code: str) -> str:
-    """
-    Removes all lines containing the word 'include' from the given QASM code.
+    r"""Removes all lines containing the word 'include' from the given QASM code.
 
     Args:
         qasm_code: The QASM code as a string.
 
     Returns:
-        str: The QASM code with 'include' lines removed.
+        The QASM code with 'include' lines removed.
 
     Example:
         >>> qasm_code = "include 'file.qasm';\nmeasure q[0];"
