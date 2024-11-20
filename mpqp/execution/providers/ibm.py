@@ -451,7 +451,9 @@ def run_aer(job: Job):
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.SAMPLE:
-        assert job.measure is not None
+        if TYPE_CHECKING:
+            assert job.measure is not None
+
         job.status = JobStatus.RUNNING
 
         if isinstance(job.device, IBMSimulatedDevice):
@@ -534,7 +536,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(meas, BasisMeasure)
+        if TYPE_CHECKING:
+            assert isinstance(meas, BasisMeasure)
         sampler = Runtime_Sampler(mode=session)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
@@ -625,7 +628,8 @@ def extract_result(
                     device,
                     BasisMeasure(list(range(nb_qubits)), shots=shots),
                 )
-            assert job.measure is not None
+            if TYPE_CHECKING:
+                assert job.measure is not None
 
             counts = (
                 res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
@@ -697,7 +701,8 @@ def extract_result(
                 )
                 return Result(job, state_vector, 0, 0)
             elif job.job_type == JobType.SAMPLE:
-                assert job.measure is not None
+                if TYPE_CHECKING:
+                    assert job.measure is not None
                 if type(device) == AZUREDevice:
                     from mpqp.execution.providers.azure import (
                         extract_samples as extract_samples_azure,
@@ -749,7 +754,8 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     # If the job is finished, it will get the result, if still running it is block until it finishes
     result = ibm_job.result()
     backend = ibm_job.backend()
-    assert isinstance(backend, (BackendV1, BackendV2))
+    if TYPE_CHECKING:
+        assert isinstance(backend, (BackendV1, BackendV2))
     ibm_device = IBMDevice(backend.name)
 
     return extract_result(result, None, ibm_device)

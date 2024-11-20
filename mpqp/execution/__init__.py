@@ -1,5 +1,12 @@
 # pyright: reportUnusedImport=false
-from .devices import ATOSDevice, AvailableDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from .devices import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    AZUREDevice,
+)
 from .job import Job, JobStatus, JobType
 from .result import BatchResult, Result, Sample, StateVector
 from .runner import adjust_measure, run, submit

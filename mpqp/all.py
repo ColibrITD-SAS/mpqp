@@ -41,6 +41,7 @@ from .gates import (
     H,
     Id,
     P,
+    CP,
     ParametrizedGate,
     Rk,
     Rk_dagger,

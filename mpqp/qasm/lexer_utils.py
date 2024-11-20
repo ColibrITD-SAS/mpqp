@@ -136,7 +136,7 @@ one_parametrized_gate_qasm = {
 }
 
 two_qubits_parametrized_gate_qasm = {
-    "cp": CRk,
+    "cp": CP,
 }
 
 

@@ -70,6 +70,22 @@ class AvailableDevice(Enum):
             ``True`` if this device only handles a restricted set of gates."""
         return False
 
+    @abstractmethod
+    def supports_samples(self) -> bool:
+        pass
+
+    @abstractmethod
+    def supports_state_vector(self) -> bool:
+        pass
+
+    @abstractmethod
+    def supports_observable(self) -> bool:
+        pass
+
+    @abstractmethod
+    def supports_observable_ideal(self) -> bool:
+        pass
+
 
 class IBMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by IBM Quantum.
@@ -127,14 +143,6 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
         }
 
-    def supports_statevector(self):
-        return self in {
-            IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            IBMDevice.AER_SIMULATOR,
-            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-        }
-
     def is_simulator(self) -> bool:
         return self in {
             IBMDevice.AER_SIMULATOR,
@@ -147,6 +155,29 @@ class IBMDevice(AvailableDevice):
 
     def is_noisy_simulator(self) -> bool:
         return self.is_simulator()
+
+    def supports_samples(self) -> bool:
+        return True
+
+    def supports_state_vector(self) -> bool:
+        return self in {
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        }
+
+    def supports_observable(self) -> bool:
+        return True
+
+    def supports_observable_ideal(self) -> bool:
+        return self in {
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+            IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        }
 
 
 class ATOSDevice(AvailableDevice):
@@ -197,6 +228,27 @@ class ATOSDevice(AvailableDevice):
             if u_name in elem.name and elem.is_remote():
                 return elem
         raise ValueError(f"No device found for name `{name}`.")
+
+    def supports_samples(self) -> bool:
+        return True
+
+    def supports_state_vector(self) -> bool:
+        return self in {
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+            ATOSDevice.QLM_LINALG,
+            ATOSDevice.QLM_MPS,
+        }
+
+    def supports_observable(self) -> bool:
+        return self in {
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+            ATOSDevice.QLM_LINALG,
+        }
+
+    def supports_observable_ideal(self) -> bool:
+        return True
 
 
 class AWSDevice(AvailableDevice):
@@ -300,6 +352,24 @@ class AWSDevice(AvailableDevice):
                 return elem
         raise ValueError(f"No device found for ARN `{arn}`.")
 
+    def supports_samples(self) -> bool:
+        return True
+
+    def supports_state_vector(self) -> bool:
+        return self in {
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            AWSDevice.BRAKET_SV1_SIMULATOR,
+        }
+
+    def supports_observable(self) -> bool:
+        return True
+
+    def supports_observable_ideal(self) -> bool:
+        return self in {
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            AWSDevice.BRAKET_TN1_SIMULATOR,
+        }
+
 
 class GOOGLEDevice(AvailableDevice):
     """Enum regrouping all available devices provided by CIRQ."""
@@ -341,6 +411,28 @@ class GOOGLEDevice(AvailableDevice):
             GOOGLEDevice.IONQ_QPU,
         }
 
+    def supports_samples(self) -> bool:
+        return True
+
+    def supports_state_vector(self) -> bool:
+        return self in {
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        }
+
+    def supports_observable(self) -> bool:
+        return self in {
+            GOOGLEDevice.PROCESSOR_RAINBOW,
+            GOOGLEDevice.PROCESSOR_WEBER,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        }
+
+    def supports_observable_ideal(self) -> bool:
+        return self in {
+            GOOGLEDevice.PROCESSOR_RAINBOW,
+            GOOGLEDevice.PROCESSOR_WEBER,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        }
+
 
 class AZUREDevice(AvailableDevice):
     """Enum regrouping all available devices provided by AZURE."""
@@ -375,3 +467,15 @@ class AZUREDevice(AvailableDevice):
 
     def is_ionq(self):
         return self.name.startswith("IONQ")
+
+    def supports_samples(self) -> bool:
+        return not self == AZUREDevice.MICROSOFT_ESTIMATOR
+
+    def supports_state_vector(self) -> bool:
+        return False
+
+    def supports_observable(self) -> bool:
+        return False
+
+    def supports_observable_ideal(self) -> bool:
+        return False

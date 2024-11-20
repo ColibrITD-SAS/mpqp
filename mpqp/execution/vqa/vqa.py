@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Collection, Optional, TypeVar, Union
+from typing import Any, Callable, Collection, Optional, TypeVar, Union, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -32,7 +32,10 @@ OptimizerCallable = Callable[
 
 def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
     """Does like zip, but with a dictionary instead of a list of tuples"""
-    assert len(l1) == len(l2)
+    if len(l1) != len(l2):
+        ValueError(
+            f"Length of the two collections are not equal ({len(l1)} and {len(l2)})."
+        )
     return {e1: e2 for e1, e2 in zip(l1, l2)}
 
 
@@ -309,7 +312,8 @@ def _minimize_local_func(
             init_params = [0.0] * nb_params
 
     if isinstance(method, Optimizer):
-        assert method is not None
+        if TYPE_CHECKING:
+            assert method is not None
         res: OptimizeResult = scipy_minimize(
             eval_func,
             x0=np.array(init_params),

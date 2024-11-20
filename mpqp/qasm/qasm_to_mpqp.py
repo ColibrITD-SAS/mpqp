@@ -8,7 +8,6 @@ from ply.lex import lex
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
-import numpy as np
 from mpqp.gates import *
 from mpqp.measures import *
 from mpqp.core.instruction import Barrier
@@ -224,8 +223,6 @@ def _Gate_two_qubits_parametrized(
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
     parameter, idx = _eval_expr(tokens, idx)
-    if gate_str == 'cp':
-        parameter = np.log2(np.pi / parameter) + 1
     if (
         check_Id(tokens, idx)
         or tokens[idx + 4].type != 'COMMA'
@@ -295,6 +292,8 @@ def _Gate_tof(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 
 def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
+    import numpy as np  # pyright: ignore[reportUnusedImport]
+
     expr = ""
     while tokens[idx].type != 'COMMA' and tokens[idx].type != 'RPAREN':
         if check_num_expr(tokens[idx].type):

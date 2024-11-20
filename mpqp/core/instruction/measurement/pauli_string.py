@@ -681,7 +681,7 @@ class PauliString:
 
             return cirq_pauli_string
         else:
-            raise ValueError(f"Unsupported language: {language}")
+            raise NotImplementedError(f"Unsupported language: {language}")
 
     def to_dict(self) -> dict[str, float]:
         """Converts the PauliString object to a dictionary representation.
@@ -869,6 +869,8 @@ class PauliStringMonomial(PauliString):
             ]
 
             return reduce(mul, cirq_atoms) * self.coef
+        else:
+            raise NotImplementedError(f"Unsupported language: {language}")
 
 
 class PauliStringAtom(PauliStringMonomial):
@@ -1020,6 +1022,8 @@ class PauliStringAtom(PauliStringMonomial):
             return pauli_gate_map[self.label](
                 LineQubit(0) if target is None else target
             )
+        else:
+            raise NotImplementedError(f"Unsupported language: {language}")
 
 
 _allow_atom_creation = True

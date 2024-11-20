@@ -144,7 +144,8 @@ def get_active_account_info() -> str:
     """
     service = get_QiskitRuntimeService()
     account = service.active_account()
-    assert account is not None
+    if TYPE_CHECKING:
+        assert account is not None
     return f"""    Channel: {account["channel"]}
     Token: {account["token"][:5]}*****
     URL: {account["url"]}

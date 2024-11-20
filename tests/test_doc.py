@@ -25,7 +25,8 @@ from mpqp.execution.connection.env_manager import (
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
-from mpqp.qasm import open_qasm_2_to_3, qasm2_parse, remove_user_gates
+from mpqp.tools.display import clean_1D_array, clean_matrix, pprint, format_element
+from mpqp.tools.circuit import random_circuit, random_gate, random_noise
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_2_to_3,
@@ -43,7 +44,6 @@ from mpqp.tools.maths import (
     rand_orthogonal_matrix,
     is_power_of_two,
 )
-from mpqp.tools.circuit import random_circuit, random_instruction
 from mpqp.tools.display import *
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
