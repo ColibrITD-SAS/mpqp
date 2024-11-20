@@ -140,7 +140,8 @@ def closest_unitary(matrix: Matrix):
     Args:
         matrix: Matrix for which we want to determine the closest unitary matrix.
 
-        Return U as a numpy matrix.
+    Returns:
+        The closest unitary matrix.
 
     Example:
         >>> is_unitary(np.array([[1, 2], [3, 4]]))
