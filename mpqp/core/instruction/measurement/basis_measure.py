@@ -29,7 +29,7 @@ class BasisMeasure(Measure):
     exact value of the amplitudes/probabilities. If you don't specify a target,
     the operation will apply to all qubits.
 
-    Args: 
+    Args:
         c_targets: List of indices referring to the classical bits on which the
             measure will be applied.
         shots: Number of shots to be performed basis: basis in which the qubits
@@ -50,7 +50,7 @@ class BasisMeasure(Measure):
     """
 
     def __init__(
-        self, 
+        self,
         c_targets: Optional[list[int]] = None,
         shots: int = 1024,
         basis: Optional[Basis] = None,
@@ -61,7 +61,7 @@ class BasisMeasure(Measure):
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
 
-        super().__init__(c_targets,shots, label)
+        super().__init__(c_targets, shots, label)
 
         if basis is None:
             basis = ComputationalBasis()
