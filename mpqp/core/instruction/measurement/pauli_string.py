@@ -686,6 +686,7 @@ class PauliStringMonomial(PauliString):
         self, coef: Real | float = 1, atoms: Optional[list["PauliStringAtom"]] = None
     ):
         self.coef = coef
+        """Coefficient of the monomial."""
         self.atoms = [] if atoms is None else atoms
         """The list of atoms in the monomial."""
 
@@ -866,10 +867,13 @@ class PauliStringAtom(PauliStringMonomial):
 
     @property
     def atoms(self):
+        """Atoms present. (needed for upward compatibility with
+        :class:`PauliStringMonomial`)"""
         return [self]
 
     @property
     def coef(self):
+        """Coefficient of the monomial."""
         return 1
 
     @property
