@@ -17,5 +17,3 @@ circuit.add(AmplitudeDamping(0.2, 0.9, targets=[2]))
 circuit.add(PhaseDamping(0.1, gates=[SWAP]))
 
 print(run(circuit, [IBMDevice.AER_SIMULATOR, AWSDevice.BRAKET_LOCAL_SIMULATOR]))
-
-
