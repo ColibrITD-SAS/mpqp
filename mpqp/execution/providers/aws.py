@@ -230,12 +230,16 @@ def extract_result(
         elif isinstance(braket_result.values[0], float):
             job_type = JobType.OBSERVABLE
             device_params = braket_result.task_metadata.deviceParameters
-            assert (
-                isinstance(device_params, IonqDeviceParameters)
-                or isinstance(device_params, OqcDeviceParameters)
-                or isinstance(device_params, RigettiDeviceParameters)
-                or isinstance(device_params, GateModelSimulatorDeviceParameters)
-            )
+            if TYPE_CHECKING:
+                assert isinstance(
+                    device_params,
+                    (
+                        IonqDeviceParameters,
+                        OqcDeviceParameters,
+                        RigettiDeviceParameters,
+                        GateModelSimulatorDeviceParameters,
+                    ),
+                )
             nb_qubits = device_params.paradigmParameters.qubitCount
             shots = braket_result.task_metadata.shots
             measure = ExpectationMeasure(
@@ -255,7 +259,8 @@ def extract_result(
 
     if job.job_type == JobType.STATE_VECTOR:
         vector = braket_result.values[0]
-        assert isinstance(vector, (list, np.ndarray))
+        if TYPE_CHECKING:
+            assert isinstance(vector, (list, np.ndarray))
         state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
         return Result(job, state_vector, 0, 0)
 

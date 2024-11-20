@@ -38,6 +38,64 @@ from mpqp.measures import BasisMeasure
 
 
 @typechecked
+def amplitude(
+    circ: QCircuit,
+) -> npt.NDArray[np.complex64]:
+    """Computes the theoretical probabilities of a (potentially) noisy circuit
+    execution.
+
+    Args:
+        circ: The circuit to run.
+
+    Returns:
+        The probabilities corresponding to each basis state.
+    """
+    d: int = 2**circ.nb_qubits
+
+    state = np.zeros((d), dtype=np.complex64)
+    state[0] = 1
+    gates = circ.get_gates()
+    print(state)
+
+    for gate in gates:
+        g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
+        print(g)
+        state = g @ state
+        print(state)
+        for noise in circ.noises:
+            if (
+                len(noise.gates) == 0
+                or type(gate) in noise.gates
+                and gate.connections().issubset(noise.targets)
+            ):
+                state = sum(
+                    (
+                        k @ state
+                        for k in noise.to_adjusted_kraus_operators(
+                            gate.connections(), circ.nb_qubits
+                        )
+                    ),
+                    start=np.zeros(d, dtype=np.complex64),
+                )
+
+    connected_qubits = set().union(*[gate.connections() for gate in gates])
+    unconnected_qubits = set(range(circ.nb_qubits)).difference(connected_qubits)
+    for noise in circ.noises:
+        if len(noise.gates) == 0:
+            state = sum(
+                (
+                    k @ state
+                    for k in noise.to_adjusted_kraus_operators(
+                        unconnected_qubits, circ.nb_qubits
+                    )
+                ),
+                start=np.zeros(d, dtype=np.complex64),
+            )
+
+    return state
+
+
+@typechecked
 def theoretical_probs(
     circ: QCircuit,
 ) -> npt.NDArray[np.float32]:

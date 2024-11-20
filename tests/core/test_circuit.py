@@ -20,7 +20,7 @@ from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 from mpqp.tools.circuit import compute_expected_matrix, random_circuit
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -498,7 +498,11 @@ def test_to_matrix_random():
     ],
 )
 def test_inverse(circuit: QCircuit, expected_inverse: QCircuit):
-    inverse_circuit = circuit.inverse()
+    if any(not isinstance(inst, (Gate, Barrier)) for inst in circuit.instructions):
+        with pytest.warns(NonReversibleWarning):
+            inverse_circuit = circuit.inverse()
+    else:
+        inverse_circuit = circuit.inverse()
     for inverse_inst, expected_inst in zip(
         inverse_circuit.instructions, expected_inverse.instructions
     ):

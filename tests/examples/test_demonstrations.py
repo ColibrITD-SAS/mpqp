@@ -318,11 +318,8 @@ def test_all_native_gates():
     circuit.add(TOF([0, 1], 2))
 
     circuit.to_other_language(Language.QASM2)
-    with pytest.warns(
-        UserWarning,
-        match=r"There is a phase e\^\(i\(a\+c\)/2\) difference between U\(a,b,c\) gate in 2.0 and 3.0.",
-    ):
-        circuit.to_other_language(Language.QASM3)
+    circuit.to_other_language(Language.QASM3, translation_warning=False)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(
             circuit,
             [
