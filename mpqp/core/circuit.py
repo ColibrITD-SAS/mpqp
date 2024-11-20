@@ -1,10 +1,10 @@
-"""MPQP is focused on gate based quantum computing. As such, the main element of
+"""MPQP is focused on gate-based quantum computing. As such, the main element of
 a script using MPQP is the quantum circuit, or :class:`QCircuit`. The
-:class:`QCircuit` contains the data of all gates, measures, and noise models you
+:class:`QCircuit` contains the data for all gates, measurements, and noise models you
 want to apply to your qubits. 
 
-The qubits are only referred by their indices, so one could keep track of
-specific registers using python features, for instance
+The qubits are only referred to by their indices, so one could keep track of
+specific registers using Python features, for instance
 
 .. code-block:: python
 
@@ -27,7 +27,7 @@ specific registers using python features, for instance
     q_5: ──────────┤ X ├
                    └───┘
     
-could be use to add CNOT gates to your circuit, using the two registers
+could be used to add CNOT gates to your circuit, using the two registers
 ``targets`` and ``ancillas``.
 """
 
@@ -70,7 +70,7 @@ if TYPE_CHECKING:
 class QCircuit:
     """This class models a quantum circuit.
 
-    A circuit is composed of instructions and noise models applied on
+    A circuit is composed of instructions and noise models applied to
     quantum and/or classical bits. These elements (instructions and noise
     models) will be called ``components`` hereafter.
 
@@ -79,7 +79,7 @@ class QCircuit:
             circuit with. If the number of qubits is passed, it should be a
             positive integer.
         nb_qubits: Optional number of qubits, in case you input the sequence of
-            instruction and want to hardcode the number of qubits.
+            instructions and want to hardcode the number of qubits.
         nb_cbits: Number of classical bits. It should be positive.
         label: Name of the circuit.
 
@@ -371,12 +371,12 @@ class QCircuit:
         Args:
             other: The circuit to append at the end of this circuit.
             qubits_offset: If the circuit in parameter is smaller, this
-                parameter precise at which qubit (vertically) the circuit will
+                parameter determines at which qubit (vertically) the circuit will
                 be added.
 
         Raises:
-            NumberQubitsError: if the circuit in parameter is larger than this
-                circuit or if the ``qubits_offset`` is too big such that the
+            NumberQubitsError: If the circuit in parameter is larger than this
+                circuit or if the ``qubits_offset`` is too big, such that the
                 ``other`` circuit would "stick out".
 
         Examples:
@@ -445,11 +445,10 @@ class QCircuit:
         return res
 
     def tensor(self, other: QCircuit) -> QCircuit:
-        """Computes the tensor product of this circuit with the one in parameter.
+        """Computes the tensor product of this circuit with that in parameter.
 
         In the circuit notation, the upper part of the output circuit will
-        correspond to the first circuit, while the bottom part correspond to the
-        one in parameter.
+        correspond to the first circuit, while the bottom part corresponds to that in parameter.
 
         This method can be shorthanded with the ``@`` operator.
 
@@ -459,7 +458,7 @@ class QCircuit:
 
         Returns:
             The QCircuit resulting from the tensor product of this circuit with
-            the one in parameter.
+            that in parameter.
 
         Args:
             other: QCircuit being the second operand of the tensor product with
@@ -467,7 +466,7 @@ class QCircuit:
 
         Returns:
             The QCircuit resulting from the tensor product of this circuit with
-            the one in parameter.
+            that in parameter.
 
         Examples:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
@@ -512,7 +511,7 @@ class QCircuit:
         return self.tensor(other)
 
     def display(self, output: str = "mpl"):
-        r"""Displays this circuit in the desired output format.
+        r"""Displays the circuit in the desired output format.
 
         For now, this uses the qiskit circuit drawer, so all formats supported
         by qiskit are supported.
@@ -554,7 +553,7 @@ class QCircuit:
         return fig
 
     def size(self) -> tuple[int, int]:
-        """Provides the size of the circuit, in terms of number of quantum and
+        """Provides the size of the circuit, in terms of the number of quantum and
         classical bits.
 
         Returns:
@@ -807,11 +806,10 @@ class QCircuit:
         of this gate.
 
         Args:
-            gate: The gate for which we want to know its occurrence in this
-                circuit.
+            gate: The gate whose occurrence we want to determine in this circuit.
 
         Returns:
-            The number of gates (eventually of a specific type) contained in the
+            The number of gates (of a specific type) contained in the
             circuit.
 
         Examples:
@@ -949,11 +947,11 @@ class QCircuit:
         specified in the ``language`` arg.
 
         By default, the circuit is translated to the corresponding
-        ``QuantumCircuit`` in Qiskit, since it is the interface we use to
+        ``QuantumCircuit`` in Qiskit since this is the interface we use to
         generate the OpenQASM code.
 
         In the future, we will generate the OpenQASM code on our own, and this
-        method will be used only for complex objects that are not tractable by
+        method will be used only for complex objects that are not tractable with
         OpenQASM (like hybrid structures).
 
         Args:
@@ -1000,7 +998,7 @@ class QCircuit:
         Note:
             Most providers take noise into account at the job level. A notable
             exception is Braket, where the noise is contained in the circuit
-            object. For this reason you find the noise included in the Braket
+            object. For this reason, you will find the noise included in the Braket
             circuits.
 
         """
@@ -1197,13 +1195,13 @@ class QCircuit:
         specified parameters. Optionally also remove all symbolic variables such
         as `\pi` (needed for example for circuit execution).
 
-        Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
+        Since we use ``sympy`` for the gate parameters, the ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: If symbolic values should be replaced by their
-                numeric counterpart.
+            remove_symbolic: Whether symbolic values should be replaced by their
+                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.

@@ -1,16 +1,20 @@
 """
-Once the circuit is defined, you can to execute it and retrieve the result using
+Once the circuit is defined, you can execute it and retrieve the result using
 the function :func:`run`. You can execute said circuit on one or several devices
 (local or remote). The function will wait (blocking) until the job is completed
-and will return a :class:`~mpqp.execution.result.Result` if a single
+and will return a :class:`~mpqp.execution.result.Result` if only one
 device was given or a :class:`~mpqp.execution.result.BatchResult` 
 otherwise (see the section :ref:`Results` for more details).
 
-Alternatively, when running jobs on a remote device, you could prefer to
+Alternatively, when running jobs on a remote device, you might prefer to
 retrieve the result asynchronously, without having to wait and block the
 application until the computation is completed. In that case, you can use the
-:func:`submit` instead. It will submit the job and
-return the corresponding job id and :class:`~mpqp.execution.job.Job` object."""
+:func:`submit` instead. This will submit the job and
+return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
+
+.. note::
+    Unlike :func:`run`, we can only submit on one device at a time.
+"""
 
 from __future__ import annotations
 
@@ -53,11 +57,11 @@ from mpqp.tools.generics import OneOrMany, find_index, flatten
 @typechecked
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
-    usually don't support this behavior. To make this work we tweak the measure
+    usually do not support this behavior. To make this work, we tweak the measure
     this function to match the expected behavior.
 
     In order to do this, we add identity measures on the qubits not targeted by
-    the measure. In addition of this, some swaps are automatically added so the
+    the measure. In addition to this, some swaps are automatically added so the
     the qubits measured are ordered and contiguous (though this is done in
     :func:`generate_job`)
 
@@ -68,7 +72,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             order (this part is not handled by this function).
 
     Returns:
-        The measure padded with the identities before and after.
+        The measure padded with identities before and after.
     """
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
@@ -88,13 +92,13 @@ def generate_job(
     for the execution of the circuit.
 
     If the circuit contains symbolic variables (see section :ref:`VQA` for more
-    information on them), the ``values`` parameter is used perform the necessary
+    information), the ``values`` parameter is used to perform the necessary
     substitutions.
 
     Args:
         circuit: Circuit to be run.
         device: Device on which the circuit will be run.
-        values: Set of values to substitute symbolic variables.
+        values: Set of values to substitute for symbolic variables.
 
     Returns:
         The Job containing information about the execution of the circuit.
@@ -128,7 +132,7 @@ def generate_job(
             )
     else:
         raise NotImplementedError(
-            "Current version of MPQP do not support multiple measurement in a "
+            "The current version of MPQP does not support multiple measurements in a "
             "circuit."
         )
 
@@ -310,22 +314,22 @@ def submit(
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
 ) -> tuple[str, Job]:
-    """Submit the job related with the circuit on the remote backend provided in
+    """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
-    the :class:`~mpqp.execution.result.Result` later, using the
+    the :class:`~mpqp.execution.result.Result` later using the
     :func:`~mpqp.execution.remote_handler.get_remote_result`
     function.
 
     If the circuit contains symbolic variables (see section :ref:`VQA` for more
-    information on them), the ``values`` parameter is used perform the necessary
+    information), the ``values`` parameter is used perform the necessary
     substitutions.
 
-    Mind that this function only support single device submissions.
+    Note that this function only supports single device submissions.
 
     Args:
         circuit: QCircuit to be run.
-        device: Remote device on which the circuit will be submitted.
-        values: Set of values to substitute symbolic variables. Defaults to ``{}``.
+        device: Remote device to which the circuit will be submitted.
+        values: Values to substitute for symbolic variables. Defaults to ``{}``.
 
     Returns:
         The job id provided by the remote device after submission of the job.

@@ -1,9 +1,9 @@
-"""The execution of a circuit is always ran on a user selected device. Prior to
-this execution, the circuit is first translated in the SDK we selected to
-support this device. This is being done on the ``to_other_language`` present on
-most objects of ``MPQP``, taking a ``language`` argument. This language 
-corresponds to said SDK, and you can find the list of available languages in the
-:class:`Language` enum."""
+"""A circuit is always executed on a user-selected device. Prior to
+this execution, the circuit is first translated into the SDK selected to
+support this device. This is done by the ``to_other_language`` function present on
+most objects of ``MPQP``, which takes a ``language`` argument. This language 
+corresponds to the appropriate SDK, and you can find the list of available languages 
+in the :class:`Language` enum."""
 
 from enum import Enum, auto
 

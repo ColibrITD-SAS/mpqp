@@ -1,5 +1,4 @@
-"""An :class:`Instruction` is the base element for circuits elements, containing
-common methods to all of them."""
+"""An :class:`Instruction` is the base element of circuit elements, containing methods common to all of them."""
 
 from __future__ import annotations
 
@@ -24,7 +23,7 @@ class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 
     An Instruction is the elementary component of a
-    :class:`~mpqp.core.circuit`. It consists in a manipulation of one
+    :class:`~mpqp.core.circuit`. It consists of a manipulation of one
     (or several) qubit(s) of the quantum circuit. It may involve classical bits
     as well, for defining or retrieving the result of the instruction.
 
@@ -35,7 +34,7 @@ class Instruction(SimpleClassReprABC):
         - :class:`~mpqp.core.instruction.barrier.Barrier`
 
     Args:
-        targets: List of indices referring to the qubits on which the
+        targets: List of indices referring to the qubits to which the
             instruction will be applied.
         label: Label used to identify the instruction.
     """
@@ -120,7 +119,7 @@ class Instruction(SimpleClassReprABC):
         """Returns the indices of the qubits connected to the instruction.
 
         Returns:
-            The qubits ordered connected to instruction.
+            The ordered qubits connected to instruction.
 
         Example:
             >>> CNOT(0,1).connections()
@@ -139,16 +138,16 @@ class Instruction(SimpleClassReprABC):
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> Instruction:
         r"""Substitutes the parameters of the instruction with complex values.
-        Optionally also removes all symbolic variables such as `\pi` (needed for
-        example for circuit execution).
+        Optionally, also removes all symbolic variables such as `\pi` (needed for
+        circuit execution, for example).
 
-        Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
+        Since we use ``sympy`` for gate parameters, ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: If symbolic values should be replaced by their
-                numeric counterpart.
+            remove_symbolic: Whether symbolic values should be replaced by their
+                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.
