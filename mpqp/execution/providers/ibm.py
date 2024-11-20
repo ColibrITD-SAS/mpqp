@@ -160,7 +160,7 @@ def check_job_compatibility(job: Job):
             f"{type(job.measure).__name__} was given instead."
         )
 
-    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_statevector():
+    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_state_vector():
         raise DeviceJobIncompatibleError(
             "Cannot reconstruct state vector with this device. Please use "
             "a local device supporting state vector jobs instead (or change the job "

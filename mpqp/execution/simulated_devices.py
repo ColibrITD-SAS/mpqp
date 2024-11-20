@@ -39,7 +39,7 @@ class SimulatedDevice(AvailableDevice):
 class StaticIBMSimulatedDevice(SimulatedDevice):
     """A class regrouping methods specific to an ``IBMSimulatedDevice``."""
 
-    def supports_statevector(self):
+    def supports_state_vector(self):
         return False
 
     def to_noisy_simulator(self) -> "AerSimulator":
