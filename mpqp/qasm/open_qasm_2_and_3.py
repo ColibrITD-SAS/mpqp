@@ -753,10 +753,11 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
     return qasm_code
 
 
-def remove_include(qasm_code: str) -> str:
+def remove_include_and_comment(qasm_code: str) -> str:
     replaced_code = ""
     for line in qasm_code.split("\n"):
-        if "include" in line:
+        line = line.lstrip()
+        if line.startswith("include") or line.startswith("\\\\"):
             pass
         else:
             replaced_code += line + "\n"
