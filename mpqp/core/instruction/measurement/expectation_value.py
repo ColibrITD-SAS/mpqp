@@ -216,6 +216,7 @@ class ExpectationMeasure(Measure):
         self._check_targets_order()
 
     def _check_targets_order(self):
+        """Ensures target qubits are ordered and contiguous, rearranging them if necessary (private)."""
         from mpqp.core.circuit import QCircuit
 
         if len(self.targets) == 0:
