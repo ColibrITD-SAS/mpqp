@@ -389,7 +389,8 @@ class Result:
         return self._counts
 
     def __str__(self):
-        header = f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
+        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
+        header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
             measures = self.job.circuit.measurements

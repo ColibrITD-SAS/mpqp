@@ -42,7 +42,9 @@ a list of :class:`~mpqp.core.instruction.instruction.Instruction`
     >>> from mpqp import QCircuit
     >>> from mpqp.gates import X, CNOT
     >>> from mpqp.measures import BasisMeasure
-    >>> print(QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)]))
+    >>> from mpqp.execution import run, IBMDevice
+    >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
+    >>> print(circuit)
          ┌───┐     ┌─┐
     q_0: ┤ X ├──■──┤M├───
          └───┘┌─┴─┐└╥┘┌─┐
@@ -50,6 +52,13 @@ a list of :class:`~mpqp.core.instruction.instruction.Instruction`
               └───┘ ║ └╥┘
     c: 2/═══════════╩══╩═
                     0  1
+    >>> print(run(circuit, IBMDevice.AER_SIMULATOR))
+    Result: IBMDevice, AER_SIMULATOR
+     Counts: [0, 0, 0, 100]
+     Probabilities: [0, 0, 0, 1]
+     Samples:
+      State: 11, Index: 3, Count: 100, Probability: 1
+     Error: None
 
 .. _Remote setup:
 
@@ -123,7 +132,7 @@ summed up here:
   ``API token``. You can obtain it from the IonQ Console under 
   `IonQ setting keys <https://cloud.ionq.com/settings/keys>`_.
 
-To see which devices are available, see :ref:`Devices`.
+To see which devices are available, checkout the :ref:`Devices` section.
 
 Execute examples
 ----------------
@@ -140,6 +149,3 @@ executing them as follows:
     $ python -m examples.scripts.observable_job
 
 For more information, please refer to the `notebook page <./examples.html>`_.
-
-To start remote devices setup, please refer to  `Remote Devices Setup <./execution-extras.html#con-setup>`_.
-

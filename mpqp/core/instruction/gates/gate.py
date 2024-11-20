@@ -44,7 +44,7 @@ class Gate(Instruction, ABC):
 
     def to_matrix(self, desired_gate_size: int = 0) -> Matrix:
         """Return the matricial semantics to this gate. Considering connections'
-        order and position, in contrast with :meth:`~Gate.to_canonical_matrix`.
+        order and position, in contrast with :meth: !=`~Gate.to_canonical_matrix`.
 
         Args:
             desired_gate_size: The total number for qubits needed for the gate
