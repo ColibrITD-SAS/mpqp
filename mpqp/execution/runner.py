@@ -4,7 +4,7 @@ the function :func:`run`. You can execute said circuit on one or several devices
 (local or remote). The function will wait (blocking) until the job is completed
 and will return a :class:`~mpqp.execution.result.Result` if only one
 device was given or a :class:`~mpqp.execution.result.BatchResult` 
-otherwise (see :ref:`below<Results>`).
+otherwise (see the section :ref:`Results` for more details).
 
 Alternatively, when running jobs on a remote device, you might prefer to
 retrieve the result asynchronously, without having to wait and block the
@@ -37,15 +37,18 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
+    AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
 )
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
+from mpqp.execution.providers.azure import run_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
+from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
@@ -102,7 +105,7 @@ def generate_job(
     """
     circuit = circuit.subs(values, True)
 
-    m_list = circuit.get_measurements()
+    m_list = circuit.measurements
     nb_meas = len(m_list)
 
     if nb_meas == 0:
@@ -110,13 +113,12 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            # TODO: handle other basis by adding the right rotation (change
-            # of basis) before measuring in the computational basis
-            # Muhammad: circuit.add(CustomGate(UnitaryMatrix(change_of_basis_inverse)))
+            modified_circuit = circuit.without_measurements() + measurement.pre_measure
+            modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device)
+                job = Job(JobType.STATE_VECTOR, modified_circuit, device, measurement)
             else:
-                job = Job(JobType.SAMPLE, circuit, device, measurement)
+                job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):
             job = Job(
                 JobType.OBSERVABLE,
@@ -180,8 +182,9 @@ def _run_single(
 
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
-            display_kth_breakpoint(circuit, k)
+            display_kth_breakpoint(circuit, k, device)
 
+    circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
@@ -190,10 +193,12 @@ def _run_single(
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not isinstance(device, (ATOSDevice, AWSDevice, IBMDevice)):
+        elif not isinstance(
+            device, (ATOSDevice, AWSDevice, IBMDevice, SimulatedDevice)
+        ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, IBMDevice):
+    if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
@@ -201,6 +206,8 @@ def _run_single(
         return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
+    elif isinstance(device, AZUREDevice):
+        return run_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -241,7 +248,7 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         >>> batch_result = run(
         ...     c,
@@ -253,13 +260,13 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: 0.0
         Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
@@ -272,13 +279,13 @@ def run(
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
         Result: X circuit, IBMDevice, AER_SIMULATOR
          Counts: [0, 0, 0, 1000]
          Probabilities: [0, 0, 0, 1]
          Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1.0
+          State: 11, Index: 3, Count: 1000, Probability: 1
          Error: None
 
     """
@@ -303,7 +310,9 @@ def run(
 
 @typechecked
 def submit(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -320,7 +329,7 @@ def submit(
     Args:
         circuit: QCircuit to be run.
         device: Remote device to which the circuit will be submitted.
-        values: Set of values to substitute for symbolic variables.
+        values: Values to substitute for symbolic variables. Defaults to ``{}``.
 
     Returns:
         The job id provided by the remote device after submission of the job.
@@ -330,10 +339,14 @@ def submit(
         >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG) #doctest: +SKIP
         Logging as user <qlm_user>...
         Submitted a new batch: Job766
-        >>> print("Status of " +job_id +":", job.job_status) #doctest: +SKIP
+        >>> print(f"Status of {job_id}: {job.job_status}") #doctest: +SKIP
         Status of Job766: JobStatus.RUNNING
 
+    Note:
+        Unlike :func:`run`, you can only submit on one device at a time.
     """
+    if values is None:
+        values = {}
     if not device.is_remote():
         raise RemoteExecutionError(
             "submit(...) function is only made for remote device."
@@ -354,13 +367,20 @@ def submit(
     return job_id, job
 
 
-def display_kth_breakpoint(circuit: QCircuit, k: int):
+def display_kth_breakpoint(
+    circuit: QCircuit, k: int, device: AvailableDevice = ATOSDevice.MYQLM_CLINALG
+):
     """Prints to the standard output the state vector corresponding to the state
     of the system when it encounters the `k^{th}` breakpoint.
+
+    See the documentation of
+    :class:`~mpqp.core.instruction.breakpoint.Breakpoint` for examples of
+    breakpoints.
 
     Args:
         circuit: The circuit to be examined.
         k: The state desired is met at the `k^{th}` breakpoint.
+        device: The device to use for the simulation.
     """
     bp = circuit.breakpoints[k]
     if bp.enabled:
@@ -377,7 +397,7 @@ def display_kth_breakpoint(circuit: QCircuit, k: int):
             nb_cbits=circuit.nb_cbits,
             label=circuit.label,
         )
-        res = _run_single(copy, ATOSDevice.MYQLM_CLINALG, {}, False)
+        res = _run_single(copy, device, {}, False)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
         print("       " + state_vector_ket_shape(res.amplitudes))
         if bp.draw_circuit:

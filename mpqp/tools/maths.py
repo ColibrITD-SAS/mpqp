@@ -85,24 +85,20 @@ def is_hermitian(matrix: Matrix) -> bool:
         ``True`` if the matrix in parameter is Hermitian.
 
     Examples:
-        >>> m1 = np.array([[1,2j,3j],[-2j,4,5j],[-3j,-5j,6]])
-        >>> is_hermitian(m1)
+        >>> is_hermitian(np.array([[1,2j,3j],[-2j,4,5j],[-3j,-5j,6]]))
         True
-        >>> m2 = np.diag([1,2,3,4])
-        >>> is_hermitian(m2)
+        >>> is_hermitian(np.diag([1,2,3,4]))
         True
         >>> m3 = np.array([[1,2,3],[2,4,5],[3,5,6]])
-        >>> is_hermitian(m3)
+        >>> is_hermitian(np.array([[1,2,3],[2,4,5],[3,5,6]]))
         True
         >>> m4 = np.array([[1,2,3],[4,5,6],[7,8,9]])
-        >>> is_hermitian(m4)
+        >>> is_hermitian(np.array([[1,2,3],[4,5,6],[7,8,9]]))
         False
         >>> x = symbols("x", real=True)
-        >>> m5 = np.diag([1,x])
-        >>> is_hermitian(m5)
+        >>> is_hermitian(np.diag([1,x]))
         True
-        >>> m6 = np.array([[1,x],[-x,2]])
-        >>> is_hermitian(m6)
+        >>> is_hermitian(np.array([[1,x],[-x,2]]))
         False
 
     """
@@ -123,16 +119,16 @@ def is_unitary(matrix: Matrix) -> bool:
         ``True`` if the matrix in parameter is Unitary.
 
     Example:
-        >>> a = np.array([[1,1],[1,-1]])
-        >>> is_unitary(a)
+        >>> is_unitary(np.array([[1,1],[1,-1]]))
         False
-        >>> is_unitary(a/np.sqrt(2))
+        >>> is_unitary(np.array([[1,1],[1,-1]])/np.sqrt(2))
         True
 
     """
     return matrix_eq(
         np.eye(len(matrix), dtype=np.complex64),
         matrix.transpose().conjugate().dot(matrix),
+        atol=1e-5,
     )
 
 
@@ -144,13 +140,13 @@ def closest_unitary(matrix: Matrix):
     Args:
         matrix: Matrix for which we want to determine the closest unitary matrix.
 
-        Return U as a numpy matrix.
+    Returns:
+        The closest unitary matrix.
 
     Example:
-        >>> m = np.array([[1, 2], [3, 4]])
-        >>> is_unitary(m)
+        >>> is_unitary(np.array([[1, 2], [3, 4]]))
         False
-        >>> u = closest_unitary(m)
+        >>> u = closest_unitary(np.array([[1, 2], [3, 4]]))
         >>> u
         array([[-0.51449576,  0.85749293],
                [ 0.85749293,  0.51449576]])
@@ -249,15 +245,15 @@ def rand_orthogonal_matrix(
         A random orthogonal matrix.
 
     Examples:
-        >>> rand_orthogonal_matrix(3)
-        array([[ 0.70957328,  0.1395875 ,  0.69066713],
-               [ 0.61432236,  0.35754246, -0.7033999 ],
-               [-0.34512866,  0.92340604,  0.16795085]])
+        >>> pprint(rand_orthogonal_matrix(3))
+        [[0.70957 , 0.13959, 0.69067],
+         [0.61432 , 0.35754, -0.7034],
+         [-0.34513, 0.92341, 0.16795]]
 
-        >>> rand_orthogonal_matrix(3, seed=123)
-        array([[ 0.75285974, -0.65782143,  0.02175293],
-               [-0.22777817, -0.22939368,  0.94630632],
-               [ 0.61751058,  0.71739077,  0.32253863]])
+        >>> pprint(rand_orthogonal_matrix(3, seed=123))
+        [[0.75286 , -0.65782, 0.02175],
+         [-0.22778, -0.22939, 0.94631],
+         [0.61751 , 0.71739 , 0.32254]]
 
     """
     rng = np.random.default_rng(seed)
@@ -279,17 +275,17 @@ def rand_clifford_matrix(
         A random Clifford matrix.
 
     Examples:
-        >>> rand_clifford_matrix(2)
-        array([[-0.5+0.j ,  0.5+0.j ,  0. +0.5j,  0. -0.5j],
-               [ 0. -0.5j,  0. -0.5j,  0.5+0.j ,  0.5+0.j ],
-               [ 0. -0.5j,  0. -0.5j, -0.5+0.j , -0.5+0.j ],
-               [-0.5+0.j ,  0.5+0.j ,  0. -0.5j,  0. +0.5j]])
+        >>> pprint(rand_clifford_matrix(2))
+        [[-0.5 , 0.5  , 0.5j , -0.5j],
+         [-0.5j, -0.5j, 0.5  , 0.5  ],
+         [-0.5j, -0.5j, -0.5 , -0.5 ],
+         [-0.5 , 0.5  , -0.5j, 0.5j ]]
 
-        >>> rand_clifford_matrix(2, seed=123)
-        array([[0.+0.70710678j, 0.+0.j        , 0.-0.70710678j, 0.+0.j        ],
-               [0.+0.j        , 0.-0.70710678j, 0.+0.j        , 0.-0.70710678j],
-               [0.+0.j        , 0.+0.70710678j, 0.+0.j        , 0.-0.70710678j],
-               [0.+0.70710678j, 0.+0.j        , 0.+0.70710678j, 0.+0.j        ]])
+        >>> pprint(rand_clifford_matrix(2, seed=123))
+        [[0.70711j, 0        , -0.70711j, 0        ],
+         [0       , -0.70711j, 0        , -0.70711j],
+         [0       , 0.70711j , 0        , -0.70711j],
+         [0.70711j, 0        , 0.70711j , 0        ]]
 
     """
     from qiskit import quantum_info
@@ -302,6 +298,7 @@ def rand_clifford_matrix(
     return res
 
 
+@typechecked
 def rand_unitary_2x2_matrix(
     seed: Optional[Union[int, np.random.Generator]] = None
 ) -> npt.NDArray[np.complex64]:
@@ -318,13 +315,13 @@ def rand_unitary_2x2_matrix(
         A random Clifford matrix.
 
     Examples:
-        >>> rand_unitary_2x2_matrix()
-        array([[-0.44233606+0.j        , -0.57071368-0.69182707j],
-               [ 0.57071368+0.69182707j,  0.27325473+0.34784055j]])
+        >>> pprint(rand_unitary_2x2_matrix())
+        [[-0.44234        , -0.57071-0.69183j],
+         [0.57071+0.69183j, 0.27325+0.34784j ]]
 
-        >>> rand_unitary_2x2_matrix(seed=123)
-        array([[-0.54205051+0.j        , -0.15559823-0.82581501j],
-               [ 0.15559823+0.82581501j,  0.08203889-0.53580629j]])
+        >>> pprint(rand_unitary_2x2_matrix(seed=123))
+        [[-0.54205       , -0.1556-0.82582j],
+         [0.1556+0.82582j, 0.08204-0.53581j]]
 
     """
     if seed is None:
@@ -344,6 +341,7 @@ def rand_unitary_2x2_matrix(
     return np.array([[c, -eg * s], [eg * s, eg * ep * c]])
 
 
+@typechecked
 def rand_product_local_unitaries(
     nb_qubits: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
@@ -358,25 +356,17 @@ def rand_product_local_unitaries(
         A tensor product of random unitary matrices.
 
     Example:
-        >>> rand_product_local_unitaries(2)
-        array([[ 0.07058754-0.j        ,  0.43591425+0.02563897j,
-                 0.09107391+0.11040107j,  0.52232796+0.71486324j],
-               [-0.43591425-0.02563897j, -0.05999574-0.03719022j,
-                -0.52232796-0.71486324j, -0.01924144-0.14181897j],
-               [-0.09107391-0.11040107j, -0.52232796-0.71486324j,
-                -0.04360571-0.05550804j, -0.24912587-0.35862918j],
-               [ 0.52232796+0.71486324j,  0.01924144+0.14181897j,
-                 0.24912587+0.35862918j,  0.00781725+0.07015334j]])
+        >>> pprint(rand_product_local_unitaries(2))
+        [[0.07059          , 0.43591+0.02564j , 0.09107+0.1104j  , 0.52233+0.71486j ],
+         [-0.43591-0.02564j, -0.06-0.03719j   , -0.52233-0.71486j, -0.01924-0.14182j],
+         [-0.09107-0.1104j , -0.52233-0.71486j, -0.04361-0.05551j, -0.24913-0.35863j],
+         [0.52233+0.71486j , 0.01924+0.14182j , 0.24913+0.35863j , 0.00782+0.07015j ]]
 
-        >>> rand_product_local_unitaries(2, seed=123)
-        array([[-0.45363624+0.j        ,  0.11284472-0.27440661j,
-                -0.13021848-0.6911157j ,  0.45045163+0.0931494j ],
-               [-0.11284472+0.27440661j, -0.4523475 +0.03416981j,
-                -0.45045163-0.0931494j , -0.18190632-0.67934369j],
-               [ 0.13021848+0.6911157j , -0.45045163-0.0931494j ,
-                 0.06865747-0.44841051j,  0.25416659+0.153076j  ],
-               [ 0.45045163+0.0931494j ,  0.18190632+0.67934369j,
-                -0.25416659-0.153076j  ,  0.03468623-0.45230819j]])
+        >>> pprint(rand_product_local_unitaries(2, seed=123))
+        [[-0.45364         , 0.11284-0.27441j , -0.13022-0.69112j, 0.45045+0.09315j ],
+         [-0.11284+0.27441j, -0.45235+0.03417j, -0.45045-0.09315j, -0.18191-0.67934j],
+         [0.13022+0.69112j , -0.45045-0.09315j, 0.06866-0.44841j , 0.25417+0.15308j ],
+         [0.45045+0.09315j , 0.18191+0.67934j , -0.25417-0.15308j, 0.03469-0.45231j ]]
 
     """
     rng = np.random.default_rng(seed)
@@ -397,13 +387,13 @@ def rand_hermitian_matrix(
         A random Hermitian Matrix.
 
     Example:
-        >>> rand_hermitian_matrix(2)
-        array([[1.2917002 +0.j, 0.64402145+0.j],
-               [0.64402145+0.j, 1.1020273 +0.j]], dtype=complex64)
+        >>> pprint(rand_hermitian_matrix(2))
+        [[1.2917 , 0.64402],
+         [0.64402, 1.10203]]
 
-        >>> rand_hermitian_matrix(2, seed=123)
-        array([[1.3647038 +0.j, 0.2741809 +0.j],
-               [0.2741809 +0.j, 0.36874363+0.j]], dtype=complex64)
+        >>> pprint(rand_hermitian_matrix(2, seed=123))
+        [[1.3647 , 0.27418],
+         [0.27418, 0.36874]]
 
     """
     rng = np.random.default_rng(seed)

@@ -73,7 +73,7 @@ class Instruction(SimpleClassReprABC):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> Any:
         """Transforms this instruction into the corresponding object in the
         language specified in the ``language`` arg.

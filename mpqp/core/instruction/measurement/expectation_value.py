@@ -50,12 +50,19 @@ class Observable:
         NumberQubitsError: If the number of qubits in the input observable does
             not match the number of target qubits.
 
-    Example:
-        >>> from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
-        >>> matrix = np.array([[1, 0], [0, -1]])
-        >>> ps = 3 * I @ Z + 4 * X @ Y
-        >>> obs = Observable(matrix)
-        >>> obs2 = Observable(ps)
+    Examples:
+        >>> Observable(np.array([[1, 0], [0, -1]]))
+        Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]], dtype=complex64))
+
+        >>> from mpqp.measures import I, X, Y, Z
+        >>> Observable(3 * I @ Z + 4 * X @ Y)  # doctest: +NORMALIZE_WHITESPACE
+        Observable(array([[ 3.+0.j,  0.+0.j, 0.+0.j,  0.+4.j],
+                [ 0.+0.j, -3.+0.j, 0.-4.j,  0.+0.j],
+                [ 0.+0.j,  0.+4.j, 3.+0.j,  0.+0.j],
+                [ 0.-4.j,  0.+0.j, 0.+0.j, -3.+0.j]],
+            dtype=complex64))
+        >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sort_monomials()
+        3*I@Z + 4*X@Y
 
     """
 
@@ -132,7 +139,7 @@ class Observable:
         Args:
             language: The target programming language.
             circuit: The Cirq circuit associated with the observable (required
-                for ``cirq``).
+                if ``language == Language.CIRQ``).
 
         Returns:
             Depends on the target language.
@@ -140,8 +147,9 @@ class Observable:
         Example:
             >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
-            >>> obs_qiskit.to_list()
-            [('II', (0.42499999701976776+0j)), ('IZ', (0.42499999701976776+0j)), ('ZI', (-0.5750000029802322+0j)), ('ZZ', (0.42499999701976776+0j))]
+            >>> obs_qiskit.to_list()  # doctest: +NORMALIZE_WHITESPACE
+            [('II', (0.42499999701976776+0j)), ('IZ', (0.42499999701976776+0j)),
+             ('ZI', (-0.5750000029802322+0j)), ('ZZ', (0.42499999701976776+0j))]
 
         """
         if language == Language.QISKIT:
@@ -169,8 +177,8 @@ class ExpectationMeasure(Measure):
 
     If the ``targets`` are not sorted and contiguous, some additional swaps will
     be needed. This will affect the performance of your circuit if run on noisy
-    hardware. The swaps added can be checked out in the ``pre_measure``
-    attribute of the :class:`ExpectationMeasure`.
+    hardware. The swaps added can be checked out in the :attr:`pre_measure`
+    attribute.
 
     Args:
         targets: List of indices referring to the qubits on which the measure
@@ -179,12 +187,10 @@ class ExpectationMeasure(Measure):
         shots: Number of shots to be performed.
         label: Label used to identify the measure.
 
-    Attributes:
-        observable: Observable used for the measure.
-        pre_measure: Circuit added before the expectation measurement to correctly swap
-                target qubits when their are note ordered or contiguous.
-        rearranged_targets: Adjusted list of target qubits when they are not initially sorted and
-                contiguous.
+    Warns:
+        UserWarning: If the ``targets`` are not sorted and contiguous, some
+            additional swaps will be needed. This will change the performance of
+            your circuit is run on noisy hardware.
 
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
@@ -192,12 +198,9 @@ class ExpectationMeasure(Measure):
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value # doctest: +SKIP
         0.85918
 
-    Warns:
-        UserWarning: If the ``targets`` are not sorted and contiguous, some
-            additional swaps will be needed. This will change the performance of
-            your circuit is run on noisy hardware.
-
     """
+
+    # TODO: problem here with the doc generation, the arguments are messed up
 
     def __init__(
         self,
@@ -210,9 +213,10 @@ class ExpectationMeasure(Measure):
         super().__init__(targets, shots, label)
         self.observable = observable
         """See parameter description."""
-        self.check_targets_order()
+        self._check_targets_order()
 
-    def check_targets_order(self):
+    def _check_targets_order(self):
+        """Ensures target qubits are ordered and contiguous, rearranging them if necessary (private)."""
         from mpqp.core.circuit import QCircuit
 
         if len(self.targets) == 0:
@@ -226,6 +230,8 @@ class ExpectationMeasure(Measure):
             )
 
         self.pre_measure = QCircuit(max(self.targets) + 1)
+        """Circuit added before the expectation measurement to correctly swap
+        target qubits when their are note ordered or contiguous."""
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )
@@ -252,6 +258,8 @@ class ExpectationMeasure(Measure):
                     self.pre_measure.add(SWAP(target, tweaked_tgt[t_index - 1] + 1))
                     tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
         self.rearranged_targets = tweaked_tgt
+        """Adjusted list of target qubits when they are not initially sorted and
+        contiguous."""
 
     def __repr__(self) -> str:
         targets = (
@@ -267,7 +275,7 @@ class ExpectationMeasure(Measure):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
-    ) -> None:
+    ) -> None | str:
         raise NotImplementedError(
             "This object should not be exported as is, because other SDKs have "
             "no equivalent. Instead, this object is used to store the "

@@ -7,6 +7,7 @@ from typing import Optional
 from warnings import warn
 
 import numpy as np
+import numpy.typing as npt
 from scipy.linalg import fractional_matrix_power
 from typeguard import typechecked
 
@@ -54,10 +55,10 @@ class Gate(Instruction, ABC):
             A numpy array representing the unitary matrix of the gate.
 
         Example:
-            >>> gd = UnitaryMatrix(
+            >>> m = UnitaryMatrix(
             ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
             ... )
-            >>> pprint(CustomGate(gd, [1, 2]).to_matrix())
+            >>> pprint(CustomGate(m, [1, 2]).to_matrix())
             [[0, 0, 0, 1],
              [0, 1, 0, 0],
              [1, 0, 0, 0],
@@ -129,10 +130,10 @@ class Gate(Instruction, ABC):
             A numpy array representing the unitary matrix of the gate.
 
         Example:
-            >>> gd = UnitaryMatrix(
+            >>> m = UnitaryMatrix(
             ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
             ... )
-            >>> pprint(CustomGate(gd, [1, 2]).to_canonical_matrix())
+            >>> pprint(CustomGate(m, [1, 2]).to_canonical_matrix())
             [[0, 0, 0, 1],
              [0, 1, 0, 0],
              [1, 0, 0, 0],
@@ -154,18 +155,23 @@ class Gate(Instruction, ABC):
         Example:
             >>> Z(0).inverse()
             Z(0)
-            >>> CustomGate(UnitaryMatrix(np.diag([1,1j])),[0]).inverse().to_matrix()
-            array([[1.-0.j, 0.-0.j],
-                   [0.-0.j, 0.-1.j]])
+            >>> gate = CustomGate(UnitaryMatrix(np.diag([1,1j])),[0])
+            >>> pprint(gate.inverse().to_matrix())
+            [[1, 0  ],
+             [0, -1j]]
 
-        # 3M-TODO: test
         """
+        # TODO: test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
             UnitaryMatrix(self.to_matrix().transpose().conjugate()),
             self.targets,
-            self.label,
+            (
+                None
+                if self.label is None
+                else (self.label[:-1] if self.label.endswith("†") else self.label + "†")
+            ),
         )
 
     def is_equivalent(self, other: Gate) -> bool:
@@ -185,8 +191,8 @@ class Gate(Instruction, ABC):
             >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
             True
 
-        # 3M-TODO: test
         """
+        # TODO: test
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
     def power(self, exponent: float) -> Gate:
@@ -210,30 +216,35 @@ class Gate(Instruction, ABC):
              [0, 0, 1, 0],
              [0, 1, 0, 0],
              [0, 0, 0, 1]]
-            >>> pprint((swap_gate.power(0.75)).to_matrix()) # not implemented yet #doctest: +SKIP
-            array([[1.        +0.j        , 0.        +0.j        ,
-                    0.        +0.j        , 0.        +0.j        ],
-                   [0.        +0.j        , 0.14644661+0.35355339j,
-                    0.85355339-0.35355339j, 0.        +0.j        ],
-                   [0.        +0.j        , 0.85355339-0.35355339j,
-                    0.14644661+0.35355339j, 0.        +0.j        ],
-                   [0.        +0.j        , 0.        +0.j        ,
-                    0.        +0.j        , 1.        +0.j        ]])
+            >>> pprint((swap_gate.power(0.75)).to_matrix())
+            [[1, 0               , 0               , 0],
+             [0, 0.14645+0.35355j, 0.85355-0.35355j, 0],
+             [0, 0.85355-0.35355j, 0.14645+0.35355j, 0],
+             [0, 0               , 0               , 1]]
 
         """
-        # 3M-TODO: to test
+        # TODO: test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
+        if exponent == 1:
+            return deepcopy(self)
+        if exponent == -1:
+            return self.inverse()
+
+        semantics: npt.NDArray[np.complex64] = fractional_matrix_power(
+            self.to_matrix(), exponent
+        )
+
         return CustomGate(
-            definition=UnitaryMatrix(
-                fractional_matrix_power(self.to_matrix(), exponent)
-            ),
+            definition=UnitaryMatrix(semantics / np.linalg.norm(semantics, ord=2)),
             targets=self.targets,
             label=None if self.label is None else self.label + f"^{exponent}",
         )
 
     def tensor_product(self, other: Gate, targets: Optional[list[int]] = None) -> Gate:
         """Compute the tensor product of the current gate.
+
+        This operation is shorthanded by the ``@`` operator.
 
         Args:
             other: Second operand of the tensor product.
@@ -260,7 +271,7 @@ class Gate(Instruction, ABC):
             if len(set(self.targets).intersection(other.targets)) != 0:
                 warn(
                     f"""
-Targets have to change gecause the two gates overlap on qubits 
+Targets have to change because the two gates overlap on qubits 
 {set(self.targets).intersection(other.targets)}
 If need be, please use the optional argument `targets` to remove all ambiguity. 
 Naive attribution will be used (targets start at 0 and of the right length)""",
@@ -280,8 +291,13 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
     def _mandatory_label(self, postfix: str = ""):
         return "g" + postfix if self.label is None else self.label
 
+    def __matmul__(self, other: Gate):
+        return self.tensor_product(other)
+
     def product(self, other: Gate, targets: Optional[list[int]] = None) -> Gate:
         """Compute the composition of self and the other gate.
+
+        This operation is shorthanded by the ``*`` operator.
 
         Args:
             other: Rhs of the product.
@@ -295,10 +311,10 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         Example:
             >>> pprint((X(0).product(Z(0))).to_matrix())
             [[0, -1],
-             [1, 0]]
+             [1, 0 ]]
 
         """
-        # 3M-TODO: to test
+        # TODO: test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
@@ -307,9 +323,12 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
             label=f"{self._mandatory_label('1')}×{other._mandatory_label('2')}",
         )
 
+    def __mul__(self, other: Gate):
+        return self.product(other)
+
     def scalar_product(self, scalar: complex) -> Gate:
-        """Multiply this gate by a scalar. It normalizes the subtraction
-        to ensure it is unitary.
+        """Multiply this gate by a scalar. It normalizes the result to ensure it
+        is unitary.
 
         Args:
             scalar: The number to multiply the gate's matrix by.
@@ -319,9 +338,9 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
             will be the same as the ones of the initial gate.
 
         Example:
-            >>> (X(0).scalar_product(1j)).to_matrix()
-            array([[0.+0.j, 0.+1.j],
-                   [0.+1.j, 0.+0.j]])
+            >>> pprint((X(0).scalar_product(1j)).to_matrix())
+            [[0 , 1j],
+             [1j, 0 ]]
 
         """
         # 3M-TODO: to test
@@ -336,6 +355,8 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
     def minus(self, other: Gate, targets: Optional[list[int]] = None) -> Gate:
         """Compute the subtraction of two gates. It normalizes the subtraction
         to ensure it is unitary.
+
+        This operation is shorthanded by the ``-`` operator.
 
         Args:
             other: The gate to subtract to this gate.
@@ -352,7 +373,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
                    [ 0.70710678,  0.70710678]])
 
         """
-        # 3M-TODO: to test
+        # TODO: test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         subtraction = self.to_matrix() - other.to_matrix()
@@ -363,13 +384,16 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         )
 
     def plus(self, other: Gate, targets: Optional[list[int]] = None) -> Gate:
-        """Compute the sum of two gates. It normalizes the subtraction
-        to ensure it is unitary.
+        """Compute the sum of two gates. It normalizes the result to ensure it
+        is unitary.
+
+        This operation is shorthanded by the ``+`` operator.
 
         Args:
             other: The gate to add to this gate.
-            targets: Qubits on which this new gate will operate. If not given, the targets of the two gates multiplied
-            must be the same and the resulting gate will have this same targets.
+            targets: Qubits on which this new gate will operate. If not given,
+                the targets of the two gates multiplied must be the same and the
+                resulting gate will have this same targets.
 
         Returns:
             The sum of ``self`` and ``other``.
@@ -463,6 +487,15 @@ class SingleQubitGate(Gate, ABC):
         Returns:
             A list of gate instances applied to the qubits in the specified
             range.
+
+        Examples:
+            >>> H.range(3)
+            [H(0), H(1), H(2)]
+            >>> S.range(1, 4)
+            [S(1), S(2), S(3)]
+            >>> Z.range(7, step=2)
+            [Z(0), Z(2), Z(4), Z(6)]
+
         """
         if end is None:
             start_or_end, end = 0, start_or_end

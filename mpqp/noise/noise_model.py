@@ -57,13 +57,12 @@ class NoiseModel(ABC):
     operation will apply to all qubits.
 
     Args:
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instructions.gates.native_gates.NativeGate`
-            affected by this noise.
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
         ValueError: When the target list is empty, or the target indices are duplicated
-        or negative. When the size of the gate is higher than the number of target qubits.
+            or negative. When the size of the gate is higher than the number of target qubits.
     """
 
     def __init__(
@@ -100,18 +99,12 @@ class NoiseModel(ABC):
                     )
 
         self.targets = targets
-        """List of target qubits that will be affected by this noise model."""
+        """See parameter description."""
         self.gates = gates if gates is not None else []
-        """List of specific gates after which this noise model will be applied."""
+        """See parameter description."""
 
     def connections(self) -> set[int]:
-        """Returns the indices of the qubits connected to the noise model
-        (affected by the noise).
-
-        Returns:
-            The set of qubit indices to which this NoiseModel is connected (applied
-            to).
-        """
+        """Qubits to which this is connected (applied to)."""
         return set(self.targets)
 
     @abstractmethod
@@ -164,7 +157,7 @@ class NoiseModel(ABC):
     @abstractmethod
     def to_other_language(
         self, language: Language
-    ) -> "BraketNoise" | "QLMNoise" | "QuantumError":
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """Transforms this noise model into the corresponding object in the
         language specified in the ``language`` arg.
 
@@ -263,17 +256,15 @@ class Depolarizing(DimensionalNoiseModel):
     ``dimension``.
 
     Args:
-        prob: Depolarizing error probability or error rate.
-        targets: List of qubit indices affected by this noise.
+        prob: Depolarizing error probability (also called error rate).
+        targets: Qubits affected by this noise. Defaults to all qubits.
         dimension: Dimension of the depolarizing channel.
-        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
-            affected by this noise.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
         ValueError: When a wrong dimension (negative) or probability (outside of
-            the expected interval) is input.
-        ValueError: When the size of the specified gates is not consistent with
-            the number of targets or the dimension.
+            the expected interval) is input. When the size of the specified 
+            gates is not consistent with the number of targets or the dimension.
 
     Examples:
         >>> circuit = QCircuit([H(i) for i in range(3)])
@@ -297,6 +288,19 @@ class Depolarizing(DimensionalNoiseModel):
             Depolarizing(0.05, [0, 1], dimension=2)
             Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
             Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
+        >>> print(circuit.to_other_language(Language.BRAKET))  # doctest: +NORMALIZE_WHITESPACE
+        T  : │                        0                         │
+              ┌───┐ ┌────────────┐ ┌────────────┐
+        q0 : ─┤ H ├─┤ DEPO(0.01) ├─┤ DEPO(0.32) ├────────────────
+              └───┘ └────────────┘ └────────────┘
+              ┌───┐ ┌────────────┐ ┌────────────┐
+        q1 : ─┤ H ├─┤ DEPO(0.01) ├─┤ DEPO(0.32) ├────────────────
+              └───┘ └────────────┘ └────────────┘
+              ┌───┐ ┌────────────┐ ┌────────────┐ ┌────────────┐
+        q2 : ─┤ H ├─┤ DEPO(0.12) ├─┤ DEPO(0.01) ├─┤ DEPO(0.32) ├─
+              └───┘ └────────────┘ └────────────┘ └────────────┘
+        T  : │                        0                         │
+
     """
 
     def __init__(
@@ -318,7 +322,7 @@ class Depolarizing(DimensionalNoiseModel):
                 f"and {prob_upper_bound}."
             )
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [
             np.sqrt(1 - 3 * self.prob / 4) * I.matrix,
             np.sqrt(self.prob / 4) * X.matrix,
@@ -334,30 +338,24 @@ class Depolarizing(DimensionalNoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError:
+    ) -> "BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError":
         """See the documentation for this method in the abstract mother class :class:`NoiseModel`.
 
         Args:
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
-            >>> braket_depolarizing
+            >>> Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
             Depolarizing('probability': 0.3, 'qubit_count': 1)
-            >>> type(braket_depolarizing)
-            <class 'braket.circuits.noises.Depolarizing'>
-            >>> qiskit_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT)
-            >>> qiskit_depolarizing.to_quantumchannel()
+
+            >>> Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT).to_quantumchannel()
             SuperOp([[0.85+0.j, 0.  +0.j, 0.  +0.j, 0.15+0.j],
                      [0.  +0.j, 0.7 +0.j, 0.  +0.j, 0.  +0.j],
                      [0.  +0.j, 0.  +0.j, 0.7 +0.j, 0.  +0.j],
                      [0.15+0.j, 0.  +0.j, 0.  +0.j, 0.85+0.j]],
                     input_dims=(2,), output_dims=(2,))
 
-            >>> type(qiskit_depolarizing)
-            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
-            >>> qlm_depolarizing = Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM)
-            >>> print(qlm_depolarizing)  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM))  # doctest: +NORMALIZE_WHITESPACE
             Depolarizing channel, p = 0.3:
             [[0.83666003 0.        ]
              [0.         0.83666003]]
@@ -367,8 +365,6 @@ class Depolarizing(DimensionalNoiseModel):
              [0.+0.31622777j 0.+0.j        ]]
             [[ 0.31622777+0.j  0.        +0.j]
              [ 0.        +0.j -0.31622777+0.j]]
-            >>> type(qlm_depolarizing)
-            <class 'qat.quops.quantum_channels.QuantumChannelKraus'>
 
         """
         if language == Language.BRAKET:
@@ -424,23 +420,27 @@ class BitFlip(NoiseModel):
     rate).
 
     Args:
-        prob: Bit flip error probability or error rate (must be within [0, 0.5]).
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
-            affected by this noise. If multi-qubit gates is passed, single-qubit
-            bitflip will be added for each qubit connected (target, control) with the gates.
+        prob: Bit flip error probability or error rate (must be within
+            ``[0, 0.5]``).
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. If multi-qubit gates is passed,
+            single-qubit bitflip will be added for each qubit connected (target,
+            control) with the gates. Defaults to all gates.
 
     Raises:
         ValueError: When the probability is outside of the expected interval
             ``[0, 0.5]``.
 
     Examples:
-        >>> circuit = QCircuit([H(i) for i in range(3)])
-        >>> bf1 = BitFlip(0.1, [0])
-        >>> bf2 = BitFlip(0.3, [1, 2])
-        >>> bf3 = BitFlip(0.05, [0], gates=[H])
-        >>> bf4 = BitFlip(0.3)
-        >>> circuit.add([bf1, bf2, bf3, bf4])
+        >>> circuit = QCircuit(
+        ...     [H(i) for i in range(3)]
+        ...     + [
+        ...         BitFlip(0.1, [0]),
+        ...         BitFlip(0.3, [1, 2]),
+        ...         BitFlip(0.05, [0], gates=[H]),
+        ...         BitFlip(0.3),
+        ...     ]
+        ... )
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -454,6 +454,18 @@ class BitFlip(NoiseModel):
             BitFlip(0.3, [1, 2])
             BitFlip(0.05, [0], gates=[H])
             BitFlip(0.3)
+        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE
+        T  : │                    0                     │
+              ┌───┐ ┌─────────┐ ┌──────────┐ ┌─────────┐
+        q0 : ─┤ H ├─┤ BF(0.3) ├─┤ BF(0.05) ├─┤ BF(0.1) ├─
+              └───┘ └─────────┘ └──────────┘ └─────────┘
+              ┌───┐ ┌─────────┐ ┌─────────┐
+        q1 : ─┤ H ├─┤ BF(0.3) ├─┤ BF(0.3) ├──────────────
+              └───┘ └─────────┘ └─────────┘
+              ┌───┐ ┌─────────┐ ┌─────────┐
+        q2 : ─┤ H ├─┤ BF(0.3) ├─┤ BF(0.3) ├──────────────
+              └───┘ └─────────┘ └─────────┘
+        T  : │                    0                     │
 
     """
 
@@ -471,9 +483,9 @@ class BitFlip(NoiseModel):
 
         super().__init__(targets, gates)
         self.prob = prob
-        """Probability, or error rate, of the bit-flip noise model."""
+        """See parameter description."""
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [np.sqrt(1 - self.prob) * I.matrix, np.sqrt(self.prob) * X.matrix]
 
     def __repr__(self):
@@ -483,28 +495,22 @@ class BitFlip(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise | QuantumError:
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET)
-            >>> braket_bitflip
+            >>> BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET)
             BitFlip('probability': 0.3, 'qubit_count': 1)
-            >>> type(braket_bitflip)
-            <class 'braket.circuits.noises.BitFlip'>
-            >>> qiskit_bitflip = BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT)
-            >>> qiskit_bitflip.to_quantumchannel()
+
+            >>> BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT).to_quantumchannel()
             SuperOp([[0.7+0.j, 0. +0.j, 0. +0.j, 0.3+0.j],
                      [0. +0.j, 0.7+0.j, 0.3+0.j, 0. +0.j],
                      [0. +0.j, 0.3+0.j, 0.7+0.j, 0. +0.j],
                      [0.3+0.j, 0. +0.j, 0. +0.j, 0.7+0.j]],
                     input_dims=(2,), output_dims=(2,))
-
-            >>> type(qiskit_bitflip)
-            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
 
         """
 
@@ -546,23 +552,26 @@ class AmplitudeDamping(NoiseModel):
     Args:
         gamma: Decaying rate of the amplitude damping noise channel.
         prob: Probability of excitation in the generalized amplitude damping
-            noise channel When set to 1, indicating standard amplitude damping.
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`~mpqp.core.instruction.gates.native_gates.NativeGate>`
-            affected by this noise.
+            noise channel. A value of 1, corresponds to the standard amplitude
+            damping. It must be in the ``[0, 1]`` interval.
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
         ValueError: When the gamma or prob parameters are outside of the
             expected interval ``[0, 1]``.
 
     Examples:
-        >>> circuit = QCircuit([H(i) for i in range(3)])
-        >>> ad1 = AmplitudeDamping(0.2, 0, [0])
-        >>> ad2 = AmplitudeDamping(0.4, 0.1, [1, 2])
-        >>> ad3 = AmplitudeDamping(0.1, 1, [0, 1, 2])
-        >>> ad4 = AmplitudeDamping(0.1, 1)
-        >>> ad5 = AmplitudeDamping(0.7, targets=[0, 1])
-        >>> circuit.add([ad1, ad2, ad3, ad4, ad5])
+        >>> circuit = QCircuit(
+        ...     [H(i) for i in range(3)]
+        ...     + [
+        ...         AmplitudeDamping(0.2, 0, [0]),
+        ...         AmplitudeDamping(0.4, 0.1, [1, 2]),
+        ...         AmplitudeDamping(0.1, 1, [0, 1, 2]),
+        ...         AmplitudeDamping(0.1, 1),
+        ...         AmplitudeDamping(0.7, targets=[0, 1]),
+        ...     ]
+        ... )
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -577,6 +586,18 @@ class AmplitudeDamping(NoiseModel):
             AmplitudeDamping(0.1, targets=[0, 1, 2])
             AmplitudeDamping(0.1)
             AmplitudeDamping(0.7, targets=[0, 1])
+        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE
+        T  : │                               0                               │
+              ┌───┐ ┌─────────┐ ┌─────────┐   ┌─────────┐     ┌────────────┐
+        q0 : ─┤ H ├─┤ AD(0.7) ├─┤ AD(0.1) ├───┤ AD(0.1) ├─────┤ GAD(0.2,0) ├──
+              └───┘ └─────────┘ └─────────┘   └─────────┘     └────────────┘
+              ┌───┐ ┌─────────┐ ┌─────────┐   ┌─────────┐    ┌──────────────┐
+        q1 : ─┤ H ├─┤ AD(0.7) ├─┤ AD(0.1) ├───┤ AD(0.1) ├────┤ GAD(0.4,0.1) ├─
+              └───┘ └─────────┘ └─────────┘   └─────────┘    └──────────────┘
+              ┌───┐ ┌─────────┐ ┌─────────┐ ┌──────────────┐
+        q2 : ─┤ H ├─┤ AD(0.1) ├─┤ AD(0.1) ├─┤ GAD(0.4,0.1) ├──────────────────
+              └───┘ └─────────┘ └─────────┘ └──────────────┘
+        T  : │                               0                               │
 
     """
 
@@ -599,11 +620,11 @@ class AmplitudeDamping(NoiseModel):
 
         super().__init__(targets, gates)
         self.gamma = gamma
-        """Decaying rate, of the amplitude damping noise channel."""
+        """See parameter description."""
         self.prob = prob
-        """Excitation probability, of the generalized amplitude damping noise channel."""
+        """See parameter description."""
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [
             np.diag(1, np.sqrt(1 - self.prob)),
             np.array([[0, np.sqrt(self.prob)], [0, 0]]),
@@ -617,33 +638,25 @@ class AmplitudeDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise | QuantumError:
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
             language: Enum representing the target language.
 
         Examples:
-            >>> braket_ad = AmplitudeDamping(0.4, 1, [0, 1]).to_other_language(Language.BRAKET)
-            >>> braket_ad
+            >>> AmplitudeDamping(0.4, targets=[0, 1]).to_other_language(Language.BRAKET)
             AmplitudeDamping('gamma': 0.4, 'qubit_count': 1)
-            >>> type(braket_ad)
-            <class 'braket.circuits.noises.AmplitudeDamping'>
-            >>> braket_gad1 = AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.BRAKET)
-            >>> braket_gad1
+
+            >>> AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.BRAKET)
             GeneralizedAmplitudeDamping('gamma': 0.4, 'probability': 0.2, 'qubit_count': 1)
-            >>> type(braket_gad1)
-            <class 'braket.circuits.noises.GeneralizedAmplitudeDamping'>
-            >>> qiskit_ad = AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.QISKIT)
-            >>> qiskit_ad.to_quantumchannel()
+
+            >>> AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.QISKIT).to_quantumchannel()
             SuperOp([[0.88      +0.j, 0.        +0.j, 0.        +0.j, 0.08      +0.j],
                      [0.        +0.j, 0.89442719+0.j, 0.        +0.j, 0.        +0.j],
                      [0.        +0.j, 0.        +0.j, 0.89442719+0.j, 0.        +0.j],
                      [0.12      +0.j, 0.        +0.j, 0.        +0.j, 0.92      +0.j]],
                     input_dims=(2,), output_dims=(2,))
-
-            >>> type(qiskit_ad)
-            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
 
         """
         if language == Language.BRAKET:
@@ -677,27 +690,31 @@ class AmplitudeDamping(NoiseModel):
         return f"{super().info()} with gamma {self.gamma}{prob}"
 
 
+@typechecked
 class PhaseDamping(NoiseModel):
-    """Class representing the phase damping noise channel. It can be applied to a
-    single qubit and depends on the phase damping parameter ``gamma``. Phase damping happens
-    when a quantum system loses its phase information due to interactions with the environment,
-    leading to decoherence.
+    """Class representing the phase damping noise channel. It can be applied to
+    a single qubit and depends on the phase damping parameter ``gamma``. Phase
+    damping happens when a quantum system loses its phase information due to
+    interactions with the environment, leading to decoherence.
 
     Args:
         gamma: Probability of phase damping.
-        targets: List of qubit indices affected by this noise.
-        gates: List of :class:`Gates<mpqp.core.instruction.gates.native_gate.NativeGate>`
-            affected by this noise.
+        targets: Qubits affected by this noise. Defaults to all qubits.
+        gates: Gates affected by this noise. Defaults to all gates.
 
     Raises:
-        ValueError: When the gamma parameter is outside of the expected interval [0, 1].
+        ValueError: When the gamma parameter is outside of the expected interval
+            ``[0, 1]``.
 
     Examples:
-        >>> circuit = QCircuit([H(i) for i in range(3)])
-        >>> pd1 = PhaseDamping(0.32, list(range(circuit.nb_qubits)))
-        >>> pd2 = PhaseDamping(0.01)
-        >>> pd3 = PhaseDamping(0.45, [0, 1])
-        >>> circuit.add([pd1, pd2, pd3])
+        >>> circuit = QCircuit(
+        ...     [H(i) for i in range(3)]
+        ...     + [
+        ...         PhaseDamping(0.32, list(range(3))),
+        ...         PhaseDamping(0.01),
+        ...         PhaseDamping(0.45, [0, 1]),
+        ...     ]
+        ... )
         >>> print(circuit)
              ┌───┐
         q_0: ┤ H ├
@@ -710,6 +727,18 @@ class PhaseDamping(NoiseModel):
             PhaseDamping(0.32, [0, 1, 2])
             PhaseDamping(0.01)
             PhaseDamping(0.45, [0, 1])
+        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE
+        T  : │                     0                      │
+              ┌───┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+        q0 : ─┤ H ├─┤ PD(0.45) ├─┤ PD(0.01) ├─┤ PD(0.32) ├─
+              └───┘ └──────────┘ └──────────┘ └──────────┘
+              ┌───┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
+        q1 : ─┤ H ├─┤ PD(0.45) ├─┤ PD(0.01) ├─┤ PD(0.32) ├─
+              └───┘ └──────────┘ └──────────┘ └──────────┘
+              ┌───┐ ┌──────────┐ ┌──────────┐
+        q2 : ─┤ H ├─┤ PD(0.01) ├─┤ PD(0.32) ├──────────────
+              └───┘ └──────────┘ └──────────┘
+        T  : │                     0                      │
 
     """
 
@@ -728,7 +757,7 @@ class PhaseDamping(NoiseModel):
         self.gamma = gamma
         """Probability of phase damping."""
 
-    def to_kraus_operators(self):
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
         return [
             np.sqrt(1 - self.gamma) * I.matrix,
             np.diag([np.sqrt(self.gamma), 0]),
@@ -742,30 +771,24 @@ class PhaseDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> BraketNoise | QLMNoise | QuantumError:
+    ) -> "BraketNoise | QLMNoise | QuantumError":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
             language: Enum representing the target language.
 
         Examples:
-            >>> pd = PhaseDamping(0.4, [0, 1])
-            >>> braket_pd = pd.to_other_language(Language.BRAKET)
-            >>> braket_pd
+            >>> PhaseDamping(0.4, [0, 1]).to_other_language(Language.BRAKET)
             PhaseDamping('gamma': 0.4, 'qubit_count': 1)
-            >>> type(braket_pd)
-            <class 'braket.circuits.noises.PhaseDamping'>
-            >>> qiskit_pd = pd.to_other_language(Language.QISKIT)
-            >>> qiskit_pd.to_quantumchannel()
+
+            >>> PhaseDamping(0.4, [0, 1]).to_other_language(Language.QISKIT).to_quantumchannel()
             SuperOp([[1.        +0.j, 0.        +0.j, 0.        +0.j, 0.        +0.j],
                      [0.        +0.j, 0.77459667+0.j, 0.        +0.j, 0.        +0.j],
                      [0.        +0.j, 0.        +0.j, 0.77459667+0.j, 0.        +0.j],
                      [0.        +0.j, 0.        +0.j, 0.        +0.j, 1.        +0.j]],
                     input_dims=(2,), output_dims=(2,))
-            >>> type(qiskit_pd)
-            <class 'qiskit_aer.noise.errors.quantum_error.QuantumError'>
-            >>> qlm_phase_damping = pd.to_other_language(Language.MY_QLM)
-            >>> print(qlm_phase_damping)  # doctest: +NORMALIZE_WHITESPACE
+
+            >>> print(PhaseDamping(0.4, [0, 1]).to_other_language(Language.MY_QLM))  # doctest: +NORMALIZE_WHITESPACE
             Phase Damping channel, gamma = 0.4:
             [[1.         0.        ]
              [0.         0.77459667]]

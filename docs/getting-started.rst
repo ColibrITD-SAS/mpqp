@@ -7,7 +7,7 @@ Installation
 .. TODO: grab the compatibility matrix from MyQLM and relax our requirements 
 .. when possible, test on many different configurations (tox or other ?)
 
-For now, we support Python versions 3.9 to 3.11 on Windows, Linux and 
+For now, we support Python versions 3.9 to 3.11, and all of Windows, Linux and 
 MacOS (specifically, Linux was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 
 is not supported, so your milage may vary).
 
@@ -42,7 +42,9 @@ with a list of :class:`~mpqp.core.instruction.instruction.Instruction`
     >>> from mpqp import QCircuit
     >>> from mpqp.gates import X, CNOT
     >>> from mpqp.measures import BasisMeasure
-    >>> print(QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)]))
+    >>> from mpqp.execution import run, IBMDevice
+    >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
+    >>> print(circuit)
          ┌───┐     ┌─┐
     q_0: ┤ X ├──■──┤M├───
          └───┘┌─┴─┐└╥┘┌─┐
@@ -50,6 +52,13 @@ with a list of :class:`~mpqp.core.instruction.instruction.Instruction`
               └───┘ ║ └╥┘
     c: 2/═══════════╩══╩═
                     0  1
+    >>> print(run(circuit, IBMDevice.AER_SIMULATOR))
+    Result: IBMDevice, AER_SIMULATOR
+     Counts: [0, 0, 0, 100]
+     Probabilities: [0, 0, 0, 1]
+     Samples:
+      State: 11, Index: 3, Count: 100, Probability: 1
+     Error: None
 
 .. _Remote setup:
 
@@ -57,8 +66,8 @@ Set up remote accesses
 ---------------------
 
 Installing MPQP gives you access to ``setup_connections``, a script facilitating
-the setup of remote QPU connections. The three supported providers (Qiskit,
-Qaptiva and Braket) can be set up from this script.  
+the setup of remote QPU connections. The supported providers (Qiskit,
+Qaptiva, Braket, Azure and IonQ) can be set up from this script.  
 
 To run the script, simply run the following command in your terminal:
 
@@ -87,8 +96,43 @@ summed up here:
   + ``AWS Access Key ID``,
   + ``AWS Secret Access Key`` and
   + ``Default region name``.
+- Azure (Azure): For this provider, you need to have an Azure account and create an 
+  Azure Quantum workspace. To create an Azure Quantum workspace, follow the 
+  steps on:
+  `Azure Quantum workspace <https://learn.microsoft.com/en-us/azure/quantum/how-to-create-workspace?tabs=tabid-quick>`_.
+  Once you have your Quantum workspace, you can go to the ``Overview`` section, 
+  where you will find your ``Resource ID`` and ``Location``.
 
-To see which devices are available, see :ref:`Devices`.
+  You might encounter a pop-up requesting Azure authentication for each Azure
+  job submission. This occurs because your security token is reset at the end of
+  each session. In order to avoid this, you can use the Azure CLI.
+
+  First, install the Azure CLI: refer to the guide on their website
+  `How to install the Azure CLI <https://learn.microsoft.com/en-us/cli/azure/install-azure-cli>`_.
+
+  Next, log in to Azure:
+
+  - Using interactive login:
+
+    .. code-block:: console
+
+        $ az login
+
+  - For username and password authentication (note that this method doesn't work 
+    with Microsoft accounts or accounts with two-factor authentication):
+
+    .. code-block:: console
+
+        $ az login -u johndoe@contoso.com -p=VerySecret
+
+  For additional details and options, see the documentation of
+  `az login <https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-login>`_.
+
+- IonQ (Cirq): For this provider, you need to have an IonQ account and create an 
+  ``API token``. You can obtain it from the IonQ Console under 
+  `IonQ setting keys <https://cloud.ionq.com/settings/keys>`_.
+
+To see which devices are available, checkout the :ref:`Devices` section.
 
 Execute examples
 ----------------
@@ -103,3 +147,5 @@ execute them as follows:
     $ python -m examples.scripts.bell_pair
     $ python -m examples.scripts.demonstration
     $ python -m examples.scripts.observable_job
+
+For more information, please refer to the `notebook page <./examples.html>`_.

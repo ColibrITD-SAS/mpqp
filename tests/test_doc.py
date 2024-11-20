@@ -7,6 +7,7 @@ from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
 from functools import partial
 from types import TracebackType
 from typing import Any, Optional, Type
+from anytree import Node
 
 import pytest
 from dotenv import dotenv_values, set_key, unset_key
@@ -26,10 +27,33 @@ from mpqp.execution.connection.env_manager import (
     save_env_variable,
 )
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
-from mpqp.qasm import open_qasm_2_to_3, remove_user_gates
-from mpqp.qasm.open_qasm_2_and_3 import parse_user_gates
-from mpqp.tools.circuit import random_circuit
-from mpqp.tools.display import clean_1D_array, clean_matrix, pprint
+from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.qasm.open_qasm_2_and_3 import (
+    parse_user_gates,
+    open_qasm_2_to_3,
+    remove_user_gates,
+    open_qasm_3_to_2,
+    convert_instruction_3_to_2,
+    open_qasm_file_conversion_3_to_2,
+    remove_include_and_comment,
+)
+from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.qasm import (
+    qasm2_to_Qiskit_Circuit,
+    qasm2_to_cirq_Circuit,
+    qasm2_to_myqlm_Circuit,
+    qasm3_to_braket_Program,
+)
+from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.tools.maths import (
+    is_hermitian,
+    is_unitary,
+    normalize,
+    rand_orthogonal_matrix,
+    is_power_of_two,
+)
+from mpqp.tools.display import *
+from mpqp.tools.circuit import random_circuit, random_instruction
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,

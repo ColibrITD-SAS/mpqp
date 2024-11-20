@@ -8,14 +8,17 @@ Each supported provider has its available devices listed as these enums:
 - :class:`ATOSDevice`,
 - :class:`AWSDevice`,
 - :class:`GOOGLEDevice`.
+- :class:`AZUREDevice`.
 
 Not all combinations of :class:`AvailableDevice` and 
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
 compatible jobs types and devices.
 
+For more information about handling Remote devices, please refer to the `Remote devices handling <execution-extras.html>`_ section.
+
 .. csv-table:: Job/Device Compatibility Matrix
    :file: ../../docs/resources/job-device_compat.csv
-   :widths: 7, 25, 7, 10, 10, 15
+   :widths: 7, 25, 6, 7, 10, 10, 15
    :header-rows: 1
 """
 
@@ -67,7 +70,7 @@ class AvailableDevice(Enum):
 
         Returns:
             ``True`` if this device only handles a restricted set of gates."""
-        return True
+        return False
 
 
 class IBMDevice(AvailableDevice):
@@ -87,24 +90,29 @@ class IBMDevice(AvailableDevice):
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
     AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
 
-    IBM_BRISBANE = "ibm_brisbane"
-    IBM_OSAKA = "ibm_osaka"
-    IBM_KYOTO = "ibm_kyoto"
-
     IBM_SHERBROOKE = "ibm_sherbrooke"
+    IBM_BRISBANE = "ibm_brisbane"
     IBM_KYIV = "ibm_kyiv"
-    IBM_NAZCA = "ibm_nazca"
-    IBM_CUSCO = "ibm_cusco"
-    IBM_ITHACA = "ibm_ithaca"
-    IBM_TORINO = "ibm_torino"
-    IBM_QUEBEC = "ibm_quebec"
+
+    IBM_FEZ = "ibm_fez"
+    IBM_RENSSELAER = "ibm_rensselaer"
+    IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
+    IBM_QUEBEC = "ibm_quebec"
+    IBM_TORINO = "ibm_torino"
+    IBM_NAZCA = "ibm_nazca"
+    IBM_STRASBOURG = "ibm_strasbourg"
+
+    # RETIRED - IBM_OSAKA = "ibm_osaka"
+    # RETIRED - IBM_KYOTO = "ibm_kyoto"
+    # RETIRED - IBM_CUSCO = "ibm_cusco"
+    # RETIRED - IBM_ITHACA = "ibm_ithaca"
     IBM_CLEVELAND = "ibm_cleveland"
-    IBM_CAIRO = "ibm_cairo"
-    IBM_HANOI = "ibm_hanoi"
-    IBM_ALGIERS = "ibm_algiers"
-    IBM_KOLKATA = "ibm_kolkata"
-    IBM_MUMBAI = "ibm_mumbai"
+    # RETIRED - IBM_CAIRO = "ibm_cairo"
+    # RETIRED - IBM_HANOI = "ibm_hanoi"
+    # RETIRED - IBM_ALGIERS = "ibm_algiers"
+    # RETIRED - IBM_KOLKATA = "ibm_kolkata"
+    # RETIRED - IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
     IBM_LEAST_BUSY = "ibm_least_busy"
@@ -114,7 +122,6 @@ class IBMDevice(AvailableDevice):
 
     def is_gate_based(self) -> bool:
         return True
-        # return self != IBMDevice.PULSE_SIMULATOR
 
     def has_reduced_gate_set(self) -> bool:
         return self in {
@@ -169,10 +176,10 @@ class ATOSDevice(AvailableDevice):
 
     @staticmethod
     def from_str_remote(name: str):
-        """Returns the first remote ATOSDevice containing the name given in parameter.
+        """Returns the first remote ATOSDevice matching the given name.
 
         Args:
-            name: A string containing the name of the device.
+            name: A substring of the desired device's name.
 
         Raises:
             ValueError: If no device corresponding to the given name could be
@@ -195,7 +202,7 @@ class ATOSDevice(AvailableDevice):
 
 
 class AWSDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by AWS Braket."""
+    """Enum regrouping all available devices provided by AWS."""
 
     BRAKET_LOCAL_SIMULATOR = "LocalSimulator"
 
@@ -203,12 +210,12 @@ class AWSDevice(AvailableDevice):
     BRAKET_DM1_SIMULATOR = "quantum-simulator/amazon/dm1"
     BRAKET_TN1_SIMULATOR = "quantum-simulator/amazon/tn1"
 
-    BRAKET_IONQ_ARIA_1 = "qpu/ionq/Aria-1"
-    BRAKET_IONQ_ARIA_2 = "qpu/ionq/Aria-2"
-    BRAKET_IONQ_FORTE_1 = "qpu/ionq/Forte-1"
-    BRAKET_QUERA_AQUILA = "qpu/quera/Aquila"
-    BRAKET_RIGETTI_ANKAA_2 = "qpu/rigetti/Ankaa-2"
-    BRAKET_IQM_GARNET = "qpu/iqm/Garnet"
+    IONQ_ARIA_1 = "qpu/ionq/Aria-1"
+    IONQ_ARIA_2 = "qpu/ionq/Aria-2"
+    IONQ_FORTE_1 = "qpu/ionq/Forte-1"
+    QUERA_AQUILA = "qpu/quera/Aquila"
+    RIGETTI_ANKAA_2 = "qpu/rigetti/Ankaa-2"
+    IQM_GARNET = "qpu/iqm/Garnet"
 
     def is_remote(self):
         return self != AWSDevice.BRAKET_LOCAL_SIMULATOR
@@ -232,11 +239,11 @@ class AWSDevice(AvailableDevice):
             The arn of the device.
 
         Examples:
-            >>> AWSDevice.BRAKET_IONQ_ARIA_1.get_arn()
+            >>> AWSDevice.IONQ_ARIA_1.get_arn()
             'arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_arn()
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
-            >>> AWSDevice.BRAKET_RIGETTI_ANKAA_2.get_arn()
+            >>> AWSDevice.RIGETTI_ANKAA_2.get_arn()
             'arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-2'
 
         """
@@ -252,25 +259,26 @@ class AWSDevice(AvailableDevice):
             The region of the device.
 
         Examples:
-            >>> AWSDevice.BRAKET_IONQ_ARIA_1.get_region()
+            >>> AWSDevice.IONQ_ARIA_1.get_region()
             'us-east-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
             True
-            >>> AWSDevice.BRAKET_RIGETTI_ANKAA_2.get_region()
+            >>> AWSDevice.RIGETTI_ANKAA_2.get_region()
             'us-west-1'
 
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
-        elif self == AWSDevice.BRAKET_RIGETTI_ANKAA_2:
+        elif self == AWSDevice.RIGETTI_ANKAA_2:
             return "us-west-1"
-        elif self == AWSDevice.BRAKET_IQM_GARNET:A
+
+        elif self == AWSDevice.IQM_GARNET:
             return "eu-north-1"
         elif self in [
-            AWSDevice.BRAKET_IONQ_ARIA_1,
-            AWSDevice.BRAKET_IONQ_ARIA_2,
-            AWSDevice.BRAKET_IONQ_FORTE_1,
-            AWSDevice.BRAKET_QUERA_AQUILA,
+            AWSDevice.IONQ_ARIA_1,
+            AWSDevice.IONQ_ARIA_2,
+            AWSDevice.IONQ_FORTE_1,
+            AWSDevice.QUERA_AQUILA,
         ]:
             return "us-east-1"
         else:
@@ -285,7 +293,7 @@ class AWSDevice(AvailableDevice):
 
         Examples:
             >>> AWSDevice.from_arn('arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1')
-            <AWSDevice.BRAKET_IONQ_ARIA_1: 'qpu/ionq/Aria-1'>
+            <AWSDevice.IONQ_ARIA_1: 'qpu/ionq/Aria-1'>
             >>> AWSDevice.from_arn('arn:aws:braket:::device/quantum-simulator/amazon/sv1')
             <AWSDevice.BRAKET_SV1_SIMULATOR: 'quantum-simulator/amazon/sv1'>
 
@@ -297,7 +305,7 @@ class AWSDevice(AvailableDevice):
 
 
 class GOOGLEDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by CIRQ."""
+    """Enum regrouping all available devices provided by Google."""
 
     CIRQ_LOCAL_SIMULATOR = "LocalSimulator"
     PROCESSOR_RAINBOW = "rainbow"
@@ -311,6 +319,7 @@ class GOOGLEDevice(AvailableDevice):
         return False
 
     def is_ionq(self):
+        """``True`` if the device is from ``IonQ``."""
         return self.name.startswith("IONQ")
 
     def is_gate_based(self) -> bool:
@@ -327,3 +336,46 @@ class GOOGLEDevice(AvailableDevice):
             True if the device is a processor, False otherwise.
         """
         return self.name.startswith("PROCESSOR")
+
+    def has_reduced_gate_set(self) -> bool:
+        return self in {
+            GOOGLEDevice.PROCESSOR_RAINBOW,
+            GOOGLEDevice.PROCESSOR_WEBER,
+            GOOGLEDevice.IONQ_SIMULATOR,
+            GOOGLEDevice.IONQ_QPU,
+        }
+
+
+class AZUREDevice(AvailableDevice):
+    """Enum regrouping all available devices provided by Azure."""
+
+    IONQ_SIMULATOR = "ionq.simulator"
+    IONQ_QPU = "ionq.qpu"
+    IONQ_QPU_ARIA_1 = "ionq.qpu.aria-1"
+    IONQ_QPU_ARIA_2 = "ionq.qpu.aria-2"
+
+    QUANTINUUM_SIM_H1_1 = "quantinuum.qpu.h1-1"
+    QUANTINUUM_SIM_H1_1SC = "quantinuum.sim.h1-1sc"
+    QUANTINUUM_SIM_H1_1E = "quantinuum.sim.h1-1e"
+
+    RIGETTI_SIM_QVM = "rigetti.sim.qvm"
+    RIGETTI_SIM_QPU_ANKAA_2 = "rigetti.qpu.ankaa-2"
+
+    MICROSOFT_ESTIMATOR = "microsoft.estimator"
+
+    def is_remote(self):
+        return True
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return self == AZUREDevice.IONQ_SIMULATOR
+
+    def is_noisy_simulator(self) -> bool:
+        raise NotImplementedError(
+            'Noisy simulations are not yet implemented for Azure.'
+        )
+
+    def is_ionq(self):
+        return self.name.startswith("IONQ")

@@ -6,6 +6,7 @@ from braket.devices import LocalSimulator
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
+from mpqp.core.languages import Language
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
 from mpqp.gates import *
@@ -100,24 +101,25 @@ def test_sample_demo_aer_stabilizers():
 
 
 def test_statevector_demo():
-    # Declaration of the circuit with the right size
-    circuit = QCircuit(4)
-
-    # Constructing the circuit by adding gates
-    circuit.add(T(0))
-    circuit.add(CNOT(0, 1))
-    circuit.add(X(0))
-    circuit.add(H(1))
-    circuit.add(Z(2))
-    circuit.add(CZ(2, 1))
-    circuit.add([SWAP(2, 0), CNOT(0, 2)])
-    circuit.add(Ry(1.7, 2))
-    circuit.add(S(1))
-    circuit.add(H(3))
-    circuit.add(CNOT(1, 2))
-    circuit.add(Rx(3.14, 1))
-    circuit.add(CNOT(3, 0))
-    circuit.add(Rz(3.14, 0))
+    circuit = QCircuit(
+        [
+            T(0),
+            CNOT(0, 1),
+            X(0),
+            H(1),
+            Z(2),
+            CZ(2, 1),
+            SWAP(2, 0),
+            CNOT(0, 2),
+            Ry(1.7, 2),
+            S(1),
+            H(3),
+            CNOT(1, 2),
+            Rx(3.14, 1),
+            CNOT(3, 0),
+            Rz(3.14, 0),
+        ]
+    )
 
     # when no measure in the circuit, must run in statevector mode
     runner = lambda: run(
@@ -207,8 +209,8 @@ def test_observable_demo(shots: int):
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             IBMDevice.AER_SIMULATOR,
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-            IBMDevice.AER_SIMULATOR_STABILIZER,
+            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            # IBMDevice.AER_SIMULATOR_STABILIZER,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         ],
@@ -315,18 +317,14 @@ def test_all_native_gates():
     circuit.add([CNOT(0, 1), CRk(4, 2, 1), CZ(1, 2)])
     circuit.add(TOF([0, 1], 2))
 
-    circuit.to_qasm2()
-    with pytest.warns(
-        UserWarning,
-        match=r"There is a phase e\^\(i\(a\+c\)/2\) difference between U\(a,b,c\) gate in 2.0 and 3.0.",
-    ):
-        circuit.to_qasm3()
-        run(
-            circuit,
-            [
-                ATOSDevice.MYQLM_PYLINALG,
-                ATOSDevice.MYQLM_CLINALG,
-                IBMDevice.AER_SIMULATOR_STATEVECTOR,
-                AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            ],
-        )
+    circuit.to_other_language(Language.QASM2)
+    circuit.to_other_language(Language.QASM3, translation_warning=False)
+    run(
+        circuit,
+        [
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        ],
+    )

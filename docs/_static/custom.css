@@ -182,6 +182,10 @@ html[data-theme="dark"] .rst-content .highlighted {
   box-shadow: 0 0 0 2px #7e6500;
 }
 
+.rst-content code {
+  background-color: #cccccc;
+}
+
 #native-gates-list > * {
   position: relative;
 }
@@ -193,7 +197,7 @@ html[data-theme="dark"] .rst-content .highlighted {
   position: sticky;
   top: 57px;
   z-index: 10000;
-  background-color: #141414;
+  background-color: #fffefe;
 }
 
 #native-gates-list > * {
@@ -205,6 +209,12 @@ html[data-theme="dark"] .rst-content .highlighted {
   margin-block-end: 0.5em;
 }
 
+/* .output_area.stderr { display: none; } */
+
 html[data-theme="dark"] #native-gates-list > * {
   border-color: white;
+}
+
+html[data-theme="dark"] #native-gates-list {
+  background-color: #141414;
 }

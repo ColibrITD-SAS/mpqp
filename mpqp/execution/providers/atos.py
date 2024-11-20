@@ -12,7 +12,6 @@ from mpqp import Language
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
-    ComputationalBasis,
     ExpectationMeasure,
     Observable,
 )
@@ -510,8 +509,9 @@ def extract_state_vector_result(
     amplitudes = np.zeros(nb_states, np.complex64)
     probas = np.zeros(nb_states, np.float32)
     for sample in myqlm_result:
-        amplitudes[sample._state] = sample.amplitude
-        probas[sample._state] = sample.probability
+        state = sample.state.int
+        amplitudes[state] = sample.amplitude
+        probas[state] = sample.probability
 
     return Result(job, StateVector(amplitudes, nb_qubits, probas), 0, 0)
 
@@ -561,9 +561,9 @@ def extract_sample_result(
     samples = [
         Sample(
             nb_qubits,
-            index=sample._state,
+            index=sample.state.int,
             probability=sample.probability,
-            bin_str=str(sample.state)[1:-1],
+            bin_str=sample.state.bitstring,
         )
         for sample in myqlm_result
     ]
@@ -668,7 +668,7 @@ def run_atos(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     return run_myQLM(job) if not job.device.is_remote() else run_QLM(job)
 
@@ -685,7 +685,7 @@ def run_myQLM(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     result = None
@@ -707,12 +707,7 @@ def run_myQLM(job: Job) -> Result:
 
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            myqlm_job = generate_sample_job(myqlm_circuit, job)
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
@@ -747,7 +742,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     myqlm_job = None
@@ -764,12 +759,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
     elif job.job_type == JobType.SAMPLE:
         assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            myqlm_job = generate_sample_job(myqlm_circuit, job)
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
         assert isinstance(job.measure, ExpectationMeasure)
@@ -801,13 +791,13 @@ def run_QLM(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
 
     if not isinstance(job.device, ATOSDevice) or not job.device.is_remote():
         raise ValueError(
-            "This job's device is not a QLM one, so it cannot be handled by this "
-            "function. Use ``run`` instead."
+            "This job's device is not a QLM one, so it cannot be handled by "
+            "this function. Use `run` instead."
         )
 
     _, async_result = submit_QLM(job)

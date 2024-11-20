@@ -2,6 +2,8 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from typeguard import typechecked
+
 from mpqp import Language, QCircuit
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
@@ -15,7 +17,6 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise.noise_model import NoiseModel
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit
@@ -70,7 +71,7 @@ def apply_noise_to_braket_circuit(
             braket_noise,  # pyright: ignore[reportArgumentType]
             target_gates=(
                 [
-                    gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
+                    gate.braket_gate
                     for gate in noise.gates
                     if hasattr(gate, "braket_gate")
                 ]
@@ -100,7 +101,7 @@ def run_braket(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
@@ -139,7 +140,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
@@ -171,7 +172,6 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         assert isinstance(braket_circuit, Circuit)
 
     if job.job_type == JobType.STATE_VECTOR:
-        job.circuit = job.circuit.without_measurements()
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=0, inputs=None)
@@ -336,7 +336,7 @@ def estimate_cost_single_job(
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0, 1), CNOT(1, 2), BasisMeasure(shots=245)])
-        >>> job = generate_job(circuit, AWSDevice.BRAKET_IONQ_ARIA_1)
+        >>> job = generate_job(circuit, AWSDevice.IONQ_ARIA_1)
         >>> estimate_cost_single_job(job, hybrid_iterations=150)
         1147.5
 

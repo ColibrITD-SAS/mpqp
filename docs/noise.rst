@@ -13,6 +13,9 @@ We strongly encourage the user to have a look at the
 details of the manipulation, use, and simulation of noise models are 
 presented.
 
+For more details on how to use noise models taken from real hardware, you can
+look at :ref:`SimulatedDevices`.
+
 .. code-block:: python
     :class: import
 
@@ -20,8 +23,7 @@ presented.
 
 
 .. note::
-    Noisy simulations are supported for IBM Qiskit, Atos QLM and AWS 
-    Braket devices.
+    Noisy simulations are supported for :class:`IBMDevice`, :class:`AtosDevice` and :class:`AWSDevice`.
 
 
 Noise models
