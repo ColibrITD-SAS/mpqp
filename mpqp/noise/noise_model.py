@@ -263,7 +263,7 @@ class Depolarizing(DimensionalNoiseModel):
 
     Raises:
         ValueError: When a wrong dimension (negative) or probability (outside of
-            the expected interval) is input. When the size of the specified 
+            the expected interval) is input. When the size of the specified
             gates is not consistent with the number of targets or the dimension.
 
     Examples:

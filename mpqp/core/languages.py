@@ -7,6 +7,7 @@ in the :class:`Language` enum."""
 
 from enum import Enum, auto
 
+
 class Language(Enum):
     """Enumerate containing all the supported languages."""
 

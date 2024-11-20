@@ -465,7 +465,7 @@ class QCircuit:
                 this circuit.
 
         Returns:
-            The QCircuit resulting from the tensor product of this circuit with 
+            The QCircuit resulting from the tensor product of this circuit with
             that in parameter.
 
         Examples:
