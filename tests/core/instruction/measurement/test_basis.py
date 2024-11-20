@@ -1,3 +1,4 @@
+import contextlib
 from itertools import product
 
 import numpy as np
@@ -17,6 +18,7 @@ from mpqp.measures import (
     HadamardBasis,
     VariableSizeBasis,
 )
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import matrix_eq
 
 
@@ -194,9 +196,16 @@ def test_valid_run_custom_basis_state_vector_one_qubit(
 ):
     vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
 
-    result = _run_single(
-        circuit + QCircuit([BasisMeasure(basis=Basis(vectors), shots=0)]), device, {}
-    )
+    with (
+        pytest.warns(UnsupportedBraketFeaturesWarning)
+        if isinstance(device, AWSDevice)
+        else contextlib.suppress()
+    ):
+        result = _run_single(
+            circuit + QCircuit([BasisMeasure(basis=Basis(vectors), shots=0)]),
+            device,
+            {},
+        )
 
     assert matrix_eq(vectors[expected_vector_index], result.amplitudes)
 
@@ -204,13 +213,14 @@ def test_valid_run_custom_basis_state_vector_one_qubit(
 def test_run_custom_basis_sampling_one_qubit():
     vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
     basis = Basis(vectors)
-    run(
-        QCircuit([X(0), X(0), BasisMeasure(basis=basis)]),
-        [
-            IBMDevice.AER_SIMULATOR,
-            ATOSDevice.MYQLM_PYLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-        ],
-    )
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        run(
+            QCircuit([X(0), X(0), BasisMeasure(basis=basis)]),
+            [
+                IBMDevice.AER_SIMULATOR,
+                ATOSDevice.MYQLM_PYLINALG,
+                AWSDevice.BRAKET_LOCAL_SIMULATOR,
+                GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            ],
+        )
     assert True

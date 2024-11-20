@@ -1,13 +1,12 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 from numpy.random import Generator
-from qiskit import QuantumCircuit, transpile
-from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.gate import SingleQubitGate, Gate
+from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
     TOF,
@@ -21,7 +20,20 @@ from mpqp.core.instruction.gates.native_gates import (
     U,
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+from mpqp.noise.noise_model import (
+    NOISE_MODELS,
+    AmplitudeDamping,
+    BitFlip,
+    Dephasing,
+    Depolarizing,
+    NoiseModel,
+    PhaseDamping,
+)
 from mpqp.tools.maths import closest_unitary
+
+if TYPE_CHECKING:
+    from qiskit import QuantumCircuit
+    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 
 def random_circuit(
@@ -72,17 +84,17 @@ def random_circuit(
 
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
-        qcircuit.add(random_instruction(gate_classes, nb_qubits, rng))
+        qcircuit.add(random_gate(gate_classes, nb_qubits, rng))
     return qcircuit
 
 
-def random_instruction(
+def random_gate(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
     seed: Optional[int | Generator] = None,
 ) -> Gate:
-    """This function creates a instruction with a specified number of qubits.
-    The gates are chosen randomly from the provided list of native gate classes.
+    """This function creates a gate with a specified number of qubits.
+    The gate are chosen randomly from the provided list of native gate classes.
 
     args:
         nb_qubits : Number of qubits in the circuit.
@@ -95,9 +107,9 @@ def random_instruction(
         ValueError: If the number of qubits is too low for the specified gates.
 
     Examples:
-        >>> random_instruction([U, TOF], 3) # doctest: +SKIP
+        >>> random_gate([U, TOF], 3) # doctest: +SKIP
         U(2.067365317109373, 0.18652872274018245, 0.443968374745352, 0)
-        >>> random_instruction(nb_qubits=4) # doctest: +SKIP
+        >>> random_gate(nb_qubits=4) # doctest: +SKIP
         SWAP(3, 1)
 
     """
@@ -157,6 +169,53 @@ def random_instruction(
             return TOF([control, control2], target)
         else:
             return gate_class(control, target)
+
+
+def random_noise(
+    noise_model: Optional[Sequence[type[NoiseModel]]] = None,
+    seed: Optional[int | Generator] = None,
+) -> NoiseModel:
+    """This function creates a noise model.
+    The noise are chosen randomly from the provided list of noise model.
+
+    args:
+        noise_model : List of noise model.
+
+    Returns:
+        A quantum circuit with the specified number of qubits and randomly chosen gates.
+
+    Raises:
+        ValueError: If the number of qubits is too low for the specified gates.
+
+    Examples:
+        >>> random_noise() # doctest: +SKIP
+        Depolarizing(0.37785041428875576)
+
+    """
+    rng = np.random.default_rng(seed)
+
+    if noise_model is None:
+        noise_model = NOISE_MODELS
+
+    noise = rng.choice(np.array(noise_model))
+
+    if issubclass(noise, AmplitudeDamping):
+        prob = rng.uniform(0, 1)
+        return AmplitudeDamping(prob)
+    elif issubclass(noise, BitFlip):
+        prob = rng.uniform(0, 0.5)
+        return BitFlip(prob)
+    elif issubclass(noise, Dephasing):
+        prob = rng.uniform(0, 1)
+        return Depolarizing(prob)
+    elif issubclass(noise, Depolarizing):
+        prob = rng.uniform(0, 0.75)
+        return Depolarizing(prob)
+    elif issubclass(noise, PhaseDamping):
+        gamma = rng.uniform(0, 1)
+        return PhaseDamping(gamma)
+    else:
+        raise NotImplementedError(f"{noise} model not implemented")
 
 
 def compute_expected_matrix(qcircuit: QCircuit):
@@ -226,6 +285,7 @@ def replace_custom_gate(
         of gates ``U`` and ``CX``, and the global phase used to
         correct the statevector if need be.
     """
+    from qiskit import QuantumCircuit, transpile
     from qiskit.exceptions import QiskitError
 
     transpilation_circuit = QuantumCircuit(nb_qubits)

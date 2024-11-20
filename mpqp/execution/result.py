@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -302,7 +302,8 @@ class Result:
             if is_counts:
                 counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
                 for sample in data:
-                    assert sample.count is not None
+                    if TYPE_CHECKING:
+                        assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
                 assert shots != 0
@@ -333,7 +334,8 @@ class Result:
                 f"Job type: {self.job.job_type.name} but cannot get expectation"
                 " value if the job type is not OBSERVABLE."
             )
-        assert self._expectation_value is not None
+        if TYPE_CHECKING:
+            assert self._expectation_value is not None
         return self._expectation_value
 
     @property
@@ -343,7 +345,8 @@ class Result:
             raise ResultAttributeError(
                 "Cannot get amplitudes if the job was not of type STATE_VECTOR"
             )
-        assert self._state_vector is not None
+        if TYPE_CHECKING:
+            assert self._state_vector is not None
         return self._state_vector.amplitudes
 
     @property
@@ -353,7 +356,8 @@ class Result:
             raise ResultAttributeError(
                 "Cannot get state vector if the job was not of type STATE_VECTOR"
             )
-        assert self._state_vector is not None
+        if TYPE_CHECKING:
+            assert self._state_vector is not None
         return self._state_vector
 
     @property
@@ -363,7 +367,8 @@ class Result:
             raise ResultAttributeError(
                 "Cannot get samples if the job was not of type SAMPLE"
             )
-        assert self._samples is not None
+        if TYPE_CHECKING:
+            assert self._samples is not None
         return self._samples
 
     @property
@@ -374,7 +379,8 @@ class Result:
                 "Cannot get probabilities if the job was not of"
                 " type SAMPLE or STATE_VECTOR"
             )
-        assert self._probabilities is not None
+        if TYPE_CHECKING:
+            assert self._probabilities is not None
         return self._probabilities
 
     @property
@@ -385,7 +391,8 @@ class Result:
                 "Cannot get counts if the job was not of type SAMPLE"
             )
 
-        assert self._counts is not None
+        if TYPE_CHECKING:
+            assert self._counts is not None
         return self._counts
 
     def __str__(self):
@@ -401,14 +408,18 @@ class Result:
             if not isinstance(measure, BasisMeasure):
                 raise ValueError("Mismatch between measurements type and job type.")
 
-            assert all(sample.probability is not None for sample in self.samples)
+            # assert all(sample.probability is not None for sample in self.samples)
 
             probabilities = [
                 sample.probability
                 for sample in self.samples
                 if sample.probability is not None
             ]
-            assert len(probabilities) == len(self.samples)
+
+            if len(probabilities) != len(self.samples):
+                raise ValueError(
+                    f"Some samples ({len(self.samples)-len(probabilities)} of them) have probabilities to None."
+                )
 
             samples_str = "\n".join(
                 f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
