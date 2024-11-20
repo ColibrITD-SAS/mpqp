@@ -41,6 +41,7 @@ from mpqp.execution.devices import (
     GOOGLEDevice,
     IBMDevice,
 )
+from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
@@ -191,10 +192,12 @@ def _run_single(
             raise DeviceJobIncompatibleError(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
-        elif not isinstance(device, (ATOSDevice, AWSDevice, IBMDevice)):
+        elif not isinstance(
+            device, (ATOSDevice, AWSDevice, IBMDevice, SimulatedDevice)
+        ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, IBMDevice):
+    if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)

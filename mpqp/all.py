@@ -24,6 +24,7 @@ from .execution.devices import (
     IBMDevice,
     AZUREDevice,
 )
+from .execution.simulated_devices import IBMSimulatedDevice
 from .execution.remote_handler import get_all_job_ids
 from .execution.vqa import Optimizer, minimize
 from .gates import (
@@ -69,6 +70,8 @@ from .measures import Y as Yop
 from .measures import Z as Zop
 from .noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
+from .tools.circuit import random_circuit
+from .tools.display import pprint
 
 theta, k = symbols("θ k")
 obs = Observable(np.array([[0, 1], [1, 0]]))

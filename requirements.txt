@@ -7,10 +7,9 @@ boto3==1.34.124
 myqlm==1.10.6
 myqlm-interop
 cvxpy==1.4.3
-qiskit>=1.1
-qiskit-ibm-runtime==0.23.0
-qiskit-aer==0.14.2
-#qiskit-aqt-provider>=1.8.0
+qiskit==1.2.4
+qiskit-ibm-runtime==0.31.0
+qiskit-aer==0.15.1
 azure-quantum>=2.1.0
 azure-quantum[qiskit]
 python_dotenv>=1.0.0

@@ -406,8 +406,12 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
                     assert run(circuit_observable, device) is not None
 
         else:
-            with pytest.raises(NotImplementedError):
-                run(circuit_observable, device)
+            if isinstance(device, IBMDevice):
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_observable, device)
+            else:
+                with pytest.raises(NotImplementedError):
+                    run(circuit_observable, device)
 
         if device.supports_observable_ideal():
             if isinstance(device, GOOGLEDevice) and device.is_processor():
@@ -423,8 +427,12 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
                 ):
                     assert run(circuit_observable_ideal, device) is not None
         else:
-            with pytest.raises(NotImplementedError):
-                run(circuit_observable_ideal, device)
+            if isinstance(device, IBMDevice):
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_observable, device)
+            else:
+                with pytest.raises(NotImplementedError):
+                    run(circuit_observable, device)
 
 
 @pytest.mark.parametrize("language", list(Language))

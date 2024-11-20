@@ -104,24 +104,29 @@ class IBMDevice(AvailableDevice):
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
     AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
 
-    IBM_BRISBANE = "ibm_brisbane"
-    IBM_OSAKA = "ibm_osaka"
-    IBM_KYOTO = "ibm_kyoto"
-
     IBM_SHERBROOKE = "ibm_sherbrooke"
+    IBM_BRISBANE = "ibm_brisbane"
     IBM_KYIV = "ibm_kyiv"
-    IBM_NAZCA = "ibm_nazca"
-    IBM_CUSCO = "ibm_cusco"
-    IBM_ITHACA = "ibm_ithaca"
-    IBM_TORINO = "ibm_torino"
-    IBM_QUEBEC = "ibm_quebec"
+
+    IBM_FEZ = "ibm_fez"
+    IBM_RENSSELAER = "ibm_rensselaer"
+    IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
+    IBM_QUEBEC = "ibm_quebec"
+    IBM_TORINO = "ibm_torino"
+    IBM_NAZCA = "ibm_nazca"
+    IBM_STRASBOURG = "ibm_strasbourg"
+
+    # RETIRED - IBM_OSAKA = "ibm_osaka"
+    # RETIRED - IBM_KYOTO = "ibm_kyoto"
+    # RETIRED - IBM_CUSCO = "ibm_cusco"
+    # RETIRED - IBM_ITHACA = "ibm_ithaca"
     IBM_CLEVELAND = "ibm_cleveland"
-    IBM_CAIRO = "ibm_cairo"
-    IBM_HANOI = "ibm_hanoi"
-    IBM_ALGIERS = "ibm_algiers"
-    IBM_KOLKATA = "ibm_kolkata"
-    IBM_MUMBAI = "ibm_mumbai"
+    # RETIRED - IBM_CAIRO = "ibm_cairo"
+    # RETIRED - IBM_HANOI = "ibm_hanoi"
+    # RETIRED - IBM_ALGIERS = "ibm_algiers"
+    # RETIRED - IBM_KOLKATA = "ibm_kolkata"
+    # RETIRED - IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
     IBM_LEAST_BUSY = "ibm_least_busy"
@@ -131,7 +136,6 @@ class IBMDevice(AvailableDevice):
 
     def is_gate_based(self) -> bool:
         return True
-        # return self != IBMDevice.PULSE_SIMULATOR
 
     def has_reduced_gate_set(self) -> bool:
         return self in {
@@ -163,7 +167,9 @@ class IBMDevice(AvailableDevice):
         }
 
     def supports_observable(self) -> bool:
-        return True
+        return self not in {
+            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+        }
 
     def supports_observable_ideal(self) -> bool:
         return self in {
@@ -171,7 +177,7 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
             IBMDevice.AER_SIMULATOR_STABILIZER,
-            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 

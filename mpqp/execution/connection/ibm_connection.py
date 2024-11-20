@@ -1,6 +1,9 @@
 from getpass import getpass
 from typing import TYPE_CHECKING
 
+from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.execution.devices import IBMDevice
+from mpqp.tools.errors import IBMRemoteExecutionError
 from termcolor import colored
 from typeguard import typechecked
 
@@ -8,9 +11,6 @@ if TYPE_CHECKING:
     from qiskit.providers.backend import BackendV2
     from qiskit_ibm_runtime import QiskitRuntimeService
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
-from mpqp.execution.devices import IBMDevice
-from mpqp.tools.errors import IBMRemoteExecutionError
 
 Runtime_Service = None
 
@@ -158,7 +158,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
     parameter.
 
     Args:
-        device: The IBMDevice to get from IBMQ provider.
+        device: The IBMDevice to get from the qiskit Runtime service.
 
     Returns:
         The requested backend.
@@ -175,7 +175,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
 
     """
     if not device.is_remote():
-        raise ValueError("Expected a remote IBMQ device but got a local simulator.")
+        raise ValueError("Expected a remote IBM device but got a local simulator.")
     from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
     service = get_QiskitRuntimeService()
@@ -183,7 +183,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
     try:
         if device == IBMDevice.IBM_LEAST_BUSY:
             return service.least_busy(operational=True)
-        return service.get_backend(device.value)
+        return service.backend(device.value)
     except QiskitBackendNotFoundError as err:
         raise IBMRemoteExecutionError(
             f"Requested device {device} not found. Verify if your instances "
@@ -209,6 +209,5 @@ def get_all_job_ids() -> list[str]:
 
     """
     if get_env_variable("IBM_CONFIGURED") == "True":
-        return [job.job_id() for job in get_QiskitRuntimeService().jobs()]
-
+        return [job.job_id() for job in get_QiskitRuntimeService().jobs(limit=None)]
     return []
