@@ -149,7 +149,7 @@ from mpqp import Language
 
             qreg q[3];
             creg c[3];
-            \\\\ this is a comment
+            // this is a comment
             
             h q[0];
             cx q[0], q[1];

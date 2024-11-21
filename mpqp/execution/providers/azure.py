@@ -26,7 +26,7 @@ def run_azure(job: Job) -> Result:
     parameter.
 
     Args:
-        job: Job to be executed.
+        job:  The job to be executed, containing the circuit and device information.
 
     Returns:
         The result of the job.
@@ -72,6 +72,19 @@ def extract_result(
     job: Optional[Job],
     device: AZUREDevice,
 ) -> Result:
+    """Extract the result from Azure or Qiskit result objects and convert it into our format.
+
+    Args:
+        result: The result object to extract data from.
+        job: The associated job object (optional for Microsoft results).
+        device: The device where the job was executed.
+
+    Returns:
+        The formatted result object containing the job results.
+
+    Raises:
+        ValueError: If the result type is unsupported.
+    """
     from qiskit.result import Result as QiskitResult
     from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
 
@@ -149,6 +162,15 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
 
 
 def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+    """Extracts the sample data from a Qiskit result object.
+
+    Args:
+        job: The job associated with the result.
+        result: The Qiskit result object containing the counts data.
+
+    Returns:
+        A list of sample objects extracted from the Qiskit result.
+    """
     job_data = result.data()
     return [
         Sample(

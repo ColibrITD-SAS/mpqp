@@ -34,7 +34,7 @@ def run_google(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     return run_local(job) if not job.device.is_remote() else run_google_remote(job)
 
@@ -46,7 +46,7 @@ def run_google_remote(job: Job) -> Result:
 
     Args:
         job: Job to be executed, it MUST be corresponding to a
-            :class:`mpqp.execution.devices.GOOGLEDevice`.
+            :class:`~mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
         The result after submission and execution of the job.
@@ -110,7 +110,7 @@ def run_local(job: Job) -> Result:
 
     Args:
         job : Job to be executed, it MUST be corresponding to a
-            :class:`mpqp.execution.devices.GOOGLEDevice`.
+            :class:`~mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
         The result after submission and execution of the job.
@@ -198,7 +198,7 @@ def run_local_processor(job: Job) -> Result:
 
     Args:
         job : Job to be executed, it MUST be corresponding to a
-            :class:`mpqp.execution.devices.GOOGLEDevice`.
+            :class:`~mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
         The result after submission and execution of the job.
@@ -344,7 +344,8 @@ def extract_result_OBSERVABLE_processors(
         The formatted result.
 
     Raises:
-        NotImplementedError: If the job does not contain a measurement (i.e., `job.measure` is `None`).
+        NotImplementedError: If the job does not contain a measurement (i.e.,
+            ``job.measure`` is ``None``).
     """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")

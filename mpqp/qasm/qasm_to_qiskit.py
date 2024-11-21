@@ -23,6 +23,23 @@ def qasm2_to_Qiskit_Circuit(qasm_str: str) -> "QuantumCircuit":
 
     Returns:
         A QuantumCircuit equivalent to the QASM code in parameter.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 2.0;
+        ... include "qelib1.inc";
+        ... qreg q[2];
+        ... h q[0];
+        ... cx q[0], q[1];
+        ... '''
+        >>> circuit = qasm2_to_Qiskit_Circuit(qasm_code)
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
+             ┌───┐
+        q_0: ┤ H ├──■──
+             └───┘┌─┴─┐
+        q_1: ─────┤ X ├
+                  └───┘
+
     """
     from qiskit import QuantumCircuit
 

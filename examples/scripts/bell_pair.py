@@ -13,7 +13,7 @@ circuit = QCircuit(2, label="Bell pair")
 # Constructing the circuit by adding gates and measurements
 circuit.add(H(0))
 circuit.add(CNOT(0, 1))
-circuit.add(BasisMeasure([0, 1], shots=1000))
+circuit.add(BasisMeasure(shots=1000))
 results = run(circuit, [IBMDevice.AER_SIMULATOR, AWSDevice.BRAKET_LOCAL_SIMULATOR])
 print(results)
 

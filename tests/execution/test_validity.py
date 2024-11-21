@@ -12,7 +12,8 @@ from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import I as Ip, PauliString
+from mpqp.core.instruction.measurement.pauli_string import I as Ip
+from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.core.instruction.measurement.pauli_string import X as Xp
 from mpqp.core.instruction.measurement.pauli_string import Y as Yp
 from mpqp.core.instruction.measurement.pauli_string import Z as Zp
@@ -395,7 +396,7 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
             if isinstance(device, GOOGLEDevice) and device.is_processor():
                 with pytest.raises(DeviceJobIncompatibleError):
                     run(circuit_observable, device)
-                circuit_observable.get_measurements()[0].shots = 10
+                circuit_observable.measurements[0].shots = 10
                 assert run(circuit_observable, device) is not None
             else:
                 with (
@@ -417,7 +418,7 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
             if isinstance(device, GOOGLEDevice) and device.is_processor():
                 with pytest.raises(DeviceJobIncompatibleError):
                     run(circuit_observable_ideal, device)
-                circuit_observable_ideal.get_measurements()[0].shots = 10
+                circuit_observable_ideal.measurements[0].shots = 10
                 assert run(circuit_observable_ideal, device) is not None
             else:
                 with (

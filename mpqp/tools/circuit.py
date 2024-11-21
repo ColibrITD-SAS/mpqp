@@ -4,6 +4,9 @@ from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 from numpy.random import Generator
+from qiskit import QuantumCircuit
+from qiskit.circuit.quantumcircuitdata import CircuitInstruction
+from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
@@ -36,6 +39,8 @@ if TYPE_CHECKING:
     from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 
+# @typechecked
+# FIXME: Resolve type-checking errors encountered during test execution.
 def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -88,6 +93,7 @@ def random_circuit(
     return qcircuit
 
 
+@typechecked
 def random_gate(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -218,6 +224,7 @@ def random_noise(
         raise NotImplementedError(f"{noise} model not implemented")
 
 
+@typechecked
 def compute_expected_matrix(qcircuit: QCircuit):
     """
     Computes the expected matrix resulting from applying single-qubit gates
@@ -263,6 +270,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
     return np.vectorize(N)(result_matrix).astype(complex)
 
 
+@typechecked
 def replace_custom_gate(
     custom_unitary: "CircuitInstruction", nb_qubits: int
 ) -> tuple["QuantumCircuit", float]:

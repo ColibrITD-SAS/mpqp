@@ -16,7 +16,7 @@ code transformations. Key functionalities include:
     - :func:`parse_openqasm_2_file`: Splits OpenQASM 2.0 code into individual instructions,
       preserving gate declarations to ensure proper handling during conversion.
     - :func:`open_qasm_2_to_3`: Main function for converting OpenQASM 2.0 code to 3.0. 
-    It adds necessary library includes.
+      It adds necessary library includes.
     - :func:`open_qasm_file_conversion_2_to_3`: Reads from the specified file, and outputs
       the converted file in QASM 2.0 syntax.
 
@@ -26,26 +26,24 @@ code transformations. Key functionalities include:
     - :func:`parse_openqasm_3_file`: Splits OpenQASM 3.0 code into individual instructions,
       preserving gate declarations to ensure proper handling during conversion.
     - :func:`open_qasm_3_to_2`: Main function for converting OpenQASM 3.0 code to 2.0. 
-    It adds necessary library includes, tracks cumulative global phases. 
+      It adds necessary library includes, tracks cumulative global phases. 
     - :func:`open_qasm_file_conversion_3_to_2`: Reads from the specified file, and outputs
       the converted file in QASM 2.0 syntax.
 
 3. **User-Defined Gate Handling**:
-    - **UserGate Class**: Represents user-defined gates in OpenQASM. Each `UserGate` instance
+    - **UserGate Class**: Represents user-defined gates in OpenQASM. Each ``UserGate`` instance
       stores the gate's name, parameters, qubits, and instruction sequence.
     - :func:`parse_user_gates`: Extracts and stores user-defined gate definitions 
       from OpenQASM code, removing them from the main code to allow separate handling. 
-      Custom gates are identified using the `GATE_PATTERN` regex and stored as `UserGate` instances.
+      Custom gates are identified using the ``GATE_PATTERN`` regex and stored as ``UserGate`` instances.
     - :func:`remove_user_gates`: Replaces calls to user-defined gates in OpenQASM code with
-      their expanded definitions. This function relies on `parse_user_gates` to retrieve 
+      their expanded definitions. This function relies on ``parse_user_gates`` to retrieve 
       gate definitions, and it substitutes parameter and qubit values within each gate's body 
       instructions for accurate expansion.
   
 4. **Supporting Functions**:
-    - :func:`remove_include_and_comment`: Removes OpenQASM `include` statements and comments 
-    to simplify parsing and ensure a clean conversion base.
     - :func:`open_qasm_hard_includes`: Combines multiple OpenQASM files into a single file 
-    with resolved includes, simplifying code management for projects with multiple source files.
+      with resolved includes, simplifying code management for projects with multiple source files.
 
 """
 
@@ -637,6 +635,17 @@ def open_qasm_hard_includes(
 
 
 class UserGate:
+    """Represents a custom user-defined quantum gate with specified parameters, qubits, and instructions.
+    This class serves as a template for custom gates that can be used in a quantum circuit.
+
+    Args:
+        name: The name of the user-defined gate.
+        parameters: A list of parameter names that the gate requires (e.g., angles, coefficients).
+        qubits: A list of qubit identifiers that the gate operates on.
+        instructions: A list of instructions (quantum operations) that define the gate's behavior.
+
+    """
+
     def __init__(
         self,
         name: str,
@@ -719,6 +728,7 @@ def parse_user_gates(
         creg c[2];
         rzz(0.2) q[1], q[2];
         c2[0] = measure q[2];
+
     """
     copy_qasm_code = "\n".join(
         [line.lstrip() for line in qasm_code.splitlines() if line.strip()]
@@ -781,6 +791,7 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
         h q[0];
         cx q[0], q[1];
         measure q -> c;
+
     """
     user_gates, qasm_code = parse_user_gates(qasm_code, skip_qelib1)
     previous_qasm_body = None
@@ -824,14 +835,34 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
 
 
 def remove_include_and_comment(qasm_code: str) -> str:
-    replaced_code = ""
+    r"""
+    Removes lines that start with 'include' or comments (starting with '\\')
+    from a given OpenQASM code string.
+
+    Args:
+        qasm_code: The input QASM code as a string.
+
+    Returns:
+        The modified QASM code with 'include' lines and comments removed.
+
+    Example:
+        >>> qasm_code = '''include "stdgates.inc";
+        ... qreg q[2];
+        ... // This is a comment
+        ... H q[0];'''
+        >>> print(remove_include_and_comment(qasm_code))
+        qreg q[2];
+        H q[0];
+
+    """
+    replaced_code = []
     for line in qasm_code.split("\n"):
         line = line.lstrip()
-        if line.startswith("include") or line.startswith("\\\\"):
+        if line.startswith("include") or line.startswith("//"):
             pass
         else:
-            replaced_code += line + "\n"
-    return replaced_code
+            replaced_code.append(line)
+    return "\n".join(replaced_code)
 
 
 @typechecked
@@ -843,7 +874,7 @@ def convert_instruction_3_to_2(
     path_to_main: Optional[str] = None,
     gphase: float = 0.0,
 ) -> tuple[str, str, float]:
-    """Some instructions changed name from QASM 2 to QASM 3, also the way to
+    r"""Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
     single instruction.
 
@@ -865,7 +896,7 @@ def convert_instruction_3_to_2(
 
     Example:
         >>> convert_instruction_3_to_2("phase(0.3) q1[0];",set(),Node(""),set())
-        (\'u1(0.3) q1[0];;\\n\', \'\', 0.0)
+        ('u1(0.3) q1[0];;\n', '', 0.0)
 
     """
     # 6M-TODO: not handled for loop, or a switch case, or pulse and low level quantum operations, etc.
@@ -1100,7 +1131,7 @@ def open_qasm_3_to_2(
         )
         header_code += h_code
         instructions_code += i_code
-    gphase_code = f"\\\\ gphase {gphase}\n" if gphase != 0 else ""
+    gphase_code = f"// gphase {gphase}\n" if gphase != 0 else ""
     target_code = header_code + gphase_code + instructions_code
 
     return target_code, gphase

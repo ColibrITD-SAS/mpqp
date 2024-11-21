@@ -1,53 +1,52 @@
-Provider ,Device                            ,SAMPLE ,STATE_VECTOR ,OBSERVABLE ,OBSERVABLE ideal
-IBM      ,AER_SIMULATOR                     ,✓      ,✓            ,✓          ,✓
-IBM      ,AER_SIMULATOR_STATEVECTOR         ,✓      ,✓            ,✓          ,✓
-IBM      ,AER_SIMULATOR_DENSITY_MATRIX      ,✓      ,             ,✓          ,✓
-IBM      ,AER_SIMULATOR_STABILIZER          ,✓      ,             ,✓          ,✓
-IBM      ,AER_SIMULATOR_EXTENDED_STABILIZER ,✓      ,✓            ,           ,
-IBM      ,AER_SIMULATOR_MATRIX_PRODUCT_STATE,✓      ,✓            ,✓          ,✓
-IBM      ,IBM_BRISBANE                      ,✓      ,             ,✓          ,
-IBM      ,IBM_SHERBROOKE                    ,✓      ,             ,✓          ,
-IBM      ,IBM_KYIV                          ,✓      ,             ,✓          ,
-IBM      ,IBM_NAZCA                         ,✓      ,             ,✓          ,
-IBM      ,IBM_TORINO                        ,✓      ,             ,✓          ,
-IBM      ,IBM_QUEBEC                        ,✓      ,             ,✓          ,
-IBM      ,IBM_KAWASAKI                      ,✓      ,             ,✓          ,
-IBM      ,IBM_CLEVELAND                     ,✓      ,             ,✓          ,
-IBM      ,IBM_PEEKSKILL                     ,✓      ,             ,✓          ,
-IBM      ,IBM_RENSSELAER                    ,✓      ,             ,✓          ,
-IBM      ,IBM_BRUSSELS                      ,✓      ,             ,✓          ,
-IBM      ,IBM_STRASBOURG                    ,✓      ,             ,✓          ,
-IBM      ,IBM_FEZ                           ,✓      ,             ,✓          ,
-IBM      ,IBM_LEAST_BUSY                    ,✓      ,             ,✓          ,
-Atos     ,MYQLM_PYLINALG                    ,✓      ,✓            ,✓          ,✓
-Atos     ,MYQLM_CLINALG                     ,✓      ,✓            ,✓          ,✓
-Atos     ,QLM_LINALG                        ,✓      ,✓            ,✓          ,✓
-Atos     ,QLM_MPS                           ,✓      ,✓            ,           ,✓
-Atos     ,QLM_MPO                           ,✓      ,             ,           ,✓
-Atos     ,QLM_NOISY_QPROC                   ,✓      ,             ,✓          ,✓
-AWS      ,BRAKET_LOCAL_SIMULATOR            ,✓      ,✓            ,✓          ,✓
-AWS      ,BRAKET_SV1_SIMULATOR              ,✓      ,✓            ,✓          ,
-AWS      ,BRAKET_DM1_SIMULATOR              ,✓      ,             ,✓          ,
-AWS      ,BRAKET_TN1_SIMULATOR              ,✓      ,             ,✓          ,✓
-AWS      ,BRAKET_IONQ_HARMONY               ,✓      ,             ,✓          ,
-AWS      ,BRAKET_IONQ_ARIA_1                ,✓      ,             ,✓          ,
-AWS      ,BRAKET_IONQ_ARIA_2                ,✓      ,             ,✓          ,
-AWS      ,BRAKET_IONQ_FORTE_1               ,✓      ,             ,✓          ,
-AWS      ,BRAKET_OQC_LUCY                   ,✓      ,             ,✓          ,
-AWS      ,BRAKET_QUERA_AQUILA               ,✓      ,             ,✓          ,
-AWS      ,BRAKET_RIGETTI_ASPEN_M_3          ,✓      ,             ,✓          ,
-Google   ,CIRQ_LOCAL_SIMULATOR              ,✓      ,✓            ,✓          ,✓
-Google   ,PROCESSOR_RAINBOW                 ,✓      ,             ,✓          , 
-Google   ,PROCESSOR_WEBER                   ,✓      ,             ,✓          , 
-Google   ,IONQ_SIMULATOR                    ,✓      ,             ,           , 
-Google   ,IONQ_QPU                          ,✓      ,             ,           ,
-Azure    ,IONQ_SIMULATOR                    ,✓      ,             ,           ,
-Azure    ,IONQ_QPU                          ,✓      ,             ,           ,
-Azure    ,IONQ_QPU_ARIA_1                   ,✓      ,             ,           ,
-Azure    ,IONQ_QPU_ARIA_2                   ,✓      ,             ,           ,
-Azure    ,QUANTUM_SIM_H1_1                  ,✓      ,             ,           ,
-Azure    ,QUANTUM_SIM_H1_1SC                ,✓      ,             ,           ,
-Azure    ,QUANTUM_SIM_H1_1E                 ,✓      ,             ,           ,
-Azure    ,RIGETTI_SIM_QVM                   ,✓      ,             ,           ,
-Azure    ,RIGETTI_SIM_QPU_ANKAA_2           ,✓      ,             ,           ,
-Azure    ,MICROSOFT_ESTIMATOR               ,       ,             ,           ,
+Provider ,Device                            ,LOCAL ,SAMPLE ,STATE_VECTOR ,OBSERVABLE ,OBSERVABLE ideal
+IBM      ,AER_SIMULATOR                     ,✓     ,✓      ,✓            ,✓          ,✓
+IBM      ,AER_SIMULATOR_STATEVECTOR         ,✓     ,✓      ,✓            ,✓          ,✓
+IBM      ,AER_SIMULATOR_DENSITY_MATRIX      ,✓     ,✓      ,             ,✓          ,✓
+IBM      ,AER_SIMULATOR_STABILIZER          ,✓     ,✓      ,             ,✓          ,✓
+IBM      ,AER_SIMULATOR_EXTENDED_STABILIZER ,✓     ,✓      ,✓            ,✓          ,✓
+IBM      ,AER_SIMULATOR_MATRIX_PRODUCT_STATE,✓     ,✓      ,✓            ,✓          ,✓
+IBM      ,IBM_BRISBANE                      ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_SHERBROOKE                    ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_KYIV                          ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_NAZCA                         ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_TORINO                        ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_QUEBEC                        ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_KAWASAKI                      ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_CLEVELAND                     ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_PEEKSKILL                     ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_RENSSELAER                    ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_BRUSSELS                      ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_STRASBOURG                    ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_FEZ                           ,      ,✓      ,             ,✓          ,
+IBM      ,IBM_LEAST_BUSY                    ,      ,✓      ,             ,✓          ,
+Atos     ,MYQLM_PYLINALG                    ,✓     ,✓      ,✓            ,✓          ,✓
+Atos     ,MYQLM_CLINALG                     ,✓     ,✓      ,✓            ,✓          ,✓
+Atos     ,QLM_LINALG                        ,      ,✓      ,✓            ,✓          ,✓
+Atos     ,QLM_MPS                           ,      ,✓      ,✓            ,           ,✓
+Atos     ,QLM_MPO                           ,      ,✓      ,             ,           ,✓
+Atos     ,QLM_NOISY_QPROC                   ,      ,✓      ,             ,✓          ,✓
+AWS      ,BRAKET_LOCAL_SIMULATOR            ,✓     ,✓      ,✓            ,✓          ,✓
+AWS      ,BRAKET_SV1_SIMULATOR              ,      ,✓      ,✓            ,✓          ,
+AWS      ,BRAKET_DM1_SIMULATOR              ,      ,✓      ,             ,✓          ,
+AWS      ,BRAKET_TN1_SIMULATOR              ,      ,✓      ,             ,✓          ,✓
+AWS      ,IONQ_ARIA_1                       ,      ,✓      ,             ,✓          ,
+AWS      ,IONQ_ARIA_2                       ,      ,✓      ,             ,✓          ,
+AWS      ,IONQ_FORTE_1                      ,      ,✓      ,             ,✓          ,
+AWS      ,QUERA_AQUILA                      ,      ,✓      ,             ,✓          ,
+AWS      ,RIGETTI_ANKAA_2                   ,      ,✓      ,             ,✓          ,
+AWS      ,IQM_GARNET                        ,      ,✓      ,             ,✓           ,
+Google   ,CIRQ_LOCAL_SIMULATOR              ,✓     ,✓      ,✓            ,✓          ,✓
+Google   ,PROCESSOR_RAINBOW                 ,✓     ,✓      ,             ,✓          , 
+Google   ,PROCESSOR_WEBER                   ,✓     ,✓      ,             ,✓          , 
+Google   ,IONQ_SIMULATOR                    ,      ,✓      ,             ,           , 
+Google   ,IONQ_QPU                          ,      ,✓      ,             ,           ,
+Azure    ,IONQ_SIMULATOR                    ,      ,✓      ,             ,           ,
+Azure    ,IONQ_QPU                          ,      ,✓      ,             ,           ,
+Azure    ,IONQ_QPU_ARIA_1                   ,      ,✓      ,             ,           ,
+Azure    ,IONQ_QPU_ARIA_2                   ,      ,✓      ,             ,           ,
+Azure    ,QUANTINUUM_SIM_H1_1               ,      ,✓      ,             ,           ,
+Azure    ,QUANTINUUM_SIM_H1_1SC             ,      ,✓      ,             ,           ,
+Azure    ,QUANTINUUM_SIM_H1_1E              ,      ,✓      ,             ,           ,
+Azure    ,RIGETTI_SIM_QVM                   ,      ,✓      ,             ,           ,
+Azure    ,RIGETTI_SIM_QPU_ANKAA_2           ,      ,✓      ,             ,           ,
+Azure    ,MICROSOFT_ESTIMATOR               ,      ,       ,             ,           ,

@@ -99,7 +99,7 @@ class Job:
         ...     JobType.STATE_VECTOR,
         ...     circuit,
         ...     IBMDevice.AER_SIMULATOR,
-        ...     circuit.get_measurements()[0],
+        ...     circuit.measurements[0],
         ... )
 
     """
@@ -128,8 +128,10 @@ class Job:
 
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
-        the remote provider.  ``None`` if the job is local. If the job is not 
-        local, it will be set later on."""
+        the remote provider.  ``None`` if the job is local. It can take a little
+        while before it is set to the right value (For instance, a job
+        submission can require handshake protocols to conclude before
+        attributing an id to the job)."""
 
     @property
     def status(self):

@@ -106,12 +106,12 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
             retrieved.
 
     Example:
-        >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ASPEN_M_3)
-        >>> device.properties.action['braket.ir.jaqcd.program'].supportedResultTypes
-        [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
-         ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
-         ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
-         ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
+        >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_2)
+        >>> device.properties.action['braket.ir.openqasm.program'].supportedResultTypes
+        [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
+         ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
+         ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
+         ResultType(name='Probability', observables=None, minShots=10, maxShots=50000)]
 
     """
     from braket.devices import LocalSimulator

@@ -35,8 +35,16 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     open_qasm_3_to_2,
     convert_instruction_3_to_2,
     open_qasm_file_conversion_3_to_2,
+    remove_include_and_comment,
 )
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.qasm import (
+    qasm2_to_Qiskit_Circuit,
+    qasm2_to_cirq_Circuit,
+    qasm2_to_myqlm_Circuit,
+    qasm3_to_braket_Program,
+)
+from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.maths import (
     is_hermitian,
     is_unitary,

@@ -1,10 +1,10 @@
-"""MPQP is focused on gate based quantum computing. As such, the main element of
+"""MPQP is focused on gate-based quantum computing. As such, the main element of
 a script using MPQP is the quantum circuit, or :class:`QCircuit`. The
-:class:`QCircuit` contains the data of all gates, measures, and noise models you
+:class:`QCircuit` contains the data for all gates, measurements, and noise models you
 want to apply to your qubits. 
 
-The qubits are only referred by their indices, so one could keep track of
-specific registers using python features, for instance
+The qubits are only referred to by their indices, so one could keep track of
+specific registers using Python features, for instance
 
 .. code-block:: python
 
@@ -13,8 +13,21 @@ specific registers using python features, for instance
     >>> ancillas = range(3,6)
     >>> for i in range(3):
     ...     circ.add(CNOT(targets[i], ancillas[i]))
+    >>> print(circ)  # doctest: +NORMALIZE_WHITESPACE
+    q_0: ──■────────────
+           │
+    q_1: ──┼────■───────
+           │    │
+    q_2: ──┼────┼────■──
+         ┌─┴─┐  │    │
+    q_3: ┤ X ├──┼────┼──
+         └───┘┌─┴─┐  │
+    q_4: ─────┤ X ├──┼──
+              └───┘┌─┴─┐
+    q_5: ──────────┤ X ├
+                   └───┘
     
-could be use to add CNOT gates to your circuit, using the two registers
+could be used to add CNOT gates to your circuit, using the two registers
 ``targets`` and ``ancillas``.
 """
 
@@ -46,9 +59,9 @@ from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
 
 if TYPE_CHECKING:
-    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-    from cirq.circuits.circuit import Circuit as cirq_Circuit
     from braket.circuits import Circuit as braket_Circuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
 
@@ -57,15 +70,16 @@ if TYPE_CHECKING:
 class QCircuit:
     """This class models a quantum circuit.
 
-    A circuit is composed of instructions and noise models applied on
+    A circuit is composed of instructions and noise models applied to
     quantum and/or classical bits. These elements (instructions and noise
     models) will be called ``components`` hereafter.
 
     Args:
-        data: Number of qubits or list of ``components`` to initialize the circuit
-            with. If the number of qubits is passed, it should be a positive int.
+        data: Number of qubits or list of ``components`` to initialize the
+            circuit with. If the number of qubits is passed, it should be a
+            positive integer.
         nb_qubits: Optional number of qubits, in case you input the sequence of
-            instruction and want to hardcode the number of qubits.
+            instructions and want to hardcode the number of qubits.
         nb_cbits: Number of classical bits. It should be positive.
         label: Name of the circuit.
 
@@ -76,22 +90,20 @@ class QCircuit:
         q_0:
         q_1:
 
-        >>> circuit = QCircuit(5, nb_cbits=2, label="Circuit 1")
-        >>> circuit.add(Rx(1.23, 3))
+        >>> circuit = QCircuit([Rx(1.23, 2)], nb_qubits=4, nb_cbits=2, label="Circuit 1")
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
-        QCircuit Circuit 1: Size (Qubits, Cbits) = (5, 2), Nb instructions = 1
+        QCircuit Circuit 1: Size (Qubits, Cbits) = (4, 2), Nb instructions = 1
         q_0: ────────────
         q_1: ────────────
-        q_2: ────────────
              ┌──────────┐
-        q_3: ┤ Rx(1.23) ├
+        q_2: ┤ Rx(1.23) ├
              └──────────┘
-        q_4: ────────────
+        q_3: ────────────
         c: 2/════════════
 
         >>> circuit = QCircuit(3, label="NoiseExample")
         >>> circuit.add([H(0), T(1), CNOT(0,1), S(2)])
-        >>> circuit.add(BasisMeasure(list(range(3)), shots=2345))
+        >>> circuit.add(BasisMeasure(shots=2345))
         >>> circuit.add(Depolarizing(prob=0.50, targets=[0, 1]))
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
         QCircuit NoiseExample: Size (Qubits, Cbits) = (3, 3), Nb instructions = 5
@@ -126,7 +138,6 @@ class QCircuit:
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._nb_qubits: int
-        """Number of qubits of the circuit."""
 
         self.gphase: float = 0
         """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
@@ -146,7 +157,7 @@ class QCircuit:
                     self._nb_qubits = 0
                 else:
                     connections: set[int] = set.union(
-                        *(item.connections() for item in data)
+                        *(instruction.connections() for instruction in data)
                     )
                     self._nb_qubits = max(connections) + 1
             else:
@@ -167,7 +178,7 @@ class QCircuit:
         Examples:
             >>> circuit = QCircuit(2)
             >>> circuit.add(X(0))
-            >>> circuit.add([CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
+            >>> circuit.add([CNOT(0, 1), BasisMeasure(shots=100)])
             >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
             QCircuit : Size (Qubits, Cbits) = (2, 2), Nb instructions = 3
                  ┌───┐     ┌─┐
@@ -291,7 +302,7 @@ class QCircuit:
             component.size = self.nb_qubits
             component.targets = list(range(self.nb_qubits))
         elif isinstance(component, ExpectationMeasure):
-            component.check_targets_order()
+            component._check_targets_order()  # pyright: ignore[reportPrivateUsage]
         elif isinstance(component, DimensionalNoiseModel):
             component.check_dimension()
         elif isinstance(component, BasisMeasure):
@@ -332,6 +343,7 @@ class QCircuit:
 
     @property
     def nb_qubits(self) -> int:
+        """Number of qubits of the circuit."""
         return self._nb_qubits
 
     @nb_qubits.setter
@@ -353,22 +365,46 @@ class QCircuit:
         the parameter ``qubits_offset`` can be used to indicate at which qubit
         the ``other`` circuit must be added.
 
+        This method can be shorthanded with the ``+=`` operator (while ``+``
+        performs the same operation without the *inplace* factor.)
+
         Args:
             other: The circuit to append at the end of this circuit.
             qubits_offset: If the circuit in parameter is smaller, this
-                parameter precise at which qubit (vertically) the circuit will
+                parameter determines at which qubit (vertically) the circuit will
                 be added.
 
         Raises:
-            NumberQubitsError: if the circuit in parameter is larger than this
-                circuit or if the ``qubits_offset`` is too big such that the
+            NumberQubitsError: If the circuit in parameter is larger than this
+                circuit or if the ``qubits_offset`` is too big, such that the
                 ``other`` circuit would "stick out".
 
-        Example:
+        Examples:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> c1.append(c2)
             >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
+            q_0: ──■─────────────────
+                 ┌─┴─┐     ┌───┐
+            q_1: ┤ X ├──■──┤ X ├──■──
+                 └───┘┌─┴─┐└───┘┌─┴─┐
+            q_2: ─────┤ X ├─────┤ X ├
+                      └───┘     └───┘
+
+            >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
+            >>> c2 = QCircuit([X(1),CNOT(1,2)])
+            >>> c1 += c2
+            >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
+            q_0: ──■─────────────────
+                 ┌─┴─┐     ┌───┐
+            q_1: ┤ X ├──■──┤ X ├──■──
+                 └───┘┌─┴─┐└───┘┌─┴─┐
+            q_2: ─────┤ X ├─────┤ X ├
+                      └───┘     └───┘
+
+            >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
+            >>> c2 = QCircuit([X(1),CNOT(1,2)])
+            >>> print(c1 + c2)  # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■─────────────────
                  ┌─┴─┐     ┌───┐
             q_1: ┤ X ├──■──┤ X ├──■──
@@ -409,11 +445,12 @@ class QCircuit:
         return res
 
     def tensor(self, other: QCircuit) -> QCircuit:
-        """Computes the tensor product of this circuit with the one in parameter.
+        """Computes the tensor product of this circuit with that in parameter.
 
         In the circuit notation, the upper part of the output circuit will
-        correspond to the first circuit, while the bottom part correspond to the
-        one in parameter.
+        correspond to the first circuit, while the bottom part corresponds to that in parameter.
+
+        This method can be shorthanded with the ``@`` operator.
 
         Args:
             other: QCircuit being the second operand of the tensor product with
@@ -421,18 +458,36 @@ class QCircuit:
 
         Returns:
             The QCircuit resulting from the tensor product of this circuit with
-            the one in parameter.
+            that in parameter.
 
         Args:
-            other: QCircuit being the second operand of the tensor product with this circuit.
+            other: QCircuit being the second operand of the tensor product with
+                this circuit.
 
         Returns:
-            The QCircuit resulting from the tensor product of this circuit with the one in parameter.
+            The QCircuit resulting from the tensor product of this circuit with
+            that in parameter.
 
-        Example:
+        Examples:
             >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
             >>> c2 = QCircuit([X(1),CNOT(1,2)])
             >>> print(c1.tensor(c2))  # doctest: +NORMALIZE_WHITESPACE
+            q_0: ──■───────
+                 ┌─┴─┐
+            q_1: ┤ X ├──■──
+                 └───┘┌─┴─┐
+            q_2: ─────┤ X ├
+                      └───┘
+            q_3: ──────────
+                 ┌───┐
+            q_4: ┤ X ├──■──
+                 └───┘┌─┴─┐
+            q_5: ─────┤ X ├
+                      └───┘
+
+            >>> c1 = QCircuit([CNOT(0,1),CNOT(1,2)])
+            >>> c2 = QCircuit([X(1),CNOT(1,2)])
+            >>> print(c1 @ c2)  # doctest: +NORMALIZE_WHITESPACE
             q_0: ──■───────
                  ┌─┴─┐
             q_1: ┤ X ├──■──
@@ -456,7 +511,7 @@ class QCircuit:
         return self.tensor(other)
 
     def display(self, output: str = "mpl"):
-        r"""Displays this circuit in the desired output format.
+        r"""Displays the circuit in the desired output format.
 
         For now, this uses the qiskit circuit drawer, so all formats supported
         by qiskit are supported.
@@ -468,10 +523,7 @@ class QCircuit:
         
         Examples:
             >>> theta = symbols("θ")
-            >>> circ = QCircuit([
-            ...     P(theta, 0),
-            ...     ExpectationMeasure(Observable(np.array([[0, 1], [1, 0]])), [0], shots=1000)
-            ... ])
+            >>> circ = QCircuit([P(theta, 0)])
             >>> circ.display("text")
                ┌──────┐
             q: ┤ P(θ) ├
@@ -501,7 +553,7 @@ class QCircuit:
         return fig
 
     def size(self) -> tuple[int, int]:
-        """Provides the size of the circuit, in terms of number of quantum and
+        """Provides the size of the circuit, in terms of the number of quantum and
         classical bits.
 
         Returns:
@@ -515,7 +567,7 @@ class QCircuit:
             >>> c2 = QCircuit(3,nb_cbits=2)
             >>> c2.size()
             (3, 2)
-            >>> c3 = QCircuit([CNOT(0,1),CNOT(1,2), BasisMeasure([0,1,2], shots=200)])
+            >>> c3 = QCircuit([CNOT(0,1),CNOT(1,2), BasisMeasure(shots=200)])
             >>> c3.size()
             (3, 3)
 
@@ -632,11 +684,11 @@ class QCircuit:
 
         Examples:
             >>> c = QCircuit([H(0), CNOT(0,1)])
-            >>> c.to_matrix()  #  # doctest: +NORMALIZE_WHITESPACE
-            array([[ 0.70710678+0.j,  0.        +0.j,  0.70710678+0.j, 0.        +0.j],
-                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, 0.70710678+0.j],
-                   [ 0.        +0.j,  0.70710678+0.j,  0.        +0.j, -0.70710678+0.j],
-                   [ 0.70710678+0.j,  0.        +0.j, -0.70710678+0.j, 0.        +0.j]])
+            >>> pprint(c.to_matrix())
+            [[0.70711, 0      , 0.70711 , 0       ],
+             [0      , 0.70711, 0       , 0.70711 ],
+             [0      , 0.70711, 0       , -0.70711],
+             [0.70711, 0      , -0.70711, 0       ]]
 
         """
         from qiskit import QuantumCircuit
@@ -754,11 +806,10 @@ class QCircuit:
         of this gate.
 
         Args:
-            gate: The gate for which we want to know its occurrence in this
-                circuit.
+            gate: The gate whose occurrence we want to determine in this circuit.
 
         Returns:
-            The number of gates (eventually of a specific type) contained in the
+            The number of gates (of a specific type) contained in the
             circuit.
 
         Examples:
@@ -776,21 +827,23 @@ class QCircuit:
         filter2 = Gate if gate is None else gate
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
-    def get_gates(self) -> list[Gate]:
+    @property
+    def gates(self) -> list[Gate]:
         """Retrieve all the gates from the instructions in the circuit.
 
         Returns:
             The list of all gates present in the circuit.
 
         Example:
-            >>> circuit = QCircuit([H(0), CNOT(0, 1)])
-            >>> circuit.get_gates()
+            >>> circuit = QCircuit([H(0), Barrier(), CNOT(0, 1), BasisMeasure()])
+            >>> circuit.gates
             [H(0), CNOT(0, 1)]
 
         """
         return [instr for instr in self.instructions if isinstance(instr, Gate)]
 
-    def get_measurements(self) -> list[Measure]:
+    @property
+    def measurements(self) -> list[Measure]:
         """Returns all the measurements present in this circuit.
 
         Returns:
@@ -798,11 +851,11 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit([
-            ...     BasisMeasure([0, 1], shots=1000),
+            ...     BasisMeasure(shots=1000),
             ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
             ... ])
-            >>> circuit.get_measurements()  # doctest: +NORMALIZE_WHITESPACE
-            [BasisMeasure([0, 1], shots=1000),
+            >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
+            [BasisMeasure(shots=1000),
             ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
 
         """
@@ -815,7 +868,7 @@ class QCircuit:
             A copy of this circuit with all the measurements removed.
 
         Example:
-            >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
+            >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure(shots=100)])
             >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐     ┌─┐
             q_0: ┤ X ├──■──┤M├───
@@ -840,6 +893,18 @@ class QCircuit:
 
         return new_circuit
 
+    def without_breakpoints(self) -> QCircuit:
+        """Provides a copy of this circuit with all the breakpoints removed.
+
+        Returns:
+            A copy of this circuit with all the breakpoints removed.
+        """
+        new_circuit = deepcopy(self)
+        new_circuit.instructions = [
+            inst for inst in self.instructions if not isinstance(inst, Breakpoint)
+        ]
+        return new_circuit
+
     def without_noises(self) -> QCircuit:
         """Provides a copy of this circuit with all the noise models removed.
 
@@ -848,7 +913,7 @@ class QCircuit:
 
         Example:
             >>> circuit = QCircuit(2)
-            >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure([0, 1], shots=100)])
+            >>> circuit.add([CNOT(0, 1), Depolarizing(prob=0.4, targets=[0, 1]), BasisMeasure(shots=100)])
             >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
                       ┌─┐
             q_0: ──■──┤M├───
@@ -882,11 +947,11 @@ class QCircuit:
         specified in the ``language`` arg.
 
         By default, the circuit is translated to the corresponding
-        ``QuantumCircuit`` in Qiskit, since it is the interface we use to
+        ``QuantumCircuit`` in Qiskit since this is the interface we use to
         generate the OpenQASM code.
 
         In the future, we will generate the OpenQASM code on our own, and this
-        method will be used only for complex objects that are not tractable by
+        method will be used only for complex objects that are not tractable with
         OpenQASM (like hybrid structures).
 
         Args:
@@ -933,7 +998,7 @@ class QCircuit:
         Note:
             Most providers take noise into account at the job level. A notable
             exception is Braket, where the noise is contained in the circuit
-            object. For this reason you find the noise included in the Braket
+            object. For this reason, you will find the noise included in the Braket
             circuits.
 
         """
@@ -994,7 +1059,7 @@ class QCircuit:
                     cargs,
                 )
 
-            for measurement in self.get_measurements():
+            for measurement in self.measurements:
                 if isinstance(measurement, ExpectationMeasure):
                     # these measures have no equivalent in Qiskit
                     continue
@@ -1125,17 +1190,17 @@ class QCircuit:
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> QCircuit:
-        r"""Substitute the parameters of the circuit with complex values.
-        Optionally also remove all symbolic variables such as `\pi` (needed for
-        example for circuit execution).
+        r"""Substitute the parameters of the circuit with values for each of the
+        specified parameters. Optionally also remove all symbolic variables such
+        as `\pi` (needed for example for circuit execution).
 
-        Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
+        Since we use ``sympy`` for the gate parameters, the ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: If symbolic values should be replaced by their
-                numeric counterpart.
+            remove_symbolic: Whether symbolic values should be replaced by their
+                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.
@@ -1144,7 +1209,7 @@ class QCircuit:
             >>> theta, k = symbols("θ k")
             >>> c = QCircuit(
             ...     [Rx(theta, 0), CNOT(1,0), CNOT(1,2), X(2), Rk(2,1), H(0), CRk(k, 0, 1),
-            ...      BasisMeasure(list(range(3)), shots=1000)]
+            ...      BasisMeasure(shots=1000)]
             ... )
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                             ┌─┐
@@ -1223,7 +1288,7 @@ class QCircuit:
             return f'QCircuit([{instructions_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
 
     def variables(self) -> set[Basic]:
-        """Returns all the parameters involved in this circuit.
+        """Returns all the symbolic parameters involved in this circuit.
 
         Returns:
             All the parameters of the circuit.

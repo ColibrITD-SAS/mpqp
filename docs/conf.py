@@ -44,7 +44,15 @@ extensions = [
 ]
 default_dark_mode = True
 autodoc_typehints = "description"
-autodoc_type_aliases = {"Matrix": "Matrix", "AvailableDevice": "AvailableDevice"}
+autodoc_type_aliases = {
+    "Matrix": "Matrix",
+    "AvailableDevice": "AvailableDevice",
+    "Gate": "Gate",
+    "Measure": "Measure",
+    "Breakpoint": "Breakpoint",
+    "PauliStringMonomial": "PauliStringMonomial",
+    "npt.NDArray[np.complex64]": "np.array[np.complex64]",
+}
 autodoc_mock_imports = ["braket.circuits.measure"]
 simplify_optional_unions = True
 typehints_defaults = "comma"
