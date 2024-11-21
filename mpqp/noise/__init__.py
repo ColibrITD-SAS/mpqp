@@ -4,5 +4,6 @@ from mpqp.noise.noise_model import (
     BitFlip,
     Depolarizing,
     DimensionalNoiseModel,
+    NoiseModel,
     PhaseDamping,
 )

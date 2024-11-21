@@ -76,6 +76,7 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
             if name.startswith("Fake")
             and not name.startswith(("FakeProvider", "FakeFractional"))
             and issubclass(device, FakeBackendV2)
+            and "cairo" not in name.lower()
         ]
 
 
