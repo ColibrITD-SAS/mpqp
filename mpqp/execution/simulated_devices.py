@@ -39,6 +39,15 @@ class SimulatedDevice(AvailableDevice):
 class StaticIBMSimulatedDevice(SimulatedDevice):
     """A class regrouping methods specific to an ``IBMSimulatedDevice``."""
 
+    def supports_observable(self) -> bool:
+        return True
+
+    def supports_observable_ideal(self) -> bool:
+        return True
+
+    def supports_samples(self) -> bool:
+        return False
+
     def supports_state_vector(self):
         return False
 
@@ -58,13 +67,15 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
     @staticmethod
     def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
         from qiskit_ibm_runtime import fake_provider
+        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
         fake_imports = fake_provider.__dict__
         return [
-            (p, fake_imports[p])
-            for p in fake_imports
-            if p.startswith("Fake")
-            and not p.startswith(("FakeProvider", "FakeFractional"))
+            (name, device)
+            for name, device in fake_imports.items()
+            if name.startswith("Fake")
+            and not name.startswith(("FakeProvider", "FakeFractional"))
+            and issubclass(device, FakeBackendV2)
         ]
 
 
