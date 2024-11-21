@@ -6,4 +6,5 @@ from mpqp.noise.noise_model import (
     DimensionalNoiseModel,
     NoiseModel,
     PhaseDamping,
+    NoiseModel,
 )
