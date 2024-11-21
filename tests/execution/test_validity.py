@@ -266,7 +266,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     c = QCircuit(instructions)
     shots = 50000
     err_rate = 0.2
-    err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
+    err_rate_percentage = 1 - np.power(1 - err_rate, (1 / 2))
     res = run(c, state_vector_devices[0])
     assert isinstance(res, Result)
     expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
@@ -281,7 +281,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
         # check if the true value is inside the trust interval
         for i in range(len(counts)):
             trust_interval = np.ceil(
-                err_rate_pourcentage * expected_counts[i] + shots / 15
+                err_rate_percentage * expected_counts[i] + shots / 15
             )
             print(trust_interval)
             assert (

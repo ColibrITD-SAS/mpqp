@@ -7,10 +7,12 @@ from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
 from functools import partial
 from types import TracebackType
 from typing import Any, Optional, Type
-from anytree import Node
 
 import pytest
+from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
+from numpy.random import default_rng
+
 from mpqp.all import *
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
@@ -25,41 +27,40 @@ from mpqp.execution.connection.env_manager import (
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
-from mpqp.tools.display import clean_1D_array, clean_matrix, pprint, format_element
-from mpqp.tools.circuit import random_circuit, random_gate, random_noise
-from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
-from mpqp.qasm.open_qasm_2_and_3 import (
-    open_qasm_2_to_3,
-    parse_user_gates,
-    remove_user_gates,
-    open_qasm_3_to_2,
-    convert_instruction_3_to_2,
-    open_qasm_file_conversion_3_to_2,
-    remove_include_and_comment,
-)
-from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.qasm import (
-    qasm2_to_Qiskit_Circuit,
     qasm2_to_cirq_Circuit,
     qasm2_to_myqlm_Circuit,
+    qasm2_to_Qiskit_Circuit,
     qasm3_to_braket_Program,
 )
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-from mpqp.tools.maths import (
-    is_hermitian,
-    is_unitary,
-    normalize,
-    rand_orthogonal_matrix,
-    is_power_of_two,
+from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.qasm.open_qasm_2_and_3 import (
+    convert_instruction_3_to_2,
+    open_qasm_2_to_3,
+    open_qasm_3_to_2,
+    open_qasm_file_conversion_3_to_2,
+    parse_user_gates,
+    remove_include_and_comment,
+    remove_user_gates,
 )
+from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.tools.circuit import random_circuit, random_gate, random_noise
 from mpqp.tools.display import *
+from mpqp.tools.display import clean_1D_array, clean_matrix, format_element, pprint
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import *
-from numpy.random import default_rng
+from mpqp.tools.maths import (
+    is_hermitian,
+    is_power_of_two,
+    is_unitary,
+    normalize,
+    rand_orthogonal_matrix,
+)
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -123,6 +124,11 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
+    warnings.filterwarnings(
+        "ignore",
+        category=UserWarning,
+        message=r".*Noise is not applied to any gate, as there is no eligible gate in the circuit.*",
+    )
     assert True
     my_module = importlib.import_module(
         os.path.join(root, filename)
