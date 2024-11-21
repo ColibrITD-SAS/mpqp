@@ -29,6 +29,16 @@ Generics
 
 .. automodule:: mpqp.tools.generics
 
+Display helpers
+---------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.display import *
+
+.. automodule:: mpqp.tools.display
+
 Errors
 ------
 
@@ -38,6 +48,16 @@ Errors
     from mpqp.tools.errors import *
 
 .. automodule:: mpqp.tools.errors
+
+Circuit tricks
+--------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.circuit import *
+
+.. automodule:: mpqp.tools.circuit
 
 Choice Tree
 -----------
@@ -99,3 +119,13 @@ Example
     choice_tree.answers[-1].next_question.answers[0].next_question = choice_tree
 
     run_choice_tree(choice_tree)
+
+Theoretical simulations
+-----------------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.theoretical_simulation import *
+
+.. automodule:: mpqp.tools.theoretical_simulation

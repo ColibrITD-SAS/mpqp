@@ -1,5 +1,4 @@
-"""An :class:`Instruction` is the base element for circuits elements, containing
-common methods to all of them."""
+"""An :class:`Instruction` is the base element of circuit elements, containing methods common to all of them."""
 
 from __future__ import annotations
 
@@ -24,18 +23,18 @@ class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 
     An Instruction is the elementary component of a
-    :class:`QCircuit<mpqp.core.circuit>`. It consists in a manipulation of one
+    :class:`~mpqp.core.circuit`. It consists of a manipulation of one
     (or several) qubit(s) of the quantum circuit. It may involve classical bits
     as well, for defining or retrieving the result of the instruction.
 
     It can be of type:
 
-        - :class:`Gate<mpqp.core.instruction.gates.gate.Gate>`
-        - :class:`Measure<mpqp.core.instruction.measurement.measure.Measure>`
-        - :class:`Barrier<mpqp.core.instruction.barrier.Barrier>`
+        - :class:`~mpqp.core.instruction.gates.gate.Gate`
+        - :class:`~mpqp.core.instruction.measurement.measure.Measure`
+        - :class:`~mpqp.core.instruction.barrier.Barrier`
 
     Args:
-        targets: List of indices referring to the qubits on which the
+        targets: List of indices referring to the qubits to which the
             instruction will be applied.
         label: Label used to identify the instruction.
     """
@@ -45,8 +44,6 @@ class Instruction(SimpleClassReprABC):
         targets: list[int],
         label: Optional[str] = None,
     ):
-        if len(targets) == 0:
-            raise ValueError("Expected non-empty target list")
         if len(set(targets)) != len(targets):
             raise ValueError(f"Duplicate registers in targets: {targets}")
         if not all([t >= 0 for t in targets]):
@@ -55,6 +52,7 @@ class Instruction(SimpleClassReprABC):
         """See parameter description."""
         self.label = label
         """See parameter description."""
+        self._dynamic = False
 
     @property
     def nb_qubits(self) -> int:
@@ -75,7 +73,7 @@ class Instruction(SimpleClassReprABC):
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set[Parameter]] = None,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> Any:
         """Transforms this instruction into the corresponding object in the
         language specified in the ``language`` arg.
@@ -105,9 +103,11 @@ class Instruction(SimpleClassReprABC):
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        c = QCircuit(max(self.connections()) + 1)
-        c.add(self)
-        return str(c)
+        connection = self.connections()
+        circuit_size = max(connection) + 1 if connection else 1
+        circuit = QCircuit(circuit_size)
+        circuit.add(self)
+        return str(circuit)
 
     def __repr__(self) -> str:
         from mpqp.core.instruction.gates import ControlledGate
@@ -119,7 +119,7 @@ class Instruction(SimpleClassReprABC):
         """Returns the indices of the qubits connected to the instruction.
 
         Returns:
-            The qubits ordered connected to instruction.
+            The ordered qubits connected to instruction.
 
         Example:
             >>> CNOT(0,1).connections()
@@ -138,16 +138,16 @@ class Instruction(SimpleClassReprABC):
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> Instruction:
         r"""Substitutes the parameters of the instruction with complex values.
-        Optionally also removes all symbolic variables such as `\pi` (needed for
-        example for circuit execution).
+        Optionally, also removes all symbolic variables such as `\pi` (needed for
+        circuit execution, for example).
 
-        Since we use ``sympy`` for gates' parameters, ``values`` can in fact be
+        Since we use ``sympy`` for gate parameters, ``values`` can in fact be
         anything the ``subs`` method from ``sympy`` would accept.
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: If symbolic values should be replaced by their
-                numeric counterpart.
+            remove_symbolic: Whether symbolic values should be replaced by their
+                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.

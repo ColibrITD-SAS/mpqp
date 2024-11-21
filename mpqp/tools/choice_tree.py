@@ -9,7 +9,7 @@ To run your choice tree, just run :func:`run_choice_tree` on your root question.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Optional, TypeVar
+from typing import Any, Callable, Iterable, Optional, TypeVar, TYPE_CHECKING
 
 from pick import pick
 from typeguard import typechecked
@@ -48,14 +48,29 @@ class QuestionNode:
     """Represents a node in a decision tree corresponding to a question.
 
     Args:
-        label: See attribute description.
-        answers: See attribute description.
+        label: The label or text associated with the question.
+        answers: List of possible answers to this question.
+        leaf_loop_to_here: If ``True`` answers without followup questions will
+            loop back to here.
     """
 
     label: str
-    """The label or text associated with the question."""
     answers: list[AnswerNode]
-    """List of possible answers to this question."""
+    leaf_loop_to_here: bool = False
+
+    def __post_init__(self):
+        to_visit: list[QuestionNode] = [self]
+        visited: list[QuestionNode] = []
+        while len(to_visit) != 0:
+            for q_index, ques in enumerate(to_visit):
+                if ques not in visited:
+                    for ans in ques.answers:
+                        if ans.next_question is None:
+                            ans.next_question = self
+                        else:
+                            visited.append(ans.next_question)
+                    visited.append(ques)
+                    del to_visit[q_index]
 
 
 @typechecked
@@ -132,7 +147,8 @@ if __name__ == "__main__":
         ],
     )
 
-    assert choice_tree.answers[-1].next_question is not None
+    if TYPE_CHECKING:
+        assert choice_tree.answers[-1].next_question is not None
 
     choice_tree.answers[-1].next_question.answers[0].next_question = choice_tree
 

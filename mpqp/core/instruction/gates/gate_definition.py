@@ -11,8 +11,9 @@ if TYPE_CHECKING:
 import numpy as np
 from typeguard import typechecked
 
-from mpqp.tools.generics import Matrix, one_lined_repr
-from mpqp.tools.maths import is_unitary, matrix_eq
+from mpqp.tools.display import one_lined_repr
+from mpqp.tools.generics import Matrix
+from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
 
 
 @typechecked
@@ -29,11 +30,12 @@ class GateDefinition(ABC):
     Example:
         >>> gate_matrix = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
         >>> gate_definition = UnitaryMatrix(gate_matrix)
-        >>> custom_gate = CustomGate(gate_definition, [0])
+        >>> custom_gate = CustomGate(gate_definition, [0,1])
 
     """
 
-    # TODO: put this back once we implement the other definitions
+    # TODO: put this back once we implement the other definitions. Are those
+    # definitions really useful in practice ?
     # This class permit to define a gate in 4 potential ways:
     #     1. the unitary matrix defining the gate
     #     2. a combination of several other gates
@@ -42,6 +44,13 @@ class GateDefinition(ABC):
 
     @abstractmethod
     def to_matrix(self) -> Matrix:
+        """Returns the matrix corresponding to this gate definition. Considering
+        connections' order and position, in contrast with
+        :meth:`~Gate.to_canonical_matrix`.
+        """
+
+    @abstractmethod
+    def to_canonical_matrix(self) -> Matrix:
         """Returns the matrix corresponding to this gate definition."""
 
     @abstractmethod
@@ -82,15 +91,20 @@ class GateDefinition(ABC):
         mat = self.to_matrix()
 
         if not all(
-            isinstance(elt.item(), Complex) for elt in np.nditer(mat, ["refs_ok"])  # type: ignore
+            isinstance(
+                elt.item(), Complex  # pyright: ignore[reportAttributeAccessIssue]
+            )
+            for elt in np.nditer(mat, ["refs_ok"])
         ):
             raise ValueError("Cannot invert arbitrary gates using symbolic variables")
-        return UnitaryMatrix(np.linalg.inv(mat))  # type:ignore
+        return UnitaryMatrix(
+            np.linalg.inv(mat)  # pyright: ignore[reportCallIssue, reportArgumentType]
+        )
 
 
 @typechecked
 class UnitaryMatrix(GateDefinition):
-    """Definition of a gate using it's matrix.
+    """Definition of a gate using its matrix.
 
     Args:
         definition: Matrix defining the unitary gate.
@@ -99,22 +113,45 @@ class UnitaryMatrix(GateDefinition):
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
-        from sympy import Expr
 
-        if any(isinstance(elt, Expr) for _, elt in np.ndenumerate(definition)):
-            if not disable_symbol_warn:
-                # 3M-TODO: can we improve this situation ?
-                warn("Cannot ensure that a operator defined with variables is unitary.")
-        elif not is_unitary(definition):
+        numeric = True
+        for _, elt in np.ndenumerate(definition):
+            # 3M-TODO: can we improve this situation ?
+            try:
+                complex(elt)
+            except TypeError:
+                if not disable_symbol_warn:
+                    warn(
+                        "Cannot ensure that a operator defined with symbolic "
+                        "variables is unitary."
+                    )
+                numeric = False
+                break
+        if numeric and not is_unitary(definition):
             raise ValueError(
                 "Matrices defining gates have to be unitary. It is not the case"
                 f" for\n{definition}"
             )
+        if not is_power_of_two(definition.shape[0]):
+            raise ValueError(
+                "The unitary matrix of a gate acting on qubits must have "
+                f"dimensions that are power of two, but got {definition.shape[0]}."
+            )
         self.matrix = definition
         """See parameter :attr:`definition`'s description."""
+        self._nb_qubits = None
 
     def to_matrix(self) -> Matrix:
         return self.matrix
+
+    def to_canonical_matrix(self):
+        return self.matrix
+
+    @property
+    def nb_qubits(self) -> int:
+        if self._nb_qubits is None:
+            self._nb_qubits = int(np.log2(self.matrix.shape[0]))
+        return self._nb_qubits
 
     def subs(
         self,

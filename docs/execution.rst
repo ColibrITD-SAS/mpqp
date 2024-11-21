@@ -16,10 +16,19 @@ Languages
 
 .. automodule:: mpqp.core.languages
 
+.. _Devices:
+
 Devices
 -------
 
 .. automodule:: mpqp.execution.devices
+
+.. _SimulatedDevices:
+
+Simulated Devices
+-----------------
+
+.. automodule:: mpqp.execution.simulated_devices
 
 Running a circuit
 -----------------

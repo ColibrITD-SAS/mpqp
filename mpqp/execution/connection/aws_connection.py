@@ -74,9 +74,11 @@ def get_aws_braket_account_info() -> str:
         session = AwsSession()
 
         # get the AWS Braket user access key, secret key and region
-        access_key_id = session.boto_session.get_credentials().access_key
-
-        secret_access_key = session.boto_session.get_credentials().secret_key
+        credentials = session.boto_session.get_credentials()
+        if credentials is None:
+            raise AWSBraketRemoteExecutionError("Could not retrieve AWS' credentials")
+        access_key_id = credentials.access_key
+        secret_access_key = credentials.secret_key
         obfuscate_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
 
         region_name = session.boto_session.region_name
@@ -104,12 +106,12 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
             retrieved.
 
     Example:
-        >>> device = get_braket_device(AWSDevice.BRAKET_RIGETTI_ASPEN_M_3)
-        >>> device.properties.action['braket.ir.jaqcd.program'].supportedResultTypes
-        [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
-         ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
-         ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=100000),
-         ResultType(name='Probability', observables=None, minShots=10, maxShots=100000)]
+        >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_2)
+        >>> device.properties.action['braket.ir.openqasm.program'].supportedResultTypes
+        [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
+         ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
+         ResultType(name='Variance', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
+         ResultType(name='Probability', observables=None, minShots=10, maxShots=50000)]
 
     """
     from braket.devices import LocalSimulator

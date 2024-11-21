@@ -33,6 +33,21 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
 
     Returns:
         a Circuit equivalent to the QASM code in parameter
+
+     Example:
+        >>> qasm_code = '''
+        ... OPENQASM 2.0;
+        ... include "qelib1.inc";
+        ... qreg q[2];
+        ... h q[0];
+        ... cx q[0], q[1];
+        ... '''
+        >>> circuit = qasm2_to_cirq_Circuit(qasm_code)
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
+        q_0: ───I───H───@───
+                        │
+        q_1: ───I───────X───
+
     """
     import numpy as np
     from cirq.circuits.qasm_output import QasmUGate
@@ -46,7 +61,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     from cirq.protocols.circuit_diagram_info_protocol import CircuitDiagramInfoArgs
     from cirq.value.duration import Duration
 
-    qasm_str = remove_user_gates(qasm_str)
+    qasm_str = remove_user_gates(qasm_str, skip_qelib1=True)
 
     class PhaseGate(Gate):
         def __init__(self, theta: complex):
@@ -57,9 +72,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             return 1
 
         def _unitary_(self):
-            return np.array(
-                [[np.exp(1j * self.theta), 0], [0, np.exp(1j * self.theta)]]
-            )
+            return np.array([[1, 0], [0, np.exp(1j * self.theta)]])
 
         def _circuit_diagram_info_(self, args: CircuitDiagramInfoArgs):
             return f"P({self.theta})"
@@ -107,6 +120,21 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             return f"Rzz({self.theta})"
 
     class MyQasmUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
+        def __init__(
+            self, theta, phi, lmda  # pyright: ignore[reportMissingParameterType]
+        ) -> None:
+            self.lmda = lmda
+            self.theta = theta
+            self.phi = phi
+
+        def __repr__(self) -> str:
+            return (
+                f'U('
+                f'theta={self.theta !r}, '
+                f'phi={self.phi!r}, '
+                f'lmda={self.lmda})'
+            )
+
         def _decompose_(self, qubits: tuple[Qid, ...]):
             q = qubits[0]
             return [
@@ -126,16 +154,14 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             qasm_gate="cu1",
             num_params=1,
             num_args=2,
-            cirq_gate=(
-                lambda params: ControlledGate(MyQasmUGate(0, 0, params[0] / np.pi))
-            ),
+            cirq_gate=(lambda params: ControlledGate(MyQasmUGate(0, 0, params[0]))),
         ),
         "cu3": QasmGateStatement(
             qasm_gate="cu3",
             num_params=3,
             num_args=2,
             cirq_gate=(
-                lambda params: ControlledGate(MyQasmUGate(*[p / np.pi for p in params]))
+                lambda params: ControlledGate(MyQasmUGate(*[p for p in params]))
             ),
         ),
         "crz": QasmGateStatement(
@@ -169,7 +195,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             qasm_gate="u3",
             num_params=3,
             num_args=1,
-            cirq_gate=(lambda params: MyQasmUGate(*[p / np.pi for p in params])),
+            cirq_gate=(lambda params: MyQasmUGate(*[p for p in params])),
         ),
         "rxx": QasmGateStatement(
             qasm_gate="rxx",
@@ -186,4 +212,35 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     }
     qasm_parser.all_gates |= qs_dict
 
+    def p_new_reg2(self, p):  # pyright: ignore[reportMissingParameterType]
+        """new_reg : QREG ID '[' NATURAL_NUMBER ']' ';'
+        | CREG ID '[' NATURAL_NUMBER ']' ';'"""
+        from cirq.ops.named_qubit import NamedQubit
+        from cirq.contrib.qasm_import.exception import QasmException
+
+        name, length = p[2], p[4]
+        if name in self.qregs.keys() or name in self.cregs.keys():
+            raise QasmException(f"{name} is already defined at line {p.lineno(2)}")
+        if length == 0:
+            raise QasmException(
+                f"Illegal, zero-length register '{name}' at line {p.lineno(4)}"
+            )
+        if p[1] == "qreg":
+            self.qregs[name] = length
+            for idx in range(self.qregs[name]):
+                arg_name = self.make_name(idx, name)
+                if arg_name not in self.qubits.keys():
+                    self.qubits[arg_name] = NamedQubit(arg_name)
+                from cirq.ops.identity import I
+
+                self.circuit.append(I(NamedQubit(arg_name)))
+        else:
+            self.cregs[name] = length
+        p[0] = (name, length)
+
+    qasm_parser.p_new_reg = p_new_reg2.__get__(qasm_parser)
+
+    from ply import yacc
+
+    qasm_parser.parser = yacc.yacc(module=qasm_parser, debug=False, write_tables=False)
     return qasm_parser.parse(qasm_str).circuit

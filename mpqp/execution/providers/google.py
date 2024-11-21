@@ -1,16 +1,18 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Sequence
+
+from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.tools.errors import DeviceJobIncompatibleError
 
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
-    from cirq.study.result import Result as cirq_result
+    from cirq.study.result import Result as CirqResult
     from cirq.work.observable_measurement_data import ObservableMeasuredResult
 
 from typeguard import typechecked
 
 from mpqp import Language
-from mpqp.core.instruction.measurement import ComputationalBasis
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
@@ -32,21 +34,22 @@ def run_google(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     return run_local(job) if not job.device.is_remote() else run_google_remote(job)
 
 
 @typechecked
 def run_google_remote(job: Job) -> Result:
-    """
-    Executes the job remotely on a Google quantum device. At present, only IonQ devices are supported.
+    """Executes the job remotely on a Google quantum device. At present, only
+    IonQ devices are supported.
 
     Args:
-        job: job to be executed.
+        job: Job to be executed, it MUST be corresponding to a
+            :class:`~mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
-        Result: The result after submission and execution of the job.
+        The result after submission and execution of the job.
 
     Raises:
         ValueError: If the job's device is not an instance of GOOGLEDevice.
@@ -54,18 +57,23 @@ def run_google_remote(job: Job) -> Result:
             devices are supported currently).
         NotImplementedError: If the job type or basis measure is not supported.
     """
+    if not isinstance(job.device, GOOGLEDevice):
+        raise ValueError(
+            "`job` must correspond to an `GOOGLEDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+
     import cirq_ionq as ionq
-    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.devices.line_qubit import LineQubit
     from cirq.transformers.optimize_for_target_gateset import (
         optimize_for_target_gateset,
     )
     from cirq_ionq.ionq_gateset import IonQTargetGateset
 
-    assert type(job.device) == GOOGLEDevice
-
-    job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(job_cirq_circuit, Cirq_circuit)
+    job_CirqCircuit = job.circuit.to_other_language(Language.CIRQ)
+    if TYPE_CHECKING:
+        assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.device.is_ionq():
         from mpqp.execution.connection.env_manager import load_env_variables
@@ -76,110 +84,132 @@ def run_google_remote(job: Job) -> Result:
             raise ValueError(
                 f"{job.device}: job_type must be {JobType.SAMPLE} but got job type {job.job_type}"
             )
-        assert isinstance(job.measure, BasisMeasure)
 
-        if isinstance(job.measure.basis, ComputationalBasis):
-            service = ionq.Service(default_target=job.device.value)
-            job_cirq_circuit = optimize_for_target_gateset(
-                job_cirq_circuit, gateset=IonQTargetGateset()
-            )
-            job_cirq_circuit = job_cirq_circuit.transform_qubits(
-                {qb: LineQubit(i) for i, qb in enumerate(job_cirq_circuit.all_qubits())}
-            )
-            result_sim = service.run(
-                circuit=job_cirq_circuit, repetitions=job.measure.shots
-            )
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        service = ionq.Service(default_target=job.device.value)
+        job_CirqCircuit = optimize_for_target_gateset(
+            job_CirqCircuit, gateset=IonQTargetGateset()
+        )
+        job_CirqCircuit = job_CirqCircuit.transform_qubits(
+            {qb: LineQubit(i) for i, qb in enumerate(job_CirqCircuit.all_qubits())}
+        )
+
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, BasisMeasure)
+        return extract_result_SAMPLE(
+            service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
+        )
     else:
         raise NotImplementedError(
             f"{job.device} is not handled for the moment. Only IonQ is supported"
         )
 
-    return extract_result(result_sim, job, job.device)
-
 
 @typechecked
 def run_local(job: Job) -> Result:
-    """
-    Executes the job locally.
+    """Executes the job locally.
 
     Args:
-        job : The job to be executed.
+        job : Job to be executed, it MUST be corresponding to a
+            :class:`~mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
-        Result: The result after submission and execution of the job.
+        The result after submission and execution of the job.
 
     Raises:
         ValueError: If the job device is not GOOGLEDevice.
     """
-    from cirq.circuits.circuit import Circuit as Cirq_circuit
-    from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+    if not isinstance(job.device, GOOGLEDevice):
+        raise ValueError(
+            "`job` must correspond to an `GOOGLEDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+
+    from cirq.circuits.circuit import Circuit as CirqCircuit
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.sim.sparse_simulator import Simulator
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
         measure_observables,
     )
 
-    assert type(job.device) == GOOGLEDevice
-
     if job.device.is_processor():
         return run_local_processor(job)
 
-    job_cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
-    assert isinstance(job_cirq_circuit, Cirq_circuit)
+    if job.job_type == JobType.STATE_VECTOR:
+        circuit = job.circuit.without_measurements()
+        cirq_circuit = circuit.to_other_language(Language.CIRQ)
+        job.circuit.gphase = circuit.gphase
+    else:
+        cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
+    if TYPE_CHECKING:
+        assert isinstance(cirq_circuit, CirqCircuit)
 
     simulator = Simulator(noise=None)
 
     if job.job_type == JobType.STATE_VECTOR:
-        result_sim = simulator.simulate(job_cirq_circuit)
+        return extract_result_STATE_VECTOR(simulator.simulate(cirq_circuit), job)
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            result_sim = simulator.run(job_cirq_circuit, repetitions=job.measure.shots)
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, BasisMeasure)
+        return extract_result_SAMPLE(
+            simulator.run(cirq_circuit, repetitions=job.measure.shots), job
+        )
     elif job.job_type == JobType.OBSERVABLE:
-        assert isinstance(job.measure, ExpectationMeasure)
+        from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
+
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, ExpectationMeasure)
 
         cirq_obs = job.measure.observable.to_other_language(
-            language=Language.CIRQ, circuit=job_cirq_circuit
+            language=Language.CIRQ, circuit=cirq_circuit
         )
-        assert type(cirq_obs) == Cirq_PauliSum
+        if TYPE_CHECKING:
+            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
 
         if job.measure.shots == 0:
-            result_sim = simulator.simulate_expectation_values(
-                job_cirq_circuit, observables=cirq_obs
+            return extract_result_OBSERVABLE_ideal(
+                simulator.simulate_expectation_values(
+                    cirq_circuit, observables=cirq_obs
+                ),
+                job,
             )
         else:
-            result_sim = measure_observables(
-                job_cirq_circuit,
-                cirq_obs,  # type: ignore[reportArgumentType]
-                simulator,
-                stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
+            return extract_result_OBSERVABLE_shot_noise(
+                measure_observables(
+                    cirq_circuit,
+                    observables=(  # pyright: ignore[reportArgumentType]
+                        [cirq_obs]
+                        if isinstance(cirq_obs, CirqPauliString)
+                        else cirq_obs
+                    ),
+                    sampler=simulator,
+                    stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
+                ),
+                job,
             )
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
-    return extract_result(result_sim, job, job.device)
-
 
 @typechecked
 def run_local_processor(job: Job) -> Result:
-    """
-    Executes the job locally on processor.
+    """Executes the job locally on processor.
 
     Args:
-        job : The job to be executed.
+        job : Job to be executed, it MUST be corresponding to a
+            :class:`~mpqp.execution.devices.GOOGLEDevice`.
 
     Returns:
-        Result: The result after submission and execution of the job.
+        The result after submission and execution of the job.
     """
-    from cirq.circuits.circuit import Circuit as Cirq_circuit
+    if not isinstance(job.device, GOOGLEDevice):
+        raise ValueError(
+            "`job` must correspond to an `GOOGLEDevice`, but corresponds to a "
+            f"{job.device} instead"
+        )
+
+    from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
     from cirq_google.engine.simulated_local_processor import SimulatedLocalProcessor
     from cirq_google.engine.virtual_engine_factory import (
@@ -187,8 +217,6 @@ def run_local_processor(job: Job) -> Result:
         load_median_device_calibration,
     )
     from qsimcirq.qsim_simulator import QSimSimulator
-
-    assert type(job.device) == GOOGLEDevice
 
     calibration = load_median_device_calibration(job.device.value)
     device = create_device_from_processor_id(job.device.value)
@@ -205,104 +233,63 @@ def run_local_processor(job: Job) -> Result:
     )
     simulator = SimulatedLocalEngine([sim_processor])
 
-    job_cirq_circuit = job.circuit.to_other_language(
-        Language.CIRQ, cirq_proc_id=job.device.value
-    )
-    assert isinstance(job_cirq_circuit, Cirq_circuit)
+    cirq_circuit = job.circuit.to_other_language(Language.CIRQ, job.device.value)
+    if TYPE_CHECKING:
+        assert isinstance(cirq_circuit, CirqCircuit)
 
     if job.job_type == JobType.STATE_VECTOR:
         raise NotImplementedError(
             f"Does not handle {job.job_type} for processor for the moment"
         )
     elif job.job_type == JobType.OBSERVABLE:
-        raise NotImplementedError(
-            f"Does not handle {job.job_type} for processor for the moment"
+        from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
+        from cirq.ops.pauli_string import PauliString as Cirq_PauliString
+
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, ExpectationMeasure)
+
+        cirq_obs = job.measure.observable.to_other_language(
+            language=Language.CIRQ, circuit=cirq_circuit
+        )
+        if TYPE_CHECKING:
+            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
+
+        if job.measure.shots == 0:
+            raise DeviceJobIncompatibleError(
+                f"Device {job.device.name} need shots != 0."
+            )
+        return extract_result_OBSERVABLE_processors(
+            simulator.get_sampler(job.device.value).sample_expectation_values(
+                cirq_circuit, observables=cirq_obs, num_samples=job.measure.shots
+            ),
+            job,
         )
     elif job.job_type == JobType.SAMPLE:
-        assert isinstance(job.measure, BasisMeasure)
-        if isinstance(job.measure.basis, ComputationalBasis):
-            result_sim = simulator.get_sampler(job.device.value).run(
-                job_cirq_circuit, repetitions=job.measure.shots
-            )
-        else:
-            raise NotImplementedError(
-                "Does not handle other basis than the ComputationalBasis for the moment"
-            )
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, BasisMeasure)
+
+        return extract_result_SAMPLE(
+            simulator.get_sampler(job.device.value).run(
+                cirq_circuit, repetitions=job.measure.shots
+            ),
+            job,
+        )
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
-    return extract_result(result_sim, job, job.device)
-
-
-def extract_result(
-    result: (
-        StateVectorTrialResult
-        | cirq_result
-        | list[float]
-        | list[ObservableMeasuredResult]
-    ),
-    job: Optional[Job] = None,
-    device: Optional[GOOGLEDevice] = None,
-) -> Result:
-    """Extracts the needed data from ``cirq`` result and packages it into a
-    ``MPQP`` :class:`Result<mpqp.execution.result.Result>`.
-
-    Args:
-        result : The result of the simulation.
-        job : The original job. Defaults to None.
-        device : The device used for the simulation. Defaults to None.
-
-    Returns:
-        Result: The formatted result.
-
-    Raises:
-        NotImplementedError: If the job is None or the type is not supported.
-        ValueError: If the result type does not match the expected type for the
-            job type.
-    """
-    from cirq.sim.state_vector_simulator import StateVectorTrialResult
-    from cirq.study.result import Result as cirq_result
-
-    if job is None:
-        raise NotImplementedError("result from job None is not implemented")
-    else:
-        if job.job_type == JobType.SAMPLE:
-            if not isinstance(result, cirq_result):
-                raise ValueError(
-                    f"result: {type(result)}, must be a cirq_result for job type {job.job_type}"
-                )
-            return extract_result_SAMPLE(result, job, device)
-        elif job.job_type == JobType.STATE_VECTOR:
-            if not isinstance(result, StateVectorTrialResult):
-                raise ValueError(
-                    f"result: {type(result)}, must be a cirq_result for job type {job.job_type}"
-                )
-            return extract_result_STATE_VECTOR(result, job, device)
-        elif job.job_type == JobType.OBSERVABLE:
-            if isinstance(result, cirq_result):
-                raise ValueError(
-                    f"result: {type(result)}, must be a cirq_result for job type {job.job_type}"
-                )
-            return extract_result_OBSERVABLE(result, job, device)
-        else:
-            raise NotImplementedError("Job type not supported")
-
 
 def extract_result_SAMPLE(
-    result: cirq_result,
+    result: CirqResult,
     job: Job,
-    device: Optional[GOOGLEDevice] = None,
 ) -> Result:
-    """
-    Extracts the result from a sample-based job.
+    """Extracts the result from a sample-based job.
 
     Args:
         result : The result of the simulation.
         job : The original job.
-        device : The device used for the simulation. Defaults to None.
 
     Returns:
-        Result: The formatted result.
+        The formatted result.
     """
     nb_qubits = job.circuit.nb_qubits
 
@@ -312,7 +299,7 @@ def extract_result_SAMPLE(
     data = [
         Sample(
             bin_str="".join(map(str, state)),
-            probability=count / sum(counts.values()),
+            count=count,
             nb_qubits=nb_qubits,
         )
         for (state, count) in counts.items()
@@ -325,54 +312,102 @@ def extract_result_SAMPLE(
 def extract_result_STATE_VECTOR(
     result: StateVectorTrialResult,
     job: Job,
-    device: Optional[GOOGLEDevice] = None,
 ) -> Result:
-    """
-    Extracts the result from a state vector-based job.
+    """Extracts the result from a state vector-based job.
 
     Args:
         result : The result of the simulation.
         job : The original job.
-        device : The device used for the simulation. Defaults to None.
 
     Returns:
-        Result: The formatted result.
+        The formatted result.
     """
-    from cirq.value.probability import state_vector_to_probabilities
+    from mpqp.tools.maths import normalize
 
-    state_vector = result.final_state_vector
-    state_vector = StateVector(
-        state_vector, job.circuit.nb_qubits, state_vector_to_probabilities(state_vector)
-    )
+    state_vector = normalize(result.final_state_vector)
+    state_vector = StateVector(state_vector, job.circuit.nb_qubits)
     return Result(job, state_vector, 0, 0)
 
 
-def extract_result_OBSERVABLE(
-    result: list[float] | list[ObservableMeasuredResult],
+def extract_result_OBSERVABLE_processors(
+    results: Sequence[Sequence[float]],
     job: Job,
-    device: Optional[GOOGLEDevice] = None,
 ) -> Result:
+    """Process measurement results for an observable from a quantum job.
+
+    Args:
+        results : A sequence of measurement results, where
+            each inner sequence represents a set of results for a particular shot.
+        job: The original job.
+
+    Returns:
+        The formatted result.
+
+    Raises:
+        NotImplementedError: If the job does not contain a measurement (i.e.,
+            ``job.measure`` is ``None``).
     """
-    Extracts the result from an observable-based job.
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+    mean = 0
+    for result in results:
+        mean += sum(result) / len(result)
+    return Result(job, mean, 0, job.measure.shots)
+
+
+def extract_result_OBSERVABLE_ideal(
+    results: list[float],
+    job: Job,
+) -> Result:
+    """Extracts the result from an observable-based ideal job.
+
+    The simulation from which the result to parse comes from can take in several
+    observables, and each observable will have a corresponding value in the
+    result. But since we only support a single measure per circuit for now, we
+    could simplify this function by only returning the first value.
+
+    Note:
+        for some reason, the values we retrieve from cirq are not always float,
+        but sometimes are complex. This is likely due to numerical approximation
+        since the complex part is always extremely small, so we just remove it,
+        but this might result in slightly unexpected results.
 
     Args:
         result : The result of the simulation.
         job : The original job.
-        device : The device used for the simulation. Defaults to None.
 
     Returns:
-        Result: The formatted result.
+        The formatted result.
     """
-    from cirq.work.observable_measurement_data import ObservableMeasuredResult
-
-    mean = 0.0
-    variance = 0.0
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    for result1 in result:
-        if isinstance(result1, float) or isinstance(result1, complex):
-            mean += abs(result1)
-        if isinstance(result1, ObservableMeasuredResult):
-            mean += result1.mean
-            # TODO variance not supported variance += result1.variance
-    return Result(job, mean, variance, job.measure.shots)
+    return Result(job, sum(map(lambda r: r.real, results)), 0, job.measure.shots)
+
+
+def extract_result_OBSERVABLE_shot_noise(
+    results: list[ObservableMeasuredResult],
+    job: Job,
+) -> Result:
+    """Extracts the result from an observable-based job.
+
+    Args:
+        result : The result of the simulation.
+        job : The original job.
+
+    Returns:
+        The formatted result.
+    """
+    if job.measure is None:
+        raise NotImplementedError("job.measure is None")
+    pauli_mono = PauliString.from_other_language(
+        [r.observable for r in results], job.measure.nb_qubits
+    )
+    if TYPE_CHECKING:
+        assert isinstance(pauli_mono, list)
+    variances = {pm: r.variance for pm, r in zip(pauli_mono, results)}
+    return Result(
+        job,
+        sum(map(lambda r: r.mean, results)),
+        variances,
+        job.measure.shots,
+    )

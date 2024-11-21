@@ -13,6 +13,12 @@ class NumberQubitsError(ValueError):
     observable, etc...)."""
 
 
+class NumberQubitsWarning(UserWarning):
+    """Raised when the number of qubits defining an instruction, a gate, or a
+    measurement, is not coherent with the related objects (circuit, matrix,
+    observable, etc...)."""
+
+
 class ResultAttributeError(AttributeError):
     """Raised when one tries to access the attribute of the result that is
     incoherent with the associated job."""
@@ -52,4 +58,9 @@ class OpenQASMTranslationWarning(UserWarning):
 
 
 class AdditionalGateNoiseWarning(UserWarning):
-    """Warning for additional noise on native gate used in the decomposition of noisy gate."""
+    """Warning for additional noise on native gate used in the decomposition of
+    noisy gate."""
+
+
+class NonReversibleWarning(UserWarning):
+    """Warning for nonreversible instruction used in inverse function."""

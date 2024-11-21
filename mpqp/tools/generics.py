@@ -17,8 +17,9 @@ restrictive. :func:`find` allow us a much more versatile search using an
 
 from __future__ import annotations
 
-import re
 from abc import ABCMeta
+
+# from functools import update_wrapper
 from inspect import getsource
 from typing import (
     TYPE_CHECKING,
@@ -101,30 +102,20 @@ def flatten(lst: ArbitraryNestedSequence[T]) -> list[T]:
     return list(flatten_generator(lst))
 
 
-def one_lined_repr(obj: object):
-    """One-liner returning a representation of the given object by removing
-    extra whitespace.
-
-    Args:
-        obj: The object for which a representation is desired.
-    """
-    return re.sub(r"\s+", " ", repr(obj))
-
-
 @typechecked
-def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
-    """Finds the first element in the iterable that satisfies the given oracle.
+def find(sequence: Sequence[T], oracle: Callable[[T], bool]) -> T:
+    """Finds the first element in the sequence that satisfies the given oracle.
 
     Args:
-        iterable: The iterable to search for the element.
+        sequence: The sequence to search for the element.
         oracle: A callable function that takes an element and returns ``True``
             if the element satisfies the condition.
 
     Returns:
-        The first element in the iterable that satisfies the oracle.
+        The first element in the sequence that satisfies the oracle.
 
     Raises:
-        ValueError: If no element in the iterable satisfies the given oracle.
+        ValueError: If no element in the sequence satisfies the given oracle.
 
     Example:
         >>> numbers = [1, 2, 3, 4, 5]
@@ -133,80 +124,36 @@ def find(iterable: Iterable[T], oracle: Callable[[T], bool]) -> T:
         2
 
     """
-    for item in iterable:
-        if oracle(item):
-            return item
-    raise ValueError("No objects satisfies the given oracle")
+    return sequence[find_index(sequence, oracle)]
 
 
-def clean_array(array: list[complex] | npt.NDArray[np.complex64 | np.float32]):
-    """Cleans and formats elements of an array.
-    This function rounds the real parts of complex numbers in the array to 7 decimal places
-    and formats them as integers if they are whole numbers. It returns a string representation
-    of the cleaned array without parentheses.
+@typechecked
+def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
+    """Finds the index of the first element in the iterable that satisfies the
+    given oracle.
 
     Args:
-        array: An array containing numeric elements, possibly including complex numbers.
+        iterable: The iterable to search for the element.
+        oracle: A callable function that takes an element and returns ``True``
+            if the element satisfies the condition.
 
     Returns:
-        str: A string representation of the cleaned array without parentheses.
+        The index of the first element in the iterable that satisfies the oracle.
+
+    Raises:
+        ValueError: If no element in the iterable satisfies the given oracle.
 
     Example:
-        >>> clean_array([1.234567895546, 2.3456789645645, 3.45678945645])
-        '[1.2345679, 2.345679, 3.4567895]'
-        >>> clean_array([1+2j, 3+4j, 5+6j])
-        '[1+2j, 3+4j, 5+6j]'
-        >>> clean_array([1+0j, 0+0j, 5.])
-        '[1, 0, 5]'
-        >>> clean_array([1.0, 2.0, 3.0])
-        '[1, 2, 3]'
+        >>> numbers = [1, 2, 3, 4, 5]
+        >>> is_even = lambda x: x % 2 == 0
+        >>> find_index(numbers, is_even)
+        1
 
     """
-    cleaned_array = [
-        (
-            int(element.real)
-            if (np.iscomplexobj(element) or isinstance(element, float))
-            and int(element.real) == element
-            else (
-                np.round(element.real, 7)
-                if (np.iscomplexobj(element) and np.imag(element) == 0)
-                or isinstance(element, float)
-                else (
-                    str(np.round(element, 7)).replace("(", "").replace(")", "")
-                    if np.iscomplexobj(element)
-                    else element
-                )
-            )
-        )
-        for element in array
-    ]
-    return "[" + ", ".join(map(str, cleaned_array)) + "]"
-
-
-def clean_matrix(matrix: Matrix):
-    """Cleans and formats elements of a matrix.
-    This function cleans and formats the elements of a matrix. It rounds the real parts of complex numbers
-    in the matrix to 7 decimal places and formats them as integers if they are whole numbers. It returns a
-    string representation of the cleaned matrix without parentheses.
-
-    Args:
-        matrix: A matrix containing numeric elements, possibly including complex numbers.
-
-    Returns:
-        str: A string representation of the cleaned matrix without parentheses.
-
-    Examples:
-        >>> print(clean_matrix([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ...               [1+0j, 0+0j, 5.],
-        ...               [1.0, 2.0, 3.0]]))
-        [[1.2345679, 2.345679, 3.4567895],
-         [1, 0, 5],
-         [1, 2, 3]]
-
-    """
-    # TODO: add an option to align cols
-    cleaned_matrix = [clean_array(row) for row in matrix]
-    return "[" + ",\n ".join(cleaned_matrix) + "]"
+    for index, item in enumerate(iterable):
+        if oracle(item):
+            return index
+    raise ValueError("No objects satisfies the given oracle")
 
 
 class SimpleClassReprMeta(type):
@@ -231,16 +178,21 @@ class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
     pass
 
 
+@typechecked
 class classproperty:
     """Decorator yo unite the ``classmethod`` and ``property`` decorators."""
 
     def __init__(self, func: Callable[..., Any]):
         self.fget = func
+        # update_wrapper(self, func) sadly, this is not enough since the doc
+        # accessed by sphinx is in fact the doc of the returned object, I don't
+        # know what we could do about that TODO: investigate the question
 
     def __get__(self, instance: object, owner: object):
         return self.fget(owner)
 
 
+@typechecked
 def _get_doc(enum: type[Any], member: str):
     src = getsource(enum)
     member_pointer = src.find(member)
@@ -249,6 +201,7 @@ def _get_doc(enum: type[Any], member: str):
     return src[docstr_start:docstr_end]
 
 
+@typechecked
 class MessageEnum(Enum):
     """Enum subclass allowing you to access the docstring of the members of your
     enum through the ``message`` property.
@@ -270,7 +223,8 @@ class MessageEnum(Enum):
     """
 
     message: str
-    """Each of the members of the eum will have the ``message`` attribute."""
+    """This is an attribute for each member of the enum, giving more information
+    about it."""
 
     def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
         super().__init__(*args, **kwds)

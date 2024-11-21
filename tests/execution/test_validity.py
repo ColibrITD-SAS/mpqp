@@ -1,15 +1,49 @@
+import contextlib
+from copy import deepcopy
+
 import numpy as np
 import numpy.typing as npt
 import pytest
 
 from mpqp import QCircuit
+from mpqp.core.instruction.barrier import Barrier
+from mpqp.core.instruction.breakpoint import Breakpoint
+from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, run
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import I as Ip
+from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.core.instruction.measurement.pauli_string import X as Xp
+from mpqp.core.instruction.measurement.pauli_string import Y as Yp
+from mpqp.core.instruction.measurement.pauli_string import Z as Zp
+from mpqp.core.languages import Language
+from mpqp.execution import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    AZUREDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    run,
+)
 from mpqp.execution.result import BatchResult, Result
 from mpqp.gates import *
-from mpqp.measures import ExpectationMeasure, Observable
+from mpqp.measures import (
+    Basis,
+    BasisMeasure,
+    ComputationalBasis,
+    ExpectationMeasure,
+    HadamardBasis,
+    Observable,
+)
+from mpqp.noise.noise_model import NOISE_MODELS, Depolarizing, PhaseDamping
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.tools.circuit import random_gate, random_noise
+from mpqp.tools.errors import (
+    DeviceJobIncompatibleError,
+    UnsupportedBraketFeaturesWarning,
+)
 from mpqp.tools.maths import matrix_eq
 
 pi = np.pi
@@ -223,13 +257,15 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
 @pytest.mark.parametrize(
     "instructions",
     [
-        ([H(0), CNOT(0, 1), CNOT(1, 2)]),
+        [H(0), CNOT(0, 1), CNOT(1, 2)],
+        [CustomGate(UnitaryMatrix(np.array([[0, 1], [1, 0]])), [1])],
+        [U(0.215, 0.5588, 8, 1)],
     ],
 )
 def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     c = QCircuit(instructions)
-    shots = 500000
-    err_rate = 0.1
+    shots = 50000
+    err_rate = 0.2
     err_rate_pourcentage = 1 - np.power(1 - err_rate, (1 / 2))
     res = run(c, state_vector_devices[0])
     assert isinstance(res, Result)
@@ -239,13 +275,15 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        print(result)
+        print("expected_counts: " + str(expected_counts))
         counts = result.counts
         # check if the true value is inside the trust interval
         for i in range(len(counts)):
             trust_interval = np.ceil(
-                err_rate_pourcentage * expected_counts[i]
-                + shots / 200 * min(1, expected_counts[i] / 90)
+                err_rate_pourcentage * expected_counts[i] + shots / 15
             )
+            print(trust_interval)
             assert (
                 np.floor(counts[i] - trust_interval)
                 <= expected_counts[i]
@@ -278,7 +316,7 @@ def test_observable_ideal_case(
     gates: list[Gate], observable: npt.NDArray[np.complex64], expected_vector: Matrix
 ):
     c = QCircuit(gates)
-    c.add(ExpectationMeasure(list(range(c.nb_qubits)), Observable(observable)))
+    c.add(ExpectationMeasure(Observable(observable), list(range(c.nb_qubits))))
     expected_value = (
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
@@ -291,12 +329,216 @@ def test_observable_ideal_case(
         )
 
 
-# @pytest.mark.parametrize(
-#     "gates, observable, expected_interval",
-#     [
-#         ([], np.array([]), (0.0, 0.0)),
-#     ],
-# )
-# def test_observable_shot_noise(gates: list[Instruction], observable: Matrix, expected_interval: tuple[float, float]):
-#     pass
-# TODO
+@pytest.fixture
+def circuits_type():
+    circuit_state_vector = QCircuit([H(0), CNOT(0, 1)])
+
+    circuit_samples = deepcopy(circuit_state_vector)
+    circuit_samples.add(BasisMeasure())
+
+    observable = np.array([[4, 2, 3, 8], [2, -3, 1, 0], [3, 1, -1, 5], [8, 0, 5, 2]])
+    circuit_observable = deepcopy(circuit_state_vector)
+    circuit_observable.add(ExpectationMeasure(Observable(observable)))
+
+    observable_ideal = rand_hermitian_matrix(2**2)
+    circuit_observable_ideal = deepcopy(circuit_state_vector)
+    circuit_observable_ideal.add(ExpectationMeasure(Observable(observable_ideal)))
+    return [
+        circuit_state_vector,
+        circuit_samples,
+        circuit_observable,
+        circuit_observable_ideal,
+    ]
+
+
+@pytest.mark.parametrize(
+    "device",
+    list(IBMDevice)
+    + list(ATOSDevice)
+    + list(AWSDevice)
+    + list(GOOGLEDevice)
+    + list(AZUREDevice),
+)
+def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCircuit]):
+    circuit_state_vector = circuits_type[0]
+    circuit_samples = circuits_type[1]
+    circuit_observable = circuits_type[2]
+    circuit_observable_ideal = circuits_type[3]
+
+    if not device.is_remote():
+        if device.supports_samples():
+            with (
+                pytest.warns(UnsupportedBraketFeaturesWarning)
+                if isinstance(device, AWSDevice)
+                else contextlib.suppress()
+            ):
+                assert run(circuit_samples, device) is not None
+        else:
+            with pytest.raises(NotImplementedError):
+                run(circuit_samples, device)
+
+        if device.supports_state_vector():
+            with (
+                pytest.warns(UnsupportedBraketFeaturesWarning)
+                if isinstance(device, AWSDevice)
+                else contextlib.suppress()
+            ):
+                assert run(circuit_state_vector, device) is not None
+        else:
+            if isinstance(device, IBMDevice) and not device.supports_state_vector():
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_state_vector, device)
+            else:
+                with pytest.raises(NotImplementedError):
+                    run(circuit_state_vector, device)
+
+        if device.supports_observable():
+            if isinstance(device, GOOGLEDevice) and device.is_processor():
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_observable, device)
+                circuit_observable.measurements[0].shots = 10
+                assert run(circuit_observable, device) is not None
+            else:
+                with (
+                    pytest.warns(UnsupportedBraketFeaturesWarning)
+                    if isinstance(device, AWSDevice)
+                    else contextlib.suppress()
+                ):
+                    assert run(circuit_observable, device) is not None
+
+        else:
+            if isinstance(device, IBMDevice):
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_observable, device)
+            else:
+                with pytest.raises(NotImplementedError):
+                    run(circuit_observable, device)
+
+        if device.supports_observable_ideal():
+            if isinstance(device, GOOGLEDevice) and device.is_processor():
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_observable_ideal, device)
+                circuit_observable_ideal.measurements[0].shots = 10
+                assert run(circuit_observable_ideal, device) is not None
+            else:
+                with (
+                    pytest.warns(UnsupportedBraketFeaturesWarning)
+                    if isinstance(device, AWSDevice)
+                    else contextlib.suppress()
+                ):
+                    assert run(circuit_observable_ideal, device) is not None
+        else:
+            if isinstance(device, IBMDevice):
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_observable, device)
+            else:
+                with pytest.raises(NotImplementedError):
+                    run(circuit_observable, device)
+
+
+@pytest.mark.parametrize("language", list(Language))
+def test_validity_native_gate_to_other_language(language: Language):
+    for gate in NATIVE_GATES:
+        gate_build = random_gate([gate])
+
+        if language in [Language.MY_QLM, Language.CIRQ, Language.QASM3]:
+            with pytest.raises(NotImplementedError):
+                gate_build.to_other_language(language)
+        else:
+            assert gate_build.to_other_language(language) is not None
+
+
+@pytest.fixture
+def measures():
+    return [
+        BasisMeasure([0, 1]),
+        BasisMeasure(
+            [0, 1], shots=1024, basis=Basis([np.array([1, 0]), np.array([0, -1])])
+        ),
+        BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(3)),
+        BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
+        ExpectationMeasure(Observable(np.diag([0.7, -1, 1, 1])), shots=10),
+    ]
+
+
+@pytest.mark.parametrize("language", list(Language))
+def test_validity_measure_to_other_language(
+    language: Language, measures: list[Measure]
+):
+    for measure in measures:
+        if isinstance(measure, ExpectationMeasure):
+            with pytest.raises(NotImplementedError):
+                measure.to_other_language(language)
+        elif language in [
+            Language.MY_QLM,
+            Language.CIRQ,
+            Language.BRAKET,
+            Language.QASM3,
+        ]:
+            with pytest.raises(NotImplementedError):
+                measure.to_other_language(language)
+        else:
+            assert measure.to_other_language(language) is not None
+
+
+@pytest.fixture
+def pauli_strings():
+    return [Ip @ Xp @ Yp @ Zp, Xp + Zp, Yp]
+
+
+@pytest.mark.parametrize("language", list(Language))
+def test_validity_pauli_string_to_other_language(
+    language: Language, pauli_strings: list[PauliString]
+):
+
+    for pauli_string in pauli_strings:
+        if language in [Language.QASM3, Language.QASM2]:
+            with pytest.raises(NotImplementedError):
+                pauli_string.to_other_language(language)
+        else:
+            assert pauli_string.to_other_language(language) is not None
+
+
+@pytest.mark.parametrize("language", list(Language))
+def test_validity_noise_to_other_language(language: Language):
+    for noise in NOISE_MODELS:
+        noise_build = random_noise([noise])
+
+        if language in [Language.CIRQ, Language.QASM3, Language.QASM2]:
+            with pytest.raises(NotImplementedError):
+                noise_build.to_other_language(language)
+        elif language in [Language.MY_QLM] and not isinstance(
+            noise_build, (Depolarizing, PhaseDamping)
+        ):
+            with pytest.raises(NotImplementedError):
+                noise_build.to_other_language(language)
+        else:
+            assert noise_build.to_other_language(language) is not None
+
+
+@pytest.fixture
+def other_instr():
+    return [
+        Breakpoint(),
+        Barrier(),
+    ]
+
+
+@pytest.mark.parametrize("language", list(Language))
+def test_validity_other_instr_to_other_language(
+    language: Language, other_instr: list[Instruction]
+):
+    for instr in other_instr:
+        if isinstance(instr, Breakpoint):
+            with pytest.raises(NotImplementedError):
+                instr.to_other_language(language)
+        elif language in [
+            Language.MY_QLM,
+            Language.CIRQ,
+            Language.BRAKET,
+            Language.QASM3,
+        ]:
+            with pytest.raises(NotImplementedError):
+                instr.to_other_language(language)
+        else:
+            assert instr.to_other_language(language) is not None

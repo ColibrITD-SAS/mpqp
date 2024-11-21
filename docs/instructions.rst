@@ -1,8 +1,8 @@
 Instructions
 ============
 
-Circuits are composed of instructions, placed on qubits. These instructions can
-be of several types, detailed bellow.
+Circuits are composed of instructions applied to qubits. These instructions can
+be of several types, detailed below.
 
 The class
 ---------
@@ -20,5 +20,6 @@ Instructions can be of type:
    gates
    measures
    barrier
+   breakpoint
 
 Each of there are described on their respective page.

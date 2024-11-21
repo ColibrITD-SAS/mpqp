@@ -1,15 +1,25 @@
+# build artifacts
 build/
 docs/html/
 out/
+
+# python
 *.egg-info/
 dist/
 __pycache__/
 *.pyc
-.vscode/
-.vs/
 .mypy_cache/
 .pytest_cache/
+
+# IDE
+.vscode/
+.vs/
+.idea/
+
+# private files
 .dockerenv
 .env
-.idea/
-.vs/
+
+# results of tests
+examples/notebooks/latex_error.log
+examples/scripts/qasm_files/test_qasm_converted.inc

@@ -10,20 +10,24 @@ from typeguard import typechecked
 
 from mpqp.execution import Result
 from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
+from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
 from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
+from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
+    AZUREDevice,
+    IBMDevice,
 )
 from mpqp.execution.job import Job
 from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 from mpqp.execution.providers.aws import get_result_from_aws_task_arn
 from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
+from mpqp.execution.providers.azure import get_result_from_azure_job_id
 
 
 @typechecked
@@ -34,7 +38,7 @@ def get_remote_result(
     job is still running, it will wait until it is done.
 
     Args:
-        job_data: Either the :class:`Job<mpqp.execution.job.Job>` object or the
+        job_data: Either the :class:`~mpqp.execution.job.Job` object or the
             job id used to identify the job on the remote device.
         device: Remote device on which the job was launched, needed only if
             ``job_data`` is the identifier of the job.
@@ -102,6 +106,8 @@ def get_remote_result(
         return get_result_from_qlm_job_id(job_data)
     elif isinstance(device, AWSDevice):
         return get_result_from_aws_task_arn(job_data)
+    elif isinstance(device, AZUREDevice):
+        return get_result_from_azure_job_id(job_data)
     else:
         raise NotImplementedError(
             f"The device {device.name} is not supported for remote features."
@@ -121,6 +127,7 @@ def get_all_job_ids() -> dict[type[AvailableDevice], list[str]]:
         ATOSDevice: qlm_ids(),
         IBMDevice: ibm_ids(),
         GOOGLEDevice: cirq_ids(),
+        AZUREDevice: azure_ids(),
     }
 
     return job_ids

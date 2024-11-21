@@ -5,6 +5,7 @@ from cirq.ops.common_gates import CNOT as CirqCNOT
 from cirq.ops.measure_util import measure
 from cirq.ops.named_qubit import NamedQubit
 from cirq.ops.pauli_gates import X as CirqX
+from cirq.ops.identity import I as CirqI
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
@@ -47,7 +48,6 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
                 H(0),
                 Rx(1.76, 1),
                 ExpectationMeasure(
-                    [0, 1],
                     observable=Observable(
                         np.array(
                             [
@@ -58,6 +58,7 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
                             ],
                         )
                     ),
+                    targets=[0, 1],
                     shots=1000,
                 ),
             ]
@@ -65,7 +66,7 @@ from mpqp.qasm import qasm2_to_cirq_Circuit
     ],
 )
 def test_running_local_cirq(circuit: QCircuit):
-    return run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+    run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
 @pytest.mark.parametrize(
@@ -73,6 +74,8 @@ def test_running_local_cirq(circuit: QCircuit):
     [
         (
             Circuit(
+                CirqI(NamedQubit("q_0")),
+                CirqI(NamedQubit("q_1")),
                 CirqX(NamedQubit("q_0")),
                 CirqCNOT(NamedQubit("q_0"), NamedQubit("q_1")),
                 measure(NamedQubit("q_1"), key="c_1"),

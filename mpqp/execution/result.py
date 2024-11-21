@@ -15,7 +15,7 @@ The job type affects the data contained in the :class:`Result`. For a given
 - for a job type ``OBSERVABLE`` you can retrieve the expectation value (a 
   ``float``) from ``result.expectation_value``.
 
-When several devices are given to :func:`run<mpqp.execution.runner.run>`, the 
+When several devices are given to :func:`~mpqp.execution.runner.run`, the 
 results are stored in a :class:`BatchResult`.
 """
 
@@ -24,17 +24,18 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Optional
+from typing import Any, Optional, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
+from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
+from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
+from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
-from mpqp.tools.generics import clean_array
-
-from .job import Job, JobType
 
 
 @typechecked
@@ -83,12 +84,12 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f""" State vector: {clean_array(self.vector)}
- Probabilities: {clean_array(self.probabilities)}
+        return f""" State vector: {clean_1D_array(self.vector)}
+ Probabilities: {clean_1D_array(self.probabilities)}
  Number of qubits: {self.nb_qubits}"""
 
     def __repr__(self) -> str:
-        return f"StateVector({clean_array(self.vector)})"
+        return f"StateVector({clean_1D_array(self.vector)})"
 
 
 @typechecked
@@ -161,7 +162,10 @@ class Sample:
                     )
 
     def __str__(self):
-        return f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}, Probability: {self.probability}"
+        return (
+            f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}"
+            + f", Probability: {np.round(self.probability, 5) if self.probability is not None else None}"
+        )
 
     def __repr__(self):
         return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
@@ -188,23 +192,28 @@ class Result:
         job: Type of the job related to this result.
         data: Data of the result, can be an expectation value (float), a
             StateVector, or a list of sample depending on the job_type.
-        error: Information about the error or the variance in the measurement.
+        errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
-        Result: None, ATOSDevice, MYQLM_CLINALG
+        Result: ATOSDevice, MYQLM_CLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
-        >>> job = Job(JobType.SAMPLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG, BasisMeasure([0, 1], shots=1000))
+        >>> job = Job(
+        ...     JobType.SAMPLE,
+        ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
+        ...     ATOSDevice.MYQLM_CLINALG,
+        ...     BasisMeasure([0, 1], shots=1000),
+        ... )
         >>> print(Result(job, [
         ...     Sample(2, index=0, count=250),
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
-        Result: None, ATOSDevice, MYQLM_CLINALG
+        Result: ATOSDevice, MYQLM_CLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
          Samples:
@@ -213,7 +222,7 @@ class Result:
          Error: 0.034
         >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
-        Result: None, ATOSDevice, MYQLM_CLINALG
+        Result: ATOSDevice, MYQLM_CLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
 
@@ -226,7 +235,7 @@ class Result:
         self,
         job: Job,
         data: float | StateVector | list[Sample],
-        error: Optional[float] = None,
+        errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -238,7 +247,7 @@ class Result:
         self._samples = None
         self.shots = shots
         """See parameter description."""
-        self.error = error
+        self.error = errors
         """See parameter description."""
         self._data = data
 
@@ -258,6 +267,9 @@ class Result:
                 )
             else:
                 self._state_vector = data
+                if job.circuit.gphase != 0:
+                    # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
+                    self._state_vector.vector *= np.exp(1j * job.circuit.gphase)
                 self._probabilities = data.probabilities
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):
@@ -277,24 +289,29 @@ class Result:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
-                counts = [
-                    int(count)
-                    for count in np.round(self.job.measure.shots * self._probabilities)
-                ]
-                self._counts = counts
-                for sample in self._samples:
-                    sample.count = self._counts[sample.index]
-            elif is_counts:
+                if not is_counts:
+                    counts = [
+                        int(count)
+                        for count in np.round(
+                            self.job.measure.shots * self._probabilities
+                        )
+                    ]
+                    self._counts = counts
+                    for sample in self._samples:
+                        sample.count = self._counts[sample.index]
+            if is_counts:
                 counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
                 for sample in data:
-                    assert sample.count is not None
+                    if TYPE_CHECKING:
+                        assert sample.count is not None
                     counts[sample.index] = sample.count
                 self._counts = counts
                 assert shots != 0
-                self._probabilities = np.array(counts, dtype=float) / self.shots
-                for sample in self._samples:
-                    sample.probability = self._probabilities[sample.index]
-            else:
+                if not is_probas:
+                    self._probabilities = np.array(counts, dtype=float) / self.shots
+                    for sample in self._samples:
+                        sample.probability = self._probabilities[sample.index]
+            elif not is_probas:
                 raise ValueError(
                     f"For {JobType.SAMPLE.name} jobs, all samples must contain"
                     " either `count` or `probability` (and the non-None "
@@ -317,7 +334,8 @@ class Result:
                 f"Job type: {self.job.job_type.name} but cannot get expectation"
                 " value if the job type is not OBSERVABLE."
             )
-        assert self._expectation_value is not None
+        if TYPE_CHECKING:
+            assert self._expectation_value is not None
         return self._expectation_value
 
     @property
@@ -327,7 +345,8 @@ class Result:
             raise ResultAttributeError(
                 "Cannot get amplitudes if the job was not of type STATE_VECTOR"
             )
-        assert self._state_vector is not None
+        if TYPE_CHECKING:
+            assert self._state_vector is not None
         return self._state_vector.amplitudes
 
     @property
@@ -337,7 +356,8 @@ class Result:
             raise ResultAttributeError(
                 "Cannot get state vector if the job was not of type STATE_VECTOR"
             )
-        assert self._state_vector is not None
+        if TYPE_CHECKING:
+            assert self._state_vector is not None
         return self._state_vector
 
     @property
@@ -347,7 +367,8 @@ class Result:
             raise ResultAttributeError(
                 "Cannot get samples if the job was not of type SAMPLE"
             )
-        assert self._samples is not None
+        if TYPE_CHECKING:
+            assert self._samples is not None
         return self._samples
 
     @property
@@ -358,7 +379,8 @@ class Result:
                 "Cannot get probabilities if the job was not of"
                 " type SAMPLE or STATE_VECTOR"
             )
-        assert self._probabilities is not None
+        if TYPE_CHECKING:
+            assert self._probabilities is not None
         return self._probabilities
 
     @property
@@ -369,19 +391,45 @@ class Result:
                 "Cannot get counts if the job was not of type SAMPLE"
             )
 
-        assert self._counts is not None
+        if TYPE_CHECKING:
+            assert self._counts is not None
         return self._counts
 
     def __str__(self):
-        header = (
-            f"Result: {self.job.circuit.label}, {type(self.device).__name__}, {self.device.name}"
-        )
+        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
+        header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
 
         if self.job.job_type == JobType.SAMPLE:
-            samples_str = "\n".join(map(lambda s: f"  {s}", self.samples))
+            measures = self.job.circuit.measurements
+            if not len(measures) == 1:
+                raise ValueError(
+                    "Mismatch between the number of measurements and the job type."
+                )
+            measure = measures[0]
+            if not isinstance(measure, BasisMeasure):
+                raise ValueError("Mismatch between measurements type and job type.")
+
+            # assert all(sample.probability is not None for sample in self.samples)
+
+            probabilities = [
+                sample.probability
+                for sample in self.samples
+                if sample.probability is not None
+            ]
+
+            if len(probabilities) != len(self.samples):
+                raise ValueError(
+                    f"Some samples ({len(self.samples)-len(probabilities)} of them) have probabilities to None."
+                )
+
+            samples_str = "\n".join(
+                f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
+                f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
+                for sample, probability in zip(self.samples, probabilities)
+            )
             return f"""{header}
  Counts: {self._counts}
- Probabilities: {clean_array(self.probabilities)}
+ Probabilities: {clean_1D_array(self.probabilities)}
  Samples:
 {samples_str}
  Error: {self.error}"""
@@ -426,7 +474,7 @@ class Result:
         plt.xlabel("State")
         plt.ylabel("Counts")
         device = self.job.device
-        plt.title(type(device).__name__ + "\n" + device.name)
+        plt.title(f"{self.job.circuit.label}, {type(device).__name__}\n{device.name}")
 
         if show:
             plt.show()
@@ -461,7 +509,8 @@ class BatchResult:
 
     Example:
         >>> result1 = Result(
-        ...     Job(JobType.STATE_VECTOR,QCircuit(0),ATOSDevice.MYQLM_PYLINALG),
+        ...     Job(JobType.STATE_VECTOR,QCircuit(0, label="StateVector circuit"),
+        ...     ATOSDevice.MYQLM_PYLINALG),
         ...     StateVector(np.array([1, 1, 1, -1])/2, 2),
         ...     0,
         ...     0
@@ -469,7 +518,7 @@ class BatchResult:
         >>> result2 = Result(
         ...     Job(
         ...         JobType.SAMPLE,
-        ...         QCircuit(0),
+        ...         QCircuit([BasisMeasure([0,1],shots=500)], label="Sample circuit"),
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         BasisMeasure([0,1],shots=500)
         ...     ),
@@ -477,7 +526,8 @@ class BatchResult:
         ...     0.034,
         ...     500)
         >>> result3 = Result(
-        ...     Job(JobType.OBSERVABLE,QCircuit(0),ATOSDevice.MYQLM_PYLINALG),
+        ...     Job(JobType.OBSERVABLE,QCircuit(0, label="Observable circuit"),
+        ...     ATOSDevice.MYQLM_PYLINALG),
         ...     -3.09834,
         ...     0.021,
         ...     2048
@@ -485,22 +535,22 @@ class BatchResult:
         >>> batch_result = BatchResult([result1, result2, result3])
         >>> print(batch_result)
         BatchResult: 3 results
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
          Counts: [250, 0, 0, 250]
          Probabilities: [0.5, 0, 0, 0.5]
          Samples:
           State: 00, Index: 0, Count: 250, Probability: 0.5
           State: 11, Index: 3, Count: 250, Probability: 0.5
          Error: 0.034
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
          Expectation value: -3.09834
          Error/Variance: 0.021
         >>> print(batch_result[0])
-        Result: None, ATOSDevice, MYQLM_PYLINALG
+        Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
          Probabilities: [0.25, 0.25, 0.25, 0.25]
          Number of qubits: 2

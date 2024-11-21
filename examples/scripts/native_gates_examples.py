@@ -1,6 +1,7 @@
 """Example 3: Using native gates"""
 
-from mpqp import QCircuit
+from mpqp import QCircuit, Language
+from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
 from mpqp.gates import *
@@ -18,8 +19,21 @@ circuit.add(TOF([0, 1], 2))
 # no measure, we want the state vector
 
 print(circuit)
-print(circuit.to_qasm2())
-print(circuit.to_qasm3())
+print(circuit.to_other_language(Language.QASM2))
+print(circuit.to_other_language(Language.QASM3))
+
+result = run(
+    circuit,
+    [
+        ATOSDevice.MYQLM_PYLINALG,
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    ],
+)
+print(result)
+
+circuit.add(BasisMeasure())
 
 result = run(
     circuit,

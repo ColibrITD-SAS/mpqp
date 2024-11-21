@@ -1,11 +1,11 @@
-""":class:`Measure<mpqp.core.instruction.measurement.measure.Measure>` is the
+""":class:`~mpqp.core.instruction.measurement.measure.Measure` is the
 base class for measurements. It regroups all the attributes and methods
 common to all types of measurements we support.
 
 A measurement can be of two types:
-:class:`BasisMeasure<mpqp.core.instruction.measurement.basis_measure.BasisMeasure>`
+:class:`~mpqp.core.instruction.measurement.basis_measure.BasisMeasure`
 or
-:class:`ExpectationMeasure<mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure>`,
+:class:`~mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure`,
 described in details bellow."""
 
 from __future__ import annotations
@@ -42,7 +42,7 @@ class Measure(Instruction, ABC):
 
     def __init__(
         self,
-        targets: list[int],
+        targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
     ):
@@ -50,8 +50,12 @@ class Measure(Instruction, ABC):
             raise TypeCheckError(
                 f"Negative number of shot makes no sense, given {shots}"
             )
+        if targets is None:
+            targets = []
         super().__init__(targets, label)
         self.shots = shots
         """See parameter description."""
         self.label = label
         """See parameter description."""
+        if len(targets) == 0:
+            self._dynamic = True

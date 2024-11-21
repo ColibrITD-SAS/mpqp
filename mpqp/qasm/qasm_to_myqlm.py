@@ -23,8 +23,26 @@ def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
 
     Returns:
         A Circuit equivalent to the QASM code in parameter.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 2.0;
+        ... qreg q[2];
+        ... h q[0];
+        ... cx q[0], q[1];
+        ... '''
+        >>> circuit = qasm2_to_myqlm_Circuit(qasm_code)
+        >>> circuit.display(batchmode=True) # doctest: +NORMALIZE_WHITESPACE
+          ┌─┐
+         ─┤H├─●─
+          └─┘ │
+              │
+             ┌┴┐
+         ────┤X├
+             └─┘
+
     """
-    from qat.interop.openqasm import OqasmParser  # type: ignore
+    from qat.interop.openqasm import OqasmParser
 
     parser = OqasmParser(gates={"p": "PH", "u": "U"})  # requires myqlm-interop-1.9.3
     circuit = parser.compile(open_qasm_hard_includes(qasm_str, set()))
