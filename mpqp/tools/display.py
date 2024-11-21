@@ -5,10 +5,9 @@ from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt
-from sympy import Basic
 
 if TYPE_CHECKING:
-    from sympy import Expr
+    from sympy import Expr, Basic
 
 from typeguard import typechecked
 
