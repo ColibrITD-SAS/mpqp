@@ -31,9 +31,8 @@ def state_vector_ket_shape(sv: npt.NDArray[np.complex64]) -> str:
     )[2:]
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def with_sign(val: np.complex64) -> str:
+@typechecked
+def with_sign(val: Union[np.complex64, np.complex128]) -> str:
     """Sometimes, we want values under a specific format, in particular
     ``<sign> <value>``. Where value is as simple as possible (*e.g.* no period
     or no imaginary part if there is no need).
@@ -57,18 +56,20 @@ def with_sign(val: np.complex64) -> str:
     return "+ " + str_rounded
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def _remove_null_imag(val: np.complex64) -> np.complex64 | np.float32 | int:
+@typechecked
+def _remove_null_imag(
+    val: np.complex64 | np.complex128,
+) -> np.complex64 | np.complex128 | np.float32 | int:
     val = np.round(val, 3)
     if val.imag != 0:
         return val
     return _remove_unnecessary_decimals(val.real)
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
+@typechecked
+def _remove_unnecessary_decimals(
+    val: np.float32 | np.float64 | int,
+) -> np.float32 | int:
     val = np.float32(val)
     if val.is_integer():
         return int(val)
