@@ -21,7 +21,6 @@ from mpqp.execution.connection.ibm_connection import (
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.execution.simulated_devices import IBMSimulatedDevice
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
@@ -38,6 +37,7 @@ if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 
 @typechecked
@@ -84,6 +84,7 @@ def compute_expectation_value(
         :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit.quantum_info import SparsePauliOp
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
     if not isinstance(job.measure, ExpectationMeasure):
         raise ValueError(
@@ -150,6 +151,8 @@ def check_job_compatibility(job: Job):
             contained in the job (measure and job_type, device and job_type,
             etc...).
     """
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
+
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
 
@@ -413,6 +416,7 @@ def run_aer(job: Job):
 
     from qiskit import QuantumCircuit, transpile
     from qiskit_aer import AerSimulator
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
     job_circuit = job.circuit
 
@@ -459,7 +463,7 @@ def run_aer(job: Job):
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
-
+        
         job.status = JobStatus.RUNNING
 
         if isinstance(job.device, IBMSimulatedDevice):
@@ -582,7 +586,7 @@ def run_remote_ibm(job: Job) -> Result:
 def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
-    device: IBMDevice | IBMSimulatedDevice | AZUREDevice,
+    device: "IBMDevice | IBMSimulatedDevice | AZUREDevice",
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
