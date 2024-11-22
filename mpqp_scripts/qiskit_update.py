@@ -2,7 +2,8 @@ import subprocess
 import sys
 
 qiskit_packages = [
-    "qiskit" "qiskit-aer",
+    "qiskit",
+    "qiskit-aer",
     "qiskit-algorithms",
     "qiskit_alice_bob_provider",
     "qiskit-aqua",
