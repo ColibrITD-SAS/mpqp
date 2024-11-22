@@ -234,8 +234,7 @@ def clean_number_repr(number: complex, round: int = 7):
     return f"{str(real_part)}{str(imag_part)}"
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
+@typechecked
 def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     """Cleans and formats elements of a 2D matrix. This function rounds the
     parts of the numbers in the matrix and formats them as integers if
@@ -250,9 +249,9 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
         A string representation of the cleaned matrix.
 
     Examples:
-        >>> print(clean_matrix([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ...                     [1+5j, 0+1j, 5.],
-        ...                     [1.223123425+0.95113462364j, 2.0, 3.0]]))
+        >>> print(clean_matrix(np.array([[1.234567895546, 2.3456789645645, 3.45678945645],
+        ... [1+5j, 0+1j, 5.],
+        ... [1.223123425+0.95113462364j, 2.0, 3.0]])))
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]
@@ -280,8 +279,7 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     )
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
+@typechecked
 def pprint(matrix: Matrix, round: int = 5, align: bool = True):
     """Print a cleans and formats elements of a matrix. It rounds the real parts of complex numbers
     in the matrix places and formats them as integers if they are whole numbers. It returns a
@@ -293,9 +291,9 @@ def pprint(matrix: Matrix, round: int = 5, align: bool = True):
         align: Whether to align the elements for a cleaner output.
 
     Example:
-        >>> pprint([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ...                     [1+5j, 0+1j, 5.],
-        ...                     [1.223123425+0.95113462364j, 2.0, 3.0]])
+        >>> pprint(np.array([[1.234567895546, 2.3456789645645, 3.45678945645],
+        ... [1+5j, 0+1j, 5.],
+        ... [1.223123425+0.95113462364j, 2.0, 3.0]]))
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]
