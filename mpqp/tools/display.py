@@ -190,9 +190,8 @@ def clean_1D_array(
     )
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def clean_number_repr(number: complex, round: int = 7):
+@typechecked
+def clean_number_repr(number: Union[complex, np.complex64], round: int = 7):
     """Cleans and formats a number. This function rounds the parts of
     complex numbers and formats them as integers if appropriate. It returns a
     string representation of the number.
