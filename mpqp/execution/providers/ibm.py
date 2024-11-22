@@ -463,7 +463,7 @@ def run_aer(job: Job):
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
-        
+
         job.status = JobStatus.RUNNING
 
         if isinstance(job.device, IBMSimulatedDevice):
