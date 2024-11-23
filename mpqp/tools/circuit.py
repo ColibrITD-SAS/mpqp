@@ -84,7 +84,9 @@ def random_circuit(
     rng = np.random.default_rng(seed)
 
     if nb_gates is None:
-        nb_gates = int(rng.integers(5, 10))
+        nb_gates = rng.integers(5, 10)
+        if TYPE_CHECKING:
+            assert isinstance(nb_gates,int)
 
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
