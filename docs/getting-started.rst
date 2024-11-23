@@ -11,9 +11,18 @@ For now, we support Python versions 3.9 to 3.11, and all of Windows, Linux and
 MacOS (specifically, Linux was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 
 is not supported, so your milage may vary).
 
+To install mpqp, you can run in a terminal
+
 .. code-block:: console
 
    $ pip install mpqp
+
+And if you have already a previous version and want to update to the latest
+version, run instead
+
+.. code-block:: console
+
+   $ pip install -U mpqp
 
 .. note::
     For Mac users, additional steps are required before installation, 
@@ -22,12 +31,31 @@ is not supported, so your milage may vary).
     `this page <https://myqlm.github.io/01_getting_started/%3Amyqlm%3Amacos.html#macos>`_
     or run the script we created to facilitate this step:
 
-    .. code-block:: bash
+    .. code-block:: console
 
-        curl -L https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/mac-install.sh | bash -s -- <your-python-bin>
+        $ curl -L https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/mac-install.sh | bash -s -- <your-python-bin>
         
     where ``<your-python-bin>`` is the binary you use to invoke python. For instance, it could
     be ``python``, ``python3``, or ``python3.9``.
+
+.. warning::
+    The migration from ``qiskit`` version ``0.x`` to ``1.x`` caused a few issues. 
+    In case you had a ``qiskit 0.x`` environment, you might encounter an error 
+    such as 
+    
+    .. code-block:: bash
+
+        ImportError: Qiskit is installed in an invalid environment that has both Qiskit >=1.0 and an earlier version...
+
+    To fix this, we provide a script you can run that will fix your environment.
+    In a terminal, simply run.
+
+    .. code-block:: console
+
+        $ update_qiskit
+
+    Alternatively, if you want to keep your old qiskit environment, you can also
+    create a new virtual environment.
 
 Your first circuit
 ------------------
