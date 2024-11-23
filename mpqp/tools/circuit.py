@@ -86,7 +86,7 @@ def random_circuit(
     if nb_gates is None:
         nb_gates = rng.integers(5, 10)
         if TYPE_CHECKING:
-            assert isinstance(nb_gates,int)
+            assert isinstance(nb_gates, int)
 
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
