@@ -216,8 +216,7 @@ def exp_id_dist(
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
+@typechecked
 def validate_noisy_circuit(
     circuit: QCircuit,
     shots: int = 1024,
@@ -233,7 +232,7 @@ def validate_noisy_circuit(
     Returns:
         Weather our noise pipeline matches the theory or not.
     """
-    return exp_id_dist(circuit, shots, device) <= trust_int(circuit)
+    return bool(exp_id_dist(circuit, shots, device) <= trust_int(circuit))
 
 
 @typechecked
