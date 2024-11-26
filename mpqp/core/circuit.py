@@ -323,7 +323,7 @@ class QCircuit:
                 if instruction != component and isinstance(instruction, BasisMeasure):
                     if instruction.c_targets:
                         unique_cbits.update(instruction.c_targets)
-            c_targets = []
+            c_targets: list[int] = []
             i = 0
             for _ in range(len(component.targets)):
                 while i in unique_cbits:
@@ -332,7 +332,7 @@ class QCircuit:
                         "order of classic bits might be unexpected"
                     )
                     i += 1
-                c_targets.append(i)
+                c_targets.append(int(i))
                 i += 1
             component.c_targets = c_targets
             self.nb_cbits = max(
@@ -434,6 +434,21 @@ class QCircuit:
                     inst.c_targets = None
 
             self.add(inst)
+
+    def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
+        """
+        Serialize the quantum circuit to a dictionary.
+        Returns:
+            dict: A dictionary representation of the circuit.
+        """
+        return {
+            "nb_qubits": self.nb_qubits,
+            "nb_cbits": self.nb_cbits,
+            "label": self.label,
+            "instructions": [repr(inst) for inst in self.instructions],
+            "noises": [str(noise) for noise in self.noises],
+            "gphase": self.gphase,
+        }
 
     def __iadd__(self, other: QCircuit):
         self.append(other)

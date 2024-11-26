@@ -91,6 +91,22 @@ class StateVector:
     def __repr__(self) -> str:
         return f"StateVector({clean_1D_array(self.vector)})"
 
+    def to_dict(self) -> dict[str, list[str] | Any | int]:
+        """
+        Converts the StateVector object into a dictionary format.
+
+        Returns:
+            A dictionary representation of the StateVector instance.
+        """
+        vector_dict = [str(complex_num) for complex_num in self.vector]
+        probabilities_dict = self.probabilities.tolist()
+
+        return {
+            "vector": vector_dict,
+            "probabilities": probabilities_dict,
+            "nb_qubits": self.nb_qubits,
+        }
+
 
 @typechecked
 class Sample:
@@ -160,6 +176,21 @@ class Sample:
                         f"The value of bin_str {bin_str} doesn't match with the"
                         f" index provided {index} and the number of qubits {self.nb_qubits}"
                     )
+
+    def to_dict(self) -> dict[str, int | float | str | None]:
+        """
+        Converts the Sample object into a dictionary format.
+
+        Returns:
+            A dictionary representation of the Sample instance.
+        """
+        return {
+            "nb_qubits": self.nb_qubits,
+            "probability": self.probability,
+            "index": self.index,
+            "count": self.count,
+            "bin_str": self.bin_str,
+        }
 
     def __str__(self):
         return (
