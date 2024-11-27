@@ -2,68 +2,76 @@ import json
 
 from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.execution.job import Job
-from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.execution.result import Result
 
 
 def fetch_all_jobs():
-    from sqlite3 import connect
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+
         cursor.execute('SELECT * FROM jobs')
-        return cursor.fetchall()
+        jobs = cursor.fetchall()
+        if jobs:
+            return [dict(job) for job in jobs]
+        return None
 
 
 def fetch_all_results():
-    from sqlite3 import connect
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
         cursor.execute('SELECT * FROM results')
-        return cursor.fetchall()
+        results = cursor.fetchall()
+        if results:
+            return [dict(result) for result in results]
+        return None
 
 
-def fetch_job_with_job(job: Job):
-    from sqlite3 import connect
+def fetch_jobs_with_job(job: Job):
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
-        circuit_json = json.dumps(job.circuit.to_dict())
-        measure_json = json.dumps(job.measure.to_dict()) if job.measure else None
+        circuit_json = json.dumps(repr(job.circuit))
+        measure_json = json.dumps(repr(job.measure)) if job.measure else None
+
         cursor.execute(
             '''
             SELECT * FROM jobs
             WHERE type is ? AND circuit is ? AND device is ? AND measure is ?
             ''',
-            (str(job.job_type), circuit_json, str(job.device), measure_json),
+            (job.job_type.name, circuit_json, str(job.device), measure_json),
         )
 
-        return cursor.fetchall()
+        jobs = cursor.fetchall()
+        if jobs:
+            return [dict(job) for job in jobs]
+        return None
 
 
-def fetch_job_with_results(result: Result):
-    from sqlite3 import connect
+def fetch_jobs_with_results(result: Result):
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
-        data = result._data  # pyright: ignore[reportPrivateUsage]
-        if isinstance(data, StateVector):
-            data_json = json.dumps(data.to_dict())
-        elif isinstance(data, list) and (
-            isinstance(sample, Sample)  # pyright: ignore[reportUnnecessaryIsInstance]
-            for sample in data
-        ):
-            data_json = json.dumps([sample.to_dict() for sample in data])
-        else:
-            data_json = json.dumps(data)
-        error_json = json.dumps(result.error) if result.error else None
+        data_json = json.dumps(
+            repr(result._data)  # pyright: ignore[reportPrivateUsage]
+        )
+        error_json = json.dumps(repr(result.error)) if result.error else None
 
-        circuit_json = json.dumps(result.job.circuit.to_dict())
+        circuit_json = json.dumps(repr(result.job.circuit))
         measure_json = (
-            json.dumps(result.job.measure.to_dict()) if result.job.measure else None
+            json.dumps(repr(result.job.measure)) if result.job.measure else None
         )
 
         cursor.execute(
@@ -77,37 +85,34 @@ def fetch_job_with_results(result: Result):
                 data_json,
                 error_json,
                 result.shots,
-                str(result.job.job_type),
+                result.job.job_type.name,
                 circuit_json,
                 str(result.job.device),
                 measure_json,
             ),
         )
 
-        return cursor.fetchall()
+        jobs = cursor.fetchall()
+        if jobs:
+            return [dict(job) for job in jobs]
+        return None
 
 
 def fetch_results_with_results_and_job(result: Result):
-    from sqlite3 import connect
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
-        data = result._data  # pyright: ignore[reportPrivateUsage]
-        if isinstance(data, StateVector):
-            data_json = json.dumps(data.to_dict())
-        elif isinstance(data, list) and (
-            isinstance(sample, Sample)  # pyright: ignore[reportUnnecessaryIsInstance]
-            for sample in data
-        ):
-            data_json = json.dumps([sample.to_dict() for sample in data])
-        else:
-            data_json = json.dumps(data)
-        error_json = json.dumps(result.error) if result.error else None
+        data_json = json.dumps(
+            repr(result._data)  # pyright: ignore[reportPrivateUsage]
+        )
+        error_json = json.dumps(repr(result.error)) if result.error else None
 
-        circuit_json = json.dumps(result.job.circuit.to_dict())
+        circuit_json = json.dumps(repr(result.job.circuit))
         measure_json = (
-            json.dumps(result.job.measure.to_dict()) if result.job.measure else None
+            json.dumps(repr(result.job.measure)) if result.job.measure else None
         )
 
         cursor.execute(
@@ -126,33 +131,30 @@ def fetch_results_with_results_and_job(result: Result):
                 data_json,
                 error_json,
                 result.shots,
-                str(result.job.job_type),
+                result.job.job_type.name,
                 circuit_json,
                 str(result.job.device),
                 measure_json,
             ),
         )
 
-        return cursor.fetchall()
+        results = cursor.fetchall()
+        if results:
+            return [dict(result) for result in results]
+        return None
 
 
 def fetch_results_with_results(result: Result):
-    from sqlite3 import connect
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
-        data = result._data  # pyright: ignore[reportPrivateUsage]
-        if isinstance(data, StateVector):
-            data_json = json.dumps(data.to_dict())
-        elif isinstance(data, list) and (
-            isinstance(sample, Sample)  # pyright: ignore[reportUnnecessaryIsInstance]
-            for sample in data
-        ):
-            data_json = json.dumps([sample.to_dict() for sample in data])
-        else:
-            data_json = json.dumps(data)
-        error_json = json.dumps(result.error) if result.error else None
+        data_json = json.dumps(
+            repr(result._data)  # pyright: ignore[reportPrivateUsage]
+        )
+        error_json = json.dumps(repr(result.error)) if result.error else None
 
         cursor.execute(
             '''
@@ -166,38 +168,49 @@ def fetch_results_with_results(result: Result):
             ),
         )
 
-        return cursor.fetchall()
+        results = cursor.fetchall()
+        if results:
+            return [dict(result) for result in results]
+        return None
 
 
-def fetch_results_with_results_id(result_id: int):
-    from sqlite3 import connect
+def fetch_result_with_id(result_id: int):
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
         cursor.execute(
             '''
             SELECT * FROM results
-            WHERE result_id is ?
+            WHERE id is ?
             ''',
             (result_id,),
         )
 
-        return cursor.fetchall()
+        result = cursor.fetchone()
+        if result:
+            return dict(result)
+        return None
 
 
-def fetch_job_with_job_id(job_id: int):
-    from sqlite3 import connect
+def fetch_job_with_id(job_id: int):
+    from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
         cursor.execute(
             '''
             SELECT * FROM jobs
-            WHERE job_id is ?
+            WHERE id is ?
             ''',
             (job_id,),
         )
 
-        return cursor.fetchall()
+        job = cursor.fetchone()
+        if job:
+            return dict(job)
+        return None

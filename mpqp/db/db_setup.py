@@ -24,7 +24,6 @@ def setup_db(data_base_name: Optional[str] = 'quantum_jobs.db'):
         circuit TEXT NOT NULL,         -- Store JSON as text
         device TEXT NOT NULL,
         measure TEXT,                  -- Optional, stored as JSON text
-        status TEXT DEFAULT 'INIT',
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
     '''
