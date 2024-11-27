@@ -57,7 +57,7 @@ def fetch_jobs_with_job(job: Job):
         return None
 
 
-def fetch_jobs_with_results(result: Result):
+def fetch_jobs_with_result(result: Result):
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -76,7 +76,7 @@ def fetch_jobs_with_results(result: Result):
 
         cursor.execute(
             '''
-            SELECT jobs.* FROM jobs
+            SELECT * FROM jobs
             INNER JOIN results ON jobs.id is results.job_id
             WHERE results.data is ? AND results.error is ? AND results.shots is ?
                 AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?
@@ -98,7 +98,7 @@ def fetch_jobs_with_results(result: Result):
         return None
 
 
-def fetch_results_with_results_and_job(result: Result):
+def fetch_results_with_result_and_job(result: Result):
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -118,14 +118,9 @@ def fetch_results_with_results_and_job(result: Result):
         cursor.execute(
             '''
             SELECT * FROM results
-            WHERE job_id is (
-            SELECT id FROM jobs
-            WHERE id is (
-                SELECT job_id FROM results
-                WHERE data is ? AND error is ? AND shots is ?
-            )
-            AND type is ? AND circuit is ? AND device is ? AND measure is ?
-            )
+            INNER JOIN jobs ON jobs.id is results.job_id
+            WHERE results.data is ? AND results.error is ? AND results.shots is ?
+                AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?
             ''',
             (
                 data_json,
@@ -144,7 +139,7 @@ def fetch_results_with_results_and_job(result: Result):
         return None
 
 
-def fetch_results_with_results(result: Result):
+def fetch_results_with_result(result: Result):
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -213,4 +208,25 @@ def fetch_job_with_id(job_id: int):
         job = cursor.fetchone()
         if job:
             return dict(job)
+        return None
+
+
+def fetch_results_with_job_id(job_id: int):
+    from sqlite3 import connect, Row
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+
+        cursor.execute(
+            '''
+            SELECT * FROM results
+            WHERE job_id is ?
+            ''',
+            (job_id,),
+        )
+
+        results = cursor.fetchall()
+        if results:
+            return [dict(result) for result in results]
         return None
