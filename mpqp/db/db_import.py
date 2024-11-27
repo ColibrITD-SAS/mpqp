@@ -50,7 +50,7 @@ def insert_result_(result: Result, compile_same_job: bool = True):
 
     if compile_same_job:
         job_ids = fetch_jobs_with_job(result.job)
-        if job_ids is None:
+        if len(job_ids) == 0:
             job_id = insert_job(result.job)
         else:
             job_id = job_ids[0]['id']

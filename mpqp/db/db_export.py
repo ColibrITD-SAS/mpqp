@@ -33,7 +33,9 @@ def results_dict_to_mpqp(
     results_mpqp = []
     if isinstance(results, dict):
         error = None if results['error'] is None else eval(results['error'])
-        job = fetch_job_with_id(results['job_id'])
+        job = fetch_jobs_with_id(results['job_id'])
+        if len(job) == 0:
+            raise ValueError("Job not found for result, can not be instantiated.")
         results_mpqp.append(
             Result(
                 jobs_dict_to_mpqp(job)[0],
@@ -45,7 +47,9 @@ def results_dict_to_mpqp(
     else:
         for result in results:
             error = None if result['error'] is None else eval(result['error'])
-            job = fetch_job_with_id(result['job_id'])
+            job = fetch_jobs_with_id(result['job_id'])
+            if len(job) == 0:
+                raise ValueError("Job not found for result, can not be instantiated.")
             results_mpqp.append(
                 Result(
                     jobs_dict_to_mpqp(job)[0],
@@ -68,31 +72,36 @@ def get_all_results():
     return results_dict_to_mpqp(results)
 
 
-def get_jobs_with_job(job: Job):
+def get_jobs_with_job(job: Job | list[Job]):
     jobs = fetch_jobs_with_job(job)
     return jobs_dict_to_mpqp(jobs)
 
 
-def get_jobs_with_result(result: Result):
+def get_jobs_with_result(result: Result | list[Result] | BatchResult):
     jobs = fetch_jobs_with_result(result)
     return jobs_dict_to_mpqp(jobs)
 
 
-def get_results_with_result_and_job(result: Result):
+def get_results_with_result_and_job(result: Result | list[Result] | BatchResult):
     results = fetch_results_with_result_and_job(result)
     return results_dict_to_mpqp(results)
 
 
-def get_results_with_result(result: Result):
+def get_results_with_result(result: Result | list[Result] | BatchResult):
     results = fetch_results_with_result(result)
     return results_dict_to_mpqp(results)
 
 
-def get_result_with_id(result_id: int):
-    results = fetch_result_with_id(result_id)
+def get_result_with_id(result_id: int | list[int]):
+    results = fetch_results_with_id(result_id)
     return results_dict_to_mpqp(results)
 
 
-def get_job_with_id(job_id: int):
-    jobs = fetch_job_with_id(job_id)
+def get_job_with_id(job_id: int | list[int]):
+    jobs = fetch_jobs_with_id(job_id)
     return jobs_dict_to_mpqp(jobs)
+
+
+def get_results_with_job_id(job_id: int | list[int]):
+    results = fetch_results_with_job_id(job_id)
+    return results_dict_to_mpqp(results)
