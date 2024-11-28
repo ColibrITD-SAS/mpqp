@@ -38,7 +38,9 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     try:
         os.system("aws configure")
         save_env_variable("BRAKET_CONFIGURED", "True")
+
         session = AwsSession()
+
         save_env_variable("AWS_DEFAULT_REGION", session.region)
         return "Amazon Braket account correctly configured", []
 
@@ -68,19 +70,26 @@ def get_aws_braket_account_info() -> str:
         raise AWSBraketRemoteExecutionError(
             "Error when trying to get AWS credentials. No AWS Braket account configured."
         )
+    import boto3
     from braket.aws import AwsSession
 
     try:
-        session = AwsSession()
+        # TODO getting outdated credentials without passing profile name, investigate?
+        boto3_session = boto3.Session(profile_name="752542621531_quant_team")
+        session = AwsSession(boto_session=boto3_session)
 
         # get the AWS Braket user access key, secret key and region
         credentials = session.boto_session.get_credentials()
+
+        print(credentials.token)
+        print(credentials.method)
+
         if credentials is None:
             raise AWSBraketRemoteExecutionError("Could not retrieve AWS' credentials")
+
         access_key_id = credentials.access_key
         secret_access_key = credentials.secret_key
         obfuscate_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
-
         region_name = session.boto_session.region_name
     except Exception as e:
         raise AWSBraketRemoteExecutionError(
@@ -129,11 +138,15 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
+        print("client", braket_client)
         aws_session = AwsSession(braket_client=braket_client)
+        print("session", aws_session.boto_session)
         mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
         aws_session.add_braket_user_agent(
             user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
         )
+        print("second_session", aws_session)
+        print("device", AwsDevice(device.get_arn(), aws_session=aws_session))
         return AwsDevice(device.get_arn(), aws_session=aws_session)
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
