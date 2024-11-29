@@ -1,3 +1,13 @@
+"""
+This module provides functions to insert `Job` and `Result` objects into the database, 
+ensuring proper linkage between jobs and results.
+
+Functions:
+- `insert_job`: Inserts a single `Job` into the database and returns its ID.
+- `insert_result`: Inserts a `Result` or `BatchResult` into the database. Handles compilation of jobs to avoid duplicates.
+
+"""
+
 from __future__ import annotations
 
 from mpqp.db.db_query import fetch_jobs_with_job
@@ -7,6 +17,21 @@ from mpqp.execution.result import BatchResult, Result
 
 
 def insert_job(job: Job):
+    """
+    Insert a `Job` into the database.
+
+    Args:
+        job: The `Job` object to be inserted.
+
+    Returns:
+        The ID of the newly inserted job.
+
+    Example:
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
+        >>> insert_job(job)
+        7
+
+    """
     import json
     from sqlite3 import connect
 
@@ -38,13 +63,30 @@ def insert_job(job: Job):
 def insert_result(
     result: Result | BatchResult, compile_same_job: bool = True
 ) -> list[int | None]:
+    """
+    Insert a `Result` or `BatchResult` into the database.
+
+    Args:
+        result: The result(s) to be inserted.
+        compile_same_job: If `True`, checks for an existing job in the database
+                            and reuses its ID to avoid duplicates.
+
+    Returns:
+        List of IDs of the inserted result(s). Returns `None` for failed insertions.
+
+    Example:
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> insert_result(result)
+        [8]
+
+    """
     if isinstance(result, BatchResult):
-        return [insert_result_(item, compile_same_job) for item in result.results]
+        return [_insert_result(item, compile_same_job) for item in result.results]
     else:
-        return [insert_result_(result, compile_same_job)]
+        return [_insert_result(result, compile_same_job)]
 
 
-def insert_result_(result: Result, compile_same_job: bool = True):
+def _insert_result(result: Result, compile_same_job: bool = True):
     import json
     from sqlite3 import connect
 

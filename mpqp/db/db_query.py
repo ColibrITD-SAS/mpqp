@@ -1,12 +1,55 @@
+"""
+This module provides utility functions to query and fetch data from the quantum job and result database.
+
+It includes methods to retrieve all records, specific records by ID, and filtered records based on `Job` or `Result` objects.
+
+Functions:
+- `fetch_all_jobs`: Fetch all job records from the database.
+- `fetch_all_results`: Fetch all result records from the database.
+- `fetch_jobs_with_job`: Fetch job records that match specific `Job` attributes.
+- `fetch_jobs_with_result`: Fetch jobs associated with specific `Result` or `BatchResult` objects.
+- `fetch_results_with_result_and_job`: Fetch results and their associated jobs based on specific `Result` attributes.
+- `fetch_results_with_result`: Fetch results matching specific `Result` attributes.
+- `fetch_results_with_id`: Fetch results by their ID(s).
+- `fetch_jobs_with_id`: Fetch jobs by their ID(s).
+- `fetch_results_with_job_id`: Fetch results associated with specific job ID(s).
+
+"""
+
 from __future__ import annotations
+from dataclasses import dataclass
 import json
+from typing import Optional
 
 from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
 
 
+@dataclass
+class QueryJob:
+    id: Optional[str] = None
+
+
 def fetch_all_jobs():
+    """
+    Fetch all job records from the database.
+
+    Returns:
+        List of job records as dictionaries, or an empty list if no jobs exist.
+
+    Examples:
+        >>> jobs = fetch_all_jobs()
+        >>> for job in jobs:
+        ...    print("job_id:", job['id'])
+        job_id: 1
+        job_id: 2
+        job_id: 3
+        job_id: 4
+        job_id: 5
+        job_id: 6
+
+    """
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -15,12 +58,29 @@ def fetch_all_jobs():
 
         cursor.execute('SELECT * FROM jobs')
         jobs = cursor.fetchall()
-        if jobs:
-            return [dict(job) for job in jobs]
-        return None
+        return [dict(job) for job in jobs]
 
 
 def fetch_all_results():
+    """
+    Fetch all result records from the database.
+
+    Returns:
+        List of result records as dictionaries, or an empty list if no results exist.
+
+    Examples:
+        >>> results = fetch_all_results()
+        >>> for result in results:
+        ...    print("result_id:", result['id'])
+        result_id: 1
+        result_id: 2
+        result_id: 3
+        result_id: 4
+        result_id: 5
+        result_id: 6
+        result_id: 7
+
+    """
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -29,10 +89,140 @@ def fetch_all_results():
 
         cursor.execute('SELECT * FROM results')
         results = cursor.fetchall()
-        return [dict(result) for result in results] if results else []
+        return [dict(result) for result in results]
+
+
+def fetch_results_with_id(result_id: int | list[int]):
+    """
+    Fetch results by their ID(s).
+
+    Args:
+        result_id: A result ID or list of result IDs.
+
+    Returns:
+        List of result records as dictionaries, or an empty list if no matches exist.
+
+    Examples:
+        >>> results = fetch_results_with_id([1, 2, 3])
+        >>> for result in results:
+        ...    print("result_id:", result['id'])
+        result_id: 1
+        result_id: 2
+        result_id: 3
+
+    """
+    from sqlite3 import connect, Row
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+
+        if isinstance(result_id, int):
+            result_id = [result_id]
+
+        placeholders = ",".join("?" for _ in result_id)
+
+        cursor.execute(
+            f"SELECT * FROM results WHERE id IN ({placeholders})", tuple(result_id)
+        )
+
+        results = cursor.fetchall()
+        return [dict(result) for result in results]
+
+
+def fetch_jobs_with_id(job_id: int | list[int]):
+    """
+    Fetch jobs by their ID(s).
+
+    Args:
+        job_id: A job ID or list of job IDs.
+
+    Returns:
+        List of job records as dictionaries, or an empty list if no matches exist.
+
+    Examples:
+        >>> jobs = fetch_jobs_with_id(1)
+        >>> for job in jobs:
+        ...    print("job_id:", job['id'])
+        job_id: 1
+        >>> jobs = fetch_jobs_with_id([2, 3])
+        >>> for job in jobs:
+        ...    print("job_id:", job['id'])
+        job_id: 2
+        job_id: 3
+
+    """
+    from sqlite3 import connect, Row
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+
+        if isinstance(job_id, int):
+            job_id = [job_id]
+
+        placeholders = ",".join("?" for _ in job_id)
+
+        cursor.execute(
+            f"SELECT * FROM jobs WHERE id IN ({placeholders})", tuple(job_id)
+        )
+
+        jobs = cursor.fetchall()
+        return [dict(job) for job in jobs]
+
+
+def fetch_results_with_job_id(job_id: int | list[int]):
+    """
+    Fetch results associated with specific job ID(s).
+
+    Args:
+        job_id: A job ID or list of job IDs.
+
+    Returns:
+        List of result records as dictionaries, or an empty list if no matches exist.
+
+    Examples:
+        >>> results = fetch_results_with_job_id(1)
+        >>> for result in results:
+        ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
+        result_id: 1 , job_id: 1
+        result_id: 2 , job_id: 1
+
+    """
+    from sqlite3 import connect, Row
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+
+        if isinstance(job_id, int):
+            job_id = [job_id]
+
+        placeholders = ",".join("?" for _ in job_id)
+
+        cursor.execute(
+            f"SELECT * FROM results WHERE job_id IN ({placeholders})", tuple(job_id)
+        )
+
+        results = cursor.fetchall()
+        return [dict(result) for result in results]
 
 
 def fetch_jobs_with_job(job: Job | list[Job]):
+    """
+    Fetch job records matching specific `Job` attributes.
+
+    Args:
+        job: A `Job` or list of `Job` objects to match.
+
+    Returns:
+        List of matching job records as dictionaries, or an empty list if no matches exist.
+
+    Examples:
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
+        >>> matching_jobs = fetch_jobs_with_job(job)
+
+    """
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -57,10 +247,27 @@ def fetch_jobs_with_job(job: Job | list[Job]):
         cursor.execute(query, params)
 
         jobs = cursor.fetchall()
-        return [dict(job) for job in jobs] if jobs else []
+        return [dict(job) for job in jobs]
 
 
 def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
+    """
+    Fetch jobs associated with specific `Result` or `BatchResult` objects.
+
+    Args:
+        result: A `Result`, `BatchResult`, or list of results to match.
+
+    Returns:
+        List of matching job records as dictionaries, or an empty list if no matches exist.
+
+    Examples:
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> jobs = fetch_jobs_with_result(result)
+        >>> for job in jobs:
+        ...    print("job_id:", job['id'])
+        job_id: 5
+
+    """
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -110,10 +317,27 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
         cursor.execute(query, params)
         jobs = cursor.fetchall()
 
-        return [dict(job) for job in jobs] if jobs else []
+        return [dict(job) for job in jobs]
 
 
 def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result]):
+    """
+    Fetch results and their associated jobs based on specific `Result` attributes.
+
+    Args:
+        result: A `Result`, `BatchResult`, or list of results to match.
+
+    Returns:
+        List of matching result records and their associated jobs as dictionaries.
+
+    Examples:
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> results = fetch_results_with_result_and_job(result)
+        >>> for result in results:
+        ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
+        result_id: 6 , job_id: 5
+
+    """
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -136,7 +360,6 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
                 json.dumps(repr(res.job.measure)) if res.job.measure else None
             )
 
-            # Build the WHERE clause for each result/job pair
             result_filters.append(
                 """
                 (results.data is ? AND results.error is ? AND results.shots is ? 
@@ -155,22 +378,37 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
                 ]
             )
 
-        # Construct the final query with OR conditions for multiple results
         query = f"""
             SELECT * FROM results
             INNER JOIN jobs ON jobs.id is results.job_id
             WHERE {' OR '.join(result_filters)}
         """
 
-        # Execute the query
         cursor.execute(query, params)
         results = cursor.fetchall()
 
-        # Return the results as a list of dictionaries, or None if no results were found
-        return [dict(result) for result in results] if results else []
+        return [dict(result) for result in results]
 
 
 def fetch_results_with_result(result: Result | BatchResult | list[Result]):
+    """
+    Fetch results matching specific `Result` attributes.
+
+    Args:
+        result: A `Result`, `BatchResult`, or list of results to match.
+
+    Returns:
+        List of matching result records as dictionaries, or an empty list if no matches exist.
+
+    Examples:
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> results = fetch_results_with_result(result)
+        >>> for result in results:
+        ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
+        result_id: 6 , job_id: 5
+        result_id: 7 , job_id: 6
+
+    """
     from sqlite3 import connect, Row
 
     with connect(get_env_variable("DATA_BASE")) as connection:
@@ -204,64 +442,4 @@ def fetch_results_with_result(result: Result | BatchResult | list[Result]):
         cursor.execute(query, params)
         results = cursor.fetchall()
 
-        return [dict(result) for result in results] if results else []
-
-
-def fetch_results_with_id(result_id: int | list[int]):
-    from sqlite3 import connect, Row
-
-    with connect(get_env_variable("DATA_BASE")) as connection:
-        cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
-
-        if isinstance(result_id, int):
-            result_id = [result_id]
-
-        placeholders = ",".join("?" for _ in result_id)
-
-        cursor.execute(
-            f"SELECT * FROM results WHERE id IN ({placeholders})", tuple(result_id)
-        )
-
-        results = cursor.fetchall()
-        return [dict(result) for result in results] if results else []
-
-
-def fetch_jobs_with_id(job_id: int | list[int]):
-    from sqlite3 import connect, Row
-
-    with connect(get_env_variable("DATA_BASE")) as connection:
-        cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
-
-        if isinstance(job_id, int):
-            job_id = [job_id]
-
-        placeholders = ",".join("?" for _ in job_id)
-
-        cursor.execute(
-            f"SELECT * FROM jobs WHERE id IN ({placeholders})", tuple(job_id)
-        )
-
-        jobs = cursor.fetchall()
-        return [dict(job) for job in jobs] if jobs else []
-
-
-def fetch_results_with_job_id(job_id: int | list[int]):
-    from sqlite3 import connect, Row
-
-    with connect(get_env_variable("DATA_BASE")) as connection:
-        cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
-
-        if isinstance(job_id, int):
-            job_id = [job_id]
-
-        placeholders = ",".join("?" for _ in job_id)
-
-        cursor.execute(
-            f"SELECT * FROM results WHERE job_id IN ({placeholders})", tuple(job_id)
-        )
-
-        results = cursor.fetchall()
-        return [dict(result) for result in results] if results else []
+        return [dict(result) for result in results]

@@ -1,3 +1,22 @@
+"""
+This module provides utilities for managing a SQLite database for quantum job 
+and result records, as well as functions for removing entries based on various criteria.
+
+It allows storing and managing job and result metadata related to quantum circuit executions.
+
+Classes and Functions:
+- `setup_db`: Initializes the database with the necessary tables.
+- `clear_db`: Clears all records from the database.
+- `remove_all_with_job_id`: Removes all jobs and associated results for specific job IDs.
+- `remove_jobs_with_id`: Removes jobs with specific IDs.
+- `remove_results_with_id`: Removes results with specific IDs.
+- `remove_results_with_results_db`: Removes results using a dictionary or list of dictionaries from the database.
+- `remove_jobs_with_jobs_db`: Removes jobs using a dictionary or list of dictionaries from the database.
+- `remove_results_with_result`: Removes results associated with a specific `Result` or `BatchResult`.
+- `remove_results_with_job`: Removes results associated with specific `Job` objects.
+
+"""
+
 from __future__ import annotations
 
 from typing import Any, Optional
@@ -9,6 +28,20 @@ from mpqp.execution.result import BatchResult, Result
 
 
 def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
+    """
+    Sets up a SQLite database for storing quantum job and result records.
+    Creates, two tables:
+        - `jobs`: Stores metadata about quantum jobs (e.g., type, circuit, device).
+        - `results`: Stores metadata about results of quantum jobs (e.g., data, errors, shots).
+
+    Args:
+        data_base_name: Name of the database file. Defaults to 'quantum_jobs.db'.
+        path: Directory to save the database file. Defaults to the current working directory.
+
+    Example:
+        >>> setup_db("my_database.db", "/path/to/db")
+
+    """
     import sqlite3
     import os
 
@@ -58,6 +91,14 @@ def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
 
 
 def clear_db():
+    """
+    Clears all records from the database, including jobs and results.
+
+    This function resets the tables and their auto-increment counters.
+
+    Example:
+        >>> clear_db()
+    """
     import sqlite3
 
     database_name = get_env_variable("DATA_BASE")
@@ -73,6 +114,17 @@ def clear_db():
 
 
 def remove_all_with_job_id(job_id: int | list[int]):
+    """
+    Removes jobs and their associated results for the specified job IDs.
+
+    Args:
+        job_id: Job ID(s) to remove.
+
+    Example:
+        >>> remove_all_with_job_id(1)
+        >>> remove_all_with_job_id([2, 3])
+
+    """
     import sqlite3
 
     database_name = get_env_variable("DATA_BASE")
@@ -93,6 +145,17 @@ def remove_all_with_job_id(job_id: int | list[int]):
 
 
 def remove_jobs_with_id(job_id: int | list[int]):
+    """
+    Removes jobs with the specified job IDs.
+
+    Args:
+        job_id: Job ID(s) to remove.
+
+    Example:
+        >>> remove_jobs_with_id(1)
+        >>> remove_jobs_with_id([2, 3])
+
+    """
     import sqlite3
 
     database_name = get_env_variable("DATA_BASE")
@@ -109,6 +172,17 @@ def remove_jobs_with_id(job_id: int | list[int]):
 
 
 def remove_results_with_id(result_id: int | list[int]):
+    """
+    Removes results with the specified result IDs.
+
+    Args:
+        result_id: Result ID(s) to remove.
+
+    Example:
+        >>> remove_results_with_id(1)
+        >>> remove_results_with_id([2, 3])
+
+    """
     import sqlite3
 
     database_name = get_env_variable("DATA_BASE")
@@ -129,6 +203,17 @@ def remove_results_with_id(result_id: int | list[int]):
 def remove_results_with_results_db(
     results: Optional[list[dict[Any, Any]] | dict[Any, Any]]
 ):
+    """
+    Removes results using result(s) from the database.
+
+    Args:
+        results: Result dictionary or list of dictionaries from the database.
+
+    Example:
+        >>> results = fetch_results_with_id(1)
+        >>> remove_results_with_results_db(results)
+
+    """
     if results is None:
         return
     if isinstance(results, dict):
@@ -139,6 +224,17 @@ def remove_results_with_results_db(
 
 
 def remove_jobs_with_jobs_db(jobs: Optional[list[dict[Any, Any]] | dict[Any, Any]]):
+    """
+    Removes jobs using a dictionary or list of dictionaries from the database.
+
+    Args:
+        jobs: Job dictionary or list of dictionaries from the database.
+
+    Example:
+        >>> jobs = fetch_jobs_with_id(1)
+        >>> remove_jobs_with_jobs_db(jobs)
+
+    """
     if jobs is None:
         return
     if isinstance(jobs, dict):
@@ -149,10 +245,32 @@ def remove_jobs_with_jobs_db(jobs: Optional[list[dict[Any, Any]] | dict[Any, Any
 
 
 def remove_results_with_result(result: Result | BatchResult | list[Result]):
+    """
+    Removes results associated with specific `Result` or `BatchResult` objects.
+
+    Args:
+        result: Result(s) to remove.
+
+    Example:
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> remove_results_with_result(result)
+
+    """
     results_db = fetch_results_with_result(result)
     remove_results_with_results_db(results_db)
 
 
 def remove_results_with_job(jobs: Job | list[Job]):
+    """
+    Removes results associated with specific `Job` objects.
+
+    Args:
+        jobs: Job(s) to remove results for.
+
+    Example:
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
+        >>> remove_results_with_job(job)
+
+    """
     jobs_db = fetch_jobs_with_job(jobs)
     remove_jobs_with_jobs_db(jobs_db)

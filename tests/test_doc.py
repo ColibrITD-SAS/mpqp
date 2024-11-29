@@ -16,6 +16,7 @@ from numpy.random import default_rng
 from mpqp.all import *
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.db import *
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
     MPQP_CONFIG_PATH,
@@ -105,11 +106,30 @@ class SafeRunner:
         load_env_variables()
 
 
+class DBRunner:
+    def __enter__(self):
+        import shutil
+
+        db_original = os.path.join(os.getcwd(), "tests/test_database.db")
+        db_temp = os.path.join(os.getcwd(), "tests/test_database_tmp.db")
+
+        shutil.copyfile(db_original, db_temp)
+        setup_db("tests/test_database_tmp.db")
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ):
+        os.remove(os.path.join(os.getcwd(), "tests/test_database_tmp.db"))
+
+
 test_globals = globals().copy()
 test_globals.update(locals())
 
 to_pass = ["connection", "noise_methods", "remote_handle"]
-unsafe_files = ["env"]
+unsafe_files = ["env", "db"]
 
 finder = DocTestFinder()
 runner = DocTestRunner()
@@ -145,7 +165,10 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
         ):
             if safe_needed:
                 with SafeRunner():
-                    if "PYTEST_CURRENT_TEST" not in os.environ:
+                    if "db" in filename:
+                        with DBRunner():
+                            assert runner.run(test).failed == 0
+                    else:
                         assert runner.run(test).failed == 0
             else:
                 assert runner.run(test).failed == 0
