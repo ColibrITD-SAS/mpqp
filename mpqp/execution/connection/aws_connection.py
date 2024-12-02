@@ -74,16 +74,10 @@ def get_aws_braket_account_info() -> str:
     from braket.aws import AwsSession
 
     try:
-        # TODO getting outdated credentials without passing profile name, investigate?
-        boto3_session = boto3.Session(profile_name="752542621531_quant_team")
+        boto3_session = boto3.Session(profile_name="default")
         session = AwsSession(boto_session=boto3_session)
 
-        # get the AWS Braket user access key, secret key and region
         credentials = session.boto_session.get_credentials()
-
-        print(credentials.token)
-        print(credentials.method)
-
         if credentials is None:
             raise AWSBraketRemoteExecutionError("Could not retrieve AWS' credentials")
 
@@ -138,15 +132,11 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
 
     try:
         braket_client = boto3.client("braket", region_name=device.get_region())
-        print("client", braket_client)
         aws_session = AwsSession(braket_client=braket_client)
-        print("session", aws_session.boto_session)
         mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
         aws_session.add_braket_user_agent(
             user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
         )
-        print("second_session", aws_session)
-        print("device", AwsDevice(device.get_arn(), aws_session=aws_session))
         return AwsDevice(device.get_arn(), aws_session=aws_session)
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
