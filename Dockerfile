@@ -28,6 +28,7 @@ COPY .. /usr/src/app/mpqp/
 COPY requirements.txt requirements-dev.txt /usr/src/app/
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r /usr/src/app/requirements.txt && \
+    pip install awscli && \
     pip install .
 
 RUN echo "alias pytest='python -m pytest'" >> ~/.bashrc
