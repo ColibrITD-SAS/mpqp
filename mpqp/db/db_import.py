@@ -16,20 +16,20 @@ from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
 
 
-def insert_job(job: Job):
+def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
     """
     Insert a `Job` into the database.
 
     Args:
-        job: The `Job` object to be inserted.
+        job: The `Job`(s) object to be inserted.
 
     Returns:
         The ID of the newly inserted job.
 
     Example:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
-        >>> insert_job(job)
-        7
+        >>> insert_jobs(job)
+        [7]
 
     """
     import json
@@ -38,36 +38,60 @@ def insert_job(job: Job):
     connection = connect(get_env_variable("DATA_BASE"))
     cursor = connection.cursor()
 
-    circuit_json = json.dumps(repr(job.circuit))
-    measure_json = json.dumps(repr(job.measure)) if job.measure else None
+    job_ids = []
+    if isinstance(jobs, list):
+        for job in jobs:
+            circuit_json = json.dumps(repr(job.circuit))
+            measure_json = json.dumps(repr(job.measure)) if job.measure else None
 
-    cursor.execute(
-        '''
-        INSERT INTO jobs (type, circuit, device, measure)
-        VALUES (?, ?, ?, ?)
-    ''',
-        (
-            job.job_type.name,
-            circuit_json,
-            str(job.device),
-            measure_json,
-        ),
-    )
-    job_id = cursor.lastrowid
+            cursor.execute(
+                '''
+                INSERT INTO jobs (type, circuit, device, measure)
+                VALUES (?, ?, ?, ?)
+            ''',
+                (
+                    job.job_type.name,
+                    circuit_json,
+                    str(job.device),
+                    measure_json,
+                ),
+            )
+            job_ids.append(cursor.lastrowid)
 
-    connection.commit()
+            connection.commit()
+    else:
+        circuit_json = json.dumps(repr(jobs.circuit))
+        measure_json = json.dumps(repr(jobs.measure)) if jobs.measure else None
+
+        cursor.execute(
+            '''
+            INSERT INTO jobs (type, circuit, device, measure)
+            VALUES (?, ?, ?, ?)
+        ''',
+            (
+                jobs.job_type.name,
+                circuit_json,
+                str(jobs.device),
+                measure_json,
+            ),
+        )
+        job_ids.append(cursor.lastrowid)
+
+        connection.commit()
+
     connection.close()
-    return job_id
+
+    return job_ids
 
 
-def insert_result(
-    result: Result | BatchResult, compile_same_job: bool = True
+def insert_results(
+    result: Result | BatchResult | list[Result], compile_same_job: bool = True
 ) -> list[int | None]:
     """
     Insert a `Result` or `BatchResult` into the database.
 
     Args:
-        result: The result(s) to be inserted.
+        result: The `Result`(s) to be inserted.
         compile_same_job: If `True`, checks for an existing job in the database
                             and reuses its ID to avoid duplicates.
 
@@ -76,14 +100,14 @@ def insert_result(
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
-        >>> insert_result(result)
+        >>> insert_results(result)
         [8]
 
     """
-    if isinstance(result, BatchResult):
-        return [_insert_result(item, compile_same_job) for item in result.results]
-    else:
+    if isinstance(result, Result):
         return [_insert_result(result, compile_same_job)]
+    else:
+        return [_insert_result(item, compile_same_job) for item in result]
 
 
 def _insert_result(result: Result, compile_same_job: bool = True):
@@ -93,17 +117,17 @@ def _insert_result(result: Result, compile_same_job: bool = True):
     if compile_same_job:
         job_ids = fetch_jobs_with_job(result.job)
         if len(job_ids) == 0:
-            job_id = insert_job(result.job)
+            job_id = insert_jobs(result.job)[0]
         else:
             job_id = job_ids[0]['id']
     else:
-        job_id = insert_job(result.job)
+        job_id = insert_jobs(result.job)[0]
 
     connection = connect(get_env_variable("DATA_BASE"))
     cursor = connection.cursor()
 
     data_json = json.dumps(repr(result._data))  # pyright: ignore[reportPrivateUsage]
-    error_json = json.dumps(repr(result.error)) if result.error else None
+    error_json = json.dumps(repr(result.error)) if result.error is not None else None
 
     cursor.execute(
         '''

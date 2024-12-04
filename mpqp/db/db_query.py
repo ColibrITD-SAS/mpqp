@@ -261,7 +261,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
         List of matching job records as dictionaries, or an empty list if no matches exist.
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> result = Result(Job(JobType.STATE_VECTOR,QCircuit([], nb_qubits=2, label="circuit 1"),IBMDevice.AER_SIMULATOR,),StateVector([1, 0, 0, 0]),0,0)
         >>> jobs = fetch_jobs_with_result(result)
         >>> for job in jobs:
         ...    print("job_id:", job['id'])
@@ -284,7 +284,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
             data_json = json.dumps(
                 repr(res._data)  # pyright: ignore[reportPrivateUsage]
             )
-            error_json = json.dumps(repr(res.error)) if res.error else None
+            error_json = json.dumps(repr(res.error)) if res.error is not None else None
             circuit_json = json.dumps(repr(res.job.circuit))
             measure_json = (
                 json.dumps(repr(res.job.measure)) if res.job.measure else None
@@ -309,7 +309,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
             )
 
         query = f"""
-            SELECT * FROM jobs
+            SELECT jobs.* FROM jobs
             INNER JOIN results ON jobs.id is results.job_id
             WHERE {' OR '.join(job_filters)}
         """
@@ -331,7 +331,7 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
         List of matching result records and their associated jobs as dictionaries.
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result_and_job(result)
         >>> for result in results:
         ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
@@ -354,7 +354,7 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
             data_json = json.dumps(
                 repr(res._data)  # pyright: ignore[reportPrivateUsage]
             )
-            error_json = json.dumps(repr(res.error)) if res.error else None
+            error_json = json.dumps(repr(res.error)) if res.error is not None else None
             circuit_json = json.dumps(repr(res.job.circuit))
             measure_json = (
                 json.dumps(repr(res.job.measure)) if res.job.measure else None
@@ -379,7 +379,7 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
             )
 
         query = f"""
-            SELECT * FROM results
+            SELECT results.* FROM results
             INNER JOIN jobs ON jobs.id is results.job_id
             WHERE {' OR '.join(result_filters)}
         """
@@ -388,6 +388,66 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
         results = cursor.fetchall()
 
         return [dict(result) for result in results]
+
+
+def fetch_results_with_job(jobs: Job | list[Job]):
+    """
+    Fetch results and their associated jobs based on specific attributes.
+
+    Args:
+        jobs: A `Job` or list of `Job` objects to match.
+
+    Returns:
+        List of matching result records and their associated jobs as dictionaries.
+
+    Examples:
+        >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+        >>> results = fetch_results_with_job(job)
+        >>> for result in results:
+        ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
+        result_id: 6 , job_id: 5
+
+    """
+    from sqlite3 import connect, Row
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+
+        result_filters = []
+        params = []
+
+        if isinstance(jobs, Job):
+            jobs = [jobs]
+
+        for job in jobs:
+            circuit_json = json.dumps(repr(job.circuit))
+            measure_json = json.dumps(repr(job.measure)) if job.measure else None
+
+            result_filters.append(
+                """
+                (jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
+            """
+            )
+            params.extend(
+                [
+                    job.job_type.name,
+                    circuit_json,
+                    str(job.device),
+                    measure_json,
+                ]
+            )
+
+        query = f"""
+            SELECT results.* FROM results
+            INNER JOIN jobs ON jobs.id is results.job_id
+            WHERE {' OR '.join(result_filters)}
+        """
+
+        cursor.execute(query, params)
+        jobs_db = cursor.fetchall()
+
+        return [dict(job) for job in jobs_db]
 
 
 def fetch_results_with_result(result: Result | BatchResult | list[Result]):
@@ -401,7 +461,7 @@ def fetch_results_with_result(result: Result | BatchResult | list[Result]):
         List of matching result records as dictionaries, or an empty list if no matches exist.
 
     Examples:
-        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result(result)
         >>> for result in results:
         ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
@@ -425,7 +485,7 @@ def fetch_results_with_result(result: Result | BatchResult | list[Result]):
             data_json = json.dumps(
                 repr(res._data)  # pyright: ignore[reportPrivateUsage]
             )
-            error_json = json.dumps(repr(res.error)) if res.error else None
+            error_json = json.dumps(repr(res.error)) if res.error is not None else None
 
             result_filters.append(
                 """

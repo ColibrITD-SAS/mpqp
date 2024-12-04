@@ -124,6 +124,8 @@ class Job:
         self.device = device
         """See parameter description."""
         self.measure = measure
+        if self.measure is not None:
+            self.measure._dynamic = False  # pyright: ignore[reportPrivateUsage]
         """See parameter description."""
 
         self.id: Optional[str] = None
@@ -165,7 +167,18 @@ class Job:
         self._status = job_status
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}, {repr(self.measure)})"
+        measure = ", " + repr(self.measure) if self.measure is not None else ""
+        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}{measure})"
+
+    def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, Job):
+            return False
+        return (
+            self.job_type == other.job_type
+            and self.circuit == other.circuit
+            and self.device == other.device
+            and self.measure == other.measure
+        )
 
 
 @typechecked

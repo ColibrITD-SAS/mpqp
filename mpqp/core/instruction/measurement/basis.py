@@ -130,8 +130,7 @@ class Basis:
 
     def __repr__(self) -> str:
         joint_vectors = ", ".join(map(one_lined_repr, self.basis_vectors))
-        qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
-        return f"{type(self).__name__}({joint_vectors}{qubits})"
+        return f"{type(self).__name__}({joint_vectors}, {self.nb_qubits})"
 
     def to_computational(self):
         """Converts the custom basis to the computational basis.
@@ -161,6 +160,17 @@ class Basis:
                     UnitaryMatrix(basis_change), targets=list(range(self.nb_qubits))
                 )
             ]
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Basis):
+            return False
+
+        return (
+            self.nb_qubits == other.nb_qubits
+            and np.array_equal(self.basis_vectors, other.basis_vectors)
+            and self.symbols == other.symbols
+            and self.basis_vectors_labels == other.basis_vectors_labels
         )
 
 
@@ -198,7 +208,7 @@ class VariableSizeBasis(Basis, ABC):
         pass
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}()"
+        return f"{type(self).__name__}({self.nb_qubits})"
 
 
 class ComputationalBasis(VariableSizeBasis):

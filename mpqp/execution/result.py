@@ -107,6 +107,21 @@ class StateVector:
             "nb_qubits": self.nb_qubits,
         }
 
+    def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, StateVector):
+            return False
+
+        if self.nb_qubits != other.nb_qubits:
+            return False
+
+        if not np.allclose(self.vector, other.vector):
+            return False
+
+        if not np.allclose(self.probabilities, other.probabilities):
+            return False
+
+        return True
+
 
 @typechecked
 class Sample:
@@ -200,6 +215,20 @@ class Sample:
 
     def __repr__(self):
         return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Sample):
+            return False
+        if (
+            self.nb_qubits == other.nb_qubits
+            and self.index == other.index
+            and self.bin_str == other.bin_str
+            and self.count == other.count
+            and self.probability == other.probability
+        ):
+            return True
+        else:
+            return False
 
 
 @typechecked
@@ -529,6 +558,16 @@ class Result:
         x_array = [f"|{bin(i)[2:].zfill(n)}⟩" for i in range(2**n)]
         y_array = self.counts
         return x_array, y_array
+
+    def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, Result):
+            return False
+        return (
+            self.job == other.job
+            and self._data == other._data
+            and self.error == other.error
+            and self.shots == other.shots
+        )
 
 
 @typechecked

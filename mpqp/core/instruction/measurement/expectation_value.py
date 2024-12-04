@@ -169,6 +169,16 @@ class Observable:
         else:
             raise ValueError(f"Unsupported language: {language}")
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Observable):
+            return False
+
+        return (
+            self.nb_qubits == other.nb_qubits
+            and np.array_equal(self.matrix, other.matrix)
+            and self.pauli_string == other.pauli_string
+        )
+
 
 @typechecked
 class ExpectationMeasure(Measure):
@@ -281,4 +291,15 @@ class ExpectationMeasure(Measure):
             "no equivalent. Instead, this object is used to store the "
             "appropriate data, and the data in later used in the needed "
             "locations."
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ExpectationMeasure):
+            return False
+
+        return (
+            self.targets == other.targets
+            and self.observable == other.observable
+            and self.shots == other.shots
+            and self.label == other.label
         )

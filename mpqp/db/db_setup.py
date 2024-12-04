@@ -27,6 +27,9 @@ from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
 
 
+DictDB = dict[str, Any]
+
+
 def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
     """
     Sets up a SQLite database for storing quantum job and result records.
@@ -47,8 +50,11 @@ def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
 
     if data_base_name is None:
         data_base_name = 'quantum_jobs.db'
+    else:
+        if not data_base_name.endswith(".db"):
+            data_base_name += ".db"
 
-    if path:
+    if path is not None:
         os.makedirs(path, exist_ok=True)
         path_name = os.path.join(path, data_base_name)
     else:
@@ -98,19 +104,22 @@ def clear_db():
 
     Example:
         >>> clear_db()
+        >>> fetch_all_results()
+        []
+        >>> fetch_all_jobs()
+        []
+
     """
-    import sqlite3
+    from sqlite3 import connect
 
-    database_name = get_env_variable("DATA_BASE")
-    connection = sqlite3.connect(database_name)
-    cursor = connection.cursor()
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
 
-    cursor.execute('DELETE FROM results')
-    cursor.execute('DELETE FROM jobs')
-    cursor.execute('DELETE FROM sqlite_sequence WHERE name IN ("results", "jobs")')
+        cursor.execute('DELETE FROM results')
+        cursor.execute('DELETE FROM jobs')
+        cursor.execute('DELETE FROM sqlite_sequence WHERE name IN ("results", "jobs")')
 
-    connection.commit()
-    connection.close()
+        connection.commit()
 
 
 def remove_all_with_job_id(job_id: int | list[int]):
@@ -122,26 +131,19 @@ def remove_all_with_job_id(job_id: int | list[int]):
 
     Example:
         >>> remove_all_with_job_id(1)
+        >>> fetch_jobs_with_id(1)
+        []
+        >>> fetch_results_with_job_id(1)
+        []
         >>> remove_all_with_job_id([2, 3])
+        >>> fetch_jobs_with_id([2, 3])
+        []
+        >>> fetch_results_with_job_id([2, 3])
+        []
 
     """
-    import sqlite3
-
-    database_name = get_env_variable("DATA_BASE")
-    connection = sqlite3.connect(database_name)
-    cursor = connection.cursor()
-    if isinstance(job_id, int):
-        cursor.execute('DELETE FROM results WHERE job_id is ?', (job_id,))
-        cursor.execute('DELETE FROM jobs WHERE id is ?', (job_id,))
-        connection.commit()
-        connection.close()
-    else:
-        cursor.executemany(
-            'DELETE FROM results WHERE job_id is ?', [(id,) for id in job_id]
-        )
-        cursor.executemany('DELETE FROM jobs WHERE id is ?', [(id,) for id in job_id])
-        connection.commit()
-        connection.close()
+    remove_results_with_job_id(job_id)
+    remove_jobs_with_id(job_id)
 
 
 def remove_jobs_with_id(job_id: int | list[int]):
@@ -153,22 +155,24 @@ def remove_jobs_with_id(job_id: int | list[int]):
 
     Example:
         >>> remove_jobs_with_id(1)
+        >>> fetch_jobs_with_id(1)
+        []
         >>> remove_jobs_with_id([2, 3])
+        >>> fetch_jobs_with_id([2,3])
+        []
 
     """
-    import sqlite3
+    from sqlite3 import connect
 
-    database_name = get_env_variable("DATA_BASE")
-    connection = sqlite3.connect(database_name)
-    cursor = connection.cursor()
-    if isinstance(job_id, int):
-        cursor.execute('DELETE FROM jobs WHERE id is ?', (job_id,))
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        if isinstance(job_id, int):
+            cursor.execute('DELETE FROM jobs WHERE id is ?', (job_id,))
+        else:
+            cursor.executemany(
+                'DELETE FROM jobs WHERE id is ?', [(id,) for id in job_id]
+            )
         connection.commit()
-        connection.close()
-    else:
-        cursor.executemany('DELETE FROM jobs WHERE id is ?', [(id,) for id in job_id])
-        connection.commit()
-        connection.close()
 
 
 def remove_results_with_id(result_id: int | list[int]):
@@ -180,29 +184,28 @@ def remove_results_with_id(result_id: int | list[int]):
 
     Example:
         >>> remove_results_with_id(1)
+        >>> fetch_results_with_id(1)
+        []
         >>> remove_results_with_id([2, 3])
+        >>> fetch_results_with_id([2, 3])
+        []
 
     """
-    import sqlite3
+    from sqlite3 import connect
 
-    database_name = get_env_variable("DATA_BASE")
-    connection = sqlite3.connect(database_name)
-    cursor = connection.cursor()
-    if isinstance(result_id, int):
-        cursor.execute('DELETE FROM results WHERE id is ?', (result_id,))
-        connection.commit()
-        connection.close()
-    else:
-        cursor.executemany(
-            'DELETE FROM results WHERE id is ?', [(id,) for id in result_id]
-        )
-        connection.commit()
-        connection.close()
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        if isinstance(result_id, int):
+            cursor.execute('DELETE FROM results WHERE id is ?', (result_id,))
+            connection.commit()
+        else:
+            cursor.executemany(
+                'DELETE FROM results WHERE id is ?', [(id,) for id in result_id]
+            )
+            connection.commit()
 
 
-def remove_results_with_results_db(
-    results: Optional[list[dict[Any, Any]] | dict[Any, Any]]
-):
+def remove_results_with_results_db(results: Optional[list[DictDB] | DictDB]):
     """
     Removes results using result(s) from the database.
 
@@ -212,6 +215,8 @@ def remove_results_with_results_db(
     Example:
         >>> results = fetch_results_with_id(1)
         >>> remove_results_with_results_db(results)
+        >>> fetch_results_with_id(1)
+        []
 
     """
     if results is None:
@@ -223,7 +228,7 @@ def remove_results_with_results_db(
         remove_results_with_id(results_id)
 
 
-def remove_jobs_with_jobs_db(jobs: Optional[list[dict[Any, Any]] | dict[Any, Any]]):
+def remove_jobs_with_jobs_db(jobs: Optional[list[DictDB] | DictDB]):
     """
     Removes jobs using a dictionary or list of dictionaries from the database.
 
@@ -233,6 +238,8 @@ def remove_jobs_with_jobs_db(jobs: Optional[list[dict[Any, Any]] | dict[Any, Any
     Example:
         >>> jobs = fetch_jobs_with_id(1)
         >>> remove_jobs_with_jobs_db(jobs)
+        >>> fetch_jobs_with_id(1)
+        []
 
     """
     if jobs is None:
@@ -254,10 +261,42 @@ def remove_results_with_result(result: Result | BatchResult | list[Result]):
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
         >>> remove_results_with_result(result)
+        >>> fetch_results_with_result(result)
+        []
 
     """
     results_db = fetch_results_with_result(result)
     remove_results_with_results_db(results_db)
+
+
+def remove_results_with_job_id(job_id: int | list[int]):
+    """
+    Removes results with the specified result IDs.
+
+    Args:
+        job_id: Result Job_ID(s) to remove.
+
+    Example:
+        >>> remove_results_with_job_id(1)
+        >>> fetch_results_with_job_id(1)
+        []
+        >>> remove_results_with_job_id([2, 3])
+        >>> fetch_results_with_job_id([2, 3])
+        []
+
+    """
+    from sqlite3 import connect
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        if isinstance(job_id, int):
+            cursor.execute('DELETE FROM results WHERE job_id is ?', (job_id,))
+            connection.commit()
+        else:
+            cursor.executemany(
+                'DELETE FROM results WHERE job_id is ?', [(id,) for id in job_id]
+            )
+            connection.commit()
 
 
 def remove_results_with_job(jobs: Job | list[Job]):
@@ -270,7 +309,9 @@ def remove_results_with_job(jobs: Job | list[Job]):
     Example:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
         >>> remove_results_with_job(job)
+        >>> fetch_results_with_job(job)
+        []
 
     """
     jobs_db = fetch_jobs_with_job(jobs)
-    remove_jobs_with_jobs_db(jobs_db)
+    remove_results_with_job_id([job['id'] for job in jobs_db])
