@@ -42,7 +42,7 @@ def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
         path: Directory to save the database file. Defaults to the current working directory.
 
     Example:
-        >>> setup_db("my_database.db", "/path/to/db")
+        >>> setup_db("my_database.db")
 
     """
     import sqlite3
