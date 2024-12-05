@@ -15,6 +15,13 @@ MPQP_ENV = Path("~/.mpqp/.env").expanduser()
 
 def _create_config_if_needed():
     """If configuration file does not exist we create it."""
+    # convert from old format to new one
+    if MPQP_ENV.parent.is_file():
+        os.rename(MPQP_ENV.parent, MPQP_ENV.parent.with_suffix(".tmp"))
+        MPQP_ENV.parent.mkdir(parents=True, exist_ok=True)
+        os.rename(MPQP_ENV.parent.with_suffix(".tmp"), MPQP_ENV)
+        return
+
     if not MPQP_ENV.exists():
         MPQP_ENV.parent.mkdir(parents=True, exist_ok=True)
         MPQP_ENV.open("a").close()

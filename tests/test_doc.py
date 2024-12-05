@@ -19,6 +19,9 @@ from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.db import *
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
+    _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.execution.connection.env_manager import (
     MPQP_ENV,
     get_env_variable,
     get_existing_config_str,
@@ -68,9 +71,7 @@ sys.path.insert(0, os.path.abspath("."))
 
 class SafeRunner:
     def __enter__(self):
-        # Ensure the config file exists
-        if not os.path.exists(MPQP_ENV):
-            open(MPQP_ENV, "a").close()
+        _create_config_if_needed()
         env = get_existing_config_str()
 
         # Unset keys from the .env file
@@ -82,8 +83,8 @@ class SafeRunner:
                 del os.environ[key]
 
         # Write the content to the backup file
-        open(MPQP_ENV / "_tmp", "w").write(env)
-        open(MPQP_ENV, "w").close()
+        MPQP_ENV.with_suffix(".env_tmp").open("w").write(env)
+        MPQP_ENV.open("w").close()
 
     def __exit__(
         self,
@@ -91,7 +92,7 @@ class SafeRunner:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
-        backup_env = open(MPQP_ENV / "_tmp", "r").read()
+        backup_env = MPQP_ENV.with_suffix(".env_tmp").open("r").read()
 
         # Unset keys from the .env file
         val = dotenv_values(MPQP_ENV)
