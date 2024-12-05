@@ -61,7 +61,7 @@ def setup_db(path: Optional[str] = None):
     if path is not None:
         Path(path).parent.mkdir(exist_ok=True)
     else:
-        path = "~/.mpqp/result_storage.db"
+        path = Path("~/.mpqp/result_storage.db").expanduser().name
 
     save_env_variable("DATA_BASE", path)
     connection = sqlite3.connect(path)
