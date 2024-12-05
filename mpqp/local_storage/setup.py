@@ -25,7 +25,6 @@ from typing import Any, Callable, Optional
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
-from mpqp.local_storage.queries import fetch_jobs_with_job, fetch_results_with_result
 from mpqp.tools.generics import T
 
 DictDB = dict[str, Any]
@@ -269,6 +268,8 @@ def remove_results_with_result(result: Result | BatchResult | list[Result]):
         []
 
     """
+    from mpqp.local_storage.queries import fetch_results_with_result
+
     results_db = fetch_results_with_result(result)
     remove_results_with_results_db(results_db)
 
@@ -317,5 +318,7 @@ def remove_results_with_job(jobs: Job | list[Job]):
         []
 
     """
+    from mpqp.local_storage.queries import fetch_jobs_with_job
+
     jobs_db = fetch_jobs_with_job(jobs)
     remove_results_with_job_id([job['id'] for job in jobs_db])
