@@ -19,7 +19,7 @@ from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.db import *
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
-    MPQP_CONFIG_PATH,
+    MPQP_ENV,
     get_env_variable,
     get_existing_config_str,
     load_env_variables,
@@ -69,21 +69,21 @@ sys.path.insert(0, os.path.abspath("."))
 class SafeRunner:
     def __enter__(self):
         # Ensure the config file exists
-        if not os.path.exists(MPQP_CONFIG_PATH):
-            open(MPQP_CONFIG_PATH, "a").close()
+        if not os.path.exists(MPQP_ENV):
+            open(MPQP_ENV, "a").close()
         env = get_existing_config_str()
 
         # Unset keys from the .env file
-        val = dotenv_values(MPQP_CONFIG_PATH)
+        val = dotenv_values(MPQP_ENV)
         for key in val.keys():
-            set_key(MPQP_CONFIG_PATH, key, "")
+            set_key(MPQP_ENV, key, "")
             load_env_variables()
             if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Write the content to the backup file
-        open(MPQP_CONFIG_PATH + "_tmp", "w").write(env)
-        open(MPQP_CONFIG_PATH, "w").close()
+        open(MPQP_ENV + "_tmp", "w").write(env)
+        open(MPQP_ENV, "w").close()
 
     def __exit__(
         self,
@@ -91,18 +91,18 @@ class SafeRunner:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
-        backup_env = open(MPQP_CONFIG_PATH + "_tmp", "r").read()
+        backup_env = open(MPQP_ENV + "_tmp", "r").read()
 
         # Unset keys from the .env file
-        val = dotenv_values(MPQP_CONFIG_PATH)
+        val = dotenv_values(MPQP_ENV)
         for key in val.keys():
-            set_key(MPQP_CONFIG_PATH, key, "")
+            set_key(MPQP_ENV, key, "")
             load_env_variables()
             if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Reload configuration from backup file
-        open(MPQP_CONFIG_PATH, "w").write(backup_env)
+        open(MPQP_ENV, "w").write(backup_env)
         load_env_variables()
 
 
