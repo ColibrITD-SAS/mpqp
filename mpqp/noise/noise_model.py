@@ -18,6 +18,8 @@ if TYPE_CHECKING:
     from braket.circuits.noises import TwoQubitDepolarizing
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
+    from cirq.devices.noise_model import NOISE_MODEL_LIKE
+    from cirq.ops.common_channels import DepolarizingChannel
 
 from typeguard import typechecked
 
@@ -159,7 +161,7 @@ class NoiseModel(ABC):
     @abstractmethod
     def to_other_language(
         self, language: Language
-    ) -> "BraketNoise | QLMNoise | QuantumError":
+    ) -> "BraketNoise | QLMNoise | QuantumError | NOISE_MODEL_LIKE":
         """Transforms this noise model into the corresponding object in the
         language specified in the ``language`` arg.
 
@@ -339,7 +341,7 @@ class Depolarizing(DimensionalNoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> "BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError":
+    ) -> "BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError | type[DepolarizingChannel]":
         """See the documentation for this method in the abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -407,6 +409,13 @@ class Depolarizing(DimensionalNoiseModel):
                 method_2q="equal_probs",
                 depol_type="pauli",
             )
+        elif language == Language.CIRQ:
+            from cirq.ops.common_channels import depolarize
+
+            noise = depolarize(self.prob, self.dimension)
+            if TYPE_CHECKING:
+                assert isinstance(noise, DepolarizingChannel)
+            return noise
         else:
             raise NotImplementedError(f"Depolarizing is not implemented for {language}")
 
