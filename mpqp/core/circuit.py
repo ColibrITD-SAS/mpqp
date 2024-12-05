@@ -1134,12 +1134,46 @@ class QCircuit:
                 self.nb_qubits,
             )
         elif language == Language.CIRQ:
-            qasm2_code = self.to_other_language(Language.QASM2)
-            if TYPE_CHECKING:
-                assert isinstance(qasm2_code, str)
-            from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
+            from cirq.circuits.circuit import Circuit as CirqCircuit
+            from cirq.ops.named_qubit import NamedQubit
+            from cirq.ops.identity import I
 
-            cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
+            cirq_qubits = [NamedQubit(f"q_{i}") for i in range(self.nb_qubits)]
+            cirq_circuit = CirqCircuit()
+
+            for qubit in cirq_qubits:
+                cirq_circuit.append(I(qubit))
+
+            for instruction in self.instructions:
+                if isinstance(instruction, ExpectationMeasure):
+                    continue
+                elif isinstance(instruction, CustomGate):
+                    custom_circuit = QCircuit(self.nb_qubits)
+                    custom_circuit.add(instruction)
+                    qasm2_code = custom_circuit.to_other_language(Language.QASM2)
+                    if TYPE_CHECKING:
+                        assert isinstance(qasm2_code, str)
+                    from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
+
+                    custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
+                    cirq_circuit += custom_cirq_circuit
+                    self.gphase += custom_circuit.gphase
+                elif isinstance(instruction, ControlledGate):
+                    targets = []
+                    for target in instruction.targets:
+                        targets.append(cirq_qubits[target])
+                    controls = []
+                    for control in instruction.controls:
+                        controls.append(cirq_qubits[control])
+                    cirq_instruction = instruction.to_other_language(Language.CIRQ)
+                    cirq_circuit.append(cirq_instruction.on(*controls, *targets))
+                else:
+                    targets = []
+                    for target in instruction.targets:
+                        targets.append(cirq_qubits[target])
+                    cirq_instruction = instruction.to_other_language(Language.CIRQ)
+                    cirq_circuit.append(cirq_instruction.on(*targets))
+
             if cirq_proc_id:
                 from cirq.transformers.optimize_for_target_gateset import (
                     optimize_for_target_gateset,

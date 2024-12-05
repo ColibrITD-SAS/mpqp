@@ -298,7 +298,7 @@ def extract_result_SAMPLE(
 
     data = [
         Sample(
-            bin_str="".join(map(str, state)),
+            bin_str="".join(map(bin, state)),
             count=count,
             nb_qubits=nb_qubits,
         )

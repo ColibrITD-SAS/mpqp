@@ -92,6 +92,10 @@ class BasisMeasure(Measure):
             from qiskit.circuit import Measure
 
             return Measure()
+        elif language == Language.CIRQ:
+            from cirq.ops.measurement_gate import MeasurementGate
+
+            return MeasurementGate(num_qubits=self.nb_qubits)
         if language == Language.QASM2:
             if self.c_targets is None:
                 return "\n".join(
