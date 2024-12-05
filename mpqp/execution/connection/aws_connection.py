@@ -21,6 +21,8 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     Braket. The function attempts to configure the Amazon Braket account using
     the provided credentials.
 
+    # TODO: update the description and add SSO elements
+
     Returns:
         A tuple containing a message indicating the result of the setup (e.g.,
         success, cancelled, or error, ...) and an empty list. The list is
@@ -35,9 +37,13 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         if decision.lower().strip() != "y":
             return "Canceled.", []
 
+    # TODO: add here another user choice to login with IAM or SSO
+
     try:
         os.system("aws configure")
         save_env_variable("BRAKET_CONFIGURED", "True")
+
+        # TODO add an environment variable to know if it is IAM or SSO auth ?
 
         session = AwsSession()
 
@@ -49,6 +55,11 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         print(colored(str(e), "red"))
         input("Press 'Enter' to continue")
         return "", []
+
+
+def setup_account_sso():
+    # TODO: add here the additional inputs and file manipulations specific to SSO
+    pass
 
 
 def get_aws_braket_account_info() -> str:
@@ -72,6 +83,8 @@ def get_aws_braket_account_info() -> str:
         )
     import boto3
     from braket.aws import AwsSession
+
+    # TODO: modify this function to get the rest of SSO crendentials when it is the case
 
     try:
         boto3_session = boto3.Session(profile_name="default")
@@ -141,7 +154,7 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
             "Failed to retrieve remote AWS device. Please check the arn, or if the "
-            "device is accessible from your region..\nTrace: " + str(ve)
+            "device is accessible from your region.\nTrace: " + str(ve)
         )
     except NoRegionError as err:
         raise AWSBraketRemoteExecutionError(
