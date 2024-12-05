@@ -37,7 +37,7 @@ def ensure_db(func: Callable[..., T]) -> Callable[..., T]:
         if get_env_variable("DATA_BASE") == "":
             setup_db()
 
-        return func(args, kwargs)
+        return func(*args, **kwargs)
 
     return wrapper
 
