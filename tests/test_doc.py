@@ -16,7 +16,6 @@ from numpy.random import default_rng
 from mpqp.all import *
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.db import *
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
@@ -30,6 +29,7 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
+from mpqp.local_storage import *
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import (
     qasm2_to_cirq_Circuit,

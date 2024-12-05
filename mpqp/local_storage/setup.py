@@ -19,18 +19,31 @@ Classes and Functions:
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from pathlib import Path
+from typing import Any, Callable, Optional
 
-from mpqp.db.db_query import fetch_jobs_with_job, fetch_results_with_result
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
-
+from mpqp.local_storage.queries import fetch_jobs_with_job, fetch_results_with_result
+from mpqp.tools.generics import T
 
 DictDB = dict[str, Any]
 
 
-def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
+def ensure_db(func: Callable[..., T]) -> Callable[..., T]:
+    """Decorator for functions needing the db to be present"""
+
+    def wrapper(*args: Any, **kwargs: dict[str, Any]) -> T:
+        if get_env_variable("DATA_BASE") == "":
+            setup_db()
+
+        return func(args, kwargs)
+
+    return wrapper
+
+
+def setup_db(path: Optional[str] = None):
     """
     Sets up a SQLite database for storing quantum job and result records.
     Creates, two tables:
@@ -38,7 +51,6 @@ def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
         - `results`: Stores metadata about results of quantum jobs (e.g., data, errors, shots).
 
     Args:
-        data_base_name: Name of the database file. Defaults to 'quantum_jobs.db'.
         path: Directory to save the database file. Defaults to the current working directory.
 
     Example:
@@ -46,22 +58,14 @@ def setup_db(data_base_name: Optional[str] = None, path: Optional[str] = None):
 
     """
     import sqlite3
-    import os
-
-    if data_base_name is None:
-        data_base_name = 'quantum_jobs.db'
-    else:
-        if not data_base_name.endswith(".db"):
-            data_base_name += ".db"
 
     if path is not None:
-        os.makedirs(path, exist_ok=True)
-        path_name = os.path.join(path, data_base_name)
+        Path(path).parent.mkdir(exist_ok=True)
     else:
-        path_name = os.path.join(os.getcwd(), data_base_name)
+        path = "~/.mpqp/result_storage.db"
 
-    save_env_variable("DATA_BASE", path_name)
-    connection = sqlite3.connect(path_name)
+    save_env_variable("DATA_BASE", path)
+    connection = sqlite3.connect(path)
     cursor = connection.cursor()
 
     # Create the jobs table

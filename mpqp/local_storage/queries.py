@@ -17,13 +17,15 @@ Functions:
 """
 
 from __future__ import annotations
-from dataclasses import dataclass
+
 import json
+from dataclasses import dataclass
 from typing import Optional
 
 from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
+from mpqp.local_storage.setup import ensure_db
 
 
 @dataclass
@@ -31,6 +33,7 @@ class QueryJob:
     id: Optional[str] = None
 
 
+@ensure_db
 def fetch_all_jobs():
     """
     Fetch all job records from the database.
@@ -50,7 +53,7 @@ def fetch_all_jobs():
         job_id: 6
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -61,6 +64,7 @@ def fetch_all_jobs():
         return [dict(job) for job in jobs]
 
 
+@ensure_db
 def fetch_all_results():
     """
     Fetch all result records from the database.
@@ -81,7 +85,7 @@ def fetch_all_results():
         result_id: 7
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -92,6 +96,7 @@ def fetch_all_results():
         return [dict(result) for result in results]
 
 
+@ensure_db
 def fetch_results_with_id(result_id: int | list[int]):
     """
     Fetch results by their ID(s).
@@ -111,7 +116,7 @@ def fetch_results_with_id(result_id: int | list[int]):
         result_id: 3
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -130,6 +135,7 @@ def fetch_results_with_id(result_id: int | list[int]):
         return [dict(result) for result in results]
 
 
+@ensure_db
 def fetch_jobs_with_id(job_id: int | list[int]):
     """
     Fetch jobs by their ID(s).
@@ -152,7 +158,7 @@ def fetch_jobs_with_id(job_id: int | list[int]):
         job_id: 3
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -171,6 +177,7 @@ def fetch_jobs_with_id(job_id: int | list[int]):
         return [dict(job) for job in jobs]
 
 
+@ensure_db
 def fetch_results_with_job_id(job_id: int | list[int]):
     """
     Fetch results associated with specific job ID(s).
@@ -189,7 +196,7 @@ def fetch_results_with_job_id(job_id: int | list[int]):
         result_id: 2 , job_id: 1
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -208,6 +215,7 @@ def fetch_results_with_job_id(job_id: int | list[int]):
         return [dict(result) for result in results]
 
 
+@ensure_db
 def fetch_jobs_with_job(job: Job | list[Job]):
     """
     Fetch job records matching specific `Job` attributes.
@@ -223,7 +231,7 @@ def fetch_jobs_with_job(job: Job | list[Job]):
         >>> matching_jobs = fetch_jobs_with_job(job)
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -250,6 +258,7 @@ def fetch_jobs_with_job(job: Job | list[Job]):
         return [dict(job) for job in jobs]
 
 
+@ensure_db
 def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
     """
     Fetch jobs associated with specific `Result` or `BatchResult` objects.
@@ -268,7 +277,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
         job_id: 5
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -320,6 +329,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
         return [dict(job) for job in jobs]
 
 
+@ensure_db
 def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result]):
     """
     Fetch results and their associated jobs based on specific `Result` attributes.
@@ -338,7 +348,7 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
         result_id: 6 , job_id: 5
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -390,6 +400,7 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
         return [dict(result) for result in results]
 
 
+@ensure_db
 def fetch_results_with_job(jobs: Job | list[Job]):
     """
     Fetch results and their associated jobs based on specific attributes.
@@ -408,7 +419,7 @@ def fetch_results_with_job(jobs: Job | list[Job]):
         result_id: 6 , job_id: 5
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()
@@ -450,6 +461,7 @@ def fetch_results_with_job(jobs: Job | list[Job]):
         return [dict(job) for job in jobs_db]
 
 
+@ensure_db
 def fetch_results_with_result(result: Result | BatchResult | list[Result]):
     """
     Fetch results matching specific `Result` attributes.
@@ -469,7 +481,7 @@ def fetch_results_with_result(result: Result | BatchResult | list[Result]):
         result_id: 7 , job_id: 6
 
     """
-    from sqlite3 import connect, Row
+    from sqlite3 import Row, connect
 
     with connect(get_env_variable("DATA_BASE")) as connection:
         cursor = connection.cursor()

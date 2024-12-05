@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from typing import Optional
+
 from mpqp.all import *
-from mpqp.db.db_query import *
-from mpqp.db.db_setup import DictDB
+from mpqp.local_storage.queries import *
+from mpqp.local_storage.setup import DictDB
 
 
 def jobs_db_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
