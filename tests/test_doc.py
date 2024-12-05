@@ -82,7 +82,7 @@ class SafeRunner:
                 del os.environ[key]
 
         # Write the content to the backup file
-        open(MPQP_ENV + "_tmp", "w").write(env)
+        open(MPQP_ENV / "_tmp", "w").write(env)
         open(MPQP_ENV, "w").close()
 
     def __exit__(
@@ -91,7 +91,7 @@ class SafeRunner:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
-        backup_env = open(MPQP_ENV + "_tmp", "r").read()
+        backup_env = open(MPQP_ENV / "_tmp", "r").read()
 
         # Unset keys from the .env file
         val = dotenv_values(MPQP_ENV)
