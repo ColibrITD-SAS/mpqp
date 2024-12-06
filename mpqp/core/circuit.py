@@ -35,7 +35,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from pickle import dumps
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
 from warnings import warn
 
@@ -165,7 +164,17 @@ class QCircuit:
             self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
-        return dumps(self) == dumps(value)
+        if not isinstance(value, QCircuit):
+            return False
+
+        return (
+            self.nb_qubits == value.nb_qubits
+            and self.nb_cbits == value.nb_cbits
+            and self.label == value.label
+            and self.instructions == value.instructions
+            and self.noises == value.noises
+            and self.gphase == value.gphase
+        )
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
         """Adds a ``component`` or a list of ``component`` at the end of the
@@ -323,7 +332,7 @@ class QCircuit:
                 if instruction != component and isinstance(instruction, BasisMeasure):
                     if instruction.c_targets:
                         unique_cbits.update(instruction.c_targets)
-            c_targets = []
+            c_targets: list[int] = []
             i = 0
             for _ in range(len(component.targets)):
                 while i in unique_cbits:
@@ -332,7 +341,7 @@ class QCircuit:
                         "order of classic bits might be unexpected"
                     )
                     i += 1
-                c_targets.append(i)
+                c_targets.append(int(i))
                 i += 1
             component.c_targets = c_targets
             self.nb_cbits = max(
@@ -434,6 +443,21 @@ class QCircuit:
                     inst.c_targets = None
 
             self.add(inst)
+
+    def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
+        """
+        Serialize the quantum circuit to a dictionary.
+        Returns:
+            dict: A dictionary representation of the circuit.
+        """
+        return {
+            "nb_qubits": self.nb_qubits,
+            "nb_cbits": self.nb_cbits,
+            "label": self.label,
+            "instructions": [repr(inst) for inst in self.instructions],
+            "noises": [str(noise) for noise in self.noises],
+            "gphase": self.gphase,
+        }
 
     def __iadd__(self, other: QCircuit):
         self.append(other)
@@ -1280,12 +1304,14 @@ class QCircuit:
 
     def __repr__(self) -> str:
         instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
-
-        if self.noises:
-            noise_repr = ", ".join(map(repr, self.noises))
-            return f'QCircuit([{instructions_repr}, {noise_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
+        label = f", label=\"{self.label}\"" if self.label is not None else ""
+        nb_cbits = f", nb_cbits={self.nb_cbits}" if self.nb_cbits is not None else ""
+        if instructions_repr == "":
+            noise = ", " + ", ".join(map(repr, self.noises)) if self.noises else ""
         else:
-            return f'QCircuit([{instructions_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
+            noise = ", ".join(map(repr, self.noises)) if self.noises else ""
+
+        return f'QCircuit([{instructions_repr}{noise}], nb_qubits={self.nb_qubits}{nb_cbits}{label})'
 
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.

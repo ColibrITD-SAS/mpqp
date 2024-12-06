@@ -30,8 +30,8 @@ from mpqp import Language
             [
                 H(0),
                 CNOT(0, 1),
-                BasisMeasure([0]),
-                BasisMeasure([1]),
+                BasisMeasure([0], [0]),
+                BasisMeasure([1], [1]),
             ],
         ),
         (
@@ -49,8 +49,8 @@ from mpqp import Language
                 H(0),
                 H(1),
                 CNOT(0, 1),
-                BasisMeasure([0]),
-                BasisMeasure([1]),
+                BasisMeasure([0], [0]),
+                BasisMeasure([1], [1]),
             ],
         ),
         (
@@ -141,7 +141,7 @@ from mpqp import Language
 
             MyMixedGate q[0], q[1];
             measure q[1] -> c[1];""",
-            [H(0), BasisMeasure([1]), CNOT(0, 1), BasisMeasure([1])],
+            [H(0), BasisMeasure([1], [0]), CNOT(0, 1), BasisMeasure([1], [1])],
         ),
         (
             """OPENQASM 2.0;
