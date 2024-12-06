@@ -17,11 +17,10 @@ from mpqp.local_storage.queries import fetch_jobs_with_job
 
 
 def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
-    """
-    Insert a `Job` into the database.
+    """Insert a job in the database.
 
     Args:
-        job: The `Job`(s) object to be inserted.
+        job: The job(s) to be inserted.
 
     Returns:
         The ID of the newly inserted job.
@@ -87,16 +86,15 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
 def insert_results(
     result: Result | BatchResult | list[Result], compile_same_job: bool = True
 ) -> list[int | None]:
-    """
-    Insert a `Result` or `BatchResult` into the database.
+    """Insert a result or batch result into the database.
 
     Args:
-        result: The `Result`(s) to be inserted.
-        compile_same_job: If `True`, checks for an existing job in the database
-                            and reuses its ID to avoid duplicates.
+        result: The result(s) to be inserted.
+        compile_same_job: If ``True``, checks for an existing job in the
+            database and reuses its ID to avoid duplicates.
 
     Returns:
-        List of IDs of the inserted result(s). Returns `None` for failed insertions.
+        List of IDs of the inserted result(s). Returns ``None`` for failed insertions.
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))

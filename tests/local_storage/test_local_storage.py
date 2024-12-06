@@ -10,8 +10,20 @@ import pytest
 
 from mpqp.all import *
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
-from mpqp.local_storage import (
-    DictDB,
+from mpqp.local_storage.load import (
+    get_all_jobs,
+    get_all_results,
+    get_jobs_with_id,
+    get_jobs_with_job,
+    get_jobs_with_result,
+    get_results_with_id,
+    get_results_with_job_id,
+    get_results_with_result,
+    get_results_with_result_and_job,
+    jobs_db_to_mpqp,
+    results_db_to_mpqp,
+)
+from mpqp.local_storage.queries import (
     fetch_all_jobs,
     fetch_all_results,
     fetch_jobs_with_id,
@@ -22,18 +34,10 @@ from mpqp.local_storage import (
     fetch_results_with_job_id,
     fetch_results_with_result,
     fetch_results_with_result_and_job,
-    get_all_jobs,
-    get_all_results,
-    get_jobs_with_id,
-    get_jobs_with_job,
-    get_jobs_with_result,
-    get_results_with_id,
-    get_results_with_job_id,
-    get_results_with_result,
-    get_results_with_result_and_job,
-    insert_jobs,
-    insert_results,
-    jobs_db_to_mpqp,
+)
+from mpqp.local_storage.save import insert_jobs, insert_results
+from mpqp.local_storage.setup import (
+    DictDB,
     remove_all_with_job_id,
     remove_jobs_with_id,
     remove_jobs_with_jobs_db,
@@ -42,7 +46,6 @@ from mpqp.local_storage import (
     remove_results_with_job_id,
     remove_results_with_result,
     remove_results_with_results_db,
-    results_db_to_mpqp,
     setup_db,
 )
 
@@ -404,7 +407,7 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
     ]
 
 
-class DBRunner:
+class DBRunner:  # TODO: should be merge the two DbRunners ?
     def __init__(self):
         self.database_name = inspect.stack()[1].function
         self.save_db = get_env_variable("DATA_BASE")

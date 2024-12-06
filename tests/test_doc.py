@@ -5,6 +5,7 @@ import sys
 import warnings
 from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
 from functools import partial
+from pathlib import Path
 from types import TracebackType
 from typing import Any, Optional, Type
 
@@ -90,18 +91,29 @@ from mpqp.qasm.open_qasm_2_and_3 import (
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit, random_gate, random_noise
-from mpqp.tools.display import clean_1D_array, clean_matrix, format_element, pprint
+from mpqp.tools.display import (
+    clean_1D_array,
+    clean_matrix,
+    clean_number_repr,
+    format_element,
+    pprint,
+)
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import (
+    closest_unitary,
     is_hermitian,
     is_power_of_two,
     is_unitary,
     normalize,
+    rand_clifford_matrix,
+    rand_hermitian_matrix,
     rand_orthogonal_matrix,
+    rand_product_local_unitaries,
+    rand_unitary_2x2_matrix,
 )
 
 sys.path.insert(0, os.path.abspath("."))
@@ -146,13 +158,16 @@ class SafeRunner:
 
 
 class DBRunner:
+    original_db_location: str
+
     def __enter__(self):
         import shutil
 
-        db_original = os.path.join(os.getcwd(), "tests/test_database.db")
-        db_temp = os.path.join(os.getcwd(), "tests/test_database_tmp.db")
+        db_original = Path("tests/test_database.db").absolute()
+        db_temp = Path("tests/test_database_tmp.db").absolute()
 
         shutil.copyfile(db_original, db_temp)
+        self.original_db_location = get_env_variable("DATA_BASE")
         setup_db("tests/test_database_tmp.db")
 
     def __exit__(
@@ -162,13 +177,14 @@ class DBRunner:
         exc_tb: Optional[TracebackType],
     ):
         os.remove(os.path.join(os.getcwd(), "tests/test_database_tmp.db"))
+        setup_db(self.original_db_location or None)
 
 
 test_globals = globals().copy()
 test_globals.update(locals())
 
 to_pass = ["connection", "noise_methods", "remote_handle"]
-unsafe_files = ["env", "db"]
+unsafe_files = ["env", "local_storage"]
 
 finder = DocTestFinder()
 runner = DocTestRunner()
@@ -195,7 +211,7 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
         .replace("\\", ".")
         .replace("/", ".")
     )
-    safe_needed = any(str in filename for str in unsafe_files)
+    safe_needed = any(str in root + filename for str in unsafe_files)
     for test in finder.find(my_module, "mpqp", globs=test_globals):
         if (
             test.docstring
@@ -204,7 +220,7 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
         ):
             if safe_needed:
                 with SafeRunner():
-                    if "db" in filename:
+                    if "local_storage" in root + filename:
                         with DBRunner():
                             assert runner.run(test).failed == 0
                     else:

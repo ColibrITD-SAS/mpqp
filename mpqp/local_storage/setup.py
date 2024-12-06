@@ -53,16 +53,21 @@ def setup_db(path: Optional[str] = None):
         path: Directory to save the database file. Defaults to the current working directory.
 
     Example:
+        >>> setup_db("~/documents/my_database.db")
+        >>> os.remove(Path("~/documents/my_database.db").expanduser())
         >>> setup_db("my_database.db")
+        >>> os.remove("my_database.db")
+        >>> setup_db()
 
     """
     import sqlite3
 
     if path is not None:
-        Path(path).parent.mkdir(exist_ok=True)
+        p = Path(path).expanduser().resolve()
+        p.parent.mkdir(exist_ok=True)
+        path = str(p)
     else:
-        path = Path("~/.mpqp/result_storage.db").expanduser().name
-
+        path = str(Path("~/.mpqp/result_storage.db").expanduser().resolve())
     save_env_variable("DATA_BASE", path)
     connection = sqlite3.connect(path)
     cursor = connection.cursor()

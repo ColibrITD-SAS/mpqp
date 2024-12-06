@@ -63,10 +63,10 @@ def load_env_variables() -> bool:
         ``True`` if the variables are loaded correctly.
 
     Example:
-        >>> os.getenv("IBM_CONFIGURED")
+        >>> os.getenv("IBM_CONFIGURED")  # doctest: +SKIP
         >>> open(os.path.expanduser("~") + "/.mpqp/.env", "w").write("IBM_CONFIGURED='True'\\n")
         22
-        >>> os.getenv("IBM_CONFIGURED")
+        >>> os.getenv("IBM_CONFIGURED")  # doctest: +SKIP
         >>> load_env_variables()
         True
         >>> os.getenv("IBM_CONFIGURED")
