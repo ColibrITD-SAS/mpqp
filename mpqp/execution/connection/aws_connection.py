@@ -30,6 +30,8 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     """
     from braket.aws import AwsSession
 
+    from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
+
     if get_env_variable("BRAKET_CONFIGURED") == "True":
         decision = input(
             "An Amazon Braket account is already configured. Do you want to update it? [y/N] "
@@ -37,17 +39,19 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         if decision.lower().strip() != "y":
             return "Canceled.", []
 
-    # TODO: add here another user choice to login with IAM or SSO
+    braket_auth_choices = QuestionNode(
+        "Choose your Amazon Braket authentication method: ",
+        [
+            AnswerNode("IAM (Identity and Access Management)", configure_account_iam),
+            AnswerNode("SSO (Single Sign-On)", configure_account_sso),
+        ],
+    )
+    run_choice_tree(braket_auth_choices)
 
     try:
-        os.system("aws configure")
-        save_env_variable("BRAKET_CONFIGURED", "True")
-
-        # TODO add an environment variable to know if it is IAM or SSO auth ?
-
         session = AwsSession()
-
         save_env_variable("AWS_DEFAULT_REGION", session.region)
+
         return "Amazon Braket account correctly configured", []
 
     except Exception as e:
@@ -57,9 +61,32 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         return "", []
 
 
-def setup_account_sso():
-    # TODO: add here the additional inputs and file manipulations specific to SSO
-    pass
+def configure_account_iam() -> tuple[str, list[Any]]:
+    """Configure IAM authentication for Amazon Braket.
+    This function guides the user through the Amazon Braket IAM configuration process.
+    """
+    print("Configuring IAM authentication for Amazon Braket...")
+    os.system("aws configure")
+
+    print("IAM authentication configured successfully.")
+    save_env_variable("BRAKET_AUTH_METHOD", "IAM")
+    save_env_variable("BRAKET_CONFIGURED", "True")
+
+    return "IAM configuration successful.", []
+
+
+def configure_account_sso() -> tuple[str, list[Any]]:
+    """Configure SSO authentication for Amazon Braket.
+    This function guides the user through the Amazon Braket SSO configuration process.
+    """
+    print("Configuring SSO authentication for Amazon Braket...")
+    os.system("aws configure sso")
+
+    print("SSO authentication configured successfully.")
+    save_env_variable("BRAKET_AUTH_METHOD", "SSO")
+    save_env_variable("BRAKET_CONFIGURED", "True")
+
+    return "SSO configuration successful.", []
 
 
 def get_aws_braket_account_info() -> str:
