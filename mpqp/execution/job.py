@@ -124,9 +124,9 @@ class Job:
         self.device = device
         """See parameter description."""
         self.measure = measure
+        """See parameter description."""
         if self.measure is not None:
             self.measure._dynamic = False  # pyright: ignore[reportPrivateUsage]
-        """See parameter description."""
 
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 

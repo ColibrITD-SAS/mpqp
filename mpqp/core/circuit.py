@@ -327,7 +327,7 @@ class QCircuit:
 
             if self.nb_cbits is None:
                 self.nb_cbits = 0
-            unique_cbits = set()
+            unique_cbits: set[int] = set()
             for instruction in self.instructions:
                 if instruction != component and isinstance(instruction, BasisMeasure):
                     if instruction.c_targets:
@@ -341,7 +341,7 @@ class QCircuit:
                         "order of classic bits might be unexpected"
                     )
                     i += 1
-                c_targets.append(int(i))
+                c_targets.append(i)
                 i += 1
             component.c_targets = c_targets
             self.nb_cbits = max(
@@ -1304,7 +1304,7 @@ class QCircuit:
 
     def __repr__(self) -> str:
         instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
-        label = f", label=\"{self.label}\"" if self.label is not None else ""
+        label = f', label="{self.label}"' if self.label is not None else ""
         nb_cbits = f", nb_cbits={self.nb_cbits}" if self.nb_cbits is not None else ""
         if instructions_repr == "":
             noise = ", " + ", ".join(map(repr, self.noises)) if self.noises else ""
