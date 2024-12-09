@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -569,6 +569,31 @@ class Result:
             and self.shots == other.shots
         )
 
+    @staticmethod
+    def load_all():
+        """Get all locally stored results."""
+        from mpqp.local_storage.load import get_all_results
+
+        return get_all_results()
+
+    @staticmethod
+    def load_by_local_id(job_id: int):
+        """Get the locally stored results associated with a specific job.
+
+        Args:
+            job_id: local id of the job you need."""
+        from mpqp.local_storage.load import get_results_with_job_id
+
+        return get_results_with_job_id(job_id)
+
+    def save(self):
+        """Save a result to the local storage and returns the corresponding
+        local ``id`` for when the result needs to be retrieved, or ``None`` if
+        the saving operation failed."""
+        from mpqp.local_storage.save import insert_results
+
+        return insert_results(self)[0]
+
 
 @typechecked
 class BatchResult:
@@ -669,3 +694,11 @@ class BatchResult:
 
         if show:
             plt.show()
+
+    def save(self):
+        """Save a batch of results to the local storage and returns the
+        corresponding local ``id``s for when the results needs to be retrieved,
+        or ``None`` if the saving operation failed."""
+        from mpqp.local_storage.save import insert_results
+
+        return insert_results(self)
