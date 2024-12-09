@@ -57,5 +57,20 @@ class Measure(Instruction, ABC):
         """See parameter description."""
         self.label = label
         """See parameter description."""
+        self._dynamic = False
         if len(targets) == 0:
             self._dynamic = True
+
+    def to_dict(self) -> dict[str, list[int] | int | str | bool | None]:
+        """
+        Converts the Measure object into a dictionary format.
+
+        Returns:
+            A dictionary representation of the Measure instance.
+        """
+        return {
+            "targets": self.targets,
+            "shots": self.shots,
+            "label": self.label,
+            "dynamic": self._dynamic,
+        }
