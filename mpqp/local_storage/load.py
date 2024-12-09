@@ -8,8 +8,7 @@ from mpqp.local_storage.setup import DictDB
 
 
 def jobs_db_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
-    """
-    Convert a dictionary or list of dictionaries representing jobs into MPQP Job objects.
+    """Convert a dictionary or list of dictionaries representing jobs into MPQP Job objects.
 
     Args:
         jobs: A dictionary or list of dictionaries retrieved from the database.
@@ -54,22 +53,22 @@ def jobs_db_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
 
 
 def results_db_to_mpqp(results: Optional[list[DictDB] | DictDB]) -> list[Result]:
-    """
-    Convert a dictionary or list of dictionaries representing results into MPQP Result objects.
+    """Convert a dictionary or list of dictionaries representing results into a
+    :class:`~mpqp.execution.result.Result`.
 
     Args:
-        results: A dictionary or list of dictionaries retrieved from the database.
+        results: The results retrieved from the database.
 
     Returns:
-        A list of MPQP Result objects.
+        The converted result(s).
 
     Example:
         >>> result_db = fetch_results_with_id([1, 2])
         >>> results = results_db_to_mpqp(result_db)
-        >>> for result in results:
+        >>> for result in results:  # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=532, probability=0.51953125), Sample(2, index=3, count=492, probability=0.48046875)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=489, probability=0.4775390625), Sample(2, index=3, count=535, probability=0.5224609375)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(2, index=0, count=532, probability=0.51953125), ...], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(2, index=0, count=489, probability=0.4775390625), ...], None, 1024)
 
     """
     if results is None:
@@ -107,11 +106,11 @@ def results_db_to_mpqp(results: Optional[list[DictDB] | DictDB]) -> list[Result]
 
 
 def get_all_jobs() -> list[Job]:
-    """
-    Retrieve all jobs from the database and convert them into MPQP Job objects.
+    """Retrieve all jobs from the local storage and convert them into
+    :class:`mpqp.execution.job.Job`
 
     Returns:
-        A list of all MPQP Job objects.
+        All locally stored jobs.
 
     Example:
         >>> jobs = get_all_jobs()
@@ -130,11 +129,11 @@ def get_all_jobs() -> list[Job]:
 
 
 def get_all_results() -> list[Result]:
-    """
-    Retrieve all results from the database and convert them into MPQP Result objects.
+    """Retrieve all results from the local storage and convert them into
+    :class:`mpqp.execution.result.Result`
 
     Returns:
-        A list of all MPQP Result objects.
+        All locally stored results.
 
     Example:
         >>> results = get_all_results()
@@ -154,14 +153,13 @@ def get_all_results() -> list[Result]:
 
 
 def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
-    """
-    Retrieve jobs matching the given job(s) from the database.
+    """Retrieve jobs matching the given job(s) from the database.
 
     Args:
-        A single job or a list of jobs to search for.
+        job: Job(s) to search for.
 
     Returns:
-        A list of matching MPQP Job objects.
+        Matching job(s).
 
     Example:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
@@ -174,14 +172,13 @@ def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
 
 
 def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Job]:
-    """
-    Retrieve jobs associated with the given result(s) from the database.
+    """Retrieve jobs associated with the given result(s) from the database.
 
     Args:
         result: Result(s) to find associated jobs for.
 
     Returns:
-        A list of matching MPQP Job objects.
+        Matching jobs.
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
@@ -196,14 +193,13 @@ def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Jo
 def get_results_with_result_and_job(
     result: Result | list[Result] | BatchResult,
 ) -> list[Result]:
-    """
-    Retrieve results with matching result and job data.
+    """Retrieve results with matching result and job data.
 
     Args:
         result: Result(s) to search for.
 
     Returns:
-        A list of matching MPQP Result objects.
+        Matching result(s).
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
@@ -220,14 +216,13 @@ def get_results_with_result_and_job(
 def get_results_with_result(
     result: Result | list[Result] | BatchResult,
 ) -> list[Result]:
-    """
-    Retrieve results matching the given result(s) from the database.
+    """Retrieve results matching the given result(s) from the database.
 
     Args:
         result: Result(s) to search for.
 
     Returns:
-        A list of matching MPQP Result objects.
+        Matching results.
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
@@ -243,14 +238,13 @@ def get_results_with_result(
 
 
 def get_results_with_id(result_id: int | list[int]) -> list[Result]:
-    """
-    Retrieve results with the given IDs.
+    """Retrieve results with the given IDs.
 
     Args:
-        A single result ID or a list of IDs to search for.
+        ID(s) to search for.
 
     Returns:
-        A list of MPQP Result objects with the given IDs.
+        Matching result(s).
 
     Example:
         >>> results1 = get_results_with_id(1)
@@ -269,14 +263,13 @@ def get_results_with_id(result_id: int | list[int]) -> list[Result]:
 
 
 def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
-    """
-    Retrieve jobs with the given IDs.
+    """Retrieve jobs with the given IDs.
 
     Args:
-        A single job ID or a list of IDs to search for.
+        ID(s) to search for.
 
     Returns:
-        A list of MPQP Job objects with the given IDs.
+        Matching jobs.
 
     Example:
         >>> jobs = get_jobs_with_id([1, 2, 3])
@@ -292,14 +285,13 @@ def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
 
 
 def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
-    """
-    Retrieve results associated with the given job ID(s).
+    """Retrieve results associated with the given job ID(s).
 
     Args:
-        A single job ID or a list of IDs to search for.
+        ID(s) to search for.
 
     Returns:
-        A list of MPQP Result objects associated with the given job ID(s).
+        Results attached to the matching jobs.
 
     Example:
         >>> results = get_results_with_job_id(1)
