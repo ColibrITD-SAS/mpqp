@@ -130,7 +130,8 @@ class Basis:
 
     def __repr__(self) -> str:
         joint_vectors = ", ".join(map(one_lined_repr, self.basis_vectors))
-        return f"{type(self).__name__}({joint_vectors}, {self.nb_qubits})"
+        qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
+        return f"{type(self).__name__}({joint_vectors}{qubits})"
 
     def to_computational(self):
         """Converts the custom basis to the computational basis.
