@@ -1,12 +1,5 @@
-"""
-This module provides functions to insert `Job` and `Result` objects into the database, 
-ensuring proper linkage between jobs and results.
-
-Functions:
-- `insert_job`: Inserts a single `Job` into the database and returns its ID.
-- `insert_result`: Inserts a `Result` or `BatchResult` into the database. Handles compilation of jobs to avoid duplicates.
-
-"""
+"""This module provides functions to insert `Job` and `Result` objects into the 
+local database."""
 
 from __future__ import annotations
 

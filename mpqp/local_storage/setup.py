@@ -1,20 +1,7 @@
-"""
-This module provides utilities for managing a SQLite database for quantum job 
+"""This module provides utilities for managing a SQLite database for quantum job 
 and result records, as well as functions for removing entries based on various criteria.
 
 It allows storing and managing job and result metadata related to quantum circuit executions.
-
-Classes and Functions:
-- `setup_db`: Initializes the database with the necessary tables.
-- `clear_db`: Clears all records from the database.
-- `remove_all_with_job_id`: Removes all jobs and associated results for specific job IDs.
-- `remove_jobs_with_id`: Removes jobs with specific IDs.
-- `remove_results_with_id`: Removes results with specific IDs.
-- `remove_results_with_results_db`: Removes results using a dictionary or list of dictionaries from the database.
-- `remove_jobs_with_jobs_db`: Removes jobs using a dictionary or list of dictionaries from the database.
-- `remove_results_with_result`: Removes results associated with a specific `Result` or `BatchResult`.
-- `remove_results_with_job`: Removes results associated with specific `Job` objects.
-
 """
 
 from __future__ import annotations
@@ -43,11 +30,12 @@ def ensure_db(func: Callable[..., T]) -> Callable[..., T]:
 
 
 def setup_db(path: Optional[str] = None):
-    """
-    Sets up a SQLite database for storing quantum job and result records.
-    Creates, two tables:
-        - `jobs`: Stores metadata about quantum jobs (e.g., type, circuit, device).
-        - `results`: Stores metadata about results of quantum jobs (e.g., data, errors, shots).
+    """Sets up a SQLite database for storing quantum job and result records.
+
+    Two tables will be created:
+
+        - `jobs`
+        - `results`
 
     Args:
         path: Directory to save the database file. Defaults to the current working directory.
@@ -105,8 +93,7 @@ def setup_db(path: Optional[str] = None):
 
 
 def clear_db():
-    """
-    Clears all records from the database, including jobs and results.
+    """Clears all records from the database, including jobs and results.
 
     This function resets the tables and their auto-increment counters.
 
@@ -131,8 +118,7 @@ def clear_db():
 
 
 def remove_all_with_job_id(job_id: int | list[int]):
-    """
-    Removes jobs and their associated results for the specified job IDs.
+    """Removes jobs and their associated results for the specified job IDs.
 
     Args:
         job_id: Job ID(s) to remove.
@@ -155,8 +141,7 @@ def remove_all_with_job_id(job_id: int | list[int]):
 
 
 def remove_jobs_with_id(job_id: int | list[int]):
-    """
-    Removes jobs with the specified job IDs.
+    """Removes jobs with the specified job IDs.
 
     Args:
         job_id: Job ID(s) to remove.
@@ -184,8 +169,7 @@ def remove_jobs_with_id(job_id: int | list[int]):
 
 
 def remove_results_with_id(result_id: int | list[int]):
-    """
-    Removes results with the specified result IDs.
+    """Removes results with the specified result IDs.
 
     Args:
         result_id: Result ID(s) to remove.
@@ -214,11 +198,11 @@ def remove_results_with_id(result_id: int | list[int]):
 
 
 def remove_results_with_results_db(results: Optional[list[DictDB] | DictDB]):
-    """
-    Removes results using result(s) from the database.
+    """Removes the matching results.
 
     Args:
-        results: Result dictionary or list of dictionaries from the database.
+        results: Result dictionary(ies) for which the matching database row
+            should be deleted.
 
     Example:
         >>> results = fetch_results_with_id(1)
@@ -237,11 +221,11 @@ def remove_results_with_results_db(results: Optional[list[DictDB] | DictDB]):
 
 
 def remove_jobs_with_jobs_db(jobs: Optional[list[DictDB] | DictDB]):
-    """
-    Removes jobs using a dictionary or list of dictionaries from the database.
+    """Removes the matching jobs.
 
     Args:
-        jobs: Job dictionary or list of dictionaries from the database.
+        jobs: Job dictionary(ies) for which the matching database row should be
+            deleted.
 
     Example:
         >>> jobs = fetch_jobs_with_id(1)
@@ -260,8 +244,7 @@ def remove_jobs_with_jobs_db(jobs: Optional[list[DictDB] | DictDB]):
 
 
 def remove_results_with_result(result: Result | BatchResult | list[Result]):
-    """
-    Removes results associated with specific `Result` or `BatchResult` objects.
+    """Removes results matching the given result(s).
 
     Args:
         result: Result(s) to remove.
@@ -280,8 +263,7 @@ def remove_results_with_result(result: Result | BatchResult | list[Result]):
 
 
 def remove_results_with_job_id(job_id: int | list[int]):
-    """
-    Removes results with the specified result IDs.
+    """Removes results related to the job(s) who's ID is given as input.
 
     Args:
         job_id: Result Job_ID(s) to remove.
@@ -310,8 +292,7 @@ def remove_results_with_job_id(job_id: int | list[int]):
 
 
 def remove_results_with_job(jobs: Job | list[Job]):
-    """
-    Removes results associated with specific `Job` objects.
+    """Removes results associated with the specified job(s).
 
     Args:
         jobs: Job(s) to remove results for.
