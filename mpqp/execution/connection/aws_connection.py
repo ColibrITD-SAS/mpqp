@@ -114,6 +114,11 @@ def update_aws_credentials_file(
     from pathlib import Path
 
     credentials_file = Path.home() / ".aws" / "credentials"
+
+    credentials_dir = credentials_file.parent
+    if not credentials_dir.exists():
+        credentials_dir.mkdir(parents=True, exist_ok=True)
+
     config = ConfigParser()
 
     if credentials_file.exists():
