@@ -1,11 +1,13 @@
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Union
 
 from termcolor import colored
 from typeguard import typechecked
 
 if TYPE_CHECKING:
     from braket.devices.device import Device as BraketDevice
+
+from getpass import getpass
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
@@ -75,14 +77,82 @@ def configure_account_iam() -> tuple[str, list[Any]]:
     return "IAM configuration successful.", []
 
 
+def get_user_sso_credentials() -> Union[dict[str, str], None]:
+
+    print("Please enter your AWS SSO credentials (inputs are hidden):")
+
+    try:
+        access_key_id = input("Enter AWS access key ID: ").strip()
+        secret_access_key = getpass("Enter AWS secret access key: ").strip()
+        session_token = getpass(
+            "Enter AWS session token (if applicable, press Enter to skip): "
+        ).strip()
+        region = input("Enter AWS region: ").strip()
+
+        return {
+            "access_key_id": access_key_id,
+            "secret_access_key": secret_access_key,
+            "session_token": session_token,
+            "region": region,
+        }
+
+    except Exception as e:
+        print(f"An error occurred while getting credentials: {e}")
+        return None
+
+
+def update_aws_credentials_file(
+    profile_name: str,
+    access_key_id: str,
+    secret_access_key: str,
+    session_token: str,
+    region: str,
+):
+    """Update .aws/credentials file with the latest SSO credentials."""
+
+    from configparser import ConfigParser
+    from pathlib import Path
+
+    credentials_file = Path.home() / ".aws" / "credentials"
+    config = ConfigParser()
+
+    if credentials_file.exists():
+        config.read(credentials_file)
+
+    for section in config.sections():
+        config.remove_section(section)
+
+    config.add_section(profile_name)
+    config[profile_name]["aws_access_key_id"] = access_key_id
+    config[profile_name]["aws_secret_access_key"] = secret_access_key
+    if session_token:
+        config[profile_name]["aws_session_token"] = session_token
+    config[profile_name]["region"] = region
+
+    with open(credentials_file, "w") as f:
+        config.write(f)
+
+
 def configure_account_sso() -> tuple[str, list[Any]]:
     """Configure SSO authentication for Amazon Braket.
     This function guides the user through the Amazon Braket SSO configuration process.
     """
     print("Configuring SSO authentication for Amazon Braket...")
-    os.system("aws configure sso")
+    sso_credentials = get_user_sso_credentials()
 
     print("SSO authentication configured successfully.")
+
+    if not sso_credentials:
+        raise Exception("Failed to retrieve SSO credentials after configuration.")
+
+    update_aws_credentials_file(
+        profile_name="default",
+        access_key_id=sso_credentials["access_key_id"],
+        secret_access_key=sso_credentials["secret_access_key"],
+        session_token=sso_credentials.get("session_token", ""),
+        region=sso_credentials["region"],
+    )
+
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
 
