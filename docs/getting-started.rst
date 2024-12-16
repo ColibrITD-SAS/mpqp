@@ -91,7 +91,7 @@ with a list of :class:`~mpqp.core.instruction.instruction.Instruction`
 .. _Remote setup:
 
 Set up remote accesses
----------------------
+----------------------
 
 Installing MPQP gives you access to ``setup_connections``, a script facilitating
 the setup of remote QPU connections. The supported providers (Qiskit,

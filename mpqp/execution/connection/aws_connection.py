@@ -20,12 +20,19 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     """Setups the connection to an Amazon Braket account using user input.
 
     This function checks whether an Amazon Braket account is already configured
-    and prompts the user to update it if needed. It then collects the user's AWS
-    access key, AWS secret key (hidden input), and the AWS region for Amazon
-    Braket. The function attempts to configure the Amazon Braket account using
-    the provided credentials.
+    and prompts the user to update it if needed. The function attempts to configure
+    the Amazon Braket account using two authentication methods:
 
-    # TODO: update the description and add SSO elements
+    IAM (Identity and Access Management):
+        - The user is guided to enter their AWS access key, secret access key, and region.
+        - Credentials are stored in the default AWS credentials file.
+
+    SSO (Single Sign-On):
+        - The user is guided through the process of configuring SSO authentication.
+        - SSO credentials are automatically retrieved, including the session token.
+
+    It then collects the user's AWS access key, AWS secret key (hidden input),
+    AWS session token (hidden input) in case of SSO auth and the AWS region for Amazon Braket.
 
     Returns:
         A tuple containing a message indicating the result of the setup (e.g.,
@@ -72,7 +79,9 @@ def update_aws_credentials_file(
     session_token: Optional[str],
     region: str,
 ):
-    """Update .aws/credentials file with the latest SSO credentials."""
+    """Create or update .aws/credentials file with the provided credentials.
+    It ensures the directory and file exist before making changes.
+    """
 
     credentials_file = Path.home() / ".aws" / "credentials"
 
@@ -187,9 +196,18 @@ def get_aws_braket_account_info() -> str:
         obfuscated secret access key.
 
     Example:
+
+        1. **IAM Authentication:**
         >>> get_aws_braket_account_info()
-            access_key_id: 'AKIA26NYJ***********'
-            secret_access_key: 'sMDad***********************************'
+            access_key_id: 'AKIA26NYJD5N33FDLFFA'
+            secret_access_key: 'qoNEp***********************************'
+            region: 'us-east-1'
+
+        2. **SSO Authentication (With Session Token):**
+        >>> get_aws_braket_account_info()
+            access_key_id: 'ASIA26NYJD5NW4PMX45W'
+            secret_access_key: 'LDZYi***********************************'
+            session_token: 'IQoJb3JpZ2luX2V...deJmFtexse33g=='
             region: 'us-east-1'
 
     """
@@ -214,11 +232,17 @@ def get_aws_braket_account_info() -> str:
 
         session_token = credentials.token
         if session_token:
-            obfuscate_token = session_token[:10] + "*" * (len(session_token) - 10)
+            token_length = len(session_token)
+            obfuscate_token = (
+                f"{session_token[:15]}...{session_token[-15:]}"
+                if token_length > 30
+                else session_token
+            )
         else:
-            obfuscate_token = "N/A"
+            obfuscate_token = ""
 
         region_name = session.boto_session.region_name
+
     except Exception as e:
         raise AWSBraketRemoteExecutionError(
             "Error when trying to get AWS credentials. No AWS Braket account configured.\n Trace:"
