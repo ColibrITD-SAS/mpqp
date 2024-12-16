@@ -200,8 +200,6 @@ def get_aws_braket_account_info() -> str:
     import boto3
     from braket.aws import AwsSession
 
-    # TODO: modify this function to get the rest of SSO crendentials when it is the case
-
     try:
         boto3_session = boto3.Session(profile_name="default")
         session = AwsSession(boto_session=boto3_session)
@@ -214,6 +212,12 @@ def get_aws_braket_account_info() -> str:
         secret_access_key = credentials.secret_key
         obfuscate_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
 
+        session_token = credentials.token
+        if session_token:
+            obfuscate_token = session_token[:10] + "*" * (len(session_token) - 10)
+        else:
+            obfuscate_token = "N/A"
+
         region_name = session.boto_session.region_name
     except Exception as e:
         raise AWSBraketRemoteExecutionError(
@@ -221,9 +225,13 @@ def get_aws_braket_account_info() -> str:
             + str(e)
         )
 
-    return f"""    access_key_id: '{access_key_id}'
-    secret_access_key: '{obfuscate_key}' 
-    region: '{region_name}'"""
+    result = f"""    access_key_id: '{access_key_id}'
+    secret_access_key: '{obfuscate_key}'"""
+    if session_token:
+        result += f"\n    session_token: '{obfuscate_token}'"
+
+    result += f"\n    region: '{region_name}'"
+    return result
 
 
 @typechecked
