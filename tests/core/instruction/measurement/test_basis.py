@@ -53,7 +53,7 @@ def test_wrong_init_basis(
 
 
 @pytest.mark.parametrize(
-    "basis, size, is_initialized, result_pp",
+    "basis, size, result_pp",
     [
         (
             ComputationalBasis,
