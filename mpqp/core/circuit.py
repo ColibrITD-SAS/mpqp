@@ -1145,7 +1145,7 @@ class QCircuit:
                 cirq_circuit.append(I(qubit))
 
             for instruction in self.instructions:
-                if isinstance(instruction, ExpectationMeasure):
+                if isinstance(instruction, (ExpectationMeasure, Barrier, Breakpoint)):
                     continue
                 elif isinstance(instruction, CustomGate):
                     custom_circuit = QCircuit(self.nb_qubits)
