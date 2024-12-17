@@ -195,20 +195,20 @@ def get_aws_braket_account_info() -> str:
         A formatted string containing AWS credentials information with an
         obfuscated secret access key.
 
-    Example:
+    Examples:
 
         1. **IAM Authentication:**
-        >>> get_aws_braket_account_info()
-            access_key_id: 'AKIA26NYJD5N33FDLFFA'
-            secret_access_key: 'qoNEp***********************************'
-            region: 'us-east-1'
+            >>> get_aws_braket_account_info()
+                access_key_id: 'AKIA26NYJD5N33FDLFFA'
+                secret_access_key: 'qoNEp***********************************'
+                region: 'us-east-1'
 
         2. **SSO Authentication (With Session Token):**
-        >>> get_aws_braket_account_info()
-            access_key_id: 'ASIA26NYJD5NW4PMX45W'
-            secret_access_key: 'LDZYi***********************************'
-            session_token: 'IQoJb3JpZ2luX2V...deJmFtexse33g=='
-            region: 'us-east-1'
+            >>> get_aws_braket_account_info()
+                access_key_id: 'ASIA26NYJD5NW4PMX45W'
+                secret_access_key: 'LDZYi***********************************'
+                session_token: 'IQoJb3JpZ2luX2V...deJmFtexse33g=='
+                region: 'us-east-1'
 
     """
     if get_env_variable("BRAKET_CONFIGURED") == "False":
