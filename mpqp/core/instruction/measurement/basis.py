@@ -10,7 +10,7 @@ On the other hand, some common basis are available for you to use:
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from functools import reduce
 from typing import Optional
 
