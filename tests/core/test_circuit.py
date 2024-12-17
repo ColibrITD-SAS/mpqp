@@ -19,6 +19,7 @@ from mpqp.execution.runner import run
 from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
+from mpqp.tools import NumberQubitsError
 from mpqp.tools.circuit import compute_expected_matrix, random_circuit
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
@@ -532,3 +533,76 @@ def test_inverse_random():
                 ), f"Expected {repr(expected_inst)}, but got {repr(inverse_inst)}"
             else:
                 assert expected_inst == inverse_inst
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_qubits",
+    [
+        (QCircuit(), 0),
+        (QCircuit([H(0)]), 1),
+        (QCircuit([H(1)]), 2),
+        (QCircuit([S(0), CZ(0, 2), H(1), Ry(4.56, 1)]), 3),
+        (QCircuit([S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)]), 4),
+        (
+            QCircuit(
+                [S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1), BasisMeasure()]
+            ),
+            3,
+        ),
+    ],
+)
+def test_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
+    assert circuit.nb_qubits == expected_qubits
+    circuit.add(H(expected_qubits))
+    assert circuit.nb_qubits == expected_qubits + 1
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_qubits",
+    [
+        (QCircuit(0), 0),
+        (QCircuit([H(0)], nb_qubits=1), 1),
+        (QCircuit([H(1)], nb_qubits=2), 2),
+        (QCircuit([S(0), CZ(0, 2), H(1), Ry(4.56, 1)], nb_qubits=3), 3),
+        (
+            QCircuit(
+                [S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)],
+                nb_qubits=4,
+            ),
+            4,
+        ),
+        (
+            QCircuit(
+                [S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1), BasisMeasure()],
+                nb_qubits=3,
+            ),
+            3,
+        ),
+    ],
+)
+def test_not_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
+    assert circuit.nb_qubits == expected_qubits
+    with pytest.raises(NumberQubitsError):
+        circuit.add(H(expected_qubits))
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_qubits",
+    [
+        (QCircuit(), 0),
+        (QCircuit([H(1)]), 2),
+        (QCircuit([S(0), CZ(0, 2), H(1), Ry(4.56, 1)]), 3),
+        (QCircuit([S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)]), 4),
+        (
+            QCircuit(
+                [S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1), BasisMeasure()]
+            ),
+            3,
+        ),
+    ],
+)
+def test_dynamic_to_not_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
+    assert circuit.nb_qubits == expected_qubits
+    circuit.nb_qubits = expected_qubits
+    with pytest.raises(NumberQubitsError):
+        circuit.add(H(expected_qubits))

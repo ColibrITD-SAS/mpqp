@@ -143,7 +143,10 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
 
 @typechecked
 def clean_1D_array(
-    array: list[complex] | npt.NDArray[np.complex64 | np.float32], round: int = 5
+    array: (
+        list[complex | float | int] | npt.NDArray[np.complex64 | np.float32 | np.int32]
+    ),
+    round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function
     rounds the parts of the numbers in the array and formats them as integers if
