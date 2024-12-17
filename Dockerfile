@@ -20,6 +20,10 @@ RUN apt update && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
+
+COPY mpqp_scripts/awscli_installation/linux_awscli_install.sh ./
+RUN ./linux_awscli_install.sh
+
 WORKDIR /usr/src/app/mpqp
 
 COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
@@ -28,7 +32,6 @@ COPY .. /usr/src/app/mpqp/
 COPY requirements.txt requirements-dev.txt /usr/src/app/
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r /usr/src/app/requirements.txt && \
-    pip install awscli && \
     pip install .
 
 RUN echo "alias pytest='python -m pytest'" >> ~/.bashrc
