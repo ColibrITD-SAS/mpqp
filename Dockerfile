@@ -22,7 +22,7 @@ RUN apt update && \
 
 
 COPY mpqp_scripts/awscli_installation/linux_awscli_install.sh ./
-RUN ./linux_awscli_install.sh
+RUN chmod +x linux_awscli_install.sh && ./linux_awscli_install.sh
 
 WORKDIR /usr/src/app/mpqp
 
