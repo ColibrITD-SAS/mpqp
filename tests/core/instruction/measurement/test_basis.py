@@ -58,7 +58,6 @@ def test_wrong_init_basis(
         (
             ComputationalBasis,
             3,
-            True,
             (
                 "Basis: [\n"
                 "    [1, 0, 0, 0, 0, 0, 0, 0],\n"
@@ -75,7 +74,6 @@ def test_wrong_init_basis(
         (
             ComputationalBasis,
             2,
-            False,
             (
                 "Basis: [\n"
                 "    [1, 0, 0, 0],\n"
@@ -88,7 +86,6 @@ def test_wrong_init_basis(
         (
             HadamardBasis,
             2,
-            True,
             (
                 "Basis: [\n"
                 "    [0.5, 0.5, 0.5, 0.5],\n"
@@ -103,15 +100,10 @@ def test_wrong_init_basis(
 def test_basis_implementations(
     basis: type[VariableSizeBasis],
     size: int,
-    is_initialized: bool,
     result_pp: str,
     capsys: pytest.CaptureFixture[str],
 ):
-    if is_initialized:
-        b = basis(size)
-    else:
-        b = basis()
-        b.set_size(size)
+    b = basis(nb_qubits=size)
     b.pretty_print()
     captured = capsys.readouterr()
     assert captured.out == result_pp
