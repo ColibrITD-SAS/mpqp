@@ -13,6 +13,7 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
@@ -123,9 +124,10 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
-        self.measure = measure
+        self.measure = deepcopy(measure)
         """See parameter description."""
-
+        if self.measure is not None:
+            self.measure._dynamic = False  # pyright: ignore[reportPrivateUsage]
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
@@ -163,6 +165,30 @@ class Job:
     @status.setter
     def status(self, job_status: JobStatus):
         self._status = job_status
+
+    def __repr__(self) -> str:
+        measure = ", " + repr(self.measure) if self.measure is not None else ""
+        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}{measure})"
+
+    def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, Job):
+            return False
+        return (
+            self.job_type == other.job_type
+            and self.circuit == other.circuit
+            and self.device == other.device
+            and self.measure == other.measure
+        )
+
+    def to_dict(self):
+        return {
+            "job_type": self.job_type,
+            "circuit": self.circuit,
+            "device": self.device,
+            "measure": self.measure,
+            "id": self.id,
+            "status": self.status,
+        }
 
 
 @typechecked

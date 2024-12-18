@@ -19,4 +19,6 @@ def test_basis_measure_init_fails_duplicate_c_targets():
 def test_basis_measure_repr():
     measure = BasisMeasure([0, 1], shots=1025)
     representation = repr(measure)
-    assert representation == "BasisMeasure([0, 1], shots=1025)"
+    assert (
+        representation == "BasisMeasure([0, 1], shots=1025, basis=ComputationalBasis())"
+    )

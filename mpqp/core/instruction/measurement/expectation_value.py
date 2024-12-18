@@ -169,6 +169,18 @@ class Observable:
         else:
             raise ValueError(f"Unsupported language: {language}")
 
+    def __eq__(self, other: object) -> bool:
+        from mpqp.tools.maths import matrix_eq
+
+        if not isinstance(other, Observable):
+            return False
+
+        return (
+            self.nb_qubits == other.nb_qubits
+            and matrix_eq(self.matrix, other.matrix)
+            and self.pauli_string == other.pauli_string
+        )
+
 
 @typechecked
 class ExpectationMeasure(Measure):
@@ -282,3 +294,9 @@ class ExpectationMeasure(Measure):
             "appropriate data, and the data in later used in the needed "
             "locations."
         )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ExpectationMeasure):
+            return False
+
+        return self.to_dict() == other.to_dict()

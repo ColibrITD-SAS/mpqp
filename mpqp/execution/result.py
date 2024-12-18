@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -90,6 +90,37 @@ class StateVector:
 
     def __repr__(self) -> str:
         return f"StateVector({clean_1D_array(self.vector)})"
+
+    def to_dict(self) -> dict[str, list[str] | Any | int]:
+        """
+        Converts the StateVector object into a dictionary format.
+
+        Returns:
+            A dictionary representation of the StateVector instance.
+        """
+        vector_dict = [str(complex_num) for complex_num in self.vector]
+        probabilities_dict = self.probabilities.tolist()
+
+        return {
+            "vector": vector_dict,
+            "probabilities": probabilities_dict,
+            "nb_qubits": self.nb_qubits,
+        }
+
+    def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, StateVector):
+            return False
+
+        if self.nb_qubits != other.nb_qubits:
+            return False
+
+        if not np.allclose(self.vector, other.vector):
+            return False
+
+        if not np.allclose(self.probabilities, other.probabilities):
+            return False
+
+        return True
 
 
 @typechecked
@@ -161,6 +192,21 @@ class Sample:
                         f" index provided {index} and the number of qubits {self.nb_qubits}"
                     )
 
+    def to_dict(self) -> dict[str, int | float | str | None]:
+        """
+        Converts the Sample object into a dictionary format.
+
+        Returns:
+            A dictionary representation of the Sample instance.
+        """
+        return {
+            "nb_qubits": self.nb_qubits,
+            "probability": self.probability,
+            "index": self.index,
+            "count": self.count,
+            "bin_str": self.bin_str,
+        }
+
     def __str__(self):
         return (
             f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}"
@@ -169,6 +215,20 @@ class Sample:
 
     def __repr__(self):
         return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Sample):
+            return False
+        if (
+            self.nb_qubits == other.nb_qubits
+            and self.index == other.index
+            and self.bin_str == other.bin_str
+            and self.count == other.count
+            and self.probability == other.probability
+        ):
+            return True
+        else:
+            return False
 
 
 @typechecked
@@ -499,6 +559,51 @@ class Result:
         y_array = self.counts
         return x_array, y_array
 
+    def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, Result):
+            return False
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        """
+        Serialize the result to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the result.
+        """
+        return {
+            "job": self.job,
+            "device": self.device,
+            "data": self._data,
+            "error": self.error,
+            "shots": self.shots,
+        }
+
+    @staticmethod
+    def load_all():
+        """Get all locally stored results."""
+        from mpqp.local_storage.load import get_all_results
+
+        return get_all_results()
+
+    @staticmethod
+    def load_by_local_id(job_id: int):
+        """Get the locally stored results associated with a specific job.
+
+        Args:
+            job_id: local id of the job you need."""
+        from mpqp.local_storage.load import get_results_with_job_id
+
+        return get_results_with_job_id(job_id)
+
+    def save(self):
+        """Save a result to the local storage and returns the corresponding
+        local ``id`` for when the result needs to be retrieved, or ``None`` if
+        the saving operation failed."""
+        from mpqp.local_storage.save import insert_results
+
+        return insert_results(self)[0]
+
 
 @typechecked
 class BatchResult:
@@ -599,3 +704,11 @@ class BatchResult:
 
         if show:
             plt.show()
+
+    def save(self):
+        """Save a batch of results to the local storage and returns the
+        corresponding local ``id``s for when the results needs to be retrieved,
+        or ``None`` if the saving operation failed."""
+        from mpqp.local_storage.save import insert_results
+
+        return insert_results(self)
