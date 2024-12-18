@@ -70,7 +70,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                             H(0),
                             CNOT(0, 1),
                             BasisMeasure(
-                                [0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)
+                                [0, 1], c_targets=[0, 1], basis=ComputationalBasis()
                             ),
                         ],
                         nb_qubits=2,
@@ -78,7 +78,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                         label="H CX BM",
                     ),
                     IBMDevice.AER_SIMULATOR,
-                    BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)),
+                    BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis()),
                 ),
                 [
                     Sample(2, index=0, count=532, probability=0.51953125),
@@ -105,7 +105,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                             H(0),
                             CNOT(0, 1),
                             BasisMeasure(
-                                [0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)
+                                [0, 1], c_targets=[0, 1], basis=ComputationalBasis()
                             ),
                         ],
                         nb_qubits=2,
@@ -113,7 +113,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                         label="H CX BM",
                     ),
                     IBMDevice.AER_SIMULATOR,
-                    BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)),
+                    BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis()),
                 ),
                 [
                     Sample(2, index=0, count=489, probability=0.4775390625),
@@ -140,7 +140,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                             H(0),
                             CNOT(0, 1),
                             BasisMeasure(
-                                [0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)
+                                [0, 1], c_targets=[0, 1], basis=ComputationalBasis()
                             ),
                         ],
                         nb_qubits=2,
@@ -148,7 +148,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                         label="H CX BM",
                     ),
                     GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-                    BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)),
+                    BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis()),
                 ),
                 [
                     Sample(2, index=0, count=507, probability=0.4951171875),
@@ -174,7 +174,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                         [
                             H(0),
                             BasisMeasure(
-                                [0], c_targets=[0], basis=ComputationalBasis(1)
+                                [0], c_targets=[0], basis=ComputationalBasis()
                             ),
                         ],
                         nb_qubits=1,
@@ -182,7 +182,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                         label="H BM",
                     ),
                     IBMDevice.AER_SIMULATOR,
-                    BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)),
+                    BasisMeasure([0], c_targets=[0], basis=ComputationalBasis()),
                 ),
                 [
                     Sample(1, index=0, count=502, probability=0.490234375),
@@ -208,7 +208,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                         [
                             H(0),
                             BasisMeasure(
-                                [0], c_targets=[0], basis=ComputationalBasis(1)
+                                [0], c_targets=[0], basis=ComputationalBasis()
                             ),
                         ],
                         nb_qubits=1,
@@ -216,7 +216,7 @@ def mock_db_results() -> list[dict[str, DictDB | Result]]:
                         label="H BM",
                     ),
                     GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-                    BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)),
+                    BasisMeasure([0], c_targets=[0], basis=ComputationalBasis()),
                 ),
                 [
                     Sample(1, index=0, count=533, probability=0.5205078125),
@@ -276,9 +276,9 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
             'job_db': {
                 'id': 1,
                 'type': 'SAMPLE',
-                'circuit': '"QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label=\\"H CX BM\\")"',
+                'circuit': '"QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis())], nb_qubits=2, nb_cbits=2, label=\\"H CX BM\\")"',
                 'device': 'IBMDevice.AER_SIMULATOR',
-                'measure': '"BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))"',
+                'measure': '"BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis())"',
                 'created_at': '2024-12-04 09:44:53',
             },
             'job': Job(
@@ -288,7 +288,7 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
                         H(0),
                         CNOT(0, 1),
                         BasisMeasure(
-                            [0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)
+                            [0, 1], c_targets=[0, 1], basis=ComputationalBasis()
                         ),
                     ],
                     nb_qubits=2,
@@ -296,16 +296,16 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
                     label="H CX BM",
                 ),
                 IBMDevice.AER_SIMULATOR,
-                BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)),
+                BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis()),
             ),
         },
         {
             'job_db': {
                 'id': 2,
                 'type': 'SAMPLE',
-                'circuit': '"QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label=\\"H CX BM\\")"',
+                'circuit': '"QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis())], nb_qubits=2, nb_cbits=2, label=\\"H CX BM\\")"',
                 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR',
-                'measure': '"BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))"',
+                'measure': '"BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis())"',
                 'created_at': '2024-12-04 09:44:57',
             },
             'job': Job(
@@ -315,7 +315,7 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
                         H(0),
                         CNOT(0, 1),
                         BasisMeasure(
-                            [0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)
+                            [0, 1], c_targets=[0, 1], basis=ComputationalBasis()
                         ),
                     ],
                     nb_qubits=2,
@@ -323,16 +323,16 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
                     label="H CX BM",
                 ),
                 GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-                BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)),
+                BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis()),
             ),
         },
         {
             'job_db': {
                 'id': 3,
                 'type': 'SAMPLE',
-                'circuit': '"QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))], nb_qubits=1, nb_cbits=1, label=\\"H BM\\")"',
+                'circuit': '"QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis())], nb_qubits=1, nb_cbits=1, label=\\"H BM\\")"',
                 'device': 'IBMDevice.AER_SIMULATOR',
-                'measure': '"BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))"',
+                'measure': '"BasisMeasure([0], c_targets=[0], basis=ComputationalBasis())"',
                 'created_at': '2024-12-04 09:44:58',
             },
             'job': Job(
@@ -340,23 +340,23 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
                 QCircuit(
                     [
                         H(0),
-                        BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)),
+                        BasisMeasure([0], c_targets=[0], basis=ComputationalBasis()),
                     ],
                     nb_qubits=1,
                     nb_cbits=1,
                     label="H BM",
                 ),
                 IBMDevice.AER_SIMULATOR,
-                BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)),
+                BasisMeasure([0], c_targets=[0], basis=ComputationalBasis()),
             ),
         },
         {
             'job_db': {
                 'id': 4,
                 'type': 'SAMPLE',
-                'circuit': '"QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))], nb_qubits=1, nb_cbits=1, label=\\"H BM\\")"',
+                'circuit': '"QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis())], nb_qubits=1, nb_cbits=1, label=\\"H BM\\")"',
                 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR',
-                'measure': '"BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))"',
+                'measure': '"BasisMeasure([0], c_targets=[0], basis=ComputationalBasis())"',
                 'created_at': '2024-12-04 09:44:58',
             },
             'job': Job(
@@ -364,14 +364,14 @@ def mock_db_jobs() -> list[dict[str, DictDB | Job]]:
                 QCircuit(
                     [
                         H(0),
-                        BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)),
+                        BasisMeasure([0], c_targets=[0], basis=ComputationalBasis()),
                     ],
                     nb_qubits=1,
                     nb_cbits=1,
                     label="H BM",
                 ),
                 GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-                BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)),
+                BasisMeasure([0], c_targets=[0], basis=ComputationalBasis()),
             ),
         },
         {

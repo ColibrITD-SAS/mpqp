@@ -209,7 +209,7 @@ class VariableSizeBasis(Basis, ABC):
         pass
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.nb_qubits})"
+        return f"{type(self).__name__}()"
 
 
 class ComputationalBasis(VariableSizeBasis):

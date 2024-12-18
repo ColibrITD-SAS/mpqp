@@ -13,6 +13,7 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
@@ -123,11 +124,10 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
-        self.measure = measure
+        self.measure = deepcopy(measure)
         """See parameter description."""
         if self.measure is not None:
             self.measure._dynamic = False  # pyright: ignore[reportPrivateUsage]
-
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
@@ -173,12 +173,15 @@ class Job:
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Job):
             return False
-        return (
-            self.job_type == other.job_type
-            and self.circuit == other.circuit
-            and self.device == other.device
-            and self.measure == other.measure
-        )
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        return {
+            "job_type": self.job_type,
+            "circuit": self.circuit,
+            "device": self.device,
+            "measure": self.measure,
+        }
 
 
 @typechecked

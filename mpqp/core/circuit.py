@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Optional, Sequence, Type
 from warnings import warn
 
 import numpy as np
@@ -158,7 +158,9 @@ class QCircuit:
                     connections: set[int] = set.union(
                         *(instruction.connections() for instruction in data)
                     )
-                    self._nb_qubits = max(connections) + 1
+                    self._nb_qubits = (
+                        max(connections) + 1 if len(connections) != 0 else 0
+                    )
             else:
                 self._nb_qubits = nb_qubits
             self.add(deepcopy(data))
@@ -167,14 +169,7 @@ class QCircuit:
         if not isinstance(value, QCircuit):
             return False
 
-        return (
-            self.nb_qubits == value.nb_qubits
-            and self.nb_cbits == value.nb_cbits
-            and self.label == value.label
-            and self.instructions == value.instructions
-            and self.noises == value.noises
-            and self.gphase == value.gphase
-        )
+        return self.to_dict() == value.to_dict()
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
         """Adds a ``component`` or a list of ``component`` at the end of the
@@ -214,7 +209,7 @@ class QCircuit:
 
         """
 
-        if isinstance(components, Iterable):
+        if not isinstance(components, (Instruction, NoiseModel)):
             for comp in components:
                 self.add(comp)
             return
@@ -240,7 +235,11 @@ class QCircuit:
                 components.c_targets = [
                     self.nb_cbits + i for i in range(len(components.targets))
                 ]
-            self.nb_cbits = max(self.nb_cbits, max(components.c_targets) + 1)
+            self.nb_cbits = (
+                max(self.nb_cbits, max(components.c_targets) + 1)
+                if len(components.c_targets) != 0
+                else 0
+            )
 
         if isinstance(components, NoiseModel):
             self.noises.append(components)
@@ -439,7 +438,7 @@ class QCircuit:
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
             if isinstance(inst, BasisMeasure):
-                if not inst.user_set_c_targets:
+                if not inst._user_set_c_targets:  # pyright: ignore[reportPrivateUsage]
                     inst.c_targets = None
 
             self.add(inst)
@@ -450,13 +449,13 @@ class QCircuit:
         Returns:
             dict: A dictionary representation of the circuit.
         """
+
         return {
-            "nb_qubits": self.nb_qubits,
-            "nb_cbits": self.nb_cbits,
-            "label": self.label,
-            "instructions": [repr(inst) for inst in self.instructions],
-            "noises": [str(noise) for noise in self.noises],
-            "gphase": self.gphase,
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if attr_name not in {'_nb_qubits', 'gates', 'measurements', 'breakpoints'}
+            and not attr_name.startswith("__")
+            and not callable(getattr(self, attr_name))
         }
 
     def __iadd__(self, other: QCircuit):

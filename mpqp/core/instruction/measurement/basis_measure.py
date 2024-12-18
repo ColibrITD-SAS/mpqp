@@ -74,8 +74,10 @@ class BasisMeasure(Measure):
         if not isinstance(basis, VariableSizeBasis):
             self._dynamic = False
             self.targets = list(range(basis.nb_qubits))
+        elif targets is not None:
+            basis.set_size(max(targets) + 1)
 
-        self.user_set_c_targets = c_targets is not None
+        self._user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
         """See parameter description."""
         self.basis = basis
@@ -128,17 +130,19 @@ class BasisMeasure(Measure):
         if not self._dynamic:
             components.append(f"basis={self.basis}")
 
-        options = ', '.join(components)
-        return f"BasisMeasure({options})"
+        return f"BasisMeasure({', '.join(components)})"
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, BasisMeasure):
             return False
+        return self.to_dict() == other.to_dict()
 
-        return (
-            self.targets == other.targets
-            and self.c_targets == other.c_targets
-            and self.shots == other.shots
-            and self.basis == other.basis
-            and self.label == other.label
-        )
+    def to_dict(self):
+        return {
+            "targets": self.targets,
+            "c_targets": self.c_targets,
+            "shots": self.shots,
+            "basis": self.basis,
+            "label": self.label,
+            "_dynamic": self._dynamic,
+        }

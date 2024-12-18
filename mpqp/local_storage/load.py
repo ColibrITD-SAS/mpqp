@@ -18,8 +18,8 @@ def jobs_db_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
 
     Example:
         >>> job_db = fetch_jobs_with_id(1)
-        >>> jobs_db_to_mpqp(job_db)
-        [Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)))]
+        >>> jobs_db_to_mpqp(job_db) # doctest: +ELLIPSIS
+        [Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))]
 
     """
     if jobs is None:
@@ -107,21 +107,21 @@ def results_db_to_mpqp(results: Optional[list[DictDB] | DictDB]) -> list[Result]
 
 def get_all_jobs() -> list[Job]:
     """Retrieve all jobs from the local storage and convert them into
-    :class:`mpqp.execution.job.Job`
+    :class:`~mpqp.execution.job.Job`
 
     Returns:
         All locally stored jobs.
 
     Example:
         >>> jobs = get_all_jobs()
-        >>> for job in jobs:
+        >>> for job in jobs: # doctest: +ELLIPSIS
         ...     print(job)
-        Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)))
-        Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)))
-        Job(JobType.SAMPLE, QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))], nb_qubits=1, nb_cbits=1, label="H BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)))
-        Job(JobType.SAMPLE, QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))], nb_qubits=1, nb_cbits=1, label="H BM"), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)))
-        Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
-        Job(JobType.STATE_VECTOR, QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id"), IBMDevice.AER_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+        Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+        Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+        Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
 
     """
     jobs = fetch_all_jobs()
@@ -130,22 +130,22 @@ def get_all_jobs() -> list[Job]:
 
 def get_all_results() -> list[Result]:
     """Retrieve all results from the local storage and convert them into
-    :class:`mpqp.execution.result.Result`
+    :class:`~mpqp.execution.result.Result`
 
     Returns:
         All locally stored results.
 
     Example:
         >>> results = get_all_results()
-        >>> for result in results:
+        >>> for result in results: # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=532, probability=0.51953125), Sample(2, index=3, count=492, probability=0.48046875)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=489, probability=0.4775390625), Sample(2, index=3, count=535, probability=0.5224609375)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=507, probability=0.4951171875), Sample(2, index=3, count=517, probability=0.5048828125)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))], nb_qubits=1, nb_cbits=1, label="H BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))), [Sample(1, index=0, count=502, probability=0.490234375), Sample(1, index=1, count=522, probability=0.509765625)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))], nb_qubits=1, nb_cbits=1, label="H BM"), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))), [Sample(1, index=0, count=533, probability=0.5205078125), Sample(1, index=1, count=491, probability=0.4794921875)], None, 1024)
-        Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
-        Result(Job(JobType.STATE_VECTOR, QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
     """
     results = fetch_all_results()
@@ -163,8 +163,8 @@ def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
 
     Example:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
-        >>> print(get_jobs_with_job(job))
-        [Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)]
+        >>> print(get_jobs_with_job(job)) # doctest: +ELLIPSIS
+        [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
 
     """
     jobs = fetch_jobs_with_job(job)
@@ -182,8 +182,8 @@ def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Jo
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
-        >>> print(get_jobs_with_result(result))
-        [Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)]
+        >>> print(get_jobs_with_result(result)) # doctest: +ELLIPSIS
+        [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
 
     """
     jobs = fetch_jobs_with_result(result)
@@ -204,9 +204,9 @@ def get_results_with_result_and_job(
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = get_results_with_result_and_job(result)
-        >>> for result in results:
+        >>> for result in results: # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
     """
     results = fetch_results_with_result_and_job(result)
@@ -227,10 +227,10 @@ def get_results_with_result(
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = get_results_with_result(result)
-        >>> for result in results:
+        >>> for result in results: # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
-        Result(Job(JobType.STATE_VECTOR, QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
     """
     results = fetch_results_with_result(result)
@@ -248,14 +248,14 @@ def get_results_with_id(result_id: int | list[int]) -> list[Result]:
 
     Example:
         >>> results1 = get_results_with_id(1)
-        >>> for result in results1:
+        >>> for result in results1: # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=532, probability=0.51953125), Sample(2, index=3, count=492, probability=0.48046875)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
         >>> results2 = get_results_with_id([2, 3])
-        >>> for result in results2:
+        >>> for result in results2: # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=489, probability=0.4775390625), Sample(2, index=3, count=535, probability=0.5224609375)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=507, probability=0.4951171875), Sample(2, index=3, count=517, probability=0.5048828125)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
 
     """
     results = fetch_results_with_id(result_id)
@@ -273,11 +273,11 @@ def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
 
     Example:
         >>> jobs = get_jobs_with_id([1, 2, 3])
-        >>> for job in jobs:
+        >>> for job in jobs: # doctest: +ELLIPSIS
         ...     print(job)
-        Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)))
-        Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2)))
-        Job(JobType.SAMPLE, QCircuit([H(0), BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1))], nb_qubits=1, nb_cbits=1, label="H BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0], c_targets=[0], basis=ComputationalBasis(1)))
+        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+        Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
 
     """
     jobs = fetch_jobs_with_id(job_id)
@@ -295,10 +295,10 @@ def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
 
     Example:
         >>> results = get_results_with_job_id(1)
-        >>> for result in results:
+        >>> for result in results: # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=532, probability=0.51953125), Sample(2, index=3, count=492, probability=0.48046875)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))], nb_qubits=2, nb_cbits=2, label="H CX BM"), IBMDevice.AER_SIMULATOR, BasisMeasure([0, 1], c_targets=[0, 1], basis=ComputationalBasis(2))), [Sample(2, index=0, count=489, probability=0.4775390625), Sample(2, index=3, count=535, probability=0.5224609375)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
     """
     results = fetch_results_with_job_id(job_id)
     return results_db_to_mpqp(results)

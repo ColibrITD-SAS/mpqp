@@ -562,12 +562,22 @@ class Result:
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Result):
             return False
-        return (
-            self.job == other.job
-            and self._data == other._data
-            and self.error == other.error
-            and self.shots == other.shots
-        )
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        """
+        Serialize the result to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the result.
+        """
+        return {
+            "job": self.job,
+            "device": self.device,
+            "data": self._data,
+            "error": self.error,
+            "shots": self.shots,
+        }
 
     @staticmethod
     def load_all():

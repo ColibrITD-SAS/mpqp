@@ -20,6 +20,5 @@ def test_basis_measure_repr():
     measure = BasisMeasure([0, 1], shots=1025)
     representation = repr(measure)
     assert (
-        representation
-        == "BasisMeasure([0, 1], shots=1025, basis=ComputationalBasis(0))"
+        representation == "BasisMeasure([0, 1], shots=1025, basis=ComputationalBasis())"
     )

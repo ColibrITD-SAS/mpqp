@@ -189,7 +189,7 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                     ),
                 ]
             ),
-            "[BasisMeasure([0, 1], c_targets=[0, 1], shots=1000, basis=ComputationalBasis(0)), ExpectationMeasure("
+            "[BasisMeasure([0, 1], c_targets=[0, 1], shots=1000, basis=ComputationalBasis()), ExpectationMeasure("
             "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]",
         )
     ],

@@ -170,12 +170,14 @@ class Observable:
             raise ValueError(f"Unsupported language: {language}")
 
     def __eq__(self, other: object) -> bool:
+        from mpqp.tools.maths import matrix_eq
+
         if not isinstance(other, Observable):
             return False
 
         return (
             self.nb_qubits == other.nb_qubits
-            and np.array_equal(self.matrix, other.matrix)
+            and matrix_eq(self.matrix, other.matrix)
             and self.pauli_string == other.pauli_string
         )
 
@@ -297,9 +299,4 @@ class ExpectationMeasure(Measure):
         if not isinstance(other, ExpectationMeasure):
             return False
 
-        return (
-            self.targets == other.targets
-            and self.observable == other.observable
-            and self.shots == other.shots
-            and self.label == other.label
-        )
+        return self.to_dict() == other.to_dict()
