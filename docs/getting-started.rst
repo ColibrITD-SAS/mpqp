@@ -104,27 +104,93 @@ To run the script, simply run the following command in your terminal:
     $ setup_connections
 
 Each of these providers has their own set of data needed to set up the connection, 
-summed up here:
+detailed up in subsections below.
 
-- IBM Quantum (Qiskit): For this provider, you only need your account ``API
-  token``, which you can find on your `account page <https://quantum.ibm.com/account>`_.
-- Atos/Eviden (Qaptiva/QLM): For this provider, several connection methods
-  exist. For now, we only support the username/password method. You should have
-  received you username and password by email.
-- AWS (Braket): For this provider, you will need more information. All of it can
-  be found in your 
-  `AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
-  In the console, go to ``IAM service``. In the ``Users`` tab, click on your
-  username. In the ``Security credential`` tab, you'll find an ``Access keys`` 
-  section. In this section, you can create a new access key for ``MPQP``. You 
-  should save this because you will not be able to recover it later.
-  This will give you your key and your secret, but for the configuration, you 
-  also need a region (for example ``us-east-1``). In short, one needs:
+To see which devices are available, checkout the :ref:`Devices` section.
 
-  + ``AWS Access Key ID``,
-  + ``AWS Secret Access Key`` and
-  + ``Default region name``.
-- Azure (Azure): For this provider, you need to have an Azure account and create an 
+IBM Quantum (Qiskit)
+^^^^^^^^^^^^^^^^^^^^
+
+For this provider, you only need your account ``API token``, which you can find on your
+`account page <https://quantum.ibm.com/account>`_. The token will be configured once for all users.
+
+
+Atos/Eviden (QLM/Qaptiva)
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+For this provider, several connection methods exist. For now, we only support the username/password method.
+You should have received you username and password by email.
+
+
+AWS Braket
+^^^^^^^^^^
+
+For configuring access to AWS Braket, you first need to have ``awscli`` installed on your machine. To check if it is
+already installed, you can run this command:
+
+.. code-block:: console
+
+    $ aws --version
+
+- For ``Windows``, installing ``mpqp`` can be sufficient since the Python package ``aws-configure`` (in the
+requirements) also installs ``awscli`` locally. If it is not the case, you can execute the following command
+(in a terminal where you have admin access) to install ``awscliV2``:
+
+.. code-block:: console
+
+    > msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
+
+- For ``MacOS``, on some versions, the installation of ``aws-configure`` can be sufficient. If it is not the case, you
+can install it using ``brew``:
+
+.. code-block:: console
+
+    $ brew install awscli
+
+or execute the script we prepared for installing ``awscliv2``:
+
+.. code-block:: console
+
+    $ ./mpqp/mpqp_scripts/awscli_installation/mac_awscli_install.sh
+
+- For ``Linux``, one can use the dedicated script for installing ``awscliv2``:
+
+.. code-block:: console
+
+    $ ./mpqp/mpqp_scripts/awscli_installation/linux_awscli_install.sh
+
+
+Amazon Web Services propose two different ways to authenticate yourself to access remote services, including remote
+simulators and QPUs via Braket: the ``IAM`` authentication, and the ``SSO`` one.
+
+.. TODO: finish this section
+
+
+- IAM: All of it can be found in your
+`AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
+In the console, go to ``IAM service``. In the ``Users`` tab, click on your
+username. In the ``Security credential`` tab, you'll find an ``Access keys``
+section. In this section, you can create a new access key for ``MPQP``. You
+should save this because you will not be able to recover it later.
+This will give you your key and your secret, but for the configuration, you
+also need a region (for example ``us-east-1``). In short, one needs:
+
++ ``AWS Access Key ID``,
++ ``AWS Secret Access Key`` and
++ ``Default region name``.
+
+- SSO:
+
++ ``AWS Access Key ID``,
++ ``AWS Secret Access Key``,
++ ``AWS Session Token`` and
++ ``Default region name``.
+
+
+Microsoft Azure
+^^^^^^^^^^^^^^^
+
+For this provider, you need to have an Azure account and create an
   Azure Quantum workspace. To create an Azure Quantum workspace, follow the 
   steps on:
   `Azure Quantum workspace <https://learn.microsoft.com/en-us/azure/quantum/how-to-create-workspace?tabs=tabid-quick>`_.
@@ -156,11 +222,14 @@ summed up here:
   For additional details and options, see the documentation of
   `az login <https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-login>`_.
 
-- IonQ (Cirq): For this provider, you need to have an IonQ account and create an 
+IonQ (Cirq)
+^^^^^^^^^^^
+
+For this provider, you need to have an IonQ account and create an
   ``API token``. You can obtain it from the IonQ Console under 
   `IonQ setting keys <https://cloud.ionq.com/settings/keys>`_.
 
-To see which devices are available, checkout the :ref:`Devices` section.
+
 
 Execute examples
 ----------------
