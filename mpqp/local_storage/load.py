@@ -1,3 +1,8 @@
+"""provides utility functions for converting job and result data from the local 
+storage format into MPQP (:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`) objects. 
+It also includes functions to query and retrieve jobs and results from the database.
+"""
+
 from __future__ import annotations
 
 from typing import Optional
@@ -153,13 +158,17 @@ def get_all_results() -> list[Result]:
 
 
 def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
-    """Retrieve jobs matching the given job(s) from the database.
+    """Retrieve job(s) matching the given job(s) attributes from the database:
+        - JobType
+        - Circuit
+        - Device
+        - Measure
 
     Args:
         job: Job(s) to search for.
 
     Returns:
-        Matching job(s).
+        Matching job(s) corresponding to the job(s) attributes
 
     Example:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
@@ -172,13 +181,21 @@ def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
 
 
 def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Job]:
-    """Retrieve jobs associated with the given result(s) from the database.
+    """Retrieve job(s) associated with the given result(s) attributes from the database:
+        - data
+        - error
+        - shots
+       And also with the job attribute of the result(s):
+        - JobType
+        - Circuit
+        - Device
+        - Measure
 
     Args:
         result: Result(s) to find associated jobs for.
 
     Returns:
-        Matching jobs.
+        Matching job(s) corresponding to the result(s) attribute and job attribute of the result(s).
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
@@ -193,13 +210,22 @@ def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Jo
 def get_results_with_result_and_job(
     result: Result | list[Result] | BatchResult,
 ) -> list[Result]:
-    """Retrieve results with matching result and job data.
+    """Retrieve result(s) associated with specific result(s) attributes:
+        - data
+        - error
+        - shots
+    And also with the job attribute of the result(s):
+        - JobType
+        - Circuit
+        - Device
+        - Measure
 
     Args:
         result: Result(s) to search for.
 
     Returns:
-        Matching result(s).
+        Matching result(s) corresponding to the result(s) attribute and job attribute of the result(s).
+
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
@@ -216,13 +242,16 @@ def get_results_with_result_and_job(
 def get_results_with_result(
     result: Result | list[Result] | BatchResult,
 ) -> list[Result]:
-    """Retrieve results matching the given result(s) from the database.
+    """Retrieve result(s) matching specific result(s) attributes:
+        - data
+        - error
+        - shots
 
     Args:
         result: Result(s) to search for.
 
     Returns:
-        Matching results.
+        Matching result(s) corresponding to the result(s) attribute.
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
@@ -238,13 +267,13 @@ def get_results_with_result(
 
 
 def get_results_with_id(result_id: int | list[int]) -> list[Result]:
-    """Retrieve results with the given IDs.
+    """Retrieve results with the given ID(s).
 
     Args:
         ID(s) to search for.
 
     Returns:
-        Matching result(s).
+        Matching result(s) corresponding to the id(s).
 
     Example:
         >>> results1 = get_results_with_id(1)
@@ -263,13 +292,13 @@ def get_results_with_id(result_id: int | list[int]) -> list[Result]:
 
 
 def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
-    """Retrieve jobs with the given IDs.
+    """Retrieve jobs with the given ID(s).
 
     Args:
         ID(s) to search for.
 
     Returns:
-        Matching jobs.
+        Job(s) corresponding to the id(s).
 
     Example:
         >>> jobs = get_jobs_with_id([1, 2, 3])
@@ -291,7 +320,7 @@ def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
         ID(s) to search for.
 
     Returns:
-        Results attached to the matching jobs.
+        Results corresponding to the job id(s).
 
     Example:
         >>> results = get_results_with_job_id(1)

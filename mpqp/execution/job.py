@@ -173,7 +173,12 @@ class Job:
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Job):
             return False
-        return self.to_dict() == other.to_dict()
+        return (
+            self.job_type == other.job_type
+            and self.circuit == other.circuit
+            and self.device == other.device
+            and self.measure == other.measure
+        )
 
     def to_dict(self):
         return {
@@ -181,6 +186,8 @@ class Job:
             "circuit": self.circuit,
             "device": self.device,
             "measure": self.measure,
+            "id": self.id,
+            "status": self.status,
         }
 
 

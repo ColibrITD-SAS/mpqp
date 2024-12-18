@@ -1,9 +1,6 @@
-"""
-This module provides utility functions to query and fetch data from the quantum job and result database.
-
-It includes methods to retrieve all records, specific records by ID, and filtered records based on ``Job`` or ``Result`` objects.
-
-
+"""provides utility functions to query and fetch data from the quantum job and result database.
+It includes methods to retrieve all records, specific records by ID, and filtered records based on 
+:class:`~mpqp.execution.job.Job` or :class:`~mpqp.execution.result.Result` objects.
 """
 
 from __future__ import annotations
@@ -15,7 +12,7 @@ from typing import Optional
 from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
-from mpqp.local_storage.setup import ensure_db
+from mpqp.local_storage.setup import ensure_db, DictDB
 
 
 @dataclass
@@ -24,7 +21,7 @@ class QueryJob:
 
 
 @ensure_db
-def fetch_all_jobs():
+def fetch_all_jobs() -> list[DictDB]:
     """Fetch all job records from the database.
 
     Returns:
@@ -54,11 +51,11 @@ def fetch_all_jobs():
 
 
 @ensure_db
-def fetch_all_results():
+def fetch_all_results() -> list[DictDB]:
     """Fetch all result records from the database.
 
     Returns:
-        Results as dictionaries.
+        All results as dictionaries.
 
     Examples:
         >>> results = fetch_all_results()
@@ -85,14 +82,14 @@ def fetch_all_results():
 
 
 @ensure_db
-def fetch_results_with_id(result_id: int | list[int]):
-    """Fetch results by their ID(s).
+def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
+    """Fetch result(s) by their ID(s).
 
     Args:
         result_id: The ID(s) of the result(s) to fetch.
 
     Returns:
-        Matching results as dictionaries.
+        Matching result(s) as dictionaries corresponding to the id(s).
 
     Examples:
         >>> results = fetch_results_with_id([1, 2, 3])
@@ -123,14 +120,14 @@ def fetch_results_with_id(result_id: int | list[int]):
 
 
 @ensure_db
-def fetch_jobs_with_id(job_id: int | list[int]):
-    """Fetch jobs by their ID(s).
+def fetch_jobs_with_id(job_id: int | list[int]) -> list[DictDB]:
+    """Fetch job(s) by their ID(s).
 
     Args:
         job_id: The ID(s) of the job(s) to fetch.
 
     Returns:
-        Matching job as dictionaries.
+        Matching job(s) as dictionaries corresponding to the id(s).
 
     Examples:
         >>> jobs = fetch_jobs_with_id(1)
@@ -164,14 +161,14 @@ def fetch_jobs_with_id(job_id: int | list[int]):
 
 
 @ensure_db
-def fetch_results_with_job_id(job_id: int | list[int]):
-    """Fetch results associated with specific job ID(s).
+def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
+    """Fetch result(s) associated with specific job ID(s).
 
     Args:
         job_id: The ID(s) of job(s) to which the desired result(s) are attached.
 
     Returns:
-        Matching result as dictionaries.
+        Matching result(s) as dictionaries corresponding to the job id(s).
 
     Examples:
         >>> results = fetch_results_with_job_id(1)
@@ -201,14 +198,18 @@ def fetch_results_with_job_id(job_id: int | list[int]):
 
 
 @ensure_db
-def fetch_jobs_with_job(job: Job | list[Job]):
-    """Fetch job records matching specific ``Job`` attributes.
+def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
+    """Fetch job(s) records matching specific job(s) attributes:
+        - JobType
+        - Circuit
+        - Device
+        - Measure
 
     Args:
         job: Job(s) to match.
 
     Returns:
-        Matching jobs as dictionaries.
+        Matching job(s) as dictionaries corresponding to the job(s) attributes
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
@@ -245,18 +246,28 @@ def fetch_jobs_with_job(job: Job | list[Job]):
 
 
 @ensure_db
-def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
-    """Fetch jobs associated with specific ``Result`` or ``BatchResult`` objects.
+def fetch_jobs_with_result_and_job(
+    result: Result | BatchResult | list[Result],
+) -> list[DictDB]:
+    """Fetch job(s) associated with specific results(s) attributes:
+        - data
+        - error
+        - shots
+       And also with the job attribute of the results(s):
+        - JobType
+        - Circuit
+        - Device
+        - Measure
 
     Args:
         result: Result(s) to match.
 
     Returns:
-        Matching jobs as dictionaries.
+        Matching job(s) as dictionaries corresponding to the result(s) attribute and job attribute of the result(s).
 
     Examples:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
-        >>> jobs = fetch_jobs_with_result(result)
+        >>> jobs = fetch_jobs_with_result_and_job(result)
         >>> for job in jobs:
         ...    print("job_id:", job['id'])
         job_id: 5
@@ -315,14 +326,88 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]):
 
 
 @ensure_db
-def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result]):
-    """Fetch results and their associated jobs based on specific ``Result`` attributes.
+def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[DictDB]:
+    """Fetch job(s) associated with specific results(s) attributes:
+        - data
+        - error
+        - shots
 
     Args:
-        result: The result(s) to match.
+        result: Result(s) to match.
 
     Returns:
-        List of matching result records and their associated jobs as dictionaries.
+        Matching job(s) as dictionaries corresponding to the result(s) attribute.
+
+    Examples:
+        >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
+        >>> jobs = fetch_jobs_with_result(result)
+        >>> for job in jobs:
+        ...    print("job_id:", job['id'])
+        job_id: 5
+
+    """
+    from sqlite3 import Row, connect
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+
+        job_filters = []
+        params = []
+
+        if isinstance(result, Result):
+            result = [result]
+
+        for res in result:
+            data_json = json.dumps(
+                repr(res._data)  # pyright: ignore[reportPrivateUsage]
+            )
+            error_json = json.dumps(repr(res.error)) if res.error is not None else None
+
+            job_filters.append(
+                """
+                (results.data is ? AND results.error is ? AND results.shots is ?)
+            """
+            )
+            params.extend(
+                [
+                    data_json,
+                    error_json,
+                    res.shots,
+                ]
+            )
+
+        query = f"""
+            SELECT jobs.* FROM jobs
+            INNER JOIN results ON jobs.id is results.job_id
+            WHERE {' OR '.join(job_filters)}
+        """
+
+        cursor.execute(query, params)
+        jobs = cursor.fetchall()
+
+        return [dict(job) for job in jobs]
+
+
+@ensure_db
+def fetch_results_with_result_and_job(
+    result: Result | BatchResult | list[Result],
+) -> list[DictDB]:
+    """Fetch result(s) associated with specific results(s) attributes:
+        - data
+        - error
+        - shots
+    And also with the job attribute of the results(s):
+        - JobType
+        - Circuit
+        - Device
+        - Measure
+
+    Args:
+        result: The Result(s) to match.
+
+    Returns:
+        Matching result(s) as dictionaries corresponding to the result(s) attribute and job attribute of the result(s).
 
     Examples:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
@@ -385,14 +470,18 @@ def fetch_results_with_result_and_job(result: Result | BatchResult | list[Result
 
 
 @ensure_db
-def fetch_results_with_job(jobs: Job | list[Job]):
-    """Fetch results and their associated jobs based on specific attributes.
+def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
+    """Fetch result(s) associated with the job attribute of the results(s)
+        - JobType
+        - Circuit
+        - Device
+        - Measure
 
     Args:
         jobs: The job(s) to match.
 
     Returns:
-        Matching jobs as dictionaries containing the desired results.
+        Matching result(s) as dictionaries corresponding to job attribute of the result(s).
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
@@ -445,14 +534,19 @@ def fetch_results_with_job(jobs: Job | list[Job]):
 
 
 @ensure_db
-def fetch_results_with_result(result: Result | BatchResult | list[Result]):
-    """Fetch results matching specific ``Result`` attributes.
+def fetch_results_with_result(
+    result: Result | BatchResult | list[Result],
+) -> list[DictDB]:
+    """Fetch result(s) matching specific results(s) attributes:
+        - data
+        - error
+        - shots
 
     Args:
         result: The result(s) to match.
 
     Returns:
-        Matching results as dictionaries.
+        Matching result(s) as dictionaries corresponding to the result(s) attribute.
 
     Examples:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)

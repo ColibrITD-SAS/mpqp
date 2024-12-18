@@ -60,6 +60,9 @@ from mpqp.local_storage.queries import (
 )
 from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import (
+    setup_db,
+)
+from mpqp.local_storage.delete import (
     clear_db,
     remove_all_with_job_id,
     remove_jobs_with_id,
@@ -69,7 +72,6 @@ from mpqp.local_storage.setup import (
     remove_results_with_job_id,
     remove_results_with_result,
     remove_results_with_results_db,
-    setup_db,
 )
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import (

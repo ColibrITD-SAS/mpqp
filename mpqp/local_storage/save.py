@@ -1,5 +1,6 @@
-"""This module provides functions to insert `Job` and `Result` objects into the 
-local database."""
+"""provides functions to insert :class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result` objects into the 
+local database.
+"""
 
 from __future__ import annotations
 
@@ -38,7 +39,7 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
 
             cursor.execute(
                 '''
-                INSERT INTO jobs (type, circuit, device, measure)
+                INSERT INTO jobs (type, circuit, device, measure, remote_id, status)
                 VALUES (?, ?, ?, ?)
             ''',
                 (
@@ -46,6 +47,8 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
                     circuit_json,
                     str(job.device),
                     measure_json,
+                    str(job.id),
+                    str(job.status),
                 ),
             )
             job_ids.append(cursor.lastrowid)

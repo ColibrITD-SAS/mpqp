@@ -38,6 +38,9 @@ from mpqp.local_storage.queries import (
 from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import (
     DictDB,
+    setup_db,
+)
+from mpqp.local_storage.delete import (
     remove_all_with_job_id,
     remove_jobs_with_id,
     remove_jobs_with_jobs_db,
@@ -46,7 +49,6 @@ from mpqp.local_storage.setup import (
     remove_results_with_job_id,
     remove_results_with_result,
     remove_results_with_results_db,
-    setup_db,
 )
 
 
