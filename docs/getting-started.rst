@@ -132,95 +132,101 @@ already installed, you can run this command:
 
     $ aws --version
 
-- For ``Windows``, installing ``mpqp`` can be sufficient since the Python package ``aws-configure`` (in the
-requirements) also installs ``awscli`` locally. If it is not the case, you can execute the following command
-(in a terminal where you have admin access) to install ``awscliV2``:
+- For ``Windows``, installing ``mpqp`` can be sufficient since the Python package ``aws-configure`` (in the requirements) also installs ``awscli`` locally. If it is not the case, you can execute the following command (in a terminal where you have admin access) to install ``awscliV2``:
 
-.. code-block:: console
+    .. code-block:: console
 
-    > msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
+        > msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
 
-- For ``MacOS``, on some versions, the installation of ``aws-configure`` can be sufficient. If it is not the case, you
-can install it using ``brew``:
+- For ``MacOS``, on some versions, the installation of ``aws-configure`` can be sufficient. If it is not the case, you can install it using ``brew``:
 
-.. code-block:: console
+    .. code-block:: console
 
-    $ brew install awscli
+        $ brew install awscli
 
-or execute the script we prepared for installing ``awscliv2``:
+    or execute the script we prepared for installing ``awscliv2``:
 
-.. code-block:: console
+    .. code-block:: console
 
-    $ ./mpqp/mpqp_scripts/awscli_installation/mac_awscli_install.sh
+        $ ./mpqp/mpqp_scripts/awscli_installation/mac_awscli_install.sh
 
 - For ``Linux``, one can use the dedicated script for installing ``awscliv2``:
 
-.. code-block:: console
+    .. code-block:: console
 
-    $ ./mpqp/mpqp_scripts/awscli_installation/linux_awscli_install.sh
+        $ ./mpqp/mpqp_scripts/awscli_installation/linux_awscli_install.sh
 
 
-Amazon Web Services propose two different ways to authenticate yourself to access remote services, including remote
-simulators and QPUs via Braket: the ``IAM`` authentication, and the ``SSO`` one.
+Amazon Web Services propose two different ways to authenticate for access remote services (including remote
+simulators and QPUs via Braket): the ``IAM`` authentication, and the ``SSO`` one. When you run the ``setup_connections``
+script and select AWS configuration, you will have to choose between one of the two above.
 
 .. TODO: finish this section
 
 
-- IAM: All of it can be found in your
-`AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
-In the console, go to ``IAM service``. In the ``Users`` tab, click on your
-username. In the ``Security credential`` tab, you'll find an ``Access keys``
-section. In this section, you can create a new access key for ``MPQP``. You
-should save this because you will not be able to recover it later.
-This will give you your key and your secret, but for the configuration, you
-also need a region (for example ``us-east-1``). In short, one needs:
+- IAM: All the necessary credentials can be found in your `AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
+    In the console, go to ``IAM``. In the ``Users`` tab, click on your
+    username. In the ``Security credential`` tab, you'll find an ``Access keys``
+    section. In this section, you can create a new access key for ``MPQP/Braket``, or use an existing one. You
+    should save the secret access key because you will not be able to recover it later.
+    This will give you your key and your secret, but for the configuration, you
+    also need to input a region (for example ``us-east-1``). In short, when running ``setup_connections``,
+    it will execute the ``aws configure`` command that will ask you the following credentials:
 
-+ ``AWS Access Key ID``,
-+ ``AWS Secret Access Key`` and
-+ ``Default region name``.
+    + ``AWS Access Key ID``,
+    + ``AWS Secret Access Key``,
+    + ``Default region name``.
 
-- SSO:
+- SSO: Standing for "Single-Sign-On", SSO enables organizations to simplify and strengthen password security by giving
+    access to all connected services with a signe login. It is the recommended way to authenticate to Amazon Web Services.
+    To recover your SSO credentials, you have to follow the ``SSO start url`` provided by your AWS administrator, (for
+    example https://d-4859u1689s.awsapps.com/start ).
 
-+ ``AWS Access Key ID``,
-+ ``AWS Secret Access Key``,
-+ ``AWS Session Token`` and
-+ ``Default region name``.
+    You will need you username and password attached (and potentially MFA) to login. Then, in the ``AWS Access Portal``,
+    you can find the different sso sessions and profile associated with your company account. Click on the
+    ``Access key`` (with the key symbol) to retrieve your SSO credentials. When running ``setup_connections``,
+    you will be asked for:
+
+    + ``AWS Access Key ID``,
+    + ``AWS Secret Access Key``,
+    + ``AWS Session Token``,
+    + ``Default region name``.
 
 
 Microsoft Azure
 ^^^^^^^^^^^^^^^
 
 For this provider, you need to have an Azure account and create an
-  Azure Quantum workspace. To create an Azure Quantum workspace, follow the 
-  steps on:
-  `Azure Quantum workspace <https://learn.microsoft.com/en-us/azure/quantum/how-to-create-workspace?tabs=tabid-quick>`_.
-  Once you have your Quantum workspace, you can go to the ``Overview`` section, 
-  where you will find your ``Resource ID`` and ``Location``.
+Azure Quantum workspace. To create an Azure Quantum workspace, follow the
+steps on:
+`Azure Quantum workspace <https://learn.microsoft.com/en-us/azure/quantum/how-to-create-workspace?tabs=tabid-quick>`_.
+Once you have your Quantum workspace, you can go to the ``Overview`` section,
+where you will find your ``Resource ID`` and ``Location``.
 
-  You might encounter a pop-up requesting Azure authentication for each Azure
-  job submission. This occurs because your security token is reset at the end of
-  each session. In order to avoid this, you can use the Azure CLI.
+You might encounter a pop-up requesting Azure authentication for each Azure
+job submission. This occurs because your security token is reset at the end of
+each session. In order to avoid this, you can use the Azure CLI.
 
-  First, install the Azure CLI: refer to the guide on their website
-  `How to install the Azure CLI <https://learn.microsoft.com/en-us/cli/azure/install-azure-cli>`_.
+First, install the Azure CLI: refer to the guide on their website
+`How to install the Azure CLI <https://learn.microsoft.com/en-us/cli/azure/install-azure-cli>`_.
 
-  Next, log in to Azure:
+Next, log in to Azure:
 
-  - Using interactive login:
+- Using interactive login:
 
-    .. code-block:: console
+.. code-block:: console
 
-        $ az login
+    $ az login
 
-  - For username and password authentication (note that this method doesn't work 
-    with Microsoft accounts or accounts with two-factor authentication):
+- For username and password authentication (note that this method doesn't work
+with Microsoft accounts or accounts with two-factor authentication):
 
-    .. code-block:: console
+.. code-block:: console
 
-        $ az login -u johndoe@contoso.com -p=VerySecret
+    $ az login -u johndoe@contoso.com -p=VerySecret
 
-  For additional details and options, see the documentation of
-  `az login <https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-login>`_.
+For additional details and options, see the documentation of
+`az login <https://learn.microsoft.com/en-us/cli/azure/reference-index?view=azure-cli-latest#az-login>`_.
 
 IonQ (Cirq)
 ^^^^^^^^^^^
