@@ -17,7 +17,7 @@ from mpqp.tools.errors import AWSBraketRemoteExecutionError
 
 
 def setup_aws_braket_account() -> tuple[str, list[Any]]:
-    """Setups the connection to an Amazon Braket account using user input.
+    """Set-up the connection to an Amazon Braket account using user input.
 
     This function checks whether an Amazon Braket account is already configured
     and prompts the user to update it if needed. The function attempts to configure
@@ -188,8 +188,8 @@ def configure_account_sso() -> tuple[str, list[Any]]:
 
 
 def get_aws_braket_account_info() -> str:
-    """Get AWS Braket credentials information including access key ID,
-    obfuscated secret access key, and region.
+    """Retrieves AWS Braket credentials information including access key ID, secret access key,
+    and region. For SSO authentication, the session token is also included.
 
     Returns:
         A formatted string containing AWS credentials information with an
@@ -209,6 +209,10 @@ def get_aws_braket_account_info() -> str:
                 secret_access_key: 'LDZYi***********************************'
                 session_token: 'IQoJb3JpZ2luX2V...deJmFtexse33g=='
                 region: 'us-east-1'
+
+    Note:
+        This function assumes that the AWS credentials are already configured
+        in the AWS credentials/config file ``~/.aws/credentials``.
 
     """
     if get_env_variable("BRAKET_CONFIGURED") == "False":
