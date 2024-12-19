@@ -212,7 +212,7 @@ def generate_qiskit_noise_model(
     circuit: QCircuit,
 ) -> tuple["Qiskit_NoiseModel", QCircuit]:
     """Generate a ``qiskit`` noise model packing all the
-    class:`~mpqp.noise.noise_model.NoiseModel`s attached to the given QCircuit.
+    :class:`~mpqp.noise.noise_model.NoiseModel` attached to the given QCircuit.
 
     In ``qiskit``, the noise cannot be applied to qubits unaffected by any
     operations. For this reason, this function also returns a copy of the
