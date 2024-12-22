@@ -145,8 +145,8 @@ def get_user_sso_credentials() -> Union[dict[str, str], None]:
 
     try:
         access_key_id = input("Enter AWS access key ID: ").strip()
-        secret_access_key = getpass("Enter AWS secret access key: ").strip()
-        session_token = getpass("Enter AWS session token: ").strip()
+        secret_access_key = getpass("Enter AWS secret access key (hidden): ").strip()
+        session_token = getpass("Enter AWS session token (hidden): ").strip()
         region = input("Enter AWS region: ").strip()
 
         return {
