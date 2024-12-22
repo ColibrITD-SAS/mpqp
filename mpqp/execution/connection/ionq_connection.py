@@ -45,7 +45,7 @@ def get_ionq_account_info() -> str:
     """
     ionq_api_key = get_env_variable("IONQ_API_KEY")
     if ionq_api_key == "":
-        display = "Not configured"
+        return "Account not configured"
     else:
         display = ionq_api_key[:5] + "*****"
 

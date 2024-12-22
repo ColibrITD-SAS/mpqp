@@ -73,7 +73,7 @@ def get_azure_account_info() -> str:
     """
     azure_resource_id = get_env_variable("AZURE_RESOURCE_ID")
     if azure_resource_id == "":
-        display = "Not configured"
+        return "Account not configured"
     else:
         display = azure_resource_id[:5] + "*****"
     azure_location = get_env_variable("AZURE_LOCATION")
