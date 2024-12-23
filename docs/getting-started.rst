@@ -161,13 +161,12 @@ Amazon Web Services propose two different ways to authenticate for access remote
 simulators and QPUs via Braket): the ``IAM`` authentication, and the ``SSO`` one. When you run the ``setup_connections``
 script and select AWS configuration, you will have to choose between one of the two above.
 
-.. TODO: finish this section
-
 
 - IAM: All the necessary credentials can be found in your `AWS console <https://console.aws.amazon.com/console/home?nc2=h_ct&src=header-signin>`_.
     In the console, go to ``IAM``. In the ``Users`` tab, click on your
     username. In the ``Security credential`` tab, you'll find an ``Access keys``
-    section. In this section, you can create a new access key for ``MPQP/Braket``, or use an existing one. You
+    section. In this section, you can create a new access key for ``MPQP/Braket`` (with "Local code" or
+    "Third-party service" as usecase), or use an existing one. You
     should save the secret access key because you will not be able to recover it later.
     This will give you your key and your secret, but for the configuration, you
     also need to input a region (for example ``us-east-1``). In short, when running ``setup_connections``,
