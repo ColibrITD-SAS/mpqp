@@ -141,13 +141,13 @@ def configure_account_iam() -> tuple[str, list[Any]]:
 
 def get_user_sso_credentials() -> Union[dict[str, str], None]:
 
-    print("Please enter your AWS SSO credentials (inputs are hidden):")
+    print("Please enter your AWS SSO credentials:")
 
     try:
         access_key_id = input("Enter AWS access key ID: ").strip()
         secret_access_key = getpass("Enter AWS secret access key (hidden): ").strip()
-        session_token = getpass("Enter AWS session token (hidden): ").strip()
-        region = input("Enter AWS region: ").strip()
+        session_token = getpass("Enter SSO session token (hidden): ").strip()
+        region = input("Enter SSO region: ").strip()
 
         return {
             "access_key_id": access_key_id,
@@ -196,19 +196,18 @@ def get_aws_braket_account_info() -> str:
         obfuscated secret access key.
 
     Examples:
+        >>> print(get_aws_braket_account_info())
+            Authentication method: IAM
+            Access Key ID: 'AKIA26JFZI8JFZ18FI4N'
+            Secret Access Key: 'E9oF9*********************************'
+            Region: 'us-east-1'
 
-        1. **IAM Authentication:**
-            >>> get_aws_braket_account_info()
-                access_key_id: 'AKIA26NYJD5N33FDLFFA'
-                secret_access_key: 'qoNEp***********************************'
-                region: 'us-east-1'
-
-        2. **SSO Authentication (With Session Token):**
-            >>> get_aws_braket_account_info()
-                access_key_id: 'ASIA26NYJD5NW4PMX45W'
-                secret_access_key: 'LDZYi***********************************'
-                session_token: 'IQoJb3JpZ2luX2V...deJmFtexse33g=='
-                region: 'us-east-1'
+        >>> print(get_aws_braket_account_info())
+            Authentication method: SSO
+            Access Key ID: 'ASIA26JFEZ6JEOZ9JC7K'
+            Secret Access Key: 'FiZp3***********************************'
+            SSO Session Token: 'EfGkf2kbI3nfC5V...IIZUf79jofZNF=='
+            Region: 'us-east-1'
 
     Note:
         This function assumes that the AWS credentials are already configured
@@ -228,7 +227,7 @@ def get_aws_braket_account_info() -> str:
 
         credentials = session.boto_session.get_credentials()
         if credentials is None:
-            raise AWSBraketRemoteExecutionError("Could not retrieve AWS' credentials")
+            raise AWSBraketRemoteExecutionError("Could not retrieve AWS credentials")
 
         access_key_id = credentials.access_key
         secret_access_key = credentials.secret_key
@@ -236,29 +235,33 @@ def get_aws_braket_account_info() -> str:
 
         session_token = credentials.token
         if session_token:
+            auth_method = "SSO"
             token_length = len(session_token)
             obfuscate_token = (
                 f"{session_token[:15]}...{session_token[-15:]}"
                 if token_length > 30
                 else session_token
             )
+
         else:
             obfuscate_token = ""
+            auth_method = "IAM"
 
         region_name = session.boto_session.region_name
 
     except Exception as e:
         raise AWSBraketRemoteExecutionError(
-            "Error when trying to get AWS credentials. No AWS Braket account configured.\n Trace:"
+            "Error when trying to get AWS credentials. Possibly no AWS Braket account configured.\n Trace:"
             + str(e)
         )
 
-    result = f"""    access_key_id: '{access_key_id}'
-    secret_access_key: '{obfuscate_key}'"""
+    result = f"""    Authentication method: {auth_method}  
+    Access Key ID: '{access_key_id}'
+    Secret Access Key: '{obfuscate_key}'"""
     if session_token:
-        result += f"\n    session_token: '{obfuscate_token}'"
+        result += f"\n    SSO Session Token: '{obfuscate_token}'"
 
-    result += f"\n    region: '{region_name}'"
+    result += f"\n    Region: '{region_name}'"
     return result
 
 
