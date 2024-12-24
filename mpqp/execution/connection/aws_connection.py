@@ -29,7 +29,8 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
 
     SSO (Single Sign-On):
         - The user is guided through the process of configuring SSO authentication.
-        - SSO credentials are automatically retrieved, including the session token.
+        - SSO credentials, including the session token, are retrieved and provided by the user
+            to complete the authentication process.
 
     It then collects the user's AWS access key, AWS secret key (hidden input),
     AWS session token (hidden input) in case of SSO auth and the AWS region for Amazon Braket.
@@ -79,8 +80,8 @@ def update_aws_credentials_file(
     session_token: Optional[str],
     region: str,
 ):
-    """Create or update .aws/credentials file with the provided credentials.
-    It ensures the directory and file exist before making changes.
+    """Create or update the ``~/.aws/credentials`` file with the provided credentials.
+    Ensure that the directory and file exist before making changes.
     """
 
     credentials_file = Path.home() / ".aws" / "credentials"

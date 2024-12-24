@@ -218,7 +218,7 @@ Next, log in to Azure:
     $ az login
 
 - For username and password authentication (note that this method doesn't work
-with Microsoft accounts or accounts with two-factor authentication):
+  with Microsoft accounts or accounts with two-factor authentication):
 
 .. code-block:: console
 
