@@ -167,12 +167,12 @@ def configure_account_sso() -> tuple[str, list[Any]]:
     This function guides the user through the Amazon Braket SSO configuration process.
     """
     print("Configuring SSO authentication for Amazon Braket...")
+
     sso_credentials = get_user_sso_credentials()
-
-    print("SSO authentication configured successfully.")
-
     if not sso_credentials:
         raise Exception("Failed to retrieve SSO credentials after configuration.")
+
+    print("SSO authentication configured successfully.")
 
     update_aws_credentials_file(
         profile_name="default",
