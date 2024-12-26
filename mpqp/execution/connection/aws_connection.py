@@ -94,8 +94,8 @@ def update_aws_credentials_file(
     if credentials_file.exists():
         config.read(credentials_file)
 
-    if config.has_section(profile_name):
-        config.remove_section(profile_name)
+        if config.has_section(profile_name):
+            config.remove_section(profile_name)
 
     config.add_section(profile_name)
     config[profile_name]["aws_access_key_id"] = access_key_id
