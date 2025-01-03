@@ -238,7 +238,7 @@ def get_aws_braket_account_info() -> str:
         if session_token:
             auth_method = "SSO"
             token_length = len(session_token)
-            obfuscate_token = (
+            obfuscated_token = (
                 f"{session_token[:15]}...{session_token[-15:]}"
                 if token_length > 30
                 else session_token
