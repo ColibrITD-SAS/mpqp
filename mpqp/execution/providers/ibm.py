@@ -558,7 +558,10 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     job.id = ibm_job.job_id()
 
-    return job.id, ibm_job # TODO: update this to take into account the case when we have list of Observables
+    return (
+        job.id,
+        ibm_job,
+    )  # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked
@@ -580,7 +583,9 @@ def run_remote_ibm(job: Job) -> Result:
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
-    return extract_result(ibm_result, job, job.device) # TODO: update this to take into account the case when we have list of Observables
+    return extract_result(
+        ibm_result, job, job.device
+    )  # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked

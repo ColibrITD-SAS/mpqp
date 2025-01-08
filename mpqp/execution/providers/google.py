@@ -245,6 +245,7 @@ def run_local_processor(job: Job) -> Result:
     elif job.job_type == JobType.OBSERVABLE:
         from cirq.ops.linear_combinations import PauliSum as Cirq_PauliSum
         from cirq.ops.pauli_string import PauliString as Cirq_PauliString
+
         # TODO: update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)

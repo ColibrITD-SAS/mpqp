@@ -722,13 +722,17 @@ def run_myQLM(job: Job) -> Union[Result, BatchResult]:
         raise ValueError(f"Job type {job.job_type} not handled")
 
     job.status = JobStatus.RUNNING
-    myqlm_result = qpu.submit(myqlm_job) # TODO: update this to take into account the case when we have list of Observables
+    myqlm_result = qpu.submit(
+        myqlm_job
+    )  # TODO: update this to take into account the case when we have list of Observables
 
     # retrieving the results
-    result = extract_result(myqlm_result, job, job.device) # TODO: update this to take into account the case when we have list of Observables
+    result = extract_result(
+        myqlm_result, job, job.device
+    )  # TODO: update this to take into account the case when we have list of Observables
 
     job.status = JobStatus.DONE
-    return result # TODO: update this to take into account the case when we have list of Observables
+    return result  # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked

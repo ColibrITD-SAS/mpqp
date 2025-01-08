@@ -131,10 +131,12 @@ def is_unitary(matrix: Matrix) -> bool:
         atol=1e-5,
     )
 
+
 @typechecked
 def are_observables_commuting():
     pass
     # TODO:
+
 
 @typechecked
 def closest_unitary(matrix: Matrix):

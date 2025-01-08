@@ -199,7 +199,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
-    return task.id, task # TODO: update this to take into account the case when we have list of Observables
+    return (
+        task.id,
+        task,
+    )  # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked

@@ -335,7 +335,6 @@ class PauliString:
 
         """
 
-
     @staticmethod
     def _get_dimension_cirq_pauli(
         pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation]

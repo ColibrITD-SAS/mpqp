@@ -202,7 +202,7 @@ class ExpectationMeasure(Measure):
 
     def __init__(
         self,
-        observable: OneOrMany[Observable], # TODO : handle the multi_observable case
+        observable: OneOrMany[Observable],  # TODO : handle the multi_observable case
         targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,

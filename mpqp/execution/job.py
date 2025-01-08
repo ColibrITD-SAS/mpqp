@@ -58,6 +58,7 @@ class JobType(Enum):
     Each type of job is restricted to some measures (and to some backends, but
     this is tackled by the backends themselves).
     """
+
     # TODO: maybe update this to take into account the case when we have list of Observables
     _settings_ = NoAlias
     STATE_VECTOR = {BasisMeasure, type(None)}
