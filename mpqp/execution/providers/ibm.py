@@ -123,7 +123,7 @@ def compute_expectation_value(
         }
         estimator = Estimator(options=options)
 
-    # 3M-TODO: implement the possibility to compute several expectation values at
+    # TODO: implement the possibility to compute several expectation values at
     #  the same time when the circuit is the same apparently the estimator.run()
     #  can take several circuits and observables at the same time, because
     #  putting them all together will increase the performance
@@ -525,6 +525,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     qiskit_circ = pm.run(qiskit_circ)
 
     if job.job_type == JobType.OBSERVABLE:
+        # TODO: update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=session)
@@ -557,7 +558,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     job.id = ibm_job.job_id()
 
-    return job.id, ibm_job
+    return job.id, ibm_job # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked
@@ -579,7 +580,7 @@ def run_remote_ibm(job: Job) -> Result:
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
-    return extract_result(ibm_result, job, job.device)
+    return extract_result(ibm_result, job, job.device) # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked

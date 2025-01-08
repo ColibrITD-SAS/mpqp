@@ -293,6 +293,12 @@ class PauliString:
             1.0*I + 1.0*X + -1.0*Z
 
         """
+        # TODO: provide an optimized version of the algorithm:
+        #  1. Deal with the diagonal observable case, where we know that only I/Z pauli appaering
+        #  2. Deal with the specific case of H-DEs observable where Z is in factor
+        #  3. Implement state-of-the-art Pauli decomposition algorithm (see Arnaud Gazda article?)
+        #  4. Decide if we keep the previous version of the algorithm, and let the user select which decomposition?
+
         if matrix.shape[0] != matrix.shape[1]:
             raise ValueError("Input matrix must be square.")
 
@@ -318,6 +324,17 @@ class PauliString:
                 PauliStringMonomial(0, [I for _ in range(num_qubits)])
             )
         return pauli_list
+
+    def is_commuting(self, p: PauliString):
+        """
+        TODO: Determine EFFICIENTLY if this pauli string is commuting with the one in parameter.
+        Args:
+            p:
+
+        Returns:
+
+        """
+
 
     @staticmethod
     def _get_dimension_cirq_pauli(
@@ -704,16 +721,6 @@ class PauliStringMonomial(PauliString):
     def __repr__(self):
         return str(self)
 
-    def to_matrix(self) -> Matrix:
-        return (
-            reduce(
-                np.kron,
-                map(lambda a: a.to_matrix(), self.atoms),
-                np.eye(1, dtype=np.complex64).tolist(),
-            )
-            * self.coef
-        )
-
     def __iadd__(self, other: "PauliString"):
         for mono in other.monomials:
             if (
@@ -772,9 +779,6 @@ class PauliStringMonomial(PauliString):
         res @= other
         return res
 
-    def simplify(self, inplace: bool = False):
-        return deepcopy(self)
-
     def __eq__(self, other: object) -> bool:
         if isinstance(other, PauliStringMonomial):
             for a1, a2 in zip(self.atoms, other.atoms):
@@ -786,6 +790,29 @@ class PauliStringMonomial(PauliString):
     def __hash__(self):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
+
+    def to_matrix(self) -> Matrix:
+        return (
+            reduce(
+                np.kron,
+                map(lambda a: a.to_matrix(), self.atoms),
+                np.eye(1, dtype=np.complex64).tolist(),
+            )
+            * self.coef
+        )
+
+    def simplify(self, inplace: bool = False):
+        return deepcopy(self)
+
+    def is_commuting(self, p: PauliStringMonomial):
+        """
+        TODO: Determine EFFICIENTLY if this pauli monomial is commuting with the one in parameter.
+        Args:
+            p:
+
+        Returns:
+
+        """
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None

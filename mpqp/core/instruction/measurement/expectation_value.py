@@ -1,5 +1,5 @@
 """Information about the state can be retrieved using the expectation value of
-this state measured by an observable. This is done using the :class:`Observable`
+this state measured by one or several observables. This is done using the :class:`Observable`
 class to define your observable, and a :class:`ExpectationMeasure` to perform
 the measure."""
 
@@ -29,7 +29,7 @@ from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
-from mpqp.tools.generics import Matrix
+from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import is_hermitian
 
 
@@ -173,7 +173,7 @@ class Observable:
 @typechecked
 class ExpectationMeasure(Measure):
     """This measure evaluates the expectation value of the output of the circuit
-    measured by the observable given as input.
+    measured by the observable(s) given as input.
 
     If the ``targets`` are not sorted and contiguous, some additional swaps will
     be needed. This will affect the performance of your circuit if run on noisy
@@ -200,11 +200,9 @@ class ExpectationMeasure(Measure):
 
     """
 
-    # TODO: problem here with the doc generation, the arguments are messed up
-
     def __init__(
         self,
-        observable: Observable,
+        observable: OneOrMany[Observable], # TODO : handle the multi_observable case
         targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
@@ -260,6 +258,15 @@ class ExpectationMeasure(Measure):
         self.rearranged_targets = tweaked_tgt
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
+
+    def get_smart_pauli_measurements(self) -> list[PauliString | Observable]:
+        """
+        TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
+          and return the measurements to be performed. Be sure that we don't decompose twice the observables into
+          PauliString when we will compute the expectation values in post-processing.
+        Returns:
+
+        """
 
     def __repr__(self) -> str:
         targets = (
