@@ -153,7 +153,9 @@ def is_diagonal(matrix: Matrix):
 
     i, j = matrix.shape
     if i != j:
-        raise ValueError("The input matrix is not square. Dimensions = (" + i + ", " + j + ").")
+        raise ValueError(
+            "The input matrix is not square. Dimensions = (" + i + ", " + j + ")."
+        )
     test = matrix.reshape(-1)[:-1].reshape(i - 1, j + 1)
     return ~np.any(test[:, 1:])
 
