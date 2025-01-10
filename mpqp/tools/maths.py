@@ -118,7 +118,7 @@ def is_unitary(matrix: Matrix) -> bool:
     Returns:
         ``True`` if the matrix in parameter is Unitary.
 
-    Example:
+    Examples:
         >>> is_unitary(np.array([[1,1],[1,-1]]))
         False
         >>> is_unitary(np.array([[1,1],[1,-1]])/np.sqrt(2))
@@ -130,6 +130,32 @@ def is_unitary(matrix: Matrix) -> bool:
         matrix.transpose().conjugate().dot(matrix),
         atol=1e-5,
     )
+
+
+@typechecked
+def is_diagonal(matrix: Matrix):
+    """Checks whether the square matrix in parameter is diagonal.
+
+    Args:
+        matrix: Matrix for which we want to know if it is diagonal.
+
+    Returns:
+        ``True`` if the matrix in parameter is diagonal.
+
+    Examples:
+        >>> is_diagonal(np.diag([1, 4, 2, 3]))
+        True
+        >>> is_diagonal(np.array([[1, 1], [1, -1]]))
+        False
+    """
+    # Reference: https://stackoverflow.com/questions/43884189/check-if-a-large-matrix-is-diagonal-matrix-in-python
+    # Author: Daniel F, 10th May 2017
+
+    i, j = matrix.shape
+    if i != j:
+        raise ValueError("The input matrix is not square. Dimensions = (" + i + ", " + j + ").")
+    test = matrix.reshape(-1)[:-1].reshape(i - 1, j + 1)
+    return ~np.any(test[:, 1:])
 
 
 @typechecked
