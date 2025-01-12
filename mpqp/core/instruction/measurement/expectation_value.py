@@ -11,6 +11,14 @@ from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
 import numpy as np
+from mpqp.core.instruction.gates.native_gates import SWAP
+from mpqp.core.instruction.measurement.measure import Measure
+from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.core.languages import Language
+from mpqp.tools.display import one_lined_repr
+from mpqp.tools.errors import NumberQubitsError
+from mpqp.tools.generics import Matrix, OneOrMany
+from mpqp.tools.maths import is_hermitian
 from typeguard import typechecked
 
 if TYPE_CHECKING:
@@ -23,14 +31,6 @@ if TYPE_CHECKING:
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
 
-from mpqp.core.instruction.gates.native_gates import SWAP
-from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.core.languages import Language
-from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NumberQubitsError
-from mpqp.tools.generics import Matrix, OneOrMany
-from mpqp.tools.maths import is_hermitian
 
 
 @typechecked
@@ -209,8 +209,20 @@ class ExpectationMeasure(Measure):
     ):
 
         super().__init__(targets, shots, label)
-        self.observable = observable
+        # Do some checks on the observables when they are many (same size because of targets)
+        self.observable: OneOrMany[Observable]
         """See parameter description."""
+        if isinstance(observable, Observable):
+            self.observable = [observable]
+        else:
+            if not all(
+                observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
+            ):
+                raise ValueError(
+                    "All observables in ExpectationMeasure must have the same size. Sizes: "
+                    + str([o.nb_qubits for o in observable])
+                )
+            self.observable = observable
         self._check_targets_order()
 
     def _check_targets_order(self):
@@ -221,7 +233,7 @@ class ExpectationMeasure(Measure):
             self.pre_measure = QCircuit(0)
             return
 
-        if self.nb_qubits != self.observable.nb_qubits:
+        if self.nb_qubits != self.observable[0].nb_qubits:
             raise NumberQubitsError(
                 f"Target size {self.nb_qubits} doesn't match observable size "
                 f"{self.observable.nb_qubits}."
@@ -259,7 +271,7 @@ class ExpectationMeasure(Measure):
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
 
-    def get_smart_pauli_measurements(self) -> list[PauliString | Observable]:
+    def get_smart_pauli_measurements(self) -> set[Observable]:
         """
         TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
           and return the measurements to be performed. Be sure that we don't decompose twice the observables into
@@ -267,6 +279,7 @@ class ExpectationMeasure(Measure):
         Returns:
 
         """
+        ...
 
     def __repr__(self) -> str:
         targets = (
@@ -276,6 +289,7 @@ class ExpectationMeasure(Measure):
         )
         shots = "" if self.shots == 0 else f", shots={self.shots}"
         label = "" if self.label is None else f", label={self.label}"
+        # TODO: update the repr when self.observable contains a list of observables
         return f"ExpectationMeasure({self.observable}{targets}{shots}{label})"
 
     def to_other_language(
