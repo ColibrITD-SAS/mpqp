@@ -32,7 +32,6 @@ if TYPE_CHECKING:
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
 
 
-
 @typechecked
 class Observable:
     """Class defining an observable, used for evaluating expectation values.
