@@ -8,6 +8,7 @@ from __future__ import annotations
 import copy
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
+import numpy.typing as npt
 from warnings import warn
 
 import numpy as np
@@ -18,7 +19,7 @@ from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix, OneOrMany
-from mpqp.tools.maths import is_hermitian
+from mpqp.tools.maths import is_hermitian, is_power_of_two
 from typeguard import typechecked
 
 if TYPE_CHECKING:
@@ -30,7 +31,6 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
-
 
 
 @typechecked
@@ -124,6 +124,13 @@ class Observable:
         """3M-TODO"""
         ...
 
+    def is_commuting(self, obs: Observable):
+        # Naive version, just computing AB - BA, and compare to 0 matrix.
+        # TODO : distinguer si on a l'observable ou le pauli string
+        # TODO: traitement spécifique si observable diagonal ?
+
+        return ~np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
+
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
     ) -> Observable:
@@ -168,6 +175,42 @@ class Observable:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
             raise ValueError(f"Unsupported language: {language}")
+
+
+@typechecked
+class DiagonalObservable(Observable):
+
+    def __init__(self, diagonal_elements: list[Complex] | npt.NDArray[np.complex64]):
+
+        if not is_power_of_two(len(diagonal_elements)):
+            raise ValueError("The size of the diagonal elements is not a power of two.")
+
+        super().__init__(np.diag(diagonal_elements))
+        self._diag = diagonal_elements
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({one_lined_repr(self._diag)})"
+
+    def __mult__(self, other: Expr | Complex) -> Observable:
+        """3M-TODO"""
+        ...
+
+    @property
+    def pauli_string(self) -> PauliString:
+        """The PauliString representation of the observable."""
+        if self._pauli_string is None:
+            self._pauli_string = PauliString.from_diagonal_elements(self._diag)
+        pauli_string = copy.deepcopy(self._pauli_string)
+        return pauli_string
+
+    def is_commuting(self, obs: Observable):
+
+        if isinstance(obs, DiagonalObservable):
+            return True
+
+        # TODO finish, to optimize for the diagonal case
+
+        return False
 
 
 @typechecked

@@ -161,12 +161,6 @@ def is_diagonal(matrix: Matrix):
 
 
 @typechecked
-def are_observables_commuting():
-    pass
-    # TODO:
-
-
-@typechecked
 def closest_unitary(matrix: Matrix):
     """Calculate the unitary matrix that is closest with respect to the operator
     norm distance to the general matrix in parameter.
@@ -307,7 +301,7 @@ def rand_clifford_matrix(
     """Generate a random Clifford matrix.
 
     Args:
-        size: Size (number of columns) of the square matrix to generate.
+        nb_qubits: Qubits of the clifford operator to generate.
         seed: Seed used to initialize the random number generation.
 
     Returns:
@@ -344,7 +338,6 @@ def rand_unitary_2x2_matrix(
     """Generate a random one-qubit unitary matrix.
 
     Args:
-        size: Size (number of columns) of the square matrix to generate.
         seed: Used for the random number generation. If unspecified, a new
             generator will be used. If a ``Generator`` is provided, it will be
             used to generate any random number needed. Finally if an ``int`` is

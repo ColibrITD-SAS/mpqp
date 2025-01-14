@@ -14,11 +14,11 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-
-FixedReal = Union[Real, float]
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, rtol
+
+FixedReal = Union[Real, float]
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Observable as BraketObservable
@@ -324,6 +324,11 @@ class PauliString:
                 PauliStringMonomial(0, [I for _ in range(num_qubits)])
             )
         return pauli_list
+
+    @staticmethod
+    def from_diagonal_elements(self, diagonal_elements):
+        """TODO"""
+        pass
 
     def is_commuting(self, p: PauliString):
         """
