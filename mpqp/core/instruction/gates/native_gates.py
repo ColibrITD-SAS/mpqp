@@ -698,8 +698,6 @@ class CP(RotationGate, ControlledGate):
 
         return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
-        return controlled_phase
-
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
     qiskit_string = "cp"
@@ -964,7 +962,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             def __repr__(self) -> str:
                 return (
                     f'U('
-                    f'theta={self.theta !r}, '
+                    f'theta={self.theta!r}, '
                     f'phi={self.phi!r}, '
                     f'lmda={self.lmda})'
                 )
