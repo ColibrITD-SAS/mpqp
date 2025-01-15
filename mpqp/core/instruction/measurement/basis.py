@@ -182,7 +182,7 @@ class VariableSizeBasis(Basis):
             [0, -1]
         ]
         >>> circ = QCircuit([X(0), H(1), CNOT(1, 2), Y(2)])
-        >>> circ.add(BasisMeasure([0, 1, 2], basis=custom_basis, shots=10000))
+        >>> circ.add(BasisMeasure(basis=custom_basis, shots=10000))
         >>> print(run(circ, IBMDevice.AER_SIMULATOR)) # doctest: +SKIP
         Result: None, IBMDevice, AER_SIMULATOR
          Counts: [0, 0, 0, 0, 0, 4936, 5064, 0]
@@ -221,8 +221,11 @@ class VariableSizeBasis(Basis):
         Args:
             nb_qubits: number of qubits in the basis
         """
-        Bn = reduce(np.kron, [self.basis_vectors] * nb_qubits, np.eye(1))
-        self.basis_vectors = [line for line in Bn]
+        if self.nb_qubits == nb_qubits:
+            return
+
+        basis_matrix = reduce(np.kron, [self.basis_vectors] * nb_qubits, np.eye(1))
+        self.basis_vectors = [line for line in basis_matrix]
         self.nb_qubits = nb_qubits
 
     def __repr__(self) -> str:

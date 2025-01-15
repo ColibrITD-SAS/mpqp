@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 from typeguard import typechecked
 
-from .generics import Matrix
+from .generics import Matrix, Complex
 
 
 @typechecked
@@ -143,9 +143,7 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
 
 @typechecked
 def clean_1D_array(
-    array: (
-        list[complex | float | int] | npt.NDArray[np.complex64 | np.float32 | np.int32]
-    ),
+    array: list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
     round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function

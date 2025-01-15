@@ -213,7 +213,7 @@ class QCircuit:
             return
 
         if self._user_nb_qubits is not None:
-            if any(conn >= self.nb_qubits for conn in components.connections()):
+            if any(conn >= self._user_nb_qubits for conn in components.connections()):
                 component_type = (
                     "Instruction"
                     if isinstance(components, Instruction)
@@ -362,15 +362,16 @@ class QCircuit:
         self._set_nb_qubits_dynamic(nb_qubits)
 
     def _set_nb_qubits_dynamic(self, nb_qubits: int):
-        self._nb_qubits = nb_qubits
+        if not hasattr(self, "_nb_qubits") or nb_qubits != self._nb_qubits:
+            self._nb_qubits = nb_qubits
 
-        for noise in self.noises:
-            if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
-                self._update_targets_components(noise)
+            for noise in self.noises:
+                if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
+                    self._update_targets_components(noise)
 
-        for instruction in self.instructions:
-            if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
-                self._update_targets_components(instruction)
+            for instruction in self.instructions:
+                if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
+                    self._update_targets_components(instruction)
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.
@@ -1301,11 +1302,10 @@ class QCircuit:
         if self._user_nb_qubits is not None:
             nb_qubits = f", nb_qubits={self.nb_qubits}"
 
-        if self.noises:
-            noise_repr = ", ".join(map(repr, self.noises))
-            return f'QCircuit([{instructions_repr}, {noise_repr}]{nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
-        else:
-            return f'QCircuit([{instructions_repr}]{nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
+        components = instructions_repr + (
+            "" if len(self.noises) != 0 else (", " + ", ".join(map(repr, self.noises)))
+        )
+        return f'QCircuit([{components}]{nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
 
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.

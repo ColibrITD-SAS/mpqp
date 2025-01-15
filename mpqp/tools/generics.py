@@ -63,6 +63,11 @@ Matrix = Union[npt.NDArray[np.complex64], npt.NDArray[np.object_]]
 """Type alias denoting all the matrices we consider (either matrices of complex 
 or of ``sympy`` expressions, given to ``numpy`` as objects)"""
 
+Complex = Union[complex, float, int]
+"""Type alias representing any scalar value that can be treated as a complex number.
+(either Python `complex` numbers or Real numbers (`float` or `int`).
+"""
+
 
 @typechecked
 def flatten_generator(lst: ArbitraryNestedSequence[T]) -> Iterator[T]:
