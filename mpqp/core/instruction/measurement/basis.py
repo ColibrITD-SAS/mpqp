@@ -196,18 +196,15 @@ class VariableSizeBasis(Basis):
 
     def __init__(
         self,
-        basis_vectors: Optional[list[npt.NDArray[np.complex64]]] = None,
+        basis_vectors: list[npt.NDArray[np.complex64]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
     ):
-        if basis_vectors is None:
-            basis_vectors = []
-            nb_qubits = 0 if nb_qubits is None else nb_qubits
-        else:
-            nb_qubits = (
-                int(np.log2(len(basis_vectors[0]))) if nb_qubits is None else nb_qubits
-            )
-        super().__init__(basis_vectors, nb_qubits, symbols=symbols)
+        super().__init__(basis_vectors, symbols=symbols)
+        self._init_basis = Basis(basis_vectors, symbols=symbols)
+        nb_qubits = (
+            int(np.log2(len(basis_vectors[0]))) if nb_qubits is None else nb_qubits
+        )
         self.set_size(nb_qubits)
 
     @abstractmethod
@@ -224,7 +221,23 @@ class VariableSizeBasis(Basis):
         if self.nb_qubits == nb_qubits:
             return
 
-        basis_matrix = reduce(np.kron, [self.basis_vectors] * nb_qubits, np.eye(1))
+        if nb_qubits < self._init_basis.nb_qubits:
+            raise ValueError(
+                f"Invalid number of qubits ({nb_qubits}): must be at least the "
+                f"size of the initial basis ({self._init_basis.nb_qubits})."
+            )
+        if nb_qubits % self._init_basis.nb_qubits != 0:
+            raise ValueError(
+                f"Invalid number of qubits ({nb_qubits}): must be a multiple of "
+                f"the initial basis size ({self._init_basis.nb_qubits})."
+            )
+
+        basis_matrix = reduce(
+            np.kron,
+            [self._init_basis.basis_vectors]
+            * (nb_qubits // self._init_basis.nb_qubits),
+            np.eye(1),
+        )
         self.basis_vectors = [line for line in basis_matrix]
         self.nb_qubits = nb_qubits
 
@@ -266,9 +279,11 @@ class ComputationalBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__(nb_qubits=nb_qubits)
+        super().__init__([np.array([1, 0]), np.array([0, 1])], nb_qubits=nb_qubits)
 
     def set_size(self, nb_qubits: int):
+        if self.nb_qubits == nb_qubits:
+            return
         self.basis_vectors = [
             np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex64)
             for i in range(2**nb_qubits)
@@ -312,9 +327,15 @@ class HadamardBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__(nb_qubits=nb_qubits, symbols=('+', '-'))
+        super().__init__(
+            [np.array([1, 1]) / np.sqrt(2), np.array([1, -1]) / np.sqrt(2)],
+            nb_qubits=nb_qubits,
+            symbols=('+', '-'),
+        )
 
     def set_size(self, nb_qubits: int):
+        if self.nb_qubits == nb_qubits:
+            return
         H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
