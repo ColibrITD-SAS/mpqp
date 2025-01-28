@@ -358,8 +358,9 @@ class QCircuit:
 
     @nb_qubits.setter
     def nb_qubits(self, nb_qubits: int):
-        self._user_nb_qubits = nb_qubits
-        self._set_nb_qubits_dynamic(nb_qubits)
+        if self._user_nb_qubits is None or self._user_nb_qubits != nb_qubits:
+            self._user_nb_qubits = nb_qubits
+            self._set_nb_qubits_dynamic(nb_qubits)
 
     def _set_nb_qubits_dynamic(self, nb_qubits: int):
         if not hasattr(self, "_nb_qubits") or nb_qubits != self._nb_qubits:

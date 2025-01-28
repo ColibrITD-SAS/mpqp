@@ -5,13 +5,14 @@ from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt
+from numbers import Complex
 
 if TYPE_CHECKING:
     from sympy import Expr, Basic
 
 from typeguard import typechecked
 
-from .generics import Matrix, Complex
+from .generics import Matrix
 
 
 @typechecked
