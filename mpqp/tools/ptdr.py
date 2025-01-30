@@ -86,14 +86,16 @@ def explore_node(node, tree_depth):
 
 
 num_qubits = 3
-matrix_size = 2**num_qubits 
+matrix_size = 2**num_qubits
 
 matrix_ex = np.random.rand(matrix_size, matrix_size)
 
-initial_k = [0] * num_qubits 
-initial_m = [0] * num_qubits 
+initial_k = [0] * num_qubits
+initial_m = [0] * num_qubits
 
-root = PauliNode(name="root", k=initial_k, m=initial_m, matrix=matrix_ex, depth=num_qubits)
+root = PauliNode(
+    name="root", k=initial_k, m=initial_m, matrix=matrix_ex, depth=num_qubits
+)
 
 explore_node(root, num_qubits)
 
