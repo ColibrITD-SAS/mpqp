@@ -1,70 +1,102 @@
-from copy import deepcopy
-
 import numpy as np
-from anytree import NodeMixin
+from anytree import NodeMixin, RenderTree
+
+I = np.array([[1, 0], [0, 1]])
+X = np.array([[0, 1], [1, 0]])
+Y = np.array([[0, -1j], [1j, 0]])
+Z = np.array([[1, 0], [0, -1]])
+
+pauli_matrices = [I, X, Y, Z]
 
 
 class PauliNode(NodeMixin):
-    def __init__(self, name, k: list[int], m: list[int], matrix=None, parent_node=None):
+    def __init__(self, name, k, m, matrix, depth, parent=None):
         self.name = name
-        self.k = deepcopy(k)
-        self.m = deepcopy(m)
+        self.k = k.copy()
+        self.m = m.copy()
         self.matrix = matrix
-        self.parent = parent_node
+        self.depth = depth
+        self.coefficient = None
+        self.parent = parent
 
-    def update_tree(self):
-        l = len(self.k)
-        matrix_size = self.matrix.shape[0]
+    @property
+    def depth(self):
+        return self._depth
 
-        if self.name == "I":
-            self.k = [(idx + 2**l) % matrix_size for idx in self.k]
-            self.k = [(idx - 2 ** (l + 1)) % matrix_size for idx in self.k]
-            self.m = [val + 1 for val in self.m]
-        elif self.name == "Y":
-            self.m = [-val for val in self.m]
-        elif self.name == "Z":
-            self.k = [(idx + 2 ** (l + 1)) % matrix_size for idx in self.k]
-            self.m = [val + 2 for val in self.m]
+    @depth.setter
+    def depth(self, value):
+        self._depth = value
 
-    def compute_coefficient(self) -> float:
-        if self.matrix is None:
-            raise ValueError("A matrix should be provided to compute coefficients.")
-
+    def compute_coefficients(self):
+        """Algorithm 2: compute the coefficients for this node"""
         coeff = 0
-        matrix_size = self.matrix.shape[0]
+        n = len(self.k)
 
-        for j in range(len(self.k)):
-            if self.k[j] >= matrix_size:
-                raise IndexError(
-                    f"Index {self.k[j]} is out of bounds for matrix of size {matrix_size}."
-                )
+        pauli_operator = np.eye(1)
+        for i in range(n):
 
-            phase = (-j) ** (self.m[j] % 4)
-            coeff += phase * self.matrix[self.k[j], j]
+            pauli_matrix = pauli_matrices[self.k[i]]
+            pauli_operator = np.kron(pauli_operator, pauli_matrix)
 
-        return coeff.real
+        phase = (-1j) ** (sum(self.m) % 4)  # phase for the current node
+        coeff = phase * np.trace(np.dot(self.matrix, pauli_operator))
 
-    def __repr__(self):
-        return f"{self.name} Node: k={self.k}, m={self.m}"
+        self.coefficient = coeff.real
+
+        return self.coefficient
 
 
-def build_pauli_tree(tree_depth: int, matrix: np.ndarray):
-    root_node = PauliNode(name="root", k=[0], m=[0], matrix=matrix)
+def update_tree(node):
+    """Algorithm 3: updates k and m for the node based on its type"""
+    if node.depth == 0:
+        node.compute_coefficients()
+        return
 
-    def explore_node(current_node, current_depth):
-        if current_depth == 0:
-            return
+    l = node.depth - 1
 
-        for name in ["I", "X", "Y", "Z"]:
-            child_node = PauliNode(
-                name=name,
-                k=current_node.k,
-                m=current_node.m,
-                matrix=current_node.matrix,
-                parent_node=current_node,
+    if node.name == "I":
+        node.k[l : l + 2] = [node.k[l] + 2**l] * 2
+        node.m[l : l + 2] = [node.m[l]] * 2
+
+    elif node.name == "X":
+        node.k[l : l + 2] = [node.k[l] - 2**l] * 2
+
+    elif node.name == "Y":
+        node.m[l : l + 2] = [-node.m[l]] * 2
+
+    elif node.name == "Z":
+        node.k[l : l + 2] = [node.k[l] + 2**l] * 2
+
+
+def explore_node(node, tree_depth):
+    """Algorithm 4: recursively explore tree, updating nodes"""
+    update_tree(node)
+
+    if node.depth > 0:
+        for pauli_type in ["I", "X", "Y", "Z"]:
+            child = PauliNode(
+                name=pauli_type,
+                k=node.k.copy(),
+                m=node.m.copy(),
+                matrix=node.matrix,
+                depth=node.depth - 1,
+                parent=node,
             )
-            child_node.update_tree()
-            explore_node(child_node, current_depth - 1)
+            explore_node(child, tree_depth)
 
-    explore_node(root_node, tree_depth)
-    return root_node
+
+num_qubits = 3
+matrix_size = 2**num_qubits 
+
+matrix_ex = np.random.rand(matrix_size, matrix_size)
+
+initial_k = [0] * num_qubits 
+initial_m = [0] * num_qubits 
+
+root = PauliNode(name="root", k=initial_k, m=initial_m, matrix=matrix_ex, depth=num_qubits)
+
+explore_node(root, num_qubits)
+
+print("\nPTDR:")
+for pre, _, node in RenderTree(root):
+    print(f"{pre}{node.name} (coeff: {node.coefficient})")
