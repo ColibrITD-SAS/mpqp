@@ -1,6 +1,7 @@
 import numpy as np
 from anytree import NodeMixin, RenderTree
 
+# FIXME: I would use the PauliAtoms defined in pauli_string.py
 I = np.array([[1, 0], [0, 1]])
 X = np.array([[0, 1], [1, 0]])
 Y = np.array([[0, -1j], [1j, 0]])
@@ -9,6 +10,9 @@ Z = np.array([[1, 0], [0, -1]])
 pauli_matrices = [I, X, Y, Z]
 
 
+# FIXME: I would avoid passing k and m as an argument of the constructor, especially doing a copy, since all nodes
+#  are supposed to share the same arrays k and m.
+# FIXME: I wouldn't put the coefficient as an attribute for each Node, since we only need it for the leaf.
 class PauliNode(NodeMixin):
     def __init__(self, name, k, m, matrix, depth, parent=None):
         self.name = name
@@ -27,6 +31,10 @@ class PauliNode(NodeMixin):
     def depth(self, value):
         self._depth = value
 
+    # FIXME: you compute the coefficient by computing the trace, which make the use of the whole algorithm useless.
+    #  You should use the formula and algorithm given in the article.
+    # FIXME: I would avoid putting this as a method, but rather an external function that we call on a Node, but this
+    #  can be discussed.
     def compute_coefficients(self):
         """Algorithm 2: compute the coefficients for this node"""
         coeff = 0
@@ -74,6 +82,8 @@ def explore_node(node, tree_depth):
 
     if node.depth > 0:
         for pauli_type in ["I", "X", "Y", "Z"]:
+            # FIXME: I wouldn't copy the arrays k and m, also because you already copy them in the constructor
+            #  (see comment above).
             child = PauliNode(
                 name=pauli_type,
                 k=node.k.copy(),
@@ -86,14 +96,23 @@ def explore_node(node, tree_depth):
 
 
 num_qubits = 3
-matrix_size = 2**num_qubits 
+matrix_size = 2**num_qubits
 
+# FIXME: In our case, we don't want to implement the decomposition of a general matrix in the Pauli basis
+#  (even if this is possible, but with complex coefficients). We want to focus on decomposition of observables, which
+#  are represented by Hermitian matrices. You can use the function mpqp.tools.maths.rand_hermitian_matrix().
 matrix_ex = np.random.rand(matrix_size, matrix_size)
 
-initial_k = [0] * num_qubits 
-initial_m = [0] * num_qubits 
+# FIXME: The size of k and m are not good. They should match the size of the matrix because they represent efficient
+#  way of representing elements in the spare matrix of Pauli.
+# FIXME: The arrays k and m are not initialized like it is described in the paper. They are not initialized with
+#  zero array.
+initial_k = [0] * num_qubits
+initial_m = [0] * num_qubits
 
-root = PauliNode(name="root", k=initial_k, m=initial_m, matrix=matrix_ex, depth=num_qubits)
+root = PauliNode(
+    name="root", k=initial_k, m=initial_m, matrix=matrix_ex, depth=num_qubits
+)
 
 explore_node(root, num_qubits)
 
