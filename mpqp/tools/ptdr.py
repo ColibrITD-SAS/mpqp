@@ -120,7 +120,9 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     # TODO plug the PTDR algorithm here
 
 
-def decompose_diagonal_observable_ptdr(diag_elements: list[Complex] | npt.NDArray[np.complex64]) -> PauliString:
+def decompose_diagonal_observable_ptdr(
+    diag_elements: list[Complex] | npt.NDArray[np.complex64],
+) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
 
     Args:
