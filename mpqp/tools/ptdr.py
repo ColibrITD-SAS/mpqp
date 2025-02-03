@@ -143,7 +143,7 @@ num_qubits = 1
 matrix_size = 2**num_qubits
 
 # matrix_ex = rand_hermitian_matrix(matrix_size)
-matrix_ex = np.array([[2, 3], [3, 1]]) # SHOULD GIVE 1.5*I + 3*X + 0.5*Z
+matrix_ex = np.array([[2, 3], [3, 1]])  # SHOULD GIVE 1.5*I + 3*X + 0.5*Z
 
 # FIXME: The arrays k and m are not initialized like it is described in the paper. They are not initialized with
 #  zero array.
