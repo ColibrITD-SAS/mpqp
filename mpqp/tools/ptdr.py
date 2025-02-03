@@ -1,13 +1,12 @@
-from numbers import Complex
+from numbers import Real
 
 import numpy as np
 import numpy.typing as npt
 from anytree import NodeMixin, RenderTree
-
-# FIXME: I would use the PauliAtoms defined in pauli_string.py
-from mpqp.core.instruction import Observable, PauliString
+from mpqp.core.instruction import PauliString
 from mpqp.tools import Matrix, is_hermitian
 
+# FIXME: I would use the PauliAtoms defined in pauli_string.py
 I = np.array([[1, 0], [0, 1]])
 X = np.array([[0, 1], [1, 0]])
 Y = np.array([[0, -1j], [1j, 0]])
@@ -120,7 +119,9 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     # TODO plug the PTDR algorithm here
 
 
-def decompose_diagonal_observable_ptdr(diag_elements: list[Complex] | npt.NDArray[np.complex64]) -> PauliString:
+def decompose_diagonal_observable_ptdr(
+    diag_elements: list[Real] | npt.NDArray[np.complex64],
+) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
 
     Args:
