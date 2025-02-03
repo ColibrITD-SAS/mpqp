@@ -29,7 +29,7 @@ class PauliNode(NodeMixin):
         self.name = atom.label if parent is not None else ""
         self.parent: PauliNode = parent
         self.children: list[PauliNode] = []
-        self.coef = None
+        self.coefficient = None
 
         if parent is None:
             self.nY = 0
@@ -56,7 +56,7 @@ class PauliNode(NodeMixin):
 def compute_coefficients(k, m, current_node: PauliNode, matrix):
     """Algorithm 2: compute the coefficients for this node"""
 
-    current_node.coef = sum(
+    current_node.coefficient = sum(
         matrix[k[j], j] * m[j] * (-1j) ** (current_node.nY % 4)
         for j in range(len(matrix))
     )
@@ -64,7 +64,7 @@ def compute_coefficients(k, m, current_node: PauliNode, matrix):
 
 def update_tree(current_node: PauliNode, k, m, matrix):
     """Algorithm 3: updates k and m for the node based on its type"""
-    l = current_node.depth
+    l = current_node.depth - 1
     t_l = 2**l
     t_l_1 = 2 ** (l + 1)
     if current_node.pauli is I:
@@ -84,10 +84,6 @@ def update_tree(current_node: PauliNode, k, m, matrix):
         for i in range(t_l, t_l_1):
             k[i] += t_l_1
 
-    if len(current_node.children) == 0:  # leaves
-        compute_coefficients(k, m, current_node, matrix)
-        return
-
 
 def generate_and_explore_node(k, m, current_node: PauliNode, matrix, n):
     """Algorithm 4: recursively explore tree, updating nodes"""
@@ -103,6 +99,9 @@ def generate_and_explore_node(k, m, current_node: PauliNode, matrix, n):
         generate_and_explore_node(k, m, current_node.childX, matrix, n)
         generate_and_explore_node(k, m, current_node.childY, matrix, n)
         generate_and_explore_node(k, m, current_node.childZ, matrix, n)
+
+    else:
+        compute_coefficients(k, m, current_node, matrix)
 
 
 def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
@@ -140,10 +139,11 @@ def decompose_diagonal_observable_ptdr(
     # TODO plug the PTDR algorithm adapted to diagonal case, or Youcef trick to decompose
 
 
-num_qubits = 3
+num_qubits = 1
 matrix_size = 2**num_qubits
 
-matrix_ex = rand_hermitian_matrix(matrix_size)
+# matrix_ex = rand_hermitian_matrix(matrix_size)
+matrix_ex = np.array([[2, 3], [3, 1]]) # SHOULD GIVE 1.5*I + 3*X + 0.5*Z
 
 # FIXME: The arrays k and m are not initialized like it is described in the paper. They are not initialized with
 #  zero array.
