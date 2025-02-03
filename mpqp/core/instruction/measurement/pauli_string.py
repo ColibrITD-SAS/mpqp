@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from functools import reduce
-from numbers import Real
+from numbers import Complex, Real
 from operator import matmul, mul
 from typing import TYPE_CHECKING, Any, Optional, Union
 
@@ -326,9 +326,14 @@ class PauliString:
         return pauli_list
 
     @staticmethod
-    def from_diagonal_elements(self, diagonal_elements):
+    def from_diagonal_elements(diagonal_elements: list[Complex] | npt.NDArray[np.complex64]):
         """TODO"""
         pass
+
+    def is_diagonal(self):
+
+        # TODO: determine efficiently if the pauli string is diagonal ? we should check if each pauli monomial
+        #  is only composed of I and Z
 
     def is_commuting(self, p: PauliString):
         """

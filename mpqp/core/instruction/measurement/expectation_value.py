@@ -8,10 +8,10 @@ from __future__ import annotations
 import copy
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
-import numpy.typing as npt
 from warnings import warn
 
 import numpy as np
+import numpy.typing as npt
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
@@ -19,7 +19,7 @@ from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix, OneOrMany
-from mpqp.tools.maths import is_hermitian, is_power_of_two
+from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 from typeguard import typechecked
 
 if TYPE_CHECKING:
@@ -66,36 +66,68 @@ class Observable:
 
     """
 
-    def __init__(self, observable: Matrix | PauliString):
+    def __init__(self, observable: Matrix | list[Complex] | PauliString):
         self._matrix = None
         self._pauli_string = None
+        self._is_diagonal = None
+        self._diag_elements = None
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
+            self._is_diagonal = observable.is_diagonal()
         else:
-            self.nb_qubits = int(np.log2(len(observable)))
+            size_1 = len(observable)
+
+            if not is_power_of_two(size_1):
+                raise ValueError("The size of the observable array is not a power of two.")
+
+            self.nb_qubits = int(np.log2(size_1))
             """Number of qubits of this observable."""
-            self._matrix = np.array(observable)
 
-            basis_states = 2**self.nb_qubits
-            if self.matrix.shape != (basis_states, basis_states):
-                raise ValueError(
-                    f"The size of the matrix {self.matrix.shape} doesn't neatly fit on a"
-                    " quantum register. It should be a square matrix of size a power"
-                    " of two."
-                )
+            if isinstance(observable, Matrix):
+                shape = observable.shape
 
-            if not is_hermitian(self.matrix):
-                raise ValueError(
-                    "The matrix in parameter is not hermitian (cannot define an observable)"
-                )
+                if len(shape) > 2:
+                    raise ValueError(f"The dimension of the observable matrix {len(shape)} does not correspond "
+                                     f"to the one of a  matrix (2) or a list (1).")
+
+                if len(shape) ==2:
+                    if shape != (size_1, size_1):
+                        raise ValueError(
+                            f"The size of the matrix {shape} doesn't neatly fit on a"
+                            " quantum register. It should be a square matrix of size a power"
+                            " of two."
+                        )
+
+                    if not is_hermitian(observable):
+                        raise ValueError(
+                            "The matrix in parameter is not hermitian (cannot define an observable)."
+                        )
+
+                    self._matrix = np.array(observable)
+                    self._is_diagonal = is_diagonal(self._matrix)
+
+            # correspond to if len(shape) == 1 or isinstance(observable, list)
+            else:
+                self._is_diagonal = True
+                # list of diag elements
+
+
+
+            # TODO: check if the observable is diagonal or not here by checking the types and shape
+            #  if it is not a list, use the method is_diagonal on the matrix
+
+
 
     @property
     def matrix(self) -> Matrix:
         """The matrix representation of the observable."""
         if self._matrix is None:
-            self._matrix = self.pauli_string.to_matrix()
+            if self.is_diagonal:
+                self._matrix = np.diag(self._diag_elements)
+            else:
+                self._matrix = self.pauli_string.to_matrix()
         matrix = copy.deepcopy(self._matrix).astype(np.complex64)
         return matrix
 
@@ -103,7 +135,10 @@ class Observable:
     def pauli_string(self) -> PauliString:
         """The PauliString representation of the observable."""
         if self._pauli_string is None:
-            self._pauli_string = PauliString.from_matrix(self.matrix)
+            if self.is_diagonal:
+                self._pauli_string = PauliString.from_diagonal_elements(self._diag_elements)
+            else:
+                self._pauli_string = PauliString.from_matrix(self.matrix)
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
 
@@ -111,11 +146,27 @@ class Observable:
     def matrix(self, matrix: Matrix):
         self._matrix = matrix
         self._pauli_string = None
+        self._diag_elements = None
+        self._is_diagonal = None
 
     @pauli_string.setter
     def pauli_string(self, pauli_string: PauliString):
         self._pauli_string = pauli_string
         self._matrix = None
+        self._diag_elements = None
+        self._is_diagonal = None
+
+    @property
+    def is_diagonal(self) -> bool:
+        return ...
+        # TODO : implement this
+
+    @property
+    def diagonal_elements(self) -> npt.NDArray[np.complex64]:
+        """The diagonal elements of the matrix representing the observable."""
+        if self._diag_elements is None:
+            self._diag_elements = np.diagonal(self.matrix)
+        return self._diag_elements
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
@@ -182,16 +233,19 @@ class DiagonalObservable(Observable):
 
     def __init__(self, diagonal_elements: list[Complex] | npt.NDArray[np.complex64]):
 
-        if not is_power_of_two(len(diagonal_elements)):
+
+        nb_elements = len(diagonal_elements)
+        if not is_power_of_two(nb_elements):
             raise ValueError("The size of the diagonal elements is not a power of two.")
 
-        super().__init__(np.diag(diagonal_elements))
+        self.nb_qubits = int(np.log2(nb_elements))
         self._diag = diagonal_elements
+        self.is_identity = None
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({one_lined_repr(self._diag)})"
 
-    def __mult__(self, other: Expr | Complex) -> Observable:
+    def __mult__(self, other: Expr | Complex) -> DiagonalObservable:
         """3M-TODO"""
         ...
 
@@ -203,10 +257,19 @@ class DiagonalObservable(Observable):
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
 
+    @property
+    def matrix(self) -> Matrix:
+        if self._matrix is None:
+            self._matrix = np.diag(self._diag)
+        matrix = copy.deepcopy(self._matrix).astype(np.complex64)
+        return matrix
+
     def is_commuting(self, obs: Observable):
 
         if isinstance(obs, DiagonalObservable):
             return True
+        # if this observable is the identity
+        if
 
         # TODO finish, to optimize for the diagonal case
 
