@@ -1,7 +1,13 @@
+from numbers import Complex
+
 import numpy as np
+import numpy.typing as npt
 from anytree import NodeMixin, RenderTree
 
 # FIXME: I would use the PauliAtoms defined in pauli_string.py
+from mpqp.core.instruction import Observable, PauliString
+from mpqp.tools import Matrix, is_hermitian
+
 I = np.array([[1, 0], [0, 1]])
 X = np.array([[0, 1], [1, 0]])
 Y = np.array([[0, -1j], [1j, 0]])
@@ -93,6 +99,39 @@ def explore_node(node, tree_depth):
                 parent=node,
             )
             explore_node(child, tree_depth)
+
+
+def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
+    """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
+
+    Args:
+        matrix: Hermitian matrix representing the observable to decompose
+
+    Returns:
+
+    """
+
+    if not is_hermitian(matrix):
+        raise ValueError(
+            "The matrix in parameter is not hermitian (cannot define an observable)"
+        )
+
+    ...
+    # TODO plug the PTDR algorithm here
+
+
+def decompose_diagonal_observable_ptdr(diag_elements: list[Complex] | npt.NDArray[np.complex64]) -> PauliString:
+    """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
+
+    Args:
+        matrix: Hermitian matrix representing the observable to decompose
+
+    Returns:
+
+    """
+
+    ...
+    # TODO plug the PTDR algorithm adapted to diagonal case, or Youcef trick to decompose
 
 
 num_qubits = 3
