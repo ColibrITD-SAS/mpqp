@@ -64,7 +64,7 @@ def compute_coefficients(k, m, current_node: PauliNode, matrix):
 
 def update_tree(current_node: PauliNode, k, m, matrix):
     """Algorithm 3: updates k and m for the node based on its type"""
-    l = current_node.depth-1
+    l = current_node.depth - 1
     t_l = 2**l
     t_l_1 = 2 ** (l + 1)
     if current_node.pauli is I:
@@ -86,7 +86,16 @@ def update_tree(current_node: PauliNode, k, m, matrix):
             k[i + t_l] += t_l
             k[i] -= t_l
 
-    print("Name: ", current_node.name, ", k : ", k, ", m : ", m, ", nY : ", current_node.nY)
+    print(
+        "Name: ",
+        current_node.name,
+        ", k : ",
+        k,
+        ", m : ",
+        m,
+        ", nY : ",
+        current_node.nY,
+    )
 
 
 def generate_and_explore_node(k, m, current_node: PauliNode, matrix, n):
