@@ -26,7 +26,7 @@ class PauliNode(NodeMixin):
     def __init__(self, atom: PauliStringAtom = None, parent: "PauliNode" = None):
         self.pauli = atom
         # self.monomial = atom @ parent.monomial
-        self.name = atom.label if parent is not None else ""
+        self.name = atom.label + parent.name if parent is not None else ""
         self.parent: PauliNode = parent
         self.children: list[PauliNode] = []
         self.coefficient = None
@@ -64,7 +64,7 @@ def compute_coefficients(k, m, current_node: PauliNode, matrix):
 
 def update_tree(current_node: PauliNode, k, m, matrix):
     """Algorithm 3: updates k and m for the node based on its type"""
-    l = current_node.depth - 1
+    l = current_node.depth-1
     t_l = 2**l
     t_l_1 = 2 ** (l + 1)
     if current_node.pauli is I:
@@ -73,16 +73,20 @@ def update_tree(current_node: PauliNode, k, m, matrix):
             m[i + t_l] = m[i]
 
     elif current_node.pauli is X:
-        for i in range(t_l, t_l_1):
-            k[i] -= t_l_1
+        for i in range(t_l):
+            k[i + t_l] -= t_l
+            k[i] += t_l
 
     elif current_node.pauli is Y:
         for i in range(t_l, t_l_1):
             m[i] *= -1
 
     elif current_node.pauli is Z:
-        for i in range(t_l, t_l_1):
-            k[i] += t_l_1
+        for i in range(t_l):
+            k[i + t_l] += t_l
+            k[i] -= t_l
+
+    print("Name: ", current_node.name, ", k : ", k, ", m : ", m, ", nY : ", current_node.nY)
 
 
 def generate_and_explore_node(k, m, current_node: PauliNode, matrix, n):
