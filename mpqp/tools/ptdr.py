@@ -4,20 +4,22 @@ Océane Koska, Marc Baboulin, Arnaud Gazda
 """
 
 from __future__ import annotations
+
 from numbers import Real
 
 import numpy as np
 import numpy.typing as npt
 from anytree import NodeMixin, RenderTree
-from mpqp.core.instruction import PauliString
-from mpqp.tools import Matrix, is_hermitian, rand_hermitian_matrix
+
 from mpqp.core.instruction.measurement.pauli_string import (
-    PauliStringAtom,
     I,
+    PauliString,
+    PauliStringAtom,
     X,
     Y,
     Z,
 )
+from mpqp.tools import Matrix, is_hermitian, rand_hermitian_matrix
 
 paulis = [I, X, Y, Z]
 
