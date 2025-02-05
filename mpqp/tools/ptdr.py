@@ -9,17 +9,17 @@ from numbers import Real
 
 import numpy as np
 import numpy.typing as npt
-from anytree import NodeMixin, RenderTree
+from anytree import NodeMixin
 
-from mpqp.core.instruction import Observable
+from mpqp.core.instruction.measurement.expectation_value import Observable
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
     PauliStringAtom,
+    PauliStringMonomial,
     X,
     Y,
     Z,
-    PauliStringMonomial,
 )
 from mpqp.tools import Matrix, is_hermitian, rand_hermitian_matrix
 
@@ -63,7 +63,13 @@ class PauliNode(NodeMixin):
         return PauliStringMonomial(self.coefficient, atoms)
 
 
-def compute_coefficients(k, m, current_node: PauliNode, matrix, monomial_list):
+def compute_coefficients(
+    k: list[int],
+    m: list[int],
+    current_node: PauliNode,
+    matrix: Matrix,
+    monomial_list: list[PauliStringMonomial],
+):
     """Algorithm 2: compute the coefficients for this node"""
 
     m_size = len(matrix)
@@ -79,7 +85,7 @@ def compute_coefficients(k, m, current_node: PauliNode, matrix, monomial_list):
     monomial_list.append(current_node.get_monomial())
 
 
-def update_tree(current_node: PauliNode, k, m):
+def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
     """Algorithm 3: updates k and m for the node based on its type"""
     l = current_node.depth - 1
     t_l = 2**l
@@ -104,7 +110,14 @@ def update_tree(current_node: PauliNode, k, m):
             k[i] -= t_l
 
 
-def generate_and_explore_node(k, m, current_node: PauliNode, matrix, n, monomials):
+def generate_and_explore_node(
+    k: list[int],
+    m: list[int],
+    current_node: PauliNode,
+    matrix: Matrix,
+    n: int,
+    monomials: list[PauliStringMonomial],
+):
     """Algorithm 4: recursively explore tree, updating nodes"""
     if current_node.depth > 0:
         update_tree(current_node, k, m)
