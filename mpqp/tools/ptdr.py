@@ -31,7 +31,7 @@ class PauliNode:
         self.parent: PauliNode = parent
         self.depth = parent.depth + 1 if parent is not None else 0
         self.children: list[PauliNode] = []
-        self.coefficient = None
+        self.coefficient: float = 0.0
         self.depth = depth
 
         if parent is None:
@@ -178,7 +178,7 @@ class DiagPauliNode:
         self.parent: DiagPauliNode = parent
         self.depth = self.parent.depth + 1 if self.parent is not None else 0
         self.children: list[DiagPauliNode] = []
-        self.coefficient = None
+        self.coefficient: float = 0.0
 
     @property
     def childI(self):
