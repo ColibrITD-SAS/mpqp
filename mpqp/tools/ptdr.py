@@ -4,20 +4,24 @@ Océane Koska, Marc Baboulin, Arnaud Gazda
 """
 
 from __future__ import annotations
+
 from numbers import Real
 
 import numpy as np
 import numpy.typing as npt
 from anytree import NodeMixin, RenderTree
-from mpqp.core.instruction import PauliString
-from mpqp.tools import Matrix, is_hermitian, rand_hermitian_matrix
+
+from mpqp.core.instruction import Observable
 from mpqp.core.instruction.measurement.pauli_string import (
-    PauliStringAtom,
     I,
+    PauliString,
+    PauliStringAtom,
     X,
     Y,
     Z,
+    PauliStringMonomial,
 )
+from mpqp.tools import Matrix, is_hermitian, rand_hermitian_matrix
 
 paulis = [I, X, Y, Z]
 
@@ -25,8 +29,6 @@ paulis = [I, X, Y, Z]
 class PauliNode(NodeMixin):
     def __init__(self, atom: PauliStringAtom = None, parent: "PauliNode" = None):
         self.pauli = atom
-        # self.monomial = atom @ parent.monomial
-        self.name = atom.label + parent.name if parent is not None else ""
         self.parent: PauliNode = parent
         self.children: list[PauliNode] = []
         self.coefficient = None
@@ -52,19 +54,34 @@ class PauliNode(NodeMixin):
     def childZ(self):
         return self.children[3]
 
+    def get_monomial(self):
+        atoms = []
+        node = self
+        while node.parent is not None:
+            atoms.append(node.pauli)
+            node = node.parent
+        return PauliStringMonomial(self.coefficient, atoms)
 
-def compute_coefficients(k, m, current_node: PauliNode, matrix):
+
+def compute_coefficients(k, m, current_node: PauliNode, matrix, monomial_list):
     """Algorithm 2: compute the coefficients for this node"""
 
-    current_node.coefficient = sum(
-        matrix[k[j], j] * m[j] * (-1j) ** (current_node.nY % 4)
-        for j in range(len(matrix))
+    m_size = len(matrix)
+
+    current_node.coefficient = (
+        sum(
+            matrix[k[j], j] * m[j] * (-1j) ** (current_node.nY % 4)
+            for j in range(len(matrix))
+        )
+        / m_size  # This factor was forgotten in the article
     )
 
+    monomial_list.append(current_node.get_monomial())
 
-def update_tree(current_node: PauliNode, k, m, matrix):
+
+def update_tree(current_node: PauliNode, k, m):
     """Algorithm 3: updates k and m for the node based on its type"""
-    l = current_node.depth-1
+    l = current_node.depth - 1
     t_l = 2**l
     t_l_1 = 2 ** (l + 1)
     if current_node.pauli is I:
@@ -86,26 +103,24 @@ def update_tree(current_node: PauliNode, k, m, matrix):
             k[i + t_l] += t_l
             k[i] -= t_l
 
-    print("Name: ", current_node.name, ", k : ", k, ", m : ", m, ", nY : ", current_node.nY)
 
-
-def generate_and_explore_node(k, m, current_node: PauliNode, matrix, n):
+def generate_and_explore_node(k, m, current_node: PauliNode, matrix, n, monomials):
     """Algorithm 4: recursively explore tree, updating nodes"""
     if current_node.depth > 0:
-        update_tree(current_node, k, m, matrix)
+        update_tree(current_node, k, m)
 
     if current_node.depth < n:
 
         children = [PauliNode(atom=a, parent=current_node) for a in paulis]
         current_node.children = children
 
-        generate_and_explore_node(k, m, current_node.childI, matrix, n)
-        generate_and_explore_node(k, m, current_node.childX, matrix, n)
-        generate_and_explore_node(k, m, current_node.childY, matrix, n)
-        generate_and_explore_node(k, m, current_node.childZ, matrix, n)
+        generate_and_explore_node(k, m, current_node.childI, matrix, n, monomials)
+        generate_and_explore_node(k, m, current_node.childX, matrix, n, monomials)
+        generate_and_explore_node(k, m, current_node.childY, matrix, n, monomials)
+        generate_and_explore_node(k, m, current_node.childZ, matrix, n, monomials)
 
     else:
-        compute_coefficients(k, m, current_node, matrix)
+        compute_coefficients(k, m, current_node, matrix, monomials)
 
 
 def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
@@ -120,11 +135,20 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
 
     if not is_hermitian(matrix):
         raise ValueError(
-            "The matrix in parameter is not hermitian (cannot define an observable)"
+            "The matrix in parameter is not hermitian (cannot define an observable)."
         )
 
-    ...
-    # TODO plug the PTDR algorithm here
+    monomials = []
+    size = len(matrix)
+    # TODO add all the necessary checks on the size
+    nb_qubits = int(np.log2(size))
+    root = PauliNode()
+    i_k = [0] * size
+    i_m = [0] * size
+    i_m[0] = 1
+    generate_and_explore_node(i_k, i_m, root, matrix, nb_qubits, monomials)
+
+    return PauliString(monomials)
 
 
 def decompose_diagonal_observable_ptdr(
@@ -143,23 +167,27 @@ def decompose_diagonal_observable_ptdr(
     # TODO plug the PTDR algorithm adapted to diagonal case, or Youcef trick to decompose
 
 
-num_qubits = 1
-matrix_size = 2**num_qubits
+matrix_ex = rand_hermitian_matrix(2**7)
+# matrix_ex = np.array([[2, 3], [3, 1]]) # SHOULD GIVE 1.5*I + 3*X + 0.5*Z
+# matrix_ex = np.array(
+#     [[-1, 1 - 1j], [1 + 1j, 0]]
+# )  # SHOULDtrix_ex = np.array(
+#     [[-1, 1 - 1j], [1 + 1j, 0]]
+# )  # SHOULD GIVE -0.5 * I + X - Y - 0.5 * Z
+# matrix_ex = np.diag([-2, 4, 5, 3])  # 2.5*II - IZ - 1.5*ZI + 2*ZZ
 
-# matrix_ex = rand_hermitian_matrix(matrix_size)
-matrix_ex = np.array([[2, 3], [3, 1]])  # SHOULD GIVE 1.5*I + 3*X + 0.5*Z
 
-# FIXME: The arrays k and m are not initialized like it is described in the paper. They are not initialized with
-#  zero array.
-initial_k = [0] * matrix_size
-initial_m = [0] * matrix_size
+# initial_k = [0] * matrix_size
+# initial_m = [0] * matrix_size
+#
+# initial_m[0] = 1
+#
+# root = PauliNode()
+#
+# generate_and_explore_node(initial_k, initial_m, root, matrix_ex, num_qubits)
+#
+# print("\nPTDR:")
 
-initial_m[0] = 1
-
-root = PauliNode()
-
-generate_and_explore_node(initial_k, initial_m, root, matrix_ex, num_qubits)
-
-print("\nPTDR:")
-for pre, _, node in RenderTree(root):
-    print(f"{pre}{node.name} (coeff: {node.coefficient})")
+print(decompose_hermitian_matrix_ptdr(matrix_ex))
+print()
+print(Observable(matrix_ex).pauli_string)
