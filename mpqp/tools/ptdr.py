@@ -26,13 +26,12 @@ paulis = [I, X, Y, Z]
 
 
 class PauliNode:
-    def __init__(self, depth, atom: PauliStringAtom = None, parent: "PauliNode" = None):
+    def __init__(self, atom: PauliStringAtom = None, parent: "PauliNode" = None):
         self.pauli = atom
         self.parent: PauliNode = parent
         self.depth = parent.depth + 1 if parent is not None else 0
         self.children: list[PauliNode] = []
         self.coefficient: float = 0.0
-        self.depth = depth
 
         if parent is None:
             self.nY = 0
@@ -126,10 +125,7 @@ def generate_and_explore_node(
     if current_node.depth < n:
 
         current_node.children.extend(
-            [
-                PauliNode(atom=a, parent=current_node, depth=current_node.depth + 1)
-                for a in paulis
-            ]
+            [PauliNode(atom=a, parent=current_node) for a in paulis]
         )
 
         generate_and_explore_node(k, m, current_node.childI, matrix, n, monomials)
@@ -160,7 +156,7 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     size = len(matrix)
     # TODO add all the necessary checks on the size
     nb_qubits = int(np.log2(size))
-    root = PauliNode(depth=0)
+    root = PauliNode()
     i_k = [0] * size
     i_m = [0] * size
     i_m[0] = 1
