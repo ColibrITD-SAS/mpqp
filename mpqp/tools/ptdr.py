@@ -25,10 +25,11 @@ from mpqp.tools import Matrix, is_hermitian, is_power_of_two, rand_hermitian_mat
 paulis = [I, X, Y, Z]
 
 
-class PauliNode(NodeMixin):
+class PauliNode:
     def __init__(self, atom: PauliStringAtom = None, parent: "PauliNode" = None):
         self.pauli = atom
         self.parent: PauliNode = parent
+        self.depth = parent.depth + 1 if parent is not None else 0
         self.children: list[PauliNode] = []
         self.coefficient = None
 
@@ -123,8 +124,9 @@ def generate_and_explore_node(
 
     if current_node.depth < n:
 
-        children = [PauliNode(atom=a, parent=current_node) for a in paulis]
-        current_node.children = children
+        current_node.children.extend(
+            [PauliNode(atom=a, parent=current_node) for a in paulis]
+        )
 
         generate_and_explore_node(k, m, current_node.childI, matrix, n, monomials)
         generate_and_explore_node(k, m, current_node.childX, matrix, n, monomials)
@@ -166,10 +168,11 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
 ############################### DIAGONAL CASE ##########################################
 
 
-class DiagPauliNode(NodeMixin):
+class DiagPauliNode:
     def __init__(self, atom: PauliStringAtom = None, parent: "DiagPauliNode" = None):
         self.pauli = atom
         self.parent: DiagPauliNode = parent
+        self.depth = self.parent.depth + 1 if self.parent is not None else 0
         self.children: list[DiagPauliNode] = []
         self.coefficient = None
 
@@ -233,11 +236,8 @@ def generate_and_explore_node_diagonal_case(
 
     if current_node.depth < n:
 
-        children = [
-            DiagPauliNode(atom=I, parent=current_node),
-            DiagPauliNode(atom=Z, parent=current_node),
-        ]
-        current_node.children = children
+        current_node.children.append(DiagPauliNode(atom=I, parent=current_node))
+        current_node.children.append(DiagPauliNode(atom=Z, parent=current_node))
 
         generate_and_explore_node_diagonal_case(
             m, current_node.childI, diag_elements, n, monomials
