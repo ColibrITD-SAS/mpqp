@@ -30,12 +30,12 @@ from mpqp.execution import (
 from mpqp.execution.result import BatchResult, Result
 from mpqp.gates import *
 from mpqp.measures import (
-    Basis,
     BasisMeasure,
     ComputationalBasis,
     ExpectationMeasure,
     HadamardBasis,
     Observable,
+    VariableSizeBasis,
 )
 from mpqp.noise.noise_model import NOISE_MODELS, Depolarizing, PhaseDamping
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
@@ -453,7 +453,9 @@ def measures():
     return [
         BasisMeasure([0, 1]),
         BasisMeasure(
-            [0, 1], shots=1024, basis=Basis([np.array([1, 0]), np.array([0, -1])])
+            [0, 1],
+            shots=1024,
+            basis=VariableSizeBasis([np.array([1, 0]), np.array([0, -1])]),
         ),
         BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(3)),
         BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
