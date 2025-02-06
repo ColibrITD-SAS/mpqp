@@ -70,7 +70,9 @@ def test_pauli_to_matrix(matrix: Matrix, ps: PauliString):
 @pytest.mark.parametrize("matrix, ps", list_matrix_pauli_string())
 def test_matrix_to_pauli_to_matrix(matrix: Matrix, ps: PauliString):
     assert matrix_eq(PauliString.from_matrix(matrix, method="ptdr").to_matrix(), matrix)
-    assert matrix_eq(PauliString.from_matrix(matrix, method="trace").to_matrix(), matrix)
+    assert matrix_eq(
+        PauliString.from_matrix(matrix, method="trace").to_matrix(), matrix
+    )
 
 
 @pytest.mark.parametrize("matrix, ps", list_matrix_pauli_string())

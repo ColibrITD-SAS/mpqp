@@ -126,10 +126,7 @@ def generate_and_explore_node(
     if current_node.depth < n:
 
         current_node.children.extend(
-            [
-                PauliNode(atom=a, parent=current_node)
-                for a in paulis
-            ]
+            [PauliNode(atom=a, parent=current_node) for a in paulis]
         )
 
         generate_and_explore_node(k, m, current_node.childI, matrix, n, monomials)
