@@ -236,10 +236,10 @@ class PauliString:
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, mono.atoms))
-            if len(res.monomials) == 0:
-                res.monomials.append(
-                    PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-                )
+            # if len(res.monomials) == 0:
+            #     res.monomials.append(
+            #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+            #     )
         return res
 
     def sort_monomials(self) -> PauliString:
