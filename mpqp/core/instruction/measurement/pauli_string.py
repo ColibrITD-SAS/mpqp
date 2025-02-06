@@ -14,11 +14,11 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-
-FixedReal = Union[Real, float]
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix
-from mpqp.tools.maths import atol, rtol
+from mpqp.tools.maths import atol, is_power_of_two, rtol
+
+FixedReal = Union[Real, float]
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Observable as BraketObservable
@@ -93,9 +93,14 @@ class PauliString:
         return 0 if len(self._monomials) == 0 else self._monomials[0].nb_qubits
 
     def __str__(self):
+        if len(self._monomials) == 0:
+            return 0
+        # TODO: put '-' when coef is negative, instead of ' + -1'
         return " + ".join(map(str, self.round().simplify().sort_monomials()._monomials))
 
     def __repr__(self):
+        if len(self._monomials) == 0:
+            return "PauliString()"
         return " + ".join(map(str, self._monomials))
 
     def __pos__(self) -> "PauliString":
@@ -198,10 +203,10 @@ class PauliString:
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
-        if len(res.monomials) == 0:
-            res.monomials.append(
-                PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-            )
+        # if len(res.monomials) == 0:
+        #     res.monomials.append(
+        #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+        #     )
         if inplace:
             self._monomials = res.monomials
         return res
@@ -275,11 +280,14 @@ class PauliString:
         )
 
     @staticmethod
-    def from_matrix(matrix: Matrix) -> PauliString:
+    def from_matrix(matrix: Matrix, method: str = "ptdr") -> PauliString:
         """Constructs a PauliString from a matrix.
 
         Args:
             matrix: Matrix from which the PauliString is generated.
+            method: String indicating which Pauli decomposition method is used. "ptdr" refers to the tree-based
+                decomposition algorithm, and "trace" to the once computing the trace of the observable with each
+                possible monomial.
 
         Returns:
             Pauli string decomposition of the matrix in parameter.
@@ -293,31 +301,42 @@ class PauliString:
             1.0*I + 1.0*X + -1.0*Z
 
         """
-        if matrix.shape[0] != matrix.shape[1]:
-            raise ValueError("Input matrix must be square.")
 
-        num_qubits = int(np.log2(matrix.shape[0]))
-        if 2**num_qubits != matrix.shape[0]:
-            raise ValueError("Matrix dimensions must be a power of 2.")
+        if method == "ptdr":
+            from mpqp.tools.ptdr import decompose_hermitian_matrix_ptdr
 
-        # Return the ordered Pauli basis for the n-qubit Pauli basis.
-        pauli_1q = [PauliStringMonomial(1, [atom]) for atom in [I, X, Y, Z]]
-        basis = pauli_1q
-        for _ in range(num_qubits - 1):
-            basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
+            return decompose_hermitian_matrix_ptdr(matrix)
 
-        pauli_list = PauliString()
-        for i, mat in enumerate(basis):
-            coeff = (np.trace(mat.to_matrix().dot(matrix)) / (2**num_qubits)).real
-            if not np.isclose(coeff, 0, atol=atol, rtol=rtol):
-                mono = basis[i] * coeff
-                pauli_list += mono
+        elif method == "trace":
+            if matrix.shape[0] != matrix.shape[1]:
+                raise ValueError("Input matrix must be square.")
 
-        if len(pauli_list.monomials) == 0:
-            pauli_list.monomials.append(
-                PauliStringMonomial(0, [I for _ in range(num_qubits)])
+            if not is_power_of_two(matrix.shape[0]):
+                raise ValueError("Matrix dimensions must be a power of 2.")
+            num_qubits = int(np.log2(matrix.shape[0]))
+
+            # Return the ordered Pauli basis for the n-qubit Pauli basis.
+            pauli_1q = [PauliStringMonomial(1, [atom]) for atom in [I, X, Y, Z]]
+            basis = pauli_1q
+            for _ in range(num_qubits - 1):
+                basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
+
+            pauli_list = PauliString()
+            for i, mat in enumerate(basis):
+                coeff = (np.trace(mat.to_matrix().dot(matrix)) / (2**num_qubits)).real
+                if not np.isclose(coeff, 0, atol=atol, rtol=rtol):
+                    mono = basis[i] * coeff
+                    pauli_list += mono
+
+            if len(pauli_list.monomials) == 0:
+                pauli_list.monomials.append(
+                    PauliStringMonomial(0, [I for _ in range(num_qubits)])
+                )
+            return pauli_list
+        else:
+            raise ValueError(
+                f"Unexpected observable matrix decomposition method name {method}."
             )
-        return pauli_list
 
     @staticmethod
     def _get_dimension_cirq_pauli(

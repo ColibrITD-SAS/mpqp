@@ -10,7 +10,6 @@ from numbers import Real
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.core.instruction.measurement.expectation_value import Observable
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -20,19 +19,18 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Y,
     Z,
 )
-from mpqp.tools import Matrix, is_hermitian, is_power_of_two, rand_hermitian_matrix
+from mpqp.tools import Matrix, is_hermitian, is_power_of_two
 
 paulis = [I, X, Y, Z]
 
 
 class PauliNode:
-    def __init__(self, depth, atom: PauliStringAtom = None, parent: "PauliNode" = None):
+    def __init__(self, atom: PauliStringAtom = None, parent: "PauliNode" = None):
         self.pauli = atom
         self.parent: PauliNode = parent
         self.depth = parent.depth + 1 if parent is not None else 0
         self.children: list[PauliNode] = []
         self.coefficient: float = 0.0
-        self.depth = depth
 
         if parent is None:
             self.nY = 0
@@ -56,6 +54,7 @@ class PauliNode:
         return self.children[3]
 
     def get_monomial(self):
+        """TODO"""
         atoms = []
         node = self
         while node.parent is not None:
@@ -79,11 +78,12 @@ def compute_coefficients(
         sum(
             matrix[k[j], j] * m[j] * (-1j) ** (current_node.nY % 4)
             for j in range(m_size)
-        )
+        ).real
         / m_size  # This factor was forgotten in the article
     )
 
-    monomial_list.append(current_node.get_monomial())
+    if current_node.coefficient != 0.0:
+        monomial_list.append(current_node.get_monomial())
 
 
 def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
@@ -127,7 +127,7 @@ def generate_and_explore_node(
 
         current_node.children.extend(
             [
-                PauliNode(atom=a, parent=current_node, depth=current_node.depth + 1)
+                PauliNode(atom=a, parent=current_node)
                 for a in paulis
             ]
         )
@@ -160,7 +160,7 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     size = len(matrix)
     # TODO add all the necessary checks on the size
     nb_qubits = int(np.log2(size))
-    root = PauliNode(depth=0)
+    root = PauliNode()
     i_k = [0] * size
     i_m = [0] * size
     i_m[0] = 1
@@ -280,12 +280,3 @@ def decompose_diagonal_observable_ptdr(
     generate_and_explore_node_diagonal_case(i_m, root, diags, nb_qubits, monomials)
 
     return PauliString(monomials)
-
-
-diag = [-2, 4, 5, 3]
-matrix_ex = np.diag(diag)
-print(decompose_diagonal_observable_ptdr(diag))
-print()
-print(decompose_hermitian_matrix_ptdr(matrix_ex))
-print()
-print(Observable(matrix_ex).pauli_string)
