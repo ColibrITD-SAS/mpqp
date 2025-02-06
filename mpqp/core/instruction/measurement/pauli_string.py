@@ -339,6 +339,13 @@ class PauliString:
             )
 
     @staticmethod
+    def from_diagonal_elements(diagonal_elements: list[Real] | npt.NDArray[np.float64]):
+        """TODO comment"""
+        from mpqp.tools.ptdr import decompose_diagonal_observable_ptdr
+
+        return decompose_diagonal_observable_ptdr(diagonal_elements)
+
+    @staticmethod
     def _get_dimension_cirq_pauli(
         pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation],
     ):
