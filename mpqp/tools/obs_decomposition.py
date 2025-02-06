@@ -1,11 +1,13 @@
 """Functions used for the decomposition of observables in the Pauli basis.
 """
+
 from __future__ import annotations
 
 from numbers import Real
 
 import numpy as np
 import numpy.typing as npt
+from numba import njit, prange
 
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
@@ -87,7 +89,6 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
     """Algorithm 3: updates k and m for the node based on its type"""
     l = current_node.depth - 1
     t_l = 2**l
-    t_l_1 = 2 ** (l + 1)
     if current_node.pauli is I:
         for i in range(t_l):
             k[i + t_l] = k[i] + t_l
@@ -99,7 +100,7 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
             k[i] += t_l
 
     elif current_node.pauli is Y:
-        for i in range(t_l, t_l_1):
+        for i in range(t_l, 2 * t_l):
             m[i] *= -1
 
     elif current_node.pauli is Z:
@@ -167,7 +168,7 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     return PauliString(monomials)
 
 
-############################### DIAGONAL CASE ##########################################
+############################### DIAGONAL CASE PTDR ##########################################
 
 
 class DiagPauliNode:
@@ -278,3 +279,54 @@ def decompose_diagonal_observable_ptdr(
     generate_and_explore_node_diagonal_case(i_m, root, diags, nb_qubits, monomials)
 
     return PauliString(monomials)
+
+
+############################### WALSH HADAMARD IDEA ##########################################
+
+
+@njit(parallel=True)
+def numba_hadamard(n):
+    if n < 1:
+        lg2 = 0
+    else:
+        lg2 = int(np.log2(n))
+    if 2**lg2 != n:
+        raise ValueError("n must be a power of 2")
+    H = np.array([[1]], dtype=np.int8)
+    for _ in range(lg2):
+        size = H.shape[0]
+        new_H = np.empty((2 * size, 2 * size), dtype=np.int8)
+        for i in prange(size):
+            for j in range(size):
+                new_H[i, j] = H[i, j]
+                new_H[i + size, j] = H[i, j]
+                new_H[i, j + size] = H[i, j]
+                new_H[i + size, j + size] = -H[i, j]
+        H = new_H
+    return H
+
+
+@njit(parallel=True)
+def compute_coefficients(H_loaded, diagonal_elements):
+    row_sums = np.zeros(H_loaded.shape[0])
+
+    for i in prange(H_loaded.shape[0]):
+        row_sum = 0
+        for j in range(H_loaded.shape[1]):
+            row_sum += H_loaded[i, j] * diagonal_elements[j]
+        row_sums[i] = row_sum
+
+    return row_sums
+
+
+def decompose_diagonal_observable_walsh_hadamard(
+    diag_elements: list[Real] | npt.NDArray[np.float64],
+) -> PauliString:
+    """
+
+    Args:
+        diag_elements:
+
+    Returns:
+
+    """
