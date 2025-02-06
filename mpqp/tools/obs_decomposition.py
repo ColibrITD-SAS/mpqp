@@ -1,5 +1,5 @@
-"""Functions used for the decomposition of observables in the Pauli basis.
-"""
+"""Functions used for the decomposition of observables in the Pauli basis."""
+
 from __future__ import annotations
 
 from numbers import Real
