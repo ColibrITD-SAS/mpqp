@@ -303,7 +303,7 @@ class PauliString:
         """
 
         if method == "ptdr":
-            from mpqp.tools.ptdr import decompose_hermitian_matrix_ptdr
+            from mpqp.tools.obs_decomposition import decompose_hermitian_matrix_ptdr
 
             return decompose_hermitian_matrix_ptdr(matrix)
 
@@ -341,7 +341,7 @@ class PauliString:
     @staticmethod
     def from_diagonal_elements(diagonal_elements: list[Real] | npt.NDArray[np.float64]):
         """TODO comment"""
-        from mpqp.tools.ptdr import decompose_diagonal_observable_ptdr
+        from mpqp.tools.obs_decomposition import decompose_diagonal_observable_ptdr
 
         return decompose_diagonal_observable_ptdr(diagonal_elements)
 

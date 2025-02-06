@@ -1,8 +1,5 @@
+"""Functions used for the decomposition of observables in the Pauli basis.
 """
-A tree-approach Pauli decomposition algorithm with application to quantum computing
-Océane Koska, Marc Baboulin, Arnaud Gazda
-"""
-
 from __future__ import annotations
 
 from numbers import Real
@@ -140,6 +137,10 @@ def generate_and_explore_node(
 
 def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
+
+    TODO : put reference
+    A tree-approach Pauli decomposition algorithm with application to quantum computing
+    Océane Koska, Marc Baboulin, Arnaud Gazda
 
     Args:
         matrix: Hermitian matrix representing the observable to decompose
