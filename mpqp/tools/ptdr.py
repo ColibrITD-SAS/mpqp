@@ -5,8 +5,6 @@ Océane Koska, Marc Baboulin, Arnaud Gazda
 
 from __future__ import annotations
 
-from numbers import Real
-
 import numpy as np
 import numpy.typing as npt
 
@@ -20,7 +18,7 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Y,
     Z,
 )
-from mpqp.tools import Matrix, is_hermitian, is_power_of_two, rand_hermitian_matrix
+from mpqp.tools import Matrix, is_hermitian, is_power_of_two
 
 paulis = [I, X, Y, Z]
 
@@ -36,7 +34,7 @@ class PauliNode:
         if parent is None:
             self.nY = 0
         else:
-            self.nY = parent.nY + 1 if atom is Y else parent.nY
+            self.nY = parent.nY + 1 if atom == Y else parent.nY
 
     @property
     def childI(self):
@@ -71,7 +69,6 @@ def compute_coefficients(
     monomial_list: list[PauliStringMonomial],
 ):
     """Algorithm 2: compute the coefficients for this node"""
-
     m_size = len(matrix)
 
     current_node.coefficient = (
@@ -90,21 +87,22 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
     l = current_node.depth - 1
     t_l = 2**l
     t_l_1 = 2 ** (l + 1)
-    if current_node.pauli is I:
+
+    if current_node.pauli == I:
         for i in range(t_l):
             k[i + t_l] = k[i] + t_l
             m[i + t_l] = m[i]
 
-    elif current_node.pauli is X:
+    elif current_node.pauli == X:
         for i in range(t_l):
             k[i + t_l] -= t_l
             k[i] += t_l
 
-    elif current_node.pauli is Y:
+    elif current_node.pauli == Y:
         for i in range(t_l, t_l_1):
             m[i] *= -1
 
-    elif current_node.pauli is Z:
+    elif current_node.pauli == Z:
         for i in range(t_l):
             k[i + t_l] += t_l
             k[i] -= t_l
@@ -128,10 +126,8 @@ def generate_and_explore_node(
             [PauliNode(atom=a, parent=current_node) for a in paulis]
         )
 
-        generate_and_explore_node(k, m, current_node.childI, matrix, n, monomials)
-        generate_and_explore_node(k, m, current_node.childX, matrix, n, monomials)
-        generate_and_explore_node(k, m, current_node.childY, matrix, n, monomials)
-        generate_and_explore_node(k, m, current_node.childZ, matrix, n, monomials)
+        for child in current_node.children:
+            generate_and_explore_node(k, m, child, matrix, n, monomials)
 
     else:
         compute_coefficients(k, m, current_node, matrix, monomials)
@@ -160,6 +156,7 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     i_k = [0] * size
     i_m = [0] * size
     i_m[0] = 1
+
     generate_and_explore_node(i_k, i_m, root, matrix, nb_qubits, monomials)
 
     return PauliString(monomials)
@@ -251,7 +248,7 @@ def generate_and_explore_node_diagonal_case(
 
 
 def decompose_diagonal_observable_ptdr(
-    diag_elements: list[Real] | npt.NDArray[np.float64],
+    diag_elements: list[int] | npt.NDArray[np.float64],
 ) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
 
