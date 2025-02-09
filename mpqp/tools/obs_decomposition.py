@@ -283,7 +283,7 @@ def decompose_diagonal_observable_ptdr(
 ############################### WALSH HADAMARD IDEA ##########################################
 
 
-#@njit(parallel=True)
+# @njit(parallel=True)
 def numba_hadamard(n):
     if n < 1:
         lg2 = 0
