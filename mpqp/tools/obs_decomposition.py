@@ -74,7 +74,7 @@ def compute_coefficients(
 
     current_node.coefficient = (
         sum(
-            matrix[k[j], j] * m[j] * (-1j) ** (current_node.nY % 4)
+            matrix[j, k[j]] * m[j] * (-1j) ** (current_node.nY % 4)
             for j in range(m_size)
         ).real
         / m_size  # This factor was forgotten in the article
@@ -283,7 +283,7 @@ def decompose_diagonal_observable_ptdr(
 ############################### WALSH HADAMARD IDEA ##########################################
 
 
-@njit(parallel=True)
+#@njit(parallel=True)
 def numba_hadamard(n):
     if n < 1:
         lg2 = 0
@@ -305,8 +305,8 @@ def numba_hadamard(n):
     return H
 
 
-@njit(parallel=True)
-def compute_coefficients(H_loaded, diagonal_elements):
+##@njit(parallel=True)
+def compute_coefficients_walsh(H_loaded, diagonal_elements):
     row_sums = np.zeros(H_loaded.shape[0])
 
     for i in prange(H_loaded.shape[0]):
