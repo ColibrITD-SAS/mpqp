@@ -101,6 +101,7 @@ class PauliString:
     def __repr__(self):
         if len(self._monomials) == 0:
             return "PauliString()"
+        # TODO: put '-' when coef is negative, instead of ' + -1'
         return " + ".join(map(str, self._monomials))
 
     def __pos__(self) -> "PauliString":
@@ -169,7 +170,14 @@ class PauliString:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, PauliString):
             return False
-        return self.to_dict() == other.to_dict()
+
+        self_dict = self.to_dict()
+        other_dict = other.to_dict()
+
+        if all(m == 0.0 for m in self_dict.values()):
+            return all(m == 0.0 for m in other_dict.values())
+
+        return self_dict == other_dict
 
     def simplify(self, inplace: bool = False) -> PauliString:
         """Simplifies the Pauli string by combining identical terms and removing
@@ -203,10 +211,10 @@ class PauliString:
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
-        # if len(res.monomials) == 0:
-        #     res.monomials.append(
-        #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-        #     )
+        if len(res.monomials) == 0:
+            res.monomials.append(
+                PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+            )
         if inplace:
             self._monomials = res.monomials
         return res
@@ -236,10 +244,10 @@ class PauliString:
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, mono.atoms))
-            # if len(res.monomials) == 0:
-            #     res.monomials.append(
-            #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-            #     )
+            if len(res.monomials) == 0:
+                res.monomials.append(
+                    PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+                )
         return res
 
     def sort_monomials(self) -> PauliString:
@@ -286,7 +294,7 @@ class PauliString:
         Args:
             matrix: Matrix from which the PauliString is generated.
             method: String indicating which Pauli decomposition method is used. "ptdr" refers to the tree-based
-                decomposition algorithm, and "trace" to the once computing the trace of the observable with each
+                decomposition algorithm, and "trace" to the one computing the trace of the observable with each
                 possible monomial.
 
         Returns:
@@ -339,11 +347,18 @@ class PauliString:
             )
 
     @staticmethod
-    def from_diagonal_elements(diagonal_elements: list[Real] | npt.NDArray[np.float64]):
-        """TODO comment"""
-        from mpqp.tools.obs_decomposition import decompose_diagonal_observable_ptdr
+    def from_diagonal_elements(diagonal_elements: list[Real] | npt.NDArray[np.float64], method: str = "walsh"):
+        """TODO comment, to test"""
 
-        return decompose_diagonal_observable_ptdr(diagonal_elements)
+        if method == "walsh":
+            from mpqp.tools.obs_decomposition import decompose_diagonal_observable_walsh_hadamard
+
+            return decompose_diagonal_observable_walsh_hadamard(diagonal_elements)
+
+        elif method == "ptdr":
+            from mpqp.tools.obs_decomposition import decompose_diagonal_observable_ptdr
+
+            return decompose_diagonal_observable_ptdr(diagonal_elements)
 
     @staticmethod
     def _get_dimension_cirq_pauli(

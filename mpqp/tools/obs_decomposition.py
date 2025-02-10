@@ -6,8 +6,6 @@ from numbers import Real
 
 import numpy as np
 import numpy.typing as npt
-from numba import njit, prange
-
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -18,12 +16,20 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Z,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
+from numba import njit, prange
+from typeguard import typechecked
+from typing import Optional
 
 paulis = [I, X, Y, Z]
 
 
+@typechecked
 class PauliNode:
-    def __init__(self, atom: PauliStringAtom = None, parent: "PauliNode" = None):
+    def __init__(
+        self,
+        atom: Optional[PauliStringAtom] = None,
+        parent: Optional["PauliNode"] = None,
+    ):
         self.pauli = atom
         self.parent: PauliNode = parent
         self.depth = parent.depth + 1 if parent is not None else 0
@@ -61,6 +67,7 @@ class PauliNode:
         return PauliStringMonomial(self.coefficient, atoms)
 
 
+@typechecked
 def compute_coefficients(
     k: list[int],
     m: list[int],
@@ -84,6 +91,7 @@ def compute_coefficients(
         monomial_list.append(current_node.get_monomial())
 
 
+@typechecked
 def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
     """Algorithm 3: updates k and m for the node based on its type"""
     l = current_node.depth - 1
@@ -108,6 +116,7 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
             k[i] -= t_l
 
 
+@typechecked
 def generate_and_explore_node(
     k: list[int],
     m: list[int],
@@ -135,10 +144,11 @@ def generate_and_explore_node(
         compute_coefficients(k, m, current_node, matrix, monomials)
 
 
+@typechecked
 def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
 
-    TODO : put reference
+    TODO : put reference, finish docstring
     A tree-approach Pauli decomposition algorithm with application to quantum computing
     Océane Koska, Marc Baboulin, Arnaud Gazda
 
@@ -154,9 +164,12 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
             "The matrix in parameter is not hermitian (cannot define an observable)."
         )
 
-    monomials = []
     size = len(matrix)
-    # TODO add all the necessary checks on the size
+
+    if not is_power_of_two(size):
+        raise ValueError("Matrix dimensions must be a power of 2.")
+
+    monomials = []
     nb_qubits = int(np.log2(size))
     root = PauliNode()
     i_k = [0] * size
@@ -170,8 +183,13 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
 ############################### DIAGONAL CASE PTDR ##########################################
 
 
+@typechecked
 class DiagPauliNode:
-    def __init__(self, atom: PauliStringAtom = None, parent: "DiagPauliNode" = None):
+    def __init__(
+        self,
+        atom: Optional[PauliStringAtom] = None,
+        parent: Optional["DiagPauliNode"] = None,
+    ):
         self.pauli = atom
         self.parent: DiagPauliNode = parent
         self.depth = self.parent.depth + 1 if self.parent is not None else 0
@@ -195,6 +213,7 @@ class DiagPauliNode:
         return PauliStringMonomial(self.coefficient, atoms)
 
 
+@typechecked
 def compute_coefficients_diagonal_case(
     m: list[bool],
     current_node: DiagPauliNode,
@@ -213,6 +232,7 @@ def compute_coefficients_diagonal_case(
     monomial_list.append(current_node.get_monomial())
 
 
+@typechecked
 def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
     """Algorithm 3: updates k and m for the node based on its type"""
     l = current_node.depth - 1
@@ -225,6 +245,7 @@ def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
             m[i + t_l] = not m[i + t_l]
 
 
+@typechecked
 def generate_and_explore_node_diagonal_case(
     m: list[bool],
     current_node: DiagPauliNode,
@@ -252,6 +273,7 @@ def generate_and_explore_node_diagonal_case(
         compute_coefficients_diagonal_case(m, current_node, diag_elements, monomials)
 
 
+@typechecked
 def decompose_diagonal_observable_ptdr(
     diag_elements: list[Real] | npt.NDArray[np.float64],
 ) -> PauliString:
@@ -282,8 +304,10 @@ def decompose_diagonal_observable_ptdr(
 
 ############################### WALSH HADAMARD IDEA ##########################################
 
+# TODO, to optimize
 
-# @njit(parallel=True)
+
+@njit(parallel=True)
 def numba_hadamard(n):
     if n < 1:
         lg2 = 0
@@ -305,27 +329,36 @@ def numba_hadamard(n):
     return H
 
 
-##@njit(parallel=True)
-def compute_coefficients_walsh(H_loaded, diagonal_elements):
-    row_sums = np.zeros(H_loaded.shape[0])
+@njit(parallel=True)
+def compute_coefficients_walsh(H_matrix, diagonal_elements):
+    coefs = np.zeros(H_matrix.shape[0])
+    inv = 1 / H_matrix.shape[0]
 
-    for i in prange(H_loaded.shape[0]):
+    for i in prange(H_matrix.shape[0]):
         row_sum = 0
-        for j in range(H_loaded.shape[1]):
-            row_sum += H_loaded[i, j] * diagonal_elements[j]
-        row_sums[i] = row_sum
+        for j in range(H_matrix.shape[1]):
+            row_sum += H_matrix[i, j] * diagonal_elements[j]
+        coefs[i] = row_sum * inv
 
-    return row_sums
+    return coefs
 
 
+@typechecked
 def decompose_diagonal_observable_walsh_hadamard(
     diag_elements: list[Real] | npt.NDArray[np.float64],
 ) -> PauliString:
-    """
+    """TODO comment"""
+    pauli_1q = [I, Z]
+    basis = pauli_1q
+    diags = np.array(diag_elements)
+    size = len(diags)
+    nb_qubits = int(np.log2(size))
+    for _ in range(nb_qubits - 1):
+        basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
 
-    Args:
-        diag_elements:
+    H = numba_hadamard(size)
+    coefs = compute_coefficients_walsh(H, diags)
+    for m, c in zip(basis, coefs):
+        m.coef = c
 
-    Returns:
-
-    """
+    return PauliString(basis)
