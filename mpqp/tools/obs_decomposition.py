@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 from numbers import Real
+from typing import Optional
 
 import numpy as np
 import numpy.typing as npt
+from numba import njit, prange
+from typeguard import typechecked
+
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -16,11 +20,8 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Z,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
-from numba import njit, prange
-from typeguard import typechecked
-from typing import Optional
 
-paulis = [I, X, Y, Z]
+paulis: list[PauliStringAtom] = [I, X, Y, Z]
 
 
 @typechecked
@@ -31,7 +32,7 @@ class PauliNode:
         parent: Optional["PauliNode"] = None,
     ):
         self.pauli = atom
-        self.parent: PauliNode = parent
+        self.parent: Optional[PauliNode] = parent
         self.depth = parent.depth + 1 if parent is not None else 0
         self.children: list[PauliNode] = []
         self.coefficient: float = 0.0
@@ -42,22 +43,22 @@ class PauliNode:
             self.nY = parent.nY + 1 if atom is Y else parent.nY
 
     @property
-    def childI(self):
+    def childI(self) -> "PauliNode":
         return self.children[0]
 
     @property
-    def childX(self):
+    def childX(self) -> "PauliNode":
         return self.children[1]
 
     @property
-    def childY(self):
+    def childY(self) -> "PauliNode":
         return self.children[2]
 
     @property
-    def childZ(self):
+    def childZ(self) -> "PauliNode":
         return self.children[3]
 
-    def get_monomial(self):
+    def get_monomial(self) -> PauliStringMonomial:
         """TODO"""
         atoms = []
         node = self
@@ -191,7 +192,7 @@ class DiagPauliNode:
         parent: Optional["DiagPauliNode"] = None,
     ):
         self.pauli = atom
-        self.parent: DiagPauliNode = parent
+        self.parent: Optional[DiagPauliNode] = parent
         self.depth = self.parent.depth + 1 if self.parent is not None else 0
         self.children: list[DiagPauliNode] = []
         self.coefficient: float = 0.0
@@ -204,7 +205,7 @@ class DiagPauliNode:
     def childZ(self):
         return self.children[1]
 
-    def get_monomial(self):
+    def get_monomial(self) -> PauliStringMonomial:
         atoms = []
         node = self
         while node.parent is not None:
@@ -307,35 +308,37 @@ def decompose_diagonal_observable_ptdr(
 # TODO, to optimize
 
 
-@njit(parallel=True)
-def numba_hadamard(n):
+@njit
+def numba_hadamard(n: int) -> npt.NDArray[np.int8]:
     if n < 1:
         lg2 = 0
     else:
         lg2 = int(np.log2(n))
     if 2**lg2 != n:
         raise ValueError("n must be a power of 2")
-    H = np.array([[1]], dtype=np.int8)
+    H_matrix = np.array([[1]], dtype=np.int8)
     for _ in range(lg2):
-        size = H.shape[0]
+        size = H_matrix.shape[0]
         new_H = np.empty((2 * size, 2 * size), dtype=np.int8)
         for i in prange(size):
             for j in range(size):
-                new_H[i, j] = H[i, j]
-                new_H[i + size, j] = H[i, j]
-                new_H[i, j + size] = H[i, j]
-                new_H[i + size, j + size] = -H[i, j]
-        H = new_H
-    return H
+                new_H[i, j] = H_matrix[i, j]
+                new_H[i + size, j] = H_matrix[i, j]
+                new_H[i, j + size] = H_matrix[i, j]
+                new_H[i + size, j + size] = -H_matrix[i, j]
+        H_matrix = new_H
+    return H_matrix
 
 
-@njit(parallel=True)
-def compute_coefficients_walsh(H_matrix, diagonal_elements):
-    coefs = np.zeros(H_matrix.shape[0])
-    inv = 1 / H_matrix.shape[0]
+@njit
+def compute_coefficients_walsh(
+    H_matrix: npt.NDArray[np.int8], diagonal_elements: npt.NDArray[np.float64]
+) -> npt.NDArray[np.float64]:
+    coefs = np.zeros(H_matrix.shape[0], dtype=np.float64)
+    inv = 1.0 / H_matrix.shape[0]
 
     for i in prange(H_matrix.shape[0]):
-        row_sum = 0
+        row_sum = 0.0
         for j in range(H_matrix.shape[1]):
             row_sum += H_matrix[i, j] * diagonal_elements[j]
         coefs[i] = row_sum * inv
@@ -356,8 +359,8 @@ def decompose_diagonal_observable_walsh_hadamard(
     for _ in range(nb_qubits - 1):
         basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
 
-    H = numba_hadamard(size)
-    coefs = compute_coefficients_walsh(H, diags)
+    H_matrix = numba_hadamard(size)
+    coefs = compute_coefficients_walsh(H_matrix, diags)
     for m, c in zip(basis, coefs):
         m.coef = c
 
