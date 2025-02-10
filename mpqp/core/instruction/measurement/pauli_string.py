@@ -347,11 +347,15 @@ class PauliString:
             )
 
     @staticmethod
-    def from_diagonal_elements(diagonal_elements: list[Real] | npt.NDArray[np.float64], method: str = "walsh"):
+    def from_diagonal_elements(
+        diagonal_elements: list[Real] | npt.NDArray[np.float64], method: str = "walsh"
+    ):
         """TODO comment, to test"""
 
         if method == "walsh":
-            from mpqp.tools.obs_decomposition import decompose_diagonal_observable_walsh_hadamard
+            from mpqp.tools.obs_decomposition import (
+                decompose_diagonal_observable_walsh_hadamard,
+            )
 
             return decompose_diagonal_observable_walsh_hadamard(diagonal_elements)
 
