@@ -551,7 +551,7 @@ class PauliString:
             >>> PauliString.from_other_language(qiskit_ps)
             (0.25+0j)*Z@Y@I + (2+0j)*I@I@X
 
-            >>> from qat.core import Term
+            >>> from qat.core.wrappers.observable import Term
             >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
             >>> PauliString.from_other_language(my_qml_ps)
             0.25*Z@Y@I + 2*I@I@X
