@@ -31,6 +31,12 @@ class PauliNode:
         atom: Optional[PauliStringAtom] = None,
         parent: Optional["PauliNode"] = None,
     ):
+        """A class represents a node in the Pauli tree used for decomposing a Hermitian matrix into a PauliString.
+
+        Args:
+            atom: The Pauli atom (I, X, Y, Z) associated with this node. Defaults to None.
+            parent: The parent node. Defaults to None.
+        """
         self.pauli = atom
         self.parent: Optional[PauliNode] = parent
         self.depth = parent.depth + 1 if parent is not None else 0
@@ -44,22 +50,32 @@ class PauliNode:
 
     @property
     def childI(self) -> "PauliNode":
+        """Returns the child node corresponding to the Pauli-I atom."""
         return self.children[0]
 
     @property
     def childX(self) -> "PauliNode":
+        """Returns the child node corresponding to the Pauli-X atom."""
         return self.children[1]
 
     @property
     def childY(self) -> "PauliNode":
+        """Returns the child node corresponding to the Pauli-Y atom."""
         return self.children[2]
 
     @property
     def childZ(self) -> "PauliNode":
+        """Returns the child node corresponding to the Pauli-Z atom."""
         return self.children[3]
 
     def get_monomial(self) -> PauliStringMonomial:
-        """TODO"""
+        """Constructs and returns the PauliStringMonomial corresponding to the node.
+
+        Returns:
+            PauliStringMonomial: The monomial representation of the node.
+
+        """
+
         atoms = []
         node = self
         while node.parent is not None:
@@ -76,7 +92,16 @@ def compute_coefficients(
     matrix: Matrix,
     monomial_list: list[PauliStringMonomial],
 ):
-    """Algorithm 2: compute the coefficients for this node"""
+    """Computes the coefficients for the current node based on the given matrix.
+
+    Args:
+        k: List of indices used in the computation.
+        m: List of multipliers used in the computation.
+        current_node: The current node in the Pauli tree.
+        matrix: The given matrix being decomposed.
+        monomial_list: List to store the computed monomials.
+
+    """
 
     m_size = len(matrix)
 
@@ -94,7 +119,18 @@ def compute_coefficients(
 
 @typechecked
 def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
-    """Algorithm 3: updates k and m for the node based on its type"""
+    """Recursively explores the Pauli tree, updating k and m for the node based on its type,
+    and computing coefficients.
+
+    Args:
+        k: List of indices used in the computation.
+        m: List of multipliers used in the computation.
+        current_node: The current node in the Pauli tree.
+        matrix: The Hermitian matrix being decomposed.
+        n: The number of qubits.
+        monomials: List to store the computed monomials.
+
+    """
     l = current_node.depth - 1
     t_l = 2**l
     if current_node.pauli is I:
@@ -147,14 +183,21 @@ def generate_and_explore_node(
 def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
 
-    TODO : put reference, finish docstring
     A tree-approach Pauli decomposition algorithm with application to quantum computing
     Océane Koska, Marc Baboulin, Arnaud Gazda
 
     Args:
-        matrix: Hermitian matrix representing the observable to decompose
+        matrix: Hermitian matrix representing the observable to decompose.
 
     Returns:
+        PauliString: The PauliString representation of the observable.
+
+    Raises:
+        ValueError: If the matrix is not Hermitian or its dimensions are not a power of 2.
+
+    Reference:
+        Oceane Koska, Marc Baboulin & Arnaud Gazda. (2024). A tree-approach Pauli decomposition algorithm with application to quantum computing.
+        https://arxiv.org/pdf/2403.11644
 
     """
 
@@ -189,6 +232,13 @@ class DiagPauliNode:
         atom: Optional[PauliStringAtom] = None,
         parent: Optional["DiagPauliNode"] = None,
     ):
+        """A class represents a node in the Pauli tree used for decomposing a diagonal observable into a PauliString.
+
+        Args:
+            atom: The Pauli atom (I, Z) associated with this node. Defaults to None.
+            parent: The parent node. Defaults to None.
+
+        """
         self.pauli = atom
         self.parent: Optional[DiagPauliNode] = parent
         self.depth = self.parent.depth + 1 if self.parent is not None else 0
@@ -352,6 +402,7 @@ def decompose_diagonal_observable_walsh_hadamard(
     pauli_1q = [I, Z]
     basis = pauli_1q
     diags = np.array(diag_elements)
+
     size = len(diags)
     nb_qubits = int(np.log2(size))
     for _ in range(nb_qubits - 1):
