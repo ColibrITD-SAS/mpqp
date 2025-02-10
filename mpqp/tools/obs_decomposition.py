@@ -136,10 +136,8 @@ def generate_and_explore_node(
             [PauliNode(atom=a, parent=current_node) for a in paulis]
         )
 
-        generate_and_explore_node(k, m, current_node.childI, matrix, n, monomials)
-        generate_and_explore_node(k, m, current_node.childX, matrix, n, monomials)
-        generate_and_explore_node(k, m, current_node.childY, matrix, n, monomials)
-        generate_and_explore_node(k, m, current_node.childZ, matrix, n, monomials)
+        for child in current_node.children:
+            generate_and_explore_node(k, m, child, matrix, n, monomials)
 
     else:
         compute_coefficients(k, m, current_node, matrix, monomials)
