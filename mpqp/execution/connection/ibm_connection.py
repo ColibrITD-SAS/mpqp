@@ -146,8 +146,8 @@ def get_active_account_info() -> str:
     """
     service = get_QiskitRuntimeService()
     account = service.active_account()
-    if TYPE_CHECKING:
-        assert account is not None
+    if account is None:
+        return "Account not configured"
     return f"""    Channel: {account["channel"]}
     Token: {account["token"][:5]}*****
     URL: {account["url"]}
