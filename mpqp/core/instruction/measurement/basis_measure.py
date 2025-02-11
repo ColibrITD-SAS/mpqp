@@ -10,7 +10,7 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
     from mpqp import QCircuit
-    
+
 from mpqp.core.languages import Language
 
 from .basis import Basis, ComputationalBasis, VariableSizeBasis
