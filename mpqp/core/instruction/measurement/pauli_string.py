@@ -76,7 +76,9 @@ class PauliString:
                     mono = PauliStringMonomial(1, [mono])
                 self._monomials.append(mono)
 
-        self._nb_qubits = self._monomials[0].nb_qubits if len(self._monomials) != 0 else 0
+        self._nb_qubits = (
+            self._monomials[0].nb_qubits if len(self._monomials) != 0 else 0
+        )
 
         for mono in self._monomials:
             if mono.nb_qubits != self._nb_qubits:
