@@ -161,7 +161,7 @@ def closest_unitary(matrix: Matrix):
 
 
 @typechecked
-def cos(angle: Expr | Real | float) -> sp.Expr | float:
+def cos(angle: Expr | float) -> sp.Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -186,7 +186,7 @@ def cos(angle: Expr | Real | float) -> sp.Expr | float:
 
 
 @typechecked
-def sin(angle: Expr | Real | float) -> sp.Expr | float:
+def sin(angle: Expr | float) -> sp.Expr | float:
     """Generalization of the sine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -211,7 +211,7 @@ def sin(angle: Expr | Real | float) -> sp.Expr | float:
 
 
 @typechecked
-def exp(angle: Expr | Complex | complex) -> sp.Expr | complex:
+def exp(angle: Expr | complex) -> sp.Expr | complex:
     """Generalization of the exponential function, to take as input either
     ``sympy``'s expressions or floating numbers.
 

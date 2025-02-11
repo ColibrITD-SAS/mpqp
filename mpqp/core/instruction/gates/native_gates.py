@@ -952,6 +952,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         from cirq.ops.raw_types import Qid
 
         class CirqUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
+            # 3M-TODO: find better way to define the class outside
             def __init__(
                 self, theta, phi, lmda  # pyright: ignore[reportMissingParameterType]
             ) -> None:

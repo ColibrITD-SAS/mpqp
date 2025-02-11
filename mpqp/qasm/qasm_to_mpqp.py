@@ -166,6 +166,10 @@ def _TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     idx += 2
+    while (
+        tokens[idx].type != 'SEMICOLON'
+    ):  # 3M-TODO: to be remove if handle multi target
+        idx += 1
     if tokens[idx].type != 'SEMICOLON':
         raise SyntaxError(f"Barrier: {idx} {tokens[idx]}")
     circuit.add(Barrier())

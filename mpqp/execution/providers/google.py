@@ -136,7 +136,7 @@ def run_local(job: Job) -> Result:
         return run_local_processor(job)
 
     if job.job_type == JobType.STATE_VECTOR:
-        circuit = job.circuit.without_measurements()
+        circuit = job.circuit.without_measurements() + job.circuit.pre_measure()
         cirq_circuit = circuit.to_other_language(Language.CIRQ)
         job.circuit.gphase = circuit.gphase
     else:

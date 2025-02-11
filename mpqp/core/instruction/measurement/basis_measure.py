@@ -9,7 +9,8 @@ from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
-
+    from mpqp import QCircuit
+    
 from mpqp.core.languages import Language
 
 from .basis import Basis, ComputationalBasis, VariableSizeBasis
@@ -120,7 +121,7 @@ class BasisMeasure(Measure):
             raise NotImplementedError(f"{language} is not supported")
 
     @property
-    def pre_measure(self):
+    def pre_measure(self) -> QCircuit:
         return self.basis.to_computational()
 
     def __repr__(self) -> str:

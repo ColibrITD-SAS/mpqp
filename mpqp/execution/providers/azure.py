@@ -38,7 +38,9 @@ def run_azure(job: Job) -> Result:
     from qiskit import QuantumCircuit
 
     qiskit_circuit = (
-        job.circuit.without_measurements().to_other_language(Language.QISKIT)
+        (
+            job.circuit.without_measurements() + job.circuit.pre_measure()
+        ).to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
     )

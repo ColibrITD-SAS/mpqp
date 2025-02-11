@@ -438,7 +438,9 @@ def run_aer(job: Job):
         backend_sim = AerSimulator(method=job.device.value)
 
     qiskit_circuit = (
-        job_circuit.without_measurements().to_other_language(Language.QISKIT)
+        (
+            job_circuit.without_measurements() + job_circuit.pre_measure()
+        ).to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
         else job_circuit.to_other_language(Language.QISKIT)
     )
