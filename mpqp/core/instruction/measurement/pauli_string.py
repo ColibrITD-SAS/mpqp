@@ -41,7 +41,7 @@ class PauliString:
     you need from the atom we provide (see the example bellow).
 
     Args:
-        monomials : List of Pauli monomials.
+        monomials : List of Pauli monomials defining the PauliString.
 
     Example:
         >>> from mpqp.measures import I, X, Y, Z
@@ -76,8 +76,10 @@ class PauliString:
                     mono = PauliStringMonomial(1, [mono])
                 self._monomials.append(mono)
 
+        self._nb_qubits = self._monomials[0].nb_qubits if len(self._monomials) != 0 else 0
+
         for mono in self._monomials:
-            if mono.nb_qubits != self.monomials[0].nb_qubits:
+            if mono.nb_qubits != self._nb_qubits:
                 raise ValueError(
                     f"Non homogeneous sizes for given PauliStrings: {monomials}"
                 )
@@ -90,7 +92,7 @@ class PauliString:
     @property
     def nb_qubits(self) -> int:
         """Number of qubits associated with the PauliString."""
-        return 0 if len(self._monomials) == 0 else self._monomials[0].nb_qubits
+        return self._nb_qubits
 
     def __str__(self):
         if len(self._monomials) == 0:
@@ -111,14 +113,13 @@ class PauliString:
         return -1 * self
 
     def __iadd__(self, other: "PauliString") -> "PauliString":
-        for mono in other.monomials:
-            if (
-                len(self._monomials) != 0
-                and mono.nb_qubits != self._monomials[0].nb_qubits
-            ):
+        if len(self._monomials) != 0:
+            if not all([mono.nb_qubits == self.nb_qubits for mono in other.monomials]):
                 raise ValueError(
                     f"Non homogeneous sizes for given PauliStrings: {(self, other)}"
                 )
+        else:
+            self._nb_qubits = other.nb_qubits
         self._monomials.extend(deepcopy(other.monomials))
         return self
 
@@ -160,6 +161,7 @@ class PauliString:
         self._monomials = [
             mono for s_mono in self.monomials for mono in (s_mono @ other).monomials
         ]
+        self._nb_qubits += other.nb_qubits
         return self
 
     def __matmul__(self, other: "PauliString") -> "PauliString":
@@ -171,13 +173,13 @@ class PauliString:
         if not isinstance(other, PauliString):
             return False
 
-        self_dict = self.to_dict()
-        other_dict = other.to_dict()
+        # self_dict = self.to_dict()
+        # other_dict = other.to_dict()
+        #
+        # if all(m == 0.0 for m in self_dict.values()):
+        #     return all(m == 0.0 for m in other_dict.values())
 
-        if all(m == 0.0 for m in self_dict.values()):
-            return all(m == 0.0 for m in other_dict.values())
-
-        return self_dict == other_dict
+        return self.to_dict() == other.to_dict()
 
     def simplify(self, inplace: bool = False) -> PauliString:
         """Simplifies the Pauli string by combining identical terms and removing
@@ -197,6 +199,7 @@ class PauliString:
 
         """
         res = PauliString()
+        res._nb_qubits = self.nb_qubits
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
             coef = float(
                 sum(
@@ -211,10 +214,10 @@ class PauliString:
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
-        if len(res.monomials) == 0:
-            res.monomials.append(
-                PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-            )
+        # if len(res.monomials) == 0:
+        #     res.monomials.append(
+        #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+        #     )
         if inplace:
             self._monomials = res.monomials
         return res
@@ -238,16 +241,17 @@ class PauliString:
 
         """
         res = PauliString()
+        res._nb_qubits = self.nb_qubits
         for mono in self.monomials:
             coef = float(np.round(float(mono.coef.real), max_digits))
             if coef == int(coef):
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, mono.atoms))
-            if len(res.monomials) == 0:
-                res.monomials.append(
-                    PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-                )
+            # if len(res.monomials) == 0:
+            #     res.monomials.append(
+            #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
+            #     )
         return res
 
     def sort_monomials(self) -> PauliString:
