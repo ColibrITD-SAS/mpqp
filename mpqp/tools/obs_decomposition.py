@@ -204,8 +204,8 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
         ValueError: If the matrix is not Hermitian or its dimensions are not a power of 2.
 
     Reference:
-        Oceane Koska, Marc Baboulin & Arnaud Gazda. (2024). A tree-approach Pauli decomposition algorithm with application to quantum computing.
-        https://arxiv.org/pdf/2403.11644
+        Oceane Koska, Marc Baboulin & Arnaud Gazda. (2024). A tree-approach Pauli decomposition algorithm with
+        application to quantum computing. Link: https://arxiv.org/pdf/2403.11644
 
     """
 
