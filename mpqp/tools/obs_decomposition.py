@@ -26,19 +26,19 @@ paulis: list[PauliStringAtom] = [I, X, Y, Z]
 
 @typechecked
 class PauliNode:
-    """A class represents a node in the Pauli tree used for decomposing a Hermitian matrix into a PauliString."""
+    """A class represents a node in the Pauli tree used for decomposing a Hermitian matrix into a PauliString.
+
+    Args:
+            atom: The Pauli atom (I, X, Y, Z) associated with this node. Defaults to None.
+            parent: The parent node in the decomposition tree. Defaults to None (for the root).
+
+    """
 
     def __init__(
         self,
         atom: Optional[PauliStringAtom] = None,
         parent: Optional["PauliNode"] = None,
     ):
-        """Initializes a PauliNode.
-
-        Args:
-            atom: The Pauli atom (I, X, Y, Z) associated with this node. Defaults to None.
-            parent: The parent node in the decomposition tree. Defaults to None.
-        """
         self.pauli = atom
         self.parent: Optional[PauliNode] = parent
         self.depth = parent.depth + 1 if parent is not None else 0
@@ -168,6 +168,7 @@ def generate_and_explore_node(
         m: A list of values corresponding to the non-zero coefficients of the matrix.
         current_node: The current node in the Pauli tree.
         matrix: The given Hermitian matrix to be decomposed.
+        n: Number of qubits of the observable.
         monomials: A list to store the computed monomials.
 
     """
@@ -190,9 +191,6 @@ def generate_and_explore_node(
 @typechecked
 def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
-
-    A tree-approach Pauli decomposition algorithm with application to quantum computing
-    Océane Koska, Marc Baboulin, Arnaud Gazda
 
     Args:
         matrix: Hermitian matrix representing the observable to be decomposed.
@@ -235,20 +233,19 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
 
 @typechecked
 class DiagPauliNode:
-    """A class represents a node in the Pauli tree used for decomposing a diagonal observable into a PauliString."""
+    """A class represents a node in the Pauli tree used for decomposing a diagonal observable into a PauliString.
+
+    Args:
+            atom: The Pauli atom (I, Z) associated with this node. Defaults to None.
+            parent: The parent node. Defaults to None (for the root).
+
+    """
 
     def __init__(
         self,
         atom: Optional[PauliStringAtom] = None,
         parent: Optional["DiagPauliNode"] = None,
     ):
-        """Initializes a node in the Pauli tree.
-
-        Args:
-            atom: The Pauli atom (I, Z) associated with this node. Defaults to None.
-            parent: The parent node. Defaults to None.
-
-        """
         self.pauli = atom
         self.parent: Optional[DiagPauliNode] = parent
         self.depth = self.parent.depth + 1 if self.parent is not None else 0

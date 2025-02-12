@@ -972,7 +972,6 @@ class PauliStringAtom(PauliStringMonomial):
     @property
     def monomials(self):
         return [PauliStringMonomial(self.coef, [a for a in self.atoms])]
-        # TODO: why don't we just return [self] ?
 
     def __setattr__(self, name: str, value: Any):
         if not self.__is_mutable:
