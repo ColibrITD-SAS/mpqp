@@ -15,6 +15,7 @@ from operator import (
 )
 from random import randint
 from typing import TYPE_CHECKING
+from sympy import symbols
 
 if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
@@ -52,6 +53,8 @@ def pauli_string_combinations():
         ((I + I) @ I, (2 * np.eye(4))),
         ((X + X), np.array([[0, 2.0], [2.0, 0]])),
         ((X + Z), np.array([[1.0, 1.0], [1.0, -1.0]])),
+        ((2 * I), (2 * np.eye(2))),
+        ((symbols("a") * I), (symbols("a") * np.eye(2))),
     ]
     result = []
 
@@ -67,11 +70,14 @@ def pauli_string_combinations():
         for op in bin_operation:
             converted_op = op if (op != matmul and op != imatmul) else np.kron
             ps1 = deepcopy(ps_1[0])
-            result.append((op(ps1, ps_2[0]), converted_op(ps_1[1], ps_2[1])))
+            ps1_matrix = deepcopy(ps_1[1])
+            result.append((op(ps1, ps_2[0]), converted_op(ps1_matrix, ps_2[1])))
         if ps_1[0].nb_qubits == ps_2[0].nb_qubits:
             for op in homogeneous_bin_operation:
                 ps1 = deepcopy(ps_1[0])
                 ps1_matrix = deepcopy(ps_1[1])
+                if ps_2[1].dtype == object:
+                    ps1_matrix = np.array(ps1_matrix, dtype=object)
                 result.append((op(ps1, ps_2[0]), op(ps1_matrix, ps_2[1])))
 
     return result

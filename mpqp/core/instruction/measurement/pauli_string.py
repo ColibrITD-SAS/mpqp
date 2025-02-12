@@ -11,6 +11,7 @@ from functools import reduce
 from numbers import Real
 from operator import matmul, mul
 from typing import TYPE_CHECKING, Any, Optional, Union
+from typeguard import typechecked
 
 import numpy as np
 import numpy.typing as npt
@@ -35,6 +36,7 @@ if TYPE_CHECKING:
 FixedReal = Union[Real, float, Expr]
 
 
+@typechecked
 class PauliString:
     """Represents a Pauli string, a linear combination of Pauli monomials.
 
@@ -112,7 +114,7 @@ class PauliString:
         for m in sorted_ps._monomials[1:]:
             if not isinstance(m.coef, Expr):
                 if m.coef < 0:
-                    m.coef *= -1 # pyright: ignore[reportAttributeAccessIssue]
+                    m.coef *= -1  # pyright: ignore[reportAttributeAccessIssue]
                     out += " - "
                 else:
                     out += " + "
@@ -130,7 +132,7 @@ class PauliString:
         for m in self._monomials[1:]:
             if not isinstance(m.coef, Expr):
                 if m.coef < 0:
-                    m.coef *= -1 # pyright: ignore[reportAttributeAccessIssue]
+                    m.coef *= -1  # pyright: ignore[reportAttributeAccessIssue]
                     out += " - "
                 else:
                     out += " + "
@@ -749,7 +751,7 @@ class PauliString:
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
-    def to_dict(self) -> dict[str, float]:
+    def to_dict(self) -> dict[str, str]:
         """Converts the Pauli string to a dictionary representation with the
         keys being the Pauli monomials and the values the corresponding
         coefficients.
@@ -760,20 +762,22 @@ class PauliString:
         Example:
             >>> from mpqp.measures import I, X, Y, Z
             >>> (1 * I @ Z + 2 * I @ I).to_dict()
-            {'II': 2, 'IZ': 1}
+            {'II': '2', 'IZ': '1'}
 
         """
+        from sympy import simplify, sympify
+
         self = self.simplify()
-        dict = {}
+        result_dict = {}
         for mono in self.monomials:
-            atom_str = ""
-            for atom in mono.atoms:
-                atom_str += str(atom)
-            if atom_str not in dict:
-                dict[atom_str] = mono.coef
+            atom_str = "".join(str(atom) for atom in mono.atoms)
+            if atom_str in result_dict:
+                result_dict[atom_str] = str(
+                    simplify(sympify(result_dict[atom_str]) + mono.coef)
+                )
             else:
-                dict[atom_str] += mono.coef
-        return {k: dict[k] for k in sorted(dict)}
+                result_dict[atom_str] = str(mono.coef)
+        return {k: result_dict[k] for k in sorted(result_dict)}
 
     def __hash__(self):
         monomials_as_tuples = tuple(
@@ -782,6 +786,7 @@ class PauliString:
         return hash(monomials_as_tuples)
 
 
+@typechecked
 class PauliStringMonomial(PauliString):
     """Represents a monomial in a Pauli string, consisting of a coefficient and
     a list of PauliStringAtom objects.
@@ -893,7 +898,7 @@ class PauliStringMonomial(PauliString):
             for a1, a2 in zip(self.atoms, other.atoms):
                 if a1 != a2:
                     return False
-            return self.coef == other.coef
+            return bool(self.coef == other.coef)
         return super().__eq__(other)
 
     def __hash__(self):
@@ -923,6 +928,7 @@ class PauliStringMonomial(PauliString):
             from cirq.devices.line_qubit import LineQubit
             from cirq.ops.identity import IdentityGate as CirqI
             from cirq.ops.pauli_gates import Pauli as CirqPauli
+            from cirq.ops.pauli_string import PauliString as CirqPauliString
 
             all_qubits = (
                 LineQubit.range(self.nb_qubits)
@@ -937,7 +943,7 @@ class PauliStringMonomial(PauliString):
                 )
             )
 
-            cirq_atoms: list[Union[CirqPauli, CirqI]] = [
+            cirq_atoms: list[Union[CirqPauli, CirqI, CirqPauliString]] = [
                 atom.to_other_language(Language.CIRQ, target=all_qubits[index])
                 for index, atom in enumerate(self.atoms)
             ]
@@ -947,6 +953,7 @@ class PauliStringMonomial(PauliString):
             raise NotImplementedError(f"Unsupported language: {language}")
 
 
+@typechecked
 class PauliStringAtom(PauliStringMonomial):
     """Represents a single Pauli operator acting on a qubit in a Pauli string.
 
