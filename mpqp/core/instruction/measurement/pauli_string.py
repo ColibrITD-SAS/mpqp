@@ -920,8 +920,9 @@ class PauliStringMonomial(PauliString):
             return Term(self.coef, pauli_mono_str, list(range(len(pauli_mono_str))))
         elif language == Language.BRAKET:
             braket_atoms: list[BraketObservable] = [
-                atom.to_other_language(Language.BRAKET) for atom in self.atoms
-            ]  # pyright: ignore[reportAssignmentType]
+                atom.to_other_language(Language.BRAKET)
+                for atom in self.atoms  # pyright: ignore[reportAssignmentType]
+            ]
 
             return self.coef * reduce(matmul, braket_atoms)
         elif language == Language.CIRQ:
