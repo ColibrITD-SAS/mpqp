@@ -7,7 +7,7 @@ from typing import Optional, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
-from numba import prange #, njit
+from numba import prange  # , njit
 from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.pauli_string import (
@@ -397,7 +397,7 @@ def decompose_diagonal_observable_ptdr(
 # TODO, to optimize
 
 
-#@njit
+# @njit
 def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     """Generates a Hadamard matrix of size n x n using Numba.
 
@@ -431,7 +431,7 @@ def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     return H_matrix
 
 
-#@njit(parallel=True)
+# @njit(parallel=True)
 def compute_coefficients_walsh(
     H_matrix: npt.NDArray[np.int8], diagonal_elements: npt.NDArray[np.float64]
 ) -> list[float]:
@@ -469,7 +469,7 @@ def decompose_diagonal_observable_walsh_hadamard(
         PauliString: The corresponding PauliString representation.
 
     """
-    pauli_1q = [1*I, 1*Z]
+    pauli_1q = [1 * I, 1 * Z]
     basis = pauli_1q
     diags = np.array(diag_elements)
 
