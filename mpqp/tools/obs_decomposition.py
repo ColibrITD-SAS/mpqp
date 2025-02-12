@@ -470,7 +470,7 @@ def decompose_diagonal_observable_walsh_hadamard(
 
     """
     pauli_1q = [I, Z]
-    basis = pauli_1q
+    basis: list[PauliStringMonomial] = pauli_1q
     diags = np.array(diag_elements)
 
     size = len(diags)
