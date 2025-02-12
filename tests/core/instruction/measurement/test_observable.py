@@ -2,6 +2,7 @@ from numbers import Real
 
 import numpy as np
 import pytest
+
 from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq

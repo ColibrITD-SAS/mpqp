@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from numbers import Real
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-from numba import prange  # , njit
+from numba import prange
 from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.pauli_string import (
@@ -394,7 +394,6 @@ def decompose_diagonal_observable_ptdr(
 # TODO, to optimize
 
 
-# @njit
 def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     """Generates a Hadamard matrix of size n x n using Numba.
 
@@ -428,7 +427,6 @@ def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     return H_matrix
 
 
-# @njit(parallel=True)
 def compute_coefficients_walsh(
     H_matrix: npt.NDArray[np.int8], diagonal_elements: npt.NDArray[np.float64]
 ) -> list[float]:

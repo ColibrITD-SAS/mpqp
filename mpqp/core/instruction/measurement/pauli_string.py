@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
+
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
