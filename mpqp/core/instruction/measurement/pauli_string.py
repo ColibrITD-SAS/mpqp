@@ -389,7 +389,9 @@ class PauliString:
         """
 
         if not is_power_of_two(len(diagonal_elements)):
-            raise ValueError(f"Size of diagonal elements must be a power of 2, but got {len(diagonal_elements)}.")
+            raise ValueError(
+                f"Size of diagonal elements must be a power of 2, but got {len(diagonal_elements)}."
+            )
 
         if method == "walsh":
             from mpqp.tools.obs_decomposition import (
