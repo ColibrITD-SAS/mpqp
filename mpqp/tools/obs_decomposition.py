@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 from numbers import Real
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
-from numba import njit, prange
+from numba import prange #, njit
 from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.pauli_string import (
@@ -397,8 +397,8 @@ def decompose_diagonal_observable_ptdr(
 # TODO, to optimize
 
 
-@njit
-def numba_hadamard(n: int) -> npt.NDArray[np.int8]:
+#@njit
+def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     """Generates a Hadamard matrix of size n x n using Numba.
 
     Args:
@@ -431,10 +431,10 @@ def numba_hadamard(n: int) -> npt.NDArray[np.int8]:
     return H_matrix
 
 
-@njit
+#@njit(parallel=True)
 def compute_coefficients_walsh(
     H_matrix: npt.NDArray[np.int8], diagonal_elements: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
+) -> list[float]:
     """Computes the coefficients using the Walsh-Hadamard transform.
 
     Args:
@@ -444,14 +444,14 @@ def compute_coefficients_walsh(
     Returns:
         coefs: The computed coefficients.
     """
-    coefs = np.zeros(H_matrix.shape[0], dtype=np.float64)
+    coefs = []
     inv = 1.0 / H_matrix.shape[0]
 
     for i in prange(H_matrix.shape[0]):
         row_sum = 0.0
         for j in range(H_matrix.shape[1]):
             row_sum += H_matrix[i, j] * diagonal_elements[j]
-        coefs[i] = row_sum * inv
+        coefs.append(row_sum * inv)
 
     return coefs
 
@@ -469,8 +469,8 @@ def decompose_diagonal_observable_walsh_hadamard(
         PauliString: The corresponding PauliString representation.
 
     """
-    pauli_1q = [I, Z]
-    basis: list[PauliStringMonomial] = pauli_1q
+    pauli_1q = [1*I, 1*Z]
+    basis = pauli_1q
     diags = np.array(diag_elements)
 
     size = len(diags)
@@ -478,9 +478,14 @@ def decompose_diagonal_observable_walsh_hadamard(
     for _ in range(nb_qubits - 1):
         basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
 
-    H_matrix = numba_hadamard(size)
+    H_matrix = generate_hadamard(size)
     coefs = compute_coefficients_walsh(H_matrix, diags)
+    final_monomials = []
     for m, c in zip(basis, coefs):
-        m.coef = c
+        if TYPE_CHECKING:
+            assert isinstance(m, PauliStringMonomial)
+        if c != 0.0:
+            m.coef = c
+            final_monomials.append(m)
 
-    return PauliString(basis)
+    return PauliString(final_monomials)

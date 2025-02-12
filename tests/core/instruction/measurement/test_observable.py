@@ -59,7 +59,7 @@ def list_matrix_pauli_string():
         (np.diag([-2, 4, 5, 3]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I - 2 * Z @ Z),
         (np.diag([2, 0, 1, 7]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I + 2 * Z @ Z),
         (np.diag([-2, -3, 2, 1]), -1 / 2 * I @ I + 1 / 2 * I @ Z - 2 * Z @ I),
-        (np.zeros((2, 2)), 1 * I - 1 * I),
+        (np.zeros((4, 4)), 1 * I @ I - 1 * I @ I),
     ]
 
 

@@ -111,7 +111,7 @@ class PauliString:
         out = str(sorted_ps._monomials[0])
         for m in sorted_ps._monomials[1:]:
             if m.coef < 0:
-                m.coef *= -1
+                m.coef = -m.coef  # pyright: ignore[reportAttributeAccessIssue]
                 out += " - "
             else:
                 out += " + "
@@ -126,7 +126,7 @@ class PauliString:
         out = str(self._monomials[0])
         for m in self._monomials[1:]:
             if m.coef < 0:
-                m.coef *= -1
+                m.coef = -m.coef  # pyright: ignore[reportAttributeAccessIssue]
                 out += " - "
             else:
                 out += " + "
@@ -386,6 +386,9 @@ class PauliString:
         Returns:
             PauliString corresponding to the pauli decomposition of the diagonal observable elements in parameter.
 
+        Example:
+            >>> PauliString.from_diagonal_elements([1, -1, 4, 2])
+            1.5*I@I + 1.0*I@Z - 1.5*Z@I
         """
 
         if not is_power_of_two(len(diagonal_elements)):
@@ -773,7 +776,7 @@ class PauliStringMonomial(PauliString):
     """
 
     def __init__(
-        self, coef: Real | float = 1, atoms: Optional[list["PauliStringAtom"]] = None
+        self, coef: FixedReal = 1, atoms: Optional[list["PauliStringAtom"]] = None
     ):
         self.coef = coef
         """Coefficient of the monomial."""
@@ -840,7 +843,7 @@ class PauliStringMonomial(PauliString):
         res /= other
         return res
 
-    def __imatmul__(self, other: PauliString) -> PauliString:
+    def __imatmul__(self, other: PauliString) -> PauliStringMonomial | PauliString:
         if isinstance(other, PauliStringAtom):
             self.atoms.append(other)
             return self
@@ -850,7 +853,9 @@ class PauliStringMonomial(PauliString):
             return self
         else:
             res = deepcopy(other)
-            res._monomials = [self @ mono for mono in other.monomials]
+            res._monomials = [  # pyright: ignore[reportAttributeAccessIssue]
+                self @ mono for mono in other.monomials
+            ]
             return res
 
     def __matmul__(self, other: PauliString):
