@@ -333,8 +333,8 @@ class PauliString:
         Args:
             matrix: Matrix from which the PauliString is generated.
             method: String indicating which Pauli decomposition method is used. "ptdr" refers to the tree-based
-                decomposition algorithm, and "trace" to the one computing the trace of the observable with each
-                possible monomial.
+                decomposition algorithm (see :func:`~mpqp.tools.obs_decomposition.decompose_hermitian_matrix_ptdr`.),
+                and "trace" to the one computing the trace of the observable with each possible monomial (naive method).
 
         Returns:
             PauliString corresponding to the pauli decomposition of the matrix in parameter.
@@ -388,8 +388,29 @@ class PauliString:
     @staticmethod
     def from_diagonal_elements(
         diagonal_elements: list[Real] | npt.NDArray[np.float64], method: str = "walsh"
-    ):
-        """TODO comment, to test"""
+    ) -> PauliString:
+        """Create a PauliString from the diagonal elements of a diagonal observable, by using decomposition
+        algorithms in the Pauli basis.
+
+        Currently, two different methods are available: "walsh" and "ptdr".
+        The first one is based on the computation of a walsh-hadamard matrix to retrieve the coefficients in front of
+        the monomials that are combinations of ``I`` and ``Z``.
+        The second is an adaptation of the PTDR algorithm (Pauli Tree Decomposition Routine), see
+        :func:`~mpqp.tools.obs_decomposition.decompose_diagonal_observable_ptdr`.
+
+        Args:
+            diagonal_elements: List of Real coefficients
+            method: String used to specify the decomposition method. "walsh" (by default) or "ptdr".
+
+        Returns:
+            PauliString corresponding to the pauli decomposition of the diagonal observable elements in parameter.
+
+        """
+
+        if not is_power_of_two(len(diagonal_elements)):
+            raise ValueError(
+                f"Size of diagonal elements must be a power of 2, but got {len(diagonal_elements)}."
+            )
 
         if method == "walsh":
             from mpqp.tools.obs_decomposition import (
@@ -402,6 +423,10 @@ class PauliString:
             from mpqp.tools.obs_decomposition import decompose_diagonal_observable_ptdr
 
             return decompose_diagonal_observable_ptdr(diagonal_elements)
+        else:
+            raise ValueError(
+                f"Unexpected observable matrix decomposition method name {method}."
+            )
 
     @staticmethod
     def _get_dimension_cirq_pauli(
