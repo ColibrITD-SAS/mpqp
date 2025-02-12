@@ -50,6 +50,8 @@ def pauli_string_combinations():
         ((I @ I), np.eye(4)),
         ((I + I), (2 * np.eye(2))),
         ((I + I) @ I, (2 * np.eye(4))),
+        ((X + X), np.array([[0, 2.0], [2.0, 0]])),
+        ((X + Z), np.array([[1.0, 1.0], [1.0, -1.0]])),
     ]
     result = []
 

@@ -1,4 +1,4 @@
-"""Observables can be defined using linear combinations of Pauli operators,
+"""Observables can be defined using (real valued) linear combinations of Pauli operators,
 these are called "Pauli strings". In ``mpqp``, a :class:`PauliString` is a
 linear combination of :class:`PauliStringMonomial` which are themselves
 combinations (tensor products) of :class:`PauliStringAtom`. :class:`PauliString`
@@ -192,7 +192,8 @@ class PauliString:
 
     def simplify(self, inplace: bool = False) -> PauliString:
         """Simplifies the Pauli string by combining identical terms and removing
-        terms with null coefficients.
+        terms with null coefficients. When all terms anihilate themselves, we return
+        an empty PauliString with a number of qubits corresponding to the initial one.
 
         Args:
             inplace: Indicates if ``self`` should be updated in addition of a
@@ -230,7 +231,7 @@ class PauliString:
 
     def round(self, max_digits: int = 4) -> PauliString:
         """Rounds the coefficients of the PauliString to a specified number of
-        decimal.
+        decimals.
 
         Args:
             max_digits: Number of decimal places to round the coefficients to.
@@ -812,11 +813,7 @@ class PauliStringMonomial(PauliString):
             return self
         else:
             res = deepcopy(other)
-            res._monomials = [
-                mono
-                for s_mono in self.monomials
-                for mono in (other @ s_mono)._monomials
-            ]
+            res._monomials = [self @ mono for mono in other.monomials]
             return res
 
     def __matmul__(self, other: PauliString):
