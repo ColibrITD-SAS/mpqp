@@ -33,6 +33,8 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
 
 FixedReal = Union[Real, float, Expr]
+
+
 class PauliString:
     """Represents a Pauli string, a linear combination of Pauli monomials.
 
@@ -94,7 +96,7 @@ class PauliString:
 
     def __str__(self):
         return " + ".join(map(str, self.round().simplify().sort_monomials()._monomials))
-        #return " + ".join(map(str, self._monomials))
+        # return " + ".join(map(str, self._monomials))
 
     def __repr__(self):
         return " + ".join(map(str, self._monomials))
@@ -189,17 +191,19 @@ class PauliString:
         res = PauliString()
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
             coef = sum(
-                    [
-                        simplify(mono.coef)
-                        for mono in self.monomials
-                        if mono.atoms == list(unique_mono_atoms)
-                    ]
-                )
+                [
+                    simplify(mono.coef)
+                    for mono in self.monomials
+                    if mono.atoms == list(unique_mono_atoms)
+                ]
+            )
             if not isinstance(coef, Expr):
                 if coef == int(coef):
                     coef = int(coef)
                 if coef != 0:
-                    res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
+                    res.monomials.append(
+                        PauliStringMonomial(coef, list(unique_mono_atoms))
+                    )
             else:
                 res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
         if len(res.monomials) == 0:
@@ -692,7 +696,9 @@ class PauliStringMonomial(PauliString):
     """
 
     def __init__(
-        self, coef: Expr | Real | float = 1, atoms: Optional[list["PauliStringAtom"]] = None
+        self,
+        coef: Expr | Real | float = 1,
+        atoms: Optional[list["PauliStringAtom"]] = None,
     ):
         self.coef = coef
         """Coefficient of the monomial."""
@@ -746,7 +752,7 @@ class PauliStringMonomial(PauliString):
         return res
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
-        self.coef *= other # pyright: ignore[reportOperatorIssue]
+        self.coef *= other  # pyright: ignore[reportOperatorIssue]
         return self
 
     def __mul__(self, other: FixedReal) -> PauliStringMonomial:
@@ -755,7 +761,7 @@ class PauliStringMonomial(PauliString):
         return res
 
     def __itruediv__(self, other: FixedReal) -> PauliStringMonomial:
-        self.coef /= other # pyright: ignore[reportOperatorIssue]
+        self.coef /= other  # pyright: ignore[reportOperatorIssue]
         return self
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
@@ -768,12 +774,14 @@ class PauliStringMonomial(PauliString):
             self.atoms.append(other)
             return self
         elif isinstance(other, PauliStringMonomial):
-            self.coef *= other.coef # pyright: ignore[reportOperatorIssue]
+            self.coef *= other.coef  # pyright: ignore[reportOperatorIssue]
             self.atoms.extend(other.atoms)
             return self
         else:
             res = deepcopy(other)
-            res._monomials = [self @ mono for mono in other.monomials] # pyright: ignore[reportAttributeAccessIssue]
+            res._monomials = [
+                self @ mono for mono in other.monomials
+            ]  # pyright: ignore[reportAttributeAccessIssue]
             return res
 
     def __matmul__(self, other: PauliString):
@@ -908,7 +916,8 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: FixedReal) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other, [self]  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+            1 / other,
+            [self],  # pyright: ignore[reportArgumentType, reportOperatorIssue]
         )
 
     def __imul__(self, other: FixedReal) -> PauliStringMonomial:
