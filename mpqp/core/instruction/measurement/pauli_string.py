@@ -112,7 +112,7 @@ class PauliString:
         for m in sorted_ps._monomials[1:]:
             if not isinstance(m.coef, Expr):
                 if m.coef < 0:
-                    m.coef *= -1 # pyright: ignore[reportAttributeAccessIssue]
+                    m.coef *= -1  # pyright: ignore[reportAttributeAccessIssue]
                     out += " - "
                 else:
                     out += " + "
@@ -130,7 +130,7 @@ class PauliString:
         for m in self._monomials[1:]:
             if not isinstance(m.coef, Expr):
                 if m.coef < 0:
-                    m.coef *= -1 # pyright: ignore[reportAttributeAccessIssue]
+                    m.coef *= -1  # pyright: ignore[reportAttributeAccessIssue]
                     out += " - "
                 else:
                     out += " + "
