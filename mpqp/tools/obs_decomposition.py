@@ -168,7 +168,7 @@ def generate_and_explore_node(
         m: A list of values corresponding to the non-zero coefficients of the matrix.
         current_node: The current node in the Pauli tree.
         matrix: The given Hermitian matrix to be decomposed.
-        monomial_list: A list to store the computed monomials.
+        monomials: A list to store the computed monomials.
 
     """
     if current_node.depth > 0:
@@ -341,7 +341,7 @@ def generate_and_explore_node_diagonal_case(
        current_node: The current node in the Pauli tree.
        diag_elements: The diagonal elements of the observable.
        n: The number of qubits.
-       monomial_list: A list to store the computed monomials.
+       monomials: A list to store the computed monomials.
 
     """
     if current_node.depth > 0:
@@ -387,7 +387,6 @@ def decompose_diagonal_observable_ptdr(
     nb_qubits = int(np.log2(size))
     root = DiagPauliNode()
     i_m = [False] * size
-    i_m[0] = False
     generate_and_explore_node_diagonal_case(i_m, root, diags, nb_qubits, monomials)
 
     return PauliString(monomials)
