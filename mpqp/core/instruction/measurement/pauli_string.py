@@ -210,7 +210,7 @@ class PauliString:
 
     def simplify(self, inplace: bool = False) -> PauliString:
         """Simplifies the Pauli string by combining identical terms and removing
-        terms with null coefficients. When all terms anihilate themselves, we return
+        terms with null coefficients. When all terms annihilate themselves, we return
         an empty PauliString with a number of qubits corresponding to the initial one.
 
         Args:
