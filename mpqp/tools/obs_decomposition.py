@@ -469,14 +469,16 @@ def decompose_diagonal_observable_walsh_hadamard(
         PauliString: The corresponding PauliString representation.
 
     """
-    pauli_1q = [1*I, 1*Z]
+    pauli_1q = [1 * I, 1 * Z]
     basis: list[PauliStringMonomial] = pauli_1q
     diags = np.array(diag_elements)
 
     size = len(diags)
     nb_qubits = int(np.log2(size))
     for _ in range(nb_qubits - 1):
-        basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]  # pyright: ignore[reportAssignmentType]
+        basis = [
+            p1 @ p2 for p1 in basis for p2 in pauli_1q
+        ]  # pyright: ignore[reportAssignmentType]
 
     H_matrix = numba_hadamard(size)
     coefs = compute_coefficients_walsh(H_matrix, diags)
