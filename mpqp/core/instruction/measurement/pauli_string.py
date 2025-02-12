@@ -46,7 +46,7 @@ class PauliString:
     Example:
         >>> from mpqp.measures import I, X, Y, Z
         >>> I @ Z + 2 * Y @ I + X @ Z
-        1*I@Z + 1*X@Z + 2*Y@I
+        1*I@Z + 2*Y@I + 1*X@Z
 
     Note:
         Pauli atoms are named ``I``, ``X``, ``Y``, and ``Z``. If you have
@@ -101,13 +101,15 @@ class PauliString:
         )
 
     def __str__(self):
-        if len(self._monomials) == 0:
+
+        sorted_ps = self.round().simplify()
+        sorted_ps.sort_monomials()
+
+        if len(sorted_ps._monomials) == 0:
             return "0"
 
-        list_m = self.round().simplify().sort_monomials()._monomials
-        out = str(list_m[0])
-
-        for m in list_m[1:]:
+        out = str(sorted_ps._monomials[0])
+        for m in sorted_ps._monomials[1:]:
             if m.coef < 0:
                 m.coef *= -1
                 out += " - "
@@ -120,7 +122,17 @@ class PauliString:
     def __repr__(self):
         if len(self._monomials) == 0:
             return "PauliString()"
-        return str(self)
+
+        out = str(self._monomials[0])
+        for m in self._monomials[1:]:
+            if m.coef < 0:
+                m.coef *= -1
+                out += " - "
+            else:
+                out += " + "
+            out += str(m)
+
+        return out
 
     def __pos__(self) -> "PauliString":
         return deepcopy(self)
@@ -314,7 +326,7 @@ class PauliString:
 
         Example:
             >>> PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
-            1*I + 1*X - 1*Z
+            1.0*I + 1.0*X - 1.0*Z
 
         """
 
@@ -457,7 +469,7 @@ class PauliString:
             monomial = PauliStringMonomial()
             for atom in pauli_str:
                 monomial = _pauli_atom_dict[atom] @ monomial
-            monomial *= coef
+            monomial *= coef.real
             pauli_string += monomial
         return pauli_string
 
@@ -545,7 +557,7 @@ class PauliString:
             >>> a, b, c = LineQubit.range(3)
             >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c)
             >>> PauliString.from_other_language(cirq_ps)
-            2*I@I@X + 0.25*Z@Y@I
+            0.25*Z@Y@I + 2.0*I@I@X
 
             >>> from braket.circuits.observables import (
             ...     Sum as BraketSum,
@@ -556,17 +568,17 @@ class PauliString:
             ... )
             >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X()
             >>> PauliString.from_other_language(braket_ps)
-            2*I@I@X + 0.25*Z@Y@I
+            0.25*Z@Y@I + 2*I@I@X
 
             >>> from qiskit.quantum_info import SparsePauliOp
             >>> qiskit_ps = SparsePauliOp(["IYZ", "XII"], coeffs=[0.25 + 0.0j, 2.0 + 0.0j])
             >>> PauliString.from_other_language(qiskit_ps)
-            2*I@I@X + 0.25*Z@Y@I
+            0.25*Z@Y@I + 2.0*I@I@X
 
             >>> from qat.core.wrappers.observable import Term
             >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
             >>> PauliString.from_other_language(my_qml_ps)
-            2*I@I@X + 0.25*Z@Y@I
+            0.25*Z@Y@I + 2*I@I@X
 
         """
         if isinstance(pauli, list) and any(
