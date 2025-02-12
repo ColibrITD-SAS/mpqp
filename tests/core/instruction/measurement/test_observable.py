@@ -110,22 +110,3 @@ def test_matrix_to_pauli_to_matrix(matrix: Matrix, ps: PauliString):
 def test_pauli_to_matrix_to_pauli(matrix: Matrix, ps: PauliString):
     assert PauliString.from_matrix(ps.to_matrix(), method="ptdr") == ps
     assert PauliString.from_matrix(ps.to_matrix(), method="trace") == ps
-
-
-# @pytest.mark.parametrize(
-#     "matrix, pauliString",
-#     [
-#         (np.array([[2, 3], [3, 1]]), 3 / 2 * I + 3 * X + 1 / 2 * Z),
-#         (np.array([[-1, 1 - 1j], [1 + 1j, 0]]), -1 / 2 * I + X - Y - 1 / 2 * Z),
-#         (np.diag([-2, 4, 5, 3]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I + 2 * Z @ Z),
-#         (np.diag([-2, -3, 2, 1]), -1 / 2 * I @ I + 1 / 2 * I @ Z - 2 * Z @ I),
-#     ],
-# )
-# def test_decompose_general_observable(matrix: Matrix, pauliString: PauliString):
-#     decomposed_pauli_string = decompose_hermitian_matrix_ptdr(matrix)
-#
-#     assert decomposed_pauli_string == pauliString, (
-#         f"Decomposition failed for matrix:\n{matrix}\n"
-#         f"Expected: {pauliString}\n"
-#         f"Got: {decomposed_pauli_string}"
-#     )
