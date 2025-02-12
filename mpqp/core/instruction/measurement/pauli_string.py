@@ -46,7 +46,7 @@ class PauliString:
     Example:
         >>> from mpqp.measures import I, X, Y, Z
         >>> I @ Z + 2 * Y @ I + X @ Z
-        1*I@Z + 2*Y@I + 1*X@Z
+        1*I@Z + 1*X@Z + 2*Y@I
 
     Note:
         Pauli atoms are named ``I``, ``X``, ``Y``, and ``Z``. If you have
@@ -76,12 +76,12 @@ class PauliString:
                     mono = PauliStringMonomial(1, [mono])
                 self._monomials.append(mono)
 
-        self._nb_qubits = (
+        self._initial_nb_qubits = (
             self._monomials[0].nb_qubits if len(self._monomials) != 0 else 0
         )
 
         for mono in self._monomials:
-            if mono.nb_qubits != self._nb_qubits:
+            if mono.nb_qubits != self._initial_nb_qubits:
                 raise ValueError(
                     f"Non homogeneous sizes for given PauliStrings: {monomials}"
                 )
@@ -94,19 +94,33 @@ class PauliString:
     @property
     def nb_qubits(self) -> int:
         """Number of qubits associated with the PauliString."""
-        return self._nb_qubits
+        return (
+            self._monomials[0].nb_qubits
+            if len(self._monomials) != 0
+            else self._initial_nb_qubits
+        )
 
     def __str__(self):
         if len(self._monomials) == 0:
-            return 0
-        # TODO: put '-' when coef is negative, instead of ' + -1'
-        return " + ".join(map(str, self.round().simplify().sort_monomials()._monomials))
+            return "0"
+
+        list_m = self.round().simplify().sort_monomials()._monomials
+        out = str(list_m[0])
+
+        for m in list_m[1:]:
+            if m.coef < 0:
+                m.coef *= -1
+                out += " - "
+            else:
+                out += " + "
+            out += str(m)
+
+        return out
 
     def __repr__(self):
         if len(self._monomials) == 0:
             return "PauliString()"
-        # TODO: put '-' when coef is negative, instead of ' + -1'
-        return " + ".join(map(str, self._monomials))
+        return str(self)
 
     def __pos__(self) -> "PauliString":
         return deepcopy(self)
@@ -115,13 +129,13 @@ class PauliString:
         return -1 * self
 
     def __iadd__(self, other: "PauliString") -> "PauliString":
-        if len(self._monomials) != 0:
+        if len(self.monomials) != 0:
             if not all([mono.nb_qubits == self.nb_qubits for mono in other.monomials]):
                 raise ValueError(
                     f"Non homogeneous sizes for given PauliStrings: {(self, other)}"
                 )
         else:
-            self._nb_qubits = other.nb_qubits
+            self._initial_nb_qubits = other.nb_qubits
         self._monomials.extend(deepcopy(other.monomials))
         return self
 
@@ -163,7 +177,6 @@ class PauliString:
         self._monomials = [
             mono for s_mono in self.monomials for mono in (s_mono @ other).monomials
         ]
-        self._nb_qubits += other.nb_qubits
         return self
 
     def __matmul__(self, other: "PauliString") -> "PauliString":
@@ -174,12 +187,6 @@ class PauliString:
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, PauliString):
             return False
-
-        # self_dict = self.to_dict()
-        # other_dict = other.to_dict()
-        #
-        # if all(m == 0.0 for m in self_dict.values()):
-        #     return all(m == 0.0 for m in other_dict.values())
 
         return self.to_dict() == other.to_dict()
 
@@ -201,7 +208,7 @@ class PauliString:
 
         """
         res = PauliString()
-        res._nb_qubits = self.nb_qubits
+        res._initial_nb_qubits = self.nb_qubits
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
             coef = float(
                 sum(
@@ -216,10 +223,7 @@ class PauliString:
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
-        # if len(res.monomials) == 0:
-        #     res.monomials.append(
-        #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-        #     )
+
         if inplace:
             self._monomials = res.monomials
         return res
@@ -243,17 +247,13 @@ class PauliString:
 
         """
         res = PauliString()
-        res._nb_qubits = self.nb_qubits
+        res._initial_nb_qubits = self.nb_qubits
         for mono in self.monomials:
             coef = float(np.round(float(mono.coef.real), max_digits))
             if coef == int(coef):
                 coef = int(coef)
             if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, mono.atoms))
-            # if len(res.monomials) == 0:
-            #     res.monomials.append(
-            #         PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-            #     )
         return res
 
     def sort_monomials(self) -> PauliString:
@@ -287,10 +287,11 @@ class PauliString:
              [0, 0]]
 
         """
-        self = self.simplify()
+        self.simplify(inplace=True)
+        size = 2**self.nb_qubits
         return sum(
             map(lambda m: m.to_matrix(), self.monomials),
-            start=np.zeros((2**self.nb_qubits, 2**self.nb_qubits), dtype=np.complex64),
+            start=np.zeros((size, size), dtype=np.complex64),
         )
 
     @staticmethod
@@ -304,7 +305,7 @@ class PauliString:
                 possible monomial.
 
         Returns:
-            Pauli string decomposition of the matrix in parameter.
+            PauliString corresponding to the pauli decomposition of the matrix in parameter.
 
         Raises:
             ValueError: If the input matrix is not square or its dimensions are
@@ -312,7 +313,7 @@ class PauliString:
 
         Example:
             >>> PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
-            1.0*I + 1.0*X + -1.0*Z
+            1*I + 1*X - 1*Z
 
         """
 
@@ -543,7 +544,7 @@ class PauliString:
             >>> a, b, c = LineQubit.range(3)
             >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c)
             >>> PauliString.from_other_language(cirq_ps)
-            0.25*Z@Y@I + 2.0*I@I@X
+            2*I@I@X + 0.25*Z@Y@I
 
             >>> from braket.circuits.observables import (
             ...     Sum as BraketSum,
@@ -554,17 +555,17 @@ class PauliString:
             ... )
             >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X()
             >>> PauliString.from_other_language(braket_ps)
-            0.25*Z@Y@I + 2*I@I@X
+            2*I@I@X + 0.25*Z@Y@I
 
             >>> from qiskit.quantum_info import SparsePauliOp
             >>> qiskit_ps = SparsePauliOp(["IYZ", "XII"], coeffs=[0.25 + 0.0j, 2.0 + 0.0j])
             >>> PauliString.from_other_language(qiskit_ps)
-            (0.25+0j)*Z@Y@I + (2+0j)*I@I@X
+            2*I@I@X + 0.25*Z@Y@I
 
             >>> from qat.core.wrappers.observable import Term
             >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
             >>> PauliString.from_other_language(my_qml_ps)
-            0.25*Z@Y@I + 2*I@I@X
+            2*I@I@X + 0.25*Z@Y@I
 
         """
         if isinstance(pauli, list) and any(
