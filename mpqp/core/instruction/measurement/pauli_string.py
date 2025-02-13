@@ -326,16 +326,18 @@ class PauliString:
         return pauli_list
 
     @staticmethod
-    def from_diagonal_elements(diagonal_elements: list[Complex] | npt.NDArray[np.complex64]):
+    def from_diagonal_elements(
+        diagonal_elements: list[Real] | npt.NDArray[np.float32],
+    ):
         """TODO"""
         pass
 
     def is_diagonal(self):
-
         # TODO: determine efficiently if the pauli string is diagonal ? we should check if each pauli monomial
         #  is only composed of I and Z
+        return
 
-    def is_commuting(self, p: PauliString):
+    def is_commuting_with(self, p: PauliString):
         """
         TODO: Determine EFFICIENTLY if this pauli string is commuting with the one in parameter.
         Args:

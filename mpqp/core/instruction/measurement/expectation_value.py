@@ -6,7 +6,7 @@ the measure."""
 from __future__ import annotations
 
 import copy
-from numbers import Complex
+from numbers import Real
 from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
@@ -66,13 +66,14 @@ class Observable:
 
     """
 
-    def __init__(self, observable: Matrix | list[Complex] | PauliString):
+    def __init__(self, observable: Matrix | list[Real] | PauliString):
         self._matrix = None
         self._pauli_string = None
         self._is_diagonal = None
         self._diag_elements = None
 
         if isinstance(observable, PauliString):
+            # TODO: add some checks, if all the coefficients of the pauli string are real ? (or obviously not necessary?)
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
             self._is_diagonal = observable.is_diagonal()
@@ -80,7 +81,7 @@ class Observable:
             size_1 = len(observable)
 
             if not is_power_of_two(size_1):
-                raise ValueError("The size of the observable array is not a power of two.")
+                raise ValueError("The size of the observable is not a power of two.")
 
             self.nb_qubits = int(np.log2(size_1))
             """Number of qubits of this observable."""
@@ -89,10 +90,12 @@ class Observable:
                 shape = observable.shape
 
                 if len(shape) > 2:
-                    raise ValueError(f"The dimension of the observable matrix {len(shape)} does not correspond "
-                                     f"to the one of a  matrix (2) or a list (1).")
+                    raise ValueError(
+                        f"The dimension of the observable matrix {len(shape)} does not correspond "
+                        f"to the one of a  matrix (2) or a list (1)."
+                    )
 
-                if len(shape) ==2:
+                if len(shape) == 2:
                     if shape != (size_1, size_1):
                         raise ValueError(
                             f"The size of the matrix {shape} doesn't neatly fit on a"
@@ -111,14 +114,7 @@ class Observable:
             # correspond to if len(shape) == 1 or isinstance(observable, list)
             else:
                 self._is_diagonal = True
-                # list of diag elements
-
-
-
-            # TODO: check if the observable is diagonal or not here by checking the types and shape
-            #  if it is not a list, use the method is_diagonal on the matrix
-
-
+                self._diag_elements = observable
 
     @property
     def matrix(self) -> Matrix:
@@ -136,14 +132,24 @@ class Observable:
         """The PauliString representation of the observable."""
         if self._pauli_string is None:
             if self.is_diagonal:
-                self._pauli_string = PauliString.from_diagonal_elements(self._diag_elements)
+                self._pauli_string = PauliString.from_diagonal_elements(
+                    self._diag_elements
+                )
             else:
                 self._pauli_string = PauliString.from_matrix(self.matrix)
         pauli_string = copy.deepcopy(self._pauli_string)
         return pauli_string
 
+    @property
+    def diagonal_elements(self) -> npt.NDArray[np.float32]:
+        """The diagonal elements of the matrix representing the observable (diagonal or not)."""
+        if self._diag_elements is None:
+            self._diag_elements = np.diagonal(self.matrix)
+        return self._diag_elements
+
     @matrix.setter
     def matrix(self, matrix: Matrix):
+        # TODO: add some checks on the matrix (square, power of two, hermitian)
         self._matrix = matrix
         self._pauli_string = None
         self._diag_elements = None
@@ -156,22 +162,37 @@ class Observable:
         self._diag_elements = None
         self._is_diagonal = None
 
-    @property
-    def is_diagonal(self) -> bool:
-        return ...
-        # TODO : implement this
+    @diagonal_elements.setter
+    def diagonal_elements(self, diag_elements: list[Real] | npt.NDArray[np.float64]):
+        # TODO: add some checks on the diagonal elements (size power of 2)
+
+        self._diag_elements = diag_elements
+        self._is_diagonal = True
+        self._pauli_string = None
+        self._matrix = None
 
     @property
-    def diagonal_elements(self) -> npt.NDArray[np.complex64]:
-        """The diagonal elements of the matrix representing the observable."""
-        if self._diag_elements is None:
-            self._diag_elements = np.diagonal(self.matrix)
-        return self._diag_elements
+    def is_diagonal(self) -> bool:
+        if self._is_diagonal is None:
+            # We first check if the pauli string is already known, we use it for efficiency
+            if self._pauli_string is not None:
+                self._is_diagonal = self._pauli_string.is_diagonal()
+            # If not we check if the matrix is already known,
+            elif self._matrix is not None:
+                self._is_diagonal = is_diagonal(self._matrix)
+            # If only the diagonal elements are known, we pass by the matrix for efficiency
+            elif self._diag_elements is not None:
+                self._is_diagonal = is_diagonal(self.matrix)
+            # Otherwise, the observable is empty, we return False by convention
+            else:
+                return False
+
+        return self._is_diagonal
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
 
-    def __mult__(self, other: Expr | Complex) -> Observable:
+    def __mult__(self, other: Expr | Real) -> Observable:
         """3M-TODO"""
         ...
 
@@ -180,10 +201,15 @@ class Observable:
         # TODO : distinguer si on a l'observable ou le pauli string
         # TODO: traitement spécifique si observable diagonal ?
 
+        if self.is_diagonal:
+            if obs.is_diagonal:
+                return True
+            # TODO: check if self is multiple of identity
+
         return ~np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
 
     def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+        self, values: dict[Expr | str, Real], remove_symbolic: bool = False
     ) -> Observable:
         """3M-TODO"""
         ...
@@ -229,54 +255,6 @@ class Observable:
 
 
 @typechecked
-class DiagonalObservable(Observable):
-
-    def __init__(self, diagonal_elements: list[Complex] | npt.NDArray[np.complex64]):
-
-
-        nb_elements = len(diagonal_elements)
-        if not is_power_of_two(nb_elements):
-            raise ValueError("The size of the diagonal elements is not a power of two.")
-
-        self.nb_qubits = int(np.log2(nb_elements))
-        self._diag = diagonal_elements
-        self.is_identity = None
-
-    def __repr__(self) -> str:
-        return f"{type(self).__name__}({one_lined_repr(self._diag)})"
-
-    def __mult__(self, other: Expr | Complex) -> DiagonalObservable:
-        """3M-TODO"""
-        ...
-
-    @property
-    def pauli_string(self) -> PauliString:
-        """The PauliString representation of the observable."""
-        if self._pauli_string is None:
-            self._pauli_string = PauliString.from_diagonal_elements(self._diag)
-        pauli_string = copy.deepcopy(self._pauli_string)
-        return pauli_string
-
-    @property
-    def matrix(self) -> Matrix:
-        if self._matrix is None:
-            self._matrix = np.diag(self._diag)
-        matrix = copy.deepcopy(self._matrix).astype(np.complex64)
-        return matrix
-
-    def is_commuting(self, obs: Observable):
-
-        if isinstance(obs, DiagonalObservable):
-            return True
-        # if this observable is the identity
-        if
-
-        # TODO finish, to optimize for the diagonal case
-
-        return False
-
-
-@typechecked
 class ExpectationMeasure(Measure):
     """This measure evaluates the expectation value of the output of the circuit
     measured by the observable(s) given as input.
@@ -315,7 +293,7 @@ class ExpectationMeasure(Measure):
     ):
 
         super().__init__(targets, shots, label)
-        # Do some checks on the observables when they are many (same size because of targets)
+        # TODO Do some checks on the observables when they are many (same size because of targets)
         self.observable: OneOrMany[Observable]
         """See parameter description."""
         if isinstance(observable, Observable):
@@ -377,11 +355,10 @@ class ExpectationMeasure(Measure):
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
 
-    def get_smart_pauli_measurements(self) -> set[Observable]:
+    def get_smart_pauli_grouping(self) -> list[set[Observable]]:
         """
         TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
-          and return the measurements to be performed. Be sure that we don't decompose twice the observables into
-          PauliString when we will compute the expectation values in post-processing.
+          and return the measurements to be performed.
         Returns:
 
         """
@@ -395,7 +372,7 @@ class ExpectationMeasure(Measure):
         )
         shots = "" if self.shots == 0 else f", shots={self.shots}"
         label = "" if self.label is None else f", label={self.label}"
-        # TODO: update the repr when self.observable contains a list of observables
+        # TODO: update the repr when self.observable contains a list of observables, with also the number of observables
         return f"ExpectationMeasure({self.observable}{targets}{shots}{label})"
 
     def to_other_language(
