@@ -378,9 +378,14 @@ def decompose_diagonal_observable_ptdr(
     monomials = []
     size = len(diags)
 
+    if size == 0:
+        raise ValueError("Diagonal elements cannot be empty.")
+
     if not is_power_of_two(size):
-        raise ValueError
-    # TODO add all the necessary checks on the size
+        raise ValueError(
+            f"Diagonal elements must have a length that is a power of two, but got {size}."
+        )
+
     nb_qubits = int(np.log2(size))
     root = DiagPauliNode()
     i_m = [False] * size
