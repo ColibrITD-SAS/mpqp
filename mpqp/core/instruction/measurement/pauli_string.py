@@ -1,7 +1,7 @@
 """Observables can be defined using linear combinations of Pauli operators,
-these are called "Pauli strings". In ``mpqp``, a :class:`PauliString` is a 
-linear combination of :class:`PauliStringMonomial` which are themselves 
-combinations (tensor products) of :class:`PauliStringAtom`. :class:`PauliString` 
+these are called "Pauli strings". In ``mpqp``, a :class:`PauliString` is a
+linear combination of :class:`PauliStringMonomial` which are themselves
+combinations (tensor products) of :class:`PauliStringAtom`. :class:`PauliString`
 can be added, subtracted and tensored together, as well as multiplied by scalars."""
 
 from __future__ import annotations
@@ -349,7 +349,7 @@ class PauliString:
 
     @staticmethod
     def _get_dimension_cirq_pauli(
-        pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation]
+        pauli: Union[CirqPauliSum, CirqPauliString, CirqGateOperation],
     ):
         from cirq.ops.gate_operation import GateOperation as CirqGateOperation
         from cirq.ops.linear_combinations import PauliSum as CirqPauliSum

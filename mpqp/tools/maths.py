@@ -1,4 +1,4 @@
-"""Mathematical tools for linear algebra, functions generalized to more data 
+"""Mathematical tools for linear algebra, functions generalized to more data
 types, etc…"""
 
 from __future__ import annotations
@@ -333,7 +333,7 @@ def rand_clifford_matrix(
 
 @typechecked
 def rand_unitary_2x2_matrix(
-    seed: Optional[Union[int, np.random.Generator]] = None
+    seed: Optional[Union[int, np.random.Generator]] = None,
 ) -> npt.NDArray[np.complex64]:
     """Generate a random one-qubit unitary matrix.
 
