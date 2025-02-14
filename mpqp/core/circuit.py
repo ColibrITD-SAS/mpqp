@@ -380,6 +380,15 @@ class QCircuit:
     @nb_cbits.setter
     def nb_cbits(self, nb_cbits: int):
         if self._user_nb_cbits is None or self._user_nb_cbits != nb_cbits:
+            for measure in self.measurements:
+                if (
+                    isinstance(measure, BasisMeasure)
+                    and measure.c_targets is not None
+                    and any(target <= nb_cbits for target in measure.c_targets)
+                ):
+                    raise ValueError(
+                        f"{repr(measure)} targets out of range: {measure.c_targets}"
+                    )
             self._user_nb_cbits = nb_cbits
 
     def _set_nb_qubits_dynamic(self, nb_qubits: int):
