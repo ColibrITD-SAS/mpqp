@@ -78,6 +78,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
     tweaked_measure = ExpectationMeasure(
         Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
+        # TODO: [multi-obs] we have to update this to do the same for every observable in the expectatio measure
         list(range(circuit.nb_qubits)),
         measure.shots,
     )
@@ -357,6 +358,9 @@ def submit(
 
     if isinstance(device, IBMDevice):
         job_id, _ = submit_remote_ibm(job)
+        # TODO : [multi-obs] we need to set if we return several ids, or if we return the workload id
+        #  we may need to update how we parse the result in get results with the list of obs case (cauz the ibm result
+        #  will only correspond to pauli monomials
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
