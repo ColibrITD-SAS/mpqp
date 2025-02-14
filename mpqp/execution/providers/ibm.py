@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2
+
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 
@@ -84,6 +85,7 @@ def compute_expectation_value(
         :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit.quantum_info import SparsePauliOp
+
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
     if not isinstance(job.measure, ExpectationMeasure):
@@ -416,6 +418,7 @@ def run_aer(job: Job):
 
     from qiskit import QuantumCircuit, transpile
     from qiskit_aer import AerSimulator
+
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
     job_circuit = job.circuit
@@ -439,7 +442,10 @@ def run_aer(job: Job):
 
     qiskit_circuit = (
         (
-            job_circuit.without_measurements() + job_circuit.pre_measure()
+            # 3M-TODO: careful, if we ever support several measurements, the
+            # line bellow will have to changer
+            job_circuit.without_measurements()
+            + job_circuit.pre_measure()
         ).to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
         else job_circuit.to_other_language(Language.QISKIT)

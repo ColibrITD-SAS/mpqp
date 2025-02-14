@@ -39,7 +39,10 @@ def run_azure(job: Job) -> Result:
 
     qiskit_circuit = (
         (
-            job.circuit.without_measurements() + job.circuit.pre_measure()
+            # 3M-TODO: careful, if we ever support several measurements, the
+            # line bellow will have to changer
+            job.circuit.without_measurements()
+            + job.circuit.pre_measure()
         ).to_other_language(Language.QISKIT)
         if (job.job_type == JobType.STATE_VECTOR)
         else job.circuit.to_other_language(Language.QISKIT)
@@ -87,8 +90,8 @@ def extract_result(
     Raises:
         ValueError: If the result type is unsupported.
     """
-    from qiskit.result import Result as QiskitResult
     from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
+    from qiskit.result import Result as QiskitResult
 
     if isinstance(result, QiskitResult):
         from mpqp.execution.providers.ibm import extract_result as extract_result_ibm

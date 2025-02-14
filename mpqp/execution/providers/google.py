@@ -136,6 +136,8 @@ def run_local(job: Job) -> Result:
         return run_local_processor(job)
 
     if job.job_type == JobType.STATE_VECTOR:
+        # 3M-TODO: careful, if we ever support several measurements, the
+        # line bellow will have to changer
         circuit = job.circuit.without_measurements() + job.circuit.pre_measure()
         cirq_circuit = circuit.to_other_language(Language.CIRQ)
         job.circuit.gphase = circuit.gphase
