@@ -1,5 +1,5 @@
-"""Observables can be defined using (real valued) linear combinations of Pauli 
-operators, these are called "Pauli strings". In ``mpqp``, a :class:`PauliString` 
+"""Observables can be defined using (real valued) linear combinations of Pauli
+operators, these are called "Pauli strings". In ``mpqp``, a :class:`PauliString`
 is a linear combination of :class:`PauliStringMonomial` which are themselves
 combinations (tensor products) of :class:`PauliStringAtom`. :class:`PauliString`
 can be added, subtracted and tensored together, as well as multiplied by scalars."""
