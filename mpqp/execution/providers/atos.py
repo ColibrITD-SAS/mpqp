@@ -249,7 +249,7 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     Returns:
         A myQLM Job for retrieving the expectation value of the observable.
     """
-    # TODO: update this to take into account the case when we have list of Observables
+    # TODO: [multi-obs] update this to take into account the case when we have list of Observables
     if TYPE_CHECKING:
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
     qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
