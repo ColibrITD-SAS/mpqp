@@ -12,11 +12,14 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from functools import reduce
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from mpqp import QCircuit
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -133,7 +136,7 @@ class Basis:
         qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
         return f"{type(self).__name__}({joint_vectors}{qubits})"
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         """Converts the custom basis to the computational basis.
 
         This method creates a quantum circuit with a custom gate represented by
@@ -290,7 +293,7 @@ class ComputationalBasis(VariableSizeBasis):
         ]
         self.nb_qubits = nb_qubits
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         from mpqp.core.circuit import QCircuit
 
         return QCircuit(self.nb_qubits)
@@ -341,7 +344,7 @@ class HadamardBasis(VariableSizeBasis):
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         from mpqp.core.circuit import QCircuit
         from mpqp.core.instruction.gates.native_gates import H
 

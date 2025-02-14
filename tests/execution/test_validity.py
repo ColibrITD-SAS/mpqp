@@ -441,7 +441,7 @@ def test_validity_native_gate_to_other_language(language: Language):
     for gate in NATIVE_GATES:
         gate_build = random_gate([gate])
 
-        if language in [Language.MY_QLM, Language.CIRQ, Language.QASM3]:
+        if language in [Language.MY_QLM, Language.QASM3]:
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
@@ -473,7 +473,6 @@ def test_validity_measure_to_other_language(
                 measure.to_other_language(language)
         elif language in [
             Language.MY_QLM,
-            Language.CIRQ,
             Language.BRAKET,
             Language.QASM3,
         ]:
