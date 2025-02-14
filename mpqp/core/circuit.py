@@ -387,7 +387,9 @@ class QCircuit:
                     and any(target <= nb_cbits for target in measure.c_targets)
                 ):
                     raise ValueError(
-                        f"{repr(measure)} targets out of range: {measure.c_targets}"
+                        f"Targets of the measure {repr(measure)} are not "
+                        "compatible with the classical bits register size "
+                        f"requested {nb_cbits}."
                     )
             self._user_nb_cbits = nb_cbits
 
