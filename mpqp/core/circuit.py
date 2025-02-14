@@ -1009,6 +1009,12 @@ class QCircuit:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
+        Some measurements require some adaptation between the user defined
+        circuit and the measure. For instance if the targets are not given in a
+        contiguous ordered list or if the basis measurement is in a basis other
+        than the computational basis. We automatically add this adaptation as an
+        intermediate circuit called ``pre_measure``.
+
         By default, the circuit is translated to the corresponding
         ``QuantumCircuit`` in Qiskit since this is the interface we use to
         generate the OpenQASM code.
@@ -1019,7 +1025,9 @@ class QCircuit:
 
         Args:
             language: Enum representing the target language.
-            cirq_proc_id : Identifier of the processor for cirq.
+            cirq_proc_id: Identifier of the processor for cirq.
+            skip_pre_measure: If true, the ``pre_measure`` circuit will not be
+                added to the output.
 
         Returns:
             The corresponding circuit in the target language.
@@ -1208,8 +1216,8 @@ class QCircuit:
             )
         elif language == Language.CIRQ:
             from cirq.circuits.circuit import Circuit as CirqCircuit
-            from cirq.ops.named_qubit import NamedQubit
             from cirq.ops.identity import I
+            from cirq.ops.named_qubit import NamedQubit
 
             cirq_qubits = [NamedQubit(f"q_{i}") for i in range(self.nb_qubits)]
             cirq_circuit = CirqCircuit()
