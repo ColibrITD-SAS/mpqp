@@ -1,4 +1,4 @@
-"""This module provides functionalities for working with decision trees, 
+"""This module provides functionalities for working with decision trees,
 allowing for seamless navigation and interaction within a tree structure.
 
 You can define a :class:`QuestionNode`, containing your question and options.

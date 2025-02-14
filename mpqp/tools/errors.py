@@ -1,4 +1,4 @@
-"""You will find here the custom exceptions we created in order to provide 
+"""You will find here the custom exceptions we created in order to provide
 clearer errors. When relevant, we also append the trace of the error raised by a
 provider's SDK."""
 
