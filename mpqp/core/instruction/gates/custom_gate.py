@@ -1,7 +1,7 @@
 """In some cases, we need to manipulate unitary operations that are not defined
 using native gates (by the corresponding unitary matrix for instance). For those
-cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate` 
-to add your custom unitary operation to the circuit, which will be decomposed 
+cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate`
+to add your custom unitary operation to the circuit, which will be decomposed
 and executed transparently."""
 
 from typing import TYPE_CHECKING, Optional

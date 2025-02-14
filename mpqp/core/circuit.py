@@ -1,7 +1,7 @@
 """MPQP is focused on gate-based quantum computing. As such, the main element of
 a script using MPQP is the quantum circuit, or :class:`QCircuit`. The
 :class:`QCircuit` contains the data for all gates, measurements, and noise models you
-want to apply to your qubits. 
+want to apply to your qubits.
 
 The qubits are only referred to by their indices, so one could keep track of
 specific registers using Python features, for instance
@@ -26,7 +26,7 @@ specific registers using Python features, for instance
               └───┘┌─┴─┐
     q_5: ──────────┤ X ├
                    └───┘
-    
+
 could be used to add CNOT gates to your circuit, using the two registers
 ``targets`` and ``ancillas``.
 """
@@ -122,13 +122,14 @@ class QCircuit:
 
     def __init__(
         self,
-        data: int | Sequence[Instruction | NoiseModel],
+        data: Optional[int | Sequence[Instruction | NoiseModel]] = None,
         *,
         nb_qubits: Optional[int] = None,
         nb_cbits: Optional[int] = None,
         label: Optional[str] = None,
     ):
-
+        if data is None:
+            data = []
         self.nb_cbits = nb_cbits
         """See parameter description."""
         self.label = label
@@ -137,6 +138,7 @@ class QCircuit:
         """List of instructions of the circuit."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
+        self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
         self.gphase: float = 0
@@ -150,7 +152,7 @@ class QCircuit:
                     f"The data passed to QCircuit is a negative int ({data}), "
                     "this does not make sense."
                 )
-            self._nb_qubits = data
+            self._user_nb_qubits = data
         else:
             if nb_qubits is None:
                 if len(data) == 0:
@@ -161,7 +163,7 @@ class QCircuit:
                     )
                     self._nb_qubits = max(connections) + 1
             else:
-                self._nb_qubits = nb_qubits
+                self._user_nb_qubits = nb_qubits
             self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
@@ -210,15 +212,23 @@ class QCircuit:
                 self.add(comp)
             return
 
-        if any(conn >= self.nb_qubits for conn in components.connections()):
-            component_type = (
-                "Instruction" if isinstance(components, Instruction) else "Noise model"
-            )
-            raise NumberQubitsError(
-                f"{component_type} {type(components)}'s connections "
-                f"({components.connections()}) are not compatible with circuit"
-                f" size ({self.nb_qubits})."
-            )
+        if self._user_nb_qubits is not None:
+            if any(conn >= self._user_nb_qubits for conn in components.connections()):
+                component_type = (
+                    "Instruction"
+                    if isinstance(components, Instruction)
+                    else "Noise model"
+                )
+                raise NumberQubitsError(
+                    f"{component_type} {type(components)}'s connections "
+                    f"({components.connections()}) are not compatible with circuit"
+                    f" size ({self.nb_qubits})."
+                )
+        else:
+            if components._dynamic is False:  # pyright: ignore[reportPrivateUsage]
+                self._set_nb_qubits_dynamic(
+                    max(self.nb_qubits, max(components.connections()) + 1)
+                )
 
         if components._dynamic:  # pyright: ignore[reportPrivateUsage]
             components = self._update_targets_components(components)
@@ -344,19 +354,25 @@ class QCircuit:
     @property
     def nb_qubits(self) -> int:
         """Number of qubits of the circuit."""
-        return self._nb_qubits
+        return self._nb_qubits if self._user_nb_qubits is None else self._user_nb_qubits
 
     @nb_qubits.setter
     def nb_qubits(self, nb_qubits: int):
-        self._nb_qubits = nb_qubits
+        if self._user_nb_qubits is None or self._user_nb_qubits != nb_qubits:
+            self._user_nb_qubits = nb_qubits
+            self._set_nb_qubits_dynamic(nb_qubits)
 
-        for noise in self.noises:
-            if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
-                self._update_targets_components(noise)
+    def _set_nb_qubits_dynamic(self, nb_qubits: int):
+        if not hasattr(self, "_nb_qubits") or nb_qubits != self._nb_qubits:
+            self._nb_qubits = nb_qubits
 
-        for instruction in self.instructions:
-            if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
-                self._update_targets_components(instruction)
+            for noise in self.noises:
+                if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
+                    self._update_targets_components(noise)
+
+            for instruction in self.instructions:
+                if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
+                    self._update_targets_components(instruction)
 
     def append(self, other: QCircuit, qubits_offset: int = 0) -> None:
         """Appends the circuit at the end (right side) of this circuit, inplace.
@@ -503,7 +519,10 @@ class QCircuit:
 
         """
         res = deepcopy(self)
-        res.nb_qubits += other.nb_qubits
+        if res._user_nb_qubits is not None and other._user_nb_qubits is not None:
+            res.nb_qubits += other.nb_qubits
+        else:
+            res._set_nb_qubits_dynamic(res.nb_qubits + other.nb_qubits)
         res.append(other, qubits_offset=self.nb_qubits)
         return res
 
@@ -1280,12 +1299,14 @@ class QCircuit:
 
     def __repr__(self) -> str:
         instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
+        nb_qubits = ""
+        if self._user_nb_qubits is not None:
+            nb_qubits = f", nb_qubits={self.nb_qubits}"
 
-        if self.noises:
-            noise_repr = ", ".join(map(repr, self.noises))
-            return f'QCircuit([{instructions_repr}, {noise_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
-        else:
-            return f'QCircuit([{instructions_repr}], nb_qubits={self.nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
+        components = instructions_repr + (
+            "" if len(self.noises) != 0 else (", " + ", ".join(map(repr, self.noises)))
+        )
+        return f'QCircuit([{components}]{nb_qubits}, nb_cbits={self.nb_cbits}, label="{self.label}")'
 
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.

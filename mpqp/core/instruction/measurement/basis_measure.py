@@ -73,6 +73,14 @@ class BasisMeasure(Measure):
 
         if not isinstance(basis, VariableSizeBasis):
             self._dynamic = False
+            if (
+                len(self.targets) != 0
+                and max(self.targets) - min(self.targets) + 1 != basis.nb_qubits
+            ):
+                raise ValueError(
+                    f"Size mismatch between target and basis: target size is "
+                    f"{max(self.targets)-min(self.targets) + 1} but basis size is {basis.nb_qubits}"
+                )
             self.targets = list(range(basis.nb_qubits))
 
         self.user_set_c_targets = c_targets is not None

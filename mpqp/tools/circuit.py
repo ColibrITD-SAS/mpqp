@@ -39,8 +39,7 @@ if TYPE_CHECKING:
     from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
+@typechecked
 def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -85,7 +84,7 @@ def random_circuit(
     rng = np.random.default_rng(seed)
 
     if nb_gates is None:
-        nb_gates = rng.integers(5, 10)
+        nb_gates = int(rng.integers(5, 10))
 
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):

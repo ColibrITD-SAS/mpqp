@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt
+from numbers import Complex
 
 if TYPE_CHECKING:
     from sympy import Expr, Basic
@@ -31,9 +32,8 @@ def state_vector_ket_shape(sv: npt.NDArray[np.complex64]) -> str:
     )[2:]
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def with_sign(val: np.complex64) -> str:
+@typechecked
+def with_sign(val: Union[np.complex64, np.complex128]) -> str:
     """Sometimes, we want values under a specific format, in particular
     ``<sign> <value>``. Where value is as simple as possible (*e.g.* no period
     or no imaginary part if there is no need).
@@ -57,18 +57,20 @@ def with_sign(val: np.complex64) -> str:
     return "+ " + str_rounded
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def _remove_null_imag(val: np.complex64) -> np.complex64 | np.float32 | int:
+@typechecked
+def _remove_null_imag(
+    val: np.complex64 | np.complex128,
+) -> np.complex64 | np.complex128 | np.float32 | int:
     val = np.round(val, 3)
     if val.imag != 0:
         return val
     return _remove_unnecessary_decimals(val.real)
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def _remove_unnecessary_decimals(val: np.float32 | int) -> np.float32 | int:
+@typechecked
+def _remove_unnecessary_decimals(
+    val: np.float32 | np.float64 | int,
+) -> np.float32 | int:
     val = np.float32(val)
     if val.is_integer():
         return int(val)
@@ -142,7 +144,8 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
 
 @typechecked
 def clean_1D_array(
-    array: list[complex] | npt.NDArray[np.complex64 | np.float32], round: int = 5
+    array: list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
+    round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function
     rounds the parts of the numbers in the array and formats them as integers if
@@ -190,9 +193,8 @@ def clean_1D_array(
     )
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
-def clean_number_repr(number: complex, round: int = 7):
+@typechecked
+def clean_number_repr(number: Union[complex, np.complex64], round: int = 7):
     """Cleans and formats a number. This function rounds the parts of
     complex numbers and formats them as integers if appropriate. It returns a
     string representation of the number.
@@ -234,8 +236,7 @@ def clean_number_repr(number: complex, round: int = 7):
     return f"{str(real_part)}{str(imag_part)}"
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
+@typechecked
 def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     """Cleans and formats elements of a 2D matrix. This function rounds the
     parts of the numbers in the matrix and formats them as integers if
@@ -250,9 +251,9 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
         A string representation of the cleaned matrix.
 
     Examples:
-        >>> print(clean_matrix([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ...                     [1+5j, 0+1j, 5.],
-        ...                     [1.223123425+0.95113462364j, 2.0, 3.0]]))
+        >>> print(clean_matrix(np.array([[1.234567895546, 2.3456789645645, 3.45678945645],
+        ... [1+5j, 0+1j, 5.],
+        ... [1.223123425+0.95113462364j, 2.0, 3.0]])))
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]
@@ -280,8 +281,7 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     )
 
 
-# @typechecked
-# FIXME: Resolve type-checking errors encountered during test execution.
+@typechecked
 def pprint(matrix: Matrix, round: int = 5, align: bool = True):
     """Print a cleans and formats elements of a matrix. It rounds the real parts of complex numbers
     in the matrix places and formats them as integers if they are whole numbers. It returns a
@@ -293,9 +293,9 @@ def pprint(matrix: Matrix, round: int = 5, align: bool = True):
         align: Whether to align the elements for a cleaner output.
 
     Example:
-        >>> pprint([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ...                     [1+5j, 0+1j, 5.],
-        ...                     [1.223123425+0.95113462364j, 2.0, 3.0]])
+        >>> pprint(np.array([[1.234567895546, 2.3456789645645, 3.45678945645],
+        ... [1+5j, 0+1j, 5.],
+        ... [1.223123425+0.95113462364j, 2.0, 3.0]]))
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]

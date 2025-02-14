@@ -33,6 +33,7 @@ setup(
     entry_points={
         "console_scripts": [
             "setup_connections = mpqp_scripts.setup_connections:main_setup",
+            "update_qiskit = mpqp_scripts.update_qiskit:update_packages",
         ]
     },
     project_urls={

@@ -7,7 +7,7 @@ You will find bellow the list of available native gates:
 
 .. container::
     :name: native-gates-list
-    
+
     ``to-be-generated``
 """
 
