@@ -92,7 +92,9 @@ def compute_expectation_value(
             "type ExpectationMeasure"
         )
     nb_shots = job.measure.shots
-    qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT) # TODO : [multi-obs] measure.observable is a list
+    qiskit_observable = job.measure.observable.to_other_language(
+        Language.QISKIT
+    )  # TODO : [multi-obs] measure.observable is a list
 
     if TYPE_CHECKING:
         assert isinstance(qiskit_observable, SparsePauliOp)
@@ -105,7 +107,9 @@ def compute_expectation_value(
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
-        qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout) # TODO : [multi-obs] update this
+        qiskit_observable = qiskit_observable.apply_layout(
+            ibm_circuit.layout
+        )  # TODO : [multi-obs] update this
 
         options = {"default_shots": nb_shots}
 
@@ -129,13 +133,17 @@ def compute_expectation_value(
     #  putting them all together will increase the performance
 
     job.status = JobStatus.RUNNING
-    job_expectation = estimator.run([(ibm_circuit, qiskit_observable)]) # TODO : [multi-obs] especially this
+    job_expectation = estimator.run(
+        [(ibm_circuit, qiskit_observable)]
+    )  # TODO : [multi-obs] especially this
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
 
-    return extract_result(estimator_result, job, job.device) # TODO : [multi-obs] modify extract result
+    return extract_result(
+        estimator_result, job, job.device
+    )  # TODO : [multi-obs] modify extract result
 
 
 @typechecked
@@ -545,7 +553,9 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         setattr(estimator.options, "default_shots", meas.shots)
 
-        ibm_job = estimator.run([(qiskit_circ, qiskit_observable)]) # TODO : [multi-obs] especially this one
+        ibm_job = estimator.run(
+            [(qiskit_circ, qiskit_observable)]
+        )  # TODO : [multi-obs] especially this one
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
