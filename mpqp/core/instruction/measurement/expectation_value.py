@@ -61,7 +61,7 @@ class Observable:
                 [ 0.+0.j,  0.+4.j, 3.+0.j,  0.+0.j],
                 [ 0.-4.j,  0.+0.j, 0.+0.j, -3.+0.j]],
             dtype=complex64))
-        >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sort_monomials()
+        >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sorted_monomials()
         3*I@Z + 4*X@Y
 
     """
