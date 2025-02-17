@@ -384,7 +384,7 @@ class QCircuit:
                 if (
                     isinstance(measure, BasisMeasure)
                     and measure.c_targets is not None
-                    and any(target <= nb_cbits for target in measure.c_targets)
+                    and any(target >= nb_cbits for target in measure.c_targets)
                 ):
                     raise ValueError(
                         f"Targets of the measure {repr(measure)} are not "
