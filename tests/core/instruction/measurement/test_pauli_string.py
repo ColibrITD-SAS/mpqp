@@ -14,7 +14,7 @@ from operator import (
     truediv,
 )
 from random import randint
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 from sympy import symbols
 
 if TYPE_CHECKING:
@@ -128,6 +128,40 @@ def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex64]):
 def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
     simplified_ps = init_ps.simplify()
     assert simplified_ps == simplified_ps
+
+
+@pytest.mark.parametrize(
+    "init_ps, subs_dict, expected_ps",
+    [
+        # Basic substitution with numeric values
+        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
+        (symbols("k") * X @ Y, {"k": 2}, 2 * X @ Y),
+        (symbols("a") * Y @ Z, {"a": -1}, -Y @ Z),
+        # Multiple variable substitutions
+        (
+            symbols("theta") * I @ X + symbols("k") * Z @ Y,
+            {"theta": np.pi, "k": 1},
+            np.pi * I @ X + Z @ Y,
+        ),
+        (symbols("a") * X @ X + symbols("b") * Y @ Y, {"a": 0, "b": 3}, 3 * Y @ Y),
+        # Removing symbolic values
+        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
+        (
+            symbols("theta") * X @ Y + symbols("phi") * Y @ Z,
+            {"theta": 1, "phi": 2},
+            X @ Y + 2 * Y @ Z,
+        ),
+        # No substitutions (should remain the same)
+        (symbols("theta") * I @ X, {}, symbols("theta") * I @ X),
+    ],
+)
+def test_subs(
+    init_ps: PauliString,
+    subs_dict: dict[str, Union[float, int]],
+    expected_ps: PauliString,
+):
+    result_ps = init_ps.subs(subs_dict)  # pyright: ignore
+    assert result_ps == expected_ps, f"Expected {expected_ps}, but got {result_ps}"
 
 
 a, b, c = LineQubit.range(3)

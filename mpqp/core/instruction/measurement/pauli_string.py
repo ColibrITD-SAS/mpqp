@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from functools import reduce
-from numbers import Real
+from numbers import Complex, Real
 from operator import matmul, mul
 from typing import TYPE_CHECKING, Any, Optional, Union
 from typeguard import typechecked
@@ -18,6 +18,7 @@ import numpy.typing as npt
 from sympy import Expr
 
 from mpqp.core.languages import Language
+from mpqp.tools import format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
 
@@ -209,6 +210,40 @@ class PauliString:
             return False
 
         return self.to_dict() == other.to_dict()
+
+    def subs(
+        self, values: dict[Expr | str, Complex], remove_symbolic: bool = True
+    ) -> PauliString:
+        r"""Substitute the coef of the pauli sting with values for each of the
+        specified coef. Optionally also remove all symbolic variables such
+        as `\pi` (needed for example for circuit execution).
+
+        Since we use ``sympy`` for the gate parameters, the ``values`` can in fact be
+        anything the ``subs`` method from ``sympy`` would accept.
+
+        Args:
+            values: Mapping between the variables and the replacing values.
+            remove_symbolic: Whether symbolic values should be replaced by their
+                numeric counterparts.
+
+        Returns:
+            The pauli sting with the replaced parameters.
+
+        Examples:
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> theta, k = symbols("θ k")
+            >>> ps = theta * I @ X + k * Z @ Y
+            >>> print(ps)
+            (θ)*I@X + (k)*Z@Y
+            >>> print(ps.subs({theta: np.pi, k: 1}))
+            3.1416*I@X + 1*Z@Y
+
+        """
+        new_pauli_string = PauliString()
+        for monomial in self.monomials:
+            substituted_monomial = monomial.subs(values, remove_symbolic)
+            new_pauli_string += substituted_monomial
+        return new_pauli_string
 
     def simplify(self, inplace: bool = False) -> PauliString:
         """Simplifies the Pauli string by combining identical terms and removing
@@ -904,6 +939,38 @@ class PauliStringMonomial(PauliString):
     def __hash__(self):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
+
+    def subs(
+        self, values: dict[Expr | str, Complex], remove_symbolic: bool = True
+    ) -> PauliStringMonomial:
+        r"""Substitutes the parameters of the instruction with complex values.
+        Optionally, also removes all symbolic variables such as `\pi` (needed for
+        circuit execution, for example).
+
+        Since we use ``sympy`` for gate parameters, ``values`` can in fact be
+        anything the ``subs`` method from ``sympy`` would accept.
+
+        Args:
+            values: Mapping between the variables and the replacing values.
+            remove_symbolic: Whether symbolic values should be replaced by their
+                numeric counterparts.
+
+        Returns:
+            The circuit with the replaced parameters.
+
+        Example:
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> theta = symbols("θ")
+            >>> print((theta * I @ X).subs({theta: np.pi}))
+            3.141592653589793*I@X
+        """
+
+        new_monomial = deepcopy(self)
+        caster = lambda v: format_element(v) if remove_symbolic else v
+        if isinstance(new_monomial.coef, Expr):
+            new_monomial.coef = caster(new_monomial.coef.subs(values))
+
+        return new_monomial
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
