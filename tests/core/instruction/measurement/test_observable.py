@@ -100,7 +100,7 @@ def test_matrix_to_pauli(list_matrix_pauli_string: list[tuple[Matrix, PauliStrin
 def test_diagonal_elements_to_pauli(
     list_diagonal_elements_pauli_string: list[
         tuple[Union[list[Real], npt.NDArray[np.float64]], PauliString]
-    ]
+    ],
 ):
     for diag, ps in list_diagonal_elements_pauli_string:
         # diag_array = np.array(diag, dtype=np.float64)
@@ -115,7 +115,7 @@ def test_pauli_to_matrix(list_matrix_pauli_string: list[tuple[Matrix, PauliStrin
 
 
 def test_matrix_to_pauli_to_matrix(
-    list_matrix_pauli_string: list[tuple[Matrix, PauliString]]
+    list_matrix_pauli_string: list[tuple[Matrix, PauliString]],
 ):
     for matrix, _ in list_matrix_pauli_string:
         assert matrix_eq(
@@ -127,7 +127,7 @@ def test_matrix_to_pauli_to_matrix(
 
 
 def test_pauli_to_matrix_to_pauli(
-    list_matrix_pauli_string: list[tuple[Matrix, PauliString]]
+    list_matrix_pauli_string: list[tuple[Matrix, PauliString]],
 ):
     for _, ps in list_matrix_pauli_string:
         assert PauliString.from_matrix(ps.to_matrix(), method="ptdr") == ps
