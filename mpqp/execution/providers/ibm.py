@@ -12,7 +12,10 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
+from mpqp.core.instruction.measurement.expectation_value import (
+    ExpectationMeasure,
+    Observable,
+)
 from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
@@ -20,7 +23,7 @@ from mpqp.execution.connection.ibm_connection import (
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
@@ -37,6 +40,7 @@ if TYPE_CHECKING:
     from qiskit_aer import AerSimulator
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2
+
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 
@@ -61,7 +65,7 @@ def run_ibm(job: Job) -> Result:
 @typechecked
 def compute_expectation_value(
     ibm_circuit: QuantumCircuit, job: Job, simulator: Optional["AerSimulator"]
-) -> Result:  # TODO : [multi-obs] we may return a BatchResult ?
+) -> BatchResult | Result:
     """Configures observable job and run it locally, and returns the
     corresponding Result.
 
@@ -84,6 +88,7 @@ def compute_expectation_value(
         :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit.quantum_info import SparsePauliOp
+
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
     if not isinstance(job.measure, ExpectationMeasure):
@@ -91,13 +96,23 @@ def compute_expectation_value(
             "Cannot compute expectation value if measure used in job is not of "
             "type ExpectationMeasure"
         )
+
     nb_shots = job.measure.shots
-    qiskit_observable = job.measure.observable.to_other_language(
-        Language.QISKIT
-    )  # TODO : [multi-obs] measure.observable is a list
+    observables = (
+        job.measure.observable
+        if isinstance(job.measure.observable, list)
+        else [job.measure.observable]
+    )
+
+    qiskit_observables = []
+    for obs in observables:
+        if isinstance(obs, Observable):
+            qiskit_observables.append(obs.to_other_language(Language.QISKIT))
+        else:
+            raise ValueError("Unsupported observable")
 
     if TYPE_CHECKING:
-        assert isinstance(qiskit_observable, SparsePauliOp)
+        assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
     if isinstance(job.device, IBMSimulatedDevice):
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
@@ -107,12 +122,10 @@ def compute_expectation_value(
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
-        qiskit_observable = qiskit_observable.apply_layout(
-            ibm_circuit.layout
-        )  # TODO : [multi-obs] update this
-
+        qiskit_observables = [
+            obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
+        ]
         options = {"default_shots": nb_shots}
-
         estimator = Runtime_Estimator(mode=backend, options=options)
 
     else:
@@ -133,17 +146,22 @@ def compute_expectation_value(
     #  putting them all together will increase the performance
 
     job.status = JobStatus.RUNNING
-    job_expectation = estimator.run(
-        [(ibm_circuit, qiskit_observable)]
-    )  # TODO : [multi-obs] especially this
+    circuits_and_observables = [(ibm_circuit, obs) for obs in qiskit_observables]
+    job_expectation = estimator.run(circuits_and_observables)
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
 
-    return extract_result(
-        estimator_result, job, job.device
-    )  # TODO : [multi-obs] modify extract result
+    if len(qiskit_observables) > 1:
+        return BatchResult(
+            [
+                extract_result(estimator_result, job, job.device)
+                for _ in range(len(qiskit_observables))
+            ]
+        )
+    else:
+        return extract_result(estimator_result, job, job.device)
 
 
 @typechecked
@@ -424,6 +442,7 @@ def run_aer(job: Job):
 
     from qiskit import QuantumCircuit, transpile
     from qiskit_aer import AerSimulator
+
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
     job_circuit = job.circuit
