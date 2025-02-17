@@ -10,7 +10,7 @@ from copy import deepcopy
 from functools import reduce
 from numbers import Real
 from operator import matmul, mul
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -287,7 +287,9 @@ class PauliString:
         )
 
     @staticmethod
-    def from_matrix(matrix: Matrix, method: str = "ptdr") -> PauliString:
+    def from_matrix(
+        matrix: Matrix, method: Literal["ptdr", "trace"] = "ptdr"
+    ) -> PauliString:
         """Constructs a PauliString from a matrix.
 
         Args:
