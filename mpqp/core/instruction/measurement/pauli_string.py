@@ -351,7 +351,8 @@ class PauliString:
 
     @staticmethod
     def from_diagonal_elements(
-        diagonal_elements: list[Real] | npt.NDArray[np.float64], method: str = "walsh"
+        diagonal_elements: list[Real] | npt.NDArray[np.float64],
+        method: Literal["walsh", "ptdr"] = "walsh",
     ) -> PauliString:
         """Create a PauliString from the diagonal elements of a diagonal
         observable, by using decomposition algorithms in the Pauli basis.
