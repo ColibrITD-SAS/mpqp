@@ -826,7 +826,7 @@ class PauliStringMonomial(PauliString):
         res /= other
         return res
 
-    def __imatmul__(self, other: PauliString) -> PauliStringMonomial | PauliString:
+    def __imatmul__(self, other: PauliString) -> PauliString:
         if isinstance(other, PauliStringAtom):
             self.atoms.append(other)
             return self
