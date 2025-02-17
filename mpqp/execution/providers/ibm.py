@@ -622,7 +622,7 @@ def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
     device: "IBMDevice | IBMSimulatedDevice | AZUREDevice",
-) -> Result:
+) -> Result:  # TODO: [multi-obs] return BatchResult for multi observable
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
 
