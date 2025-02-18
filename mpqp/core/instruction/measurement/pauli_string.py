@@ -10,12 +10,12 @@ from copy import deepcopy
 from functools import reduce
 from numbers import Real
 from operator import matmul, mul
-from typing import TYPE_CHECKING, Any, Optional, Literal, Union
-from typeguard import typechecked
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from sympy import Expr
+from typeguard import typechecked
 
 from mpqp.core.languages import Language
 from mpqp.tools import format_element
@@ -243,21 +243,17 @@ class PauliString:
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
-            coef = sum(
-                [
-                    mono.coef
-                    for mono in self.monomials
-                    if mono.atoms == list(unique_mono_atoms)
-                ]  # pyright: ignore[reportCallIssue, reportArgumentType]
+            coef: Coef = format_element(
+                sum(  # pyright: ignore[reportCallIssue, reportAssignmentType]
+                    [
+                        mono.coef
+                        for mono in self.monomials
+                        if mono.atoms == list(unique_mono_atoms)
+                    ],
+                    default=0,
+                )
             )
-            if not isinstance(coef, Expr):
-                if coef == int(coef):
-                    coef = int(coef)
-                if coef != 0:
-                    res.monomials.append(
-                        PauliStringMonomial(coef, list(unique_mono_atoms))
-                    )
-            else:
+            if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
 
         if inplace:
@@ -1071,7 +1067,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportOperatorIssue]
             [self],
         )
 
