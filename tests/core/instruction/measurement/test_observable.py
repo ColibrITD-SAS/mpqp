@@ -107,7 +107,7 @@ def test_diagonal_elements_to_pauli(
         assert PauliString.from_diagonal_elements(diag, method="walsh") == ps
 
 
-def test_pauli_to_matrix(list_matrix_pauli_string: list[tuple[Matrix, PauliString]]):
+def test_pauli_to_matrix(list_matrix_pauli_string: list[tuple[npt.NDArray[np.complex64], PauliString]]):
     for matrix, ps in list_matrix_pauli_string:
         assert matrix_eq(ps.to_matrix(), matrix)
 

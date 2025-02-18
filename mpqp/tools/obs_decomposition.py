@@ -16,7 +16,7 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Y,
     Z,
 )
-from mpqp.tools import Matrix, is_hermitian, is_power_of_two
+from mpqp.tools import is_hermitian, is_power_of_two, Matrix
 from numba import prange
 from typeguard import typechecked
 
@@ -209,7 +209,7 @@ def generate_and_explore_node(
 
 @typechecked
 def decompose_hermitian_matrix_ptdr(
-    matrix: npt.NDArray[np.float64], print_progression: bool = False
+    matrix: Matrix, print_progression: bool = False
 ) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in
         parameter into a PauliString.
