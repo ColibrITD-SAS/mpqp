@@ -1,4 +1,4 @@
-"""Mathematical tools for linear algebra, functions generalized to more data 
+"""Mathematical tools for linear algebra, functions generalized to more data
 types, etc…"""
 
 from __future__ import annotations
@@ -133,7 +133,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
-def closest_unitary(matrix: Matrix):
+def closest_unitary(matrix: Matrix) -> Matrix:
     """Calculate the unitary matrix that is closest with respect to the operator
     norm distance to the general matrix in parameter.
 
@@ -161,7 +161,7 @@ def closest_unitary(matrix: Matrix):
 
 
 @typechecked
-def cos(angle: Expr | Real) -> sp.Expr | float:
+def cos(angle: Expr | float) -> sp.Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -186,7 +186,7 @@ def cos(angle: Expr | Real) -> sp.Expr | float:
 
 
 @typechecked
-def sin(angle: Expr | Real) -> sp.Expr | float:
+def sin(angle: Expr | float) -> sp.Expr | float:
     """Generalization of the sine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -211,7 +211,7 @@ def sin(angle: Expr | Real) -> sp.Expr | float:
 
 
 @typechecked
-def exp(angle: Expr | Complex) -> sp.Expr | complex:
+def exp(angle: Expr | complex) -> sp.Expr | complex:
     """Generalization of the exponential function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -305,7 +305,7 @@ def rand_clifford_matrix(
 
 @typechecked
 def rand_unitary_2x2_matrix(
-    seed: Optional[Union[int, np.random.Generator]] = None
+    seed: Optional[Union[int, np.random.Generator]] = None,
 ) -> npt.NDArray[np.complex64]:
     """Generate a random one-qubit unitary matrix.
 
@@ -409,7 +409,7 @@ def rand_hermitian_matrix(
 
 
 @typechecked
-def is_power_of_two(n: int):
+def is_power_of_two(n: int) -> bool:
     """Checks if the integer in parameter is a (positive) power of two.
 
     Args:

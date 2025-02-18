@@ -20,6 +20,10 @@ RUN apt update && \
     apt clean && \
     rm -rf /var/lib/apt/lists/*
 
+
+COPY mpqp_scripts/awscli_installation/linux_awscli_install.sh ./
+RUN chmod +x linux_awscli_install.sh && ./linux_awscli_install.sh
+
 WORKDIR /usr/src/app/mpqp
 
 COPY --from=builder /usr/local/lib/python3.9/site-packages /usr/local/lib/python3.9/site-packages
