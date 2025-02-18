@@ -817,9 +817,7 @@ class PauliStringMonomial(PauliString):
         atoms: The list of PauliStringAtom objects forming the monomial.
     """
 
-    def __init__(
-        self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None
-    ):
+    def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
         self.coef = coef
         """Coefficient of the monomial."""
         self.atoms = [] if atoms is None else atoms
