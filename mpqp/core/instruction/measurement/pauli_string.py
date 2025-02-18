@@ -996,7 +996,9 @@ class PauliStringMonomial(PauliString):
             from cirq.devices.line_qubit import LineQubit
             from cirq.ops.identity import IdentityGate as CirqI
             from cirq.ops.pauli_gates import Pauli as CirqPauli
-            from cirq.ops.pauli_string import PauliString as CirqPauliString # pyright: ignore[reportUnusedImport]
+            from cirq.ops.pauli_string import (
+                PauliString as CirqPauliString,
+            )  # pyright: ignore[reportUnusedImport]
 
             all_qubits = (
                 LineQubit.range(self.nb_qubits)
