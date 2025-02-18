@@ -10,12 +10,12 @@ from copy import deepcopy
 from functools import reduce
 from numbers import Real
 from operator import matmul, mul
-from typing import TYPE_CHECKING, Any, Optional, Literal, Union
-from typeguard import typechecked
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from sympy import Expr
+from typeguard import typechecked
 
 from mpqp.core.languages import Language
 from mpqp.tools import format_element
@@ -243,21 +243,16 @@ class PauliString:
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
-            coef = sum(
-                [
-                    mono.coef
-                    for mono in self.monomials
-                    if mono.atoms == list(unique_mono_atoms)
-                ]  # pyright: ignore[reportCallIssue, reportArgumentType]
+            coef: Coef = format_element(
+                sum(  # pyright: ignore[reportCallIssue, reportAssignmentType]
+                    [
+                        mono.coef
+                        for mono in self.monomials
+                        if mono.atoms == list(unique_mono_atoms)
+                    ]  # pyright: ignore[reportArgumentType]
+                )
             )
-            if not isinstance(coef, Expr):
-                if coef == int(coef):
-                    coef = int(coef)
-                if coef != 0:
-                    res.monomials.append(
-                        PauliStringMonomial(coef, list(unique_mono_atoms))
-                    )
-            else:
+            if coef != 0:
                 res.monomials.append(PauliStringMonomial(coef, list(unique_mono_atoms)))
 
         if inplace:
@@ -287,18 +282,15 @@ class PauliString:
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for mono in self.monomials:
-            if not isinstance(mono.coef, Expr):
-                coef = float(np.round(float(mono.coef.real), max_digits))
-                if coef == int(coef):
-                    coef = int(coef)
+            coef: Coef = format_element(
+                mono.coef
+            )  # pyright: ignore[reportAssignmentType]
+            if isinstance(coef, Expr):
+                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
+            else:
+                coef = float(np.round(float(coef), max_digits))
                 if coef != 0:
                     res.monomials.append(PauliStringMonomial(coef, mono.atoms))
-            else:
-                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
-            if len(res.monomials) == 0:
-                res.monomials.append(
-                    PauliStringMonomial(0, [I for _ in range(self.nb_qubits)])
-                )
         return res
 
     def sorted_monomials(self) -> PauliString:
@@ -786,19 +778,17 @@ class PauliString:
             {'II': '2', 'IZ': '1'}
 
         """
-        from sympy import simplify, sympify
+        from sympy import simplify
 
         self = self.simplify()
         result_dict = {}
         for mono in self.monomials:
             atom_str = "".join(str(atom) for atom in mono.atoms)
-            if atom_str in result_dict:
-                result_dict[atom_str] = str(
-                    simplify(sympify(result_dict[atom_str]) + mono.coef)
-                )
+            if atom_str not in result_dict:
+                result_dict[atom_str] = mono.coef
             else:
-                result_dict[atom_str] = str(mono.coef)
-        return {k: result_dict[k] for k in sorted(result_dict)}
+                result_dict[atom_str] += mono.coef
+        return {k: str(simplify(result_dict[k])) for k in sorted(result_dict)}
 
     def __hash__(self):
         monomials_as_tuples = tuple(
@@ -817,9 +807,7 @@ class PauliStringMonomial(PauliString):
         atoms: The list of PauliStringAtom objects forming the monomial.
     """
 
-    def __init__(
-        self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None
-    ):
+    def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
         self.coef = coef
         """Coefficient of the monomial."""
         self.atoms = [] if atoms is None else atoms
@@ -978,11 +966,13 @@ class PauliStringMonomial(PauliString):
             return self.coef * reduce(matmul, braket_atoms)
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
-            from cirq.ops.identity import IdentityGate as CirqI
-            from cirq.ops.pauli_gates import Pauli as CirqPauli
-            from cirq.ops.pauli_string import (
-                PauliString as CirqPauliString,  # pyright: ignore[reportUnusedImport]
-            )
+
+            if TYPE_CHECKING:
+                from cirq.ops.identity import IdentityGate as CirqI
+                from cirq.ops.pauli_gates import Pauli as CirqPauli
+                from cirq.ops.pauli_string import (
+                    PauliString as CirqPauliString,  # pyright: ignore[reportUnusedImport]
+                )
 
             all_qubits = (
                 LineQubit.range(self.nb_qubits)
@@ -1073,7 +1063,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportOperatorIssue]
             [self],
         )
 
