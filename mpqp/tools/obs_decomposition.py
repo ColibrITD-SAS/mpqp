@@ -7,9 +7,6 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-from numba import prange
-from typeguard import typechecked
-
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -20,6 +17,8 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Z,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
+from numba import prange
+from typeguard import typechecked
 
 paulis: list[PauliStringAtom] = [I, X, Y, Z]
 
@@ -167,6 +166,7 @@ def generate_and_explore_node(
     matrix: Matrix,
     n: int,
     monomials: list[PauliStringMonomial],
+    progression: Optional[list[int]] = None,
 ):
     """Recursively generates and explores nodes in the Pauli tree.
 
@@ -179,8 +179,11 @@ def generate_and_explore_node(
         matrix: The given Hermitian matrix to be decomposed.
         n: Number of qubits of the observable.
         monomials: A list to store the computed monomials.
+        progression: Tuple of integers storing the index of the current node and the tree size for printing the
+            progression. None if no printing required.
 
     """
+
     if current_node.depth > 0:
         update_tree(current_node, k, m)
 
@@ -191,19 +194,29 @@ def generate_and_explore_node(
         )
 
         for child in current_node.children:
-            generate_and_explore_node(k, m, child, matrix, n, monomials)
+            generate_and_explore_node(k, m, child, matrix, n, monomials, progression)
 
     else:
         compute_coefficients(k, m, current_node, matrix, monomials)
+        if progression is not None:
+            print(
+                f"Pauli from matrix (ptdr): {progression[0]}/{progression[1]} nodes "
+                f"({int(progression[0] / progression[1] * 100)}%)",
+                end="\r",
+            )
+            progression[0] += 1
 
 
 @typechecked
-def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
+def decompose_hermitian_matrix_ptdr(
+    matrix: Matrix, print_progression: bool = False
+) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in
         parameter into a PauliString.
 
     Args:
         matrix: Hermitian matrix representing the observable to be decomposed.
+        print_progression: Print the progression of the algorithm through the run (exploration of the node).
 
     Returns:
         PauliString: The resulting decomposition as a PauliString representation.
@@ -234,7 +247,8 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     i_k = [0] * size
     i_m = [0] * size
     i_m[0] = 1
-    generate_and_explore_node(i_k, i_m, root, matrix, nb_qubits, monomials)
+    progression = [1, 2 ** (2 * nb_qubits)] if print_progression else None
+    generate_and_explore_node(i_k, i_m, root, matrix, nb_qubits, monomials, progression)
 
     return PauliString(monomials)
 
@@ -344,6 +358,7 @@ def generate_and_explore_node_diagonal_case(
     diag_elements: npt.NDArray[np.float64],
     n: int,
     monomials: list[PauliStringMonomial],
+    progression: Optional[list[int]] = None,
 ):
     """Recursively explores the Pauli tree and computes the required monomials.
 
@@ -354,8 +369,11 @@ def generate_and_explore_node_diagonal_case(
         diag_elements: The diagonal elements of the observable.
         n: The number of qubits.
         monomials: A list to store the computed monomials.
+        progression: Tuple of integers storing the index of the current node and the tree size for printing the
+            progression. None if no printing required.
 
     """
+
     if current_node.depth > 0:
         update_tree_diagonal_case(current_node, m)
 
@@ -365,24 +383,32 @@ def generate_and_explore_node_diagonal_case(
         current_node.children.append(DiagPauliNode(atom=Z, parent=current_node))
 
         generate_and_explore_node_diagonal_case(
-            m, current_node.childI, diag_elements, n, monomials
+            m, current_node.childI, diag_elements, n, monomials, progression
         )
         generate_and_explore_node_diagonal_case(
-            m, current_node.childZ, diag_elements, n, monomials
+            m, current_node.childZ, diag_elements, n, monomials, progression
         )
 
     else:
         compute_coefficients_diagonal_case(m, current_node, diag_elements, monomials)
+        if progression is not None:
+            print(
+                f"Pauli from diagonal elements (ptdr): {progression[0]}/{progression[1]} nodes "
+                f"({int(progression[0] / progression[1] * 100)}%)",
+                end="\r",
+            )
+            progression[0] += 1
 
 
 @typechecked
 def decompose_diagonal_observable_ptdr(
-    diag_elements: list[Real] | npt.NDArray[np.float64],
+    diag_elements: list[Real] | npt.NDArray[np.float64], print_progression: bool = False
 ) -> PauliString:
     """Decomposes a diagonal observable into a Pauli string representation.
 
     Args:
         diag_elements: The diagonal elements of the observable.
+        print_progression: Print the progression of the algorithm through the run (exploration of the node).
 
     Returns:
         The corresponding Pauli string representation.
@@ -404,14 +430,15 @@ def decompose_diagonal_observable_ptdr(
     nb_qubits = int(np.log2(size))
     root = DiagPauliNode()
     i_m = [False] * size
-    generate_and_explore_node_diagonal_case(i_m, root, diags, nb_qubits, monomials)
+    progression = [1, size] if print_progression else None
+    generate_and_explore_node_diagonal_case(
+        i_m, root, diags, nb_qubits, monomials, progression
+    )
 
     return PauliString(monomials)
 
 
 # TODO, to optimize
-
-
 def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     """Generates a Hadamard matrix of size n x n using Numba.
 
