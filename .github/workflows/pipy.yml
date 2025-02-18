@@ -19,6 +19,7 @@ jobs:
       - name: Install Twine
         run: |
           pip install twine
+          pip install -U packaging
       - name: Publish to PyPI
         run: |
           twine upload  dist/*
