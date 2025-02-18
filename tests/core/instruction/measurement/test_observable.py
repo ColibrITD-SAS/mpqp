@@ -1,6 +1,8 @@
 from numbers import Real
+from typing import Union
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 
 from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
@@ -8,7 +10,8 @@ from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
 
 
-def list_matrix_pauli_string():
+@pytest.fixture
+def list_matrix_pauli_string() -> list[tuple[Matrix, PauliString]]:
     return [
         (
             np.array(
@@ -55,16 +58,22 @@ def list_matrix_pauli_string():
             np.kron(Y.matrix, X.matrix) - np.kron(X.matrix, Y.matrix),
             Y @ X - X @ Y,
         ),
-        (np.array([[2, 3], [3, 1]]), 3 / 2 * I + 3 * X + 1 / 2 * Z),
-        (np.array([[-1, 1 - 1j], [1 + 1j, 0]]), -1 / 2 * I + X - Y - 1 / 2 * Z),
+        (np.array([[2, 3], [3, 1]], dtype=np.complex64), 3 / 2 * I + 3 * X + 1 / 2 * Z),
+        (
+            np.array([[-1, 1 - 1j], [1 + 1j, 0]], dtype=np.complex64),
+            -1 / 2 * I + X - Y - 1 / 2 * Z,
+        ),
         (np.diag([-2, 4, 5, 3]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I - 2 * Z @ Z),
         (np.diag([2, 0, 1, 7]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I + 2 * Z @ Z),
         (np.diag([-2, -3, 2, 1]), -1 / 2 * I @ I + 1 / 2 * I @ Z - 2 * Z @ I),
-        (np.zeros((4, 4)), 1 * I @ I - 1 * I @ I),
+        (np.zeros((4, 4), dtype=np.complex64), 1 * I @ I - 1 * I @ I),
     ]
 
 
-def list_diagonal_elements_pauli_string():
+@pytest.fixture
+def list_diagonal_elements_pauli_string() -> (
+    list[tuple[Union[list[Real], npt.NDArray[np.float64]], PauliString]]
+):
     return [
         (
             [-2, 4, 5, 3],
@@ -82,32 +91,44 @@ def list_diagonal_elements_pauli_string():
     ]
 
 
-@pytest.mark.parametrize("matrix, ps", list_matrix_pauli_string())
-def test_matrix_to_pauli(matrix: Matrix, ps: PauliString):
-    assert PauliString.from_matrix(matrix, method="ptdr") == ps
-    assert PauliString.from_matrix(matrix, method="trace") == ps
+def test_matrix_to_pauli(list_matrix_pauli_string: list[tuple[Matrix, PauliString]]):
+    for matrix, ps in list_matrix_pauli_string:
+        assert PauliString.from_matrix(matrix, method="ptdr") == ps
+        assert PauliString.from_matrix(matrix, method="trace") == ps
 
 
-@pytest.mark.parametrize("diag, ps", list_diagonal_elements_pauli_string())
-def test_diagonal_elements_to_pauli(diag: list[Real], ps: PauliString):
-    assert PauliString.from_diagonal_elements(diag, method="ptdr") == ps
-    assert PauliString.from_diagonal_elements(diag, method="walsh") == ps
+def test_diagonal_elements_to_pauli(
+    list_diagonal_elements_pauli_string: list[
+        tuple[Union[list[Real], npt.NDArray[np.float64]], PauliString]
+    ],
+):
+    for diag, ps in list_diagonal_elements_pauli_string:
+        # diag_array = np.array(diag, dtype=np.float64)
+
+        assert PauliString.from_diagonal_elements(diag, method="ptdr") == ps
+        assert PauliString.from_diagonal_elements(diag, method="walsh") == ps
 
 
-@pytest.mark.parametrize("matrix, ps", list_matrix_pauli_string())
-def test_pauli_to_matrix(matrix: Matrix, ps: PauliString):
-    assert matrix_eq(ps.to_matrix(), matrix)
+def test_pauli_to_matrix(list_matrix_pauli_string: list[tuple[Matrix, PauliString]]):
+    for matrix, ps in list_matrix_pauli_string:
+        assert matrix_eq(ps.to_matrix(), matrix)
 
 
-@pytest.mark.parametrize("matrix, ps", list_matrix_pauli_string())
-def test_matrix_to_pauli_to_matrix(matrix: Matrix, ps: PauliString):
-    assert matrix_eq(PauliString.from_matrix(matrix, method="ptdr").to_matrix(), matrix)
-    assert matrix_eq(
-        PauliString.from_matrix(matrix, method="trace").to_matrix(), matrix
-    )
+def test_matrix_to_pauli_to_matrix(
+    list_matrix_pauli_string: list[tuple[Matrix, PauliString]],
+):
+    for matrix, _ in list_matrix_pauli_string:
+        assert matrix_eq(
+            PauliString.from_matrix(matrix, method="ptdr").to_matrix(), matrix
+        )
+        assert matrix_eq(
+            PauliString.from_matrix(matrix, method="trace").to_matrix(), matrix
+        )
 
 
-@pytest.mark.parametrize("matrix, ps", list_matrix_pauli_string())
-def test_pauli_to_matrix_to_pauli(matrix: Matrix, ps: PauliString):
-    assert PauliString.from_matrix(ps.to_matrix(), method="ptdr") == ps
-    assert PauliString.from_matrix(ps.to_matrix(), method="trace") == ps
+def test_pauli_to_matrix_to_pauli(
+    list_matrix_pauli_string: list[tuple[Matrix, PauliString]],
+):
+    for _, ps in list_matrix_pauli_string:
+        assert PauliString.from_matrix(ps.to_matrix(), method="ptdr") == ps
+        assert PauliString.from_matrix(ps.to_matrix(), method="trace") == ps
