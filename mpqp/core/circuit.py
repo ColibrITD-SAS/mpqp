@@ -35,8 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from pickle import dumps
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Optional, Sequence, Type
 from warnings import warn
 
 import numpy as np
@@ -166,13 +165,18 @@ class QCircuit:
                     connections: set[int] = set.union(
                         *(instruction.connections() for instruction in data)
                     )
-                    self._nb_qubits = max(connections, default=0) + 1
+                    self._nb_qubits = (
+                        max(connections) + 1 if len(connections) != 0 else 0
+                    )
             else:
                 self._user_nb_qubits = nb_qubits
             self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
-        return dumps(self) == dumps(value)
+        if not isinstance(value, QCircuit):
+            return False
+
+        return self.to_dict() == value.to_dict()
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
         """Adds a ``component`` or a list of ``component`` at the end of the
@@ -212,7 +216,7 @@ class QCircuit:
 
         """
 
-        if isinstance(components, Iterable):
+        if not isinstance(components, (Instruction, NoiseModel)):
             for comp in components:
                 self.add(comp)
             return
@@ -244,7 +248,9 @@ class QCircuit:
                 components.c_targets = [
                     self.nb_cbits + i for i in range(len(components.targets))
                 ]
-            self._update_cbits(max(components.c_targets) + 1)
+            self._update_cbits(
+                max(components.c_targets) + 1 if len(components.c_targets) != 0 else 0
+            )
 
         if isinstance(components, NoiseModel):
             self.noises.append(components)
@@ -343,7 +349,7 @@ class QCircuit:
                 if instruction != component and isinstance(instruction, BasisMeasure):
                     if instruction.c_targets:
                         unique_cbits.update(instruction.c_targets)
-            c_targets = []
+            c_targets: list[int] = []
             i = 0
             for _ in range(len(component.targets)):
                 while i in unique_cbits:
@@ -477,10 +483,25 @@ class QCircuit:
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
             if isinstance(inst, BasisMeasure):
-                if not inst.user_set_c_targets:
+                if not inst._user_set_c_targets:  # pyright: ignore[reportPrivateUsage]
                     inst.c_targets = None
 
             self.add(inst)
+
+    def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
+        """
+        Serialize the quantum circuit to a dictionary.
+        Returns:
+            dict: A dictionary representation of the circuit.
+        """
+
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if attr_name not in {'_nb_qubits', 'gates', 'measurements', 'breakpoints'}
+            and not attr_name.startswith("__")
+            and not callable(getattr(self, attr_name))
+        }
 
     def __iadd__(self, other: QCircuit):
         self.append(other)

@@ -166,6 +166,17 @@ class Basis:
             ]
         )
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Basis):
+            return False
+
+        return (
+            self.nb_qubits == other.nb_qubits
+            and np.array_equal(self.basis_vectors, other.basis_vectors)
+            and self.symbols == other.symbols
+            and self.basis_vectors_labels == other.basis_vectors_labels
+        )
+
 
 @typechecked
 class VariableSizeBasis(Basis):
