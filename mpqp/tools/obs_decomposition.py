@@ -422,6 +422,11 @@ def decompose_diagonal_observable_ptdr(
     if size == 0:
         raise ValueError("Diagonal elements cannot be empty.")
 
+    if len(diags.shape) > 1:
+        raise ValueError(
+            f"List of diagonal elements was expected but matrix of dimension {diags.shape} was given."
+        )
+
     if not is_power_of_two(size):
         raise ValueError(
             f"Diagonal elements must have a length that is a power of two, but got {size}."
