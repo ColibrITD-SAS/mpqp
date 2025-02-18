@@ -101,8 +101,6 @@ def test_diagonal_elements_to_pauli(
     ],
 ):
     for diag, ps in list_diagonal_elements_pauli_string:
-        # diag_array = np.array(diag, dtype=np.float64)
-
         assert PauliString.from_diagonal_elements(diag, method="ptdr") == ps
         assert PauliString.from_diagonal_elements(diag, method="walsh") == ps
 
