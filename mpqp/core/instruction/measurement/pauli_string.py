@@ -10,7 +10,7 @@ from copy import deepcopy
 from functools import reduce
 from numbers import Real
 from operator import matmul, mul
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -287,7 +287,9 @@ class PauliString:
         )
 
     @staticmethod
-    def from_matrix(matrix: Matrix, method: str = "ptdr") -> PauliString:
+    def from_matrix(
+        matrix: Matrix, method: Literal["ptdr", "trace"] = "ptdr"
+    ) -> PauliString:
         """Constructs a PauliString from a matrix.
 
         Args:
@@ -350,7 +352,8 @@ class PauliString:
 
     @staticmethod
     def from_diagonal_elements(
-        diagonal_elements: list[Real] | npt.NDArray[np.float64], method: str = "walsh"
+        diagonal_elements: list[Real] | npt.NDArray[np.float64],
+        method: Literal["walsh", "ptdr"] = "walsh",
     ) -> PauliString:
         """Create a PauliString from the diagonal elements of a diagonal
         observable, by using decomposition algorithms in the Pauli basis.
@@ -827,7 +830,7 @@ class PauliStringMonomial(PauliString):
         res /= other
         return res
 
-    def __imatmul__(self, other: PauliString) -> PauliStringMonomial | PauliString:
+    def __imatmul__(self, other: PauliString) -> PauliString:
         if isinstance(other, PauliStringAtom):
             self.atoms.append(other)
             return self
