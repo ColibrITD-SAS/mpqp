@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from functools import reduce
-from numbers import Complex, Real
+from numbers import Real
 from operator import matmul, mul
 from typing import TYPE_CHECKING, Any, Optional, Union
 from typeguard import typechecked
@@ -996,7 +996,7 @@ class PauliStringMonomial(PauliString):
             from cirq.devices.line_qubit import LineQubit
             from cirq.ops.identity import IdentityGate as CirqI
             from cirq.ops.pauli_gates import Pauli as CirqPauli
-            from cirq.ops.pauli_string import PauliString as CirqPauliString
+            from cirq.ops.pauli_string import PauliString as CirqPauliString # pyright: ignore[reportUnusedImport]
 
             all_qubits = (
                 LineQubit.range(self.nb_qubits)
