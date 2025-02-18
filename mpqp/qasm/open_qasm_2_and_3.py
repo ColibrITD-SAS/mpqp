@@ -15,7 +15,7 @@ code transformations. Key functionalities include:
       syntax to 3.0, handling specific syntax adjustments.
     - :func:`parse_openqasm_2_file`: Splits OpenQASM 2.0 code into individual instructions,
       preserving gate declarations to ensure proper handling during conversion.
-    - :func:`open_qasm_2_to_3`: Main function for converting OpenQASM 2.0 code to 3.0. 
+    - :func:`open_qasm_2_to_3`: Main function for converting OpenQASM 2.0 code to 3.0.
       It adds necessary library includes.
     - :func:`open_qasm_file_conversion_2_to_3`: Reads from the specified file, and outputs
       the converted file in QASM 2.0 syntax.
@@ -25,24 +25,24 @@ code transformations. Key functionalities include:
       syntax to 2.0, handling specific syntax adjustments.
     - :func:`parse_openqasm_3_file`: Splits OpenQASM 3.0 code into individual instructions,
       preserving gate declarations to ensure proper handling during conversion.
-    - :func:`open_qasm_3_to_2`: Main function for converting OpenQASM 3.0 code to 2.0. 
-      It adds necessary library includes, tracks cumulative global phases. 
+    - :func:`open_qasm_3_to_2`: Main function for converting OpenQASM 3.0 code to 2.0.
+      It adds necessary library includes, tracks cumulative global phases.
     - :func:`open_qasm_file_conversion_3_to_2`: Reads from the specified file, and outputs
       the converted file in QASM 2.0 syntax.
 
 3. **User-Defined Gate Handling**:
     - **UserGate Class**: Represents user-defined gates in OpenQASM. Each ``UserGate`` instance
       stores the gate's name, parameters, qubits, and instruction sequence.
-    - :func:`parse_user_gates`: Extracts and stores user-defined gate definitions 
-      from OpenQASM code, removing them from the main code to allow separate handling. 
+    - :func:`parse_user_gates`: Extracts and stores user-defined gate definitions
+      from OpenQASM code, removing them from the main code to allow separate handling.
       Custom gates are identified using the ``GATE_PATTERN`` regex and stored as ``UserGate`` instances.
     - :func:`remove_user_gates`: Replaces calls to user-defined gates in OpenQASM code with
-      their expanded definitions. This function relies on ``parse_user_gates`` to retrieve 
-      gate definitions, and it substitutes parameter and qubit values within each gate's body 
+      their expanded definitions. This function relies on ``parse_user_gates`` to retrieve
+      gate definitions, and it substitutes parameter and qubit values within each gate's body
       instructions for accurate expansion.
-  
+
 4. **Supporting Functions**:
-    - :func:`open_qasm_hard_includes`: Combines multiple OpenQASM files into a single file 
+    - :func:`open_qasm_hard_includes`: Combines multiple OpenQASM files into a single file
       with resolved includes, simplifying code management for projects with multiple source files.
 
 """

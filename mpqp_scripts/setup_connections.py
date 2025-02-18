@@ -26,7 +26,7 @@ def print_config_info():
     try:
         print(ibmqc.get_active_account_info())
     except IBMRemoteExecutionError as err:
-        if "No IBM Q account configured" in str(err):
+        if "Unable to find account" in str(err):
             print("Account not configured")
 
     print("===== Qaptiva QLMaaS info : ===== ")

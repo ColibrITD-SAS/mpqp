@@ -3,7 +3,7 @@ Once the circuit is defined, you can execute it and retrieve the result using
 the function :func:`run`. You can execute said circuit on one or several devices
 (local or remote). The function will wait (blocking) until the job is completed
 and will return a :class:`~mpqp.execution.result.Result` if only one
-device was given or a :class:`~mpqp.execution.result.BatchResult` 
+device was given or a :class:`~mpqp.execution.result.BatchResult`
 otherwise (see the section :ref:`Results` for more details).
 
 Alternatively, when running jobs on a remote device, you might prefer to
@@ -113,16 +113,14 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            modified_circuit = circuit.without_measurements() + measurement.pre_measure
-            modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, modified_circuit, device, measurement)
+                job = Job(JobType.STATE_VECTOR, circuit, device, measurement)
             else:
-                job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
+                job = Job(JobType.SAMPLE, circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):
             job = Job(
                 JobType.OBSERVABLE,
-                circuit + measurement.pre_measure,
+                circuit,
                 device,
                 adjust_measure(measurement, circuit),
             )

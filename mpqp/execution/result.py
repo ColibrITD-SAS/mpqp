@@ -1,21 +1,21 @@
 """Once the computation ended, the :class:`Result` contains all the data from
 the execution.
 
-The job type affects the data contained in the :class:`Result`. For a given 
+The job type affects the data contained in the :class:`Result`. For a given
 ``result``, here are how to retrieve the data depending on the job type:
 
-- for a job type ``STATE_VECTOR`` you can retrieve the :class:`StateVector` from 
+- for a job type ``STATE_VECTOR`` you can retrieve the :class:`StateVector` from
   ``result.state_vector``. If you want to directly get the amplitudes of your
   state vector, you can reach for ``result.amplitudes``;
-- for a job type ``SAMPLE`` you can retrieve the list of :class:`Sample` from 
+- for a job type ``SAMPLE`` you can retrieve the list of :class:`Sample` from
   ``result.samples``. For a ``SAMPLE`` job type, you might be interested in
   results packed in a different shape than a list of :class:`Sample`, even
   though you could rebuild them from said list, we also provide a few shorthands
   like ``result.probabilities`` and ``result.counts``;
-- for a job type ``OBSERVABLE`` you can retrieve the expectation value (a 
+- for a job type ``OBSERVABLE`` you can retrieve the expectation value (a
   ``float``) from ``result.expectation_value``.
 
-When several devices are given to :func:`~mpqp.execution.runner.run`, the 
+When several devices are given to :func:`~mpqp.execution.runner.run`, the
 results are stored in a :class:`BatchResult`.
 """
 

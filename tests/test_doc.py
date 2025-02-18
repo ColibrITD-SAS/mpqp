@@ -99,6 +99,7 @@ from mpqp.tools.display import (
     clean_number_repr,
     format_element,
     pprint,
+    format_element_str,
 )
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
