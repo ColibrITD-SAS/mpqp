@@ -71,9 +71,7 @@ def list_matrix_pauli_string() -> list[tuple[Matrix, PauliString]]:
 
 
 @pytest.fixture
-def list_diagonal_elements_pauli_string() -> (
-    list[tuple[list[float], PauliString]]
-):
+def list_diagonal_elements_pauli_string() -> list[tuple[list[float], PauliString]]:
     return [
         (
             [-2, 4, 5, 3],
