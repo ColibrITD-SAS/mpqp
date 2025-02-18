@@ -209,7 +209,7 @@ def generate_and_explore_node(
 
 @typechecked
 def decompose_hermitian_matrix_ptdr(
-    matrix: Matrix, print_progression: bool = False
+    matrix: npt.NDArray[np.float64], print_progression: bool = False
 ) -> PauliString:
     """Decompose the observable represented by the hermitian matrix given in
         parameter into a PauliString.
