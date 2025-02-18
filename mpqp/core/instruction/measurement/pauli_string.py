@@ -212,7 +212,7 @@ class PauliString:
         return self.to_dict() == other.to_dict()
 
     def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = True
+        self, values: dict[Expr | str, Real], remove_symbolic: bool = True
     ) -> PauliString:
         r"""Substitute the coef of the pauli sting with values for each of the
         specified coef. Optionally also remove all symbolic variables such
@@ -941,7 +941,7 @@ class PauliStringMonomial(PauliString):
         return hash(atoms_as_tuples)
 
     def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = True
+        self, values: dict[Expr | str, Real], remove_symbolic: bool = True
     ) -> PauliStringMonomial:
         r"""Substitutes the parameters of the instruction with complex values.
         Optionally, also removes all symbolic variables such as `\pi` (needed for
