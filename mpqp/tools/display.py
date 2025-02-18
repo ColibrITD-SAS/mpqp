@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import re
+from numbers import Complex, Real
 from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt
-from numbers import Complex
 
 if TYPE_CHECKING:
     from sympy import Expr, Basic
@@ -84,7 +84,7 @@ def _unpack_expr(expr: Expr | Basic):
     return expr
 
 
-def format_element(element: Union[int, float, complex, Expr], round: int = 10):
+def format_element(element: Union[Real, int, float, complex, Expr], round: int = 10):
     """
     Formats a numeric or symbolic element for cleaner representation. Rounds the real and
     imaginary parts of a number to a specified number of decimal places, formats whole
@@ -123,7 +123,7 @@ def format_element(element: Union[int, float, complex, Expr], round: int = 10):
             return int(element)
         return _unpack_expr(element.simplify())
 
-    real_part = float(np.round(np.real(element), round))
+    real_part = float(np.round(np.real(complex(element)), round))
     imag_part = float(np.round(np.imag(element), round))
 
     if abs(real_part - int(real_part)) < 10 ** (-round):

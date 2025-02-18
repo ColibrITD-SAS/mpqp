@@ -7,6 +7,8 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import typechecked
+
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -17,8 +19,6 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Z,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
-from numba import prange
-from typeguard import typechecked
 
 paulis: list[PauliStringAtom] = [I, X, Y, Z]
 
@@ -447,7 +447,7 @@ def decompose_diagonal_observable_ptdr(
 
 # TODO, to optimize
 def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
-    """Generates a Hadamard matrix of size n x n using Numba.
+    """Generates a Hadamard matrix of size n x n.
 
     Args:
         n: The size of the Hadamard matrix, must be a power of 2.
@@ -469,7 +469,7 @@ def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     for _ in range(lg2):
         size = H_matrix.shape[0]
         new_H = np.empty((2 * size, 2 * size), dtype=np.int8)
-        for i in prange(size):
+        for i in range(size):
             for j in range(size):
                 new_H[i, j] = H_matrix[i, j]
                 new_H[i + size, j] = H_matrix[i, j]
@@ -494,7 +494,7 @@ def compute_coefficients_walsh(
     coefs = []
     inv = 1.0 / H_matrix.shape[0]
 
-    for i in prange(H_matrix.shape[0]):
+    for i in range(H_matrix.shape[0]):
         row_sum = 0.0
         for j in range(H_matrix.shape[1]):
             row_sum += H_matrix[i, j] * diagonal_elements[j]
