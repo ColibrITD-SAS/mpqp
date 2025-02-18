@@ -1,4 +1,4 @@
-"""provides functions to insert :class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result` objects into the 
+"""provides functions to insert :class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result` objects into the
 local database.
 """
 

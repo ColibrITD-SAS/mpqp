@@ -1,5 +1,5 @@
 """provides utility functions to query and fetch data from the quantum job and result database.
-It includes methods to retrieve all records, specific records by ID, and filtered records based on 
+It includes methods to retrieve all records, specific records by ID, and filtered records based on
 :class:`~mpqp.execution.job.Job` or :class:`~mpqp.execution.result.Result` objects.
 """
 

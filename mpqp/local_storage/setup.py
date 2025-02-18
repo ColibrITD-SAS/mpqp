@@ -1,4 +1,4 @@
-"""This module provides utilities for managing a SQLite database for quantum job 
+"""This module provides utilities for managing a SQLite database for quantum job
 and result records, as well as functions for removing entries based on various criteria.
 
 It allows storing and managing job and result metadata related to quantum circuit executions.

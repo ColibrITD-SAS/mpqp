@@ -614,7 +614,7 @@ def test_fetch_results_with_job(
 
 
 def test_get_results_with_result_and_job(
-    mock_db_results: list[dict[str, DictDB | Result]]
+    mock_db_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result = mock_db_results[0]['result']
@@ -626,7 +626,7 @@ def test_get_results_with_result_and_job(
 
 
 def test_fetch_results_with_result_and_job(
-    mock_db_results: list[dict[str, DictDB | Result]]
+    mock_db_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result = mock_db_results[0]['result']
@@ -815,7 +815,7 @@ def test_remove_results_with_job_id(mock_db_jobs: list[dict[str, DictDB | Job]])
 
 
 def test_remove_results_with_results_db(
-    mock_db_results: list[dict[str, DictDB | Result]]
+    mock_db_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result_db = mock_db_results[0]['result_db']
