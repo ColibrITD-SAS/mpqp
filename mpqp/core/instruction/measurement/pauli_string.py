@@ -299,7 +299,8 @@ class PauliString:
                 with each possible monomial (naive method).
 
         Returns:
-            PauliString corresponding to the pauli decomposition of the matrix in parameter.
+            Pauli string corresponding to the Pauli decomposition of the matrix
+            in parameter.
 
         Raises:
             ValueError: If the input matrix is not square or its dimensions are
