@@ -3,13 +3,10 @@
 from __future__ import annotations
 
 from numbers import Real
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-from numba import njit, prange
-from typeguard import typechecked
-
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -20,25 +17,29 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Z,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
+from numba import prange
+from typeguard import typechecked
 
 paulis: list[PauliStringAtom] = [I, X, Y, Z]
 
 
 @typechecked
 class PauliNode:
-    """A class represents a node in the Pauli tree used for decomposing a Hermitian matrix into a PauliString."""
+    """A class represents a node in the Pauli tree used for decomposing a
+    Hermitian matrix into a PauliString.
+
+    Args:
+        atom: The Pauli atom (I, X, Y, Z) associated with this node.
+        parent: The parent node in the decomposition tree. ``None`` means that
+            the node is the root of the tree.
+
+    """
 
     def __init__(
         self,
         atom: Optional[PauliStringAtom] = None,
         parent: Optional["PauliNode"] = None,
     ):
-        """Initializes a PauliNode.
-
-        Args:
-            atom: The Pauli atom (I, X, Y, Z) associated with this node. Defaults to None.
-            parent: The parent node in the decomposition tree. Defaults to None.
-        """
         self.pauli = atom
         self.parent: Optional[PauliNode] = parent
         self.depth = parent.depth + 1 if parent is not None else 0
@@ -89,16 +90,19 @@ class PauliNode:
 @typechecked
 def compute_coefficients(
     k: list[int],
-    m: list[int],
+    m: list[bool],
     current_node: PauliNode,
     matrix: Matrix,
     monomial_list: list[PauliStringMonomial],
 ):
-    """Computes coefficients for the current node in the pauli tree based on the given matrix.
+    """Computes coefficients for the current node in the pauli tree based on the
+    given matrix.
 
     Args:
-        k: A list of column indices where the non-zero elements of the matrix are located.
-        m: A list of values corresponding to the non-zero coefficients of the matrix.
+        k: A list of column indices where the non-zero elements of the matrix
+            are located.
+        m: A list of booleans corresponding to the non-zero coefficients of the
+            matrix indexed in `k`. False refers to 1, while True to -1.
         current_node: The current node in the Pauli tree.
         matrix: The given Hermitian matrix to be decomposed.
         monomial_list: A list to store the computed monomials.
@@ -109,7 +113,7 @@ def compute_coefficients(
 
     current_node.coefficient = (
         sum(
-            matrix[j, k[j]] * m[j] * (-1j) ** (current_node.nY % 4)
+            matrix[j, k[j]] * (-1 if m[j] else 1) * (-1j) ** (current_node.nY % 4)
             for j in range(m_size)
         ).real
         / m_size  # This factor was forgotten in the article
@@ -120,14 +124,16 @@ def compute_coefficients(
 
 
 @typechecked
-def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
-    """Updates k (indices) and m (values) based on the Pauli type of the current node,
-    and computing coefficients.
+def update_tree(current_node: PauliNode, k: list[int], m: list[bool]):
+    """Updates k (indices) and m (values) based on the Pauli type of the current
+    node, and computing coefficients.
 
     Args:
         current_node: The current node in the Pauli tree.
-        k: A list of column indices where the non-zero elements of the matrix are located.
-        m: A list of values corresponding to the non-zero coefficients of the matrix.
+        k: A list of column indices where the non-zero elements of the matrix
+            are located.
+        m: A list of booleans corresponding to the non-zero coefficients of the
+            matrix indexed in `k`. False refers to 1, while True to -1.
 
     """
     l = current_node.depth - 1
@@ -144,7 +150,7 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
 
     elif current_node.pauli is Y:
         for i in range(t_l, 2 * t_l):
-            m[i] *= -1
+            m[i] = not m[i]
 
     elif current_node.pauli is Z:
         for i in range(t_l):
@@ -155,22 +161,31 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[int]):
 @typechecked
 def generate_and_explore_node(
     k: list[int],
-    m: list[int],
+    m: list[bool],
     current_node: PauliNode,
     matrix: Matrix,
     n: int,
     monomials: list[PauliStringMonomial],
+    progression: Optional[list[int]] = None,
 ):
     """Recursively generates and explores nodes in the Pauli tree.
 
     Args:
-        k: A list of column indices where the non-zero elements of the matrix are located.
-        m: A list of values corresponding to the non-zero coefficients of the matrix.
+        k: A list of column indices where the non-zero elements of the matrix
+            are located. Since the matrix corresponding to each Pauli monomial is sparse and contains only one
+            non-zero element per line, we only store the index of this element for each line.
+        m: A list of booleans corresponding to the non-zero coefficients of the
+            matrix indexed in `k`. By considering the modified Pauli basis (``Y`` replaced by ``iY``), only 2
+            values are possible: 1 and -1. Thus, they can be stored as booleans: False refers to 1, while True to -1.
         current_node: The current node in the Pauli tree.
         matrix: The given Hermitian matrix to be decomposed.
+        n: Number of qubits of the observable.
         monomials: A list to store the computed monomials.
+        progression: Tuple of integers storing the index of the current node and the tree size for printing the
+            progression. None if no printing required.
 
     """
+
     if current_node.depth > 0:
         update_tree(current_node, k, m)
 
@@ -181,21 +196,29 @@ def generate_and_explore_node(
         )
 
         for child in current_node.children:
-            generate_and_explore_node(k, m, child, matrix, n, monomials)
+            generate_and_explore_node(k, m, child, matrix, n, monomials, progression)
 
     else:
         compute_coefficients(k, m, current_node, matrix, monomials)
+        if progression is not None:
+            print(
+                f"Pauli from matrix (ptdr): {progression[0]}/{progression[1]} nodes "
+                f"({int(progression[0] / progression[1] * 100)}%)",
+                end="\r",
+            )
+            progression[0] += 1
 
 
 @typechecked
-def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
-    """Decompose the observable represented by the hermitian matrix given in parameter into a PauliString.
-
-    A tree-approach Pauli decomposition algorithm with application to quantum computing
-    Océane Koska, Marc Baboulin, Arnaud Gazda
+def decompose_hermitian_matrix_ptdr(
+    matrix: Matrix, print_progression: bool = False
+) -> PauliString:
+    """Decompose the observable represented by the hermitian matrix given in
+        parameter into a PauliString.
 
     Args:
         matrix: Hermitian matrix representing the observable to be decomposed.
+        print_progression: Print the progression of the algorithm through the run (exploration of the node).
 
     Returns:
         PauliString: The resulting decomposition as a PauliString representation.
@@ -204,8 +227,9 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
         ValueError: If the matrix is not Hermitian or its dimensions are not a power of 2.
 
     Reference:
-        Oceane Koska, Marc Baboulin & Arnaud Gazda. (2024). A tree-approach Pauli decomposition algorithm with
-        application to quantum computing. Link: https://arxiv.org/pdf/2403.11644
+        Océane Koska, Marc Baboulin & Arnaud Gazda. (2024). A tree-approach
+        Pauli decomposition algorithm with application to quantum computing.
+        Link: https://arxiv.org/pdf/2403.11644
 
     """
 
@@ -223,32 +247,30 @@ def decompose_hermitian_matrix_ptdr(matrix: Matrix) -> PauliString:
     nb_qubits = int(np.log2(size))
     root = PauliNode()
     i_k = [0] * size
-    i_m = [0] * size
-    i_m[0] = 1
-    generate_and_explore_node(i_k, i_m, root, matrix, nb_qubits, monomials)
+    i_m = [False] * size
+    progression = [1, 2 ** (2 * nb_qubits)] if print_progression else None
+    generate_and_explore_node(i_k, i_m, root, matrix, nb_qubits, monomials, progression)
 
     return PauliString(monomials)
 
 
-############################### DIAGONAL CASE PTDR ##########################################
-
-
 @typechecked
 class DiagPauliNode:
-    """A class represents a node in the Pauli tree used for decomposing a diagonal observable into a PauliString."""
+    """A class represents a node in the Pauli tree used for decomposing a
+    diagonal observable into a PauliString.
+
+    Args:
+        atom: The Pauli atom (I, Z) associated with this node.
+        parent: The parent node.  ``None`` means that
+            the node is the root of the tree.
+
+    """
 
     def __init__(
         self,
         atom: Optional[PauliStringAtom] = None,
         parent: Optional["DiagPauliNode"] = None,
     ):
-        """Initializes a node in the Pauli tree.
-
-        Args:
-            atom: The Pauli atom (I, Z) associated with this node. Defaults to None.
-            parent: The parent node. Defaults to None.
-
-        """
         self.pauli = atom
         self.parent: Optional[DiagPauliNode] = parent
         self.depth = self.parent.depth + 1 if self.parent is not None else 0
@@ -266,7 +288,8 @@ class DiagPauliNode:
         return self.children[1]
 
     def get_monomial(self) -> PauliStringMonomial:
-        """Constructs and returns the PauliStringMonomial corresponding to the node.
+        """Constructs and returns the PauliStringMonomial corresponding to the
+        node.
 
         Returns:
             PauliStringMonomial: The monomial representation of the node.
@@ -287,10 +310,12 @@ def compute_coefficients_diagonal_case(
     diag_elements: npt.NDArray[np.float64],
     monomial_list: list[PauliStringMonomial],
 ):
-    """Computes coefficients for the current node in the pauli tree based on the diagonal elements.
+    """Computes coefficients for the current node in the pauli tree based on the
+    diagonal elements.
 
     Args:
-        m: A list of booleans indicating whether the Pauli operator element has a sign flip (True) or not (False).
+        m: A list of booleans corresponding to the non-zero coefficients of the
+            matrix indexed in `k`. False refers to 1, while True to -1.
         current_node: The current node in the Pauli tree.
         diag_elements: The diagonal elements of the observable.
         monomial_list: A list to store the computed monomials.
@@ -309,11 +334,12 @@ def compute_coefficients_diagonal_case(
 
 @typechecked
 def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
-    """updates m based on the Pauli type of the current node.
+    """Updates ``m`` based on the Pauli type of the current node.
 
     Args:
-       current_node: The current node in the tree.
-       m: A list of booleans to be updated representing the sign flip states for each Pauli operator element.
+        current_node: The current node in the tree.
+        m: A list of booleans corresponding to the non-zero coefficients of the
+            matrix indexed in `k`. False refers to 1, while True to -1.
 
     """
     l = current_node.depth - 1
@@ -333,17 +359,23 @@ def generate_and_explore_node_diagonal_case(
     diag_elements: npt.NDArray[np.float64],
     n: int,
     monomials: list[PauliStringMonomial],
+    progression: Optional[list[int]] = None,
 ):
     """Recursively explores the Pauli tree and computes the required monomials.
 
     Args:
-       m: A list of booleans representing the current transformation for the Pauli operators (sign flips).
-       current_node: The current node in the Pauli tree.
-       diag_elements: The diagonal elements of the observable.
-       n: The number of qubits.
-       monomials: A list to store the computed monomials.
+        m: A list of booleans corresponding to the non-zero coefficients of the
+            matrix indexed in `k`. By considering monomials only made of I and Z, only 2 values are possible: 1 and -1.
+            Thus, they can be stored as booleans: False refers to 1, while True to -1.
+        current_node: The current node in the Pauli tree.
+        diag_elements: The diagonal elements of the observable.
+        n: The number of qubits.
+        monomials: A list to store the computed monomials.
+        progression: Tuple of integers storing the index of the current node and the tree size for printing the
+            progression. None if no printing required.
 
     """
+
     if current_node.depth > 0:
         update_tree_diagonal_case(current_node, m)
 
@@ -353,27 +385,35 @@ def generate_and_explore_node_diagonal_case(
         current_node.children.append(DiagPauliNode(atom=Z, parent=current_node))
 
         generate_and_explore_node_diagonal_case(
-            m, current_node.childI, diag_elements, n, monomials
+            m, current_node.childI, diag_elements, n, monomials, progression
         )
         generate_and_explore_node_diagonal_case(
-            m, current_node.childZ, diag_elements, n, monomials
+            m, current_node.childZ, diag_elements, n, monomials, progression
         )
 
     else:
         compute_coefficients_diagonal_case(m, current_node, diag_elements, monomials)
+        if progression is not None:
+            print(
+                f"Pauli from diagonal elements (ptdr): {progression[0]}/{progression[1]} nodes "
+                f"({int(progression[0] / progression[1] * 100)}%)",
+                end="\r",
+            )
+            progression[0] += 1
 
 
 @typechecked
 def decompose_diagonal_observable_ptdr(
-    diag_elements: list[Real] | npt.NDArray[np.float64],
+    diag_elements: list[Real] | npt.NDArray[np.float64], print_progression: bool = False
 ) -> PauliString:
-    """Decomposes a diognal observable into a PauliString representation.
+    """Decomposes a diagonal observable into a Pauli string representation.
 
     Args:
         diag_elements: The diagonal elements of the observable.
+        print_progression: Print the progression of the algorithm through the run (exploration of the node).
 
     Returns:
-        PauliString: The corresponding PauliString representation.
+        The corresponding Pauli string representation.
 
     """
 
@@ -381,31 +421,39 @@ def decompose_diagonal_observable_ptdr(
     monomials = []
     size = len(diags)
 
+    if size == 0:
+        raise ValueError("Diagonal elements cannot be empty.")
+
+    if len(diags.shape) > 1:
+        raise ValueError(
+            f"List of diagonal elements was expected but matrix of dimension {diags.shape} was given."
+        )
+
     if not is_power_of_two(size):
-        raise ValueError
-    # TODO add all the necessary checks on the size
+        raise ValueError(
+            f"Diagonal elements must have a length that is a power of two, but got {size}."
+        )
+
     nb_qubits = int(np.log2(size))
     root = DiagPauliNode()
     i_m = [False] * size
-    generate_and_explore_node_diagonal_case(i_m, root, diags, nb_qubits, monomials)
+    progression = [1, size] if print_progression else None
+    generate_and_explore_node_diagonal_case(
+        i_m, root, diags, nb_qubits, monomials, progression
+    )
 
     return PauliString(monomials)
 
 
-############################### WALSH HADAMARD IDEA ##########################################
-
 # TODO, to optimize
-
-
-@njit
-def numba_hadamard(n: int) -> npt.NDArray[np.int8]:
+def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
     """Generates a Hadamard matrix of size n x n using Numba.
 
     Args:
         n: The size of the Hadamard matrix, must be a power of 2.
 
     Returns:
-        H_matrix: The generated Hadamard matrix.
+        The generated Hadamard matrix.
 
     Raises:
         ValueError: If n is not a power of 2.
@@ -431,10 +479,9 @@ def numba_hadamard(n: int) -> npt.NDArray[np.int8]:
     return H_matrix
 
 
-@njit
 def compute_coefficients_walsh(
     H_matrix: npt.NDArray[np.int8], diagonal_elements: npt.NDArray[np.float64]
-) -> npt.NDArray[np.float64]:
+) -> list[float]:
     """Computes the coefficients using the Walsh-Hadamard transform.
 
     Args:
@@ -442,16 +489,16 @@ def compute_coefficients_walsh(
         diagonal_elements: The diagonal elements of the observable.
 
     Returns:
-        coefs: The computed coefficients.
+        The computed coefficients.
     """
-    coefs = np.zeros(H_matrix.shape[0], dtype=np.float64)
+    coefs = []
     inv = 1.0 / H_matrix.shape[0]
 
     for i in prange(H_matrix.shape[0]):
         row_sum = 0.0
         for j in range(H_matrix.shape[1]):
             row_sum += H_matrix[i, j] * diagonal_elements[j]
-        coefs[i] = row_sum * inv
+        coefs.append(row_sum * inv)
 
     return coefs
 
@@ -460,13 +507,14 @@ def compute_coefficients_walsh(
 def decompose_diagonal_observable_walsh_hadamard(
     diag_elements: list[Real] | npt.NDArray[np.float64],
 ) -> PauliString:
-    """Decomposes the observable represented by the diagonal elements into a PauliString using the Walsh-Hadamard transform.
+    """Decomposes the observable represented by the diagonal elements into a
+    Pauli string using the Walsh-Hadamard transform.
 
     Args:
         diag_elements: The diagonal elements of the observable.
 
     Returns:
-        PauliString: The corresponding PauliString representation.
+        The corresponding Pauli string representation.
 
     """
     pauli_1q = [1 * I, 1 * Z]
@@ -480,9 +528,14 @@ def decompose_diagonal_observable_walsh_hadamard(
             p1 @ p2 for p1 in basis for p2 in pauli_1q
         ]  # pyright: ignore[reportAssignmentType]
 
-    H_matrix = numba_hadamard(size)
+    H_matrix = generate_hadamard(size)
     coefs = compute_coefficients_walsh(H_matrix, diags)
+    final_monomials = []
     for m, c in zip(basis, coefs):
-        m.coef = c
+        if TYPE_CHECKING:
+            assert isinstance(m, PauliStringMonomial)
+        if c != 0.0:
+            m.coef = c
+            final_monomials.append(m)
 
-    return PauliString(basis)
+    return PauliString(final_monomials)

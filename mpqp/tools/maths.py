@@ -133,7 +133,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
-def closest_unitary(matrix: Matrix):
+def closest_unitary(matrix: Matrix) -> Matrix:
     """Calculate the unitary matrix that is closest with respect to the operator
     norm distance to the general matrix in parameter.
 
@@ -409,7 +409,7 @@ def rand_hermitian_matrix(
 
 
 @typechecked
-def is_power_of_two(n: int):
+def is_power_of_two(n: int) -> bool:
     """Checks if the integer in parameter is a (positive) power of two.
 
     Args:
