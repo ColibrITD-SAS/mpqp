@@ -4,7 +4,7 @@ from mpqp.all import *
 from mpqp.tools.circuit import random_circuit
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
-from mpqp.tools.display import format_element
+from mpqp.tools.display import format_element_str
 
 
 @pytest.mark.parametrize(
@@ -503,7 +503,7 @@ def normalize_string(string: str):
 
         components = match.group(1).split(',')
         simplified = [
-            format_element(eval(comp, {"pi": pi, "e": e}), 4) for comp in components
+            format_element_str(eval(comp, {"pi": pi, "e": e}), 4) for comp in components
         ]
         return f"({','.join(simplified)})"
 

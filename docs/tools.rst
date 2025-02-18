@@ -129,3 +129,13 @@ Theoretical simulations
     from mpqp.tools.theoretical_simulation import *
 
 .. automodule:: mpqp.tools.theoretical_simulation
+
+Observable decomposition
+------------------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.obs_decomposition import *
+
+.. automodule:: mpqp.tools.obs_decomposition
