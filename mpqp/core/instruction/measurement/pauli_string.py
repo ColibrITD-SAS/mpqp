@@ -107,11 +107,7 @@ class PauliString:
 
     def _non_null_str(self):
         return str(self._monomials[0]) + "".join(
-            (
-                f'({str(m.coef)})'
-                if isinstance(m.coef, Expr)
-                else (f" - {-m}" if m.coef < 0 else f" + {m}")
-            )
+            (f" - {-m}" if not isinstance(m.coef, Expr) and m.coef < 0 else f" + {m}")
             for m in self._monomials[1:]
         )
 
