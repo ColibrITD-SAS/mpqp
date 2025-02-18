@@ -72,7 +72,7 @@ def list_matrix_pauli_string() -> list[tuple[Matrix, PauliString]]:
 
 @pytest.fixture
 def list_diagonal_elements_pauli_string() -> (
-    list[tuple[Union[list[Real], npt.NDArray[np.float64]], PauliString]]
+    list[tuple[list[float], PauliString]]
 ):
     return [
         (
