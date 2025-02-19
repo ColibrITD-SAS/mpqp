@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 
 
 @typechecked
-def run_ibm(job: Job) -> Result:
+def run_ibm(job: Job) -> BatchResult | Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
@@ -552,15 +552,21 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     qiskit_circ = pm.run(qiskit_circ)
 
     if job.job_type == JobType.OBSERVABLE:
-        # TODO : [multi-obs] update this part to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=session)
-        qiskit_observable = meas.observable.to_other_language(Language.QISKIT)
+        qiskit_observables = (
+            meas.observable if isinstance(meas.observable, list) else [meas.observable]
+        )
+        qiskit_observables = [
+            obs.to_other_language(Language.QISKIT) for obs in qiskit_observables
+        ]
         if TYPE_CHECKING:
-            assert isinstance(qiskit_observable, SparsePauliOp)
+            assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
-        qiskit_observable = qiskit_observable.apply_layout(qiskit_circ.layout)
+        qiskit_observables = [
+            obs.apply_layout(qiskit_circ.layout) for obs in qiskit_observables
+        ]
 
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
         twirling = getattr(estimator.options, "twirling", None)
@@ -572,9 +578,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         setattr(estimator.options, "default_shots", meas.shots)
 
-        ibm_job = estimator.run(
-            [(qiskit_circ, qiskit_observable)]
-        )  # TODO : [multi-obs] especially this one
+        ibm_job = estimator.run([(qiskit_circ, obs) for obs in qiskit_observables])
+
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
@@ -590,7 +595,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     return (
         job.id,
         ibm_job,
-    )  # TODO: update this to take into account the case when we have list of Observables
+    )
 
 
 @typechecked
