@@ -76,9 +76,19 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
+
+    if isinstance(measure.observable, list):
+        tweaked_observables = [
+            Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+            for obs in measure.observable
+        ]
+    else:
+        tweaked_observables = Observable(
+            np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)
+        )
+
     tweaked_measure = ExpectationMeasure(
-        Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
-        # TODO: [multi-obs] we have to update this to do the same for every observable in the expectatio measure
+        tweaked_observables,
         list(range(circuit.nb_qubits)),
         measure.shots,
     )
