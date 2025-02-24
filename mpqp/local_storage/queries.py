@@ -12,7 +12,7 @@ from typing import Optional
 from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
-from mpqp.local_storage.setup import ensure_db, DictDB
+from mpqp.local_storage.setup import ensure_local_storage, DictDB
 
 
 @dataclass
@@ -20,7 +20,7 @@ class QueryJob:
     id: Optional[str] = None
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_all_jobs() -> list[DictDB]:
     """Fetch all job records from the database.
 
@@ -50,7 +50,7 @@ def fetch_all_jobs() -> list[DictDB]:
         return [dict(job) for job in jobs]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_all_results() -> list[DictDB]:
     """Fetch all result records from the database.
 
@@ -81,7 +81,7 @@ def fetch_all_results() -> list[DictDB]:
         return [dict(result) for result in results]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
     """Fetch result(s) by their ID(s).
 
@@ -119,7 +119,7 @@ def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
         return [dict(result) for result in results]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_jobs_with_id(job_id: int | list[int]) -> list[DictDB]:
     """Fetch job(s) by their ID(s).
 
@@ -160,7 +160,7 @@ def fetch_jobs_with_id(job_id: int | list[int]) -> list[DictDB]:
         return [dict(job) for job in jobs]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
     """Fetch result(s) associated with specific job ID(s).
 
@@ -197,7 +197,7 @@ def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
         return [dict(result) for result in results]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
     """Fetch job(s) records matching specific job(s) attributes:
         - JobType
@@ -245,7 +245,7 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
         return [dict(job) for job in jobs]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_jobs_with_result_and_job(
     result: Result | BatchResult | list[Result],
 ) -> list[DictDB]:
@@ -325,7 +325,7 @@ def fetch_jobs_with_result_and_job(
         return [dict(job) for job in jobs]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[DictDB]:
     """Fetch job(s) associated with specific results(s) attributes:
         - data
@@ -389,7 +389,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
         return [dict(job) for job in jobs]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_results_with_result_and_job(
     result: Result | BatchResult | list[Result],
 ) -> list[DictDB]:
@@ -469,7 +469,7 @@ def fetch_results_with_result_and_job(
         return [dict(result) for result in results]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
     """Fetch result(s) associated with the job attribute of the results(s)
         - JobType
@@ -528,12 +528,12 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
         """
 
         cursor.execute(query, params)
-        jobs_db = cursor.fetchall()
+        jobs_local_storage = cursor.fetchall()
 
-        return [dict(job) for job in jobs_db]
+        return [dict(job) for job in jobs_local_storage]
 
 
-@ensure_db
+@ensure_local_storage
 def fetch_results_with_result(
     result: Result | BatchResult | list[Result],
 ) -> list[DictDB]:

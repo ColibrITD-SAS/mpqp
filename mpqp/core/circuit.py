@@ -175,7 +175,6 @@ class QCircuit:
     def __eq__(self, value: object) -> bool:
         if not isinstance(value, QCircuit):
             return False
-
         return self.to_dict() == value.to_dict()
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
@@ -266,6 +265,7 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             if (
                 isinstance(components, DimensionalNoiseModel)
+                and len(components.targets) != 0
                 and len(components.targets) < components.dimension
             ):
                 raise ValueError(
@@ -1419,20 +1419,22 @@ class QCircuit:
         return output
 
     def __repr__(self) -> str:
-        instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
-        options = []
+        args = []
+        components: list[Instruction | NoiseModel] = self.instructions + self.noises
+        if len(components) != 0:
+            args.append(f"[{', '.join(repr(component) for component in components)}]")
         if self._user_nb_qubits is not None:
-            options.append(f"nb_qubits={self.nb_qubits}")
+            if len(components) == 0:
+                args.append(f"{self.nb_qubits}")
+            else:
+                args.append(f"nb_qubits={self.nb_qubits}")
         if self._user_nb_cbits is not None:
-            options.append(f"nb_cbits={self.nb_cbits}")
+            args.append(f"nb_cbits={self.nb_cbits}")
         if self.label is not None:
-            options.append(f'label="{self.label}')
+            args.append(f'label="{self.label}"')
+        args_repr = ', '.join(args)
 
-        options_repr = f", {', '.join(options)}" if options else ""
-        components = instructions_repr + (
-            "" if len(self.noises) == 0 else (", " + ", ".join(map(repr, self.noises)))
-        )
-        return f'QCircuit([{components}]{options_repr})'
+        return f'QCircuit({args_repr})'
 
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.

@@ -104,7 +104,7 @@ class Instruction(SimpleClassReprABC):
         from mpqp.core.circuit import QCircuit
 
         connection = self.connections()
-        circuit_size = max(connection) + 1 if len(connection) == 0 else 1
+        circuit_size = max(connection) + 1 if len(connection) != 0 else 1
         circuit = QCircuit(circuit_size)
         circuit.add(self)
         return str(circuit)

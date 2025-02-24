@@ -66,13 +66,24 @@ class BasisMeasure(Measure):
         if c_targets is not None:
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
+            if targets is None:
+                raise ValueError(f"Missing targets for c_targets: {c_targets}")
+            elif len(c_targets) != len(targets):
+                raise ValueError(
+                    f"Different number of targets and c_targets: targets={len(targets)}, c_targets={len(c_targets)}"
+                )
 
         super().__init__(targets, shots, label)
 
         if basis is None:
             basis = ComputationalBasis()
-
-        if not isinstance(basis, VariableSizeBasis):
+        if (
+            isinstance(basis, VariableSizeBasis)
+            and basis._dynamic  # pyright: ignore[reportPrivateUsage]
+        ):
+            if targets is not None:
+                basis.set_size(max(targets) + 1)
+        else:
             self._dynamic = False
             if (
                 len(self.targets) != 0
@@ -83,8 +94,6 @@ class BasisMeasure(Measure):
                     f"{max(self.targets)-min(self.targets) + 1} but basis size is {basis.nb_qubits}"
                 )
             self.targets = list(range(basis.nb_qubits))
-        elif targets is not None:
-            basis.set_size(max(targets) + 1)
 
         self._user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
@@ -139,8 +148,11 @@ class BasisMeasure(Measure):
         if self.shots != 1024:
             components.append(f"shots={self.shots}")
         if self.label is not None:
-            components.append(f"label={self.label}")
-        if not self._dynamic:
+            components.append(f"label='{self.label}'")
+        if (
+            not isinstance(self.basis, ComputationalBasis)
+            or not self.basis._dynamic  # pyright: ignore[reportPrivateUsage]
+        ):
             components.append(f"basis={self.basis}")
 
         return f"BasisMeasure({', '.join(components)})"

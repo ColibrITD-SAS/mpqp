@@ -195,6 +195,22 @@ class NoiseModel(ABC):
     # def subs(self):
     #     pass
 
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, self.__class__):
+            return False
+        return self.to_dict() == value.to_dict()
+
+    def to_dict(self):
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if (
+                not attr_name.startswith("_abc_")
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            )
+        }
+
 
 @typechecked
 class DimensionalNoiseModel(NoiseModel, ABC):
@@ -240,7 +256,7 @@ class DimensionalNoiseModel(NoiseModel, ABC):
         self.check_dimension()
 
     def check_dimension(self):
-        if 0 < len(self.targets) < self.dimension:
+        if len(self.targets) != 0 and len(self.targets) < self.dimension:
             raise ValueError(
                 f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
             )

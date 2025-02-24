@@ -43,4 +43,6 @@ class Barrier(Instruction):
             raise NotImplementedError(f"{language} is not supported")
 
     def __repr__(self):
+        if self._dynamic:
+            return f"{type(self).__name__}()"
         return f"{type(self).__name__}({self.size})"

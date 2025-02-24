@@ -239,7 +239,6 @@ class PauliString:
             -1*I@I
 
         """
-
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
@@ -822,11 +821,12 @@ class PauliStringMonomial(PauliString):
         return [PauliStringMonomial(self.coef, self.atoms)]
 
     def __str__(self):
-        if isinstance(self.coef, Expr):
-            coef = f'({str(self.coef)})'
+        coef = format_element(self.coef)
+        if isinstance(coef, Expr):
+            coef = f'({str(self.coef)})*'
         else:
-            coef = f"{self.coef}"
-        return f"{coef}*{'@'.join(map(str,self.atoms))}"
+            coef = f"{self.coef}*" if coef != 0 else ""
+        return f"{coef}{'@'.join(map(str,self.atoms))}"
 
     def __repr__(self):
         return str(self)

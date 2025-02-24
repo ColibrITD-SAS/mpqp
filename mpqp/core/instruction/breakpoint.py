@@ -55,10 +55,14 @@ class Breakpoint(Instruction):
         super().__init__([0], label)
 
     def __repr__(self) -> str:
-        return (
-            f"Breakpoint(targets={self.targets}, draw_circuit={self.draw_circuit},"
-            f" enabled={self.enabled}, label={self.label})"
-        )
+        args = []
+        if self.draw_circuit is not False:
+            args.append(f"draw_circuit={self.draw_circuit}")
+        if self.enabled is not True:
+            args.append(f"enabled={self.enabled}")
+        if self.label is not None:
+            args.append(f"label='{self.label}'")
+        return f"Breakpoint({', '.join(args)})"
 
     def to_other_language(
         self,
@@ -66,3 +70,28 @@ class Breakpoint(Instruction):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> str:
         raise NotImplementedError(f"Error: {language} is not supported")
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, self.__class__):
+            return False
+        if self.to_dict() != value.to_dict():
+            print(self.to_dict())
+            print(value.to_dict())
+        return self.to_dict() == value.to_dict()
+
+    def to_dict(self):
+        """
+        Serialize the Breakpoint to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the Breakpoint.
+        """
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if (
+                not attr_name.startswith("_abc_")
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            )
+        }

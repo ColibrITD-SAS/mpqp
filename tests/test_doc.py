@@ -43,8 +43,8 @@ from mpqp.local_storage.load import (
     get_results_with_job_id,
     get_results_with_result,
     get_results_with_result_and_job,
-    jobs_db_to_mpqp,
-    results_db_to_mpqp,
+    jobs_local_storage_to_mpqp,
+    results_local_storage_to_mpqp,
 )
 from mpqp.local_storage.queries import (
     fetch_all_jobs,
@@ -60,18 +60,18 @@ from mpqp.local_storage.queries import (
 )
 from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import (
-    setup_db,
+    setup_local_storage,
 )
 from mpqp.local_storage.delete import (
-    clear_db,
+    clear_local_storage,
     remove_all_with_job_id,
     remove_jobs_with_id,
-    remove_jobs_with_jobs_db,
+    remove_jobs_with_jobs_local_storage,
     remove_results_with_id,
     remove_results_with_job,
     remove_results_with_job_id,
     remove_results_with_result,
-    remove_results_with_results_db,
+    remove_results_with_results_local_storage,
 )
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import (
@@ -161,17 +161,17 @@ class SafeRunner:
 
 
 class DBRunner:
-    original_db_location: str
+    original_local_storage_location: str
 
     def __enter__(self):
         import shutil
 
-        db_original = Path("tests/test_database.db").absolute()
-        db_temp = Path("tests/test_database_tmp.db").absolute()
+        db_original = Path("tests/local_storage/test_local_storage.db").absolute()
+        db_temp = Path("tests/local_storage/test_local_storage_tmp.db").absolute()
 
         shutil.copyfile(db_original, db_temp)
-        self.original_db_location = get_env_variable("DATA_BASE")
-        setup_db("tests/test_database_tmp.db")
+        self.original_local_storage_location = get_env_variable("DATA_BASE")
+        setup_local_storage("tests/local_storage/test_local_storage_tmp.db")
 
     def __exit__(
         self,
@@ -179,8 +179,10 @@ class DBRunner:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
-        os.remove(os.path.join(os.getcwd(), "tests/test_database_tmp.db"))
-        setup_db(self.original_db_location or None)
+        os.remove(
+            os.path.join(os.getcwd(), "tests/local_storage/test_local_storage_tmp.db")
+        )
+        setup_local_storage(self.original_local_storage_location or None)
 
 
 test_globals = globals().copy()

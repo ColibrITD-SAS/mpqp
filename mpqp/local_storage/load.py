@@ -12,7 +12,7 @@ from mpqp.local_storage.queries import *
 from mpqp.local_storage.setup import DictDB
 
 
-def jobs_db_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
+def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
     """Convert a dictionary or list of dictionaries representing jobs into MPQP Job objects.
 
     Args:
@@ -22,8 +22,8 @@ def jobs_db_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
         A list of MPQP Job objects.
 
     Example:
-        >>> job_db = fetch_jobs_with_id(1)
-        >>> jobs_db_to_mpqp(job_db) # doctest: +ELLIPSIS
+        >>> job_local_storage = fetch_jobs_with_id(1)
+        >>> jobs_local_storage_to_mpqp(job_local_storage) # doctest: +ELLIPSIS
         [Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))]
 
     """
@@ -57,7 +57,9 @@ def jobs_db_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
     return jobs_mpqp
 
 
-def results_db_to_mpqp(results: Optional[list[DictDB] | DictDB]) -> list[Result]:
+def results_local_storage_to_mpqp(
+    results: Optional[list[DictDB] | DictDB],
+) -> list[Result]:
     """Convert a dictionary or list of dictionaries representing results into a
     :class:`~mpqp.execution.result.Result`.
 
@@ -68,12 +70,12 @@ def results_db_to_mpqp(results: Optional[list[DictDB] | DictDB]) -> list[Result]
         The converted result(s).
 
     Example:
-        >>> result_db = fetch_results_with_id([1, 2])
-        >>> results = results_db_to_mpqp(result_db)
+        >>> result_local_storage = fetch_results_with_id([1, 2])
+        >>> results = results_local_storage_to_mpqp(result_local_storage)
         >>> for result in results:  # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(2, index=0, count=532, probability=0.51953125), ...], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(2, index=0, count=489, probability=0.4775390625), ...], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(2, index=0, count=..., probability=0...), ...], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(2, index=0, count=..., probability=0...), ...], None, 1024)
 
     """
     if results is None:
@@ -86,7 +88,7 @@ def results_db_to_mpqp(results: Optional[list[DictDB] | DictDB]) -> list[Result]
             raise ValueError("Job not found for result, can not be instantiated.")
         results_mpqp.append(
             Result(
-                jobs_db_to_mpqp(job)[0],
+                jobs_local_storage_to_mpqp(job)[0],
                 eval(eval(results['data'])),
                 error,
                 results['shots'],
@@ -100,7 +102,7 @@ def results_db_to_mpqp(results: Optional[list[DictDB] | DictDB]) -> list[Result]
                 raise ValueError("Job not found for result, can not be instantiated.")
             results_mpqp.append(
                 Result(
-                    jobs_db_to_mpqp(job)[0],
+                    jobs_local_storage_to_mpqp(job)[0],
                     eval(eval(result['data'])),
                     error,
                     result['shots'],
@@ -130,7 +132,7 @@ def get_all_jobs() -> list[Job]:
 
     """
     jobs = fetch_all_jobs()
-    return jobs_db_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(jobs)
 
 
 def get_all_results() -> list[Result]:
@@ -154,7 +156,7 @@ def get_all_results() -> list[Result]:
 
     """
     results = fetch_all_results()
-    return results_db_to_mpqp(results)
+    return results_local_storage_to_mpqp(results)
 
 
 def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
@@ -177,7 +179,7 @@ def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
 
     """
     jobs = fetch_jobs_with_job(job)
-    return jobs_db_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(jobs)
 
 
 def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Job]:
@@ -204,7 +206,7 @@ def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Jo
 
     """
     jobs = fetch_jobs_with_result(result)
-    return jobs_db_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(jobs)
 
 
 def get_results_with_result_and_job(
@@ -236,7 +238,7 @@ def get_results_with_result_and_job(
 
     """
     results = fetch_results_with_result_and_job(result)
-    return results_db_to_mpqp(results)
+    return results_local_storage_to_mpqp(results)
 
 
 def get_results_with_result(
@@ -263,7 +265,7 @@ def get_results_with_result(
 
     """
     results = fetch_results_with_result(result)
-    return results_db_to_mpqp(results)
+    return results_local_storage_to_mpqp(results)
 
 
 def get_results_with_id(result_id: int | list[int]) -> list[Result]:
@@ -288,7 +290,7 @@ def get_results_with_id(result_id: int | list[int]) -> list[Result]:
 
     """
     results = fetch_results_with_id(result_id)
-    return results_db_to_mpqp(results)
+    return results_local_storage_to_mpqp(results)
 
 
 def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
@@ -310,7 +312,7 @@ def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
 
     """
     jobs = fetch_jobs_with_id(job_id)
-    return jobs_db_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(jobs)
 
 
 def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
@@ -330,4 +332,4 @@ def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
     """
     results = fetch_results_with_job_id(job_id)
-    return results_db_to_mpqp(results)
+    return results_local_storage_to_mpqp(results)

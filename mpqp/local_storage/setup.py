@@ -15,19 +15,19 @@ from mpqp.tools.generics import T
 DictDB = dict[str, Any]
 
 
-def ensure_db(func: Callable[..., T]) -> Callable[..., T]:
-    """Decorator for functions needing the db to be present"""
+def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
+    """Decorator for functions needing the setup_local to be present"""
 
     def wrapper(*args: Any, **kwargs: dict[str, Any]) -> T:
         if get_env_variable("DATA_BASE") == "":
-            setup_db()
+            setup_local_storage()
 
         return func(*args, **kwargs)
 
     return wrapper
 
 
-def setup_db(path: Optional[str] = None):
+def setup_local_storage(path: Optional[str] = None):
     """Sets up a SQLite database for storing quantum job and result records.
 
     Two tables will be created:
@@ -39,11 +39,11 @@ def setup_db(path: Optional[str] = None):
         path: Directory to save the database file. Defaults to the current working directory.
 
     Example:
-        >>> setup_db("~/documents/my_database.db")
+        >>> setup_local_storage("~/documents/my_database.db")
         >>> os.remove(Path("~/documents/my_database.db").expanduser())
-        >>> setup_db("my_database.db")
+        >>> setup_local_storage("my_database.db")
         >>> os.remove("my_database.db")
-        >>> setup_db()
+        >>> setup_local_storage()
 
     """
     import sqlite3

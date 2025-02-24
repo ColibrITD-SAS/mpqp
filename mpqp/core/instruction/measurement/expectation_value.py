@@ -55,12 +55,11 @@ class Observable:
         Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]], dtype=complex64))
 
         >>> from mpqp.measures import I, X, Y, Z
-        >>> Observable(3 * I @ Z + 4 * X @ Y)  # doctest: +NORMALIZE_WHITESPACE
-        Observable(array([[ 3.+0.j,  0.+0.j, 0.+0.j,  0.+4.j],
-                [ 0.+0.j, -3.+0.j, 0.-4.j,  0.+0.j],
-                [ 0.+0.j,  0.+4.j, 3.+0.j,  0.+0.j],
-                [ 0.-4.j,  0.+0.j, 0.+0.j, -3.+0.j]],
-            dtype=complex64))
+        >>> Observable(3 * I @ Z + 4 * X @ Y).matrix  # doctest: +NORMALIZE_WHITESPACE
+        array([[ 3.+0.j,  0.+0.j,  0.+0.j,  0.+4.j],
+               [ 0.+0.j, -3.+0.j,  0.-4.j,  0.+0.j],
+               [ 0.+0.j,  0.+4.j,  3.+0.j,  0.+0.j],
+               [ 0.-4.j,  0.+0.j,  0.+0.j, -3.+0.j]], dtype=complex64)
         >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sorted_monomials()
         3*I@Z + 4*X@Y
 
@@ -118,7 +117,9 @@ class Observable:
         self._matrix = None
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
+        if self._matrix is not None:
+            return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
+        return f"{type(self).__name__}({self.pauli_string})"
 
     def __mult__(self, other: Expr | Complex) -> Observable:
         """3M-TODO"""
@@ -175,11 +176,12 @@ class Observable:
         if not isinstance(other, Observable):
             return False
 
-        return (
-            self.nb_qubits == other.nb_qubits
-            and matrix_eq(self.matrix, other.matrix)
-            and self.pauli_string == other.pauli_string
-        )
+        if self.nb_qubits == other.nb_qubits:
+            if self._matrix is not None:
+                return matrix_eq(self.matrix, other.matrix)
+            else:
+                return self.pauli_string == other.pauli_string
+        return False
 
 
 @typechecked
@@ -274,14 +276,15 @@ class ExpectationMeasure(Measure):
         contiguous."""
 
     def __repr__(self) -> str:
-        targets = (
-            f", {self.targets}"
-            if (not self._dynamic and len(self.targets)) != 0
-            else ""
-        )
-        shots = "" if self.shots == 0 else f", shots={self.shots}"
-        label = "" if self.label is None else f", label={self.label}"
-        return f"ExpectationMeasure({self.observable}{targets}{shots}{label})"
+        args = []
+        args.append(f"{self.observable}")
+        if not self._dynamic and len(self.targets) != 0:
+            args.append(f"{self.targets}")
+        if self.shots != 0:
+            args.append(f"shots={self.shots}")
+        if self.label is not None:
+            args.append(f"label='{self.label}'")
+        return f"ExpectationMeasure({', '.join(args)})"
 
     def to_other_language(
         self,
@@ -298,5 +301,18 @@ class ExpectationMeasure(Measure):
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, ExpectationMeasure):
             return False
-
         return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        """
+        Serialize the Expectation Measure to a dictionary.
+        Returns:
+            dict: A dictionary representation of the Expectation Measure.
+        """
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if attr_name not in {}
+            and not attr_name.startswith("__")
+            and not callable(getattr(self, attr_name))
+        }

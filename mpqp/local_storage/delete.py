@@ -9,13 +9,13 @@ from mpqp.local_storage.setup import DictDB
 delete = 0
 
 
-def clear_db():
+def clear_local_storage():
     """Clears all records from the database, including jobs and results.
 
     This function resets the tables and their auto-increment counters.
 
     Example:
-        >>> clear_db()
+        >>> clear_local_storage()
         >>> fetch_all_results()
         []
         >>> fetch_all_jobs()
@@ -114,7 +114,7 @@ def remove_results_with_id(result_id: int | list[int]):
             connection.commit()
 
 
-def remove_results_with_results_db(results: Optional[list[DictDB] | DictDB]):
+def remove_results_with_results_local_storage(results: Optional[list[DictDB] | DictDB]):
     """Removes the matching results.
 
     Args:
@@ -123,7 +123,7 @@ def remove_results_with_results_db(results: Optional[list[DictDB] | DictDB]):
 
     Example:
         >>> results = fetch_results_with_id(1)
-        >>> remove_results_with_results_db(results)
+        >>> remove_results_with_results_local_storage(results)
         >>> fetch_results_with_id(1)
         []
 
@@ -137,7 +137,7 @@ def remove_results_with_results_db(results: Optional[list[DictDB] | DictDB]):
         remove_results_with_id(results_id)
 
 
-def remove_jobs_with_jobs_db(jobs: Optional[list[DictDB] | DictDB]):
+def remove_jobs_with_jobs_local_storage(jobs: Optional[list[DictDB] | DictDB]):
     """Removes the matching jobs.
 
     Args:
@@ -146,7 +146,7 @@ def remove_jobs_with_jobs_db(jobs: Optional[list[DictDB] | DictDB]):
 
     Example:
         >>> jobs = fetch_jobs_with_id(1)
-        >>> remove_jobs_with_jobs_db(jobs)
+        >>> remove_jobs_with_jobs_local_storage(jobs)
         >>> fetch_jobs_with_id(1)
         []
 
@@ -175,8 +175,8 @@ def remove_results_with_result(result: Result | BatchResult | list[Result]):
     """
     from mpqp.local_storage.queries import fetch_results_with_result
 
-    results_db = fetch_results_with_result(result)
-    remove_results_with_results_db(results_db)
+    results_local_storage = fetch_results_with_result(result)
+    remove_results_with_results_local_storage(results_local_storage)
 
 
 def remove_results_with_job_id(job_id: int | list[int]):
@@ -223,5 +223,5 @@ def remove_results_with_job(jobs: Job | list[Job]):
     """
     from mpqp.local_storage.queries import fetch_jobs_with_job
 
-    jobs_db = fetch_jobs_with_job(jobs)
-    remove_results_with_job_id([job['id'] for job in jobs_db])
+    jobs_local_storage = fetch_jobs_with_job(jobs)
+    remove_results_with_job_id([job['id'] for job in jobs_local_storage])
