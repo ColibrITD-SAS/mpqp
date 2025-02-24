@@ -1,5 +1,5 @@
-"""provides utility functions for converting job and result data from the local 
-storage format into MPQP (:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`) objects. 
+"""provides utility functions for converting job and result data from the local
+storage format into MPQP (:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`) objects.
 It also includes functions to query and retrieve jobs and results from the database.
 """
 
