@@ -172,7 +172,7 @@ def test_get_all_results(mock_local_storage_results: list[dict[str, DictDB | Res
 
 
 def test_fetch_all_results(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         results = fetch_all_results()
@@ -230,7 +230,7 @@ def test_fetch_jobs_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job
 
 
 def test_get_results_with_result(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result = mock_local_storage_results[0]['result']
@@ -242,7 +242,7 @@ def test_get_results_with_result(
 
 
 def test_fetch_results_with_result(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result = mock_local_storage_results[0]['result']
@@ -255,7 +255,7 @@ def test_fetch_results_with_result(
 
 
 def test_get_results_with_job_id(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         job_id = 1
@@ -273,7 +273,7 @@ def test_get_results_with_job_id(
 
 
 def test_fetch_results_with_job_id(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         job_id = 1
@@ -291,7 +291,7 @@ def test_fetch_results_with_job_id(
 
 
 def test_get_result_with_id(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result_id = 1
@@ -309,7 +309,7 @@ def test_get_result_with_id(
 
 
 def test_fetch_results_with_id(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result_id = 1
@@ -350,7 +350,7 @@ def test_fetch_results_with_job(
 
 
 def test_get_results_with_result_and_job(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result = mock_local_storage_results[0]['result']
@@ -362,7 +362,7 @@ def test_get_results_with_result_and_job(
 
 
 def test_fetch_results_with_result_and_job(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result = mock_local_storage_results[0]['result']
@@ -508,7 +508,7 @@ def test_remove_jobs_with_id():
 
 
 def test_remove_jobs_with_jobs_local_storage(
-    mock_local_storage_jobs: list[dict[str, DictDB | Job]]
+    mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
     with DBRunner():
         job_local_storage = mock_local_storage_jobs[0]['job_local_storage']
@@ -527,7 +527,7 @@ def test_remove_results_with_id():
 
 
 def test_remove_results_with_result(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result = mock_local_storage_results[0]['result']
@@ -539,7 +539,7 @@ def test_remove_results_with_result(
 
 
 def test_remove_results_with_job(
-    mock_local_storage_jobs: list[dict[str, DictDB | Job]]
+    mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
     with DBRunner():
         job = mock_local_storage_jobs[0]['job']
@@ -553,7 +553,7 @@ def test_remove_results_with_job(
 
 
 def test_remove_results_with_job_id(
-    mock_local_storage_jobs: list[dict[str, DictDB | Job]]
+    mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
     with DBRunner():
         job_local_storage = mock_local_storage_jobs[0]['job_local_storage']
@@ -565,7 +565,7 @@ def test_remove_results_with_job_id(
 
 
 def test_remove_results_with_results_local_storage(
-    mock_local_storage_results: list[dict[str, DictDB | Result]]
+    mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
         result_local_storage = mock_local_storage_results[0]['result_local_storage']
