@@ -14,6 +14,18 @@ from mpqp.execution.connection.env_manager import get_env_variable, save_env_var
 from mpqp.tools.generics import T
 
 DictDB = dict[str, Any]
+DATABASE_VERSION = 1.0
+
+
+def get_database_version() -> float:
+    """Retrieves the current database version from the version table."""
+    from sqlite3 import connect
+
+    with connect(get_env_variable("DATA_BASE")) as connection:
+        cursor = connection.cursor()
+        cursor.execute("SELECT version FROM version WHERE id = 1")
+        result = cursor.fetchone()
+        return float(result[0]) if result else 0.0
 
 
 def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
@@ -23,6 +35,13 @@ def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
     def wrapper(*args: Any, **kwargs: dict[str, Any]) -> T:
         if get_env_variable("DATA_BASE") == "":
             setup_local_storage()
+
+        db_version = get_database_version()
+        if db_version != DATABASE_VERSION:
+            raise RuntimeError(
+                f"Database version {db_version} is outdated. Expected {DATABASE_VERSION}. "
+                "Please upgrade the database schema."
+            )
 
         return func(*args, **kwargs)
 
@@ -88,6 +107,19 @@ def setup_local_storage(path: Optional[str] = None):
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
     '''
+    )
+
+    cursor.execute(
+        '''
+        CREATE TABLE IF NOT EXISTS version (
+            id INTEGER PRIMARY KEY CHECK (id = 1),  -- Ensures only one row exists
+            version FLOAT NOT NULL
+        )
+        '''
+    )
+
+    cursor.execute(
+        "INSERT OR IGNORE INTO version (id, version) VALUES (1, ?)", (DATABASE_VERSION,)
     )
 
     connection.commit()
