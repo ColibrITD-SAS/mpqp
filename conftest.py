@@ -25,7 +25,7 @@ def pytest_addoption(parser: pytest.Parser):
     )
 
 
-def pytest_configure(config):
+def pytest_configure(config: Any):
     """
     Allows plugins and conftest files to perform initial configuration.
     This hook is called for every plugin and initial conftest
