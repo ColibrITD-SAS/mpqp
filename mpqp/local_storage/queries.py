@@ -30,13 +30,13 @@ def fetch_all_jobs() -> list[DictDB]:
     Examples:
         >>> jobs = fetch_all_jobs()
         >>> for job in jobs:
-        ...    print("job_id:", job['id'])
-        job_id: 1
-        job_id: 2
-        job_id: 3
-        job_id: 4
-        job_id: 5
-        job_id: 6
+        ...    print("job:", job) # doctest: +ELLIPSIS
+        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -60,14 +60,14 @@ def fetch_all_results() -> list[DictDB]:
     Examples:
         >>> results = fetch_all_results()
         >>> for result in results:
-        ...    print("result_id:", result['id'])
-        result_id: 1
-        result_id: 2
-        result_id: 3
-        result_id: 4
-        result_id: 5
-        result_id: 6
-        result_id: 7
+        ...    print("result:", result) # doctest: +ELLIPSIS
+        result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 2, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 3, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 4, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 5, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 7, 'job_id': 6, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -94,10 +94,10 @@ def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
     Examples:
         >>> results = fetch_results_with_id([1, 2, 3])
         >>> for result in results:
-        ...    print("result_id:", result['id'])
-        result_id: 1
-        result_id: 2
-        result_id: 3
+        ...    print("result:", result) # doctest: +ELLIPSIS
+        result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 2, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 3, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -215,7 +215,8 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
         >>> jobs = fetch_jobs_with_job(job)
         >>> for job in jobs:
-        ...    print("job_id:", job['id'])
+        ...    print("job:", job) # doctest: +ELLIPSIS
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -269,8 +270,8 @@ def fetch_jobs_with_result_and_job(
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
         >>> jobs = fetch_jobs_with_result_and_job(result)
         >>> for job in jobs:
-        ...    print("job_id:", job['id'])
-        job_id: 5
+        ...    print("job:", job) # doctest: +ELLIPSIS
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -342,8 +343,10 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR,), StateVector([1, 0, 0, 0]),0,0)
         >>> jobs = fetch_jobs_with_result(result)
         >>> for job in jobs:
-        ...    print("job_id:", job['id'])
-        job_id: 5
+        ...    print("job:", job) # doctest: +ELLIPSIS
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+
 
     """
     from sqlite3 import Row, connect
@@ -413,8 +416,8 @@ def fetch_results_with_result_and_job(
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result_and_job(result)
         >>> for result in results:
-        ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
-        result_id: 6 , job_id: 5
+        ...    print("result:", result) # doctest: +ELLIPSIS
+        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -487,8 +490,8 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
         >>> results = fetch_results_with_job(job)
         >>> for result in results:
-        ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
-        result_id: 6 , job_id: 5
+        ...    print("result:", result) # doctest: +ELLIPSIS
+        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -552,9 +555,9 @@ def fetch_results_with_result(
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
         >>> results = fetch_results_with_result(result)
         >>> for result in results:
-        ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
-        result_id: 6 , job_id: 5
-        result_id: 7 , job_id: 6
+        ...    print("result:", result) # doctest: +ELLIPSIS
+        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 7, 'job_id': 6, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect

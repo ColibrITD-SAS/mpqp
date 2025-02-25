@@ -128,6 +128,10 @@ class Job:
         """See parameter description."""
         if self.measure is not None:
             self.measure._dynamic = False  # pyright: ignore[reportPrivateUsage]
+            if isinstance(self.measure, BasisMeasure):
+                self.measure._user_set_c_targets = (  # pyright: ignore[reportPrivateUsage]
+                    True
+                )
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little

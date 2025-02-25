@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any, Callable, Optional
+from functools import wraps
 
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.tools.generics import T
@@ -18,6 +19,7 @@ DictDB = dict[str, Any]
 def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
     """Decorator for functions needing the setup_local to be present"""
 
+    @wraps(func)  # This keeps the original function's docstring for test
     def wrapper(*args: Any, **kwargs: dict[str, Any]) -> T:
         if get_env_variable("DATA_BASE") == "":
             setup_local_storage()

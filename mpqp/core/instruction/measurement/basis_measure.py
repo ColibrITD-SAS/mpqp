@@ -72,6 +72,9 @@ class BasisMeasure(Measure):
                 raise ValueError(
                     f"Different number of targets and c_targets: targets={len(targets)}, c_targets={len(c_targets)}"
                 )
+            self._user_set_c_targets = True
+        else:
+            self._user_set_c_targets = False
 
         super().__init__(targets, shots, label)
 
@@ -139,11 +142,7 @@ class BasisMeasure(Measure):
         components = []
         if not self._dynamic and len(self.targets) != 0:
             components.append(str(self.targets))
-        if (
-            not self._dynamic
-            and self.c_targets is not None
-            and len(self.c_targets) != 0
-        ):
+        if not self._dynamic and self._user_set_c_targets:
             components.append(f"c_targets={self.c_targets}")
         if self.shots != 1024:
             components.append(f"shots={self.shots}")

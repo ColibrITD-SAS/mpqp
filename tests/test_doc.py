@@ -57,6 +57,7 @@ from mpqp.local_storage.queries import (
     fetch_results_with_job_id,
     fetch_results_with_result,
     fetch_results_with_result_and_job,
+    fetch_jobs_with_result_and_job,
 )
 from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import (

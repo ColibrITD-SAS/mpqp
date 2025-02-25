@@ -575,5 +575,3 @@ def test_remove_results_with_results_local_storage(
         for r in results:
             assert r != result_local_storage
 
-
-create_test_local_storage()
