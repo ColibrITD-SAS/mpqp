@@ -574,4 +574,3 @@ def test_remove_results_with_results_local_storage(
         results = fetch_all_results()
         for r in results:
             assert r != result_local_storage
-
