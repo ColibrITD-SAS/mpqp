@@ -124,16 +124,14 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            modified_circuit = circuit.without_measurements() + measurement.pre_measure
-            modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, modified_circuit, device, measurement)
+                job = Job(JobType.STATE_VECTOR, circuit, device, measurement)
             else:
-                job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
+                job = Job(JobType.SAMPLE, circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):
             job = Job(
                 JobType.OBSERVABLE,
-                circuit + measurement.pre_measure,
+                circuit,
                 device,
                 adjust_measure(measurement, circuit),
             )

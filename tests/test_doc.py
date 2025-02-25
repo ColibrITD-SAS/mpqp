@@ -47,7 +47,13 @@ from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit, random_gate, random_noise
 from mpqp.tools.display import *
-from mpqp.tools.display import clean_1D_array, clean_matrix, format_element, pprint
+from mpqp.tools.display import (
+    clean_1D_array,
+    clean_matrix,
+    format_element,
+    pprint,
+    format_element_str,
+)
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
