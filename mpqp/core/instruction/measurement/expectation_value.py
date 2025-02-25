@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 from numbers import Real
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Literal
 from warnings import warn
 
 import numpy as np
@@ -355,7 +355,7 @@ class ExpectationMeasure(Measure):
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
 
-    def get_smart_pauli_grouping(self) -> list[set[Observable]]:
+    def get_pauli_grouping(self, method: Literal["a", "b"]) -> list[set[Observable]]:
         """
         TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
           and return the measurements to be performed.
