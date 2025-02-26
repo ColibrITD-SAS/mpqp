@@ -330,6 +330,16 @@ class PauliString:
             start=np.zeros((size, size), dtype=np.complex64),
         )
 
+    def commutes_with(self, p: PauliString):
+        """
+        TODO: Determine EFFICIENTLY if this pauli string is commuting with the one in parameter.
+        Args:
+            p:
+
+        Returns:
+
+        """
+
     @staticmethod
     def from_matrix(
         matrix: Matrix, method: Literal["ptdr", "trace"] = "ptdr"
@@ -912,7 +922,7 @@ class PauliStringMonomial(PauliString):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
 
-    def is_commuting(self, p: PauliStringMonomial):
+    def commutes_with(self, p: PauliString):
         """
         TODO: Determine EFFICIENTLY if this pauli monomial is commuting with the one in parameter.
         Args:
@@ -1106,9 +1116,6 @@ class PauliStringAtom(PauliStringMonomial):
         res @= other
         return res
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
-        return self.matrix
-
     def __eq__(self, other: object) -> bool:
         if isinstance(other, PauliStringAtom):
             return self.label == other.label
@@ -1117,6 +1124,31 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __hash__(self):
         return hash(self.label)
+
+    def to_matrix(self) -> npt.NDArray[np.complex64]:
+        return self.matrix
+
+    def commutes_with(self, a: PauliStringAtom) -> bool:
+        """Determines whether this single-qubit Pauli operator commutes with the one in parameter. In this case, this
+        can be done by simply checking if one of the atoms are identity, or if they are the same.
+
+        Args:
+            a: The single-qubit Pauli operator with which want to check the commutativity
+
+        Returns:
+            True if the atoms commute, False otherwise.
+
+        Examples:
+            >>> X.commutes_with(X)
+            True
+            >>> X.commutes_with(Y)
+            False
+            >>> X.commutes_with(I)
+            True
+            >>> I.commutes_with(Z)
+            True
+        """
+        return a == I or self == I or self == a
 
     def to_other_language(
         self,
