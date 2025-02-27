@@ -1,3 +1,13 @@
+"""Call this script with the desired number of qubits as input, for instance
+``python Grover-w-CustomGate.py 4``. The tagged state is 11...1, and you can
+check that after the execution of Grover's algorithm, the last state is the most
+likely to be measured (the probabilities are displayed as output of this 
+script). 
+
+This script come in complement with a notebook also tackling Grover's
+algorithm, but it is done differently in order to highlight different ways to
+use MPQP."""
+
 import math
 import sys
 

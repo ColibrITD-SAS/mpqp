@@ -1,3 +1,11 @@
+"""This script runs the QPE for the gate defined in ``U_gate``. The QPE
+estimates the phase of the gate, up to a precision given by the variable
+``precision``.
+
+This script come in complement with a notebook also tackling Grover's
+algorithm, but it is done differently in order to highlight different ways to
+use MPQP."""
+
 import numpy as np
 
 from mpqp import Barrier, QCircuit
@@ -5,14 +13,16 @@ from mpqp.execution import IBMDevice, Result, run
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
 
-# U_op = rand_unitary_2x2_matrix()
 U_gate = Ry(np.pi / 4, 0)
-i2 = np.eye(2, dtype=np.complex64)
+precision = 3
+n = U_gate.nb_qubits + precision
 
-n = 5
+i2 = np.eye(2, dtype=np.complex64)
 
 
 def c_Uk(unitary: Gate, phase_precision: int) -> CustomGate:
+    """Single gate representing the cascade of controlled U gates to the power
+    of k used in the QPE."""
     total_size = phase_precision + unitary.nb_qubits
     matrix = np.zeros((2**total_size, 2**total_size), dtype=np.complex64)
 
@@ -33,8 +43,6 @@ qft = QCircuit(
         start=[],
     )
 )
-
-precision = 3
 
 qpe = (
     QCircuit(H.range(n) + [c_Uk(U_gate, precision)])
