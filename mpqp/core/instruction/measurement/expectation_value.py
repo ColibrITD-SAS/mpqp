@@ -7,11 +7,13 @@ from __future__ import annotations
 
 import copy
 from numbers import Real
-from typing import TYPE_CHECKING, Optional, Union, Literal
+from typing import TYPE_CHECKING, Literal, Optional, Union
 from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import typechecked
+
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import PauliString
@@ -20,17 +22,16 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
-from typeguard import typechecked
 
 if TYPE_CHECKING:
-    from sympy import Expr
-    from qiskit.circuit import Parameter
-    from qiskit.quantum_info import SparsePauliOp
-    from qat.core.wrappers.observable import Observable as QLMObservable
     from braket.circuits.observables import Hermitian
     from cirq.circuits.circuit import Circuit as CirqCircuit
-    from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from qat.core.wrappers.observable import Observable as QLMObservable
+    from qiskit.circuit import Parameter
+    from qiskit.quantum_info import SparsePauliOp
+    from sympy import Expr
 
 
 @typechecked
@@ -286,7 +287,9 @@ class ExpectationMeasure(Measure):
 
     def __init__(
         self,
-        observable: OneOrMany[Observable],  # TODO : handle the multi_observable case
+        observable: Union[
+            Observable, list[Observable]
+        ],  # OneOrMany[Observable],  # TODO : handle the multi_observable case
         targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
@@ -298,6 +301,8 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         if isinstance(observable, Observable):
             self.observable = [observable]
+        elif all(isinstance(obs, Observable) for obs in observable):
+            self.observable = list(observable)
         else:
             if not all(
                 observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
@@ -317,11 +322,20 @@ class ExpectationMeasure(Measure):
             self.pre_measure = QCircuit(0)
             return
 
-        if self.nb_qubits != self.observable[0].nb_qubits:
-            raise NumberQubitsError(
-                f"Target size {self.nb_qubits} doesn't match observable size "
-                f"{self.observable.nb_qubits}."
-            )
+        if isinstance(self.observable, list):
+            if any(not hasattr(obs, 'nb_qubits') for obs in self.observable):
+                raise AttributeError()
+
+            if any(self.nb_qubits != obs.nb_qubits for obs in self.observable):
+                raise NumberQubitsError(
+                    f"Target size {self.nb_qubits} doesn't match observable sizes "
+                    f"{[obs.nb_qubits for obs in self.observable]}."
+                )
+        else:
+            if self.nb_qubits != self.observable.nb_qubits:
+                raise NumberQubitsError(
+                    f"Target size {self.nb_qubits} doesn't match observable size {self.observable.nb_qubits}."
+                )
 
         self.pre_measure = QCircuit(max(self.targets) + 1)
         """Circuit added before the expectation measurement to correctly swap
