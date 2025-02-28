@@ -5,9 +5,13 @@ from mpqp.core.instruction import Observable, ExpectationMeasure
 from mpqp.execution import AvailableDevice, run
 
 
-
-def test_sequential_versus_multi(circuit: QCircuit, observables: list[Observable], device: AvailableDevice):
-    seq_results = [run(circuit + QCircuit([ExpectationMeasure(obs, shots=0)]), device) for obs in observables]
+def test_sequential_versus_multi(
+    circuit: QCircuit, observables: list[Observable], device: AvailableDevice
+):
+    seq_results = [
+        run(circuit + QCircuit([ExpectationMeasure(obs, shots=0)]), device)
+        for obs in observables
+    ]
 
     multi_result = run(circuit + QCircuit([ExpectationMeasure(observables, shots=0)]))
 
