@@ -87,7 +87,7 @@ class Observable:
             self.nb_qubits = int(np.log2(size_1))
             """Number of qubits of this observable."""
 
-            if isinstance(observable, Matrix):
+            if isinstance(observable, list):
                 shape = observable.shape
 
                 if len(shape) > 2:
@@ -289,7 +289,7 @@ class ExpectationMeasure(Measure):
         self,
         observable: Union[
             Observable, list[Observable]
-        ],  # OneOrMany[Observable],  # TODO : handle the multi_observable case
+        ],  # TODO : handle the multi_observable case
         targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
@@ -297,12 +297,12 @@ class ExpectationMeasure(Measure):
 
         super().__init__(targets, shots, label)
         # TODO Do some checks on the observables when they are many (same size because of targets)
-        self.observable: OneOrMany[Observable]
+        self.observable: list[Observable]
         """See parameter description."""
         if isinstance(observable, Observable):
             self.observable = [observable]
-        elif all(isinstance(obs, Observable) for obs in observable):
-            self.observable = list(observable)
+        # elif isinstance(observable, list) and all(isinstance(obs, Observable) for obs in observable):
+        #     self.observable = observable
         else:
             if not all(
                 observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
@@ -322,20 +322,11 @@ class ExpectationMeasure(Measure):
             self.pre_measure = QCircuit(0)
             return
 
-        if isinstance(self.observable, list):
-            if any(not hasattr(obs, 'nb_qubits') for obs in self.observable):
-                raise AttributeError()
-
-            if any(self.nb_qubits != obs.nb_qubits for obs in self.observable):
-                raise NumberQubitsError(
-                    f"Target size {self.nb_qubits} doesn't match observable sizes "
-                    f"{[obs.nb_qubits for obs in self.observable]}."
-                )
-        else:
-            if self.nb_qubits != self.observable.nb_qubits:
-                raise NumberQubitsError(
-                    f"Target size {self.nb_qubits} doesn't match observable size {self.observable.nb_qubits}."
-                )
+        if self.nb_qubits != self.observable[0].nb_qubits:
+            raise NumberQubitsError(
+                f"Target size {self.nb_qubits} doesn't match observable size "
+                f"{self.observable[0].nb_qubits}."
+            )
 
         self.pre_measure = QCircuit(max(self.targets) + 1)
         """Circuit added before the expectation measurement to correctly swap
@@ -368,6 +359,17 @@ class ExpectationMeasure(Measure):
         self.rearranged_targets = tweaked_tgt
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
+
+        print("Checking target order:")
+        print("Target size:", self.nb_qubits)
+        print(
+            "Observable sizes:",
+            (
+                [obs.nb_qubits for obs in self.observable]
+                if isinstance(self.observable, list)
+                else self.observable.nb_qubits
+            ),
+        )
 
     def get_pauli_grouping(self, method: Literal["a", "b"]) -> list[set[Observable]]:
         """
