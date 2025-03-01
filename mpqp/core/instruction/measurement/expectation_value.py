@@ -16,7 +16,7 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.core.instruction.measurement.pauli_string import PauliString, PauliStringMonomial
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
@@ -87,7 +87,7 @@ class Observable:
             self.nb_qubits = int(np.log2(size_1))
             """Number of qubits of this observable."""
 
-            if isinstance(observable, Matrix):
+            if not isinstance(observable, list):
                 shape = observable.shape
 
                 if len(shape) > 2:
@@ -301,8 +301,6 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         if isinstance(observable, Observable):
             self.observable = [observable]
-        elif all(isinstance(obs, Observable) for obs in observable):
-            self.observable = list(observable)
         else:
             if not all(
                 observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
@@ -369,7 +367,9 @@ class ExpectationMeasure(Measure):
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
 
-    def get_pauli_grouping(self, method: Literal["a", "b"]) -> list[set[Observable]]:
+    def get_pauli_grouping(
+        self, method: Literal["full_commutative_graph", "b"] = "full_commutative_graph"
+    ) -> list[set[PauliStringMonomial]]:
         """
         TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
           and return the measurements to be performed.
