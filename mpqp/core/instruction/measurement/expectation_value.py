@@ -80,7 +80,6 @@ class Observable:
             # TODO: add some checks, if all the coefficients of the pauli string are real ? (or obviously not necessary?)
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
-            self._is_diagonal = observable.is_diagonal()
         else:
             size_1 = len(observable)
 
@@ -113,7 +112,6 @@ class Observable:
                         )
 
                     self._matrix = np.array(observable)
-                    self._is_diagonal = is_diagonal(self._matrix)
 
             # correspond to if len(shape) == 1 or isinstance(observable, list)
             else:

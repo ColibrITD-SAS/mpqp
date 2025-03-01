@@ -700,6 +700,7 @@ def extract_result(
             )
 
         if isinstance(result, EstimatorResult):
+            # TODO: do the same for multi observable, for loop over the result.values ?
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
             shots = result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0

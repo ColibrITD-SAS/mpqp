@@ -806,6 +806,16 @@ class PauliString:
         )
         return hash(monomials_as_tuples)
 
+    def is_diagonal(self) -> bool:
+        """Checks wether this pauli string has a diagonal representation, by checking if only ``I`` and ``Z`` Pauli
+        operators appears in the monomials of the string.
+        TODO
+
+        Returns:
+            True if the observable represented by pauli string is diagonal.
+        """
+        pass
+
 
 @typechecked
 class PauliStringMonomial(PauliString):
