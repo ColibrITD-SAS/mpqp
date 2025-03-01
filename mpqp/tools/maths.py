@@ -157,7 +157,7 @@ def is_diagonal(matrix: Matrix):
             "The input matrix is not square. Dimensions = (" + i + ", " + j + ")."
         )
     test = matrix.reshape(-1)[:-1].reshape(i - 1, j + 1)
-    return ~np.any(test[:, 1:])
+    return not np.any(test[:, 1:])
 
 
 @typechecked
