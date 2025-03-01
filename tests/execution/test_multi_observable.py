@@ -1,10 +1,42 @@
+import numpy as np
 import pytest
-
 from mpqp import QCircuit
-from mpqp.core.instruction import Observable, ExpectationMeasure
-from mpqp.execution import AvailableDevice, run
+from mpqp.core.instruction import ExpectationMeasure, Observable
+from mpqp.execution import AvailableDevice, run, IBMDevice
+from mpqp.gates import *
 
 
+def list_circuits():
+    return [
+        QCircuit([H(0), CNOT(0, 1)]),
+        QCircuit([H(0), X(1)]),
+        # TODO add random circuit
+    ]
+
+
+def list_observables():
+    return [[
+        Observable(np.ones((4, 4))),
+        Observable(np.diag([1, 2, -3, 4])),
+        # TODO add random observable ?
+    ]]
+
+
+def list_devices():
+    return [
+        IBMDevice.AER_SIMULATOR
+    ]
+
+
+@pytest.mark.parametrize(
+    "circuit, observables, device",
+    [
+        (i, j, k)
+        for i in list_circuits()
+        for j in list_observables()
+        for k in list_devices()
+    ],
+)
 def test_sequential_versus_multi(
     circuit: QCircuit, observables: list[Observable], device: AvailableDevice
 ):
