@@ -77,21 +77,23 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
 
-    if isinstance(measure.observable, list):
-        tweaked_observables = [
-            Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
-            for obs in measure.observable
-        ]
-    else:
-        tweaked_observables = Observable(
-            np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)
-        )
+    # if isinstance(measure.observable, list):
+    tweaked_observables = [
+        Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+        for obs in measure.observable
+    ]
+    # else:
+    #     tweaked_observables = Observable(
+    #         np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)
+    #     )
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
         list(range(circuit.nb_qubits)),
         measure.shots,
     )
+    print("Observable qubit size before tweaking:", measure.observable[0].nb_qubits)
+    print("Tweaked observable size:", tweaked_observables[0].nb_qubits)
     return tweaked_measure
 
 
@@ -129,11 +131,13 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device, measurement)
         elif isinstance(measurement, ExpectationMeasure):
+            adjusted_m = adjust_measure(measurement, circuit)
+            print(adjusted_m.observable[0].nb_qubits)
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
                 device,
-                adjust_measure(measurement, circuit),
+                adjusted_m,
             )
         else:
             raise NotImplementedError(

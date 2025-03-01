@@ -604,7 +604,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
 
 @typechecked
-def run_remote_ibm(job: Job) -> Result:
+def run_remote_ibm(job: Job) -> BatchResult | Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
@@ -632,7 +632,7 @@ def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
     device: "IBMDevice | IBMSimulatedDevice | AZUREDevice",
-) -> Result:  # TODO: [multi-obs] return BatchResult for multi observable
+) -> BatchResult | Result:  # TODO: [multi-obs] return BatchResult for multi observable
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
 
@@ -654,20 +654,44 @@ def extract_result(
         res_data = result[0].data
         # res_data is a DataBin, which means all typechecking is out of the
         # windows for this specific object
+        all_results = []
+        res_data = result
 
-        # If we are in observable mode
-        if hasattr(res_data, "evs"):
-            if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+        results = res_data.evs if isinstance(res_data.evs, list) else [res_data.evs]
+        for single_result in results:
+            if hasattr(res_data, "evs"):  #
+                if job is None:
+                    job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
-            mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
-            error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
-            shots = (
-                job.measure.shots
-                if job.device.is_simulator() and job.measure is not None
-                else result[0].metadata["shots"]
-            )
-            return Result(job, mean, error, shots)
+                mean = float(
+                    single_result
+                )  # pyright: ignore[reportAttributeAccessIssue]
+                error = float(
+                    res_data.stds
+                )  # pyright: ignore[reportAttributeAccessIssue]
+                shots = (
+                    job.measure.shots
+                    if job.device.is_simulator() and job.measure is not None
+                    else result[0].metadata["shots"]
+                )
+                all_results.append(Result(job, mean, error, shots))
+
+            if len(all_results) > 1:
+                return BatchResult(all_results)
+
+            return all_results[0]
+        # if hasattr(res_data, "evs"):
+        #     if job is None:
+        #         job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+
+        #     mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
+        #     error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
+        #     shots = (
+        #         job.measure.shots
+        #         if job.device.is_simulator() and job.measure is not None
+        #         else result[0].metadata["shots"]
+        #     )
+        #     return Result(job, mean, error, shots)
         # If we are in sample mode
         else:
             if job is None:
