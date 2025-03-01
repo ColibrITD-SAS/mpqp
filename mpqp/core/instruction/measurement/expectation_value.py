@@ -183,7 +183,7 @@ class Observable:
                 self._is_diagonal = is_diagonal(self._matrix)
             # If only the diagonal elements are known, we pass by the matrix for efficiency
             elif self._diag_elements is not None:
-                self._is_diagonal = is_diagonal(self.matrix)
+                self._is_diagonal = True
             # Otherwise, the observable is empty, we return False by convention
             else:
                 return False
@@ -197,7 +197,7 @@ class Observable:
         """3M-TODO"""
         ...
 
-    def is_commuting(self, obs: Observable):
+    def commutes_with(self, obs: Observable):
         # Naive version, just computing AB - BA, and compare to 0 matrix.
         # TODO : distinguer si on a l'observable ou le pauli string
         # TODO: traitement spécifique si observable diagonal ?
