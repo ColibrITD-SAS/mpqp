@@ -15,17 +15,17 @@ def list_circuits():
 
 
 def list_observables():
-    return [[
-        Observable(np.ones((4, 4))),
-        Observable(np.diag([1, 2, -3, 4])),
-        # TODO add random observable ?
-    ]]
+    return [
+        [
+            Observable(np.ones((4, 4))),
+            Observable(np.diag([1, 2, -3, 4])),
+            # TODO add random observable ?
+        ]
+    ]
 
 
 def list_devices():
-    return [
-        IBMDevice.AER_SIMULATOR
-    ]
+    return [IBMDevice.AER_SIMULATOR]
 
 
 @pytest.mark.parametrize(

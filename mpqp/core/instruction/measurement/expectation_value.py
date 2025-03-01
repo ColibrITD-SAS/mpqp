@@ -16,7 +16,10 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import PauliString, PauliStringMonomial
+from mpqp.core.instruction.measurement.pauli_string import (
+    PauliString,
+    PauliStringMonomial,
+)
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
@@ -370,7 +373,7 @@ class ExpectationMeasure(Measure):
         )
 
     def get_pauli_grouping(
-            self, method: Literal["full_commutative_graph", "b"] = "full_commutative_graph"
+        self, method: Literal["full_commutative_graph", "b"] = "full_commutative_graph"
     ) -> list[set[PauliStringMonomial]]:
         """
         TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
