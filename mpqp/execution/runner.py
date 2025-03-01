@@ -158,7 +158,7 @@ def _run_single(
     device: AvailableDevice,
     values: dict[Expr | str, Complex],
     display_breakpoints: bool = True,
-) -> Result:
+) -> Result | BatchResult:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
 

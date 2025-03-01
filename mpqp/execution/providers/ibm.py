@@ -6,8 +6,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -26,6 +24,7 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -140,11 +139,6 @@ def compute_expectation_value(
         }
         estimator = Estimator(options=options)
 
-    # TODO: implement the possibility to compute several expectation values at
-    #  the same time when the circuit is the same apparently the estimator.run()
-    #  can take several circuits and observables at the same time, because
-    #  putting them all together will increase the performance
-
     job.status = JobStatus.RUNNING
     circuits_and_observables = [(ibm_circuit, obs) for obs in qiskit_observables]
     job_expectation = estimator.run(circuits_and_observables)
@@ -153,15 +147,7 @@ def compute_expectation_value(
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
 
-    if len(qiskit_observables) > 1:
-        return BatchResult(
-            [
-                extract_result(estimator_result, job, job.device)
-                for _ in range(len(qiskit_observables))
-            ]
-        )
-    else:
-        return extract_result(estimator_result, job, job.device)
+    return extract_result(estimator_result, job, job.device)
 
 
 @typechecked
@@ -597,10 +583,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     job.id = ibm_job.job_id()
 
-    return (
-        job.id,
-        ibm_job,
-    )
+    return job.id, ibm_job
 
 
 @typechecked
@@ -622,9 +605,8 @@ def run_remote_ibm(job: Job) -> BatchResult | Result:
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
-    return extract_result(
-        ibm_result, job, job.device
-    )  # TODO: update this to take into account the case when we have list of Observables
+    return extract_result(ibm_result, job, job.device)
+    # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked
@@ -632,7 +614,7 @@ def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
     device: "IBMDevice | IBMSimulatedDevice | AZUREDevice",
-) -> BatchResult | Result:  # TODO: [multi-obs] return BatchResult for multi observable
+) -> BatchResult | Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
 
@@ -651,20 +633,18 @@ def extract_result(
 
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
-        res_data = result[0].data
-        # res_data is a DataBin, which means all typechecking is out of the
-        # windows for this specific object
         all_results = []
-        res_data = result
 
-        results = res_data.evs if isinstance(res_data.evs, list) else [res_data.evs]
-        for single_result in results:
+        for res in result:
+            res_data = res.data
+            # res_data is a DataBin, which means all typechecking is out of the
+            # windows for this specific object
             if hasattr(res_data, "evs"):  #
                 if job is None:
                     job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
                 mean = float(
-                    single_result
+                    res_data.evs
                 )  # pyright: ignore[reportAttributeAccessIssue]
                 error = float(
                     res_data.stds
@@ -676,50 +656,38 @@ def extract_result(
                 )
                 all_results.append(Result(job, mean, error, shots))
 
-            if len(all_results) > 1:
-                return BatchResult(all_results)
+            else:
+                if job is None:
+                    shots = (
+                        res_data.c.num_shots  # pyright: ignore[reportAttributeAccessIssue]
+                    )
+                    nb_qubits = (
+                        res_data.c.num_bits  # pyright: ignore[reportAttributeAccessIssue]
+                    )
+                    job = Job(
+                        JobType.SAMPLE,
+                        QCircuit(nb_qubits),
+                        device,
+                        BasisMeasure(list(range(nb_qubits)), shots=shots),
+                    )
+                if TYPE_CHECKING:
+                    assert job.measure is not None
 
-            return all_results[0]
-        # if hasattr(res_data, "evs"):
-        #     if job is None:
-        #         job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+                counts = (
+                    res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
+                )
+                data = [
+                    Sample(
+                        bin_str=item,
+                        count=counts[item],
+                        nb_qubits=job.circuit.nb_qubits,
+                    )
+                    for item in counts
+                ]
+                # Since we don't handle multiple sampling jobs, we know the first result is the only one
+                return Result(job, data, None, job.measure.shots)
 
-        #     mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
-        #     error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
-        #     shots = (
-        #         job.measure.shots
-        #         if job.device.is_simulator() and job.measure is not None
-        #         else result[0].metadata["shots"]
-        #     )
-        #     return Result(job, mean, error, shots)
-        # If we are in sample mode
-        else:
-            if job is None:
-                shots = (
-                    res_data.c.num_shots  # pyright: ignore[reportAttributeAccessIssue]
-                )
-                nb_qubits = (
-                    res_data.c.num_bits  # pyright: ignore[reportAttributeAccessIssue]
-                )
-                job = Job(
-                    JobType.SAMPLE,
-                    QCircuit(nb_qubits),
-                    device,
-                    BasisMeasure(list(range(nb_qubits)), shots=shots),
-                )
-            if TYPE_CHECKING:
-                assert job.measure is not None
-
-            counts = (
-                res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
-            )
-            data = [
-                Sample(
-                    bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits
-                )
-                for item in counts
-            ]
-            return Result(job, data, None, job.measure.shots)
+        return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
     else:
 
@@ -799,7 +767,7 @@ def extract_result(
 
 
 @typechecked
-def get_result_from_ibm_job_id(job_id: str) -> Result:
+def get_result_from_ibm_job_id(job_id: str) -> Result | BatchResult:
     """Retrieves from IBM remote platform and parse the result of the job_id
     given in parameter. If the job is still running, we wait (blocking) until it
     is ``DONE``.
@@ -808,7 +776,7 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
         job_id: Id of the remote IBM job.
 
     Returns:
-        The result converted to our format.
+        The result (or batch of result) converted to our format.
     """
     from qiskit.providers import BackendV1, BackendV2
 
@@ -841,6 +809,15 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
 
 
 def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+    """
+    TODO comment
+    Args:
+        job:
+        result:
+
+    Returns:
+
+    """
     counts = result.get_counts(0)
     job_data = result.data()
     return [
