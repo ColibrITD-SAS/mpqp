@@ -12,8 +12,6 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
-
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
@@ -25,6 +23,7 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Hermitian
@@ -113,7 +112,7 @@ class Observable:
 
                     self._matrix = np.array(observable)
 
-            # correspond to if len(shape) == 1 or isinstance(observable, list)
+            # correspond to isinstance(observable, list)
             else:
                 self._is_diagonal = True
                 self._diag_elements = observable
@@ -358,17 +357,6 @@ class ExpectationMeasure(Measure):
         self.rearranged_targets = tweaked_tgt
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
-
-        print("Checking target order:")
-        print("Target size:", self.nb_qubits)
-        print(
-            "Observable sizes:",
-            (
-                [obs.nb_qubits for obs in self.observable]
-                if isinstance(self.observable, list)
-                else self.observable.nb_qubits
-            ),
-        )
 
     def get_pauli_grouping(
         self,

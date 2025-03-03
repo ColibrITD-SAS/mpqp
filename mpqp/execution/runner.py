@@ -23,9 +23,6 @@ from textwrap import indent
 from typing import Iterable, Optional
 
 import numpy as np
-from sympy import Expr
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -52,6 +49,8 @@ from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
+from sympy import Expr
+from typeguard import typechecked
 
 
 @typechecked
@@ -77,23 +76,16 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
 
-    # if isinstance(measure.observable, list):
     tweaked_observables = [
         Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
         for obs in measure.observable
     ]
-    # else:
-    #     tweaked_observables = Observable(
-    #         np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)
-    #     )
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
         list(range(circuit.nb_qubits)),
         measure.shots,
     )
-    print("Observable qubit size before tweaking:", measure.observable[0].nb_qubits)
-    print("Tweaked observable size:", tweaked_observables[0].nb_qubits)
     return tweaked_measure
 
 
