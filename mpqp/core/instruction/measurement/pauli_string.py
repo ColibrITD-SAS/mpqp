@@ -18,7 +18,7 @@ from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.languages import Language
-from mpqp.tools import format_element
+from mpqp.tools import format_element, NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
 
@@ -830,7 +830,7 @@ class PauliStringMonomial(PauliString):
     def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
         self.coef = coef
         """Coefficient of the monomial."""
-        self.atoms = [] if atoms is None else atoms
+        self.atoms: list["PauliStringAtom"] = [] if atoms is None else atoms
         """The list of atoms in the monomial."""
 
     @property
@@ -932,15 +932,35 @@ class PauliStringMonomial(PauliString):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
 
-    def commutes_with(self, p: PauliString):
-        """
-        TODO: Determine EFFICIENTLY if this pauli monomial is commuting with the one in parameter.
+    def commutes_with(self, pm: PauliStringMonomial) -> bool:
+        """Checks wether this Pauli monomial commutes (full commutativity) with the Pauli monomial in parameter. This
+        is done by checking that the number of anti-commuting atoms is even.
+
         Args:
-            p:
+            pm: The Pauli monomial for which we want to check commutativity with this monomial.
 
         Returns:
+            True if this Pauli monomial commutes with the one in parameter.
+
+        Examples:
+            >>> (I @ X @ Y).commutes_with(Z @ Y @ X)
+            True
+            >>> (X @ Z @ Z).commutes_with(Y @ Z @ I)
+            False
+            >>> (X @ Z @ Z).commutes_with(X @ Z @ Z)
+            True
 
         """
+        if self.nb_qubits != pm.nb_qubits:
+            raise NumberQubitsError(
+                f"The number of qubits of this Pauli monomial {self.nb_qubits} is not matching "
+                f"the one of the monomial in parameter {pm.nb_qubits}"
+            )
+
+        return (
+            sum(1 for a, b in zip(self.atoms, pm.atoms) if not a.commutes_with(b)) % 2
+            == 0
+        )
 
     def subs(
         self, values: dict[Expr | str, Real], remove_symbolic: bool = True
@@ -1155,6 +1175,8 @@ class PauliStringAtom(PauliStringMonomial):
             False
             >>> X.commutes_with(I)
             True
+            >>> Y.commutes_with(Z)
+            False
             >>> I.commutes_with(Z)
             True
         """
