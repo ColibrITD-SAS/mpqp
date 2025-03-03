@@ -371,7 +371,10 @@ class ExpectationMeasure(Measure):
         )
 
     def get_pauli_grouping(
-        self, method: Literal["full_commutative_graph", "b"] = "full_commutative_graph"
+        self,
+        method: Literal[
+            "full_clique", "full_greedy", "qubit_wise_clique"
+        ] = "full_greedy",
     ) -> list[set[PauliStringMonomial]]:
         """
         TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
