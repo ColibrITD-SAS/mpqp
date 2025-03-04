@@ -6,6 +6,8 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from typeguard import typechecked
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -24,7 +26,6 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -594,6 +595,7 @@ def run_remote_ibm(job: Job) -> BatchResult | Result:
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
+
     return extract_result(ibm_result, job, job.device)
     # TODO: update this to take into account the case when we have list of Observables
 
@@ -689,16 +691,33 @@ def extract_result(
             )
 
         if isinstance(result, EstimatorResult):
-            # TODO: do the same for multi observable, for loop over the result.values ?
-            if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
-            shots = result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0
-            variance = (
-                result.metadata[0]["variance"]
-                if "variance" in result.metadata[0]
-                else None
-            )
-            return Result(job, result.values[0], variance, shots)
+            all_results = []
+
+            for res in result:
+                res_data = res.data
+                if hasattr(res_data, "evs"):
+                    if job is None:
+                        job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+
+                    mean = float(
+                        res_data.evs
+                    )  # pyright: ignore[reportAttributeAccessIssue]
+                    error = float(
+                        res_data.stds
+                    )  # pyright: ignore[reportAttributeAccessIssue]
+                    shots = (
+                        job.measure.shots
+                        if job.device.is_noisy_simulator() and job.measure is not None
+                        else result[0].metadata["shots"]
+                    )
+                    variance = (
+                        result.metadata[0]["variance"]
+                        if "variance" in result.metadata[0]
+                        else None
+                    )
+                    all_results.append(Result(job, mean, error, shots))
+
+            return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
         elif isinstance(
             result, QiskitResult
