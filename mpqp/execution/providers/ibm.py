@@ -98,7 +98,9 @@ def compute_expectation_value(
 
     nb_shots = job.measure.shots
 
-    qiskit_observables = [obs.to_other_language(Language.QISKIT) for obs in job.measure.observables]
+    qiskit_observables = [
+        obs.to_other_language(Language.QISKIT) for obs in job.measure.observables
+    ]
 
     if TYPE_CHECKING:
         assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
