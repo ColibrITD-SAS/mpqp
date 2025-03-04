@@ -487,7 +487,27 @@ def run_aer(job: Job):
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:
-        result = compute_expectation_value(qiskit_circuit, job, backend_sim)
+        if isinstance(job.device, (IBMDevice, IBMSimulatedDevice)):
+
+            results = []
+
+            for _ in job.measure.observables:
+                expectation_value = compute_expectation_value(
+                    qiskit_circuit, job, backend_sim
+                )
+
+                if isinstance(expectation_value, BatchResult):
+                    results.extend(expectation_value.results)
+                elif isinstance(expectation_value, Result):
+                    results.append(expectation_value)
+                else:
+                    raise TypeError(
+                        f"compute_expectation_value() returned {type(expectation_value)}, expected Result or BatchResult."
+                    )
+
+                # results.append(expectation_value)
+
+            result = BatchResult(results) if len(results) > 1 else results[0]
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled.")
