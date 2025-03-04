@@ -112,17 +112,21 @@ class Observable:
 
                     self._matrix = np.array(observable)
 
+                else:
+                    self._is_diagonal = True
+                    self._diag_elements = observable.real
+
             # correspond to isinstance(observable, list)
             else:
                 self._is_diagonal = True
-                self._diag_elements = observable
+                self._diag_elements = np.array(observable)
 
     @property
     def matrix(self) -> Matrix:
         """The matrix representation of the observable."""
         if self._matrix is None:
             if self.is_diagonal:
-                self._matrix = np.diag(self._diag_elements)
+                self._matrix = np.diag(self.diagonal_elements)
             else:
                 self._matrix = self.pauli_string.to_matrix()
         matrix = copy.deepcopy(self._matrix).astype(np.complex64)
@@ -134,7 +138,7 @@ class Observable:
         if self._pauli_string is None:
             if self.is_diagonal:
                 self._pauli_string = PauliString.from_diagonal_elements(
-                    self._diag_elements
+                    self.diagonal_elements
                 )
             else:
                 self._pauli_string = PauliString.from_matrix(self.matrix)
@@ -146,7 +150,7 @@ class Observable:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
             self._diag_elements = np.diagonal(self.matrix)
-        return self._diag_elements
+        return copy.deepcopy(self._diag_elements).real
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
