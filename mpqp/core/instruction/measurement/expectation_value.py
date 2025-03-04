@@ -125,8 +125,8 @@ class Observable:
     def matrix(self) -> Matrix:
         """The matrix representation of the observable."""
         if self._matrix is None:
-            if self.is_diagonal:
-                self._matrix = np.diag(self.diagonal_elements)
+            if self.is_diagonal and self._diag_elements is not None:
+                self._matrix = np.diag(self._diag_elements)
             else:
                 self._matrix = self.pauli_string.to_matrix()
         matrix = copy.deepcopy(self._matrix).astype(np.complex64)
@@ -301,10 +301,10 @@ class ExpectationMeasure(Measure):
 
         super().__init__(targets, shots, label)
         # TODO Do some checks on the observables when they are many (same size because of targets)
-        self.observable: list[Observable]
+        self.observables: list[Observable]
         """See parameter description."""
         if isinstance(observable, Observable):
-            self.observable = [observable]
+            self.observables = [observable]
         else:
             if not all(
                 observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
@@ -313,7 +313,7 @@ class ExpectationMeasure(Measure):
                     "All observables in ExpectationMeasure must have the same size. Sizes: "
                     + str([o.nb_qubits for o in observable])
                 )
-            self.observable = observable
+            self.observables = observable
         self._check_targets_order()
 
     def _check_targets_order(self):
@@ -324,10 +324,10 @@ class ExpectationMeasure(Measure):
             self.pre_measure = QCircuit(0)
             return
 
-        if self.nb_qubits != self.observable[0].nb_qubits:
+        if self.nb_qubits != self.observables[0].nb_qubits:
             raise NumberQubitsError(
                 f"Target size {self.nb_qubits} doesn't match observable size "
-                f"{self.observable[0].nb_qubits}."
+                f"{self.observables[0].nb_qubits}."
             )
 
         self.pre_measure = QCircuit(max(self.targets) + 1)
@@ -384,8 +384,7 @@ class ExpectationMeasure(Measure):
         )
         shots = "" if self.shots == 0 else f", shots={self.shots}"
         label = "" if self.label is None else f", label={self.label}"
-        # TODO: update the repr when self.observable contains a list of observables, with also the number of observables
-        return f"ExpectationMeasure({self.observable}{targets}{shots}{label})"
+        return f"ExpectationMeasure({self.observables}{targets}{shots}{label})"
 
     def to_other_language(
         self,

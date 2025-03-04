@@ -97,18 +97,8 @@ def compute_expectation_value(
         )
 
     nb_shots = job.measure.shots
-    observables = (
-        job.measure.observable
-        if isinstance(job.measure.observable, list)
-        else [job.measure.observable]
-    )
 
-    qiskit_observables = []
-    for obs in observables:
-        if isinstance(obs, Observable):
-            qiskit_observables.append(obs.to_other_language(Language.QISKIT))
-        else:
-            raise ValueError("Unsupported observable")
+    qiskit_observables = [obs.to_other_language(Language.QISKIT) for obs in job.measure.observables]
 
     if TYPE_CHECKING:
         assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
@@ -546,11 +536,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=session)
-        qiskit_observables = (
-            meas.observable if isinstance(meas.observable, list) else [meas.observable]
-        )
         qiskit_observables = [
-            obs.to_other_language(Language.QISKIT) for obs in qiskit_observables
+            obs.to_other_language(Language.QISKIT) for obs in meas.observables
         ]
         if TYPE_CHECKING:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)

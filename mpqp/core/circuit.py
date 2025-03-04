@@ -906,7 +906,7 @@ class QCircuit:
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure(shots=1000),
-            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
+            ExpectationMeasure([Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64))], [1], shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]

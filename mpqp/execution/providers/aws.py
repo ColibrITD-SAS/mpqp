@@ -188,7 +188,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        herm_op = job.measure.observable.to_other_language(Language.BRAKET)
+        herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )

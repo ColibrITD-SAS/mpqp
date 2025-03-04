@@ -164,7 +164,7 @@ def run_local(job: Job) -> Result:
             assert isinstance(job.measure, ExpectationMeasure)
         # TODO: update this to take into account the case when we have list of Observables
         # TODO: check if Cirq allows for a list of observable when computing expectation values (apparently yes)
-        cirq_obs = job.measure.observable.to_other_language(
+        cirq_obs = job.measure.observables[0].to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
         if TYPE_CHECKING:
@@ -253,7 +253,7 @@ def run_local_processor(job: Job) -> Result:
             assert isinstance(job.measure, ExpectationMeasure)
 
         # TODO: update this to take into account the case when we have list of Observables
-        cirq_obs = job.measure.observable.to_other_language(
+        cirq_obs = job.measure.observables[0].to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
         if TYPE_CHECKING:

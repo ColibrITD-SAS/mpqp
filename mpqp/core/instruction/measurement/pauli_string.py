@@ -338,7 +338,11 @@ class PauliString:
 
         Returns:
 
+        Examples:
+            >>> from mpqp.measures import I, X, Y, Z
+
         """
+        pass
 
     @staticmethod
     def from_matrix(
@@ -807,14 +811,21 @@ class PauliString:
         return hash(monomials_as_tuples)
 
     def is_diagonal(self) -> bool:
-        """Checks wether this pauli string has a diagonal representation, by checking if only ``I`` and ``Z`` Pauli
+        """Checks whether this pauli string has a diagonal representation, by checking if only ``I`` and ``Z`` Pauli
         operators appears in the monomials of the string.
-        TODO
 
         Returns:
             True if the observable represented by pauli string is diagonal.
+
+        Examples:
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> (I @ X + Z @ Y - Y @ X).is_diagonal()
+            False
+            >>> (I @ Z @ I - 2* Z @ Z @ Z + I @ I @ I).is_diagonal()
+            True
+
         """
-        pass
+        return all([all([a != X and a != Y for a in m.atoms]) for m in self.monomials])
 
 
 @typechecked
@@ -943,6 +954,7 @@ class PauliStringMonomial(PauliString):
             True if this Pauli monomial commutes with the one in parameter.
 
         Examples:
+            >>> from mpqp.measures import I, X, Y, Z
             >>> (I @ X @ Y).commutes_with(Z @ Y @ X)
             True
             >>> (X @ Z @ Z).commutes_with(Y @ Z @ I)
@@ -1169,6 +1181,7 @@ class PauliStringAtom(PauliStringMonomial):
             True if the atoms commute, False otherwise.
 
         Examples:
+            >>> from mpqp.measures import I, X, Y, Z
             >>> X.commutes_with(X)
             True
             >>> X.commutes_with(Y)
