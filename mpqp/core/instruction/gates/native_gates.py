@@ -767,6 +767,56 @@ class S(OneQubitNoParamGate):
         super().__init__(target)
         self.matrix = np.array([[1, 0], [0, 1j]])
 
+    def inverse(self) -> Gate:
+        return S_dagger(self.targets[0])
+
+
+class S_dagger(OneQubitNoParamGate):
+    r"""One qubit S adjoint gate. It's equivalent to ``P(-pi/2)``.
+
+    `\begin{pmatrix}1&0\\0&-i\end{pmatrix}`
+
+    Args:
+        target: Index referring to the qubit on which the gate will be applied.
+
+    Example:
+        >>> pprint(S_dagger(0).to_matrix())
+        [[1, 0 ],
+         [0, -1j]]
+
+    """
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.Si
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import SdgGate
+
+        return SdgGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+
+        return ZPowGate(exponent=-np.pi / 2)
+
+    qlm_aqasm_keyword = "PH"
+    qiskit_string = "sdg"
+
+    def __init__(self, target: int):
+        super().__init__(target)
+        self.matrix = np.array([[1, 0], [0, -1j]])
+
+    def __repr__(self):
+        return f"S†({self.targets[0]})"
+
+    def inverse(self) -> Gate:
+        return S(self.targets[0])
+
 
 class T(OneQubitNoParamGate):
     r"""One qubit T gate. It is also referred to as the `\pi/4` gate because it

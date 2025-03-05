@@ -557,7 +557,7 @@ class BatchResult:
 
     """
 
-    def __init__(self, results: list[Result]):
+    def __init__(self, results: list[Result | BatchResult]):
         self.results = results
         """See parameter description."""
 

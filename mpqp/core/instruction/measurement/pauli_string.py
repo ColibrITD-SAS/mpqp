@@ -17,6 +17,7 @@ import numpy.typing as npt
 from sympy import Expr
 from typeguard import typechecked
 
+from mpqp.core.instruction.gates.native_gates import NativeGate, S_dagger, H
 from mpqp.core.languages import Language
 from mpqp.tools import format_element, NumberQubitsError
 from mpqp.tools.generics import Matrix
@@ -872,6 +873,13 @@ class PauliStringMonomial(PauliString):
             * self.coef
         )
 
+    def eigen_values(self):
+        """Return the eigen values associated with this Pauli monomial, without taking into account the coefficient.
+
+        Returns:
+
+        """
+
     def __iadd__(self, other: "PauliString"):
         for mono in other.monomials:
             if (
@@ -1066,6 +1074,7 @@ class PauliStringAtom(PauliStringMonomial):
     Args:
         label: The label representing the Pauli operator.
         matrix: The matrix representation of the Pauli operator.
+        eig_vals
 
     Raises:
         RuntimeError: New atoms cannot be created, you should use the available
@@ -1078,10 +1087,20 @@ class PauliStringAtom(PauliStringMonomial):
 
     __is_mutable = True
 
-    def __init__(self, label: str, matrix: npt.NDArray[np.complex64]):
+    def __init__(
+        self,
+        label: str,
+        matrix: npt.NDArray[np.complex64],
+        eig_values: list[int],
+        eig_vectors: npt.NDArray[np.complex64],
+        basis_change: list[type[NativeGate]],
+    ):
         if _allow_atom_creation:
             self.label = label
             self.matrix = matrix
+            self.eig_vals = np.array(eig_values)
+            self.eig_vecs = np.array(eig_vectors)
+            self._basis_change = basis_change
             self.__is_mutable = False
         else:
             raise RuntimeError(
@@ -1244,23 +1263,35 @@ class PauliStringAtom(PauliStringMonomial):
 
 _allow_atom_creation = True
 
-I = PauliStringAtom("I", np.eye(2, dtype=np.complex64))
+I = PauliStringAtom("I", np.eye(2, dtype=np.complex64), [1, 1], np.array([[1, 0], [0, 1]]), [])
 r"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}1&0\\0&1\end{pmatrix}`
 """
-X = PauliStringAtom("X", 1 - np.eye(2, dtype=np.complex64))
+X = PauliStringAtom(
+    "X",
+    1 - np.eye(2, dtype=np.complex64),
+    [1, -1],
+    (1 / np.sqrt(2)) * np.array([[1, 1], [1, -1]]),
+    [H]
+)
 r"""Pauli-X atom representing the X operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}0&1\\1&0\end{pmatrix}`
 
 """
-Y = PauliStringAtom("Y", np.fliplr(np.diag([1j, -1j])))
+Y = PauliStringAtom(
+    "Y",
+    np.fliplr(np.diag([1j, -1j])),
+    [1, -1],
+    (1 / np.sqrt(2)) * np.array([[1, 1j], [1, -1j]]),
+    [S_dagger, H]
+)
 r"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}0&-i\\i&0\end{pmatrix}`
 """
-Z = PauliStringAtom("Z", np.diag([1, -1]))
+Z = PauliStringAtom("Z", np.diag([1, -1]), [1, -1], np.array([[1, 0], [0, 1]]), [])
 r"""Pauli-Z atom representing the Z operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}1&0\\0&-1\end{pmatrix}`
