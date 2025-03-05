@@ -728,7 +728,7 @@ def extract_result(
                     shots = (
                         job.measure.shots
                         if job.device.is_noisy_simulator() and job.measure is not None
-                        else result[0].metadata["shots"]
+                        else res.metadata["shots"]
                     )
                     variance = (
                         result.metadata[0]["variance"]
