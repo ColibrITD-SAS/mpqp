@@ -853,6 +853,11 @@ class PauliStringMonomial(PauliString):
     def monomials(self) -> list["PauliStringMonomial"]:
         return [PauliStringMonomial(self.coef, self.atoms)]
 
+    @property
+    def eigen_values(self) -> npt.NDArray[np.complex64]:
+        """Return the eigen values associated with this Pauli monomial, without taking into account the coefficient."""
+        return reduce(np.kron, [a.eigen_values for a in self.atoms])
+
     def __str__(self):
         if isinstance(self.coef, Expr):
             coef = f'({str(self.coef)})'
@@ -872,13 +877,6 @@ class PauliStringMonomial(PauliString):
             )
             * self.coef
         )
-
-    def eigen_values(self):
-        """Return the eigen values associated with this Pauli monomial, without taking into account the coefficient.
-
-        Returns:
-
-        """
 
     def __iadd__(self, other: "PauliString"):
         for mono in other.monomials:
@@ -1098,8 +1096,8 @@ class PauliStringAtom(PauliStringMonomial):
         if _allow_atom_creation:
             self.label = label
             self.matrix = matrix
-            self.eig_vals = np.array(eig_values)
-            self.eig_vecs = np.array(eig_vectors)
+            self._eig_vals = np.array(eig_values)
+            self._eig_vecs = np.array(eig_vectors)
             self._basis_change = basis_change
             self.__is_mutable = False
         else:
@@ -1126,6 +1124,10 @@ class PauliStringAtom(PauliStringMonomial):
     @property
     def monomials(self):
         return [PauliStringMonomial(self.coef, [a for a in self.atoms])]
+
+    @property
+    def eigen_values(self) -> npt.NDArray[np.complex64]:
+        return self._eig_vals
 
     def __setattr__(self, name: str, value: Any):
         if not self.__is_mutable:
