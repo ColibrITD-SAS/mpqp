@@ -1265,7 +1265,9 @@ class PauliStringAtom(PauliStringMonomial):
 
 _allow_atom_creation = True
 
-I = PauliStringAtom("I", np.eye(2, dtype=np.complex64), [1, 1], np.array([[1, 0], [0, 1]]), [])
+I = PauliStringAtom(
+    "I", np.eye(2, dtype=np.complex64), [1, 1], np.array([[1, 0], [0, 1]]), []
+)
 r"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}1&0\\0&1\end{pmatrix}`
@@ -1275,7 +1277,7 @@ X = PauliStringAtom(
     1 - np.eye(2, dtype=np.complex64),
     [1, -1],
     (1 / np.sqrt(2)) * np.array([[1, 1], [1, -1]]),
-    [H]
+    [H],
 )
 r"""Pauli-X atom representing the X operator in a Pauli monomial or string.
 Matrix representation:
@@ -1287,7 +1289,7 @@ Y = PauliStringAtom(
     np.fliplr(np.diag([1j, -1j])),
     [1, -1],
     (1 / np.sqrt(2)) * np.array([[1, 1j], [1, -1j]]),
-    [S_dagger, H]
+    [S_dagger, H],
 )
 r"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
 Matrix representation:
