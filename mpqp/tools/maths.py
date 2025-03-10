@@ -133,7 +133,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
-def is_diagonal(matrix: Matrix):
+def is_diagonal(matrix: Union[Matrix, np.ndarray]):
     """Checks whether the square matrix in parameter is diagonal.
 
     Args:
@@ -154,7 +154,11 @@ def is_diagonal(matrix: Matrix):
     i, j = matrix.shape
     if i != j:
         raise ValueError(
-            "The input matrix is not square. Dimensions = (" + i + ", " + j + ")."
+            "The input matrix is not square. Dimensions = ("
+            + str(i)
+            + ", "
+            + str(j)
+            + ")."
         )
     test = matrix.reshape(-1)[:-1].reshape(i - 1, j + 1)
     return not np.any(test[:, 1:])
