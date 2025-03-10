@@ -404,7 +404,7 @@ def generate_and_explore_node_diagonal_case(
 
 @typechecked
 def decompose_diagonal_observable_ptdr(
-    diag_elements: list[Real] | npt.NDArray[np.float32], print_progression: bool = False
+    diag_elements: list[Real] | npt.NDArray[np.float64], print_progression: bool = False
 ) -> PauliString:
     """Decomposes a diagonal observable into a Pauli string representation.
 
@@ -505,7 +505,7 @@ def compute_coefficients_walsh(
 
 @typechecked
 def decompose_diagonal_observable_walsh_hadamard(
-    diag_elements: list[Real] | npt.NDArray[np.float32],
+    diag_elements: list[Real] | npt.NDArray[np.float64],
 ) -> PauliString:
     """Decomposes the observable represented by the diagonal elements into a
     Pauli string using the Walsh-Hadamard transform.

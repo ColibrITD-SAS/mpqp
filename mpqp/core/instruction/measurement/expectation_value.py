@@ -12,6 +12,8 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import typechecked
+
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
@@ -23,7 +25,6 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Hermitian
@@ -126,7 +127,7 @@ class Observable:
         """The matrix representation of the observable."""
         if self._matrix is None:
             if self.is_diagonal and self._diag_elements is not None:
-                self._matrix = np.diag(self._diag_elements)
+                self._matrix = np.diag(np.array(self._diag_elements, dtype=np.float64))
             else:
                 self._matrix = self.pauli_string.to_matrix()
         matrix = copy.deepcopy(self._matrix).astype(np.complex64)
@@ -138,7 +139,7 @@ class Observable:
         if self._pauli_string is None:
             if self.is_diagonal:
                 self._pauli_string = PauliString.from_diagonal_elements(
-                    self.diagonal_elements
+                    np.array(self.diagonal_elements, dtype=np.float64)
                 )
             else:
                 self._pauli_string = PauliString.from_matrix(self.matrix)
@@ -150,7 +151,7 @@ class Observable:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
             self._diag_elements = np.diagonal(self.matrix)
-        return copy.deepcopy(self._diag_elements).real
+        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float32)).real
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
