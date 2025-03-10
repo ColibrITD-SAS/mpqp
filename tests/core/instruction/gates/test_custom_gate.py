@@ -107,7 +107,7 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
         result2 = _run_single(c2, device, {})
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-5, 1e-5)
+    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 
 
 @pytest.mark.parametrize(

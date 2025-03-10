@@ -378,8 +378,10 @@ class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
         target: Index referring to the qubits on which the gate will be applied.
     """
 
-    def __init__(self, target: int):
-        SingleQubitGate.__init__(self, target, type(self).__name__)
+    def __init__(self, target: int, label: Optional[str] = None):
+        SingleQubitGate.__init__(
+            self, target, type(self).__name__ if label is None else label
+        )
 
 
 class Id(OneQubitNoParamGate, InvolutionGate):
@@ -781,7 +783,7 @@ class S_dagger(OneQubitNoParamGate):
 
     Example:
         >>> pprint(S_dagger(0).to_matrix())
-        [[1, 0 ],
+        [[1, 0  ],
          [0, -1j]]
 
     """
@@ -802,17 +804,17 @@ class S_dagger(OneQubitNoParamGate):
     def cirq_gate(cls):
         from cirq.ops.common_gates import ZPowGate
 
-        return ZPowGate(exponent=-np.pi / 2)
+        return ZPowGate(exponent=-1 / 2)
 
-    qlm_aqasm_keyword = "PH"
+    qlm_aqasm_keyword = "DAG(S)"
     qiskit_string = "sdg"
 
     def __init__(self, target: int):
-        super().__init__(target)
+        super().__init__(target, "S†")
         self.matrix = np.array([[1, 0], [0, -1j]])
 
     def __repr__(self):
-        return f"S†({self.targets[0]})"
+        return f"{type(self).__name__}({self.targets[0]})"
 
     def inverse(self) -> Gate:
         return S(self.targets[0])
