@@ -41,11 +41,23 @@ def test_sequential_versus_multi(
     circuit: QCircuit, observables: list[Observable], device: AvailableDevice
 ):
     seq_results = [
-        run(circuit + QCircuit([ExpectationMeasure(obs, shots=0)]), device)
+        run(
+            circuit
+            + QCircuit([ExpectationMeasure(obs, shots=0)], nb_qubits=circuit.nb_qubits),
+            device,
+        )
         for obs in observables
     ]
 
-    multi_result = run(circuit + QCircuit([ExpectationMeasure(observables, shots=0)]))
+    multi_result = run(
+        circuit
+        + QCircuit(
+            [ExpectationMeasure(observables, shots=0)], nb_qubits=circuit.nb_qubits
+        ),
+        device,
+    )
+
+    assert len(seq_results) == len(multi_result.results)
 
     for r1, r2 in zip(seq_results, multi_result.results):
         assert r1.expectation_value == r2.expectation_value
