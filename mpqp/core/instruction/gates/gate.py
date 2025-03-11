@@ -197,9 +197,7 @@ class Gate(Instruction, ABC):
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, self.__class__):
-            return False
-        return self.to_dict() == value.to_dict()
+        return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
 
     def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
         """
