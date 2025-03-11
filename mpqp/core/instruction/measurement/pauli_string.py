@@ -1072,7 +1072,11 @@ class PauliStringAtom(PauliStringMonomial):
     Args:
         label: The label representing the Pauli operator.
         matrix: The matrix representation of the Pauli operator.
-        eig_vals
+        eig_values:
+        eig_vectors:
+        basis_change:
+
+    TODO: finish comments
 
     Raises:
         RuntimeError: New atoms cannot be created, you should use the available
