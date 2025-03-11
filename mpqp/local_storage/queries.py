@@ -12,7 +12,7 @@ from typing import Optional
 from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
-from mpqp.local_storage.setup import ensure_local_storage, DictDB
+from mpqp.local_storage.setup import DictDB, ensure_local_storage
 
 
 @dataclass

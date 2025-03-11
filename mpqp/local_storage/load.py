@@ -1,7 +1,6 @@
-"""provides utility functions for converting job and result data from the local
-storage format into MPQP (:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`) objects.
-It also includes functions to query and retrieve jobs and results from the database.
-"""
+"""This module provides utility functions retrieving jobs and results from local 
+storage. In the process, they are converted to MPQP  objects 
+(:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`)."""
 
 from __future__ import annotations
 
@@ -160,11 +159,11 @@ def get_all_results() -> list[Result]:
 
 
 def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
-    """Retrieve job(s) matching the given job(s) attributes from the database:
-        - JobType
-        - Circuit
-        - Device
-        - Measure
+    """Retrieve job(s) matching the given job(s) attributes from the database
+        - ``JobType``
+        - ``Circuit``
+        - ``Device``
+        - ``Measure``
 
     Args:
         job: Job(s) to search for.

@@ -173,9 +173,7 @@ class QCircuit:
             self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, QCircuit):
-            return False
-        return self.to_dict() == value.to_dict()
+        return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
         """Adds a ``component`` or a list of ``component`` at the end of the

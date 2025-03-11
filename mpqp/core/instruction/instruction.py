@@ -103,11 +103,7 @@ class Instruction(SimpleClassReprABC):
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        connection = self.connections()
-        circuit_size = max(connection) + 1 if len(connection) != 0 else 1
-        circuit = QCircuit(circuit_size)
-        circuit.add(self)
-        return str(circuit)
+        return str(QCircuit([self], nb_qubits=max(self.connections(), default=0) + 1))
 
     def __repr__(self) -> str:
         from mpqp.core.instruction.gates import ControlledGate
