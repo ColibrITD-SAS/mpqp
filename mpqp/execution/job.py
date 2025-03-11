@@ -59,7 +59,6 @@ class JobType(Enum):
     this is tackled by the backends themselves).
     """
 
-    # TODO: maybe update this to take into account the case when we have list of Observables
     _settings_ = NoAlias
     STATE_VECTOR = {BasisMeasure, type(None)}
     """Retrieves the vector representing the quantum state, this type is *ideal*."""
