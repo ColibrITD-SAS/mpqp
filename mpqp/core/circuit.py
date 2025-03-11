@@ -166,7 +166,7 @@ class QCircuit:
                         *(instruction.connections() for instruction in data)
                     )
                     self._nb_qubits = (
-                        max(connections) + 1 if len(connections) != 0 else 0
+                        max(connections, default=-1) + 1
                     )
             else:
                 self._user_nb_qubits = nb_qubits
