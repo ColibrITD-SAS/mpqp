@@ -72,12 +72,7 @@ class Breakpoint(Instruction):
         raise NotImplementedError(f"Error: {language} is not supported")
 
     def __eq__(self, value: object) -> bool:
-        if not isinstance(value, self.__class__):
-            return False
-        if self.to_dict() != value.to_dict():
-            print(self.to_dict())
-            print(value.to_dict())
-        return self.to_dict() == value.to_dict()
+        return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
 
     def to_dict(self):
         """
