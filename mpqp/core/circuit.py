@@ -165,9 +165,7 @@ class QCircuit:
                     connections: set[int] = set.union(
                         *(instruction.connections() for instruction in data)
                     )
-                    self._nb_qubits = (
-                        max(connections, default=-1) + 1
-                    )
+                    self._nb_qubits = max(connections, default=-1) + 1
             else:
                 self._user_nb_qubits = nb_qubits
             self.add(deepcopy(data))
