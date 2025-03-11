@@ -402,10 +402,17 @@ class ExpectationMeasure(Measure):
             "full_clique", "full_greedy", "qubit_wise_clique"
         ] = "full_greedy",
     ) -> list[set[PauliStringMonomial]]:
-        """
-        TODO: decompose the observables, regroup the pauli measurements by commutativity relation,
-          and return the measurements to be performed.
+        """Decompose the observables, regroup the pauli measurements by commutativity relation,
+        and return the measurements to be performed.
+
+        Args:
+            method: The grouping method to use.
+                - "full_clique": Finds the largest possible commuting groups (cliques).
+                - "full_greedy": Uses a greedy algorithm to iteratively build commuting groups.
+                - "qubit_wise_clique": Groups Pauli strings based on qubit-wise commutativity.
+
         Returns:
+            A list of sets, where each set contains Pauli strings that can be measured simultaneously.
 
         """
         ...
