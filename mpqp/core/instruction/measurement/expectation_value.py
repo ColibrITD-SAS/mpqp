@@ -46,7 +46,8 @@ class Observable:
 
     Args:
         observable : can be either a Hermitian matrix representing the
-            observable or PauliString representing the observable.
+            observable, or PauliString representing the observable, or a list
+            of diagonal elements of the matrix when the observable is diagonal.
 
     Raises:
         ValueError: If the input matrix is not Hermitian or does not have a
@@ -70,14 +71,13 @@ class Observable:
 
     """
 
-    def __init__(self, observable: Matrix | list[Real] | PauliString):
+    def __init__(self, observable: Matrix | PauliString | list[Real]):
         self._matrix = None
         self._pauli_string = None
         self._is_diagonal = None
         self._diag_elements = None
 
         if isinstance(observable, PauliString):
-            # TODO: add some checks, if all the coefficients of the pauli string are real ? (or obviously not necessary?)
             self.nb_qubits = observable.nb_qubits
             self._pauli_string = observable.simplify()
         else:
@@ -179,6 +179,26 @@ class Observable:
 
     @property
     def is_diagonal(self) -> bool:
+        """Returns True if this observable is diagonal.
+
+        Examples:
+            >>> Observable(np.array([[3, 0], [0, 8]])).is_diagonal
+            True
+            >>> Observable(np.array([[3, -1], [-1, 8]])).is_diagonal
+            False
+            >>> Observable(np.diag([-1,8,4,5])).is_diagonal
+            True
+            >>> Observable([0, 5, 6, 9, 7, 4, 3, 6]).is_diagonal
+            True
+            >>> Observable(np.array([7, 4, 3, 6])).is_diagonal
+            True
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> Observable(I @ Z - 3 * Z @ Z + 2* Z @ I).is_diagonal
+            True
+            >>> Observable(I @ X - 3* Z @ Z + 2 * Y @ I).is_diagonal
+            False
+
+        """
         if self._is_diagonal is None:
             # We first check if the pauli string is already known, we use it for efficiency
             if self._pauli_string is not None:
