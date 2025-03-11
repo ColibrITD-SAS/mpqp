@@ -1,5 +1,5 @@
-"""This module provides utility functions retrieving jobs and results from local 
-storage. In the process, they are converted to MPQP  objects 
+"""This module provides utility functions retrieving jobs and results from local
+storage. In the process, they are converted to MPQP  objects
 (:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`)."""
 
 from __future__ import annotations
