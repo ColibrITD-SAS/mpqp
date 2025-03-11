@@ -23,7 +23,7 @@ from mpqp.core.instruction.measurement.pauli_string import (
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
-from mpqp.tools.generics import Matrix, OneOrMany
+from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
@@ -155,7 +155,19 @@ class Observable:
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
-        # TODO: add some checks on the matrix (square, power of two, hermitian)
+        shape = matrix.shape
+        if len(shape) != 2 or shape[0] != shape[1]:
+            raise ValueError(f"The matrix must be square, but got shape {shape}.")
+
+        size_1 = shape[0]
+        if not is_power_of_two(size_1):
+            raise ValueError(f"Matrix dimension {size_1} must be a power of two.")
+
+        if not is_hermitian(matrix):
+            raise ValueError(
+                "The matrix is not hermitian (cannot define an observable)."
+            )
+
         self._matrix = matrix
         self._pauli_string = None
         self._diag_elements = None
@@ -170,7 +182,10 @@ class Observable:
 
     @diagonal_elements.setter
     def diagonal_elements(self, diag_elements: list[Real] | npt.NDArray[np.float64]):
-        # TODO: add some checks on the diagonal elements (size power of 2)
+        if not is_power_of_two(len(diag_elements)):
+            raise ValueError(
+                "The size of the diagonal elements of the matrix is not a power of two."
+            )
 
         self._diag_elements = diag_elements
         self._is_diagonal = True
@@ -312,9 +327,7 @@ class ExpectationMeasure(Measure):
 
     def __init__(
         self,
-        observable: Union[
-            Observable, list[Observable]
-        ],  # TODO : handle the multi_observable case
+        observable: Union[Observable, list[Observable]],
         targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
