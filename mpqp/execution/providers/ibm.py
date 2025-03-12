@@ -597,7 +597,6 @@ def run_remote_ibm(job: Job) -> BatchResult | Result:
         assert isinstance(job.device, IBMDevice)
 
     return extract_result(ibm_result, job, job.device)
-    # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked
@@ -818,13 +817,12 @@ def get_result_from_ibm_job_id(job_id: str) -> Result | BatchResult:
 
 
 def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
-    """
-    TODO comment
+    """Extracts measurement samples from the execution results.
     Args:
-        job:
-        result:
+        job: ``MPQP`` job used to generate the run. Enables a more complete result.
+        result: Result returned by IBM after running of the job.
 
-    Returns:
+    Returns: A list of sample objects representing measurement outcomes.
 
     """
     counts = result.get_counts(0)
