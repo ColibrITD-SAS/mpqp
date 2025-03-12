@@ -256,7 +256,7 @@ class DimensionalNoiseModel(NoiseModel, ABC):
         self.check_dimension()
 
     def check_dimension(self):
-        if len(self.targets) != 0 and len(self.targets) < self.dimension:
+        if 0 < len(self.targets) < self.dimension:
             raise ValueError(
                 f"Number of target qubits {len(self.targets)} should be higher than the dimension {self.dimension}."
             )

@@ -825,7 +825,7 @@ class PauliStringMonomial(PauliString):
         if isinstance(coef, Expr):
             coef = f'({str(self.coef)})*'
         else:
-            coef = f"{self.coef}*" if coef != 0 else ""
+            coef = f"{self.coef}*" if coef != 1 else ""
         return f"{coef}{'@'.join(map(str,self.atoms))}"
 
     def __repr__(self):

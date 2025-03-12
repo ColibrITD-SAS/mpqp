@@ -690,7 +690,7 @@ def test_cbits_dynamic_circuit(circuit: QCircuit, expected_cbits: int):
         ),
     ],
 )
-def test_cbits_not_dynamic_circuit(circuit: QCircuit, expected_cbits: int):
+def test_cbits_undersized_static_circuit(circuit: QCircuit, expected_cbits: int):
     assert circuit.nb_cbits == expected_cbits
     with pytest.raises(ValueError):
         circuit.add(BasisMeasure([expected_cbits], [expected_cbits]))
@@ -730,7 +730,9 @@ def test_cbits_not_dynamic_circuit(circuit: QCircuit, expected_cbits: int):
         ),
     ],
 )
-def test_cbits_dynamic_to_not_dynamic_circuit(circuit: QCircuit, expected_cbits: int):
+def test_cbits_dynamic_toggled_off_undersized_circuit(
+    circuit: QCircuit, expected_cbits: int
+):
     assert circuit.nb_qubits == expected_cbits
     circuit.nb_qubits = expected_cbits
     with pytest.raises(ValueError):
