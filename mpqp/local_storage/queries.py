@@ -17,6 +17,14 @@ from mpqp.local_storage.setup import DictDB, ensure_local_storage
 
 @dataclass
 class QueryJob:
+    """
+    A class used to represent a Query Job.
+
+    Args:
+        id : The unique identifier for the query job. Default is None.
+
+    """
+
     id: Optional[str] = None
 
 

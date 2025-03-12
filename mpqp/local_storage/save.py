@@ -14,7 +14,7 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
     """Insert a job in the database.
 
     Args:
-        job: The job(s) to be inserted.
+        jobs: The job(s) to be inserted.
 
     Returns:
         The ID of the newly inserted job.

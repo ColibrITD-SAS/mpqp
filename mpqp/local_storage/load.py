@@ -271,7 +271,7 @@ def get_results_with_id(result_id: int | list[int]) -> list[Result]:
     """Retrieve results with the given ID(s).
 
     Args:
-        ID(s) to search for.
+        result_id: ID(s) to search for.
 
     Returns:
         Matching result(s) corresponding to the id(s).
@@ -296,7 +296,7 @@ def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
     """Retrieve jobs with the given ID(s).
 
     Args:
-        ID(s) to search for.
+        job_id: ID(s) to search for.
 
     Returns:
         Job(s) corresponding to the id(s).
@@ -318,7 +318,7 @@ def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
     """Retrieve results associated with the given job ID(s).
 
     Args:
-        ID(s) to search for.
+        job_id: ID(s) to search for.
 
     Returns:
         Results corresponding to the job id(s).

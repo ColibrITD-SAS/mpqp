@@ -53,8 +53,8 @@ def setup_local_storage(path: Optional[str] = None):
 
     Two tables will be created:
 
-        - `jobs`
-        - `results`
+        - :class:`~mpqp.execution.job.Job`
+        - :class:`~mpqp.execution.result.Result`
 
     Args:
         path: Directory to save the database file. Defaults to the current working directory.
