@@ -11,7 +11,8 @@ from mpqp.execution import (
     AvailableDevice,
     AWSDevice,
     GOOGLEDevice,
-    IBMDevice, Result,
+    IBMDevice,
+    Result,
 )
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *

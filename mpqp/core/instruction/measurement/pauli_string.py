@@ -976,7 +976,8 @@ class PauliStringMonomial(PauliString):
             )
 
         return (
-            sum(1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b)) % 2
+            sum(1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b))
+            % 2
             == 0
         )
 

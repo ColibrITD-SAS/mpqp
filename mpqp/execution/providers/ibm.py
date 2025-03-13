@@ -636,9 +636,7 @@ def extract_result(
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
             for i in range(len(exp_values)):
-                mean = float(
-                    exp_values[i]
-                )
+                mean = float(exp_values[i])
                 error = float(
                     res_data.stds[i]  # pyright: ignore[reportAttributeAccessIssue]
                 )
@@ -666,7 +664,9 @@ def extract_result(
             if TYPE_CHECKING:
                 assert job.measure is not None
 
-            counts = res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
+            counts = (
+                res_data.c.get_counts()
+            )  # pyright: ignore[reportAttributeAccessIssue]
             data = [
                 Sample(
                     bin_str=item,

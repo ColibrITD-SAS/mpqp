@@ -37,7 +37,6 @@ from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUs
 from mpqp.measures import BasisMeasure
 
 
-
 @typechecked
 def amplitude(
     circ: QCircuit,
