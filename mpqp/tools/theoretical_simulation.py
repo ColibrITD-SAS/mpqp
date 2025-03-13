@@ -32,9 +32,10 @@ from scipy.spatial.distance import jensenshannon
 from typeguard import typechecked
 
 from mpqp import QCircuit
-from mpqp.execution import AvailableDevice, AWSDevice
+from mpqp.execution import AvailableDevice, AWSDevice, Result
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.measures import BasisMeasure
+
 
 
 @typechecked
@@ -211,8 +212,9 @@ def exp_id_dist(
 
     noisy_circuit = circuit.without_measurements()
     noisy_circuit.add(BasisMeasure(shots=shots))
-    mpqp_counts = _run_single(noisy_circuit, device, {}).counts
-
+    result = _run_single(noisy_circuit, device, {})
+    assert isinstance(result, Result)
+    mpqp_counts = result.counts
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
 
 

@@ -14,7 +14,6 @@ from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
-    Observable,
 )
 from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
@@ -133,8 +132,8 @@ def compute_expectation_value(
         estimator = Estimator(options=options)
 
     job.status = JobStatus.RUNNING
-    circuits_and_observables = [(ibm_circuit, obs) for obs in qiskit_observables]
-    job_expectation = estimator.run(circuits_and_observables)
+    # circuits_and_observables = [(ibm_circuit, obs) for obs in qiskit_observables]
+    job_expectation = estimator.run([(ibm_circuit, qiskit_observables)])
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
@@ -546,7 +545,10 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
         qiskit_observables = [
-            obs.apply_layout(qiskit_circ.layout) for obs in qiskit_observables
+            obs.apply_layout(  # pyright: ignore[reportAttributeAccessIssue]
+                qiskit_circ.layout
+            )
+            for obs in qiskit_observables
         ]
 
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
@@ -624,21 +626,22 @@ def extract_result(
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
         all_results = []
+        # res_data is a DataBin, which means all typechecking is out of the
+        # windows for this specific object
+        res_data = result[0].data
 
-        for res in result:
-            res_data = res.data
-            # res_data is a DataBin, which means all typechecking is out of the
-            # windows for this specific object
-            if hasattr(res_data, "evs"):  #
-                if job is None:
-                    job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+        if hasattr(res_data, "evs"):
+            if job is None:
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
+            exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
+            for i in range(len(exp_values)):
                 mean = float(
-                    res_data.evs
-                )  # pyright: ignore[reportAttributeAccessIssue]
+                    exp_values[i]
+                )
                 error = float(
-                    res_data.stds
-                )  # pyright: ignore[reportAttributeAccessIssue]
+                    res_data.stds[i]  # pyright: ignore[reportAttributeAccessIssue]
+                )
                 shots = (
                     job.measure.shots
                     if job.device.is_simulator() and job.measure is not None
@@ -646,36 +649,34 @@ def extract_result(
                 )
                 all_results.append(Result(job, mean, error, shots))
 
-            else:
-                if job is None:
-                    shots = (
-                        res_data.c.num_shots  # pyright: ignore[reportAttributeAccessIssue]
-                    )
-                    nb_qubits = (
-                        res_data.c.num_bits  # pyright: ignore[reportAttributeAccessIssue]
-                    )
-                    job = Job(
-                        JobType.SAMPLE,
-                        QCircuit(nb_qubits),
-                        device,
-                        BasisMeasure(list(range(nb_qubits)), shots=shots),
-                    )
-                if TYPE_CHECKING:
-                    assert job.measure is not None
-
-                counts = (
-                    res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
+        else:
+            if job is None:
+                shots = (
+                    res_data.c.num_shots  # pyright: ignore[reportAttributeAccessIssue]
                 )
-                data = [
-                    Sample(
-                        bin_str=item,
-                        count=counts[item],
-                        nb_qubits=job.circuit.nb_qubits,
-                    )
-                    for item in counts
-                ]
-                # Since we don't handle multiple sampling jobs, we know the first result is the only one
-                return Result(job, data, None, job.measure.shots)
+                nb_qubits = (
+                    res_data.c.num_bits  # pyright: ignore[reportAttributeAccessIssue]
+                )
+                job = Job(
+                    JobType.SAMPLE,
+                    QCircuit(nb_qubits),
+                    device,
+                    BasisMeasure(list(range(nb_qubits)), shots=shots),
+                )
+            if TYPE_CHECKING:
+                assert job.measure is not None
+
+            counts = res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
+            data = [
+                Sample(
+                    bin_str=item,
+                    count=counts[item],
+                    nb_qubits=job.circuit.nb_qubits,
+                )
+                for item in counts
+            ]
+            # Since we don't handle multiple sampling jobs, we know the first result is the only one
+            return Result(job, data, None, job.measure.shots)
 
         return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
@@ -692,29 +693,19 @@ def extract_result(
         if isinstance(result, EstimatorResult):
             all_results = []
 
-            for res in result:
-                res_data = res.data
-                if hasattr(res_data, "evs"):
-                    if job is None:
-                        job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+            for i in range(len(result.values)):
+                if job is None:
+                    job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
-                    mean = float(
-                        res_data.evs
-                    )  # pyright: ignore[reportAttributeAccessIssue]
-                    error = float(
-                        res_data.stds
-                    )  # pyright: ignore[reportAttributeAccessIssue]
-                    shots = (
-                        job.measure.shots
-                        if job.device.is_noisy_simulator() and job.measure is not None
-                        else res.metadata["shots"]
-                    )
-                    variance = (
-                        result.metadata[0]["variance"]
-                        if "variance" in result.metadata[0]
-                        else None
-                    )
-                    all_results.append(Result(job, mean, error, shots))
+                shots = (
+                    result.metadata[i]["shots"] if "shots" in result.metadata[i] else 0
+                )
+                variance = (
+                    result.metadata[i]["variance"]
+                    if "variance" in result.metadata[i]
+                    else None
+                )
+                all_results.append(Result(job, result.values[i], variance, shots))
 
             return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
@@ -818,11 +809,13 @@ def get_result_from_ibm_job_id(job_id: str) -> Result | BatchResult:
 
 def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
     """Extracts measurement samples from the execution results.
+
     Args:
         job: ``MPQP`` job used to generate the run. Enables a more complete result.
         result: Result returned by IBM after running of the job.
 
-    Returns: A list of sample objects representing measurement outcomes.
+    Returns:
+        A list of sample objects representing measurement outcomes.
 
     """
     counts = result.get_counts(0)

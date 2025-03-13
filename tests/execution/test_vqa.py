@@ -83,7 +83,7 @@ def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevi
                     ),
                     ATOSDevice.MYQLM_PYLINALG,
                     {theta: params[0]},
-                ).expectation_value
+                ).expectation_value  # pyright: ignore[reportAttributeAccessIssue]
                 ** 2
             ),
             1,

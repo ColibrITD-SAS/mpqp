@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Collection, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
+from mpqp.core.circuit import QCircuit
+from mpqp.execution import Result
+from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution.vqa.optimizer import Optimizer
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
 from sympy import Expr
 from typeguard import typechecked
-
-from mpqp.core.circuit import QCircuit
-from mpqp.execution.devices import AvailableDevice
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
-from mpqp.execution.vqa.optimizer import Optimizer
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
@@ -257,11 +257,14 @@ def _minimize_local_circ(
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:
         # "float" is incompatible with "Complex"
-        return _run_single(
+        result = _run_single(
             circ,
             device,
             _maps(variables, params),  # pyright: ignore[reportArgumentType]
-        ).expectation_value
+        )
+        if TYPE_CHECKING:
+            assert isinstance(result, Result)
+        return result.expectation_value
 
     return _minimize_local_func(
         eval_circ, method, init_params, len(variables), optimizer_options

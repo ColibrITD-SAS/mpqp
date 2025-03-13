@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from functools import reduce
-from numbers import Complex, Real
+from numbers import Real
 from operator import matmul, mul
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
@@ -331,11 +331,11 @@ class PauliString:
             start=np.zeros((size, size), dtype=np.complex64),
         )
 
-    def commutes_with(self, p: PauliString):
+    def commutes_with(self, other: PauliString) -> bool:
         """
-        TODO: Determine EFFICIENTLY if this pauli string is commuting with the one in parameter.
+        3M-TODO: Determine EFFICIENTLY if this pauli string is commuting with the one in parameter.
         Args:
-            p:
+            other:
 
         Returns:
 
@@ -949,7 +949,7 @@ class PauliStringMonomial(PauliString):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
 
-    def commutes_with(self, pm: PauliStringMonomial) -> bool:
+    def commutes_with(self, other: PauliStringMonomial) -> bool:
         """Checks wether this Pauli monomial commutes (full commutativity) with the Pauli monomial in parameter. This
         is done by checking that the number of anti-commuting atoms is even.
 
@@ -969,14 +969,14 @@ class PauliStringMonomial(PauliString):
             True
 
         """
-        if self.nb_qubits != pm.nb_qubits:
+        if self.nb_qubits != other.nb_qubits:
             raise NumberQubitsError(
                 f"The number of qubits of this Pauli monomial {self.nb_qubits} is not matching "
-                f"the one of the monomial in parameter {pm.nb_qubits}"
+                f"the one of the monomial in parameter {other.nb_qubits}"
             )
 
         return (
-            sum(1 for a, b in zip(self.atoms, pm.atoms) if not a.commutes_with(b)) % 2
+            sum(1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b)) % 2
             == 0
         )
 
@@ -1195,12 +1195,12 @@ class PauliStringAtom(PauliStringMonomial):
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return self.matrix
 
-    def commutes_with(self, a: PauliStringAtom) -> bool:
+    def commutes_with(self, other: PauliStringAtom) -> bool:
         """Determines whether this single-qubit Pauli operator commutes with the one in parameter. In this case, this
         can be done by simply checking if one of the atoms are identity, or if they are the same.
 
         Args:
-            a: The single-qubit Pauli operator with which want to check the commutativity
+            other: The single-qubit Pauli operator with which want to check the commutativity
 
         Returns:
             True if the atoms commute, False otherwise.
@@ -1218,7 +1218,7 @@ class PauliStringAtom(PauliStringMonomial):
             >>> I.commutes_with(Z)
             True
         """
-        return a == I or self == I or self == a
+        return other == I or self == I or self == other
 
     def to_other_language(
         self,

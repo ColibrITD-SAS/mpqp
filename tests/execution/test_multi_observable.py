@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from mpqp import QCircuit
 from mpqp.core.instruction import ExpectationMeasure, Observable
-from mpqp.execution import AvailableDevice, run, IBMDevice
+from mpqp.execution import AvailableDevice, run, IBMDevice, Result, BatchResult
 from mpqp.gates import *
 
 
@@ -17,7 +17,7 @@ def list_circuits():
 def list_observables():
     return [
         [
-            Observable(np.ones((4, 4))),
+            Observable(np.ones((4, 4)).astype(np.complex64)),
             Observable(np.diag([1, 2, -3, 4])),
             # TODO add random observable ?
         ]
@@ -57,7 +57,10 @@ def test_sequential_versus_multi(
         device,
     )
 
+    assert isinstance(multi_result, BatchResult)
     assert len(seq_results) == len(multi_result.results)
 
     for r1, r2 in zip(seq_results, multi_result.results):
+        assert isinstance(r1, Result)
+        assert isinstance(r2, Result)
         assert r1.expectation_value == r2.expectation_value

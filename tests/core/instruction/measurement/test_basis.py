@@ -6,7 +6,7 @@ import numpy.typing as npt
 import pytest
 
 from mpqp import QCircuit
-from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, Result
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.execution.runner import run
@@ -281,7 +281,7 @@ def test_run_with_custom_basis_probas(
     circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex64]
 ):
     res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
-
+    assert isinstance(res, Result)
     assert matrix_eq(expected_probabilities, res.probabilities.astype(np.complex64))
 
 
@@ -318,7 +318,7 @@ def test_valid_run_custom_basis_state_vector_one_qubit(
             device,
             {},
         )
-
+    assert isinstance(result, Result)
     assert matrix_eq(vectors[expected_vector_index], result.amplitudes)
 
 

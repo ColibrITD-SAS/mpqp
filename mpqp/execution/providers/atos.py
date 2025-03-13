@@ -17,7 +17,6 @@ from mpqp.core.instruction.measurement import (
 )
 from mpqp.gates import CNOT, CRk, Rk
 from mpqp.noise.noise_model import Depolarizing, NoiseModel
-from .. import BatchResult
 
 from ...tools.errors import (
     AdditionalGateNoiseWarning,
@@ -679,7 +678,7 @@ def run_atos(job: Job) -> Result:
 
 
 @typechecked
-def run_myQLM(job: Job) -> Union[Result, BatchResult]:
+def run_myQLM(job: Job) -> Result:
     """Executes the job on the local myQLM simulator.
 
     Args:

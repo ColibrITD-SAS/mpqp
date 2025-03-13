@@ -139,7 +139,7 @@ class Observable:
         if self._pauli_string is None:
             if self.is_diagonal:
                 self._pauli_string = PauliString.from_diagonal_elements(
-                    np.array(self.diagonal_elements, dtype=np.float64)
+                    self.diagonal_elements
                 )
             else:
                 self._pauli_string = PauliString.from_matrix(self.matrix)
@@ -147,11 +147,11 @@ class Observable:
         return pauli_string
 
     @property
-    def diagonal_elements(self) -> npt.NDArray[np.float32]:
+    def diagonal_elements(self) -> npt.NDArray[np.float64]:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
             self._diag_elements = np.diagonal(self.matrix)
-        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float32)).real
+        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float64)).real
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
@@ -221,7 +221,7 @@ class Observable:
             # If not we check if the matrix is already known,
             elif self._matrix is not None:
                 self._is_diagonal = is_diagonal(self._matrix)
-            # If only the diagonal elements are known, we pass by the matrix for efficiency
+            # If only the diagonal elements are known, it means the observable is diagonal
             elif self._diag_elements is not None:
                 self._is_diagonal = True
             # Otherwise, the observable is empty, we return False by convention
@@ -238,6 +238,7 @@ class Observable:
         ...
 
     def commutes_with(self, obs: Observable):
+        """3M-TODO"""
         # Naive version, just computing AB - BA, and compare to 0 matrix.
         # TODO : distinguer si on a l'observable ou le pauli string
         # TODO: traitement spécifique si observable diagonal ?
@@ -334,9 +335,9 @@ class ExpectationMeasure(Measure):
     ):
 
         super().__init__(targets, shots, label)
-        # TODO Do some checks on the observables when they are many (same size because of targets)
         self.observables: list[Observable]
         """See parameter description."""
+
         if isinstance(observable, Observable):
             self.observables = [observable]
         else:
@@ -399,11 +400,11 @@ class ExpectationMeasure(Measure):
     def get_pauli_grouping(
         self,
         method: Literal[
-            "full_clique", "full_greedy", "qubit_wise_clique"
-        ] = "full_greedy",
-    ) -> list[set[PauliStringMonomial]]:
-        """Decompose the observables, regroup the pauli measurements by commutativity relation,
-        and return the measurements to be performed.
+            "full_greedy"
+        ] = "full_greedy",  # , "full_clique", "qubit_wise_clique"
+    ) -> list[list[PauliStringMonomial]]:
+        """Decompose the observables and regroup the pauli measurements
+        by commutativity relation using different strategies.
 
         Args:
             method: The grouping method to use.
@@ -412,8 +413,8 @@ class ExpectationMeasure(Measure):
                 - "qubit_wise_clique": Groups Pauli strings based on qubit-wise commutativity.
 
         Returns:
-            A list of sets, where each set contains Pauli strings that can be measured simultaneously.
-
+            A list of list, where each list contains Pauli strings that can be measured simultaneously.
+        3M-TODO
         """
         ...
 

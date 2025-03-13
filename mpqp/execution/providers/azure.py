@@ -17,7 +17,7 @@ from mpqp.execution.connection.azure_connection import (
 )
 from mpqp.execution.devices import AZUREDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.result import Result, Sample
+from mpqp.execution.result import Result, Sample, BatchResult
 
 
 @typechecked
@@ -76,7 +76,7 @@ def extract_result(
     result: "MicrosoftEstimatorResult | QiskitResult",
     job: Optional[Job],
     device: AZUREDevice,
-) -> Result:
+) -> Result | BatchResult:
     """Extract the result from Azure or Qiskit result objects and convert it into our format.
 
     Args:
