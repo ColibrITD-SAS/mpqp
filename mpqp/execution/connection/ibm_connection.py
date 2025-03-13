@@ -4,13 +4,14 @@ from typing import TYPE_CHECKING
 from termcolor import colored
 from typeguard import typechecked
 
+from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.execution.devices import IBMDevice
+from mpqp.tools.errors import IBMRemoteExecutionError
+
 if TYPE_CHECKING:
     from qiskit.providers.backend import BackendV2
     from qiskit_ibm_runtime import QiskitRuntimeService
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
-from mpqp.execution.devices import IBMDevice
-from mpqp.tools.errors import IBMRemoteExecutionError
 
 Runtime_Service = None
 
@@ -42,7 +43,8 @@ def config_ibm_account(token: str):
 
 
 def setup_ibm_account():
-    """Setups and updates the IBM Q account using the existing configuration and by asking for the token ."""
+    """Setups and updates the IBM Quantum account using the existing
+    configuration (or by asking for the token if not already configured)."""
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
     if was_configured:
@@ -128,7 +130,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
 
 
 def get_active_account_info() -> str:
-    """Returns the information concerning the active IBMQ account.
+    """Returns the information concerning the active IBM Quantum account.
 
     Returns:
         The description containing the account information.
@@ -144,7 +146,8 @@ def get_active_account_info() -> str:
     """
     service = get_QiskitRuntimeService()
     account = service.active_account()
-    assert account is not None
+    if account is None:
+        return "Account not configured"
     return f"""    Channel: {account["channel"]}
     Token: {account["token"][:5]}*****
     URL: {account["url"]}
@@ -153,11 +156,10 @@ def get_active_account_info() -> str:
 
 @typechecked
 def get_backend(device: IBMDevice) -> "BackendV2":
-    """Retrieves the IBM Q remote device corresponding to the device in
-    parameter.
+    """Retrieves the corresponding ``qiskit`` remote device.
 
     Args:
-        device: The IBMDevice to get from IBMQ provider.
+        device: The device to get from the qiskit Runtime service.
 
     Returns:
         The requested backend.
@@ -174,7 +176,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
 
     """
     if not device.is_remote():
-        raise ValueError("Expected a remote IBMQ device but got a local simulator.")
+        raise ValueError("Expected a remote IBM device but got a local simulator.")
     from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
     service = get_QiskitRuntimeService()
@@ -182,7 +184,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
     try:
         if device == IBMDevice.IBM_LEAST_BUSY:
             return service.least_busy(operational=True)
-        return service.get_backend(device.value)
+        return service.backend(device.value)
     except QiskitBackendNotFoundError as err:
         raise IBMRemoteExecutionError(
             f"Requested device {device} not found. Verify if your instances "
@@ -192,8 +194,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
 
 
 def get_all_job_ids() -> list[str]:
-    """Retrieves all the job ids of this account from the several IBM remote
-    providers (IBMProvider, QiskitRuntimeService, ...).
+    """Retrieves all the job ids of this account.
 
     Returns:
         The list of job ids.
@@ -208,6 +209,5 @@ def get_all_job_ids() -> list[str]:
 
     """
     if get_env_variable("IBM_CONFIGURED") == "True":
-        return [job.job_id() for job in get_QiskitRuntimeService().jobs()]
-
+        return [job.job_id() for job in get_QiskitRuntimeService().jobs(limit=None)]
     return []

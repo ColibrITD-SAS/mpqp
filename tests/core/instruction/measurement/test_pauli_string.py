@@ -14,6 +14,11 @@ from operator import (
     truediv,
 )
 from random import randint
+from typing import TYPE_CHECKING, Union
+from sympy import symbols
+
+if TYPE_CHECKING:
+    from qiskit.quantum_info import SparsePauliOp
 
 import numpy as np
 import numpy.typing as npt
@@ -30,7 +35,6 @@ from cirq.ops.pauli_gates import X as Cirq_X
 from cirq.ops.pauli_gates import Y as Cirq_Y
 from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
-from qiskit.quantum_info import SparsePauliOp
 
 from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
 from mpqp.core.languages import Language
@@ -47,6 +51,10 @@ def pauli_string_combinations():
         ((I @ I), np.eye(4)),
         ((I + I), (2 * np.eye(2))),
         ((I + I) @ I, (2 * np.eye(4))),
+        ((X + X), np.array([[0, 2.0], [2.0, 0]])),
+        ((X + Z), np.array([[1.0, 1.0], [1.0, -1.0]])),
+        ((2 * I), (2 * np.eye(2))),
+        ((symbols("a") * I), (symbols("a") * np.eye(2))),
     ]
     result = []
 
@@ -62,11 +70,14 @@ def pauli_string_combinations():
         for op in bin_operation:
             converted_op = op if (op != matmul and op != imatmul) else np.kron
             ps1 = deepcopy(ps_1[0])
-            result.append((op(ps1, ps_2[0]), converted_op(ps_1[1], ps_2[1])))
+            ps1_matrix = deepcopy(ps_1[1])
+            result.append((op(ps1, ps_2[0]), converted_op(ps1_matrix, ps_2[1])))
         if ps_1[0].nb_qubits == ps_2[0].nb_qubits:
             for op in homogeneous_bin_operation:
                 ps1 = deepcopy(ps_1[0])
                 ps1_matrix = deepcopy(ps_1[1])
+                if ps_2[1].dtype == object:
+                    ps1_matrix = np.array(ps1_matrix, dtype=object)
                 result.append((op(ps1, ps_2[0]), op(ps1_matrix, ps_2[1])))
 
     return result
@@ -119,10 +130,46 @@ def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
     assert simplified_ps == simplified_ps
 
 
+@pytest.mark.parametrize(
+    "init_ps, subs_dict, expected_ps",
+    [
+        # Basic substitution with numeric values
+        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
+        (symbols("k") * X @ Y, {"k": 2}, 2 * X @ Y),
+        (symbols("a") * Y @ Z, {"a": -1}, -Y @ Z),
+        # Multiple variable substitutions
+        (
+            symbols("theta") * I @ X + symbols("k") * Z @ Y,
+            {"theta": np.pi, "k": 1},
+            np.pi * I @ X + Z @ Y,
+        ),
+        (symbols("a") * X @ X + symbols("b") * Y @ Y, {"a": 0, "b": 3}, 3 * Y @ Y),
+        # Removing symbolic values
+        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
+        (
+            symbols("theta") * X @ Y + symbols("phi") * Y @ Z,
+            {"theta": 1, "phi": 2},
+            X @ Y + 2 * Y @ Z,
+        ),
+        # No substitutions (should remain the same)
+        (symbols("theta") * I @ X, {}, symbols("theta") * I @ X),
+    ],
+)
+def test_subs(
+    init_ps: PauliString,
+    subs_dict: dict[str, Union[float, int]],
+    expected_ps: PauliString,
+):
+    result_ps = init_ps.subs(subs_dict)  # pyright: ignore
+    assert result_ps == expected_ps, f"Expected {expected_ps}, but got {result_ps}"
+
+
 a, b, c = LineQubit.range(3)
 
 
 def pauli_strings_in_all_languages():
+    from qiskit.quantum_info import SparsePauliOp
+
     return [
         (
             Cirq_X(a) + Cirq_Y(b) + Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
@@ -349,7 +396,7 @@ def pauli_strings_in_all_languages():
 def test_from_other_language(
     cirq_ps: PauliSum,
     braket_ps: BraketSum,
-    qiskit_ps: SparsePauliOp,
+    qiskit_ps: "SparsePauliOp",
     my_qml_ps: Term,
     mpqp_ps: PauliString,
 ):
@@ -366,7 +413,7 @@ def test_from_other_language(
 def test_to_other_language(
     cirq_ps: PauliSum,
     braket_ps: BraketSum,
-    qiskit_ps: SparsePauliOp,
+    qiskit_ps: "SparsePauliOp",
     my_qml_ps: Term,
     mpqp_ps: PauliString,
 ):

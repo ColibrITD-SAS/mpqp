@@ -136,11 +136,12 @@ one_parametrized_gate_qasm = {
 }
 
 two_qubits_parametrized_gate_qasm = {
-    "cp": CRk,
+    "cp": CP,
 }
 
 
 u_gate_qasm = {
+    "U": U,
     "u": U,
     "u1": U,
     "u2": U,

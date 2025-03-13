@@ -9,10 +9,11 @@ from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+    from mpqp import QCircuit
 
 from mpqp.core.languages import Language
 
-from .basis import Basis, ComputationalBasis
+from .basis import Basis, ComputationalBasis, VariableSizeBasis
 from .measure import Measure
 
 
@@ -31,20 +32,25 @@ class BasisMeasure(Measure):
 
     Args:
         targets: List of indices referring to the qubits on which the measure
-            will be applied.
+            will be applied. Defaults to the entire circuit for
+            :class:`~mpqp.core.instruction.measurement.basis.VariableSizeBasis`
+            and the first qubits matching the size of the basis for other basis.
         c_targets: List of indices referring to the classical bits on which the
             measure will be applied.
         shots: Number of shots to be performed basis: basis in which the qubits
             should be measured.
         basis: Basis in which the measure is performed. Defaults to
-            :class:`ComputationalBasis()<mpqp.core.instruction.measurement.basis.ComputationalBasis>`
+            :class:`~mpqp.core.instruction.measurement.basis.ComputationalBasis`
         label: Label used to identify the measure.
 
     Examples:
-        >>> c1 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c1.add(BasisMeasure([0, 1], shots=1024))
-        >>> c2 = QCircuit([H(0), H(1), CNOT(0,1)])
-        >>> c2.add(BasisMeasure([0, 1], shots=1024, basis=HadamardBasis()))
+        >>> c1 = QCircuit([H(0), H(1), CNOT(0,1), BasisMeasure()])
+        >>> c2 = QCircuit([
+        ...     H(0),
+        ...     H(2),
+        ...     CNOT(0,1),
+        ...     BasisMeasure([0, 1], shots=512, basis=HadamardBasis())
+        ... ])
 
     """
 
@@ -56,13 +62,28 @@ class BasisMeasure(Measure):
         basis: Optional[Basis] = None,
         label: Optional[str] = None,
     ):
-        if basis is None:
-            basis = ComputationalBasis()
-        # 3M-TODO: implement basis thing
+
         if c_targets is not None:
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
+
         super().__init__(targets, shots, label)
+
+        if basis is None:
+            basis = ComputationalBasis()
+
+        if not isinstance(basis, VariableSizeBasis):
+            self._dynamic = False
+            if (
+                len(self.targets) != 0
+                and max(self.targets) - min(self.targets) + 1 != basis.nb_qubits
+            ):
+                raise ValueError(
+                    f"Size mismatch between target and basis: target size is "
+                    f"{max(self.targets)-min(self.targets) + 1} but basis size is {basis.nb_qubits}"
+                )
+            self.targets = list(range(basis.nb_qubits))
+
         self.user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
         """See parameter description."""
@@ -79,23 +100,29 @@ class BasisMeasure(Measure):
         if language == Language.QISKIT:
             from qiskit.circuit import Measure
 
-            if isinstance(self.basis, ComputationalBasis):
-                return Measure()
-            else:
-                raise NotImplementedError(f"{type(self.basis)} not handled")
+            return Measure()
+        elif language == Language.CIRQ:
+            from cirq.ops.measurement_gate import MeasurementGate
+
+            return MeasurementGate(num_qubits=self.nb_qubits)
         if language == Language.QASM2:
             if self.c_targets is None:
-                return "\n" + "\n".join(
+                return "\n".join(
                     f"measure q[{target}] -> c[{i}];"
                     for i, target in enumerate(self.targets)
                 )
             else:
-                return "\n" + "\n".join(
+                return "\n".join(
                     f"measure q[{target}] -> c[{c_target}];"
                     for target, c_target in zip(self.targets, self.c_targets)
                 )
+
         else:
             raise NotImplementedError(f"{language} is not supported")
+
+    @property
+    def pre_measure(self) -> QCircuit:
+        return self.basis.to_computational()
 
     def __repr__(self) -> str:
         targets = (
@@ -103,17 +130,18 @@ class BasisMeasure(Measure):
         )
         options = ""
         if self.shots != 1024:
-            options += f", shots={self.shots}" if targets else f"shots={self.shots}"
+            options += f"shots={self.shots}"
         if not isinstance(self.basis, ComputationalBasis):
             options += (
                 f", basis={self.basis}"
-                if targets and options
-                else f"basis={self.shots}"
+                if len(options) != 0 or len(targets) != 0
+                else f"basis={self.basis}"
             )
         if self.label is not None:
             options += (
                 f", label={self.label}"
-                if targets and options
-                else f"label={self.shots}"
+                if len(options) != 0 or len(targets) != 0
+                else f"label={self.label}"
             )
-        return f"BasisMeasure({targets}{options})"
+        separator = ", " if len(options) != 0 and len(targets) != 0 else ""
+        return f"BasisMeasure({targets}{separator}{options})"

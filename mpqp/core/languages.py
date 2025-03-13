@@ -1,28 +1,19 @@
-"""The execution of a circuit is always ran on a user selected device. Prior to
-this execution, the circuit is first translated in the SDK we selected to
-support this device. This is being done on the ``to_other_language`` present on
-most objects of ``MPQP``, taking a ``language`` argument. This language 
-corresponds to said SDK, and you can find the list of available languages in the
-:class:`Language` enum.
+"""A circuit is always executed on a user-selected device. Prior to
+this execution, the circuit is first translated into the SDK selected to
+support this device. This is done by the ``to_other_language`` function present on
+most objects of ``MPQP``, which takes a ``language`` argument. This language
+corresponds to the appropriate SDK, and you can find the list of available languages
+in the :class:`Language` enum."""
 
-.. warning::
-    The current version of ``qiskit`` we are using depends on a package with a 
-    known vulnerability. This the risks associated to this vulnerability are not 
-    high enough to justify immediate actions, but we will fix this as soon as 
-    possible by bumping ``qiskit``'s version. You can find information about 
-    this vulnerability here: 
-    https://github.com/ColibrITD-SAS/mpqp/security/dependabot/1.
-"""
-
-from enum import Enum
+from enum import Enum, auto
 
 
 class Language(Enum):
     """Enumerate containing all the supported languages."""
 
-    QISKIT = 0
-    MY_QLM = 1
-    BRAKET = 2
-    CIRQ = 3
-    QASM2 = 4
-    QASM3 = 5
+    QISKIT = auto()
+    MY_QLM = auto()
+    BRAKET = auto()
+    CIRQ = auto()
+    QASM2 = auto()
+    QASM3 = auto()

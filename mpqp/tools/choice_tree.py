@@ -1,4 +1,4 @@
-"""This module provides functionalities for working with decision trees, 
+"""This module provides functionalities for working with decision trees,
 allowing for seamless navigation and interaction within a tree structure.
 
 You can define a :class:`QuestionNode`, containing your question and options.
@@ -9,7 +9,7 @@ To run your choice tree, just run :func:`run_choice_tree` on your root question.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Optional, TypeVar
+from typing import Any, Callable, Iterable, Optional, TypeVar, TYPE_CHECKING
 
 from pick import pick
 from typeguard import typechecked
@@ -147,7 +147,8 @@ if __name__ == "__main__":
         ],
     )
 
-    assert choice_tree.answers[-1].next_question is not None
+    if TYPE_CHECKING:
+        assert choice_tree.answers[-1].next_question is not None
 
     choice_tree.answers[-1].next_question.answers[0].next_question = choice_tree
 

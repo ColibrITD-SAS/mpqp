@@ -1,4 +1,4 @@
-"""You will find here the custom exceptions we created in order to provide 
+"""You will find here the custom exceptions we created in order to provide
 clearer errors. When relevant, we also append the trace of the error raised by a
 provider's SDK."""
 
@@ -8,6 +8,12 @@ class InstructionParsingError(ValueError):
 
 
 class NumberQubitsError(ValueError):
+    """Raised when the number of qubits defining an instruction, a gate, or a
+    measurement, is not coherent with the related objects (circuit, matrix,
+    observable, etc...)."""
+
+
+class NumberQubitsWarning(UserWarning):
     """Raised when the number of qubits defining an instruction, a gate, or a
     measurement, is not coherent with the related objects (circuit, matrix,
     observable, etc...)."""
@@ -52,4 +58,9 @@ class OpenQASMTranslationWarning(UserWarning):
 
 
 class AdditionalGateNoiseWarning(UserWarning):
-    """Warning for additional noise on native gate used in the decomposition of noisy gate."""
+    """Warning for additional noise on native gate used in the decomposition of
+    noisy gate."""
+
+
+class NonReversibleWarning(UserWarning):
+    """Warning for nonreversible instruction used in inverse function."""

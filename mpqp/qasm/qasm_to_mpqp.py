@@ -1,25 +1,22 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from venv import logger
 
 from ply.lex import lex
 
-
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
-import numpy as np
+from mpqp.core.instruction import Barrier
 from mpqp.gates import *
 from mpqp.measures import *
-from mpqp.core.instruction import Barrier
 from mpqp.qasm.lexer_utils import *
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include_and_comment
-
+from mpqp.qasm.open_qasm_2_and_3 import remove_include_and_comment, remove_user_gates
 
 # TODO:
-# commentary "\\": not handle
 # if: not handle
-# barrier: handle for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
+# barrier: handled for all qubits ("q"), not for multiple qubits ("q[0],q[1]")
 # no ID name handle for qreg or creg
 
 lexer = None
@@ -72,8 +69,8 @@ def qasm2_parse(input_string: str) -> QCircuit:
     """
     from mpqp.core.circuit import QCircuit
 
+    input_string = remove_user_gates(input_string, skip_qelib1=True)
     input_string = remove_include_and_comment(input_string)
-    input_string = remove_user_gates(input_string)
     tokens = lex_openqasm(input_string)
 
     if (
@@ -168,6 +165,10 @@ def _TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     idx += 2
+    while (
+        tokens[idx].type != 'SEMICOLON'
+    ):  # 3M-TODO: to be removed if we handle multi target
+        idx += 1
     if tokens[idx].type != 'SEMICOLON':
         raise SyntaxError(f"Barrier: {idx} {tokens[idx]}")
     circuit.add(Barrier())
@@ -177,18 +178,18 @@ def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 def _TokenGate(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     token = tokens[idx]
     idx += 1
-
-    if token.value in single_qubits_gate_qasm:
-        return _Gate_single_qubits(circuit, token.value, tokens, idx)
-    elif token.value in two_qubits_gate_qasm:
-        return _Gate_two_qubits(circuit, token.value, tokens, idx)
-    elif token.value in one_parametrized_gate_qasm:
-        return _Gate_one_parametrized(circuit, token.value, tokens, idx)
-    elif token.value in u_gate_qasm:
-        return _Gate_U(circuit, token.value, tokens, idx)
-    elif token.value in two_qubits_parametrized_gate_qasm:
-        return _Gate_two_qubits_parametrized(circuit, token.value, tokens, idx)
-    elif token.value == "ccx":
+    token_value = token.value.lower()
+    if token_value in single_qubits_gate_qasm:
+        return _Gate_single_qubits(circuit, token_value, tokens, idx)
+    elif token_value in two_qubits_gate_qasm:
+        return _Gate_two_qubits(circuit, token_value, tokens, idx)
+    elif token_value in one_parametrized_gate_qasm:
+        return _Gate_one_parametrized(circuit, token_value, tokens, idx)
+    elif token_value in u_gate_qasm:
+        return _Gate_U(circuit, token_value, tokens, idx)
+    elif token_value in two_qubits_parametrized_gate_qasm:
+        return _Gate_two_qubits_parametrized(circuit, token_value, tokens, idx)
+    elif token_value == "ccx":
         return _Gate_tof(circuit, tokens, idx)
     else:
         raise SyntaxError(f"TokenGate: {idx} {token.value}")
@@ -225,8 +226,6 @@ def _Gate_two_qubits_parametrized(
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
     parameter, idx = _eval_expr(tokens, idx)
-    if gate_str == 'cp':
-        parameter = np.log2(np.pi / parameter) + 1
     if (
         check_Id(tokens, idx)
         or tokens[idx + 4].type != 'COMMA'
@@ -296,6 +295,8 @@ def _Gate_tof(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 
 def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
+    import numpy as np  # pyright: ignore[reportUnusedImport]
+
     expr = ""
     while tokens[idx].type != 'COMMA' and tokens[idx].type != 'RPAREN':
         if check_num_expr(tokens[idx].type):
@@ -336,7 +337,7 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     elif gate_str == 'u2':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
-    elif gate_str == 'u3' or gate_str == 'u':
+    elif gate_str == 'u3' or gate_str == 'u' or gate_str == 'U':
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
         lbda, idx = _eval_expr(tokens, idx)

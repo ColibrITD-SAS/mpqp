@@ -1,4 +1,4 @@
-"""This module contains a collection of generic types and functions needed 
+"""This module contains a collection of generic types and functions needed
 across the library.
 
 Type aliases :obj:`Matrix`, :obj:`OneOrMany` and :obj:`ArbitraryNestedSequence`
@@ -6,18 +6,20 @@ are used across the library. In particular, :obj:`ArbitraryNestedSequence` is
 used in cases the nesting of the sequence is unknown; and in these cases you
 might want to flatten the list using :func:`flatten`.
 
-On occasion, there is also a need to "flatten" the string representation of an 
+On occasion, there is also a need to "flatten" the string representation of an
 object *i.e.* to display it on one line. In this case :func:`one_line_repr` is
 your friend.
 
 Lastly, we find the default list search mechanism in python a bit too
-restrictive. :func:`find` allow us a much more versatile search using an 
+restrictive. :func:`find` allow us a much more versatile search using an
 ``oracle``.
 """
 
 from __future__ import annotations
 
 from abc import ABCMeta
+
+# from functools import update_wrapper
 from inspect import getsource
 from typing import (
     TYPE_CHECKING,
@@ -125,6 +127,7 @@ def find(sequence: Sequence[T], oracle: Callable[[T], bool]) -> T:
     return sequence[find_index(sequence, oracle)]
 
 
+@typechecked
 def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     """Finds the index of the first element in the iterable that satisfies the
     given oracle.
@@ -175,16 +178,21 @@ class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
     pass
 
 
+@typechecked
 class classproperty:
     """Decorator yo unite the ``classmethod`` and ``property`` decorators."""
 
     def __init__(self, func: Callable[..., Any]):
         self.fget = func
+        # update_wrapper(self, func) sadly, this is not enough since the doc
+        # accessed by sphinx is in fact the doc of the returned object, I don't
+        # know what we could do about that TODO: investigate the question
 
     def __get__(self, instance: object, owner: object):
         return self.fget(owner)
 
 
+@typechecked
 def _get_doc(enum: type[Any], member: str):
     src = getsource(enum)
     member_pointer = src.find(member)
@@ -193,6 +201,7 @@ def _get_doc(enum: type[Any], member: str):
     return src[docstr_start:docstr_end]
 
 
+@typechecked
 class MessageEnum(Enum):
     """Enum subclass allowing you to access the docstring of the members of your
     enum through the ``message`` property.
@@ -214,7 +223,8 @@ class MessageEnum(Enum):
     """
 
     message: str
-    """Each of the members of the eum will have the ``message`` attribute."""
+    """This is an attribute for each member of the enum, giving more information
+    about it."""
 
     def __init__(self, *args: Any, **kwds: dict[str, Any]) -> None:
         super().__init__(*args, **kwds)

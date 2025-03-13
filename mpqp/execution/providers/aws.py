@@ -2,11 +2,6 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-
-if TYPE_CHECKING:
-    from braket.circuits import Circuit
-    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
-
 from typeguard import typechecked
 
 from mpqp import Language, QCircuit
@@ -22,6 +17,10 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise.noise_model import NoiseModel
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
+
+if TYPE_CHECKING:
+    from braket.circuits import Circuit
+    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
 
 @typechecked
@@ -72,7 +71,7 @@ def apply_noise_to_braket_circuit(
             braket_noise,  # pyright: ignore[reportArgumentType]
             target_gates=(
                 [
-                    gate.braket_gate  # pyright: ignore[reportAttributeAccessIssue]
+                    gate.braket_gate
                     for gate in noise.gates
                     if hasattr(gate, "braket_gate")
                 ]
@@ -102,7 +101,7 @@ def run_braket(job: Job) -> Result:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
@@ -141,7 +140,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     Note:
         This function is not meant to be used directly, please use
-        :func:``run<mpqp.execution.runner.run>`` instead.
+        :func:`~mpqp.execution.runner.run` instead.
     """
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
@@ -168,13 +167,11 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     from braket.circuits import Circuit
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
-
     braket_circuit = job.circuit.to_other_language(Language.BRAKET)
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
 
     if job.job_type == JobType.STATE_VECTOR:
-        job.circuit = job.circuit.without_measurements()
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=0, inputs=None)
@@ -234,12 +231,16 @@ def extract_result(
         elif isinstance(braket_result.values[0], float):
             job_type = JobType.OBSERVABLE
             device_params = braket_result.task_metadata.deviceParameters
-            assert (
-                isinstance(device_params, IonqDeviceParameters)
-                or isinstance(device_params, OqcDeviceParameters)
-                or isinstance(device_params, RigettiDeviceParameters)
-                or isinstance(device_params, GateModelSimulatorDeviceParameters)
-            )
+            if TYPE_CHECKING:
+                assert isinstance(
+                    device_params,
+                    (
+                        IonqDeviceParameters,
+                        OqcDeviceParameters,
+                        RigettiDeviceParameters,
+                        GateModelSimulatorDeviceParameters,
+                    ),
+                )
             nb_qubits = device_params.paradigmParameters.qubitCount
             shots = braket_result.task_metadata.shots
             measure = ExpectationMeasure(
@@ -259,7 +260,8 @@ def extract_result(
 
     if job.job_type == JobType.STATE_VECTOR:
         vector = braket_result.values[0]
-        assert isinstance(vector, (list, np.ndarray))
+        if TYPE_CHECKING:
+            assert isinstance(vector, (list, np.ndarray))
         state_vector = StateVector(vector, nb_qubits=job.circuit.nb_qubits)
         return Result(job, state_vector, 0, 0)
 
@@ -320,3 +322,73 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     device = AWSDevice.from_arn(device_arn)
 
     return extract_result(result, None, device)
+
+
+@typechecked
+def estimate_cost_single_job(
+    job: Job, hybrid_iterations: int = 1, estimated_time_seconds: int = 3
+) -> float:
+    """
+    Estimates the cost of executing a :class:`~mpqp.execution.job.Job` on a remote AWS Braket device.
+
+    Args:
+        job: :class:`~mpqp.execution.job.Job` for which we want to estimate the cost. The job's device must be an :class:`~mpqp.execution.devices.AWSDevice`.
+        hybrid_iterations: Number of iteration in a case of a hybrid (quantum-classical) job.
+        estimated_time_seconds: Estimated runtime for simulator jobs (in seconds). The minimum duration billing is 3 seconds.
+
+    Returns:
+        The estimated price (in USD) for the execution of the job in parameter.
+
+    Example:
+        >>> circuit = QCircuit([H(0), CNOT(0, 1), CNOT(1, 2), BasisMeasure(shots=245)])
+        >>> job = generate_job(circuit, AWSDevice.IONQ_ARIA_1)
+        >>> estimate_cost_single_job(job, hybrid_iterations=150)
+        1147.5
+
+    """
+
+    if not isinstance(job.device, AWSDevice):
+        raise ValueError(
+            f"This function was expecting a job with an AWSDevice but got a {type(job.device).__name__}."
+        )
+
+    if job.device.is_remote():
+        if job.device.is_simulator():
+            if "sv1" in job.device.value or "dm1" in job.device.value:
+                minute_cost = 0.075
+            elif "tn1" in job.device.value:
+                minute_cost = 0.275
+            else:
+                raise ValueError
+            return minute_cost * max(estimated_time_seconds / 60, 3 / 60)
+        else:
+            if job.measure is None:
+                raise DeviceJobIncompatibleError(
+                    "An AWS remote job on a quantum computer requires to have a measure."
+                )
+
+            if "ionq" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.03
+
+            elif "iqm" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.00145
+
+            elif "rigetti" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.0009
+
+            elif "quera" in job.device.value:
+                task_cost = 0.3
+                shot_cost = 0.01
+
+            else:
+                raise NotImplementedError(
+                    f"Cost estimation not implemented yet for {job.device.name} device."
+                )
+
+            return (task_cost + job.measure.shots * shot_cost) * hybrid_iterations
+
+    else:
+        return 0
