@@ -6,8 +6,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -23,6 +21,7 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -96,12 +95,12 @@ def compute_expectation_value(
 
     nb_shots = job.measure.shots
 
-    qiskit_observables = [
-        obs.to_other_language(Language.QISKIT) for obs in job.measure.observables
-    ]
-
-    if TYPE_CHECKING:
-        assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
+    qiskit_observables: list[SparsePauliOp] = []
+    for obs in job.measure.observables:
+        translated = obs.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(translated, SparsePauliOp)
+        qiskit_observables.append(translated)
 
     if isinstance(job.device, IBMSimulatedDevice):
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
