@@ -640,21 +640,21 @@ def extract_result(
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
-            # exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
-            # exp_values = np.atleast_1d(exp_values)
+            exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
+            exp_values = np.atleast_1d(exp_values)
 
-            # stds = res_data.stds  # pyright: ignore[reportAttributeAccessIssue]
-            # stds = np.atleast_1d(stds)
+            stds = res_data.stds  # pyright: ignore[reportAttributeAccessIssue]
+            stds = np.atleast_1d(stds)
 
-            # for i in range(len(exp_values)):
-            #     mean = float(exp_values[i])
-            #     error = float(stds[i])
-            #     shots = (
-            #         job.measure.shots
-            #         if job.device.is_simulator() and job.measure is not None
-            #         else result[0].metadata["shots"]
-            #     )
-            #     all_results.append(Result(job, mean, error, shots))
+            for i in range(len(exp_values)):
+                mean = float(exp_values[i])
+                error = float(stds[i])
+                shots = (
+                    job.measure.shots
+                    if job.device.is_simulator() and job.measure is not None
+                    else result[0].metadata["shots"]
+                )
+                all_results.append(Result(job, mean, error, shots))
 
         else:
             if job is None:
