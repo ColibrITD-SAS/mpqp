@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from numbers import Complex
 from textwrap import indent
-from typing import Iterable, Optional
+from typing import Iterable, Optional, TYPE_CHECKING
 
 import numpy as np
 from mpqp.core.circuit import QCircuit
@@ -404,6 +404,8 @@ def display_kth_breakpoint(
             label=circuit.label,
         )
         res = _run_single(copy, device, {}, False)
+        if TYPE_CHECKING:
+            assert isinstance(res, Result)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
         print("       " + state_vector_ket_shape(res.amplitudes))
         if bp.draw_circuit:

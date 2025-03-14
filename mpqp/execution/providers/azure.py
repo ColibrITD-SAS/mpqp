@@ -21,7 +21,7 @@ from mpqp.execution.result import Result, Sample, BatchResult
 
 
 @typechecked
-def run_azure(job: Job) -> Result:
+def run_azure(job: Job) -> Result | BatchResult:
     """Executes the job on the right AZURE device precised in the job in
     parameter.
 
