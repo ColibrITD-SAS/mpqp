@@ -12,9 +12,7 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.measurement.expectation_value import (
-    ExpectationMeasure,
-)
+from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
@@ -113,8 +111,16 @@ def compute_expectation_value(
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
+        # qiskit_observables = [
+        #     obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
+        # ]
         qiskit_observables = [
-            obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
+            (
+                getattr(obs, "apply_layout")(ibm_circuit.layout)
+                if hasattr(obs, "apply_layout")
+                else obs
+            )
+            for obs in qiskit_observables
         ]
         options = {"default_shots": nb_shots}
         estimator = Runtime_Estimator(mode=backend, options=options)
@@ -635,11 +641,14 @@ def extract_result(
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
+            exp_values = np.atleast_1d(exp_values)
+
+            stds = res_data.stds  # pyright: ignore[reportAttributeAccessIssue]
+            stds = np.atleast_1d(stds)
+
             for i in range(len(exp_values)):
                 mean = float(exp_values[i])
-                error = float(
-                    res_data.stds[i]  # pyright: ignore[reportAttributeAccessIssue]
-                )
+                error = float(stds[i])
                 shots = (
                     job.measure.shots
                     if job.device.is_simulator() and job.measure is not None
@@ -664,9 +673,11 @@ def extract_result(
             if TYPE_CHECKING:
                 assert job.measure is not None
 
-            counts = (
-                res_data.c.get_counts()
-            )  # pyright: ignore[reportAttributeAccessIssue]
+            counts = getattr(res_data, 'c', None)
+            counts = counts.get_counts() if counts else {}
+            # counts = (
+            #     res_data.c.get_counts()
+            # )  # pyright: ignore[reportAttributeAccessIssue]
             data = [
                 Sample(
                     bin_str=item,

@@ -133,7 +133,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
-def is_diagonal(matrix: Matrix):
+def is_diagonal(matrix: Matrix) -> bool:
     """Checks whether the square matrix in parameter is diagonal.
 
     Args:

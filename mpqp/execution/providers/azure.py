@@ -17,11 +17,11 @@ from mpqp.execution.connection.azure_connection import (
 )
 from mpqp.execution.devices import AZUREDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.result import Result, Sample, BatchResult
+from mpqp.execution.result import BatchResult, Result, Sample
 
 
 @typechecked
-def run_azure(job: Job) -> Result | BatchResult:
+def run_azure(job: Job) -> BatchResult | Result:
     """Executes the job on the right AZURE device precised in the job in
     parameter.
 
