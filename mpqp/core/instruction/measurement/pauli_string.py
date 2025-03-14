@@ -343,7 +343,7 @@ class PauliString:
             >>> from mpqp.measures import I, X, Y, Z
 
         """
-        pass
+        raise NotImplementedError()
 
     @staticmethod
     def from_matrix(
@@ -842,8 +842,12 @@ class PauliStringMonomial(PauliString):
     def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
         self.coef = coef
         """Coefficient of the monomial."""
-        self.atoms: list["PauliStringAtom"] = [] if atoms is None else atoms
+        self._atoms = [] if atoms is None else atoms
+
+    @property
+    def atoms(self) -> list["PauliStringAtom"]:
         """The list of atoms in the monomial."""
+        return self._atoms
 
     @property
     def nb_qubits(self) -> int:
@@ -949,12 +953,12 @@ class PauliStringMonomial(PauliString):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
 
-    def commutes_with(self, other: PauliStringMonomial) -> bool:
+    def commutes_with(self, other: PauliString) -> bool:
         """Checks wether this Pauli monomial commutes (full commutativity) with the Pauli monomial in parameter. This
         is done by checking that the number of anti-commuting atoms is even.
 
         Args:
-            pm: The Pauli monomial for which we want to check commutativity with this monomial.
+            other: The Pauli monomial for which we want to check commutativity with this monomial.
 
         Returns:
             True if this Pauli monomial commutes with the one in parameter.
@@ -969,10 +973,15 @@ class PauliStringMonomial(PauliString):
             True
 
         """
+        if not isinstance(other, PauliStringMonomial):
+            raise ValueError(
+                f"Expected a PauliStringMonomial in parameter but got {type(other).__name__}"
+            )
+
         if self.nb_qubits != other.nb_qubits:
             raise NumberQubitsError(
-                f"The number of qubits of this Pauli monomial {self.nb_qubits} is not matching "
-                f"the one of the monomial in parameter {other.nb_qubits}"
+                f"The number of qubits of this Pauli monomial ({self.nb_qubits}) is not matching "
+                f"the one of the monomial in parameter ({other.nb_qubits})."
             )
 
         return (
@@ -1116,7 +1125,7 @@ class PauliStringAtom(PauliStringMonomial):
         return 1
 
     @property
-    def atoms(self):
+    def atoms(self) -> list["PauliStringAtom"]:
         """Atoms present. (needed for upward compatibility with
         :class:`PauliStringMonomial`)"""
         return [self]
@@ -1196,7 +1205,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return self.matrix
 
-    def commutes_with(self, other: PauliStringAtom) -> bool:
+    def commutes_with(self, other: PauliString) -> bool:
         """Determines whether this single-qubit Pauli operator commutes with the one in parameter. In this case, this
         can be done by simply checking if one of the atoms are identity, or if they are the same.
 
@@ -1219,6 +1228,10 @@ class PauliStringAtom(PauliStringMonomial):
             >>> I.commutes_with(Z)
             True
         """
+        if not isinstance(other, PauliStringAtom):
+            raise ValueError(
+                f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
+            )
         return other == I or self == I or self == other
 
     def to_other_language(

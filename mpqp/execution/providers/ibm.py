@@ -111,6 +111,9 @@ def compute_expectation_value(
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
+        if TYPE_CHECKING:
+            assert isinstance(ibm_circuit, QuantumCircuit)
+
         # qiskit_observables = [
         #     obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
         # ]
@@ -138,7 +141,6 @@ def compute_expectation_value(
         estimator = Estimator(options=options)
 
     job.status = JobStatus.RUNNING
-    # circuits_and_observables = [(ibm_circuit, obs) for obs in qiskit_observables]
     job_expectation = estimator.run([(ibm_circuit, qiskit_observables)])
     estimator_result = job_expectation.result()
 
@@ -677,7 +679,7 @@ def extract_result(
             counts = counts.get_counts() if counts else {}
             # counts = (
             #     res_data.c.get_counts()
-            # )  # pyright: ignore[reportAttributeAccessIssue]
+            # )
             data = [
                 Sample(
                     bin_str=item,
