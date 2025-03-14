@@ -60,6 +60,7 @@ Examples:
 
 """
 Matrix = Union[npt.NDArray[np.complex64], npt.NDArray[np.object_]]
+# Matrix = Union[npt.NDArray[np.complex64], npt.NDArray[np.object_], npt.NDArray[np.float64]]
 """Type alias denoting all the matrices we consider (either matrices of complex 
 or of ``sympy`` expressions, given to ``numpy`` as objects)"""
 
