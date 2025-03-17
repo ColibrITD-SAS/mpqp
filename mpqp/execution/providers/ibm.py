@@ -6,6 +6,8 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from typeguard import typechecked
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -21,7 +23,6 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -568,7 +569,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         setattr(estimator.options, "default_shots", meas.shots)
 
-        ibm_job = estimator.run([(qiskit_circ, obs) for obs in qiskit_observables])
+        ibm_job = estimator.run([(qiskit_circ, qiskit_observables)])
 
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
