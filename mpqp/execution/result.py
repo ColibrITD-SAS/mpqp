@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 import numpy.typing as npt
@@ -563,7 +563,9 @@ class BatchResult:
 
     def __str__(self):
         header = f"BatchResult: {len(self.results)} results\n"
-        body = "\n".join(map(str, self.results))
+        body = "\n".join(
+            "   " + "\n   ".join(str(result).split("\n")) for result in self.results
+        )
         return header + body
 
     def __repr__(self):
