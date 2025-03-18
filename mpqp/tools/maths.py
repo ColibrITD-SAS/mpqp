@@ -6,18 +6,18 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Any
+
+import numpy as np
+import numpy.typing as npt
+from mpqp.tools.generics import Matrix
+from scipy.linalg import inv, sqrtm
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from sympy import Expr
     import sympy as sp
 
-import numpy as np
-import numpy.typing as npt
-from scipy.linalg import inv, sqrtm
-from typeguard import typechecked
-
-from mpqp.tools.generics import Matrix
 
 rtol = 1e-05
 """The relative tolerance parameter."""
@@ -133,7 +133,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
-def is_diagonal(matrix: Matrix) -> bool:
+def is_diagonal(matrix: npt.NDArray[Any]) -> bool:
     """Checks whether the square matrix in parameter is diagonal.
 
     Args:

@@ -259,18 +259,18 @@ def run(
         ... )
         >>> print(batch_result)
         BatchResult: 2 results
-        Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: 0.0
-        Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+            Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
+             Counts: [0, 0, 0, 1000]
+             Probabilities: [0, 0, 0, 1]
+             Samples:
+              State: 11, Index: 3, Count: 1000, Probability: 1
+             Error: 0.0
+            Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
+             Counts: [0, 0, 0, 1000]
+             Probabilities: [0, 0, 0, 1]
+             Samples:
+              State: 11, Index: 3, Count: 1000, Probability: 1
+             Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
@@ -278,18 +278,18 @@ def run(
         >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
         >>> print(result)
         BatchResult: 2 results
-        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
-        Result: X circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+            Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
+             Counts: [0, 0, 0, 1000]
+             Probabilities: [0, 0, 0, 1]
+             Samples:
+              State: 11, Index: 3, Count: 1000, Probability: 1
+             Error: None
+            Result: X circuit, IBMDevice, AER_SIMULATOR
+             Counts: [0, 0, 0, 1000]
+             Probabilities: [0, 0, 0, 1]
+             Samples:
+              State: 11, Index: 3, Count: 1000, Probability: 1
+             Error: None
 
     """
     if values is None:

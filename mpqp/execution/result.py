@@ -535,20 +535,20 @@ class BatchResult:
         >>> batch_result = BatchResult([result1, result2, result3])
         >>> print(batch_result)
         BatchResult: 3 results
-        Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
-        Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
-         Counts: [250, 0, 0, 250]
-         Probabilities: [0.5, 0, 0, 0.5]
-         Samples:
-          State: 00, Index: 0, Count: 250, Probability: 0.5
-          State: 11, Index: 3, Count: 250, Probability: 0.5
-         Error: 0.034
-        Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
-         Expectation value: -3.09834
-         Error/Variance: 0.021
+            Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
+             State vector: [0.5, 0.5, 0.5, -0.5]
+             Probabilities: [0.25, 0.25, 0.25, 0.25]
+             Number of qubits: 2
+            Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
+             Counts: [250, 0, 0, 250]
+             Probabilities: [0.5, 0, 0, 0.5]
+             Samples:
+              State: 00, Index: 0, Count: 250, Probability: 0.5
+              State: 11, Index: 3, Count: 250, Probability: 0.5
+             Error: 0.034
+            Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
+             Expectation value: -3.09834
+             Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
          State vector: [0.5, 0.5, 0.5, -0.5]
@@ -564,7 +564,9 @@ class BatchResult:
     def __str__(self):
         header = f"BatchResult: {len(self.results)} results\n"
         body = "\n".join(
-            "   " + "\n   ".join(str(result).split("\n")) for result in self.results
+            "    " + line
+            for result in self.results
+            for line in str(result).splitlines()
         )
         return header + body
 
