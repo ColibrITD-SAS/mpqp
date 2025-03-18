@@ -1,15 +1,25 @@
 from mpqp.core.instruction.measurement.pauli_string import PauliStringMonomial
 
 
-def full_commutation_pauli_grouping_greedy(monomials: set[PauliStringMonomial]):
-    """
-    TODO: comment
+def full_commutation_pauli_grouping_greedy(
+    monomials: list[PauliStringMonomial],
+) -> list[list[PauliStringMonomial]]:
+    """Regroups the Pauli operators in parameters into groups of
+    mutual fully commuting Pauli operators using a greedy approach.
+
     Args:
-        monomials:
+        monomials: list of Pauli monomials to regroup.
 
     Returns:
+        A list of list of Pauli monomials containing the fully commutativity grouping.
 
+
+    Examples:
+        >>> from mpqp.measures import I, X, Y, Z
+        >>> full_commutation_pauli_grouping_greedy([I@X@X, Y@Y@Z, I@I@I, -3*Z@Y@X, Y@X@Y, -Z@Z@Y, 2*X@X@Y])
+        [[1*I@X@X, 1*Y@Y@Z, 1*I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [1*Y@X@Y], [2*X@X@Y]]
     """
+
     groups = []
 
     for m in monomials:
@@ -26,9 +36,9 @@ def full_commutation_pauli_grouping_greedy(monomials: set[PauliStringMonomial]):
     return groups
 
 
-def full_commutation_pauli_grouping_ibm_clique(monomials: set[PauliStringMonomial]):
+def full_commutation_pauli_grouping_ibm_clique(monomials: list[PauliStringMonomial]):
     pass
 
 
-def qubit_wise_commutation_pauli_grouping(monomials: set[PauliStringMonomial]):
+def qubit_wise_commutation_pauli_grouping(monomials: list[PauliStringMonomial]):
     pass

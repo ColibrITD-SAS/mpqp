@@ -307,7 +307,7 @@ class DiagPauliNode:
 def compute_coefficients_diagonal_case(
     m: list[bool],
     current_node: DiagPauliNode,
-    diag_elements: npt.NDArray[np.float32],
+    diag_elements: npt.NDArray[np.float64],
     monomial_list: list[PauliStringMonomial],
 ):
     """Computes coefficients for the current node in the pauli tree based on the
@@ -356,7 +356,7 @@ def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
 def generate_and_explore_node_diagonal_case(
     m: list[bool],
     current_node: DiagPauliNode,
-    diag_elements: npt.NDArray[np.float32],
+    diag_elements: npt.NDArray[np.float64],
     n: int,
     monomials: list[PauliStringMonomial],
     progression: Optional[list[int]] = None,
@@ -480,7 +480,7 @@ def generate_hadamard(n: int) -> npt.NDArray[np.int8]:
 
 
 def compute_coefficients_walsh(
-    H_matrix: npt.NDArray[np.int8], diagonal_elements: npt.NDArray[np.float32]
+    H_matrix: npt.NDArray[np.int8], diagonal_elements: npt.NDArray[np.float64]
 ) -> list[float]:
     """Computes the coefficients using the Walsh-Hadamard transform.
 

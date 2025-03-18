@@ -67,6 +67,7 @@ from mpqp.tools.maths import (
     normalize,
     rand_orthogonal_matrix,
 )
+from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
 
 sys.path.insert(0, os.path.abspath("."))
 

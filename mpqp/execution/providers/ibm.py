@@ -114,14 +114,9 @@ def compute_expectation_value(
         if TYPE_CHECKING:
             assert isinstance(ibm_circuit, QuantumCircuit)
 
-        # qiskit_observables = [
-        #     obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
-        # ]
         qiskit_observables = [
-            (
-                getattr(obs, "apply_layout")(ibm_circuit.layout)
-                if hasattr(obs, "apply_layout")
-                else obs
+            obs.apply_layout(
+                ibm_circuit.layout
             )
             for obs in qiskit_observables
         ]
@@ -677,9 +672,6 @@ def extract_result(
 
             counts = getattr(res_data, 'c', None)
             counts = counts.get_counts() if counts else {}
-            # counts = (
-            #     res_data.c.get_counts()
-            # )
             data = [
                 Sample(
                     bin_str=item,
