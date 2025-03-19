@@ -17,9 +17,9 @@ import numpy.typing as npt
 from sympy import Expr
 from typeguard import typechecked
 
-from mpqp.core.instruction.gates.native_gates import NativeGate, S_dagger, H
+from mpqp.core.instruction.gates.native_gates import H, NativeGate, S_dagger
 from mpqp.core.languages import Language
-from mpqp.tools import format_element, NumberQubitsError
+from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
 
@@ -826,7 +826,8 @@ class PauliString:
             True
 
         """
-        return all([all([a != X and a != Y for a in m.atoms]) for m in self.monomials])
+
+        return all([all([a == I or a == Z for a in m.atoms]) for m in self.monomials])
 
 
 @typechecked
