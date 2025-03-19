@@ -69,6 +69,13 @@ class Observable:
         >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sorted_monomials()
         3*I@Z + 4*X@Y
 
+        >>> Observable([1, -2, 3, -4]) # doctest: +NORMALIZE_WHITESPACE
+        Observable(array([[ 1.+0.j, 0.+0.j, 0.+0.j, 0.+0.j],
+                [ 0.+0.j, -2.+0.j, 0.+0.j, 0.+0.j],
+                [ 0.+0.j, 0.+0.j, 3.+0.j, 0.+0.j],
+                [ 0.+0.j, 0.+0.j, 0.+0.j, -4.+0.j]],
+            dtype=complex64))
+
     """
 
     def __init__(self, observable: Matrix | PauliString | list[Real]):
