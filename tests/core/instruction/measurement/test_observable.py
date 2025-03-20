@@ -170,4 +170,3 @@ def test_repr_observable_from_diag_elements():
     assert oo._is_diagonal == o._is_diagonal
     assert oo._pauli_string is None and o._pauli_string is None
     assert matrix_eq(oo._diag_elements, o._diag_elements)
-
