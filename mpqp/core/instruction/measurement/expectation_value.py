@@ -230,7 +230,7 @@ class Observable:
                 self._is_diagonal = True
             # Otherwise, the observable is empty, we return False by convention
             else:
-                return False
+                raise ValueError("Cannot determine if an empty observable is diagonal.")
 
         return self._is_diagonal
 
