@@ -90,7 +90,7 @@ def list_diagonal_elements_pauli_string() -> list[tuple[list[float], PauliString
 
 
 @pytest.fixture
-def list_diagonal_observable_inputs() -> list[Union[Matrix, PauliString, list[Real]]]:
+def list_diagonal_observable_inputs() -> list[Union[Matrix, PauliString, list[float]]]:
     return [
         [-2, 4, 5, 3],
         [-2, -3, 2, 1],
@@ -113,7 +113,7 @@ def test_matrix_to_pauli(list_matrix_pauli_string: list[tuple[Matrix, PauliStrin
 
 def test_diagonal_elements_to_pauli(
     list_diagonal_elements_pauli_string: list[
-        tuple[Union[list[Real], npt.NDArray[np.float64]], PauliString]
+        tuple[Union[list[float], npt.NDArray[np.float64]], PauliString]
     ],
 ):
     for diag, ps in list_diagonal_elements_pauli_string:
@@ -166,7 +166,7 @@ def test_repr_observable_from_diag_elements():
     o = Observable([1, 2, 3, 4])
     repr_o = o.__repr__()
     oo = eval(repr_o)
-    assert oo._matrix is None and o._matrix is None
-    assert oo._is_diagonal == o._is_diagonal
-    assert oo._pauli_string is None and o._pauli_string is None
-    assert matrix_eq(oo._diag_elements, o._diag_elements)
+    assert oo._matrix is None and o._matrix is None  # pyright: ignore[reportPrivateUsage]
+    assert oo._is_diagonal == o._is_diagonal  # pyright: ignore[reportPrivateUsage]
+    assert oo._pauli_string is None and o._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+    assert matrix_eq(oo._diag_elements, o._diag_elements)  # pyright: ignore[reportPrivateUsage]

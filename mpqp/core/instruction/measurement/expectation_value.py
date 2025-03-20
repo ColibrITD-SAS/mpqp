@@ -69,12 +69,12 @@ class Observable:
         >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sorted_monomials()
         3*I@Z + 4*X@Y
 
-        >>> Observable([1, -2, 3, -4])
-        Observable([ 1. -2.  3. -4.])
+        >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
+        Observable([ 1., -2., 3., -4.])
 
     """
 
-    def __init__(self, observable: Matrix | PauliString | list[Real]):
+    def __init__(self, observable: Matrix | PauliString | list[float]):
         self._matrix = None
         self._pauli_string = None
         self._is_diagonal = None
@@ -124,6 +124,8 @@ class Observable:
             else:
                 self._is_diagonal = True
                 self._diag_elements = np.array(observable)
+
+        self._diag_elements: npt.NDArray[np.float]
 
     @property
     def matrix(self) -> Matrix:
@@ -184,7 +186,7 @@ class Observable:
         self._is_diagonal = None
 
     @diagonal_elements.setter
-    def diagonal_elements(self, diag_elements: list[Real] | npt.NDArray[np.float64]):
+    def diagonal_elements(self, diag_elements: list[float] | npt.NDArray[np.float64]):
         if not is_power_of_two(len(diag_elements)):
             raise ValueError(
                 "The size of the diagonal elements of the matrix is not a power of two."
@@ -235,11 +237,11 @@ class Observable:
 
     def __repr__(self) -> str:
         if self._is_diagonal and self._diag_elements is not None:
-            return f"{type(self).__name__}({self.diagonal_elements})"
+            return f"{type(self).__name__}({np.array2string(self.diagonal_elements, separator=', ')})"
 
         return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
 
-    def __mult__(self, other: Expr | Real) -> Observable:
+    def __mult__(self, other: Expr | float) -> Observable:
         """3M-TODO"""
         ...
 
