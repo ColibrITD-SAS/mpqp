@@ -11,8 +11,6 @@ from typing import Any, Optional, Type
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
-from numpy.random import default_rng
-
 from mpqp.all import *
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
@@ -51,8 +49,8 @@ from mpqp.tools.display import (
     clean_1D_array,
     clean_matrix,
     format_element,
-    pprint,
     format_element_str,
+    pprint,
 )
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
@@ -68,6 +66,7 @@ from mpqp.tools.maths import (
     rand_orthogonal_matrix,
 )
 from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
+from numpy.random import default_rng
 
 sys.path.insert(0, os.path.abspath("."))
 

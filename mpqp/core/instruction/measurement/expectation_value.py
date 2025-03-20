@@ -12,8 +12,6 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
-
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
@@ -25,6 +23,7 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Hermitian
