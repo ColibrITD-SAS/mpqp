@@ -1,4 +1,5 @@
 from __future__ import annotations
+
 from typing import Optional
 
 from mpqp.execution.connection.env_manager import get_env_variable
@@ -60,6 +61,8 @@ def remove_all_with_job_id(job_id: int | list[int]):
 def remove_jobs_with_id(job_id: int | list[int]):
     """Removes jobs with the specified job IDs.
 
+    Method of the class corresponding: :meth:`~mpqp.execution.job.Job.delete_by_local_id`.
+
     Args:
         job_id: Job ID(s) to remove.
 
@@ -87,6 +90,8 @@ def remove_jobs_with_id(job_id: int | list[int]):
 
 def remove_results_with_id(result_id: int | list[int]):
     """Removes results with the specified result IDs.
+
+    Method of the class corresponding: :meth:`~mpqp.execution.result.Result.delete_by_local_id`.
 
     Args:
         result_id: Result ID(s) to remove.

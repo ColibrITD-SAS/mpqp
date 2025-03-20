@@ -194,6 +194,106 @@ class Job:
             "status": self.status,
         }
 
+    @staticmethod
+    def load_all():
+        """Get all locally stored jobs.
+
+        Uses :func:`~mpqp.local_storage.load.get_all_jobs`.
+
+        Example:
+            >>> for job in Job.load_all(): # doctest: +ELLIPSIS
+            ...     print(job)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+
+        """
+        from mpqp.local_storage.load import get_all_jobs
+
+        return get_all_jobs()
+
+    @staticmethod
+    def load_by_local_id(job_id: int):
+        """Get the locally stored job associated with a local job id.
+
+        Uses :func:`~mpqp.local_storage.load.get_jobs_with_id`.
+
+        Args:
+            job_id: Local id of the job you need.
+
+        Example:
+            >>> Job.load_by_local_id(1)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+        """
+        from mpqp.local_storage.load import get_jobs_with_id
+
+        return get_jobs_with_id(job_id)[0]
+
+    def load_similar(self):
+        """Get the jobs similar to the target job.
+
+        Uses :func:`~mpqp.local_storage.load.get_jobs_with_job`.
+
+        Example:
+            >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+            >>> print(job.load_similar()) # doctest: +ELLIPSIS
+            [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
+        """
+        from mpqp.local_storage.load import get_jobs_with_job
+
+        return get_jobs_with_job(self)
+
+    def save(self):
+        """Saves a job and return the local id.
+
+        Uses :func:`~mpqp.local_storage.save.insert_jobs`."""
+        from mpqp.local_storage.save import insert_jobs
+
+        return insert_jobs(self)[0]
+
+    @staticmethod
+    def delete_by_local_id(job_id: int):
+        """Delete the locally stored job associated with a local job id.
+
+        Uses :func:`~mpqp.local_storage.delete.remove_jobs_with_id`.
+
+        Args:
+            job_id: Local id of the job you want to delete.
+
+        Example:
+            >>> for job in Job.load_all(): # doctest: +ELLIPSIS
+            ...     print(job)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            >>> Job.delete_by_local_id(1)
+            >>> for job in Job.load_all(): # doctest: +ELLIPSIS
+            ...     print(job)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+
+        """
+        from mpqp.local_storage.delete import remove_jobs_with_id
+
+        remove_jobs_with_id(job_id)
+
+    def delete_associated_results(self):
+        """Delete the results associated with the target job.
+
+        Uses :func:`~mpqp.local_storage.delete.remove_results_with_job`."""
+        from mpqp.local_storage.delete import remove_results_with_job
+
+        remove_results_with_job(self)
+
 
 @typechecked
 def get_qlm_job_status(job_id: str) -> JobStatus:

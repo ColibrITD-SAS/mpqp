@@ -581,28 +581,121 @@ class Result:
 
     @staticmethod
     def load_all():
-        """Get all locally stored results."""
+        """Get all locally stored results.
+
+        Uses :func:`~mpqp.local_storage.load.get_all_results`.
+
+        Example:
+            >>> for result in Result.load_all(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+
+        """
         from mpqp.local_storage.load import get_all_results
 
         return get_all_results()
 
     @staticmethod
-    def load_by_local_id(job_id: int):
-        """Get the locally stored results associated with a specific job.
+    def load_by_local_id(result_id: int):
+        """Get the locally stored result(s) associated with a local result id.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_id`.
 
         Args:
-            job_id: local id of the job you need."""
+            result_id: Local id of the result you need.
+
+        Example:
+            >>> Result.load_by_local_id(1)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+
+        """
+        from mpqp.local_storage.load import get_results_with_id
+
+        return get_results_with_id(result_id)
+
+    @staticmethod
+    def load_by_local_job_id(job_id: int):
+        """Get the locally stored result(s) associated with a specific job.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_job_id`.
+
+        Args:
+            job_id: Local id of the job you need.
+
+        Example:
+            >>> for result in Result.load_by_local_job_id(1): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+
+        """
         from mpqp.local_storage.load import get_results_with_job_id
 
         return get_results_with_job_id(job_id)
 
+    def load_similar(self):
+        """Get the results similar to the target result.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_result`.
+
+        Example:
+            >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            >>> for result in result.load_similar(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+        """
+        from mpqp.local_storage.load import get_results_with_result
+
+        return get_results_with_result(self)
+
     def save(self):
         """Save a result to the local storage and returns the corresponding
         local ``id`` for when the result needs to be retrieved, or ``None`` if
-        the saving operation failed."""
+        the saving operation failed.
+
+        Uses :func:`~mpqp.local_storage.save.insert_results`."""
         from mpqp.local_storage.save import insert_results
 
         return insert_results(self)[0]
+
+    @staticmethod
+    def delete_by_local_id(result_id: int):
+        """Delete the locally stored result associated with a local result id.
+
+        Uses :func:`~mpqp.local_storage.delete.remove_results_with_id`.
+
+        Args:
+            result_id: Local id of the result you want to delete.
+
+        Example:
+            >>> for result in Result.load_all(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            >>> Result.delete_by_local_id(1)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+
+        """
+        from mpqp.local_storage.delete import remove_results_with_id
+
+        remove_results_with_id(result_id)
 
 
 @typechecked

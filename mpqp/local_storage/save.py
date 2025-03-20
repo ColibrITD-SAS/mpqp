@@ -1,17 +1,18 @@
-"""provides functions to insert :class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result` objects into the
-local database.
+"""Provides functions to insert :class:`~mpqp.execution.job.Job` and
+:class:`~mpqp.execution.result.Result` into the local database.
 """
 
 from __future__ import annotations
 
+from mpqp.execution import BatchResult, Job, Result
 from mpqp.execution.connection.env_manager import get_env_variable
-from mpqp.execution.job import Job
-from mpqp.execution.result import BatchResult, Result
 from mpqp.local_storage.queries import fetch_jobs_with_job
 
 
 def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
     """Insert a job in the database.
+
+    Method corresponding: :meth:`~mpqp.execution.job.Job.save`.
 
     Args:
         jobs: The job(s) to be inserted.
@@ -80,13 +81,17 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
 
 
 def insert_results(
-    result: Result | BatchResult | list[Result], compile_same_job: bool = True
+    result: Result | BatchResult | list[Result], reuse_similar_job: bool = True
 ) -> list[int | None]:
     """Insert a result or batch result into the database.
 
+    Methods corresponding: :meth:`Result.save
+    <mpqp.execution.result.Result.save>` and :meth:`BatchResult.save
+    <mpqp.execution.result.BatchResult.save>`.
+
     Args:
         result: The result(s) to be inserted.
-        compile_same_job: If ``True``, checks for an existing job in the
+        reuse_similar_job: If ``True``, checks for an existing job in the
             database and reuses its ID to avoid duplicates.
 
     Returns:
@@ -99,16 +104,16 @@ def insert_results(
 
     """
     if isinstance(result, Result):
-        return [_insert_result(result, compile_same_job)]
+        return [_insert_result(result, reuse_similar_job)]
     else:
-        return [_insert_result(item, compile_same_job) for item in result]
+        return [_insert_result(item, reuse_similar_job) for item in result]
 
 
-def _insert_result(result: Result, compile_same_job: bool = True):
+def _insert_result(result: Result, reuse_similar_job: bool = True):
     import json
     from sqlite3 import connect
 
-    if compile_same_job:
+    if reuse_similar_job:
         job_ids = fetch_jobs_with_job(result.job)
         if len(job_ids) == 0:
             job_id = insert_jobs(result.job)[0]

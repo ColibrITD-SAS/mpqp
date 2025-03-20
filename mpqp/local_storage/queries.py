@@ -1,31 +1,16 @@
-"""provides utility functions to query and fetch data from the quantum job and result database.
-It includes methods to retrieve all records, specific records by ID, and filtered records based on
-:class:`~mpqp.execution.job.Job` or :class:`~mpqp.execution.result.Result` objects.
-"""
+"""provides utility functions to query and fetch data from the quantum job and
+result database. It includes methods to retrieve all records, specific records
+by ID, and filtered records based on :class:`~mpqp.execution.job.Job` or
+:class:`~mpqp.execution.result.Result` objects."""
 
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
-from typing import Optional
 
 from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
 from mpqp.local_storage.setup import DictDB, ensure_local_storage
-
-
-@dataclass
-class QueryJob:
-    """
-    A class used to represent a Query Job.
-
-    Args:
-        id : The unique identifier for the query job. Default is None.
-
-    """
-
-    id: Optional[str] = None
 
 
 @ensure_local_storage
@@ -208,10 +193,11 @@ def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
 @ensure_local_storage
 def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
     """Fetch job(s) records matching specific job(s) attributes:
-        - JobType
-        - Circuit
-        - Device
-        - Measure
+
+    - job type,
+    - circuit,
+    - device,
+    - measure.
 
     Args:
         job: Job(s) to match.
@@ -259,14 +245,17 @@ def fetch_jobs_with_result_and_job(
     result: Result | BatchResult | list[Result],
 ) -> list[DictDB]:
     """Fetch job(s) associated with specific results(s) attributes:
-        - data
-        - error
-        - shots
-       And also with the job attribute of the results(s):
-        - JobType
-        - Circuit
-        - Device
-        - Measure
+
+    - data,
+    - error,
+    - shots.
+
+    And also with the job attribute of the results(s):
+
+    - job type,
+    - circuit,
+    - device,
+    - measure.
 
     Args:
         result: Result(s) to match.
@@ -337,9 +326,10 @@ def fetch_jobs_with_result_and_job(
 @ensure_local_storage
 def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[DictDB]:
     """Fetch job(s) associated with specific results(s) attributes:
-        - data
-        - error
-        - shots
+
+        - data,
+        - error,
+        - shots.
 
     Args:
         result: Result(s) to match.
@@ -405,14 +395,17 @@ def fetch_results_with_result_and_job(
     result: Result | BatchResult | list[Result],
 ) -> list[DictDB]:
     """Fetch result(s) associated with specific results(s) attributes:
-        - data
-        - error
-        - shots
+
+    - data,
+    - error,
+    - shots.
+
     And also with the job attribute of the results(s):
-        - JobType
-        - Circuit
-        - Device
-        - Measure
+
+    - job type,
+    - circuit,
+    - device,
+    - measure.
 
     Args:
         result: The Result(s) to match.
@@ -483,10 +476,11 @@ def fetch_results_with_result_and_job(
 @ensure_local_storage
 def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
     """Fetch result(s) associated with the job attribute of the results(s)
-        - JobType
-        - Circuit
-        - Device
-        - Measure
+
+    - job type,
+    - circuit,
+    - device,
+    - measure.
 
     Args:
         jobs: The job(s) to match.
@@ -549,9 +543,10 @@ def fetch_results_with_result(
     result: Result | BatchResult | list[Result],
 ) -> list[DictDB]:
     """Fetch result(s) matching specific results(s) attributes:
-        - data
-        - error
-        - shots
+
+    - data,
+    - error,
+    - shots.
 
     Args:
         result: The result(s) to match.
