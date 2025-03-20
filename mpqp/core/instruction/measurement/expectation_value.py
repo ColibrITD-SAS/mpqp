@@ -69,12 +69,8 @@ class Observable:
         >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sorted_monomials()
         3*I@Z + 4*X@Y
 
-        >>> Observable([1, -2, 3, -4]) # doctest: +NORMALIZE_WHITESPACE
-        Observable(array([[ 1.+0.j, 0.+0.j, 0.+0.j, 0.+0.j],
-                [ 0.+0.j, -2.+0.j, 0.+0.j, 0.+0.j],
-                [ 0.+0.j, 0.+0.j, 3.+0.j, 0.+0.j],
-                [ 0.+0.j, 0.+0.j, 0.+0.j, -4.+0.j]],
-            dtype=complex64))
+        >>> Observable([1, -2, 3, -4])
+        Observable([ 1. -2.  3. -4.])
 
     """
 
@@ -238,6 +234,9 @@ class Observable:
         return self._is_diagonal
 
     def __repr__(self) -> str:
+        if self._is_diagonal and self._diag_elements is not None:
+            return f"{type(self).__name__}({self.diagonal_elements})"
+
         return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
 
     def __mult__(self, other: Expr | Real) -> Observable:
@@ -255,7 +254,7 @@ class Observable:
                 return True
             # TODO: check if self is multiple of identity
 
-        return ~np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
+        return not np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
 
     def subs(
         self, values: dict[Expr | str, Real], remove_symbolic: bool = False
