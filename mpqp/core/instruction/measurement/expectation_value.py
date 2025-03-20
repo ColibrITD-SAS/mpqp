@@ -134,7 +134,7 @@ class Observable:
         """The matrix representation of the observable."""
         if self._matrix is None:
             if self.is_diagonal and self._diag_elements is not None:
-                self._matrix = np.diag(np.array(self._diag_elements, dtype=np.float64))
+                self._matrix = np.diag(self._diag_elements)
             else:
                 self._matrix = self.pauli_string.to_matrix()
         matrix = copy.deepcopy(self._matrix).astype(np.complex64)
@@ -157,8 +157,8 @@ class Observable:
     def diagonal_elements(self) -> npt.NDArray[np.float64]:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
-            self._diag_elements = np.diagonal(self.matrix)
-        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float64)).real
+            self._diag_elements = np.diagonal(self.matrix).real
+        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float64))
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
@@ -244,7 +244,7 @@ class Observable:
         """3M-TODO"""
         ...
 
-    def commutes_with(self, obs: Observable):
+    def commutes_with(self, obs: Observable) -> bool:
         """3M-TODO"""
         # Naive version, just computing AB - BA, and compare to 0 matrix.
         # TODO : distinguer si on a l'observable ou le pauli string
@@ -278,7 +278,7 @@ class Observable:
             Depends on the target language.
 
         Example:
-            >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
+            >>> obs = Observable([0.7, -1, 1, 1])
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> obs_qiskit.to_list()  # doctest: +NORMALIZE_WHITESPACE
             [('II', (0.42499999701976776+0j)), ('IZ', (0.42499999701976776+0j)),
@@ -424,6 +424,10 @@ class ExpectationMeasure(Measure):
         3M-TODO
         """
         ...
+
+    def are_all_diagonal(self) -> bool:
+        """Returns True if all the observables in the ExpectationMeasure are diagonal."""
+        return all([o.is_diagonal for o in self.observables])
 
     def __repr__(self) -> str:
         targets = (
