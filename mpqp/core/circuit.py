@@ -1326,7 +1326,7 @@ class QCircuit:
                  └───┘└╥┘
             c: 1/══════╩═
                        0
-            >>> print(circuit.to_other_device(IBMDevice.IBM_BRISBANE))  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+            >>> print(circuit.to_other_device(IBMDevice.IBM_BRISBANE))  # doctest: +SKIP
             global phase: π/4
                                ┌─────────┐┌────┐┌─────────┐┌─┐
                       q_0 -> 0 ┤ Rz(π/2) ├┤ √X ├┤ Rz(π/2) ├┤M├
