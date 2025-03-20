@@ -162,9 +162,12 @@ def _run_diagonal_observables(
 
     # proceed to the dot product
     for obs in exp_measure.observables:
-        exp_value = probas.dot(obs.diagonal_elements) # TODO: replace this dot product with qupy, apparently more optim
+        exp_value = probas.dot(
+            obs.diagonal_elements
+        )  # TODO: replace this dot product with qupy, apparently more optim
 
     # return the expectation values in Result or BatchResult
+
 
 @typechecked
 def _run_single(

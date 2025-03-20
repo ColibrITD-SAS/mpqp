@@ -101,7 +101,7 @@ def list_diagonal_observable_inputs() -> list[Union[Matrix, PauliString, list[Re
         Z @ Z + Z @ I - I @ Z,
         np.array([[1, 0], [0, -6]]),
         np.array([[1, 0, 0, 0], [0, 3, 0, 0], [0, 0, 6, 0], [0, 0, 0, -6]]),
-        np.diag([3, 2, 5, 4, 2, 5, 4, 3])
+        np.diag([3, 2, 5, 4, 2, 5, 4, 3]),
     ]
 
 
@@ -156,11 +156,15 @@ def test_diagonal_observable_attributes(list_diagonal_observable_inputs):
         o = Observable(ii)
         assert o.is_diagonal == True
         assert o.pauli_string.is_diagonal()
-        assert matrix_eq(np.diag(o.diagonal_elements) - o.matrix, np.zeros((2**o.nb_qubits, 2**o.nb_qubits)))
+        assert matrix_eq(
+            np.diag(o.diagonal_elements) - o.matrix,
+            np.zeros((2**o.nb_qubits, 2**o.nb_qubits)),
+        )
 
 
 def test_repr_observable_from_diag_elements():
     from numpy import array
+
     o = Observable([1, 2, 3, 4])
     repr_o = o.__repr__()
     oo = eval(repr_o)
