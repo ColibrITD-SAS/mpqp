@@ -163,9 +163,11 @@ def test_diagonal_observable_attributes(list_diagonal_observable_inputs):
 
 
 def test_repr_observable_from_diag_elements():
-    from numpy import array
-
     o = Observable([1, 2, 3, 4])
     repr_o = o.__repr__()
     oo = eval(repr_o)
-    assert oo.__dict__ == o.__dict__
+    assert oo._matrix is None and o._matrix is None
+    assert oo._is_diagonal == o._is_diagonal
+    assert oo._pauli_string is None and o._pauli_string is None
+    assert matrix_eq(oo._diag_elements, o._diag_elements)
+
