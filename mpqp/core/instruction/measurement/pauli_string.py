@@ -411,7 +411,7 @@ class PauliString:
 
     @staticmethod
     def from_diagonal_elements(
-        diagonal_elements: list[Real] | npt.NDArray[np.float64],
+        diagonal_elements: list[float] | npt.NDArray[np.float64],
         method: Literal["walsh", "ptdr"] = "walsh",
     ) -> PauliString:
         """Create a PauliString from the diagonal elements of a diagonal

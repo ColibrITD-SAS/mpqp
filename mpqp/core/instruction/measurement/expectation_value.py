@@ -124,13 +124,13 @@ class Observable:
                 self._is_diagonal = True
                 self._diag_elements = np.array(observable)
 
-        self._diag_elements: npt.NDArray[np.float]
-
     @property
     def matrix(self) -> Matrix:
         """The matrix representation of the observable."""
         if self._matrix is None:
             if self.is_diagonal and self._diag_elements is not None:
+                if TYPE_CHECKING:
+                    assert isinstance(self._diag_elements, np.ndarray)
                 self._matrix = np.diag(self._diag_elements)
             else:
                 self._matrix = self.pauli_string.to_matrix()
