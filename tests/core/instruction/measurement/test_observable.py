@@ -151,7 +151,7 @@ def test_pauli_to_matrix_to_pauli(
 
 
 def test_diagonal_observable_attributes(
-    list_diagonal_observable_inputs: list[Union[Matrix, PauliString, list[float]]]
+    list_diagonal_observable_inputs: list[Union[Matrix, PauliString, list[float]]],
 ):
     for ii in list_diagonal_observable_inputs:
         o = Observable(ii)
