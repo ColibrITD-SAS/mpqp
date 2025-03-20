@@ -111,9 +111,7 @@ def test_matrix_to_pauli(list_matrix_pauli_string: list[tuple[Matrix, PauliStrin
 
 
 def test_diagonal_elements_to_pauli(
-    list_diagonal_elements_pauli_string: list[
-        tuple[list[float], PauliString]
-    ],
+    list_diagonal_elements_pauli_string: list[tuple[list[float], PauliString]],
 ):
     for diag, ps in list_diagonal_elements_pauli_string:
         assert PauliString.from_diagonal_elements(diag, method="ptdr") == ps

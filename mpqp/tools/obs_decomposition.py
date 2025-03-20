@@ -403,7 +403,8 @@ def generate_and_explore_node_diagonal_case(
 
 @typechecked
 def decompose_diagonal_observable_ptdr(
-    diag_elements: list[float] | npt.NDArray[np.float64], print_progression: bool = False
+    diag_elements: list[float] | npt.NDArray[np.float64],
+    print_progression: bool = False,
 ) -> PauliString:
     """Decomposes a diagonal observable into a Pauli string representation.
 
