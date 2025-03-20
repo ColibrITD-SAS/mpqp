@@ -111,9 +111,7 @@ def test_matrix_to_pauli(list_matrix_pauli_string: list[tuple[Matrix, PauliStrin
 
 
 def test_diagonal_elements_to_pauli(
-    list_diagonal_elements_pauli_string: list[
-        tuple[list[float], PauliString]
-    ],
+    list_diagonal_elements_pauli_string: list[tuple[list[float], PauliString]],
 ):
     for diag, ps in list_diagonal_elements_pauli_string:
         assert PauliString.from_diagonal_elements(diag, method="ptdr") == ps
@@ -155,11 +153,11 @@ def test_diagonal_observable_attributes(
 ):
     for ii in list_diagonal_observable_inputs:
         o = Observable(ii)
-        assert o.is_diagonal == True
+        assert o.is_diagonal is True
         assert o.pauli_string.is_diagonal()
         assert matrix_eq(
             np.diag(o.diagonal_elements) - o.matrix,
-            np.zeros((2**o.nb_qubits, 2**o.nb_qubits)),
+            np.zeros((2**o.nb_qubits, 2**o.nb_qubits)).astype(np.complex64),
         )
 
 
@@ -176,5 +174,6 @@ def test_repr_observable_from_diag_elements():
         and o._pauli_string is None  # pyright: ignore[reportPrivateUsage]
     )
     assert matrix_eq(
-        oo._diag_elements, o._diag_elements  # pyright: ignore[reportPrivateUsage]
+        oo._diag_elements,
+        np.array(o._diag_elements),  # pyright: ignore[reportPrivateUsage]
     )
