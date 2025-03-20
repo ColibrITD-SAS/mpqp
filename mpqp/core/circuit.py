@@ -1316,18 +1316,27 @@ class QCircuit:
             The corresponding circuit in the target device.
 
         Examples:
-            >>> circuit = QCircuit([H(0), CZ(0,1), Depolarizing(0.6, [0]), BasisMeasure()])
-            >>> qc = circuit.to_other_device(GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+            >>> circuit = QCircuit([H(0), BasisMeasure()])
+            >>> qc = circuit.to_other_device(IBMDevice.AER_SIMULATOR)
             >>> type(qc)
-            <class 'cirq.circuits.circuit.Circuit'>
+            <class 'qiskit.circuit.quantumcircuit.QuantumCircuit'>
             >>> print(qc) # doctest: +NORMALIZE_WHITESPACE
-            q_0: ───I───H───@───M('')───
-                            │   │
-            q_1: ───I───────@───M───────
-            >>> print(circuit.to_other_device(GOOGLEDevice.PROCESSOR_WEBER)) # doctest: +NORMALIZE_WHITESPACE
-            (3, 4): ───PhXZ(a=0.526,x=0.5,z=-0.526)───iSwap───────PhXZ(a=-0.5,x=1,z=0)───iSwap───────PhXZ(a=-1,x=0.5,z=-0.974)────────M───────
-                                                        │                                  │                                            │
-            (3, 5): ───PhXZ(a=3.53e-09,x=0.4,z=0.5)───iSwap^0.5──────────────────────────iSwap^0.5───PhXZ(a=-1.11e-16,x=0.5,z=-0.4)───M('')───
+                 ┌───┐┌─┐
+              q: ┤ H ├┤M├
+                 └───┘└╥┘
+            c: 1/══════╩═
+                       0
+            >>> print(circuit.to_other_device(IBMDevice.IBM_BRISBANE))  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+            global phase: π/4
+                               ┌─────────┐┌────┐┌─────────┐┌─┐
+                      q_0 -> 0 ┤ Rz(π/2) ├┤ √X ├┤ Rz(π/2) ├┤M├
+                               └─────────┘└────┘└─────────┘└╥┘
+                ancilla_0 -> 1 ─────────────────────────────╫─ ...
+                                                            ║
+            ancilla_125 -> 126 ─────────────────────────────╫─
+                                                            ║
+                          c: 1/═════════════════════════════╩═
+                                                            0
 
         Note:
             Most providers take noise into account at the job level. A notable
