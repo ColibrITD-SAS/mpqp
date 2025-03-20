@@ -25,9 +25,7 @@ OptimizerCallable = Callable[
 ]
 OptimizerCallback = Union[
     Callable[[OptimizeResult], None],
-    Callable[
-        [Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None
-    ],
+    Callable[[Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None],
 ]
 
 
