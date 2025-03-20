@@ -83,7 +83,10 @@ def job_pre_processing(job: Job) -> "Circuit":
                 "`OBSERVABLE` jobs with shots!=0 are disabled for MPO."
             )
 
-    myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
+    if job.circuit.transpile_circuit is None:
+        myqlm_circuit = job.circuit.to_other_device(job.device)
+    else:
+        myqlm_circuit = job.circuit.transpile_circuit
 
     return myqlm_circuit
 

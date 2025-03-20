@@ -37,16 +37,20 @@ def run_azure(job: Job) -> Result:
     """
     from qiskit import QuantumCircuit
 
-    qiskit_circuit = (
-        (
-            # 3M-TODO: careful, if we ever support several measurements, the
-            # line bellow will have to changer
-            job.circuit.without_measurements()
-            + job.circuit.pre_measure()
-        ).to_other_language(Language.QISKIT)
-        if (job.job_type == JobType.STATE_VECTOR)
-        else job.circuit.to_other_language(Language.QISKIT)
-    )
+    if job.circuit.transpile_circuit is None:
+        qiskit_circuit = (
+            (
+                # 3M-TODO: careful, if we ever support several measurements, the
+                # line bellow will have to changer
+                job.circuit.without_measurements()
+                + job.circuit.pre_measure()
+            ).to_other_language(Language.QISKIT)
+            if (job.job_type == JobType.STATE_VECTOR)
+            else job.circuit.to_other_language(Language.QISKIT)
+        )
+    else:
+        qiskit_circuit = job.circuit.transpile_circuit
+
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
