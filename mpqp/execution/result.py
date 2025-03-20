@@ -685,6 +685,8 @@ class Result:
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
             >>> Result.delete_by_local_id(1)
+            >>> for result in Result.load_all(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
             Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
             Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
             Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
