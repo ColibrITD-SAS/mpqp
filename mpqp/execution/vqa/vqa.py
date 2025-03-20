@@ -23,13 +23,11 @@ OptimizerCallable = Callable[
     [OptimizableFunc, Optional[OptimizerInput], Optional[OptimizerOptions]],
     tuple[float, OptimizerInput],
 ]
-OptimizerCallback = Optional[
-    Union[
-        Callable[[OptimizeResult], None],
-        Callable[
-            [Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None
-        ],
-    ]
+OptimizerCallback = Union[
+    Callable[[OptimizeResult], None],
+    Callable[
+        [Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None
+    ],
 ]
 
 
