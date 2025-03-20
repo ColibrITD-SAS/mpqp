@@ -143,6 +143,30 @@ def generate_job(
 
 
 @typechecked
+def _run_diagonal_observables(
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: dict[Expr | str, Complex],
+    display_breakpoints: bool = True,
+):
+
+    # modify the measurement of the circuit
+    exp_measure = circuit.measurements[0]
+    assert isinstance(exp_measure, ExpectationMeasure)
+    adapted_circuit = circuit.without_measurements()
+    adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
+
+    result = _run_single(circuit, device, values, display_breakpoints)
+    assert isinstance(result, Result)
+    probas = result.probabilities
+
+    # proceed to the dot product
+    for obs in exp_measure.observables:
+        exp_value = probas.dot(obs.diagonal_elements) # TODO: replace this dot product with qupy, apparently more optim
+
+    # return the expectation values in Result or BatchResult
+
+@typechecked
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
@@ -298,6 +322,8 @@ def run(
     def namer(circ: QCircuit, i: int):
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
+
+    # TODO: here detect that we have a full diag observable job
 
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
