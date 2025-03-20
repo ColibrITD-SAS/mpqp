@@ -433,7 +433,11 @@ class ExpectationMeasure(Measure):
         )
         shots = "" if self.shots == 0 else f", shots={self.shots}"
         label = "" if self.label is None else f", label={self.label}"
-        observables = f"{self.observables[0]}" if len(self.observables) == 1 else f"{self.observables}"
+        observables = (
+            f"{self.observables[0]}"
+            if len(self.observables) == 1
+            else f"{self.observables}"
+        )
         return f"ExpectationMeasure({observables}{targets}{shots}{label})"
 
     def to_other_language(
