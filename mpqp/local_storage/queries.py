@@ -34,7 +34,7 @@ def fetch_all_jobs() -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -65,7 +65,7 @@ def fetch_all_results() -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -95,7 +95,7 @@ def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -136,7 +136,7 @@ def fetch_jobs_with_id(job_id: int | list[int]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -173,7 +173,7 @@ def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -215,7 +215,7 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -273,7 +273,7 @@ def fetch_jobs_with_result_and_job(
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -349,7 +349,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -423,7 +423,7 @@ def fetch_results_with_result_and_job(
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -498,7 +498,7 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -565,7 +565,7 @@ def fetch_results_with_result(
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
 

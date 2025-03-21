@@ -10,6 +10,17 @@ import pytest
 
 from mpqp.all import *
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.local_storage.delete import (
+    clear_local_storage,
+    remove_all_with_job_id,
+    remove_jobs_with_id,
+    remove_jobs_with_jobs_local_storage,
+    remove_results_with_id,
+    remove_results_with_job,
+    remove_results_with_job_id,
+    remove_results_with_result,
+    remove_results_with_results_local_storage,
+)
 from mpqp.local_storage.load import (
     get_all_jobs,
     get_all_results,
@@ -36,25 +47,11 @@ from mpqp.local_storage.queries import (
     fetch_results_with_result_and_job,
 )
 from mpqp.local_storage.save import insert_jobs, insert_results
-from mpqp.local_storage.setup import (
-    DictDB,
-    setup_local_storage,
-)
-from mpqp.local_storage.delete import (
-    clear_local_storage,
-    remove_all_with_job_id,
-    remove_jobs_with_id,
-    remove_jobs_with_jobs_local_storage,
-    remove_results_with_id,
-    remove_results_with_job,
-    remove_results_with_job_id,
-    remove_results_with_result,
-    remove_results_with_results_local_storage,
-)
+from mpqp.local_storage.setup import DictDB, setup_local_storage
 
 
 def create_test_local_storage():
-    save_local_storage = get_env_variable("DATA_BASE")
+    save_local_storage = get_env_variable("DB_PATH")
     setup_local_storage("tests/local_storage/test_local_storage.db")
     clear_local_storage()
     c = QCircuit([H(0), CNOT(0, 1), BasisMeasure()], label="H CX BM")
@@ -75,12 +72,12 @@ def create_test_local_storage():
     c2 = QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id")
     result12 = run([c1, c2], device=IBMDevice.AER_SIMULATOR)
     insert_results(result12)
-    save_env_variable("DATA_BASE", save_local_storage)
+    save_env_variable("DB_PATH", save_local_storage)
 
 
 @pytest.fixture
 def mock_local_storage_results() -> list[dict[str, DictDB | Result]]:
-    save_local_storage = get_env_variable("DATA_BASE")
+    save_local_storage = get_env_variable("DB_PATH")
     setup_local_storage("tests/local_storage/test_local_storage.db")
 
     results = fetch_all_results()
@@ -93,13 +90,13 @@ def mock_local_storage_results() -> list[dict[str, DictDB | Result]]:
             }
         )
 
-    save_env_variable("DATA_BASE", save_local_storage)
+    save_env_variable("DB_PATH", save_local_storage)
     return local_storage_results
 
 
 @pytest.fixture
 def mock_local_storage_jobs() -> list[dict[str, DictDB | Job]]:
-    save_local_storage = get_env_variable("DATA_BASE")
+    save_local_storage = get_env_variable("DB_PATH")
     setup_local_storage("tests/local_storage/test_local_storage.db")
 
     jobs = fetch_all_jobs()
@@ -109,14 +106,14 @@ def mock_local_storage_jobs() -> list[dict[str, DictDB | Job]]:
             {"job_local_storage": job, "job": jobs_local_storage_to_mpqp(job)[0]}
         )
 
-    save_env_variable("DATA_BASE", save_local_storage)
+    save_env_variable("DB_PATH", save_local_storage)
     return local_storage_jobs
 
 
 class DBRunner:  # TODO: should be merge the two DbRunners ?
     def __init__(self):
         self.database_name = inspect.stack()[1].function
-        self.save_local_storage = get_env_variable("DATA_BASE")
+        self.save_local_storage = get_env_variable("DB_PATH")
 
     def __enter__(self):
         import shutil
@@ -142,7 +139,7 @@ class DBRunner:  # TODO: should be merge the two DbRunners ?
                 os.getcwd(), f"tests/local_storage/test_{self.database_name}.db"
             )
         )
-        save_env_variable("DATA_BASE", self.save_local_storage)
+        save_env_variable("DB_PATH", self.save_local_storage)
 
 
 def test_get_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):

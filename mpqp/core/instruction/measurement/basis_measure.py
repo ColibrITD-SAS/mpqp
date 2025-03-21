@@ -162,6 +162,7 @@ class BasisMeasure(Measure):
         return self.to_dict() == other.to_dict()
 
     def to_dict(self):
+        # TODO: can this be a bit more automatic ?
         return {
             "targets": self.targets,
             "c_targets": self.c_targets,

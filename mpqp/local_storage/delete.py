@@ -25,7 +25,7 @@ def clear_local_storage():
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
 
         cursor.execute('DELETE FROM results')
@@ -77,7 +77,7 @@ def remove_jobs_with_id(job_id: int | list[int]):
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         if isinstance(job_id, int):
             cursor.execute('DELETE FROM jobs WHERE id is ?', (job_id,))
@@ -107,7 +107,7 @@ def remove_results_with_id(result_id: int | list[int]):
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         if isinstance(result_id, int):
             cursor.execute('DELETE FROM results WHERE id is ?', (result_id,))
@@ -201,7 +201,7 @@ def remove_results_with_job_id(job_id: int | list[int]):
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         if isinstance(job_id, int):
             cursor.execute('DELETE FROM results WHERE job_id is ?', (job_id,))

@@ -617,7 +617,7 @@ class Result:
         """
         from mpqp.local_storage.load import get_results_with_id
 
-        return get_results_with_id(result_id)
+        return get_results_with_id(result_id)[0]
 
     @staticmethod
     def load_by_local_job_id(job_id: int):
@@ -657,8 +657,7 @@ class Result:
 
     def save(self):
         """Save a result to the local storage and returns the corresponding
-        local ``id`` for when the result needs to be retrieved, or ``None`` if
-        the saving operation failed.
+        local ``id`` to be used when the result needs to be retrieved.
 
         Uses :func:`~mpqp.local_storage.save.insert_results`."""
         from mpqp.local_storage.save import insert_results
@@ -800,10 +799,30 @@ class BatchResult:
         if show:
             plt.show()
 
+    @staticmethod
+    def load_by_local_ids(result_ids: list[int]):
+        """Get the locally stored result(s) associated with a local result id.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_id`.
+
+        Args:
+            result_id: Local id of the result you need.
+
+        Example:
+            >>> Result.load_by_local_id(1)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+
+        """
+        from mpqp.local_storage.load import get_results_with_id
+
+        return BatchResult(get_results_with_id(result_ids))
+
     def save(self):
         """Save a batch of results to the local storage and returns the
-        corresponding local ``id``s for when the results needs to be retrieved,
-        or ``None`` if the saving operation failed."""
+        corresponding local ``id``s to be used when the results needs to be
+        retrieved.
+
+        Uses :func:`~mpqp.local_storage.save.insert_results`."""
         from mpqp.local_storage.save import insert_results
 
         return insert_results(self)

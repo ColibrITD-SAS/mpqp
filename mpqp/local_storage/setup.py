@@ -23,7 +23,7 @@ def get_database_version() -> str:
     """Retrieves the current database version from the version table."""
     from sqlite3 import connect
 
-    with connect(get_env_variable("DATA_BASE")) as connection:
+    with connect(get_env_variable("DB_PATH")) as connection:
         cursor = connection.cursor()
         cursor.execute("SELECT version FROM version WHERE id = 1")
         result = cursor.fetchone()
@@ -38,7 +38,7 @@ def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
 
     @wraps(func)  # This keeps the original function's docstring for test
     def wrapper(*args: Any, **kwargs: dict[str, Any]) -> T:
-        if get_env_variable("DATA_BASE") == "":
+        if get_env_variable("DB_PATH") == "":
             setup_local_storage()
 
         db_version = get_database_version()
@@ -79,7 +79,7 @@ def setup_local_storage(path: Optional[str] = None):
         path = str(p)
     else:
         path = str(Path("~/.mpqp/result_storage.db").expanduser().resolve())
-    save_env_variable("DATA_BASE", path)
+    save_env_variable("DB_PATH", path)
     connection = sqlite3.connect(path)
     cursor = connection.cursor()
 

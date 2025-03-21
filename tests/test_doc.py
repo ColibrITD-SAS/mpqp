@@ -30,6 +30,17 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
+from mpqp.local_storage.delete import (
+    clear_local_storage,
+    remove_all_with_job_id,
+    remove_jobs_with_id,
+    remove_jobs_with_jobs_local_storage,
+    remove_results_with_id,
+    remove_results_with_job,
+    remove_results_with_job_id,
+    remove_results_with_result,
+    remove_results_with_results_local_storage,
+)
 from mpqp.local_storage.load import (
     get_all_jobs,
     get_all_remote_job_ids,
@@ -52,28 +63,15 @@ from mpqp.local_storage.queries import (
     fetch_jobs_with_id,
     fetch_jobs_with_job,
     fetch_jobs_with_result,
+    fetch_jobs_with_result_and_job,
     fetch_results_with_id,
     fetch_results_with_job,
     fetch_results_with_job_id,
     fetch_results_with_result,
     fetch_results_with_result_and_job,
-    fetch_jobs_with_result_and_job,
 )
 from mpqp.local_storage.save import insert_jobs, insert_results
-from mpqp.local_storage.setup import (
-    setup_local_storage,
-)
-from mpqp.local_storage.delete import (
-    clear_local_storage,
-    remove_all_with_job_id,
-    remove_jobs_with_id,
-    remove_jobs_with_jobs_local_storage,
-    remove_results_with_id,
-    remove_results_with_job,
-    remove_results_with_job_id,
-    remove_results_with_result,
-    remove_results_with_results_local_storage,
-)
+from mpqp.local_storage.setup import setup_local_storage
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import (
     qasm2_to_cirq_Circuit,
@@ -99,8 +97,8 @@ from mpqp.tools.display import (
     clean_matrix,
     clean_number_repr,
     format_element,
-    pprint,
     format_element_str,
+    pprint,
 )
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
@@ -123,7 +121,7 @@ from mpqp.tools.maths import (
 sys.path.insert(0, os.path.abspath("."))
 
 
-class SafeRunner:
+class EnvRunner:
     def __enter__(self):
         _create_config_if_needed()
         env = get_existing_config_str()
@@ -171,7 +169,7 @@ class DBRunner:
         db_temp = Path("tests/local_storage/test_local_storage_tmp.db").absolute()
 
         shutil.copyfile(db_original, db_temp)
-        self.original_local_storage_location = get_env_variable("DATA_BASE")
+        self.original_local_storage_location = get_env_variable("DB_PATH")
         setup_local_storage("tests/local_storage/test_local_storage_tmp.db")
 
     def __exit__(
@@ -190,7 +188,9 @@ test_globals = globals().copy()
 test_globals.update(locals())
 
 to_pass = ["connection", "noise_methods", "remote_handle"]
-unsafe_files = ["env", "local_storage"]
+files_needing_db = ["local_storage", "result", "job"]
+unsafe_files = ["env"] + files_needing_db
+
 
 finder = DocTestFinder()
 runner = DocTestRunner()
@@ -225,8 +225,8 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
             and "6M-TODO" not in test.docstring
         ):
             if safe_needed:
-                with SafeRunner():
-                    if "local_storage" in root + filename:
+                with EnvRunner():
+                    if any(name in root + filename for name in files_needing_db):
                         with DBRunner():
                             assert runner.run(test).failed == 0
                     else:

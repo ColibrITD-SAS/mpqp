@@ -2,6 +2,8 @@
 storage. In the process, they are converted to MPQP  objects
 (:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`)."""
 
+# TODO: put DB specific errors here ?
+
 from __future__ import annotations
 
 from typing import Optional
@@ -131,8 +133,7 @@ def get_all_jobs() -> list[Job]:
         Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
 
     """
-    jobs = fetch_all_jobs()
-    return jobs_local_storage_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(fetch_all_jobs())
 
 
 def get_all_results() -> list[Result]:
@@ -156,8 +157,7 @@ def get_all_results() -> list[Result]:
         Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
     """
-    results = fetch_all_results()
-    return results_local_storage_to_mpqp(results)
+    return results_local_storage_to_mpqp(fetch_all_results())
 
 
 def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
@@ -182,8 +182,7 @@ def get_jobs_with_job(job: Job | list[Job]) -> list[Job]:
         [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
 
     """
-    jobs = fetch_jobs_with_job(job)
-    return jobs_local_storage_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(fetch_jobs_with_job(job))
 
 
 def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Job]:
@@ -211,8 +210,7 @@ def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Jo
         [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
 
     """
-    jobs = fetch_jobs_with_result(result)
-    return jobs_local_storage_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(fetch_jobs_with_result(result))
 
 
 def get_results_with_result_and_job(
@@ -250,8 +248,7 @@ def get_results_with_result_and_job(
         Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
     """
-    results = fetch_results_with_result_and_job(result)
-    return results_local_storage_to_mpqp(results)
+    return results_local_storage_to_mpqp(fetch_results_with_result_and_job(result))
 
 
 def get_results_with_result(
@@ -284,8 +281,7 @@ def get_results_with_result(
         Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
     """
-    results = fetch_results_with_result(result)
-    return results_local_storage_to_mpqp(results)
+    return results_local_storage_to_mpqp(fetch_results_with_result(result))
 
 
 def get_results_with_id(result_id: int | list[int]) -> list[Result]:
@@ -309,8 +305,7 @@ def get_results_with_id(result_id: int | list[int]) -> list[Result]:
         Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
 
     """
-    results = fetch_results_with_id(result_id)
-    return results_local_storage_to_mpqp(results)
+    return results_local_storage_to_mpqp(fetch_results_with_id(result_id))
 
 
 def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
@@ -333,8 +328,7 @@ def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
         Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
 
     """
-    jobs = fetch_jobs_with_id(job_id)
-    return jobs_local_storage_to_mpqp(jobs)
+    return jobs_local_storage_to_mpqp(fetch_jobs_with_id(job_id))
 
 
 def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
@@ -355,5 +349,4 @@ def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
     """
-    results = fetch_results_with_job_id(job_id)
-    return results_local_storage_to_mpqp(results)
+    return results_local_storage_to_mpqp(fetch_results_with_job_id(job_id))

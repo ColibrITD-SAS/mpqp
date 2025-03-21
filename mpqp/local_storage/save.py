@@ -2,6 +2,9 @@
 :class:`~mpqp.execution.result.Result` into the local database.
 """
 
+# TODO: put DB specific errors here ?
+# TODO: document the raised errors
+
 from __future__ import annotations
 
 from mpqp.execution import BatchResult, Job, Result
@@ -9,7 +12,7 @@ from mpqp.execution.connection.env_manager import get_env_variable
 from mpqp.local_storage.queries import fetch_jobs_with_job
 
 
-def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
+def insert_jobs(jobs: Job | list[Job]) -> list[int]:
     """Insert a job in the database.
 
     Method corresponding: :meth:`~mpqp.execution.job.Job.save`.
@@ -29,10 +32,10 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
     import json
     from sqlite3 import connect
 
-    connection = connect(get_env_variable("DATA_BASE"))
+    connection = connect(get_env_variable("DB_PATH"))
     cursor = connection.cursor()
 
-    job_ids = []
+    job_ids: list[int] = []
     if isinstance(jobs, list):
         for job in jobs:
             circuit_json = json.dumps(repr(job.circuit))
@@ -52,10 +55,14 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
                     str(job.status),
                 ),
             )
-            job_ids.append(cursor.lastrowid)
+            id = cursor.lastrowid
+            if id is None:
+                raise ValueError("Job saving failed")
+            job_ids.append(id)
 
             connection.commit()
     else:
+        # TODO: I think we could factorize this part
         circuit_json = json.dumps(repr(jobs.circuit))
         measure_json = json.dumps(repr(jobs.measure)) if jobs.measure else None
 
@@ -71,7 +78,10 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
                 measure_json,
             ),
         )
-        job_ids.append(cursor.lastrowid)
+        id = cursor.lastrowid
+        if id is None:
+            raise ValueError("Job saving failed")
+        job_ids.append(id)
 
         connection.commit()
 
@@ -82,7 +92,7 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int | None]:
 
 def insert_results(
     result: Result | BatchResult | list[Result], reuse_similar_job: bool = True
-) -> list[int | None]:
+) -> list[int]:
     """Insert a result or batch result into the database.
 
     Methods corresponding: :meth:`Result.save
@@ -95,7 +105,7 @@ def insert_results(
             database and reuses its ID to avoid duplicates.
 
     Returns:
-        List of IDs of the inserted result(s). Returns ``None`` for failed insertions.
+        List of IDs of the inserted result(s).
 
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
@@ -122,7 +132,7 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
     else:
         job_id = insert_jobs(result.job)[0]
 
-    connection = connect(get_env_variable("DATA_BASE"))
+    connection = connect(get_env_variable("DB_PATH"))
     cursor = connection.cursor()
 
     data_json = json.dumps(repr(result._data))  # pyright: ignore[reportPrivateUsage]
@@ -137,6 +147,8 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
     )
 
     result_id = cursor.lastrowid
+    if result_id is None:
+        raise ValueError("Result saving failed")
 
     connection.commit()
     connection.close()
