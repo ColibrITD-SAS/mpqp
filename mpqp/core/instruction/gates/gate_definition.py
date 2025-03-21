@@ -110,6 +110,7 @@ class GateDefinition(ABC):
                 try:
                     from sympy import N
 
+                    # TODO: replace by matrix_eq
                     val1_numeric = np.array(
                         [[N(el) for el in row] for row in val1], dtype=complex
                     )
