@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional, Sequence
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from braket.circuits import Circuit as BraketCircuit
 from qiskit import QuantumCircuit as QiskitCircuit
@@ -14,13 +15,13 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import I
 from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
-from mpqp.execution.devices import ATOSDevice
-from mpqp.execution.runner import run
+from mpqp.execution.devices import ATOSDevice, IBMDevice
+from mpqp.execution.runner import run, Result
 from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 from mpqp.tools import NumberQubitsError
-from mpqp.tools.circuit import compute_expected_matrix, random_circuit
+from mpqp.tools.circuit import compute_expected_matrix, random_circuit, random_statevector
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
@@ -153,6 +154,27 @@ def test_tensor(
     assert str(QCircuit(inst_list_1) @ (QCircuit(inst_list_2))) == str(
         QCircuit(inst_list_result)
     )
+
+
+@pytest.mark.parametrize(
+        "state",
+        [
+            (np.array([1/np.sqrt(2), 1/np.sqrt(2)])),
+            (np.array([1, 0, 0 ,1])/np.sqrt(2)),
+            (random_statevector(1)),
+            (random_statevector(2)),
+            (random_statevector(4)),
+            (random_statevector(6)),
+            (np.array([1/2, np.sqrt(3)/2])),
+            (np.array([1, 1j]) / np.sqrt(2))
+        ],
+)
+def test_initializer(state: npt.NDArray[np.complex64]): 
+    qc = QCircuit.initializer(state)
+    res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
+    assert isinstance(res, Result)
+    state_vector_initialized = res.state_vector.vector
+    assert matrix_eq(state, state_vector_initialized)
 
 
 @pytest.mark.parametrize(
