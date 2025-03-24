@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, Union
 
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.tools.errors import DeviceJobIncompatibleError
@@ -17,11 +17,11 @@ from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
-from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 
 
 @typechecked
-def run_google(job: Job) -> Result:
+def run_google(job: Job) -> BatchResult | Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
 
@@ -105,7 +105,7 @@ def run_google_remote(job: Job) -> Result:
 
 
 @typechecked
-def run_local(job: Job) -> Result:
+def run_local(job: Job) -> BatchResult | Result:
     """Executes the job locally.
 
     Args:
@@ -164,16 +164,19 @@ def run_local(job: Job) -> Result:
             assert isinstance(job.measure, ExpectationMeasure)
         # TODO: update this to take into account the case when we have list of Observables
         # TODO: check if Cirq allows for a list of observable when computing expectation values (apparently yes)
-        cirq_obs = job.measure.observables[0].to_other_language(
-            language=Language.CIRQ, circuit=cirq_circuit
-        )
-        if TYPE_CHECKING:
-            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
+        cirq_observables: list[Union[Cirq_PauliSum, Cirq_PauliString]] = []
+        for obs in job.measure.observables:
+            translated = obs.to_other_language(
+                language=Language.CIRQ, circuit=cirq_circuit
+            )
+            if TYPE_CHECKING:
+                assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
+            cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
                 simulator.simulate_expectation_values(
-                    cirq_circuit, observables=cirq_obs
+                    cirq_circuit, observables=cirq_observables
                 ),
                 job,
             )
@@ -182,13 +185,10 @@ def run_local(job: Job) -> Result:
                 # TODO: here precise the 'grouper' argument of measure_observable to precise the pauli grouping strategy
                 measure_observables(
                     cirq_circuit,
-                    observables=(  # pyright: ignore[reportArgumentType]
-                        [cirq_obs]
-                        if isinstance(cirq_obs, CirqPauliString)
-                        else cirq_obs
-                    ),
+                    observables=cirq_observables,
                     sampler=simulator,
                     stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
+                    grouper=...,
                 ),
                 job,
             )
@@ -197,7 +197,7 @@ def run_local(job: Job) -> Result:
 
 
 @typechecked
-def run_local_processor(job: Job) -> Result:
+def run_local_processor(job: Job) -> BatchResult | Result:
     """Executes the job locally on processor.
 
     Args:
@@ -253,11 +253,14 @@ def run_local_processor(job: Job) -> Result:
             assert isinstance(job.measure, ExpectationMeasure)
 
         # TODO: update this to take into account the case when we have list of Observables
-        cirq_obs = job.measure.observables[0].to_other_language(
-            language=Language.CIRQ, circuit=cirq_circuit
-        )
-        if TYPE_CHECKING:
-            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
+        cirq_observables: list[Union[Cirq_PauliSum, Cirq_PauliString]] = []
+        for obs in job.measure.observables:
+            translated = obs.to_other_language(
+                language=Language.CIRQ, circuit=cirq_circuit
+            )
+            if TYPE_CHECKING:
+                assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
+            cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             raise DeviceJobIncompatibleError(
@@ -267,7 +270,7 @@ def run_local_processor(job: Job) -> Result:
             simulator.get_sampler(job.device.value).sample_expectation_values(
                 # TODO: update for multi-observable runs
                 cirq_circuit,
-                observables=cirq_obs,
+                observables=cirq_observables,
                 num_samples=job.measure.shots,
             ),
             job,
@@ -340,7 +343,7 @@ def extract_result_STATE_VECTOR(
 def extract_result_OBSERVABLE_processors(
     results: Sequence[Sequence[float]],
     job: Job,
-) -> Result:
+) -> BatchResult | Result:
     """Process measurement results for an observable from a quantum job.
 
     Args:
@@ -358,16 +361,20 @@ def extract_result_OBSERVABLE_processors(
     # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    mean = 0
-    for result in results:
-        mean += sum(result) / len(result)
-    return Result(job, mean, 0, job.measure.shots)
+
+    all_results = []
+    for observable_results in results:
+        mean = sum(observable_results) / len(observable_results)
+        shots = job.measure.shots
+        all_results.append(Result(job, mean, 0, shots))
+
+    return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
 
 def extract_result_OBSERVABLE_ideal(
     results: list[float],
     job: Job,
-) -> Result:
+) -> BatchResult | Result:
     """Extracts the result from an observable-based ideal job.
 
     The simulation from which the result to parse comes from can take in several
@@ -391,13 +398,20 @@ def extract_result_OBSERVABLE_ideal(
     # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    return Result(job, sum(map(lambda r: r.real, results)), 0, job.measure.shots)
+
+    all_results = []
+    for r in results:
+        mean = float(r.real)
+        shots = job.measure.shots
+        all_results.append(Result(job, mean, 0, shots))
+
+    return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
 
 def extract_result_OBSERVABLE_shot_noise(
     results: list[ObservableMeasuredResult],
     job: Job,
-) -> Result:
+) -> BatchResult | Result:
     """Extracts the result from an observable-based job.
 
     Args:
@@ -415,10 +429,13 @@ def extract_result_OBSERVABLE_shot_noise(
     )
     if TYPE_CHECKING:
         assert isinstance(pauli_mono, list)
-    variances = {pm: r.variance for pm, r in zip(pauli_mono, results)}
-    return Result(
-        job,
-        sum(map(lambda r: r.mean, results)),
-        variances,
-        job.measure.shots,
-    )
+
+    all_results = []
+    for pm, r in zip(pauli_mono, results):
+        mean = float(r.mean)
+        variance = float(r.variance)
+        shots = job.measure.shots
+
+        all_results.append(Result(job, mean, variance, shots))
+
+    return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
