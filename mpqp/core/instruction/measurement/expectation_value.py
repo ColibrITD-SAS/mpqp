@@ -319,6 +319,8 @@ class ExpectationMeasure(Measure):
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
         label: Label used to identify the measure.
+        optim_diagonal: Indicates if the computation of expectation value for
+            diagonal observables should be optimized.
 
     Warns:
         UserWarning: If the ``targets`` are not sorted and contiguous, some
@@ -339,10 +341,13 @@ class ExpectationMeasure(Measure):
         targets: Optional[list[int]] = None,
         shots: int = 0,
         label: Optional[str] = None,
+        optim_diagonal: Optional[bool] = True,
     ):
 
         super().__init__(targets, shots, label)
         self.observables: list[Observable]
+        """See parameter description."""
+        self.optim_diagonal = optim_diagonal
         """See parameter description."""
 
         if isinstance(observable, Observable):

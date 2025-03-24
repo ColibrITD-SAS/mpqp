@@ -143,6 +143,43 @@ def generate_job(
 
 
 @typechecked
+def _run_diagonal_observables(
+    circuit: QCircuit,
+    exp_measure: ExpectationMeasure,
+    device: AvailableDevice,
+    observable_job: Job,
+    values: dict[Expr | str, Complex],
+) -> Result | BatchResult:
+
+    print("We enter hereeee")
+    # modify the measurement of the circuit
+    adapted_circuit = circuit.without_measurements()
+    adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
+
+    result = _run_single(adapted_circuit, device, values, False)
+    assert isinstance(result, Result)
+    probas = result.probabilities
+
+    results = []
+    # proceed to the dot product
+    for obs in exp_measure.observables:
+        exp_value = probas.dot(
+            obs.diagonal_elements
+        )  # TODO: replace this dot product with qupy, apparently more optim
+        results.append(
+            Result(
+                observable_job,
+                exp_value,
+                0 if exp_measure.shots == 0 else None,
+                exp_measure.shots,
+            )
+        )
+
+    # return the expectation values in Result or BatchResult
+    return BatchResult(results) if len(results) > 1 else results[0]
+
+
+@typechecked
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
@@ -190,6 +227,12 @@ def _run_single(
     circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
+
+    if len(circuit.measurements) == 1:
+        measure = circuit.measurements[0]
+        if isinstance(measure, ExpectationMeasure):
+            if measure.are_all_diagonal() and measure.optim_diagonal:
+                return _run_diagonal_observables(circuit, measure, device, job, values)
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
