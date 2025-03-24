@@ -611,7 +611,7 @@ class Result:
             result_id: Local id of the result you need.
 
         Example:
-            >>> Result.load_by_local_id(1)
+            >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
             Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
 
         """
@@ -809,7 +809,7 @@ class BatchResult:
             result_id: Local id of the result you need.
 
         Example:
-            >>> Result.load_by_local_id(1)
+            >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
             Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
 
         """

@@ -225,7 +225,7 @@ class Job:
             job_id: Local id of the job you need.
 
         Example:
-            >>> Job.load_by_local_id(1)
+            >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS
             Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
         """
         from mpqp.local_storage.load import get_jobs_with_id
