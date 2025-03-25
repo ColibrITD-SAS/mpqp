@@ -47,6 +47,7 @@ class Observable:
         observable : can be either a Hermitian matrix representing the
             observable, or PauliString representing the observable, or a list
             of diagonal elements of the matrix when the observable is diagonal.
+        label : Label used to identify the observable.
 
     Raises:
         ValueError: If the input matrix is not Hermitian or does not have a
@@ -67,11 +68,17 @@ class Observable:
 
     """
 
-    def __init__(self, observable: Matrix | PauliString | list[float]):
+    def __init__(
+        self,
+        observable: Matrix | PauliString | list[float],
+        label: Optional[str] = None,
+    ):
         self._matrix = None
         self._pauli_string = None
         self._is_diagonal = None
         self._diag_elements = None
+        self.label = label
+        "See parameter description."
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -222,7 +229,7 @@ class Observable:
             # If only the diagonal elements are known, it means the observable is diagonal
             elif self._diag_elements is not None:
                 self._is_diagonal = True
-            # Otherwise, the observable is empty, we return False by convention
+            # Otherwise, the observable is empty, we raise an error
             else:
                 raise ValueError("Cannot determine if an empty observable is diagonal.")
 
@@ -230,10 +237,13 @@ class Observable:
 
     def __repr__(self) -> str:
         if self._is_diagonal and self._diag_elements is not None:
-            return f"{type(self).__name__}({np.array2string(self.diagonal_elements, separator=', ')})"
-        if self._matrix is not None:
-            return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
-        return f"{type(self).__name__}({self.pauli_string})"
+            data = f"{np.array2string(self.diagonal_elements, separator=', ')}"
+        elif self._matrix is not None:
+            data = f"{one_lined_repr(self.matrix)}"
+        else:
+            data = f"{self.pauli_string}"
+        label_str = ", " + self.label if self.label is not None else ""
+        return f"{type(self).__name__}({data}{label_str})"
 
     def __mult__(self, other: Expr | float) -> Observable:
         """3M-TODO"""
@@ -291,7 +301,7 @@ class Observable:
         elif language == Language.BRAKET:
             from braket.circuits.observables import Hermitian
 
-            return Hermitian(self.matrix)
+            return Hermitian(self.matrix, self.label)
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
@@ -303,7 +313,7 @@ class Observable:
         if not isinstance(other, Observable):
             return False
 
-        if self.nb_qubits == other.nb_qubits:
+        if self.nb_qubits == other.nb_qubits and self.label == other.label:
             if self._is_diagonal:
                 if other.is_diagonal:
                     return matrix_eq(self.diagonal_elements, other.diagonal_elements)
@@ -340,7 +350,7 @@ class ExpectationMeasure(Measure):
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
-        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value # doctest: +SKIP
+        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
 
     """
@@ -368,6 +378,19 @@ class ExpectationMeasure(Measure):
                     + str([o.nb_qubits for o in observable])
                 )
             self.observables = observable
+
+        # Fill observables labels if not set
+        label_defined = set()
+        label_counter = 0
+        default_label = self.label if self.label is not None else "observable"
+        for obs in self.observables:
+            if obs.label is None:
+                while f"{default_label}_{label_counter}" in label_defined:
+                    label_counter += 1
+                obs.label = f"{default_label}_{label_counter}"
+                label_counter += 1
+            else:
+                label_defined.add(obs.label)
         self._check_targets_order()
 
     def _check_targets_order(self):

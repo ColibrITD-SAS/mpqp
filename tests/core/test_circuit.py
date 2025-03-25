@@ -377,7 +377,7 @@ def test_measure_no_target(measure: Measure):
     circuit.add(measure)
 
     if isinstance(measure, ExpectationMeasure):
-        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_value, float)  # type: ignore[AttributeAccessIssue]
+        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_values, float)  # type: ignore[AttributeAccessIssue]
     else:
         assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
 

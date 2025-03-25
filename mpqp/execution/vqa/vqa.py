@@ -111,7 +111,7 @@ def minimize(
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         {alpha: params[0], beta: params[1]}
         ...     )
-        ...     return 1 - run_res.expectation_value ** 2
+        ...     return 1 - run_res.expectation_values ** 2
         >>> minimize(
         ...     cost_func,
         ...     Optimizer.BFGS,

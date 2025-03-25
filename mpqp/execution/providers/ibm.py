@@ -648,6 +648,7 @@ def extract_result(
                     if job.device.is_simulator() and job.measure is not None
                     else result[0].metadata["shots"]
                 )
+                # TODO: update here for list of expectation values
                 all_results.append(Result(job, mean, error, shots))
 
         else:
@@ -680,6 +681,7 @@ def extract_result(
             # Since we don't handle multiple sampling jobs, we know the first result is the only one
             return Result(job, data, None, job.measure.shots)
 
+        # TODO: update here for list of expectation values
         return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
     else:
@@ -709,6 +711,7 @@ def extract_result(
                 )
                 all_results.append(Result(job, result.values[i], variance, shots))
 
+            # TODO: update here for list of expectation values
             return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
 
         elif isinstance(

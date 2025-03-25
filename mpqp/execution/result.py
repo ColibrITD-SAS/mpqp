@@ -294,13 +294,13 @@ class Result:
     def __init__(
         self,
         job: Job,
-        data: float | StateVector | list[Sample],
+        data: float | dict["str", float] | StateVector | list[Sample],
         errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
         """See parameter description."""
-        self._expectation_value = None
+        self._expectation_values = None
         self._state_vector = None
         self._probabilities = None
         self._counts = None
@@ -313,13 +313,15 @@ class Result:
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
-            if not isinstance(data, float):
+            if not isinstance(
+                data, float
+            ):  # TODO: update here for list of expectation values
                 raise TypeError(
-                    "Wrong type of data in the result. "
-                    "Expecting float for expectation value of an observable"
+                    "Wrong type of data in the Result. "
+                    "Expecting float or dict[str, float] for expectation value of observable(s)."
                 )
             else:
-                self._expectation_value = data
+                self._expectation_values = data
         elif job.job_type == JobType.STATE_VECTOR:
             if not isinstance(data, StateVector):
                 raise TypeError(
@@ -387,16 +389,16 @@ class Result:
         return self.job.device
 
     @property
-    def expectation_value(self) -> float:
+    def expectation_values(self) -> Union[float, dict[str, float]]:
         """Get the expectation value stored in this result"""
         if self.job.job_type != JobType.OBSERVABLE:
             raise ResultAttributeError(
                 f"Job type: {self.job.job_type.name} but cannot get expectation"
-                " value if the job type is not OBSERVABLE."
+                " values if the job type is not OBSERVABLE."
             )
         if TYPE_CHECKING:
-            assert self._expectation_value is not None
-        return self._expectation_value
+            assert self._expectation_values is not None
+        return self._expectation_values
 
     @property
     def amplitudes(self) -> npt.NDArray[np.complex64]:
@@ -497,9 +499,10 @@ class Result:
         if self.job.job_type == JobType.STATE_VECTOR:
             return header + "\n" + str(self.state_vector)
 
+        # TODO: update here for list of expectation values
         if self.job.job_type == JobType.OBSERVABLE:
             return f"""{header}
- Expectation value: {self.expectation_value}
+ Expectation values: {self.expectation_values}
  Error/Variance: {self.error}"""
 
         raise NotImplementedError(
@@ -508,6 +511,7 @@ class Result:
         )
 
     def __repr__(self) -> str:
+        # TODO: update here for list of expectation values
         return (
             f"Result({repr(self.job)}, {repr(self._data)}, {repr(self.error)}, "
             f"{repr(self.shots)})"
@@ -562,6 +566,7 @@ class Result:
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Result):
             return False
+        # TODO: update here for list of expectation values
         return self.to_dict() == other.to_dict()
 
     def to_dict(self):
@@ -756,7 +761,7 @@ class BatchResult:
 
     """
 
-    def __init__(self, results: list[Union[Result, BatchResult]]):
+    def __init__(self, results: list[Result]):
         self.results = results
         """See parameter description."""
 
