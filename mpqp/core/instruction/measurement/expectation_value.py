@@ -302,9 +302,13 @@ class Observable:
 
         if not isinstance(other, Observable):
             return False
-        # TODO: rework this function to take into account the diagonal_element case
+
         if self.nb_qubits == other.nb_qubits:
-            if self._matrix is not None:
+            if self._is_diagonal:
+                if other.is_diagonal:
+                    return matrix_eq(self.diagonal_elements, other.diagonal_elements)
+                return False
+            elif self._matrix is not None:
                 return matrix_eq(self.matrix, other.matrix)
             else:
                 return self.pauli_string == other.pauli_string
