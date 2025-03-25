@@ -840,7 +840,7 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
 
-        # TODO: Give only U-gates, find a better decomposition method
+        # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
         from qiskit import QuantumCircuit
         from qiskit.quantum_info import Statevector
@@ -855,6 +855,7 @@ class QCircuit:
         qiskit_circuit = QuantumCircuit(size)
         qiskit_circuit.append(StatePreparation(Statevector(normalize(state))), range(size))
         circ, phase = replace_custom_gate(qiskit_circuit[0], size)
+        circ = circ.reverse_bits()
         cls = QCircuit.from_other_language(circ)
         cls.gphase = phase
         return cls
@@ -1377,22 +1378,19 @@ class QCircuit:
         """
         from mpqp.qasm.qasm_to_mpqp import qasm2_parse
         from qiskit.circuit import QuantumCircuit
-        from cirq.circuits.circuit import Circuit as cirq_Circuit
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
-            qcircuit = qcircuit.reverse_bits()
             qasm2_code = qasm2.dumps(qcircuit)
             return qasm2_parse(qasm2_code)
-        elif isinstance(qcircuit, cirq_Circuit):
-            qasm2_code = qcircuit.to_qasm()
-            return qasm2_parse(qasm2_code)
+        
         elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             if not "OPENQASM 2.0;" in qcircuit:
                 raise NotImplementedError(f"Error: only open QASM2 is supported")
             return qasm2_parse(qcircuit)
         else:
             raise NotImplementedError(f"Error: {type(qcircuit)} is not supported")
+
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False

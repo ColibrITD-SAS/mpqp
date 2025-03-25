@@ -334,6 +334,23 @@ def test_to_other_language(
 
 
 @pytest.mark.parametrize(
+        "circuit, language",
+        [
+            (random_circuit(None, 10), Language.QISKIT),
+            (random_circuit(None, 10), Language.QASM2),
+        ],
+)
+def test_from_other_language(circuit: QCircuit, language: Language):
+    circ_to_test = circuit.to_other_language(language)
+    qcircuit = QCircuit()
+    if isinstance(circ_to_test, QiskitCircuit):
+        qcircuit = QCircuit.from_other_language(circ_to_test)
+    elif isinstance(circ_to_test, str):
+        qcircuit = QCircuit.from_other_language(circ_to_test)
+    assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+
+
+@pytest.mark.parametrize(
     "circuit, printed_result_filename",
     [(QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)]), "all")],
 )
