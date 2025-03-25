@@ -981,8 +981,7 @@ class PauliStringMonomial(PauliString):
 
         if self.nb_qubits != other.nb_qubits:
             raise NumberQubitsError(
-                f"The number of qubits of this Pauli monomial ({self.nb_qubits}) is not matching "
-                f"the one of the monomial in parameter ({other.nb_qubits})."
+                f"Mismatch between {self.nb_qubits=} and {other.nb_qubits=}."
             )
 
         return (
