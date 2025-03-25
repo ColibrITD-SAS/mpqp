@@ -59,7 +59,9 @@ Examples:
     >>> l = [2,1,3]
 
 """
-Matrix = Union[npt.NDArray[np.complex64], npt.NDArray[np.float64], npt.NDArray[np.object_]]
+Matrix = Union[
+    npt.NDArray[np.complex64], npt.NDArray[np.float64], npt.NDArray[np.object_]
+]
 """Type alias denoting all the matrices we consider (either matrices of complex 
 or of ``sympy`` expressions, given to ``numpy`` as objects)"""
 
