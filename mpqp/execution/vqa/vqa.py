@@ -24,6 +24,11 @@ OptimizerCallable = Callable[
     [OptimizableFunc, Optional[OptimizerInput], Optional[OptimizerOptions]],
     tuple[float, OptimizerInput],
 ]
+OptimizerCallback = Union[
+    Callable[[OptimizeResult], None],
+    Callable[[Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None],
+]
+
 
 # TODO: all those functions with almost or exactly the same signature look like
 #  a code smell to me.
@@ -48,6 +53,7 @@ def minimize(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, in order to
     minimize the measured expectation value of observables associated with the given circuit.
@@ -72,6 +78,7 @@ def minimize(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         The optimal value reached and the parameters corresponding to this value.
@@ -118,11 +125,25 @@ def minimize(
         if device is None:
             raise ValueError("A device is needed to optimize a circuit")
         optimizer = _minimize_remote if device.is_remote() else _minimize_local
-        return optimizer(optimizable, method, device, init_params, nb_params)
+        return optimizer(
+            optimizable,
+            method,
+            device,
+            init_params,
+            nb_params,
+            optimizer_options,
+            callback,
+        )
     else:
         # TODO: find a way to know if the job is remote or local from the function
         return _minimize_local(
-            optimizable, method, device, init_params, nb_params, optimizer_options
+            optimizable,
+            method,
+            device,
+            init_params,
+            nb_params,
+            optimizer_options,
+            callback,
         )
 
 
@@ -134,6 +155,7 @@ def _minimize_remote(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -159,6 +181,7 @@ def _minimize_remote(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         The optimal value reached and the parameters used to reach this value.
@@ -176,6 +199,7 @@ def _minimize_local(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -201,6 +225,7 @@ def _minimize_local(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         the optimal value reached and the parameters used to reach this value.
@@ -209,11 +234,11 @@ def _minimize_local(
         if device is None:
             raise ValueError("A device is needed to optimize a circuit")
         return _minimize_local_circ(
-            optimizable, device, method, init_params, optimizer_options
+            optimizable, device, method, init_params, optimizer_options, callback
         )
     else:
         return _minimize_local_func(
-            optimizable, method, init_params, nb_params, optimizer_options
+            optimizable, method, init_params, nb_params, optimizer_options, callback
         )
 
 
@@ -224,6 +249,7 @@ def _minimize_local_circ(
     method: Optimizer | OptimizerCallable,
     init_params: Optional[OptimizerInput] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by its
@@ -245,6 +271,7 @@ def _minimize_local_circ(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         The optimal value reached and the parameters used to reach this value.
@@ -279,7 +306,7 @@ def _minimize_local_circ(
         return result.expectation_value
 
     return _minimize_local_func(
-        eval_circ, method, init_params, len(variables), optimizer_options
+        eval_circ, method, init_params, len(variables), optimizer_options, callback
     )
 
 
@@ -290,6 +317,7 @@ def _minimize_local_func(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[OptimizerOptions] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -313,6 +341,8 @@ def _minimize_local_func(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
+
 
     Returns:
         The optimal value reached and the parameters used to reach this value.
@@ -332,6 +362,7 @@ def _minimize_local_func(
             x0=np.array(init_params),
             method=method.name.lower(),
             options=optimizer_options,
+            callback=callback,
         )
         return res.fun, res.x
     else:

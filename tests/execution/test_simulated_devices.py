@@ -79,7 +79,7 @@ def running_observable_job_ibm_simulated_devices(
     assert True
 
 
-if "--long-local" in sys.argv:
+if "--long-local" in sys.argv or "--long" in sys.argv:
     test_running_sample_job_ibm_simulated_devices = (
         running_sample_job_ibm_simulated_devices
     )

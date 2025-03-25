@@ -25,6 +25,18 @@ def pytest_addoption(parser: pytest.Parser):
     )
 
 
+def pytest_configure(config: Any):
+    """
+    Allows plugins and conftest files to perform initial configuration.
+    This hook is called for every plugin and initial conftest
+    file after command line options have been parsed.
+    """
+    from tests.local_storage.test_local_storage import create_test_local_storage
+
+    print("Creating local storage for tests")
+    create_test_local_storage()
+
+
 @pytest.fixture(autouse=True)
 def mock_random(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest):
     seed = request.config.getoption("--seed")

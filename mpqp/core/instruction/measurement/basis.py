@@ -132,9 +132,16 @@ class Basis:
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
-        joint_vectors = ", ".join(map(one_lined_repr, self.basis_vectors))
-        qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
-        return f"{type(self).__name__}({joint_vectors}{qubits})"
+        joint_vectors = "[" + ", ".join(map(one_lined_repr, self.basis_vectors)) + "]"
+        args = []
+        args.append(joint_vectors)
+        if isinstance(self, VariableSizeBasis):
+            args.append(f"nb_qubits={self.nb_qubits}")
+        if self.symbols != ("0", "1"):
+            args.append(f"symbols={self.symbols}")
+        if self.basis_vectors_labels is not None:
+            args.append(f"basis_vectors_labels={self.basis_vectors_labels}")
+        return f"{type(self).__name__}({', '.join(args)})"
 
     def to_computational(self) -> QCircuit:
         """Converts the custom basis to the computational basis.
@@ -164,6 +171,17 @@ class Basis:
                     UnitaryMatrix(basis_change), targets=list(range(self.nb_qubits))
                 )
             ]
+        )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Basis):
+            return False
+
+        return (
+            self.nb_qubits == other.nb_qubits
+            and np.array_equal(self.basis_vectors, other.basis_vectors)
+            and self.symbols == other.symbols
+            and self.basis_vectors_labels == other.basis_vectors_labels
         )
 
 
@@ -205,6 +223,7 @@ class VariableSizeBasis(Basis):
     ):
         super().__init__(basis_vectors, symbols=symbols)
         self._init_basis = Basis(basis_vectors, symbols=symbols)
+        self._dynamic = True if nb_qubits is None else False
         nb_qubits = (
             int(np.log2(len(basis_vectors[0]))) if nb_qubits is None else nb_qubits
         )
@@ -245,7 +264,14 @@ class VariableSizeBasis(Basis):
         self.nb_qubits = nb_qubits
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(symbols={self.symbols}, nb_qubits={self.nb_qubits}, basis_vectors={len(self.basis_vectors)})"
+        args = []
+        args.append(f"{self._init_basis.basis_vectors}")
+        if not self._dynamic:
+            args.append(f"{self.nb_qubits}")
+        if self.symbols != ("0", "1"):
+            args.append(f"symbols={self.symbols}")
+
+        return f"{type(self).__name__}({', '.join(args)})"
 
 
 class ComputationalBasis(VariableSizeBasis):
@@ -297,6 +323,9 @@ class ComputationalBasis(VariableSizeBasis):
         from mpqp.core.circuit import QCircuit
 
         return QCircuit(self.nb_qubits)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.nb_qubits if not self._dynamic else ''})"
 
 
 class HadamardBasis(VariableSizeBasis):
@@ -351,3 +380,6 @@ class HadamardBasis(VariableSizeBasis):
         if self.nb_qubits == 0:
             return QCircuit(self.nb_qubits)
         return QCircuit([H(qb) for qb in range(self.nb_qubits)])
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.nb_qubits if not self._dynamic else ''})"

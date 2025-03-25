@@ -237,8 +237,9 @@ class Observable:
     def __repr__(self) -> str:
         if self._is_diagonal and self._diag_elements is not None:
             return f"{type(self).__name__}({np.array2string(self.diagonal_elements, separator=', ')})"
-
-        return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
+        if self._matrix is not None:
+            return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
+        return f"{type(self).__name__}({self.pauli_string})"
 
     def __mult__(self, other: Expr | float) -> Observable:
         """3M-TODO"""
@@ -301,6 +302,19 @@ class Observable:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
             raise ValueError(f"Unsupported language: {language}")
+
+    def __eq__(self, other: object) -> bool:
+        from mpqp.tools.maths import matrix_eq
+
+        if not isinstance(other, Observable):
+            return False
+        #TODO: rework this function to take into account the diagonal_element case
+        if self.nb_qubits == other.nb_qubits:
+            if self._matrix is not None:
+                return matrix_eq(self.matrix, other.matrix)
+            else:
+                return self.pauli_string == other.pauli_string
+        return False
 
 
 @typechecked
@@ -430,19 +444,20 @@ class ExpectationMeasure(Measure):
         return all([o.is_diagonal for o in self.observables])
 
     def __repr__(self) -> str:
-        targets = (
-            f", {self.targets}"
-            if (not self._dynamic and len(self.targets)) != 0
-            else ""
-        )
-        shots = "" if self.shots == 0 else f", shots={self.shots}"
-        label = "" if self.label is None else f", label={self.label}"
+        args = []
         observables = (
             f"{self.observables[0]}"
             if len(self.observables) == 1
             else f"{self.observables}"
         )
-        return f"ExpectationMeasure({observables}{targets}{shots}{label})"
+        args.append(observables)
+        if not self._dynamic and len(self.targets) != 0:
+            args.append(f"{self.targets}")
+        if self.shots != 0:
+            args.append(f"shots={self.shots}")
+        if self.label is not None:
+            args.append(f"label='{self.label}'")
+        return f"ExpectationMeasure({', '.join(args)})"
 
     def to_other_language(
         self,
@@ -455,3 +470,22 @@ class ExpectationMeasure(Measure):
             "appropriate data, and the data in later used in the needed "
             "locations."
         )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ExpectationMeasure):
+            return False
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        """
+        Serialize the Expectation Measure to a dictionary.
+        Returns:
+            dict: A dictionary representation of the Expectation Measure.
+        """
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if attr_name not in {}
+            and not attr_name.startswith("__")
+            and not callable(getattr(self, attr_name))
+        }
