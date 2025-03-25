@@ -24,7 +24,7 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -756,7 +756,7 @@ class BatchResult:
 
     """
 
-    def __init__(self, results: list[Result | BatchResult]):
+    def __init__(self, results: list[Union[Result, BatchResult]]):
         self.results = results
         """See parameter description."""
 
@@ -810,7 +810,7 @@ class BatchResult:
         Uses :func:`~mpqp.local_storage.load.get_results_with_id`.
 
         Args:
-            result_id: Local id of the result you need.
+            result_ids: List of local id of the result you need.
 
         Example:
             >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
