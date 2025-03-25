@@ -59,14 +59,8 @@ class Observable:
         Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]], dtype=complex64))
 
         >>> from mpqp.measures import I, X, Y, Z
-        >>> Observable(3 * I @ Z + 4 * X @ Y)  # doctest: +NORMALIZE_WHITESPACE
-        Observable(array([[ 3.+0.j,  0.+0.j, 0.+0.j,  0.+4.j],
-                [ 0.+0.j, -3.+0.j, 0.-4.j,  0.+0.j],
-                [ 0.+0.j,  0.+4.j, 3.+0.j,  0.+0.j],
-                [ 0.-4.j,  0.+0.j, 0.+0.j, -3.+0.j]],
-            dtype=complex64))
-        >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sorted_monomials()
-        3*I@Z + 4*X@Y
+        >>> Observable(3 * I @ Z + 4 * X @ Y)
+        Observable(3*I@Z + 4*X@Y)
 
         >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
         Observable([ 1., -2., 3., -4.])

@@ -17,7 +17,7 @@ def full_commutation_pauli_grouping_greedy(
     Examples:
         >>> from mpqp.measures import I, X, Y, Z
         >>> full_commutation_pauli_grouping_greedy([I@X@X, Y@Y@Z, I@I@I, -3*Z@Y@X, Y@X@Y, -Z@Z@Y, 2*X@X@Y])
-        [[1*I@X@X, 1*Y@Y@Z, 1*I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [1*Y@X@Y], [2*X@X@Y]]
+        [[I@X@X, Y@Y@Z, I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [Y@X@Y], [2*X@X@Y]]
     """
 
     groups = []
