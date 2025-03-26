@@ -31,7 +31,7 @@ from typeguard import typechecked
 @typechecked
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
-) -> Result | BatchResult:
+) -> Result:
     """Retrieve and parse a remote the result from a job_id and device. If the
     job is still running, it will wait until it is done.
 

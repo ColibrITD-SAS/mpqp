@@ -238,15 +238,15 @@ class Result:
     The data type in a result depends on the job type, according to the
     following chart:
 
-    +-------------+--------------+
-    | Job Type    | Data Type    |
-    +=============+==============+
-    | OBSERVABLE  | float        |
-    +-------------+--------------+
-    | SAMPLE      | list[Sample] |
-    +-------------+--------------+
-    | STATE_VECTOR| StateVector  |
-    +-------------+--------------+
+    +-------------+---------------------------+
+    | Job Type    | Data Type                 |
+    +=============+===========================+
+    | OBSERVABLE  | float | dict[str, float]  |
+    +-------------+---------------------------+
+    | SAMPLE      | list[Sample]              |
+    +-------------+---------------------------+
+    | STATE_VECTOR| StateVector               |
+    +-------------+---------------------------+
 
     Args:
         job: Type of the job related to this result.

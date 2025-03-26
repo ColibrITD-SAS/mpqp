@@ -57,10 +57,8 @@ def test_sequential_versus_multi(
         device,
     )
 
-    assert isinstance(multi_result, BatchResult)
-    assert len(seq_results) == len(multi_result.results)
+    assert len(seq_results) == len(multi_result.expectation_values)
 
-    for r1, r2 in zip(seq_results, multi_result.results):
-        assert isinstance(r1, Result)
-        assert isinstance(r2, Result)
-        assert r1.expectation_value == r2.expectation_value
+    # TODO modify here to match the logic of dict and observable.label etc
+    for r1, e2 in zip(seq_results, multi_result.expectation_values):
+        assert r1.expectation_values == e2

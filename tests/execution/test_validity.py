@@ -327,7 +327,7 @@ def test_observable_ideal_case(
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
-        assert abs(result.expectation_value - expected_value) < (
+        assert abs(result.expectation_values - expected_value) < (
             atol + rtol * abs(expected_value)
         )
 
@@ -462,7 +462,7 @@ def measures():
         ),
         BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(2)),
         BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
-        ExpectationMeasure(Observable(np.diag([0.7, -1, 1, 1])), shots=10),
+        ExpectationMeasure(Observable([0.7, -1, 1, 1]), shots=10),
     ]
 
 

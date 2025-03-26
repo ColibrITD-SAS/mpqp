@@ -303,7 +303,7 @@ def _minimize_local_circ(
         )
         if TYPE_CHECKING:
             assert isinstance(result, Result)
-        return result.expectation_value
+        return result.expectation_values
 
     return _minimize_local_func(
         eval_circ, method, init_params, len(variables), optimizer_options, callback

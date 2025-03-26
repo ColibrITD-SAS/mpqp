@@ -393,6 +393,14 @@ class ExpectationMeasure(Measure):
                 label_defined.add(obs.label)
         self._check_targets_order()
 
+    @property
+    def nb_observables(self) -> int:
+        return len(self.observables)
+
+    @property
+    def observables_labels(self) -> list[str]:
+        return [o.label for o in self.observables]
+
     def _check_targets_order(self):
         """Ensures target qubits are ordered and contiguous, rearranging them if necessary (private)."""
         from mpqp.core.circuit import QCircuit
