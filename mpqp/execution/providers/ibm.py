@@ -631,9 +631,7 @@ def extract_result(
 
         if hasattr(res_data, "evs"):
             if job is None:
-                job = Job(
-                    JobType.OBSERVABLE, QCircuit(0), device, None
-                )
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
             exp_values = np.atleast_1d(exp_values)
@@ -707,9 +705,7 @@ def extract_result(
         if isinstance(result, EstimatorResult):
 
             if job is None:
-                job = Job(
-                    JobType.OBSERVABLE, QCircuit(0), device, None
-                )
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
 
             if len(result.values) == 1:
                 return Result(

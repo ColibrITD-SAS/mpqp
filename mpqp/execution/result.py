@@ -295,7 +295,9 @@ class Result:
         self,
         job: Job,
         data: float | dict["str", float] | StateVector | list[Sample],
-        errors: Optional[float | dict[PauliString, float] | dict[str, float] | dict[Any, Any]] = None,
+        errors: Optional[
+            float | dict[PauliString, float] | dict[str, float] | dict[Any, Any]
+        ] = None,
         shots: int = 0,
     ):
         self.job = job
