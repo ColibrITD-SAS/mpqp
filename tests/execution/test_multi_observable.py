@@ -60,5 +60,5 @@ def test_sequential_versus_multi(
     assert len(seq_results) == len(multi_result.expectation_values)
 
     # TODO modify here to match the logic of dict and observable.label etc
-    for r1, e2 in zip(seq_results, multi_result.expectation_values):
+    for r1, e2 in zip(seq_results, multi_result.expectation_values.values()):
         assert r1.expectation_values == e2

@@ -52,9 +52,9 @@ class StateVector:
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
         >>> print(state_vector)
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
 
     """
 
@@ -84,9 +84,9 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f""" State vector: {clean_1D_array(self.vector)}
- Probabilities: {clean_1D_array(self.probabilities)}
- Number of qubits: {self.nb_qubits}"""
+        return f"""  State vector: {clean_1D_array(self.vector)}
+  Probabilities: {clean_1D_array(self.probabilities)}
+  Number of qubits: {self.nb_qubits}"""
 
     def __repr__(self) -> str:
         return f"StateVector({clean_1D_array(self.vector)})"
@@ -260,9 +260,9 @@ class Result:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
         >>> job = Job(
         ...     JobType.SAMPLE,
         ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
@@ -274,17 +274,17 @@ class Result:
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         Counts: [250, 0, 0, 250]
-         Probabilities: [0.5, 0, 0, 0.5]
-         Samples:
-          State: 00, Index: 0, Count: 250, Probability: 0.5
-          State: 11, Index: 3, Count: 250, Probability: 0.5
-         Error: 0.034
+          Counts: [250, 0, 0, 250]
+          Probabilities: [0.5, 0, 0, 0.5]
+          Samples:
+            State: 00, Index: 0, Count: 250, Probability: 0.5
+            State: 11, Index: 3, Count: 250, Probability: 0.5
+          Error: 0.034
         >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         Expectation value: -3.09834
-         Error/Variance: 0.021
+          Expectation value: -3.09834
+          Error/Variance: 0.021
 
     """
 
@@ -313,12 +313,11 @@ class Result:
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
-            if not isinstance(
-                data, float
-            ):  # TODO: update here for list of expectation values
+            if not isinstance(data, float) and not isinstance(data, dict):
                 raise TypeError(
                     "Wrong type of data in the Result. "
-                    "Expecting float or dict[str, float] for expectation value of observable(s)."
+                    "Expecting float or dict[str, float] for expectation value of observable(s),"
+                    f"but got {type(data).__name__}"
                 )
             else:
                 self._expectation_values = data
@@ -485,25 +484,33 @@ class Result:
                 )
 
             samples_str = "\n".join(
-                f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
+                f"    State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
                 f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
                 for sample, probability in zip(self.samples, probabilities)
             )
             return f"""{header}
- Counts: {self._counts}
- Probabilities: {clean_1D_array(self.probabilities)}
- Samples:
+  Counts: {self._counts}
+  Probabilities: {clean_1D_array(self.probabilities)}
+  Samples:
 {samples_str}
- Error: {self.error}"""
+  Error: {self.error}"""
 
         if self.job.job_type == JobType.STATE_VECTOR:
             return header + "\n" + str(self.state_vector)
 
-        # TODO: update here for list of expectation values
         if self.job.job_type == JobType.OBSERVABLE:
-            return f"""{header}
- Expectation values: {self.expectation_values}
- Error/Variance: {self.error}"""
+            if isinstance(self.expectation_values, float):
+                return f"""{header}
+  Expectation value: {self.expectation_values}
+  Error/Variance: {self.error}"""
+            else:
+                expectation_str = "\n".join(
+                    f"  {label}:\n"
+                    f"    Expectation value: {self.expectation_values[label]}\n"
+                    f"    Error/Variance: {self.error[label]}"
+                    for label in self.expectation_values
+                )
+                return header + "\n" + expectation_str
 
         raise NotImplementedError(
             f"I don't know how to represent results of {self.job.job_type} jobs"
@@ -740,24 +747,24 @@ class BatchResult:
         >>> print(batch_result)
         BatchResult: 3 results
             Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
-             State vector: [0.5, 0.5, 0.5, -0.5]
-             Probabilities: [0.25, 0.25, 0.25, 0.25]
-             Number of qubits: 2
+              State vector: [0.5, 0.5, 0.5, -0.5]
+              Probabilities: [0.25, 0.25, 0.25, 0.25]
+              Number of qubits: 2
             Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
-             Counts: [250, 0, 0, 250]
-             Probabilities: [0.5, 0, 0, 0.5]
-             Samples:
-              State: 00, Index: 0, Count: 250, Probability: 0.5
-              State: 11, Index: 3, Count: 250, Probability: 0.5
-             Error: 0.034
+              Counts: [250, 0, 0, 250]
+              Probabilities: [0.5, 0, 0, 0.5]
+              Samples:
+                State: 00, Index: 0, Count: 250, Probability: 0.5
+                State: 11, Index: 3, Count: 250, Probability: 0.5
+              Error: 0.034
             Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
-             Expectation value: -3.09834
-             Error/Variance: 0.021
+              Expectation value: -3.09834
+              Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
 
     """
 

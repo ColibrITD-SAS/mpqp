@@ -242,7 +242,7 @@ class Observable:
             data = f"{one_lined_repr(self.matrix)}"
         else:
             data = f"{self.pauli_string}"
-        label_str = ", " + self.label if self.label is not None else ""
+        label_str = f", '{self.label}'" if self.label is not None else ""
         return f"{type(self).__name__}({data}{label_str})"
 
     def __mult__(self, other: Expr | float) -> Observable:
