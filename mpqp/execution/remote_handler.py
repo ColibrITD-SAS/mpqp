@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from mpqp.execution import BatchResult, Result
+from mpqp.execution import Result
 from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
 from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids

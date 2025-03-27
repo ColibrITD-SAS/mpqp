@@ -301,7 +301,10 @@ class Observable:
         elif language == Language.BRAKET:
             from braket.circuits.observables import Hermitian
 
-            return Hermitian(self.matrix, self.label)
+            return Hermitian(
+                self.matrix,
+                display_name=self.label if self.label is not None else "Hermitian",
+            )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
@@ -399,7 +402,7 @@ class ExpectationMeasure(Measure):
 
     @property
     def observables_labels(self) -> list[str]:
-        return [o.label for o in self.observables]
+        return [o.label for o in self.observables if o.label is not None]
 
     def _check_targets_order(self):
         """Ensures target qubits are ordered and contiguous, rearranging them if necessary (private)."""

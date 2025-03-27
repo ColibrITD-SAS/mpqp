@@ -295,7 +295,7 @@ class Result:
         self,
         job: Job,
         data: float | dict["str", float] | StateVector | list[Sample],
-        errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
+        errors: Optional[float | dict[PauliString, float] | dict[str, float] | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -504,6 +504,9 @@ class Result:
   Expectation value: {self.expectation_values}
   Error/Variance: {self.error}"""
             else:
+                if TYPE_CHECKING:
+                    assert isinstance(self.expectation_values, dict)
+                    assert isinstance(self.error, dict)
                 expectation_str = "\n".join(
                     f"  {label}:\n"
                     f"    Expectation value: {self.expectation_values[label]}\n"
@@ -518,7 +521,6 @@ class Result:
         )
 
     def __repr__(self) -> str:
-        # TODO: update here for list of expectation values
         return (
             f"Result({repr(self.job)}, {repr(self._data)}, {repr(self.error)}, "
             f"{repr(self.shots)})"
@@ -573,7 +575,7 @@ class Result:
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Result):
             return False
-        # TODO: update here for list of expectation values
+        # TODO: check here if he can compare a dict containing a dict[str, float]
         return self.to_dict() == other.to_dict()
 
     def to_dict(self):

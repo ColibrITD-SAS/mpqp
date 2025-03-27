@@ -6,7 +6,6 @@ import numpy as np
 import numpy.typing as npt
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
-from mpqp.execution import Result
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.execution.vqa.optimizer import Optimizer
@@ -302,7 +301,7 @@ def _minimize_local_circ(
             _maps(variables, params),  # pyright: ignore[reportArgumentType]
         )
         if TYPE_CHECKING:
-            assert isinstance(result, Result)
+            assert isinstance(result.expectation_values, float)
         return result.expectation_values
 
     return _minimize_local_func(

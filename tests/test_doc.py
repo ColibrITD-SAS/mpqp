@@ -17,10 +17,8 @@ from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
-    _create_config_if_needed,
-)  # pyright: ignore[reportPrivateUsage]
-from mpqp.execution.connection.env_manager import (
     MPQP_ENV,
+    _create_config_if_needed, # pyright: ignore[reportPrivateUsage]
     get_env_variable,
     get_existing_config_str,
     load_env_variables,
@@ -105,10 +103,10 @@ from mpqp.tools.errors import (
 from mpqp.tools.generics import find, find_index, flatten
 from mpqp.tools.maths import (
     closest_unitary,
+    is_diagonal,
     is_hermitian,
     is_power_of_two,
     is_unitary,
-    is_diagonal,
     normalize,
     rand_clifford_matrix,
     rand_hermitian_matrix,

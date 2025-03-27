@@ -20,7 +20,7 @@ from mpqp.execution.connection.ibm_connection import (
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.result import BatchResult, Result, Sample, StateVector
+from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 
 @typechecked
-def run_ibm(job: Job) -> BatchResult | Result:
+def run_ibm(job: Job) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
@@ -579,7 +579,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
 
 @typechecked
-def run_remote_ibm(job: Job) -> BatchResult | Result:
+def run_remote_ibm(job: Job) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
@@ -632,7 +632,7 @@ def extract_result(
         if hasattr(res_data, "evs"):
             if job is None:
                 job = Job(
-                    JobType.OBSERVABLE, QCircuit(0), device, ExpectationMeasure([])
+                    JobType.OBSERVABLE, QCircuit(0), device, None
                 )
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
@@ -654,11 +654,9 @@ def extract_result(
             exp_values_dict = dict()
             errors_dict = dict()
             for i in range(len(exp_values)):
-                if TYPE_CHECKING:
-                    assert isinstance(job.measure, ExpectationMeasure)
                 label = (
                     job.measure.observables[i].label
-                    if job.measure is not None
+                    if isinstance(job.measure, ExpectationMeasure)
                     else f"ibm_obs_{i}"
                 )
                 exp_values_dict[label] = float(exp_values[i])
@@ -710,11 +708,8 @@ def extract_result(
 
             if job is None:
                 job = Job(
-                    JobType.OBSERVABLE, QCircuit(0), device, ExpectationMeasure([])
+                    JobType.OBSERVABLE, QCircuit(0), device, None
                 )
-
-            if TYPE_CHECKING:
-                assert isinstance(job.measure, ExpectationMeasure)
 
             if len(result.values) == 1:
                 return Result(
@@ -736,7 +731,7 @@ def extract_result(
             for i in range(len(result.values)):
                 label = (
                     job.measure.observables[i].label
-                    if job.measure is not None
+                    if isinstance(job.measure, ExpectationMeasure)
                     else f"ibm_obs_{i}"
                 )
                 variance = (
