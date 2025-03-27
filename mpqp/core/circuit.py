@@ -462,12 +462,12 @@ class QCircuit:
 
         """
 
-        if self.nb_qubits < other.nb_qubits:
+        if self._user_nb_qubits is not None and self.nb_qubits < other.nb_qubits:
             raise NumberQubitsError(
                 "Size of the circuit to be appended is greater than the size of"
                 " this circuit"
             )
-        if qubits_offset + other.nb_qubits > self.nb_qubits:
+        if self._user_nb_qubits is not None and qubits_offset + other.nb_qubits > self.nb_qubits:
             raise NumberQubitsError(
                 "Size of the circuit to be appended is too large given the"
                 " index and the size of this circuit"
