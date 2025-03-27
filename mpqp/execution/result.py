@@ -514,6 +514,7 @@ class Result:
                     f"    Expectation value: {self.expectation_values[label]}\n"
                     f"    Error/Variance: {self.error[label]}"
                     for label in self.expectation_values
+                    if isinstance(label, PauliString)
                 )
                 return header + "\n" + expectation_str
 
