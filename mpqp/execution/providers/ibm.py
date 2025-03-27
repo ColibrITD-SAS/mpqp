@@ -631,7 +631,9 @@ def extract_result(
 
         if hasattr(res_data, "evs"):
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device, ExpectationMeasure([]))
+                job = Job(
+                    JobType.OBSERVABLE, QCircuit(0), device, ExpectationMeasure([])
+                )
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
             exp_values = np.atleast_1d(exp_values)
@@ -707,7 +709,9 @@ def extract_result(
         if isinstance(result, EstimatorResult):
 
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device, ExpectationMeasure([]))
+                job = Job(
+                    JobType.OBSERVABLE, QCircuit(0), device, ExpectationMeasure([])
+                )
 
             if TYPE_CHECKING:
                 assert isinstance(job.measure, ExpectationMeasure)
@@ -727,9 +731,7 @@ def extract_result(
             exp_values_dict = dict()
             errors_dict = dict()
 
-            shots = (
-                result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0
-            )
+            shots = result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0
 
             for i in range(len(result.values)):
                 label = (
