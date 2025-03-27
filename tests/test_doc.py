@@ -18,7 +18,7 @@ from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
     MPQP_ENV,
-    _create_config_if_needed, # pyright: ignore[reportPrivateUsage]
+    _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
     get_env_variable,
     get_existing_config_str,
     load_env_variables,
