@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from mpqp import QCircuit
 from mpqp.core.instruction import ExpectationMeasure, Observable
-from mpqp.execution import AvailableDevice, run, IBMDevice, Result, BatchResult
+from mpqp.execution import AvailableDevice, IBMDevice
+from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 
 
@@ -41,26 +42,26 @@ def test_sequential_versus_multi(
     circuit: QCircuit, observables: list[Observable], device: AvailableDevice
 ):
     seq_results = [
-        run(
+        _run_single(
             circuit
             + QCircuit([ExpectationMeasure(obs, shots=0)], nb_qubits=circuit.nb_qubits),
             device,
+            {},
         )
         for obs in observables
     ]
 
-    multi_result = run(
+    multi_result = _run_single(
         circuit
         + QCircuit(
             [ExpectationMeasure(observables, shots=0)], nb_qubits=circuit.nb_qubits
         ),
         device,
+        {},
     )
+    assert isinstance(multi_result.expectation_values, dict)
+    assert len(seq_results) == len(multi_result.expectation_values)
 
-    assert isinstance(multi_result, BatchResult)
-    assert len(seq_results) == len(multi_result.results)
-
-    for r1, r2 in zip(seq_results, multi_result.results):
-        assert isinstance(r1, Result)
-        assert isinstance(r2, Result)
-        assert r1.expectation_value == r2.expectation_value
+    # TODO modify here to match the logic of dict and observable.label etc
+    for r1, e2 in zip(seq_results, multi_result.expectation_values.values()):
+        assert r1.expectation_values == e2
