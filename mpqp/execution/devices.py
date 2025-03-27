@@ -473,7 +473,7 @@ class AZUREDevice(AvailableDevice):
         return self.name.startswith("IONQ")
 
     def supports_samples(self) -> bool:
-        return not self == AZUREDevice.MICROSOFT_ESTIMATOR
+        return True
 
     def supports_state_vector(self) -> bool:
         return False
