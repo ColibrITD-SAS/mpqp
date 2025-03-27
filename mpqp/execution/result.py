@@ -31,7 +31,6 @@ import numpy.typing as npt
 from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
@@ -295,9 +294,7 @@ class Result:
         self,
         job: Job,
         data: float | dict["str", float] | StateVector | list[Sample],
-        errors: Optional[
-            float | dict[PauliString, float] | dict[str, float] | dict[Any, Any]
-        ] = None,
+        errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -514,7 +511,6 @@ class Result:
                     f"    Expectation value: {self.expectation_values[label]}\n"
                     f"    Error/Variance: {self.error[label]}"
                     for label in self.expectation_values
-                    if isinstance(label, PauliString)
                 )
                 return header + "\n" + expectation_str
 
