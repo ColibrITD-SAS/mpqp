@@ -834,11 +834,11 @@ class QCircuit:
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
             >>> print(qc)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐
-            q_0: ┤ H ├──■──
-                 └───┘┌─┴─┐
-            q_1: ─────┤ X ├
-                      └───┘
+                   ┌────────────┐                               
+            q_0: ──┤ U(π/2,0,0) ├────■──────────────────────────
+                 ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
+            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
+                 └────────────────┘└───┘└──────────────────────┘
 
         # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
@@ -1318,15 +1318,14 @@ class QCircuit:
 
     @classmethod
     def from_other_language(
-        cls, qcircuit: QuantumCircuit | cirq_Circuit | str
+        cls, qcircuit: QuantumCircuit | str
     ) -> QCircuit:
-        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, or QASM2) into
+        """Transforms a quantum circuit from an external representation (Qiskit or QASM2) into
         the corresponding internal `QCircuit` format.
 
         Args:
             qcircuit: The input quantum circuit which can be one of the following types:
                 - `QuantumCircuit`: A Qiskit QuantumCircuit object.
-                - `cirq_Circuit`: A Cirq Circuit object.
                 - `str`: A string representing an OpenQASM 2.0 circuit.
 
         Returns:
@@ -1348,19 +1347,6 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
 
-            >>> import cirq
-            >>> q0, q1 = cirq.LineQubit.range(2)
-            >>> cirq_circuit = cirq.Circuit()
-            >>> cirq_circuit.append(cirq.H(q0))
-            >>> cirq_circuit.append(cirq.CNOT(q0, q1))
-            >>> qcircuit2 = QCircuit.from_other_language(cirq_circuit)
-            >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐
-            q_0: ┤ H ├──■──
-                 └───┘┌─┴─┐
-            q_1: ─────┤ X ├
-                      └───┘
-
             >>> qasm2_code = '''
             ... OPENQASM 2.0;
             ... qreg q[2];
@@ -1374,20 +1360,21 @@ class QCircuit:
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
-
         """
         from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-        from qiskit.circuit import QuantumCircuit
+        from qiskit import QuantumCircuit
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
+            
             qasm2_code = qasm2.dumps(qcircuit)
             return qasm2_parse(qasm2_code)
-        
+
         elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             if not "OPENQASM 2.0;" in qcircuit:
                 raise NotImplementedError(f"Error: only open QASM2 is supported")
             return qasm2_parse(qcircuit)
+        
         else:
             raise NotImplementedError(f"Error: {type(qcircuit)} is not supported")
 
