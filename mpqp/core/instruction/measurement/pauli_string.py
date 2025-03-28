@@ -51,7 +51,7 @@ class PauliString:
     Example:
         >>> from mpqp.measures import I, X, Y, Z
         >>> I @ Z + 2 * Y @ I + X @ Z
-        1*I@Z + 2*Y@I + 1*X@Z
+        I@Z + 2*Y@I + X@Z
 
     Note:
         Pauli atoms are named ``I``, ``X``, ``Y``, and ``Z``. If you have
@@ -211,7 +211,7 @@ class PauliString:
             >>> print(ps)
             (θ)*I@X + (k)*Z@Y
             >>> print(ps.subs({theta: np.pi, k: 1}))
-            3.1416*I@X + 1*Z@Y
+            3.1416*I@X + Z@Y
 
         """
         new_pauli_string = PauliString()
@@ -239,7 +239,6 @@ class PauliString:
             -1*I@I
 
         """
-
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
@@ -304,7 +303,7 @@ class PauliString:
         Example:
             >>> from mpqp.measures import I, X, Y, Z
             >>> (2*I@Z + .5*I@X + X@Y).sorted_monomials()
-            0.5*I@X + 2*I@Z + 1*X@Y
+            0.5*I@X + 2*I@Z + X@Y
         """
         return PauliString(
             sorted(self.monomials, key=lambda m: tuple(str(atom) for atom in m.atoms))
@@ -354,7 +353,7 @@ class PauliString:
 
         Example:
             >>> PauliString.from_matrix(np.array([[0, 1], [1, 2]]))
-            1.0*I + 1.0*X - 1.0*Z
+            I + X - Z
 
         """
 
@@ -419,7 +418,7 @@ class PauliString:
 
         Example:
             >>> PauliString.from_diagonal_elements([1, -1, 4, 2])
-            1.5*I@I + 1.0*I@Z - 1.5*Z@I
+            1.5*I@I + I@Z - 1.5*Z@I
         """
 
         if not is_power_of_two(len(diagonal_elements)):
@@ -822,11 +821,12 @@ class PauliStringMonomial(PauliString):
         return [PauliStringMonomial(self.coef, self.atoms)]
 
     def __str__(self):
-        if isinstance(self.coef, Expr):
-            coef = f'({str(self.coef)})'
+        coef = format_element(self.coef)
+        if isinstance(coef, Expr):
+            coef = f'({str(self.coef)})*'
         else:
-            coef = f"{self.coef}"
-        return f"{coef}*{'@'.join(map(str,self.atoms))}"
+            coef = f"{self.coef}*" if coef != 1 else ""
+        return f"{coef}{'@'.join(map(str,self.atoms))}"
 
     def __repr__(self):
         return str(self)
