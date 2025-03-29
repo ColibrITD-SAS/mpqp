@@ -151,7 +151,7 @@ def _run_diagonal_observables(
     device: AvailableDevice,
     observable_job: Job,
     values: dict[Expr | str, Complex],
-) -> Result | BatchResult:
+) -> Result:
 
     print("We enter hereeee")
     # modify the measurement of the circuit
@@ -162,23 +162,30 @@ def _run_diagonal_observables(
     assert isinstance(result, Result)
     probas = result.probabilities
 
-    results = []
-    # proceed to the dot product
-    for obs in exp_measure.observables:
-        exp_value = probas.dot(
-            obs.diagonal_elements
-        )  # TODO: replace this dot product with qupy, apparently more optim
-        results.append(
-            Result(
-                observable_job,
-                exp_value,
-                0 if exp_measure.shots == 0 else None,
-                exp_measure.shots,
-            )
+    error = 0 if exp_measure.shots == 0 else None
+    if exp_measure.nb_observables == 1:
+        exp_value = probas.dot(exp_measure.observables[0].diagonal_elements)
+        return Result(
+            observable_job,
+            exp_value,
+            error,
+            exp_measure.shots,
         )
 
+    exp_values = dict()
+    errors = dict()
+    for obs in exp_measure.observables:
+        # TODO: replace this dot product with qupy, apparently more optim
+        exp_values[obs.label] = probas.dot(obs.diagonal_elements)
+        errors[obs.label] = error
+
     # return the expectation values in Result or BatchResult
-    return BatchResult(results) if len(results) > 1 else results[0]
+    return Result(
+        observable_job,
+        exp_values,
+        errors,
+        exp_measure.shots,
+    )
 
 
 @typechecked
