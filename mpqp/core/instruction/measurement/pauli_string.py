@@ -858,9 +858,10 @@ class PauliStringMonomial(PauliString):
         return [PauliStringMonomial(self.coef, self.atoms)]
 
     @property
-    def eigen_values(self) -> npt.NDArray[np.complex64]:
-        """Return the eigen values associated with this Pauli monomial, without taking into account the coefficient."""
-        return reduce(np.kron, [a.eigen_values for a in self.atoms])
+    def eigen_values(self) -> npt.NDArray[np.bool_]:
+        """Return the eigen values associated with this Pauli monomial,
+        stored as booleans for efficiency."""
+        return reduce(np.kron, [a.eigen_values > 0 for a in self.atoms])
 
     def __str__(self):
         coef = format_element(self.coef)
@@ -975,8 +976,8 @@ class PauliStringMonomial(PauliString):
 
         """
         if not isinstance(other, PauliStringMonomial):
-            raise ValueError(
-                f"Expected a PauliStringMonomial in parameter but got {type(other).__name__}"
+            raise NotImplementedError(
+                f"Commutativity checking is only implemented for PauliStringMonomial in the current version."
             )
 
         if self.nb_qubits != other.nb_qubits:
@@ -1138,7 +1139,7 @@ class PauliStringAtom(PauliStringMonomial):
         return [PauliStringMonomial(self.coef, [a for a in self.atoms])]
 
     @property
-    def eigen_values(self) -> npt.NDArray[np.complex64]:
+    def eigen_values(self) -> npt.NDArray[np.bool_]:
         return self._eig_vals
 
     def __setattr__(self, name: str, value: Any):
