@@ -976,8 +976,8 @@ class PauliStringMonomial(PauliString):
 
         """
         if not isinstance(other, PauliStringMonomial):
-            raise ValueError(
-                f"Expected a PauliStringMonomial in parameter but got {type(other).__name__}"
+            raise NotImplementedError(
+                f"Commutativity checking is only implemented for PauliStringMonomial in the current version."
             )
 
         if self.nb_qubits != other.nb_qubits:
