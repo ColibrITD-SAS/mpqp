@@ -546,3 +546,82 @@ def test_validity_other_instr_to_other_language(
                 instr.to_other_language(language)
         else:
             assert instr.to_other_language(language) is not None
+
+
+@pytest.mark.parametrize(
+    "circuit, observable",
+    [
+        (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3])),
+        (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1])),
+        (QCircuit([Rx(0.5, 0), Ry(0.6, 1)]), Observable([0, 0, -9, 7])),
+    ],
+)
+def test_validity_optim_ideal_single_diag_obs_and_regular_run(circuit, observable):
+    e1 = ExpectationMeasure(observable, shots=0, optim_diagonal=False)
+    e2 = ExpectationMeasure(observable, shots=0, optim_diagonal=True)
+    c1 = circuit + QCircuit([e1], nb_qubits=2)
+    c2 = circuit + QCircuit([e2], nb_qubits=2)
+    br1 = run(
+        c1,
+        [
+            IBMDevice.AER_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+    br2 = run(
+        c2,
+        [
+            IBMDevice.AER_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+
+    for r1, r2 in zip(br1.results, br2.results):
+        assert np.isclose(r1.expectation_values, r2.expectation_values)
+
+
+@pytest.mark.parametrize(
+    "circuit, o1, o2",
+    [
+        (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3]), Observable([-1, 4, 0, 1])),
+        (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1]), Observable([0, 0, -9, 7])),
+        (
+            QCircuit([Rx(0.5, 0), Ry(0.6, 1)]),
+            Observable([0, 0, -9, 7]),
+            Observable([1, 2, 5, 3]),
+        ),
+    ],
+)
+def test_validity_optim_ideal_multi_diag_obs_and_regular_run(circuit, o1, o2):
+    e1 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=False)
+    e2 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=True)
+    c1 = circuit + QCircuit([e1], nb_qubits=2)
+    c2 = circuit + QCircuit([e2], nb_qubits=2)
+    br1 = run(
+        c1,
+        [
+            IBMDevice.AER_SIMULATOR,
+            # ATOSDevice.MYQLM_PYLINALG,
+            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+    br2 = run(
+        c2,
+        [
+            IBMDevice.AER_SIMULATOR,
+            # ATOSDevice.MYQLM_PYLINALG,
+            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+
+    for r1, r2 in zip(br1.results, br2.results):
+        assert isinstance(r1.expectation_values, dict)
+        assert isinstance(r2.expectation_values, dict)
+        for k1, k2 in zip(r1.expectation_values, r2.expectation_values):
+            assert np.isclose(r1.expectation_values[k1], r2.expectation_values[k2])

@@ -153,13 +153,10 @@ def _run_diagonal_observables(
     values: dict[Expr | str, Complex],
 ) -> Result:
 
-    print("We enter hereeee")
-    # modify the measurement of the circuit
     adapted_circuit = circuit.without_measurements()
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False)
-    assert isinstance(result, Result)
     probas = result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
@@ -175,11 +172,10 @@ def _run_diagonal_observables(
     exp_values = dict()
     errors = dict()
     for obs in exp_measure.observables:
-        # TODO: replace this dot product with qupy, apparently more optim
+        # 3M-TODO: replace this dot product with cupy, apparently more optim
         exp_values[obs.label] = probas.dot(obs.diagonal_elements)
         errors[obs.label] = error
 
-    # return the expectation values in Result or BatchResult
     return Result(
         observable_job,
         exp_values,
