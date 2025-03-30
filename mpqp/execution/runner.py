@@ -161,7 +161,7 @@ def _run_diagonal_observables(
 
     error = 0 if exp_measure.shots == 0 else None
     if exp_measure.nb_observables == 1:
-        exp_value = probas.dot(exp_measure.observables[0].diagonal_elements)
+        exp_value = float(probas.dot(exp_measure.observables[0].diagonal_elements))
         return Result(
             observable_job,
             exp_value,
@@ -173,7 +173,7 @@ def _run_diagonal_observables(
     errors = dict()
     for obs in exp_measure.observables:
         # 3M-TODO: replace this dot product with cupy, apparently more optim
-        exp_values[obs.label] = probas.dot(obs.diagonal_elements)
+        exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
         errors[obs.label] = error
 
     return Result(

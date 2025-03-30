@@ -556,7 +556,7 @@ def test_validity_other_instr_to_other_language(
         (QCircuit([Rx(0.5, 0), Ry(0.6, 1)]), Observable([0, 0, -9, 7])),
     ],
 )
-def test_validity_optim_ideal_single_diag_obs_and_regular_run(circuit, observable):
+def test_validity_optim_ideal_single_diag_obs_and_regular_run(circuit: QCircuit, observable: Observable):
     e1 = ExpectationMeasure(observable, shots=0, optim_diagonal=False)
     e2 = ExpectationMeasure(observable, shots=0, optim_diagonal=True)
     c1 = circuit + QCircuit([e1], nb_qubits=2)
@@ -579,8 +579,11 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(circuit, observabl
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
     )
-
+    assert isinstance(br1, BatchResult)
+    assert isinstance(br2, BatchResult)
     for r1, r2 in zip(br1.results, br2.results):
+        assert isinstance(r1.expectation_values, float)
+        assert isinstance(r2.expectation_values, float)
         assert np.isclose(r1.expectation_values, r2.expectation_values)
 
 
@@ -596,7 +599,7 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(circuit, observabl
         ),
     ],
 )
-def test_validity_optim_ideal_multi_diag_obs_and_regular_run(circuit, o1, o2):
+def test_validity_optim_ideal_multi_diag_obs_and_regular_run(circuit: QCircuit, o1: Observable, o2: Observable):
     e1 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=False)
     e2 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=True)
     c1 = circuit + QCircuit([e1], nb_qubits=2)
@@ -620,6 +623,8 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(circuit, o1, o2):
         ],
     )
 
+    assert isinstance(br1, BatchResult)
+    assert isinstance(br2, BatchResult)
     for r1, r2 in zip(br1.results, br2.results):
         assert isinstance(r1.expectation_values, dict)
         assert isinstance(r2.expectation_values, dict)
