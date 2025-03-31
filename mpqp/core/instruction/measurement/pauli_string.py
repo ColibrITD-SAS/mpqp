@@ -861,7 +861,8 @@ class PauliStringMonomial(PauliString):
     def eigen_values(self) -> npt.NDArray[np.bool_]:
         """Return the eigen values associated with this Pauli monomial,
         stored as booleans for efficiency."""
-        return reduce(np.kron, [a.eigen_values > 0 for a in self.atoms])
+        eigvals = reduce(np.kron, [a.eigen_values for a in self.atoms])
+        return eigvals > 0
 
     def __str__(self):
         coef = format_element(self.coef)
