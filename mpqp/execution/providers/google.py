@@ -125,7 +125,8 @@ def run_local(job: Job) -> BatchResult | Result:
         )
 
     from cirq.circuits.circuit import Circuit as CirqCircuit
-    from cirq.ops.pauli_string import PauliString as CirqPauliString
+
+    # from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.sim.sparse_simulator import Simulator
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
@@ -169,9 +170,20 @@ def run_local(job: Job) -> BatchResult | Result:
             translated = obs.to_other_language(
                 language=Language.CIRQ, circuit=cirq_circuit
             )
+
+            if isinstance(translated, Cirq_PauliSum):
+                if TYPE_CHECKING:
+                    assert isinstance(translated, list)
+                    assert all(
+                        isinstance(item, Cirq_PauliString) for item in translated
+                    )
+                translated = next(iter(translated), None)
+
             if TYPE_CHECKING:
                 assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
-            cirq_observables.append(translated)
+
+            if translated is not None:
+                cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
@@ -188,7 +200,6 @@ def run_local(job: Job) -> BatchResult | Result:
                     observables=cirq_observables,
                     sampler=simulator,
                     stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
-                    grouper=...,
                 ),
                 job,
             )
@@ -258,9 +269,20 @@ def run_local_processor(job: Job) -> BatchResult | Result:
             translated = obs.to_other_language(
                 language=Language.CIRQ, circuit=cirq_circuit
             )
+
+            if isinstance(translated, Cirq_PauliSum):
+                if TYPE_CHECKING:
+                    assert isinstance(translated, list)
+                    assert all(
+                        isinstance(item, Cirq_PauliString) for item in translated
+                    )
+                translated = next(iter(translated), None)
+
             if TYPE_CHECKING:
                 assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
-            cirq_observables.append(translated)
+
+            if translated is not None:
+                cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             raise DeviceJobIncompatibleError(
@@ -431,7 +453,7 @@ def extract_result_OBSERVABLE_shot_noise(
         assert isinstance(pauli_mono, list)
 
     all_results = []
-    for pm, r in zip(pauli_mono, results):
+    for _, r in zip(pauli_mono, results):
         mean = float(r.mean)
         variance = float(r.variance)
         shots = job.measure.shots
