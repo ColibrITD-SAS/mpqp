@@ -858,9 +858,15 @@ class PauliStringMonomial(PauliString):
         return [PauliStringMonomial(self.coef, self.atoms)]
 
     @property
-    def eigen_values(self) -> npt.NDArray[np.bool_]:
+    def positive_eigen_values(self) -> npt.NDArray[np.bool_]:
         """Return the eigen values associated with this Pauli monomial,
-        stored as booleans for efficiency."""
+        stored as booleans for efficiency. True refers to +1 and False to -1.
+
+        Example:
+            >>> from mpqp.measures import I, X, Y
+            >>> (X @ Y @ I).positive_eigen_values  # doctest: +NORMALIZE_WHITESPACE
+            array([ True, True, False, False, False, False, True, True])
+        """
         eigvals = reduce(np.kron, [a.eigen_values for a in self.atoms])
         return eigvals > 0
 
