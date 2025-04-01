@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
+    from azure.quantum.qiskit.job import AzureQuantumJob
 
 from typeguard import typechecked
 
@@ -68,6 +69,53 @@ def run_azure(job: Job) -> Result:
 
     job.status = JobStatus.DONE
     return result
+
+
+@typechecked
+def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
+    """Submits the job on the remote Azure device (quantum computer or simulator).
+
+    Args:
+        job: Job to be executed.
+
+    Returns:
+        Azure's job id and the job itself.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:`~mpqp.execution.runner.run` instead.
+    """
+    from qiskit import QuantumCircuit
+
+    qiskit_circuit = (
+        (
+            # 3M-TODO: careful, if we ever support several measurements, the
+            # line bellow will have to changer
+            job.circuit.without_measurements()
+            + job.circuit.pre_measure()
+        ).to_other_language(Language.QISKIT)
+        if (job.job_type == JobType.STATE_VECTOR)
+        else job.circuit.to_other_language(Language.QISKIT)
+    )
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
+
+    qiskit_circuit = qiskit_circuit.reverse_bits()
+
+    backend_sim = get_azure_provider().get_backend(job.device.value)
+
+    if TYPE_CHECKING:
+        assert isinstance(job.device, AZUREDevice)
+
+    if job.job_type == JobType.SAMPLE:
+        if TYPE_CHECKING:
+            assert job.measure is not None
+        job.status = JobStatus.RUNNING
+        job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
+    else:
+        raise ValueError(f"Job type {job.job_type} not handled on Azure devices.")
+
+    return job_sim.id(), job_sim
 
 
 @typechecked
