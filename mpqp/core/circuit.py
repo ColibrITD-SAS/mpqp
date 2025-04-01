@@ -1401,28 +1401,27 @@ class QCircuit:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
             qiskit_circuit = qiskit_circuit.reverse_bits()
 
-            if not device.is_remote():
-                if len(self.measurements) == 1:
-                    if (
-                        isinstance(self.measurements[0], BasisMeasure)
-                        and self.measurements[0].shots <= 0
-                    ):  # JobType.SAMPLE
-                        from qiskit import transpile
+            if not device.is_remote() and len(self.measurements) == 1:
+                if (
+                    isinstance(self.measurements[0], BasisMeasure)
+                    and self.measurements[0].shots <= 0
+                ):  # JobType.SAMPLE
+                    from qiskit import transpile
 
-                        qiskit_circuit = transpile(qiskit_circuit, backend_sim)
-                    elif isinstance(
-                        self.measurements[0], ExpectationMeasure
-                    ):  # JobType.OBSERVABLE
-                        if isinstance(device, IBMSimulatedDevice):
-                            from qiskit.transpiler.preset_passmanagers import (
-                                generate_preset_pass_manager,
-                            )
+                    qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+                elif isinstance(
+                    self.measurements[0], ExpectationMeasure
+                ):  # JobType.OBSERVABLE
+                    if isinstance(device, IBMSimulatedDevice):
+                        from qiskit.transpiler.preset_passmanagers import (
+                            generate_preset_pass_manager,
+                        )
 
-                            backend = device.value()
-                            pm = generate_preset_pass_manager(
-                                optimization_level=0, backend=backend
-                            )
-                            qiskit_circuit = pm.run(qiskit_circuit)
+                        backend = device.value()
+                        pm = generate_preset_pass_manager(
+                            optimization_level=0, backend=backend
+                        )
+                        qiskit_circuit = pm.run(qiskit_circuit)
             else:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,

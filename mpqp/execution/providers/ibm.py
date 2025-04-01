@@ -22,6 +22,7 @@ from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
+from mpqp.tools import InstructionParsingError
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
 if TYPE_CHECKING:
@@ -429,7 +430,7 @@ def run_aer(job: Job):
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
         if job.circuit.transpiled_noise_model is None:
-            raise Exception("transpiled_noise_model is not initialized")
+            raise InstructionParsingError("transpiled_noise_model is not initialized")
         backend_sim = AerSimulator(
             method=job.device.value, noise_model=job.circuit.transpiled_noise_model
         )
