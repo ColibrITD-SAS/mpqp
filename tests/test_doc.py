@@ -168,7 +168,9 @@ class DBRunner:
         db_original = Path("tests/local_storage/test_local_storage.db").absolute()
         db_temp = Path("tests/local_storage/test_local_storage_tmp.db").absolute()
 
-        shutil.copyfile(db_original, db_temp)
+        with open(db_original, "rb") as src, open(db_temp, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+
         self.original_local_storage_location = get_env_variable("DB_PATH")
         setup_local_storage("tests/local_storage/test_local_storage_tmp.db")
 
@@ -178,6 +180,7 @@ class DBRunner:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
+
         os.remove(
             os.path.join(os.getcwd(), "tests/local_storage/test_local_storage_tmp.db")
         )
