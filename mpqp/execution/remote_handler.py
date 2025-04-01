@@ -114,7 +114,7 @@ def get_remote_result(
         )
 
 
-def get_all_job_ids() -> dict[type[AvailableDevice], list[str]]:
+def get_all_remote_job_ids() -> dict[type[AvailableDevice], list[str]]:
     """Retrieve from the remote providers all the job-ids associated with this
     account.
 
