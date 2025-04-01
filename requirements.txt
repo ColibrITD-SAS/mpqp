@@ -10,8 +10,7 @@ cvxpy==1.4.3
 qiskit==1.2.4
 qiskit-ibm-runtime==0.31.0
 qiskit-aer==0.15.1
-azure-quantum>=2.1.0,<=2.2.0
-azure-quantum[qiskit]
+azure-quantum==3.1.0
 python_dotenv>=1.0.0
 jsonschema>=4.17.3
 typeguard>=4.2.1
