@@ -21,7 +21,7 @@ from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, 
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 from mpqp.tools import NumberQubitsError
-from mpqp.tools.circuit import compute_expected_matrix, random_circuit, random_statevector
+from mpqp.tools.circuit import compute_expected_matrix, random_circuit, statevector_from_random_circuit
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
@@ -159,14 +159,30 @@ def test_tensor(
 @pytest.mark.parametrize(
         "state",
         [
-            (np.array([1/np.sqrt(2), 1/np.sqrt(2)])),
-            (np.array([1, 0, 0 ,1])/np.sqrt(2)),
-            (random_statevector(1)),
-            (random_statevector(2)),
-            (random_statevector(4)),
-            (random_statevector(6)),
-            (np.array([1/2, np.sqrt(3)/2])),
-            (np.array([1, 1j]) / np.sqrt(2))
+            (
+                np.array([1/np.sqrt(2), 1/np.sqrt(2)])
+            ),
+            (
+                np.array([1, 0, 0 ,1])/np.sqrt(2)
+            ),
+            (
+                statevector_from_random_circuit(1)
+            ),
+            (
+                statevector_from_random_circuit(2)
+            ),
+            (
+                statevector_from_random_circuit(4)
+            ),
+            (
+                statevector_from_random_circuit(6)
+            ),
+            (
+                np.array([1/2, np.sqrt(3)/2])
+            ),
+            (
+                np.array([1, 1j]) / np.sqrt(2)
+            )
         ],
 )
 def test_initializer(state: npt.NDArray[np.complex64]): 
@@ -336,17 +352,18 @@ def test_to_other_language(
 @pytest.mark.parametrize(
         "circuit, language",
         [
-            (random_circuit(None, 10), Language.QISKIT),
-            (random_circuit(None, 10), Language.QASM2),
+            (
+                random_circuit(None, 10), Language.QISKIT
+            ),
+            (
+                random_circuit(None, 10), Language.QASM2
+            ),
         ],
 )
 def test_from_other_language(circuit: QCircuit, language: Language):
     circ_to_test = circuit.to_other_language(language)
-    qcircuit = QCircuit()
-    if isinstance(circ_to_test, QiskitCircuit):
-        qcircuit = QCircuit.from_other_language(circ_to_test)
-    elif isinstance(circ_to_test, str):
-        qcircuit = QCircuit.from_other_language(circ_to_test)
+    assert(isinstance(circ_to_test, (QiskitCircuit, str)))
+    qcircuit = QCircuit.from_other_language(circ_to_test)
     assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
 
 

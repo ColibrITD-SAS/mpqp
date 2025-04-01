@@ -1316,6 +1316,7 @@ class QCircuit:
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
+
     @classmethod
     def from_other_language(
         cls, qcircuit: QuantumCircuit | str
@@ -1353,8 +1354,8 @@ class QCircuit:
             ... h q[0];
             ... cx q[0], q[1];
             ... '''
-            >>> qcircuit3 = QCircuit.from_other_language(qasm2_code)
-            >>> print(qcircuit3) # doctest: +NORMALIZE_WHITESPACE
+            >>> qcircuit2 = QCircuit.from_other_language(qasm2_code)
+            >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
@@ -1366,17 +1367,16 @@ class QCircuit:
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
-            
+
             qasm2_code = qasm2.dumps(qcircuit)
             return qasm2_parse(qasm2_code)
-
+        
         elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             if not "OPENQASM 2.0;" in qcircuit:
-                raise NotImplementedError(f"Error: only open QASM2 is supported")
+                raise NotImplementedError(f"Error: only OpenQASM2 is supported for qasm external description of the circuit")
             return qasm2_parse(qcircuit)
-        
         else:
-            raise NotImplementedError(f"Error: {type(qcircuit)} is not supported")
+            raise NotImplementedError(f"Error: {type(qcircuit)} is not supported.")
 
 
     def subs(

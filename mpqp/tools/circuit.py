@@ -93,22 +93,24 @@ def random_circuit(
     return qcircuit
 
 
-def random_statevector(
+def statevector_from_random_circuit(
         nb_qubits: int = 5, 
         seed: Optional[int] = None,
 ) -> npt.NDArray[np.complex64]: 
     """
-    This function creates a statevector with a specified number of qubits. 
+    This function creates a statevector with a specified number of qubits,
+    generated from a random circuit executed on IBM AER Simulator. 
     The QCircuit is generated randomly and his statevector is calculated.
 
     args:
         nb_qubits : Number of qubits in the circuit.
+        seed: Seed used to initialize the random number generation.
 
     Returns:
         The statevector with the specified number of qubits
     
     Examples:
-        >>> print(random_statevector(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
         [0.70710678+0.j 0.        +0.j 0.70710678+0.j 0.        +0.j]
     """
     from mpqp.execution import run, IBMDevice, Result

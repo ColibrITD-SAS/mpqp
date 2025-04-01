@@ -45,7 +45,7 @@ from mpqp.qasm.open_qasm_2_and_3 import (
 )
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-from mpqp.tools.circuit import random_circuit, random_gate, random_noise, random_statevector
+from mpqp.tools.circuit import random_circuit, random_gate, random_noise, statevector_from_random_circuit
 from mpqp.tools.display import *
 from mpqp.tools.display import (
     clean_1D_array,
