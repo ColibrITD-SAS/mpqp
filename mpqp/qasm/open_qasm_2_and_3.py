@@ -272,7 +272,7 @@ def convert_instruction_2_to_3(
         path_to_main: Path to the main folder from which include paths are
             described.
         translation_warning: Boolean to enable/disable warnings about
-            translation issues.
+            translation issues. if True, a warning will be raised.
 
     Returns:
         The upgraded instruction and the potential code to add in the header as
@@ -430,7 +430,7 @@ def open_qasm_2_to_3(
         path_to_file: Path to the location of the file from which the code is
             coming (useful for locating imports).
         translation_warning: Boolean to enable/disable warnings about
-            translation issues.
+            translation issues. if True, a warning will be raised.
         defined_gates: Set of custom gates already defined.
 
     Returns:

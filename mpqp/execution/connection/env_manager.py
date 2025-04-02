@@ -9,7 +9,7 @@ from dotenv import load_dotenv, set_key
 from termcolor import colored
 from typeguard import typechecked
 
-MPQP_CONFIG_PATH = os.path.expanduser("~") + "/.mpqp"
+MPQP_CONFIG_PATH = os.path.expanduser("~") + "/.mpqp/env"
 
 
 def _create_config_if_needed():

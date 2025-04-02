@@ -148,8 +148,9 @@ class QCircuit:
         """A pre-transpiled circuit to skip repeated transpilation when running the circuit.  
         Useful when working with a symbolic circuit that needs to be executed with different parameters."""
         self.transpiled_noise_model = None
-        """A pre-transpiled noise_model to skip repeated transpilation when running the circuit.  
-        Useful when working with a symbolic circuit that needs to be executed with different parameters."""
+        """A pre-transpiled noise model that skips repeated transpilation when running the circuit. 
+        Currently, it is only useful in Qiskit when working with a symbolic circuit that needs 
+        to be executed with different parameters."""
 
         self.gphase: float = 0
         """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
@@ -1036,7 +1037,7 @@ class QCircuit:
         Args:
             language: Enum representing the target language.
             translation_warning: Boolean to enable/disable warnings about
-                translation issues.
+                translation issues. if True, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 
@@ -1308,7 +1309,7 @@ class QCircuit:
         Args:
             device: representing the target device.
             translation_warning: Boolean to enable/disable warnings about
-                translation issues.
+                translation issues. if True, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 
@@ -1401,27 +1402,28 @@ class QCircuit:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
             qiskit_circuit = qiskit_circuit.reverse_bits()
 
-            if not device.is_remote() and len(self.measurements) == 1:
-                if (
-                    isinstance(self.measurements[0], BasisMeasure)
-                    and self.measurements[0].shots <= 0
-                ):  # JobType.SAMPLE
-                    from qiskit import transpile
+            if not device.is_remote():
+                if len(self.measurements) == 1:
+                    if (
+                        isinstance(self.measurements[0], BasisMeasure)
+                        and self.measurements[0].shots <= 0
+                    ):  # JobType.SAMPLE
+                        from qiskit import transpile
 
-                    qiskit_circuit = transpile(qiskit_circuit, backend_sim)
-                elif isinstance(
-                    self.measurements[0], ExpectationMeasure
-                ):  # JobType.OBSERVABLE
-                    if isinstance(device, IBMSimulatedDevice):
-                        from qiskit.transpiler.preset_passmanagers import (
-                            generate_preset_pass_manager,
-                        )
+                        qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+                    elif isinstance(
+                        self.measurements[0], ExpectationMeasure
+                    ):  # JobType.OBSERVABLE
+                        if isinstance(device, IBMSimulatedDevice):
+                            from qiskit.transpiler.preset_passmanagers import (
+                                generate_preset_pass_manager,
+                            )
 
-                        backend = device.value()
-                        pm = generate_preset_pass_manager(
-                            optimization_level=0, backend=backend
-                        )
-                        qiskit_circuit = pm.run(qiskit_circuit)
+                            backend = device.value()
+                            pm = generate_preset_pass_manager(
+                                optimization_level=0, backend=backend
+                            )
+                            qiskit_circuit = pm.run(qiskit_circuit)
             else:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
