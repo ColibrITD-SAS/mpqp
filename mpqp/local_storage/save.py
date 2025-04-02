@@ -141,8 +141,8 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
         cursor = connection.cursor()
         try:
             data_json = json.dumps(
-                repr(result._data)
-            )  # pyright: ignore[reportPrivateUsage]
+                repr(result._data)  # pyright: ignore[reportPrivateUsage]
+            )
             error_json = (
                 json.dumps(repr(result.error)) if result.error is not None else None
             )
