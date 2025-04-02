@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from mpqp.execution import BatchResult, Result
+from mpqp.execution import Result
 from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
 from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
@@ -31,7 +31,7 @@ from typeguard import typechecked
 @typechecked
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
-) -> Result | BatchResult:
+) -> Result:
     """Retrieve and parse a remote the result from a job_id and device. If the
     job is still running, it will wait until it is done.
 
@@ -112,7 +112,7 @@ def get_remote_result(
         )
 
 
-def get_all_job_ids() -> dict[type[AvailableDevice], list[str]]:
+def get_all_remote_job_ids() -> dict[type[AvailableDevice], list[str]]:
     """Retrieve from the remote providers all the job-ids associated with this
     account.
 

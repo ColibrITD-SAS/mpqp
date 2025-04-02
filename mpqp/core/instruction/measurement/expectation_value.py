@@ -47,6 +47,7 @@ class Observable:
         observable : can be either a Hermitian matrix representing the
             observable, or PauliString representing the observable, or a list
             of diagonal elements of the matrix when the observable is diagonal.
+        label : Label used to identify the observable.
 
     Raises:
         ValueError: If the input matrix is not Hermitian or does not have a
@@ -59,25 +60,25 @@ class Observable:
         Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]], dtype=complex64))
 
         >>> from mpqp.measures import I, X, Y, Z
-        >>> Observable(3 * I @ Z + 4 * X @ Y)  # doctest: +NORMALIZE_WHITESPACE
-        Observable(array([[ 3.+0.j,  0.+0.j, 0.+0.j,  0.+4.j],
-                [ 0.+0.j, -3.+0.j, 0.-4.j,  0.+0.j],
-                [ 0.+0.j,  0.+4.j, 3.+0.j,  0.+0.j],
-                [ 0.-4.j,  0.+0.j, 0.+0.j, -3.+0.j]],
-            dtype=complex64))
-        >>> Observable(3 * I @ Z + 4 * X @ Y).pauli_string.sorted_monomials()
-        3*I@Z + 4*X@Y
+        >>> Observable(3 * I @ Z + 4 * X @ Y)
+        Observable(3*I@Z + 4*X@Y)
 
         >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
         Observable([ 1., -2., 3., -4.])
 
     """
 
-    def __init__(self, observable: Matrix | PauliString | list[float]):
+    def __init__(
+        self,
+        observable: Matrix | PauliString | list[float],
+        label: Optional[str] = None,
+    ):
         self._matrix = None
         self._pauli_string = None
         self._is_diagonal = None
         self._diag_elements = None
+        self.label = label
+        "See parameter description."
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -228,7 +229,7 @@ class Observable:
             # If only the diagonal elements are known, it means the observable is diagonal
             elif self._diag_elements is not None:
                 self._is_diagonal = True
-            # Otherwise, the observable is empty, we return False by convention
+            # Otherwise, the observable is empty, we raise an error
             else:
                 raise ValueError("Cannot determine if an empty observable is diagonal.")
 
@@ -236,9 +237,13 @@ class Observable:
 
     def __repr__(self) -> str:
         if self._is_diagonal and self._diag_elements is not None:
-            return f"{type(self).__name__}({np.array2string(self.diagonal_elements, separator=', ')})"
-
-        return f"{type(self).__name__}({one_lined_repr(self.matrix)})"
+            data = f"{np.array2string(self.diagonal_elements, separator=', ')}"
+        elif self._matrix is not None:
+            data = f"{one_lined_repr(self.matrix)}"
+        else:
+            data = f"{self.pauli_string}"
+        label_str = f", '{self.label}'" if self.label is not None else ""
+        return f"{type(self).__name__}({data}{label_str})"
 
     def __mult__(self, other: Expr | float) -> Observable:
         """3M-TODO"""
@@ -296,11 +301,31 @@ class Observable:
         elif language == Language.BRAKET:
             from braket.circuits.observables import Hermitian
 
-            return Hermitian(self.matrix)
+            return Hermitian(
+                self.matrix,
+                display_name=self.label if self.label is not None else "Hermitian",
+            )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
             raise ValueError(f"Unsupported language: {language}")
+
+    def __eq__(self, other: object) -> bool:
+        from mpqp.tools.maths import matrix_eq
+
+        if not isinstance(other, Observable):
+            return False
+
+        if self.nb_qubits == other.nb_qubits and self.label == other.label:
+            if self._is_diagonal:
+                if other.is_diagonal:
+                    return matrix_eq(self.diagonal_elements, other.diagonal_elements)
+                return False
+            elif self._matrix is not None:
+                return matrix_eq(self.matrix, other.matrix)
+            else:
+                return self.pauli_string == other.pauli_string
+        return False
 
 
 @typechecked
@@ -328,7 +353,7 @@ class ExpectationMeasure(Measure):
     Example:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
-        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_value # doctest: +SKIP
+        >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
 
     """
@@ -356,7 +381,28 @@ class ExpectationMeasure(Measure):
                     + str([o.nb_qubits for o in observable])
                 )
             self.observables = observable
+
+        # Fill observables labels if not set
+        label_defined = set()
+        label_counter = 0
+        default_label = self.label if self.label is not None else "observable"
+        for obs in self.observables:
+            if obs.label is None:
+                while f"{default_label}_{label_counter}" in label_defined:
+                    label_counter += 1
+                obs.label = f"{default_label}_{label_counter}"
+                label_counter += 1
+            else:
+                label_defined.add(obs.label)
         self._check_targets_order()
+
+    @property
+    def nb_observables(self) -> int:
+        return len(self.observables)
+
+    @property
+    def observables_labels(self) -> list[str]:
+        return [o.label for o in self.observables if o.label is not None]
 
     def _check_targets_order(self):
         """Ensures target qubits are ordered and contiguous, rearranging them if necessary (private)."""
@@ -430,19 +476,20 @@ class ExpectationMeasure(Measure):
         return all([o.is_diagonal for o in self.observables])
 
     def __repr__(self) -> str:
-        targets = (
-            f", {self.targets}"
-            if (not self._dynamic and len(self.targets)) != 0
-            else ""
-        )
-        shots = "" if self.shots == 0 else f", shots={self.shots}"
-        label = "" if self.label is None else f", label={self.label}"
+        args = []
         observables = (
             f"{self.observables[0]}"
             if len(self.observables) == 1
             else f"{self.observables}"
         )
-        return f"ExpectationMeasure({observables}{targets}{shots}{label})"
+        args.append(observables)
+        if not self._dynamic and len(self.targets) != 0:
+            args.append(f"{self.targets}")
+        if self.shots != 0:
+            args.append(f"shots={self.shots}")
+        if self.label is not None:
+            args.append(f"label='{self.label}'")
+        return f"ExpectationMeasure({', '.join(args)})"
 
     def to_other_language(
         self,
@@ -455,3 +502,22 @@ class ExpectationMeasure(Measure):
             "appropriate data, and the data in later used in the needed "
             "locations."
         )
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, ExpectationMeasure):
+            return False
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        """
+        Serialize the Expectation Measure to a dictionary.
+        Returns:
+            dict: A dictionary representation of the Expectation Measure.
+        """
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if attr_name not in {}
+            and not attr_name.startswith("__")
+            and not callable(getattr(self, attr_name))
+        }

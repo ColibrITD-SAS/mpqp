@@ -78,6 +78,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 
     tweaked_observables = [
         Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+        # TODO: avoid to force using matrix representation to add identities if the observable is defined by
+        #  pauli string (use I @ obs @ I) or diagonal coefficients (perform kron product with [1,1] instead of I matrix)
         for obs in measure.observables
     ]
 
@@ -148,7 +150,7 @@ def _run_single(
     device: AvailableDevice,
     values: dict[Expr | str, Complex],
     display_breakpoints: bool = True,
-) -> Result | BatchResult:
+) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
 
@@ -248,11 +250,11 @@ def run(
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
         >>> print(result)
         Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+          Counts: [0, 0, 0, 1000]
+          Probabilities: [0, 0, 0, 1]
+          Samples:
+            State: 11, Index: 3, Count: 1000, Probability: 1
+          Error: None
         >>> batch_result = run(
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
@@ -260,17 +262,17 @@ def run(
         >>> print(batch_result)
         BatchResult: 2 results
             Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
-             Counts: [0, 0, 0, 1000]
-             Probabilities: [0, 0, 0, 1]
-             Samples:
-              State: 11, Index: 3, Count: 1000, Probability: 1
-             Error: 0.0
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: 0.0
             Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
-             Counts: [0, 0, 0, 1000]
-             Probabilities: [0, 0, 0, 1]
-             Samples:
-              State: 11, Index: 3, Count: 1000, Probability: 1
-             Error: None
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
@@ -279,17 +281,17 @@ def run(
         >>> print(result)
         BatchResult: 2 results
             Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-             Counts: [0, 0, 0, 1000]
-             Probabilities: [0, 0, 0, 1]
-             Samples:
-              State: 11, Index: 3, Count: 1000, Probability: 1
-             Error: None
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
             Result: X circuit, IBMDevice, AER_SIMULATOR
-             Counts: [0, 0, 0, 1000]
-             Probabilities: [0, 0, 0, 1]
-             Samples:
-              State: 11, Index: 3, Count: 1000, Probability: 1
-             Error: None
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
 
     """
     if values is None:

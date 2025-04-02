@@ -144,9 +144,9 @@ def random_gate(
         if issubclass(gate_class, ParametrizedGate):
             if issubclass(gate_class, U):
                 return U(
-                    rng.uniform(0, 2 * np.pi),
-                    rng.uniform(0, 2 * np.pi),
-                    rng.uniform(0, 2 * np.pi),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
                     target,
                 )
             elif issubclass(gate_class, Rk):
@@ -154,7 +154,7 @@ def random_gate(
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))
-                return gate_class(rng.uniform(0, 2 * np.pi), target)
+                return gate_class(np.round(rng.uniform(0, 2 * np.pi), 5), target)
             else:
                 raise ValueError
         else:

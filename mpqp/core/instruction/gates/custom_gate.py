@@ -36,9 +36,9 @@ class CustomGate(Gate):
         >>> cg = CustomGate(u, [0])
         >>> print(run(QCircuit([X(0), cg]), IBMDevice.AER_SIMULATOR))
         Result: IBMDevice, AER_SIMULATOR
-         State vector: [-1, 0]
-         Probabilities: [1, 0]
-         Number of qubits: 1
+          State vector: [-1, 0]
+          Probabilities: [1, 0]
+          Number of qubits: 1
 
     Note:
         For the moment, only ordered and contiguous target qubits are allowed

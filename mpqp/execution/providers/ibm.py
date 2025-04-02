@@ -20,7 +20,7 @@ from mpqp.execution.connection.ibm_connection import (
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.result import BatchResult, Result, Sample, StateVector
+from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import DeviceJobIncompatibleError, IBMRemoteExecutionError
 
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
 
 
 @typechecked
-def run_ibm(job: Job) -> BatchResult | Result:
+def run_ibm(job: Job) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
@@ -62,7 +62,7 @@ def run_ibm(job: Job) -> BatchResult | Result:
 @typechecked
 def compute_expectation_value(
     ibm_circuit: QuantumCircuit, job: Job, simulator: Optional["AerSimulator"]
-) -> BatchResult | Result:
+) -> Result:
     """Configures observable job and run it locally, and returns the
     corresponding Result.
 
@@ -579,7 +579,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
 
 @typechecked
-def run_remote_ibm(job: Job) -> BatchResult | Result:
+def run_remote_ibm(job: Job) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
@@ -606,7 +606,7 @@ def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
     device: "IBMDevice | IBMSimulatedDevice | AZUREDevice",
-) -> BatchResult | Result:
+) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
 
@@ -625,30 +625,42 @@ def extract_result(
 
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
-        all_results = []
         # res_data is a DataBin, which means all typechecking is out of the
         # windows for this specific object
         res_data = result[0].data
 
         if hasattr(res_data, "evs"):
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
             exp_values = np.atleast_1d(exp_values)
 
             stds = res_data.stds  # pyright: ignore[reportAttributeAccessIssue]
             stds = np.atleast_1d(stds)
+            shots = (
+                job.measure.shots
+                if job.device.is_simulator() and job.measure is not None
+                else result[0].metadata["shots"]
+            )
 
+            # If only one result, we directly return the expectation value
+            if len(exp_values) == 1:
+                return Result(job, float(exp_values[0]), float(stds[0]), shots)
+
+            # If several results, we construct the dictionary with observable labels
+            exp_values_dict = dict()
+            errors_dict = dict()
             for i in range(len(exp_values)):
-                mean = float(exp_values[i])
-                error = float(stds[i])
-                shots = (
-                    job.measure.shots
-                    if job.device.is_simulator() and job.measure is not None
-                    else result[0].metadata["shots"]
+                label = (
+                    job.measure.observables[i].label
+                    if isinstance(job.measure, ExpectationMeasure)
+                    else f"ibm_obs_{i}"
                 )
-                all_results.append(Result(job, mean, error, shots))
+                exp_values_dict[label] = float(exp_values[i])
+                errors_dict[label] = float(stds[i])
+
+            return Result(job, exp_values_dict, errors_dict, shots)
 
         else:
             if job is None:
@@ -677,10 +689,8 @@ def extract_result(
                 )
                 for item in counts
             ]
-            # Since we don't handle multiple sampling jobs, we know the first result is the only one
-            return Result(job, data, None, job.measure.shots)
 
-        return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
+            return Result(job, data, None, job.measure.shots)
 
     else:
 
@@ -693,23 +703,42 @@ def extract_result(
             )
 
         if isinstance(result, EstimatorResult):
-            all_results = []
+
+            if job is None:
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
+
+            if len(result.values) == 1:
+                return Result(
+                    job,
+                    result.values[0],
+                    (
+                        result.metadata[0]["variance"]
+                        if "variance" in result.metadata[0]
+                        else None
+                    ),
+                    result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0,
+                )
+
+            exp_values_dict = dict()
+            errors_dict = dict()
+
+            shots = result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0
 
             for i in range(len(result.values)):
-                if job is None:
-                    job = Job(JobType.OBSERVABLE, QCircuit(0), device)
-
-                shots = (
-                    result.metadata[i]["shots"] if "shots" in result.metadata[i] else 0
+                label = (
+                    job.measure.observables[i].label
+                    if isinstance(job.measure, ExpectationMeasure)
+                    else f"ibm_obs_{i}"
                 )
                 variance = (
                     result.metadata[i]["variance"]
                     if "variance" in result.metadata[i]
                     else None
                 )
-                all_results.append(Result(job, result.values[i], variance, shots))
+                exp_values_dict[label] = result.values[i]
+                errors_dict[label] = variance
 
-            return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
+            return Result(job, exp_values_dict, errors_dict, shots)
 
         elif isinstance(
             result, QiskitResult
@@ -768,7 +797,7 @@ def extract_result(
 
 
 @typechecked
-def get_result_from_ibm_job_id(job_id: str) -> Result | BatchResult:
+def get_result_from_ibm_job_id(job_id: str) -> Result:
     """Retrieves from IBM remote platform and parse the result of the job_id
     given in parameter. If the job is still running, we wait (blocking) until it
     is ``DONE``.

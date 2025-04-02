@@ -41,6 +41,7 @@ on the current available SDKs:
    vqa
    qasm
    tools
+   local_storage
    changelog
    examples
 

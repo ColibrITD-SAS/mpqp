@@ -8,6 +8,7 @@ from termcolor import colored
 from typeguard import typechecked
 
 from mpqp.execution.connection.env_manager import (
+    MPQP_ENV,
     get_env_variable,
     load_env_variables,
     save_env_variable,
@@ -30,7 +31,6 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
     Raises:
         QLMRemoteExecutionError: If the account could not be saved.
     """
-    # store the username and password in environment variables QLM_USER and QLM_PASSWD in .mpqp
     prev_user = get_env_variable("QLM_USER")
     prev_pass = get_env_variable("QLM_PASSWD")
     prev_configure = get_env_variable("QLM_CONFIGURED")
@@ -52,7 +52,6 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
     try:
         if global_config:
             print("we are in the global part")
-            # if file doesn't exist, create it, or overwrite the credentials in the ~/.netrc file
             with open(netrc_path, "w") as file:
                 file.write(
                     f"""\
@@ -162,7 +161,10 @@ def get_QLMaaSConnection():
     if QLM_connection is None:
         loaded = load_env_variables()
         if not loaded:
-            raise IOError("Could not load environment variables from ~/.mpqp")
+            raise IOError(
+                "Could not load environment variables from the configuration "
+                f"file: {MPQP_ENV}"
+            )
 
         if get_env_variable("QLM_CONFIGURED") == "False":
             raise QLMRemoteExecutionError(
