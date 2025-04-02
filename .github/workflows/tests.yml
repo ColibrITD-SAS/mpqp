@@ -39,8 +39,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Remove broken osqp
-        run: rm -rf /opt/hostedtoolcache/Python/3.11.11/x64/lib/python3.11/site-packages/osqp*
+      - name: Force reinstall osqp (stable version)
+        run: pip install --no-cache-dir --force-reinstall "osqp==0.6.2.post0"
       - name: Clear pip cache
         run: pip cache purge
       - name: Force reinstall osqp
