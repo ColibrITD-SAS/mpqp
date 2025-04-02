@@ -31,8 +31,6 @@ jobs:
       matrix: 
         python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.9", "3.10", "3.11"]') }}
     steps:
-      - name: Clear pip cache
-        run: pip cache purge
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
@@ -41,6 +39,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Clear pip cache
+        run: pip cache purge
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -73,6 +73,8 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - name: Clear pip cache
+        run: pip cache purge
       - name: Install dependencies
         run: |
           pip install --upgrade pip
