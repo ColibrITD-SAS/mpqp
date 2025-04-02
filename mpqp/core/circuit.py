@@ -579,7 +579,7 @@ class QCircuit:
     def __matmul__(self, other: QCircuit) -> QCircuit:
         return self.tensor(other)
 
-    def display(self, output: str = "mpl"):
+    def display(self, output: str = "mpl", warn: bool = True):
         r"""Displays the circuit in the desired output format.
 
         For now, this uses the qiskit circuit drawer, so all formats supported
@@ -618,7 +618,7 @@ class QCircuit:
         fig = circuit_drawer(qc, output=output, style={"backgroundcolor": "#EEEEEE"})
 
         if isinstance(fig, Figure):
-            fig.show()
+            fig.show(warn=warn)
         return fig
 
     def size(self) -> tuple[int, int]:
@@ -1185,7 +1185,9 @@ class QCircuit:
         elif language == Language.MY_QLM:
             cleaned_circuit = self.without_measurements()
             qasm2_code = cleaned_circuit.to_other_language(
-                Language.QASM2, skip_pre_measure=True
+                Language.QASM2,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
             )
             self.gphase = cleaned_circuit.gphase
             if TYPE_CHECKING:
@@ -1231,7 +1233,7 @@ class QCircuit:
             from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(qasm3_code),
+                qasm3_to_braket_Circuit(qasm3_code, translation_warning=False),
                 self.noises,
                 self.nb_qubits,
             )
@@ -1253,7 +1255,9 @@ class QCircuit:
                     custom_circuit = QCircuit(self.nb_qubits)
                     custom_circuit.add(instruction)
                     qasm2_code = custom_circuit.to_other_language(
-                        Language.QASM2, skip_pre_measure=True
+                        Language.QASM2,
+                        translation_warning=translation_warning,
+                        skip_pre_measure=True,
                     )
                     if TYPE_CHECKING:
                         assert isinstance(qasm2_code, str)
@@ -1313,7 +1317,11 @@ class QCircuit:
             self.gphase = gphase
             return qasm_str
         elif language == Language.QASM3:
-            qasm2_code = self.to_other_language(Language.QASM2, skip_pre_measure=True)
+            qasm2_code = self.to_other_language(
+                Language.QASM2,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
+            )
             if TYPE_CHECKING:
                 assert isinstance(qasm2_code, str)
             from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3

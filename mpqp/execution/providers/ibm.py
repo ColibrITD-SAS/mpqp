@@ -99,11 +99,14 @@ def compute_expectation_value(
     if TYPE_CHECKING:
         assert isinstance(qiskit_observable, SparsePauliOp)
 
-    if isinstance(job.device, IBMSimulatedDevice):
+    if isinstance(job.device, IBMSimulatedDevice) or nb_shots != 0:
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
-        backend = job.device.value()
+        if isinstance(job.device, IBMSimulatedDevice):
+            backend = job.device.value()
+        else:
+            backend = simulator
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
@@ -527,6 +530,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
+    job.device = IBMDevice(backend.name)
     session = Session(service=service, backend=backend)
 
     pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
@@ -642,7 +646,10 @@ def extract_result(
                 )
                 job = Job(
                     JobType.SAMPLE,
-                    QCircuit(nb_qubits),
+                    QCircuit(
+                        [BasisMeasure(list(range(nb_qubits)), shots=shots)],
+                        nb_qubits=nb_qubits,
+                    ),
                     device,
                     BasisMeasure(list(range(nb_qubits)), shots=shots),
                 )
