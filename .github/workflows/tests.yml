@@ -39,16 +39,15 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Force reinstall osqp (stable version)
-        run: pip install --no-cache-dir --force-reinstall "osqp==0.6.2.post0"
-      - name: Clear pip cache
-        run: pip cache purge
-      - name: Force reinstall osqp
-        run: pip install --no-cache-dir --force-reinstall osqp
+          cache: "pip"
+      - name: Install osqp
+        run: |
+            pip install --upgrade pip
+            pip install "osqp==1.0.1"
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
-          pip install --no-cache-dir --force-reinstall -r requirements-dev.txt
+          pip install -r requirements-dev.txt
       - name: Install os specific dependencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
         run: |
@@ -77,8 +76,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Clear pip cache
-        run: pip cache purge
+          cache: "pip"
       - name: Install dependencies
         run: |
           pip install --upgrade pip
