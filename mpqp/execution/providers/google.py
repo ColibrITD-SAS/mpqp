@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence, Union
 
-from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.tools.errors import DeviceJobIncompatibleError
 
 if TYPE_CHECKING:
@@ -17,11 +16,11 @@ from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
-from mpqp.execution.result import BatchResult, Result, Sample, StateVector
+from mpqp.execution.result import Result, Sample, StateVector
 
 
 @typechecked
-def run_google(job: Job) -> BatchResult | Result:
+def run_google(job: Job) -> Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
 
@@ -105,7 +104,7 @@ def run_google_remote(job: Job) -> Result:
 
 
 @typechecked
-def run_local(job: Job) -> BatchResult | Result:
+def run_local(job: Job) -> Result:
     """Executes the job locally.
 
     Args:
@@ -208,7 +207,7 @@ def run_local(job: Job) -> BatchResult | Result:
 
 
 @typechecked
-def run_local_processor(job: Job) -> BatchResult | Result:
+def run_local_processor(job: Job) -> Result:
     """Executes the job locally on processor.
 
     Args:
@@ -290,7 +289,6 @@ def run_local_processor(job: Job) -> BatchResult | Result:
             )
         return extract_result_OBSERVABLE_processors(
             simulator.get_sampler(job.device.value).sample_expectation_values(
-                # TODO: update for multi-observable runs
                 cirq_circuit,
                 observables=cirq_observables,
                 num_samples=job.measure.shots,
@@ -365,7 +363,7 @@ def extract_result_STATE_VECTOR(
 def extract_result_OBSERVABLE_processors(
     results: Sequence[Sequence[float]],
     job: Job,
-) -> BatchResult | Result:
+) -> Result:
     """Process measurement results for an observable from a quantum job.
 
     Args:
@@ -380,23 +378,37 @@ def extract_result_OBSERVABLE_processors(
         NotImplementedError: If the job does not contain a measurement (i.e.,
             ``job.measure`` is ``None``).
     """
-    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
 
-    all_results = []
-    for observable_results in results:
-        mean = sum(observable_results) / len(observable_results)
-        shots = job.measure.shots
-        all_results.append(Result(job, mean, 0, shots))
+    mean = 0
+    for res in results:
+        mean += sum(res) / len(res)
 
-    return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
+    shots = job.measure.shots
+
+    if len(results) == 1:
+        return Result(job, mean, 0, shots)
+
+    exp_values_dict = dict()
+    errors_dict = dict()
+
+    for i, _ in enumerate(results):
+        label = (
+            job.measure.observables[i].label
+            if isinstance(job.measure, ExpectationMeasure)
+            else f"cirq_obs_{i}"
+        )
+        exp_values_dict[label] = mean
+        errors_dict[label] = 0
+
+    return Result(job, exp_values_dict, errors_dict, shots)
 
 
 def extract_result_OBSERVABLE_ideal(
     results: list[float],
     job: Job,
-) -> BatchResult | Result:
+) -> Result:
     """Extracts the result from an observable-based ideal job.
 
     The simulation from which the result to parse comes from can take in several
@@ -417,23 +429,37 @@ def extract_result_OBSERVABLE_ideal(
     Returns:
         The formatted result.
     """
-    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
 
-    all_results = []
+    mean = 0
     for r in results:
-        mean = float(r.real)
-        shots = job.measure.shots
-        all_results.append(Result(job, mean, 0, shots))
+        mean += float(r.real)
 
-    return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
+    shots = job.measure.shots
+
+    if len(results) == 1:
+        return Result(job, mean, 0, shots)
+
+    exp_values_dict = dict()
+    errors_dict = dict()
+
+    for i, r in enumerate(results):
+        label = (
+            job.measure.observables[i].label
+            if isinstance(job.measure, ExpectationMeasure)
+            else f"cirq_obs_{i}"
+        )
+        exp_values_dict[label] = float(r.real)
+        errors_dict[label] = 0
+
+    return Result(job, exp_values_dict, errors_dict, shots)
 
 
 def extract_result_OBSERVABLE_shot_noise(
     results: list[ObservableMeasuredResult],
     job: Job,
-) -> BatchResult | Result:
+) -> Result:
     """Extracts the result from an observable-based job.
 
     Args:
@@ -443,21 +469,30 @@ def extract_result_OBSERVABLE_shot_noise(
     Returns:
         The formatted result.
     """
-    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    pauli_mono = PauliString.from_other_language(
-        [r.observable for r in results], job.measure.nb_qubits
-    )
-    if TYPE_CHECKING:
-        assert isinstance(pauli_mono, list)
 
-    all_results = []
-    for _, r in zip(pauli_mono, results):
-        mean = float(r.mean)
-        variance = float(r.variance)
-        shots = job.measure.shots
+    mean = 0
+    variance = 0
+    for r in results:
+        mean += float(r.mean)
+        variance += float(r.variance)
 
-        all_results.append(Result(job, mean, variance, shots))
+    shots = job.measure.shots
 
-    return BatchResult(all_results) if len(all_results) > 1 else all_results[0]
+    if len(results) == 1:
+        return Result(job, mean, variance, shots)
+
+    exp_values_dict = dict()
+    errors_dict = dict()
+
+    for i, r in enumerate(results):
+        label = (
+            job.measure.observables[i].label
+            if isinstance(job.measure, ExpectationMeasure)
+            else f"cirq_obs_{i}"
+        )
+        exp_values_dict[label] = float(r.mean)
+        errors_dict[label] = float(r.variance)
+
+    return Result(job, exp_values_dict, errors_dict, shots)
