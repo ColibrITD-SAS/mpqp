@@ -8,6 +8,7 @@ import pytest
 from braket.circuits import Circuit as BraketCircuit
 from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
+from typing import TYPE_CHECKING
 
 from mpqp import Barrier, Instruction, Language, QCircuit
 from mpqp.core.instruction.gates import native_gates
@@ -188,7 +189,8 @@ def test_tensor(
 def test_initializer(state: npt.NDArray[np.complex64]): 
     qc = QCircuit.initializer(state)
     res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
-    assert isinstance(res, Result)
+    if TYPE_CHECKING:
+        assert isinstance(res, Result)
     state_vector_initialized = res.state_vector.vector
     assert matrix_eq(state, state_vector_initialized)
 
@@ -362,7 +364,8 @@ def test_to_other_language(
 )
 def test_from_other_language(circuit: QCircuit, language: Language):
     circ_to_test = circuit.to_other_language(language)
-    assert(isinstance(circ_to_test, (QiskitCircuit, str)))
+    if TYPE_CHECKING:
+        assert(isinstance(circ_to_test, (QiskitCircuit, str)))
     qcircuit = QCircuit.from_other_language(circ_to_test)
     assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
 
