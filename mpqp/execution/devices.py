@@ -25,6 +25,7 @@ For more information about handling Remote devices, please refer to the `Remote 
 from abc import abstractmethod
 from enum import Enum, auto
 
+from mpqp.core.instruction.gates import Gate
 from mpqp.execution.connection.env_manager import get_env_variable
 
 
@@ -87,6 +88,9 @@ class AvailableDevice(Enum):
     @abstractmethod
     def supports_observable_ideal(self) -> bool:
         pass
+
+    def incompatible_gate(self) -> set[type[Gate]]:
+        return set()
 
 
 class IBMDevice(AvailableDevice):
@@ -182,6 +186,16 @@ class IBMDevice(AvailableDevice):
             # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
+
+    def incompatible_gate(self) -> set[type[Gate]]:
+        from mpqp.core.instruction.gates import TOF, CRk, P, Rk, Rx, Ry, Rz, T, U
+
+        if self == IBMDevice.AER_SIMULATOR_STABILIZER:
+            return {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}
+        elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
+            return {Rx, Rz}
+        else:
+            return set()
 
 
 class ATOSDevice(AvailableDevice):

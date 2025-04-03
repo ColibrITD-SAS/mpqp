@@ -9,7 +9,7 @@ import numpy as np
 from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import TOF, CRk, Gate, Id, P, Rk, Rx, Ry, Rz, T, U
+from mpqp.core.instruction.gates import Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -26,6 +26,7 @@ from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
     IBMRemoteExecutionError,
     IBMNoiseModelGeneration,
+    InstructionParsingError,
 )
 
 if TYPE_CHECKING:
@@ -108,15 +109,12 @@ def compute_expectation_value(
         qiskit_observables.append(translated)
 
     if isinstance(job.device, IBMSimulatedDevice) or nb_shots != 0:
-        from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
         if isinstance(job.device, IBMSimulatedDevice):
             backend = job.device.value()
         else:
             backend = simulator
-        pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
-        ibm_circuit = pm.run(ibm_circuit)
 
         if TYPE_CHECKING:
             assert isinstance(ibm_circuit, QuantumCircuit)
@@ -198,24 +196,6 @@ def check_job_compatibility(job: Job):
         raise DeviceJobIncompatibleError(
             f"Expectation values cannot be computed with {job.device.name} device"
         )
-    if isinstance(job.device, IBMSimulatedDevice):
-        if job.device.value().num_qubits < job.circuit.nb_qubits:
-            raise DeviceJobIncompatibleError(
-                f"Number of qubits of the circuit ({job.circuit.nb_qubits}) is higher "
-                f"than the one of the IBMSimulatedDevice ({job.device.value().num_qubits})."
-            )
-
-    incompatibilities = {
-        IBMDevice.AER_SIMULATOR_STABILIZER: {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U},
-        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER: {Rx, Rz},
-    }
-    if job.device in incompatibilities:
-        circ_gates = {type(i) for i in job.circuit.instructions}
-        incompatible_gates = circ_gates.intersection(incompatibilities[job.device])
-        if len(incompatible_gates) != 0:
-            raise ValueError(
-                f"Gate(s) {incompatible_gates} cannot be simulated on {job.device}."
-            )
 
 
 @typechecked
@@ -455,12 +435,27 @@ def run_aer(job: Job):
     """
     check_job_compatibility(job)
 
-    from qiskit import QuantumCircuit, transpile
+    from qiskit import QuantumCircuit
     from qiskit_aer import AerSimulator
 
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
-    job_circuit = job.circuit
+    if job.circuit.transpile_circuit is None:
+        qiskit_circuit = (
+            (
+                # 3M-TODO: careful, if we ever support several measurements, the
+                # line bellow will have to changer
+                job.circuit.without_measurements()
+                + job.circuit.pre_measure()
+            ).to_other_device(job.device)
+            if (job.job_type == JobType.STATE_VECTOR)
+            else job.circuit.to_other_device(job.device)
+        )
+    else:
+        qiskit_circuit = job.circuit.transpile_circuit
+
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
 
     if isinstance(job.device, IBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
@@ -473,28 +468,13 @@ def run_aer(job: Job):
             # to it directly)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
-        noise_model, modified_circuit = generate_qiskit_noise_model(
-            job.circuit, duplicate_noise_warning=False
+        if job.circuit.transpiled_noise_model is None:
+            raise InstructionParsingError("transpiled_noise_model is not initialized")
+        backend_sim = AerSimulator(
+            method=job.device.value, noise_model=job.circuit.transpiled_noise_model
         )
-        job_circuit = modified_circuit
-        backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
     else:
         backend_sim = AerSimulator(method=job.device.value)
-
-    qiskit_circuit = (
-        (
-            # 3M-TODO: careful, if we ever support several measurements, the
-            # line bellow will have to changer
-            job_circuit.without_measurements()
-            + job_circuit.pre_measure()
-        ).to_other_language(Language.QISKIT)
-        if (job.job_type == JobType.STATE_VECTOR)
-        else job_circuit.to_other_language(Language.QISKIT)
-    )
-    if TYPE_CHECKING:
-        assert isinstance(qiskit_circuit, QuantumCircuit)
-
-    qiskit_circuit = qiskit_circuit.reverse_bits()
 
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
@@ -514,9 +494,6 @@ def run_aer(job: Job):
             assert job.measure is not None
 
         job.status = JobStatus.RUNNING
-
-        if isinstance(job.device, IBMSimulatedDevice):
-            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
@@ -549,7 +526,6 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit import QuantumCircuit
-    from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
     from qiskit_ibm_runtime import Session
@@ -558,12 +534,6 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     check_job_compatibility(job)
 
-    qiskit_circ = job.circuit.to_other_language(Language.QISKIT)
-    if TYPE_CHECKING:
-        assert isinstance(qiskit_circ, QuantumCircuit)
-
-    qiskit_circ = qiskit_circ.reverse_bits()
-
     service = get_QiskitRuntimeService()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
@@ -571,8 +541,13 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     job.device = IBMDevice(backend.name)
     session = Session(service=service, backend=backend)
 
-    pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
-    qiskit_circ = pm.run(qiskit_circ)
+    if job.circuit.transpile_circuit is None:
+        qiskit_circ = job.circuit.to_other_device(job.device)
+    else:
+        qiskit_circ = job.circuit.transpile_circuit
+
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circ, QuantumCircuit)
 
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
