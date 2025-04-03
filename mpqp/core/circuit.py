@@ -779,29 +779,29 @@ class QCircuit:
             The inverse circuit.
 
         Examples:
-            >>> c1 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
+            >>> c1 = QCircuit([T(0), CZ(0,1), H(1), Ry(4.56, 1)])
             >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
-            q_0: ┤ S ├─■──────────────────
+            q_0: ┤ T ├─■──────────────────
                  └───┘ │ ┌───┐┌──────────┐
             q_1: ──────■─┤ H ├┤ Ry(4.56) ├
                          └───┘└──────────┘
             >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
                                       ┌────┐
-            q_0: ───────────────────■─┤ S† ├
+            q_0: ───────────────────■─┤ T† ├
                  ┌───────────┐┌───┐ │ └────┘
             q_1: ┤ Ry(-4.56) ├┤ H ├─■───────
                  └───────────┘└───┘
-             >>> c2 = QCircuit([S(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1)])
+             >>> c2 = QCircuit([T(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1)])
             >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐          ░
-            q_0: ┤ S ├─■────────░──────────────────
+            q_0: ┤ T ├─■────────░──────────────────
                  └───┘ │P(π/2)  ░ ┌───┐┌──────────┐
             q_1: ──────■────────░─┤ H ├┤ Ry(4.56) ├
                                 ░ └───┘└──────────┘
             >>> print(c2.inverse())  # doctest: +NORMALIZE_WHITESPACE
                                     ░           ┌────┐
-            q_0: ───────────────────░──■────────┤ S† ├
+            q_0: ───────────────────░──■────────┤ T† ├
                  ┌───────────┐┌───┐ ░  │P(-π/2) └────┘
             q_1: ┤ Ry(-4.56) ├┤ H ├─░──■──────────────
                  └───────────┘└───┘ ░
@@ -925,7 +925,8 @@ class QCircuit:
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure(shots=1000),
-            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
+            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'),
+            [1], shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]

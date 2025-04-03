@@ -40,6 +40,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
+      - name: Install osqp
+        run: |
+            pip install --upgrade pip
+            pip install "osqp==1.0.1"
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
@@ -73,6 +77,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
           cache: "pip"
+      - name: Install osqp
+        run: |
+            pip install --upgrade pip
+            pip install "osqp==1.0.1"
       - name: Install dependencies
         run: |
           pip install --upgrade pip

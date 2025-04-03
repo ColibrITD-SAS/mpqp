@@ -9,7 +9,7 @@ from mpqp.gates import *
 # Declaration of the circuit with the right size
 circuit = QCircuit(3, label="Test native gates")
 # Constructing the circuit by adding gates and measurements
-circuit.add([H(0), X(1), Y(2), Z(0), S(1), T(0)])
+circuit.add([H(0), X(1), Y(2), Z(0), S(0), S_dagger(1), T(0)])
 circuit.add([Rx(1.2324, 2), Ry(-2.43, 0), Rz(1.04, 1), Rk(-1, 1), P(-323, 2)])
 circuit.add(U(1.2, 2.3, 3.4, 2))
 circuit.add(SWAP(2, 0))

@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Collection, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
-from scipy.optimize import OptimizeResult
-from scipy.optimize import minimize as scipy_minimize
-from sympy import Expr
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction import ExpectationMeasure
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.execution.vqa.optimizer import Optimizer
+from scipy.optimize import OptimizeResult
+from scipy.optimize import minimize as scipy_minimize
+from sympy import Basic
+from typeguard import typechecked
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
@@ -110,7 +110,7 @@ def minimize(
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         {alpha: params[0], beta: params[1]}
         ...     )
-        ...     return 1 - run_res.expectation_value ** 2
+        ...     return 1 - run_res.expectation_values ** 2
         >>> minimize(
         ...     cost_func,
         ...     Optimizer.BFGS,
@@ -251,9 +251,9 @@ def _minimize_local_circ(
     callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
-    minimize the expectation value of the measure of the circuit by it's
-    observables. Note that this means that the circuit should contain an
-    expectation measure!
+    minimize the expectation value of the measure of the circuit by its
+    observable. This is equivalent to the run of a VQE. Note that this means
+    that the circuit should contain an expectation measure, with only one measurement!
 
     Args:
         circ: Either the circuit, containing symbols and an expectation measure.
@@ -279,16 +279,30 @@ def _minimize_local_circ(
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
     # TODO: bellow might be a bug, check why we need this type ignore
-    variables: set[Expr] = circ.variables()  # pyright: ignore[reportAssignmentType]
+    variables: set[Basic] = circ.variables()
+
+    if len(circ.measurements) != 1:
+        raise ValueError("Cannot optimize a circuit containing several measurements.")
+
+    if not isinstance(circ.measurements[0], ExpectationMeasure):
+        raise ValueError("Expected an ExpectationMeasure to optimize the circuit.")
+    else:
+        if len(circ.measurements[0].observables) > 1:
+            raise ValueError(
+                f"Expected only one observable in the ExpectationMeasure but got {len(circ.measurements[0].observables)}"
+            )
 
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:
         # "float" is incompatible with "Complex"
-        return _run_single(
+        result = _run_single(
             circ,
             device,
             _maps(variables, params),  # pyright: ignore[reportArgumentType]
-        ).expectation_value
+        )
+        if TYPE_CHECKING:
+            assert isinstance(result.expectation_values, float)
+        return result.expectation_values
 
     return _minimize_local_func(
         eval_circ, method, init_params, len(variables), optimizer_options, callback
