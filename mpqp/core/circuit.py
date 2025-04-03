@@ -1389,19 +1389,11 @@ class QCircuit:
 
         elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             lines = qcircuit.split('\n')
-            qasm_str = []
-            line_to_add = True
             for line in lines:
-                if "//" in line or line == '':
-                    line_to_add = False
-                if line_to_add is True:
-                    qasm_str.append(line)
-                else:
-                    line_to_add = True
-            qasm_str = '\n'.join(qasm_str)
-
-            if not qasm_str.startswith("OPENQASM 2.0"):
-                raise NotImplementedError(f"Error: only OpenQASM2 is supported for qasm external description of the circuit")
+                if not line.startswith("//") and line != '':
+                    if not line.startswith("OPENQASM 2.0"):
+                        raise NotImplementedError(f"Error: only OpenQASM2 is supported for qasm external description of the circuit")
+                    break
             return qasm2_parse(qcircuit)
         else:
             raise NotImplementedError(f"Error: {type(qcircuit)} is not supported.")
