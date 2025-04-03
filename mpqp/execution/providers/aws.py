@@ -87,7 +87,7 @@ def apply_noise_to_braket_circuit(
 
 
 @typechecked
-def run_braket(job: Job) -> Result:
+def run_braket(job: Job, warnings: bool = True) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.

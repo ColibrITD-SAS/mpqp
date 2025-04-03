@@ -21,7 +21,7 @@ from mpqp.execution.result import Result, Sample, StateVector
 
 
 @typechecked
-def run_google(job: Job) -> Result:
+def run_google(job: Job, warnings: bool = True) -> Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
 

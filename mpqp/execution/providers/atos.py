@@ -660,7 +660,7 @@ def extract_result(
 
 
 @typechecked
-def run_atos(job: Job) -> Result:
+def run_atos(job: Job, warnings: bool = True) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
 

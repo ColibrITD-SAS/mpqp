@@ -46,7 +46,7 @@ if TYPE_CHECKING:
 
 
 @typechecked
-def run_ibm(job: Job) -> Result:
+def run_ibm(job: Job, warnings: bool = True) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 

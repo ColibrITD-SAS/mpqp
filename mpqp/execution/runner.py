@@ -150,6 +150,7 @@ def _run_single(
     device: AvailableDevice,
     values: dict[Expr | str, Complex],
     display_breakpoints: bool = True,
+    warnings: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -204,15 +205,15 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
-        return run_ibm(job)
+        return run_ibm(job, warnings)
     elif isinstance(device, ATOSDevice):
-        return run_atos(job)
+        return run_atos(job, warnings)
     elif isinstance(device, AWSDevice):
-        return run_braket(job)
+        return run_braket(job, warnings)
     elif isinstance(device, GOOGLEDevice):
-        return run_google(job)
+        return run_google(job, warnings)
     elif isinstance(device, AZUREDevice):
-        return run_azure(job)
+        return run_azure(job, warnings)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -223,6 +224,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    warnings: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -306,13 +308,15 @@ def run(
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
             [
-                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
+                _run_single(
+                    namer(circ, i + 1), dev, values, display_breakpoints, warnings
+                )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(circuit, device, values, display_breakpoints, warnings)
 
 
 @typechecked

@@ -20,7 +20,7 @@ from mpqp.execution.result import Result, Sample
 
 
 @typechecked
-def run_azure(job: Job) -> Result:
+def run_azure(job: Job, warnings: bool = True) -> Result:
     """Executes the job on the right AZURE device precised in the job in
     parameter.
 
@@ -42,9 +42,11 @@ def run_azure(job: Job) -> Result:
             # line bellow will have to changer
             job.circuit.without_measurements()
             + job.circuit.pre_measure()
-        ).to_other_language(Language.QISKIT)
+        ).to_other_language(Language.QISKIT, translation_warning=warnings)
         if (job.job_type == JobType.STATE_VECTOR)
-        else job.circuit.to_other_language(Language.QISKIT)
+        else job.circuit.to_other_language(
+            Language.QISKIT, translation_warning=warnings
+        )
     )
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
