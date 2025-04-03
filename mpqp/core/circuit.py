@@ -1226,7 +1226,9 @@ class QCircuit:
                     )
 
             qasm3_code = circuit.to_other_language(
-                Language.QASM3, translation_warning=translation_warning, skip_pre_measure=True
+                Language.QASM3,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
             )
             self.gphase = circuit.gphase
             if TYPE_CHECKING:
