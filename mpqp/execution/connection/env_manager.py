@@ -1,28 +1,37 @@
 """This module takes care of saving and loading the configuration of supported
-providers."""
+providers in our configuration file, located at ``~/.mpqp/.env``."""
 
 import os
 from getpass import getpass
+from pathlib import Path
 from typing import Callable
 
 from dotenv import load_dotenv, set_key
 from termcolor import colored
 from typeguard import typechecked
 
-MPQP_CONFIG_PATH = os.path.expanduser("~") + "/.mpqp/env"
+MPQP_ENV = Path("~/.mpqp/.env").expanduser()
 
 
 def _create_config_if_needed():
-    """If there is not already a ``.mpqp`` file we create it."""
-    if not os.path.exists(MPQP_CONFIG_PATH):
-        open(MPQP_CONFIG_PATH, "a").close()
+    """If configuration file does not exist we create it."""
+    # convert from old format to new one
+    if MPQP_ENV.parent.is_file():
+        os.rename(MPQP_ENV.parent, MPQP_ENV.parent.with_suffix(".tmp"))
+        MPQP_ENV.parent.mkdir(parents=True, exist_ok=True)
+        os.rename(MPQP_ENV.parent.with_suffix(".tmp"), MPQP_ENV)
+        return
+
+    if not MPQP_ENV.exists():
+        MPQP_ENV.parent.mkdir(parents=True, exist_ok=True)
+        MPQP_ENV.open("a").close()
 
 
 def get_existing_config_str() -> str:
-    """Gets the content of the ``.mpqp`` config file.
+    """Gets the content of the configuration file.
 
     Returns:
-        The string with .mpqp file content.
+        The content of the configuration file.
 
     Example:
         >>> save_env_variable('QLM_USER', 'hjaffali')
@@ -40,37 +49,36 @@ def get_existing_config_str() -> str:
         BRAKET_CONFIGURED='True'
 
     """
-    if not os.path.exists(MPQP_CONFIG_PATH):
+    if not MPQP_ENV.exists():
         return ""
-    with open(MPQP_CONFIG_PATH, "r") as mpqp:
-        file_str = mpqp.read()
+    with MPQP_ENV.open("r") as env:
+        file_str = env.read()
     return file_str
 
 
 def load_env_variables() -> bool:
-    """Loads the variables stored in the ``.mpqp`` file.
+    """Loads the variables stored in the configuration file.
 
     Returns:
         ``True`` if the variables are loaded correctly.
 
     Example:
-        >>> os.getenv("IBM_CONFIGURED")
-        >>> open(os.path.expanduser("~") + "/.mpqp", "w").write("IBM_CONFIGURED='True'\\n")
+        >>> os.getenv("IBM_CONFIGURED")  # doctest: +SKIP
+        >>> open(os.path.expanduser("~") + "/.mpqp/.env", "w").write("IBM_CONFIGURED='True'\\n")
         22
-        >>> os.getenv("IBM_CONFIGURED")
+        >>> os.getenv("IBM_CONFIGURED")  # doctest: +SKIP
         >>> load_env_variables()
         True
         >>> os.getenv("IBM_CONFIGURED")
         'True'
 
     """
-    load_dotenv(MPQP_CONFIG_PATH, override=True)
-    return True
+    return load_dotenv(MPQP_ENV, override=True)
 
 
 @typechecked
 def get_env_variable(key: str) -> str:
-    """Loads the ``.mpqp`` env file and returns the value associated with the key
+    """Loads the configuration file and returns the value associated with the key
     in parameter. If the variable does not exist, an empty string is returned.
 
     Args:
@@ -87,18 +95,17 @@ def get_env_variable(key: str) -> str:
     """
     _create_config_if_needed()
     load_env_variables()
-    val = os.getenv(key, "")
 
-    return val
+    return os.getenv(key, "")
 
 
 @typechecked
 def save_env_variable(key: str, value: str) -> bool:
-    """Adds or updates the ``key`` environment variable in ``.mpqp`` file.
+    """Adds or updates the ``key`` environment variable in the configuration file.
 
     Args:
         key: Name of the environment variable.
-        value: Value to be saved.
+        value: Value of the environment variable.
 
     Returns:
         ``True`` if the save was successful.
@@ -115,7 +122,7 @@ def save_env_variable(key: str, value: str) -> bool:
     _create_config_if_needed()
 
     try:
-        a, _, _ = set_key(MPQP_CONFIG_PATH, key, value)
+        a, _, _ = set_key(MPQP_ENV, key, value)
         if a is None:
             raise SystemError(
                 "Something went wrong when trying to modify the MPQP "

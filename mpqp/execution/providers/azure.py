@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
-    from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
 
 from typeguard import typechecked
 
@@ -77,7 +76,7 @@ def run_azure(job: Job) -> Result:
 
 @typechecked
 def extract_result(
-    result: "MicrosoftEstimatorResult | QiskitResult",
+    result: "QiskitResult",
     job: Optional[Job],
     device: AZUREDevice,
 ) -> Result:
@@ -94,21 +93,10 @@ def extract_result(
     Raises:
         ValueError: If the result type is unsupported.
     """
-    from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
-    from qiskit.result import Result as QiskitResult
 
-    if isinstance(result, QiskitResult):
-        from mpqp.execution.providers.ibm import extract_result as extract_result_ibm
+    from mpqp.execution.providers.ibm import extract_result as extract_result_ibm
 
-        return extract_result_ibm(result, job, device)
-    elif isinstance(
-        result, MicrosoftEstimatorResult
-    ):  # pyright: ignore[reportUnnecessaryIsInstance]
-        if job is None:
-            job = Job(JobType.OBSERVABLE, QCircuit(1), device)
-        return Result(job, 0, result.data())
-    else:
-        raise ValueError(f"result type not supported: {type(result)}")
+    return extract_result_ibm(result, job, device)
 
 
 @typechecked
@@ -153,8 +141,18 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
             )
             for (state, count) in result_dict.items()
         ]
+    elif isinstance(result, dict):
+        data = [
+            Sample(
+                index=int("".join(map(str, eval(state))), 2),
+                count=int(count),
+                probability=count,
+                nb_qubits=nb_qubits,
+            )
+            for (state, count) in result.items()
+        ]
     else:
-        raise ValueError(f"Result dictionary not compatible: {result}")
+        raise ValueError(f"Result dictionary not compatible: {type(result)}\n{result}")
 
     shots = 0
     if job.details.input_params is not None:
@@ -163,7 +161,9 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
 
     job_ = Job(
         JobType.SAMPLE,
-        QCircuit(nb_qubits),
+        QCircuit(
+            [BasisMeasure(list(range(nb_qubits)), shots=shots)], nb_qubits=nb_qubits
+        ),
         device,
         BasisMeasure(list(range(nb_qubits)), shots=shots),
     )

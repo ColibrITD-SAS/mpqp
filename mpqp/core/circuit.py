@@ -35,8 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from pickle import dumps
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Optional, Sequence, Type
 from warnings import warn
 
 import numpy as np
@@ -176,13 +175,13 @@ class QCircuit:
                     connections: set[int] = set.union(
                         *(instruction.connections() for instruction in data)
                     )
-                    self._nb_qubits = max(connections, default=0) + 1
+                    self._nb_qubits = max(connections, default=-1) + 1
             else:
                 self._user_nb_qubits = nb_qubits
             self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
-        return dumps(self) == dumps(value)
+        return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
         """Adds a ``component`` or a list of ``component`` at the end of the
@@ -222,7 +221,7 @@ class QCircuit:
 
         """
 
-        if isinstance(components, Iterable):
+        if not isinstance(components, (Instruction, NoiseModel)):
             for comp in components:
                 self.add(comp)
             return
@@ -254,7 +253,9 @@ class QCircuit:
                 components.c_targets = [
                     self.nb_cbits + i for i in range(len(components.targets))
                 ]
-            self._update_cbits(max(components.c_targets) + 1)
+            self._update_cbits(
+                max(components.c_targets) + 1 if len(components.c_targets) != 0 else 0
+            )
 
         if isinstance(components, NoiseModel):
             self.noises.append(components)
@@ -270,7 +271,7 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             if (
                 isinstance(components, DimensionalNoiseModel)
-                and len(components.targets) < components.dimension
+                and 0 < len(components.targets) < components.dimension
             ):
                 raise ValueError(
                     f"Number of target qubits {len(components.targets)} should be higher than "
@@ -353,7 +354,7 @@ class QCircuit:
                 if instruction != component and isinstance(instruction, BasisMeasure):
                     if instruction.c_targets:
                         unique_cbits.update(instruction.c_targets)
-            c_targets = []
+            c_targets: list[int] = []
             i = 0
             for _ in range(len(component.targets)):
                 while i in unique_cbits:
@@ -471,12 +472,15 @@ class QCircuit:
 
         """
 
-        if self.nb_qubits < other.nb_qubits:
+        if self._user_nb_qubits is not None and self.nb_qubits < other.nb_qubits:
             raise NumberQubitsError(
                 "Size of the circuit to be appended is greater than the size of"
                 " this circuit"
             )
-        if qubits_offset + other.nb_qubits > self.nb_qubits:
+        if (
+            self._user_nb_qubits is not None
+            and qubits_offset + other.nb_qubits > self.nb_qubits
+        ):
             raise NumberQubitsError(
                 "Size of the circuit to be appended is too large given the"
                 " index and the size of this circuit"
@@ -487,10 +491,25 @@ class QCircuit:
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
             if isinstance(inst, BasisMeasure):
-                if not inst.user_set_c_targets:
+                if not inst._user_set_c_targets:  # pyright: ignore[reportPrivateUsage]
                     inst.c_targets = None
 
             self.add(inst)
+
+    def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
+        """
+        Serialize the quantum circuit to a dictionary.
+        Returns:
+            dict: A dictionary representation of the circuit.
+        """
+
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if attr_name not in {'_nb_qubits', 'gates', 'measurements', 'breakpoints'}
+            and not attr_name.startswith("__")
+            and not callable(getattr(self, attr_name))
+        }
 
     def __iadd__(self, other: QCircuit):
         self.append(other)
@@ -770,29 +789,29 @@ class QCircuit:
             The inverse circuit.
 
         Examples:
-            >>> c1 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
+            >>> c1 = QCircuit([T(0), CZ(0,1), H(1), Ry(4.56, 1)])
             >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
-            q_0: ┤ S ├─■──────────────────
+            q_0: ┤ T ├─■──────────────────
                  └───┘ │ ┌───┐┌──────────┐
             q_1: ──────■─┤ H ├┤ Ry(4.56) ├
                          └───┘└──────────┘
             >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
                                       ┌────┐
-            q_0: ───────────────────■─┤ S† ├
+            q_0: ───────────────────■─┤ T† ├
                  ┌───────────┐┌───┐ │ └────┘
             q_1: ┤ Ry(-4.56) ├┤ H ├─■───────
                  └───────────┘└───┘
-             >>> c2 = QCircuit([S(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1)])
+             >>> c2 = QCircuit([T(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1)])
             >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐          ░
-            q_0: ┤ S ├─■────────░──────────────────
+            q_0: ┤ T ├─■────────░──────────────────
                  └───┘ │P(π/2)  ░ ┌───┐┌──────────┐
             q_1: ──────■────────░─┤ H ├┤ Ry(4.56) ├
                                 ░ └───┘└──────────┘
             >>> print(c2.inverse())  # doctest: +NORMALIZE_WHITESPACE
                                     ░           ┌────┐
-            q_0: ───────────────────░──■────────┤ S† ├
+            q_0: ───────────────────░──■────────┤ T† ├
                  ┌───────────┐┌───┐ ░  │P(-π/2) └────┘
             q_1: ┤ Ry(-4.56) ├┤ H ├─░──■──────────────
                  └───────────┘└───┘ ░
@@ -916,7 +935,8 @@ class QCircuit:
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure(shots=1000),
-            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
+            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'),
+            [1], shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
@@ -1591,20 +1611,22 @@ class QCircuit:
         return output
 
     def __repr__(self) -> str:
-        instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
-        options = []
+        args = []
+        components: list[Instruction | NoiseModel] = self.instructions + self.noises
+        if len(components) != 0:
+            args.append(f"[{', '.join(repr(component) for component in components)}]")
         if self._user_nb_qubits is not None:
-            options.append(f"nb_qubits={self.nb_qubits}")
+            if len(components) == 0:
+                args.append(f"{self.nb_qubits}")
+            else:
+                args.append(f"nb_qubits={self.nb_qubits}")
         if self._user_nb_cbits is not None:
-            options.append(f"nb_cbits={self.nb_cbits}")
+            args.append(f"nb_cbits={self.nb_cbits}")
         if self.label is not None:
-            options.append(f'label="{self.label}')
+            args.append(f'label="{self.label}"')
+        args_repr = ', '.join(args)
 
-        options_repr = f", {', '.join(options)}" if options else ""
-        components = instructions_repr + (
-            "" if len(self.noises) == 0 else (", " + ", ".join(map(repr, self.noises)))
-        )
-        return f'QCircuit([{components}]{options_repr})'
+        return f'QCircuit({args_repr})'
 
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.

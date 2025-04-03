@@ -58,6 +58,7 @@ measure q[3] -> c[3];""",
         (
             [
                 S(0),
+                S_dagger(1),
                 X(0),
                 Y(0),
                 Z(0),
@@ -79,6 +80,7 @@ include "qelib1.inc";
 qreg q[3];
 creg c[3];
 s q[0];
+sdg q[1];
 x q[0];
 y q[0];
 z q[0];
@@ -170,6 +172,7 @@ y q[1];""",
         (
             [
                 S(0),
+                S_dagger(1),
                 X(0),
                 Y(0),
                 Z(0),
@@ -189,6 +192,7 @@ y q[1];""",
 include "qelib1.inc";
 qreg q[3];
 s q[0];
+sdg q[1];
 x q[0];
 y q[0];
 z q[0];
@@ -326,6 +330,7 @@ measure q -> c;""",
         (
             [
                 S(0),
+                S_dagger(1),
                 X(0),
                 Y(0),
                 Z(0),
@@ -347,6 +352,7 @@ include "qelib1.inc";
 qreg q[3];
 creg c[3];
 s q[0];
+sdg q[1];
 x q[0];
 y q[0];
 z q[0];

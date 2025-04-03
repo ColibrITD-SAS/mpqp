@@ -5,20 +5,20 @@ import sys
 import warnings
 from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
 from functools import partial
+from pathlib import Path
 from types import TracebackType
 from typing import Any, Optional, Type
 
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
-from numpy.random import default_rng
-
 from mpqp.all import *
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
-    MPQP_CONFIG_PATH,
+    MPQP_ENV,
+    _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
     get_env_variable,
     get_existing_config_str,
     load_env_variables,
@@ -26,6 +26,48 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
+from mpqp.local_storage.delete import (
+    clear_local_storage,
+    remove_all_with_job_id,
+    remove_jobs_with_id,
+    remove_jobs_with_jobs_local_storage,
+    remove_results_with_id,
+    remove_results_with_job,
+    remove_results_with_job_id,
+    remove_results_with_result,
+    remove_results_with_results_local_storage,
+)
+from mpqp.local_storage.load import (
+    get_all_jobs,
+    get_all_remote_job_ids,
+    get_all_results,
+    get_jobs_with_id,
+    get_jobs_with_job,
+    get_jobs_with_result,
+    get_remote_result,
+    get_result_from_qlm_job_id,
+    get_results_with_id,
+    get_results_with_job_id,
+    get_results_with_result,
+    get_results_with_result_and_job,
+    jobs_local_storage_to_mpqp,
+    results_local_storage_to_mpqp,
+)
+from mpqp.local_storage.queries import (
+    fetch_all_jobs,
+    fetch_all_results,
+    fetch_jobs_with_id,
+    fetch_jobs_with_job,
+    fetch_jobs_with_result,
+    fetch_jobs_with_result_and_job,
+    fetch_results_with_id,
+    fetch_results_with_job,
+    fetch_results_with_job_id,
+    fetch_results_with_result,
+    fetch_results_with_result_and_job,
+)
+from mpqp.local_storage.save import insert_jobs, insert_results
+from mpqp.local_storage.setup import setup_local_storage
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import (
     qasm2_to_cirq_Circuit,
@@ -46,49 +88,54 @@ from mpqp.qasm.open_qasm_2_and_3 import (
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit, random_gate, random_noise
-from mpqp.tools.display import *
 from mpqp.tools.display import (
     clean_1D_array,
     clean_matrix,
+    clean_number_repr,
     format_element,
-    pprint,
     format_element_str,
+    pprint,
 )
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.generics import find, find_index, flatten
-from mpqp.tools.maths import *
 from mpqp.tools.maths import (
+    closest_unitary,
+    is_diagonal,
     is_hermitian,
     is_power_of_two,
     is_unitary,
     normalize,
+    rand_clifford_matrix,
+    rand_hermitian_matrix,
     rand_orthogonal_matrix,
+    rand_product_local_unitaries,
+    rand_unitary_2x2_matrix,
 )
+from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
+from numpy.random import default_rng
 
 sys.path.insert(0, os.path.abspath("."))
 
 
-class SafeRunner:
+class EnvRunner:
     def __enter__(self):
-        # Ensure the config file exists
-        if not os.path.exists(MPQP_CONFIG_PATH):
-            open(MPQP_CONFIG_PATH, "a").close()
+        _create_config_if_needed()
         env = get_existing_config_str()
 
         # Unset keys from the .env file
-        val = dotenv_values(MPQP_CONFIG_PATH)
+        val = dotenv_values(MPQP_ENV)
         for key in val.keys():
-            set_key(MPQP_CONFIG_PATH, key, "")
+            set_key(MPQP_ENV, key, "")
             load_env_variables()
             if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Write the content to the backup file
-        open(MPQP_CONFIG_PATH + "_tmp", "w").write(env)
-        open(MPQP_CONFIG_PATH, "w").close()
+        MPQP_ENV.with_suffix(".env_tmp").open("w").write(env)
+        MPQP_ENV.open("w").close()
 
     def __exit__(
         self,
@@ -96,26 +143,53 @@ class SafeRunner:
         exc_value: Optional[BaseException],
         exc_tb: Optional[TracebackType],
     ):
-        backup_env = open(MPQP_CONFIG_PATH + "_tmp", "r").read()
+        backup_env = MPQP_ENV.with_suffix(".env_tmp").open("r").read()
 
         # Unset keys from the .env file
-        val = dotenv_values(MPQP_CONFIG_PATH)
+        val = dotenv_values(MPQP_ENV)
         for key in val.keys():
-            set_key(MPQP_CONFIG_PATH, key, "")
+            set_key(MPQP_ENV, key, "")
             load_env_variables()
             if os.getenv(key) is not None:
                 del os.environ[key]
 
         # Reload configuration from backup file
-        open(MPQP_CONFIG_PATH, "w").write(backup_env)
+        open(MPQP_ENV, "w").write(backup_env)
         load_env_variables()
+
+
+class DBRunner:
+    original_local_storage_location: str
+
+    def __enter__(self):
+        import shutil
+
+        db_original = Path("tests/local_storage/test_local_storage.db").absolute()
+        db_temp = Path("tests/local_storage/test_local_storage_tmp.db").absolute()
+
+        shutil.copyfile(db_original, db_temp)
+        self.original_local_storage_location = get_env_variable("DB_PATH")
+        setup_local_storage("tests/local_storage/test_local_storage_tmp.db")
+
+    def __exit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_value: Optional[BaseException],
+        exc_tb: Optional[TracebackType],
+    ):
+        os.remove(
+            os.path.join(os.getcwd(), "tests/local_storage/test_local_storage_tmp.db")
+        )
+        setup_local_storage(self.original_local_storage_location or None)
 
 
 test_globals = globals().copy()
 test_globals.update(locals())
 
 to_pass = ["connection", "noise_methods", "remote_handle"]
-unsafe_files = ["env"]
+files_needing_db = ["local_storage", "result", "job"]
+unsafe_files = ["env"] + files_needing_db
+
 
 finder = DocTestFinder()
 runner = DocTestRunner()
@@ -142,7 +216,7 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
         .replace("\\", ".")
         .replace("/", ".")
     )
-    safe_needed = any(str in filename for str in unsafe_files)
+    safe_needed = any(str in root + filename for str in unsafe_files)
     for test in finder.find(my_module, "mpqp", globs=test_globals):
         if (
             test.docstring
@@ -150,8 +224,11 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
             and "6M-TODO" not in test.docstring
         ):
             if safe_needed:
-                with SafeRunner():
-                    if "PYTEST_CURRENT_TEST" not in os.environ:
+                with EnvRunner():
+                    if any(name in root + filename for name in files_needing_db):
+                        with DBRunner():
+                            assert runner.run(test).failed == 0
+                    else:
                         assert runner.run(test).failed == 0
             else:
                 assert runner.run(test).failed == 0

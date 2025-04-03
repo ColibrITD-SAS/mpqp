@@ -160,8 +160,9 @@ def run_local(job: Job) -> Result:
 
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-
-        cirq_obs = job.measure.observable.to_other_language(
+        # TODO: update this to take into account the case when we have list of Observables
+        # TODO: check if Cirq allows for a list of observable when computing expectation values (apparently yes)
+        cirq_obs = job.measure.observables[0].to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
         if TYPE_CHECKING:
@@ -176,6 +177,7 @@ def run_local(job: Job) -> Result:
             )
         else:
             return extract_result_OBSERVABLE_shot_noise(
+                # TODO: here precise the 'grouper' argument of measure_observable to precise the pauli grouping strategy
                 measure_observables(
                     cirq_circuit,
                     observables=(  # pyright: ignore[reportArgumentType]
@@ -252,7 +254,8 @@ def run_local_processor(job: Job) -> Result:
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
 
-        cirq_obs = job.measure.observable.to_other_language(
+        # TODO: update this to take into account the case when we have list of Observables
+        cirq_obs = job.measure.observables[0].to_other_language(
             language=Language.CIRQ, circuit=cirq_circuit
         )
         if TYPE_CHECKING:
@@ -264,7 +267,10 @@ def run_local_processor(job: Job) -> Result:
             )
         return extract_result_OBSERVABLE_processors(
             simulator.get_sampler(job.device.value).sample_expectation_values(
-                cirq_circuit, observables=cirq_obs, num_samples=job.measure.shots
+                # TODO: update for multi-observable runs
+                cirq_circuit,
+                observables=cirq_obs,
+                num_samples=job.measure.shots,
             ),
             job,
         )
@@ -351,6 +357,7 @@ def extract_result_OBSERVABLE_processors(
         NotImplementedError: If the job does not contain a measurement (i.e.,
             ``job.measure`` is ``None``).
     """
+    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     mean = 0
@@ -377,12 +384,13 @@ def extract_result_OBSERVABLE_ideal(
         but this might result in slightly unexpected results.
 
     Args:
-        result : The result of the simulation.
-        job : The original job.
+        results: The result of the simulation.
+        job: The original job.
 
     Returns:
         The formatted result.
     """
+    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     return Result(job, sum(map(lambda r: r.real, results)), 0, job.measure.shots)
@@ -395,12 +403,13 @@ def extract_result_OBSERVABLE_shot_noise(
     """Extracts the result from an observable-based job.
 
     Args:
-        result : The result of the simulation.
-        job : The original job.
+        results: The result of the simulation.
+        job: The original job.
 
     Returns:
         The formatted result.
     """
+    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     pauli_mono = PauliString.from_other_language(

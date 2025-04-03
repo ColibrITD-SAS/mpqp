@@ -7,6 +7,7 @@ from .devices import (
     IBMDevice,
     AZUREDevice,
 )
+from .simulated_devices import IBMSimulatedDevice
 from .job import Job, JobStatus, JobType
 from .result import BatchResult, Result, Sample, StateVector
 from .runner import adjust_measure, run, submit

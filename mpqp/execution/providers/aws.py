@@ -103,6 +103,8 @@ def run_braket(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    # TODO : [multi-obs] update this to take into account the case when we have list of Observables
+    # TODO : [multi-obs] check if Braket allows for a list of several observables
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
@@ -188,9 +190,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
+        # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        herm_op = job.measure.observable.to_other_language(Language.BRAKET)
+        herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
@@ -201,7 +204,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
-    return task.id, task
+    return (
+        task.id,
+        task,
+    )  # TODO : [multi-obs] update this to take into account the case when we have list of Observables
 
 
 @typechecked

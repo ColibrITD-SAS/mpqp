@@ -19,7 +19,8 @@ def circuits():
                 X(1),
                 Y(2),
                 Z(0),
-                S(1),
+                S(0),
+                S_dagger(1),
                 T(0),
                 Rx(1.2324, 2),
                 Ry(-2.43, 0),
@@ -78,7 +79,7 @@ def running_observable_job_ibm_simulated_devices(
     assert True
 
 
-if "--long-local" in sys.argv:
+if "--long-local" in sys.argv or "--long" in sys.argv:
     test_running_sample_job_ibm_simulated_devices = (
         running_sample_job_ibm_simulated_devices
     )

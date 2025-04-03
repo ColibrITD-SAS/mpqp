@@ -20,6 +20,7 @@ from .native_gates import (
     Ry,
     Rz,
     S,
+    S_dagger,
     T,
     U,
     X,
