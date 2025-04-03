@@ -17,8 +17,9 @@ import numpy.typing as npt
 from sympy import Expr
 from typeguard import typechecked
 
+from mpqp.core.instruction.gates.native_gates import H, NativeGate, S_dagger
 from mpqp.core.languages import Language
-from mpqp.tools import format_element
+from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
 
@@ -329,6 +330,20 @@ class PauliString:
             start=np.zeros((size, size), dtype=np.complex64),
         )
 
+    def commutes_with(self, other: PauliString) -> bool:
+        """
+        3M-TODO: Determine EFFICIENTLY if this pauli string is commuting with the one in parameter.
+        Args:
+            other:
+
+        Returns:
+
+        Examples:
+            >>> from mpqp.measures import I, X, Y, Z
+
+        """
+        raise NotImplementedError()
+
     @staticmethod
     def from_matrix(
         matrix: Matrix, method: Literal["ptdr", "trace"] = "ptdr"
@@ -395,7 +410,7 @@ class PauliString:
 
     @staticmethod
     def from_diagonal_elements(
-        diagonal_elements: list[Real] | npt.NDArray[np.float64],
+        diagonal_elements: list[float] | npt.NDArray[np.float64],
         method: Literal["walsh", "ptdr"] = "walsh",
     ) -> PauliString:
         """Create a PauliString from the diagonal elements of a diagonal
@@ -795,6 +810,24 @@ class PauliString:
         )
         return hash(monomials_as_tuples)
 
+    def is_diagonal(self) -> bool:
+        """Checks whether this pauli string has a diagonal representation, by checking if only ``I`` and ``Z`` Pauli
+        operators appears in the monomials of the string.
+
+        Returns:
+            True if the observable represented by pauli string is diagonal.
+
+        Examples:
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> (I @ X + Z @ Y - Y @ X).is_diagonal()
+            False
+            >>> (I @ Z @ I - 2* Z @ Z @ Z + I @ I @ I).is_diagonal()
+            True
+
+        """
+
+        return all([all([a == I or a == Z for a in m.atoms]) for m in self.monomials])
+
 
 @typechecked
 class PauliStringMonomial(PauliString):
@@ -809,8 +842,12 @@ class PauliStringMonomial(PauliString):
     def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
         self.coef = coef
         """Coefficient of the monomial."""
-        self.atoms = [] if atoms is None else atoms
+        self._atoms = [] if atoms is None else atoms
+
+    @property
+    def atoms(self) -> list["PauliStringAtom"]:
         """The list of atoms in the monomial."""
+        return self._atoms
 
     @property
     def nb_qubits(self) -> int:
@@ -819,6 +856,19 @@ class PauliStringMonomial(PauliString):
     @property
     def monomials(self) -> list["PauliStringMonomial"]:
         return [PauliStringMonomial(self.coef, self.atoms)]
+
+    @property
+    def positive_eigen_values(self) -> npt.NDArray[np.bool_]:
+        """Return the eigen values associated with this Pauli monomial,
+        stored as booleans for efficiency. True refers to +1 and False to -1.
+
+        Example:
+            >>> from mpqp.measures import I, X, Y
+            >>> (X @ Y @ I).positive_eigen_values  # doctest: +NORMALIZE_WHITESPACE
+            array([ True, True, False, False, False, False, True, True])
+        """
+        eigvals = reduce(np.kron, [a.eigen_values for a in self.atoms])
+        return eigvals > 0
 
     def __str__(self):
         coef = format_element(self.coef)
@@ -912,6 +962,42 @@ class PauliStringMonomial(PauliString):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
 
+    def commutes_with(self, other: PauliString) -> bool:
+        """Checks wether this Pauli monomial commutes (full commutativity) with the Pauli monomial in parameter. This
+        is done by checking that the number of anti-commuting atoms is even.
+
+        Args:
+            other: The Pauli monomial for which we want to check commutativity with this monomial.
+
+        Returns:
+            True if this Pauli monomial commutes with the one in parameter.
+
+        Examples:
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> (I @ X @ Y).commutes_with(Z @ Y @ X)
+            True
+            >>> (X @ Z @ Z).commutes_with(Y @ Z @ I)
+            False
+            >>> (X @ Z @ Z).commutes_with(X @ Z @ Z)
+            True
+
+        """
+        if not isinstance(other, PauliStringMonomial):
+            raise NotImplementedError(
+                f"Commutativity checking is only implemented for PauliStringMonomial in the current version."
+            )
+
+        if self.nb_qubits != other.nb_qubits:
+            raise NumberQubitsError(
+                f"Mismatch between {self.nb_qubits=} and {other.nb_qubits=}."
+            )
+
+        return (
+            sum(1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b))
+            % 2
+            == 0
+        )
+
     def subs(
         self, values: dict[Expr | str, Real], remove_symbolic: bool = True
     ) -> PauliStringMonomial:
@@ -1004,6 +1090,9 @@ class PauliStringAtom(PauliStringMonomial):
     Args:
         label: The label representing the Pauli operator.
         matrix: The matrix representation of the Pauli operator.
+        eig_values: The eigenvalues associated with the Pauli operator.
+        eig_vectors: A list of eigenvectors associated with the Pauli operator.
+        basis_change: Basis change of the measurement associated with the Pauli operator.
 
     Raises:
         RuntimeError: New atoms cannot be created, you should use the available
@@ -1016,10 +1105,20 @@ class PauliStringAtom(PauliStringMonomial):
 
     __is_mutable = True
 
-    def __init__(self, label: str, matrix: npt.NDArray[np.complex64]):
+    def __init__(
+        self,
+        label: str,
+        matrix: npt.NDArray[np.complex64],
+        eig_values: list[int],
+        eig_vectors: npt.NDArray[np.complex64],
+        basis_change: list[type[NativeGate]],
+    ):
         if _allow_atom_creation:
             self.label = label
             self.matrix = matrix
+            self._eig_vals = np.array(eig_values)
+            self._eig_vecs = np.array(eig_vectors)
+            self._basis_change = basis_change
             self.__is_mutable = False
         else:
             raise RuntimeError(
@@ -1032,7 +1131,7 @@ class PauliStringAtom(PauliStringMonomial):
         return 1
 
     @property
-    def atoms(self):
+    def atoms(self) -> list["PauliStringAtom"]:
         """Atoms present. (needed for upward compatibility with
         :class:`PauliStringMonomial`)"""
         return [self]
@@ -1045,6 +1144,10 @@ class PauliStringAtom(PauliStringMonomial):
     @property
     def monomials(self):
         return [PauliStringMonomial(self.coef, [a for a in self.atoms])]
+
+    @property
+    def eigen_values(self) -> npt.NDArray[np.bool_]:
+        return self._eig_vals
 
     def __setattr__(self, name: str, value: Any):
         if not self.__is_mutable:
@@ -1096,9 +1199,6 @@ class PauliStringAtom(PauliStringMonomial):
         res @= other
         return res
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
-        return self.matrix
-
     def __eq__(self, other: object) -> bool:
         if isinstance(other, PauliStringAtom):
             return self.label == other.label
@@ -1107,6 +1207,38 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __hash__(self):
         return hash(self.label)
+
+    def to_matrix(self) -> npt.NDArray[np.complex64]:
+        return self.matrix
+
+    def commutes_with(self, other: PauliString) -> bool:
+        """Determines whether this single-qubit Pauli operator commutes with the one in parameter. In this case, this
+        can be done by simply checking if one of the atoms are identity, or if they are the same.
+
+        Args:
+            other: The single-qubit Pauli operator with which want to check the commutativity
+
+        Returns:
+            True if the atoms commute, False otherwise.
+
+        Examples:
+            >>> from mpqp.measures import I, X, Y, Z
+            >>> X.commutes_with(X)
+            True
+            >>> X.commutes_with(Y)
+            False
+            >>> X.commutes_with(I)
+            True
+            >>> Y.commutes_with(Z)
+            False
+            >>> I.commutes_with(Z)
+            True
+        """
+        if not isinstance(other, PauliStringAtom):
+            raise ValueError(
+                f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
+            )
+        return other == I or self == I or self == other
 
     def to_other_language(
         self,
@@ -1157,23 +1289,37 @@ class PauliStringAtom(PauliStringMonomial):
 
 _allow_atom_creation = True
 
-I = PauliStringAtom("I", np.eye(2, dtype=np.complex64))
+I = PauliStringAtom(
+    "I", np.eye(2, dtype=np.complex64), [1, 1], np.array([[1, 0], [0, 1]]), []
+)
 r"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}1&0\\0&1\end{pmatrix}`
 """
-X = PauliStringAtom("X", 1 - np.eye(2, dtype=np.complex64))
+X = PauliStringAtom(
+    "X",
+    1 - np.eye(2, dtype=np.complex64),
+    [1, -1],
+    (1 / np.sqrt(2)) * np.array([[1, 1], [1, -1]]),
+    [H],
+)
 r"""Pauli-X atom representing the X operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}0&1\\1&0\end{pmatrix}`
 
 """
-Y = PauliStringAtom("Y", np.fliplr(np.diag([1j, -1j])))
+Y = PauliStringAtom(
+    "Y",
+    np.fliplr(np.diag([1j, -1j])),
+    [1, -1],
+    (1 / np.sqrt(2)) * np.array([[1, 1j], [1, -1j]]),
+    [S_dagger, H],
+)
 r"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}0&-i\\i&0\end{pmatrix}`
 """
-Z = PauliStringAtom("Z", np.diag([1, -1]))
+Z = PauliStringAtom("Z", np.diag([1, -1]), [1, -1], np.array([[1, 0], [0, 1]]), [])
 r"""Pauli-Z atom representing the Z operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}1&0\\0&-1\end{pmatrix}`

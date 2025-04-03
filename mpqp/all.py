@@ -49,6 +49,7 @@ from .gates import (
     Ry,
     Rz,
     S,
+    S_dagger,
     T,
     U,
     UnitaryMatrix,

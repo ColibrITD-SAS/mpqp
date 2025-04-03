@@ -248,9 +248,10 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     Returns:
         A myQLM Job for retrieving the expectation value of the observable.
     """
+    # TODO: [multi-obs] update this to take into account the case when we have list of Observables
     if TYPE_CHECKING:
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-    qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
+    qlm_obs = job.measure.observables[0].to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
         observable=qlm_obs,
@@ -713,19 +714,24 @@ def run_myQLM(job: Job) -> Result:
         myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
+        # TODO: update this to take into account the case when we have list of Observables
         myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
     job.status = JobStatus.RUNNING
-    myqlm_result = qpu.submit(myqlm_job)
+    myqlm_result = qpu.submit(
+        myqlm_job
+    )  # TODO: update this to take into account the case when we have list of Observables
 
     # retrieving the results
-    result = extract_result(myqlm_result, job, job.device)
+    result = extract_result(
+        myqlm_result, job, job.device
+    )  # TODO: update this to take into account the case when we have list of Observables
 
     job.status = JobStatus.DONE
-    return result
+    return result  # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked
@@ -763,11 +769,13 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
         myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
+        # TODO: update this to take into account the case when we have list of Observables
         myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
+    # TODO: update this to take into account the case when we have list of Observables
     job.status = JobStatus.RUNNING
     async_result = qpu.submit(myqlm_job)
     job_id = async_result.get_info().id
@@ -800,6 +808,7 @@ def run_QLM(job: Job) -> Result:
             "this function. Use `run` instead."
         )
 
+    # TODO: update this to take into account the case when we have list of Observables
     _, async_result = submit_QLM(job)
     qlm_result = async_result.join()
 
