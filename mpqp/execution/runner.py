@@ -236,7 +236,7 @@ def _run_single(
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
-            if measure.are_all_diagonal() and measure.optim_diagonal:
+            if measure.optim_diagonal and measure.are_all_diagonal() :
                 return _run_diagonal_observables(circuit, measure, device, job, values)
 
     if len(circuit.noises) != 0:
