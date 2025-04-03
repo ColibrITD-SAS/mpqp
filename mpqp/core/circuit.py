@@ -1057,7 +1057,7 @@ class QCircuit:
         Args:
             language: Enum representing the target language.
             translation_warning: Boolean to enable/disable warnings about
-                translation issues. if True, a warning will be raised.
+                translation issues. Default True, warnings will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 
@@ -1248,7 +1248,7 @@ class QCircuit:
             from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(qasm3_code, translation_warning=False),
+                qasm3_to_braket_Circuit(qasm3_code, translation_warning),
                 self.noises,
                 self.nb_qubits,
             )
@@ -1401,7 +1401,9 @@ class QCircuit:
                         )
                         backend_sim = device.to_noisy_simulator()
                     else:
-                        noise_model, circuit = generate_qiskit_noise_model(circuit)
+                        noise_model, circuit = generate_qiskit_noise_model(
+                            circuit, translation_warning
+                        )
                         self.transpiled_noise_model = noise_model
                         backend_sim = AerSimulator(
                             method=device.value, noise_model=noise_model

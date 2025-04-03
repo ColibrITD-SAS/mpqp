@@ -21,12 +21,14 @@ from mpqp.execution.result import Result, Sample, StateVector
 
 
 @typechecked
-def run_google(job: Job, warnings: bool = True) -> Result:
+def run_google(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
+        translation_warning: Boolean to enable/disable warnings about
+                translation issues. Default True, warnings will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -36,17 +38,23 @@ def run_google(job: Job, warnings: bool = True) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return run_local(job) if not job.device.is_remote() else run_google_remote(job)
+    return (
+        run_local(job, translation_warning)
+        if not job.device.is_remote()
+        else run_google_remote(job, translation_warning)
+    )
 
 
 @typechecked
-def run_google_remote(job: Job) -> Result:
+def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job remotely on a Google quantum device. At present, only
     IonQ devices are supported.
 
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
+        translation_warning: Boolean to enable/disable warnings about
+            translation issues. Default True, warnings will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -67,7 +75,7 @@ def run_google_remote(job: Job) -> Result:
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
     if job.circuit.transpile_circuit is None:
-        job_CirqCircuit = job.circuit.to_other_device(job.device)
+        job_CirqCircuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
         job_CirqCircuit = job.circuit.transpile_circuit
 
@@ -99,12 +107,14 @@ def run_google_remote(job: Job) -> Result:
 
 
 @typechecked
-def run_local(job: Job) -> Result:
+def run_local(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job locally.
 
     Args:
         job : Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
+        translation_warning: Boolean to enable/disable warnings about
+            translation issues. Default True, warnings will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -134,10 +144,10 @@ def run_local(job: Job) -> Result:
             # 3M-TODO: careful, if we ever support several measurements, the
             # line bellow will have to changer
             circuit = job.circuit.without_measurements() + job.circuit.pre_measure()
-            cirq_circuit = circuit.to_other_device(job.device)
+            cirq_circuit = circuit.to_other_device(job.device, translation_warning)
             job.circuit.gphase = circuit.gphase
         else:
-            cirq_circuit = job.circuit.to_other_device(job.device)
+            cirq_circuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
         cirq_circuit = job.circuit.transpile_circuit
 

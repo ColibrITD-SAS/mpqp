@@ -150,7 +150,7 @@ def _run_single(
     device: AvailableDevice,
     values: dict[Expr | str, Complex],
     display_breakpoints: bool = True,
-    warnings: bool = True,
+    translation_warning: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -162,6 +162,8 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        translation_warning: Boolean to enable/disable warnings about
+                translation issues. Default True, warnings will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -205,15 +207,15 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
-        return run_ibm(job, warnings)
+        return run_ibm(job, translation_warning)
     elif isinstance(device, ATOSDevice):
-        return run_atos(job, warnings)
+        return run_atos(job, translation_warning)
     elif isinstance(device, AWSDevice):
-        return run_braket(job, warnings)
+        return run_braket(job, translation_warning)
     elif isinstance(device, GOOGLEDevice):
-        return run_google(job, warnings)
+        return run_google(job, translation_warning)
     elif isinstance(device, AZUREDevice):
-        return run_azure(job, warnings)
+        return run_azure(job, translation_warning)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -224,7 +226,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    warnings: bool = True,
+    translation_warning: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -240,6 +242,8 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        translation_warning: Boolean to enable/disable warnings about
+                translation issues. Default True, warnings will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -309,14 +313,20 @@ def run(
         return BatchResult(
             [
                 _run_single(
-                    namer(circ, i + 1), dev, values, display_breakpoints, warnings
+                    namer(circ, i + 1),
+                    dev,
+                    values,
+                    display_breakpoints,
+                    translation_warning,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints, warnings)
+        return _run_single(
+            circuit, device, values, display_breakpoints, translation_warning
+        )
 
 
 @typechecked

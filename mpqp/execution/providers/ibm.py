@@ -201,7 +201,7 @@ def check_job_compatibility(job: Job):
 @typechecked
 def generate_qiskit_noise_model(
     circuit: QCircuit,
-    duplicate_noise_warning: bool = True,
+    multiple_noise_warning: bool = True,
 ) -> tuple["Qiskit_NoiseModel", QCircuit]:
     """Generate a ``qiskit`` noise model packing all the
     :class:`~mpqp.noise.noise_model.NoiseModel` attached to the given QCircuit.
@@ -212,6 +212,8 @@ def generate_qiskit_noise_model(
 
     Args:
         circuit: Circuit containing the noise models to pack.
+        multiple_noise_warning: Boolean to enable/disable warnings about
+            multiple noise on the same gate. Default True, warnings will be raised.
 
     Returns:
         A ``qiskit`` noise model combining the provided noise models and the
@@ -401,7 +403,7 @@ def generate_qiskit_noise_model(
         captured_logs = log_stream.getvalue()
 
         if (
-            duplicate_noise_warning is False
+            multiple_noise_warning is False
             and "WARNING: quantum error already exists" in captured_logs
         ):
             pass

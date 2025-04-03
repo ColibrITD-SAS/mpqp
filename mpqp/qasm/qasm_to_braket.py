@@ -84,7 +84,7 @@ def qasm3_to_braket_Circuit(
     Args:
         qasm3_str: A string representing the OpenQASM 3.0 code.
         translation_warning: Boolean to enable/disable warnings about
-            translation issues. if True, a warning will be raised.
+            translation issues. Default True, warnings will be raised.
 
     Returns:
         A Circuit equivalent to the QASM code in parameter.

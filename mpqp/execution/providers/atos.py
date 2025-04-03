@@ -38,12 +38,14 @@ if TYPE_CHECKING:
 
 
 @typechecked
-def job_pre_processing(job: Job) -> "Circuit":
+def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
     """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
     are coherent.
 
     Args:
         job: Mpqp job used to instantiate the myQLM circuit.
+        translation_warning: Boolean to enable/disable warnings about
+                translation issues. Default True, warnings will be raised.
 
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
@@ -84,7 +86,7 @@ def job_pre_processing(job: Job) -> "Circuit":
             )
 
     if job.circuit.transpile_circuit is None:
-        myqlm_circuit = job.circuit.to_other_device(job.device)
+        myqlm_circuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
         myqlm_circuit = job.circuit.transpile_circuit
 
@@ -663,12 +665,14 @@ def extract_result(
 
 
 @typechecked
-def run_atos(job: Job, warnings: bool = True) -> Result:
+def run_atos(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
+        translation_warning: Boolean to enable/disable warnings about
+                translation issues. Default True, warnings will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -677,11 +681,15 @@ def run_atos(job: Job, warnings: bool = True) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return run_myQLM(job) if not job.device.is_remote() else run_QLM(job)
+    return (
+        run_myQLM(job, translation_warning)
+        if not job.device.is_remote()
+        else run_QLM(job, translation_warning)
+    )
 
 
 @typechecked
-def run_myQLM(job: Job) -> Result:
+def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the local myQLM simulator.
 
     Args:
@@ -700,7 +708,7 @@ def run_myQLM(job: Job) -> Result:
     myqlm_result = None
     qpu = None
 
-    myqlm_circuit = job_pre_processing(job)
+    myqlm_circuit = job_pre_processing(job, translation_warning)
 
     if TYPE_CHECKING:
         assert isinstance(job.device, ATOSDevice)
@@ -738,7 +746,7 @@ def run_myQLM(job: Job) -> Result:
 
 
 @typechecked
-def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
+def submit_QLM(job: Job, translation_warning: bool = True) -> tuple[str, "AsyncResult"]:
     """Submits the job on the remote QLM machine.
 
     Args:
@@ -759,7 +767,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
     myqlm_job = None
     qpu = None
 
-    myqlm_circuit = job_pre_processing(job)
+    myqlm_circuit = job_pre_processing(job, translation_warning)
 
     if TYPE_CHECKING:
         assert isinstance(job.device, ATOSDevice)
@@ -788,7 +796,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
 
 @typechecked
-def run_QLM(job: Job) -> Result:
+def run_QLM(job: Job, translation_warning: bool = True) -> Result:
     """Submits the job on the remote QLM machine and waits for it to be done.
 
     Args:
