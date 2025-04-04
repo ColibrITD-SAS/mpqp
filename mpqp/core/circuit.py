@@ -1390,6 +1390,7 @@ class QCircuit:
             qasm2_code = qasm2.dumps(qcircuit)
             return qasm2_parse(qasm2_code)
 
+
         elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             lines = qcircuit.split('\n')
             for line in lines:
