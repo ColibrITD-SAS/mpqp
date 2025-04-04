@@ -862,8 +862,9 @@ class QCircuit:
         # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
         from qiskit import QuantumCircuit
-        from qiskit.quantum_info import Statevector
         from qiskit.circuit.library import StatePreparation
+        from qiskit.quantum_info import Statevector
+
         from mpqp.tools.circuit import replace_custom_gate
         from mpqp.tools.maths import normalize
 
@@ -1039,6 +1040,7 @@ class QCircuit:
         cirq_proc_id: Optional[str] = None,
         translation_warning: bool = True,
         skip_pre_measure: bool = False,
+        printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
@@ -1062,6 +1064,9 @@ class QCircuit:
             cirq_proc_id: Identifier of the processor for cirq.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
+            printing: If printing dummy gates will replace custom gates (because
+                qiskit's ``Operators`` cannot have ``Parameters`` in their
+                definition.)
 
         Returns:
             The corresponding circuit in the target language.
@@ -1112,7 +1117,11 @@ class QCircuit:
             circuit += self.pre_measure()
             circuit.add(self.measurements)
             circuit_other = circuit.to_other_language(
-                language, cirq_proc_id, translation_warning, True
+                language,
+                cirq_proc_id=cirq_proc_id,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
+                printing=printing,
             )
             self.gphase = circuit.gphase
             return circuit_other
@@ -1136,7 +1145,14 @@ class QCircuit:
             for instruction in self.instructions:
                 if isinstance(instruction, (Measure, Breakpoint)):
                     continue
-                qiskit_inst = instruction.to_other_language(language, qiskit_parameters)
+                options = (
+                    {"printing": printing}
+                    if isinstance(instruction, CustomGate)
+                    else {}
+                )
+                qiskit_inst = instruction.to_other_language(
+                    language, qiskit_parameters, **options
+                )
                 if TYPE_CHECKING:
                     assert (
                         isinstance(qiskit_inst, CircuitInstruction)
@@ -1145,7 +1161,7 @@ class QCircuit:
                     )
                 cargs = []
 
-                if isinstance(instruction, CustomGate):
+                if isinstance(instruction, CustomGate) and not printing:
                     instr = instruction.to_other_language(Language.QISKIT)
                     if TYPE_CHECKING:
                         assert isinstance(instr, Operator)
@@ -1381,8 +1397,9 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
         """
-        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
         from qiskit import QuantumCircuit
+
+        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
@@ -1483,7 +1500,7 @@ class QCircuit:
         print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
-        qiskit_circ = self.to_other_language(Language.QISKIT)
+        qiskit_circ = self.to_other_language(Language.QISKIT, printing=True)
         if TYPE_CHECKING:
             from qiskit import QuantumCircuit
 
