@@ -1339,7 +1339,9 @@ class QCircuit:
             raise NotImplementedError(f"Error: {language} is not supported")
 
     @classmethod
-    def from_other_language(cls, qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | str) -> QCircuit:
+    def from_other_language(
+        cls, qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | str
+    ) -> QCircuit:
         """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket or QASM2) into
         the corresponding internal `QCircuit` format.
 
@@ -1417,7 +1419,7 @@ class QCircuit:
 
             qasm2_code = qasm2.dumps(qcircuit)
             return qasm2_parse(qasm2_code)
-        
+
         elif isinstance(qcircuit, cirq_Circuit):
             cleared_code = []
             line_to_add = True
@@ -1450,13 +1452,21 @@ class QCircuit:
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
-                assert(isinstance(qasm3_code, Program))
-            qasm2_code, _ = open_qasm_3_to_2(str(qasm3_code.source), None, None, {"i", "cnot", "ccnot", "ctrl", "phaseshift", "si"})
+                assert isinstance(qasm3_code, Program)
+            qasm2_code, _ = open_qasm_3_to_2(
+                str(qasm3_code.source),
+                None,
+                None,
+                {"i", "cnot", "ccnot", "ctrl", "phaseshift", "si"},
+            )
             qasm_code = qasm2_code.split("\n")
 
             for line in qasm_code:
                 if "creg" in line and "qreg" in qasm_code[idx + 1]:
-                    qasm_code[idx], qasm_code[idx + 1] = qasm_code[idx + 1], qasm_code[idx]
+                    qasm_code[idx], qasm_code[idx + 1] = (
+                        qasm_code[idx + 1],
+                        qasm_code[idx],
+                    )
                     line = qasm_code[idx]
                 if "si" in line:
                     new_line = line.replace("si", "p(-pi*0.5)")
@@ -1476,9 +1486,9 @@ class QCircuit:
                     angle = re.search(r'\(([^)]+)\)', line)
                     registeries = re.findall(r'(\w+)\[([^\]]+)\]', line)
                     if len(registeries) > 1:
-                        new_line = "cp(" + str(angle.group(1)) + ") " # type: ignore
+                        new_line = "cp(" + str(angle.group(1)) + ") "  # type: ignore
                     else:
-                        new_line = "p(" + str(angle.group(1)) + ") " # type: ignore
+                        new_line = "p(" + str(angle.group(1)) + ") "  # type: ignore
                     for register in registeries:
                         new_line += str(register[0]) + "[" + str(register[1]) + "]"
                         if not register == registeries[:1]:
@@ -1487,7 +1497,7 @@ class QCircuit:
                             new_line += ";"
                     cleared_code.append(new_line)
                     line_to_add = False
-        
+
                 if line_to_add is True:
                     cleared_code.append(line)
                 else:
