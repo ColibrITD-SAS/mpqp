@@ -94,12 +94,12 @@ def random_circuit(
 
 
 def statevector_from_random_circuit(
-        nb_qubits: int = 5, 
-        seed: Optional[int] = None,
-) -> npt.NDArray[np.complex64]: 
+    nb_qubits: int = 5,
+    seed: Optional[int] = None,
+) -> npt.NDArray[np.complex64]:
     """
     This function creates a statevector with a specified number of qubits,
-    generated from a random circuit executed on IBM AER Simulator. 
+    generated from a random circuit executed on IBM AER Simulator.
     The QCircuit is generated randomly and his statevector is calculated.
 
     args:
@@ -108,7 +108,7 @@ def statevector_from_random_circuit(
 
     Returns:
         The statevector with the specified number of qubits
-    
+
     Examples:
         >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
         [0.70710678+0.j 0.        +0.j 0.70710678+0.j 0.        +0.j]

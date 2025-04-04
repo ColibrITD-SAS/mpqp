@@ -853,7 +853,7 @@ class QCircuit:
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
             >>> print(qc)  # doctest: +NORMALIZE_WHITESPACE
-                   ┌────────────┐                               
+                   ┌────────────┐
             q_0: ──┤ U(π/2,0,0) ├────■──────────────────────────
                  ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
             q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
@@ -872,7 +872,9 @@ class QCircuit:
             raise ValueError(f"Input state {state} should have a power of 2 size")
 
         qiskit_circuit = QuantumCircuit(size)
-        qiskit_circuit.append(StatePreparation(Statevector(normalize(state))), range(size))
+        qiskit_circuit.append(
+            StatePreparation(Statevector(normalize(state))), range(size)
+        )
         circ, phase = replace_custom_gate(qiskit_circuit[0], size)
         circ = circ.reverse_bits()
         cls = QCircuit.from_other_language(circ)
@@ -1336,11 +1338,8 @@ class QCircuit:
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
-
     @classmethod
-    def from_other_language(
-        cls, qcircuit: QuantumCircuit | str
-    ) -> QCircuit:
+    def from_other_language(cls, qcircuit: QuantumCircuit | str) -> QCircuit:
         """Transforms a quantum circuit from an external representation (Qiskit or QASM2) into
         the corresponding internal `QCircuit` format.
 
@@ -1396,12 +1395,13 @@ class QCircuit:
             for line in lines:
                 if not line.startswith("//") and line != '':
                     if not line.startswith("OPENQASM 2.0"):
-                        raise NotImplementedError(f"Error: only OpenQASM2 is supported for qasm external description of the circuit")
+                        raise NotImplementedError(
+                            f"Error: only OpenQASM2 is supported for qasm external description of the circuit"
+                        )
                     break
             return qasm2_parse(qcircuit)
         else:
             raise NotImplementedError(f"Error: {type(qcircuit)} is not supported.")
-
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
