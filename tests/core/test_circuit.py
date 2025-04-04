@@ -32,6 +32,10 @@ from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWar
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 
+from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
+from cirq.circuits.circuit import Circuit as cirq_Circuit
+from braket.circuits.circuit import Circuit as braket_Circuit
+
 
 @pytest.mark.parametrize(
     "init_param, printed_result_filename",
@@ -340,18 +344,70 @@ def test_to_other_language(
 
 
 @pytest.mark.parametrize(
-    "circuit, language",
-    [
-        (random_circuit(None, 10), Language.QISKIT),
-        (random_circuit(None, 10), Language.QASM2),
-    ],
+        "circuit, language, expected_str",
+        [
+            (
+                QCircuit([H(0), CNOT(0, 1)]), Language.QISKIT, None
+            ),
+            (
+                random_circuit(None, 2), Language.QISKIT, None
+            ),
+            (
+                random_circuit(None, 10), Language.QISKIT, None
+            ),
+            (
+                QCircuit([H(0), CNOT(0, 1)]), Language.QASM2, None
+            ),
+            (
+                random_circuit(None, 2), Language.QASM2, None
+            ),
+            (
+                random_circuit(None, 10), Language.QASM2, None
+            ),
+            (
+                "OPENQASM 2.0;\nqreg q[2];\nh q[0];\ncx q[0],q[1];", Language.QASM2, "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0];\ncx q[0],q[1];"
+            ),
+            (
+                "// Generated from Cirq v1.3.0\n\nOPENQASM 2.0;\n\n// Qubits: [q0, q1]\nqreg q[2];\nh q[0];\ncx q[0],q[1];", Language.QASM2, "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0];\ncx q[0],q[1];"
+            ),
+            (
+                random_cirq_circuit(2, 5, 0.5), Language.CIRQ, None
+            ),
+            (
+                random_cirq_circuit(10, 5, 0.5), Language.CIRQ, None
+            ),
+            (
+                QCircuit([H(0), CNOT(0, 1)]), Language.BRAKET, None
+            ),
+            (
+                random_circuit(None, 2), Language.BRAKET, None
+            ),
+            (
+                random_circuit(None, 10), Language.BRAKET, None
+            )
+        ],
 )
-def test_from_other_language(circuit: QCircuit, language: Language):
-    circ_to_test = circuit.to_other_language(language)
-    if TYPE_CHECKING:
-        assert isinstance(circ_to_test, (QiskitCircuit, str))
-    qcircuit = QCircuit.from_other_language(circ_to_test)
-    assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+def test_from_other_language(circuit: QCircuit | cirq_Circuit | str, language: Language, expected_str: str):
+    if isinstance(circuit, cirq_Circuit):
+        from cirq.protocols.unitary_protocol import unitary
+
+        qcircuit = QCircuit.from_other_language(circuit)
+        cirq_circuit = qcircuit.to_other_language(language)
+        assert matrix_eq(unitary(cirq_circuit), unitary(circuit))
+
+    elif isinstance(circuit, str):
+        from mpqp.qasm import mpqp_to_qasm2
+
+        qcircuit = QCircuit.from_other_language(circuit)
+        qasm2_str = mpqp_to_qasm2(qcircuit)
+        assert qasm2_str[0] == expected_str
+
+    else:
+        circ_to_test = circuit.to_other_language(language)
+        if TYPE_CHECKING:
+            assert(isinstance(circ_to_test, (QiskitCircuit, braket_Circuit, str)))
+        qcircuit = QCircuit.from_other_language(circ_to_test)
+        assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
 
 
 @pytest.mark.parametrize(

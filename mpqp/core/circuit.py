@@ -1339,13 +1339,15 @@ class QCircuit:
             raise NotImplementedError(f"Error: {language} is not supported")
 
     @classmethod
-    def from_other_language(cls, qcircuit: QuantumCircuit | str) -> QCircuit:
-        """Transforms a quantum circuit from an external representation (Qiskit or QASM2) into
+    def from_other_language(cls, qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | str) -> QCircuit:
+        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket or QASM2) into
         the corresponding internal `QCircuit` format.
 
         Args:
             qcircuit: The input quantum circuit which can be one of the following types:
                 - `QuantumCircuit`: A Qiskit QuantumCircuit object.
+                - `cirq_Circuit`: A Cirq Circuit object.
+                - `braket_Circuit`: A Braket Circuit object.
                 - `str`: A string representing an OpenQASM 2.0 circuit.
 
         Returns:
@@ -1367,14 +1369,38 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
 
+            >>> import cirq
+            >>> q0, q1 = cirq.LineQubit.range(2)
+            >>> cirq_circuit = cirq.Circuit()
+            >>> cirq_circuit.append(cirq.H(q0))
+            >>> cirq_circuit.append(cirq.CNOT(q0, q1))
+            >>> qcircuit2 = QCircuit.from_other_language(cirq_circuit)
+            >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+
+            >>> from braket.circuits import Circuit
+            >>> braket_circuit = Circuit().h(0).cnot(0, 1)
+            >>> qcircuit3 = QCircuit.from_other_language(braket_circuit)
+            >>> print(qcircuit3) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+            c: 2/══════════
+
             >>> qasm2_code = '''
             ... OPENQASM 2.0;
             ... qreg q[2];
             ... h q[0];
             ... cx q[0], q[1];
             ... '''
-            >>> qcircuit2 = QCircuit.from_other_language(qasm2_code)
-            >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
+            >>> qcircuit4 = QCircuit.from_other_language(qasm2_code)
+            >>> print(qcircuit4) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
@@ -1383,12 +1409,93 @@ class QCircuit:
         """
         from mpqp.qasm.qasm_to_mpqp import qasm2_parse
         from qiskit import QuantumCircuit
+        from cirq.circuits.circuit import Circuit as cirq_Circuit
+        from braket.circuits import Circuit as braket_Circuit
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
 
             qasm2_code = qasm2.dumps(qcircuit)
             return qasm2_parse(qasm2_code)
+        
+        elif isinstance(qcircuit, cirq_Circuit):
+            cleared_code = []
+            line_to_add = True
+
+            qasm2_code = qcircuit.to_qasm()
+            lines = qasm2_code.split('\n')
+            for line in lines:
+                if "sdg" in line:
+                    new_line = line.replace("sdg", "p(-pi*0.5)")
+                    cleared_code.append(new_line)
+                    line_to_add = False
+
+                if line_to_add is True:
+                    cleared_code.append(line)
+                else:
+                    line_to_add = True
+
+            cleared_code = '\n'.join(cleared_code)
+            return qasm2_parse(cleared_code)
+
+        elif isinstance(qcircuit, braket_Circuit):
+            from braket.circuits.serialization import IRType
+            from braket.ir.openqasm.program_v1 import Program
+            from mpqp.qasm import open_qasm_3_to_2
+            import re
+
+            cleared_code = []
+            idx = 0
+            line_to_add = True
+
+            qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
+            if TYPE_CHECKING:
+                assert(isinstance(qasm3_code, Program))
+            qasm2_code, _ = open_qasm_3_to_2(str(qasm3_code.source), None, None, {"i", "cnot", "ccnot", "ctrl", "phaseshift", "si"})
+            qasm_code = qasm2_code.split("\n")
+
+            for line in qasm_code:
+                if "creg" in line and "qreg" in qasm_code[idx + 1]:
+                    qasm_code[idx], qasm_code[idx + 1] = qasm_code[idx + 1], qasm_code[idx]
+                    line = qasm_code[idx]
+                if "si" in line:
+                    new_line = line.replace("si", "p(-pi*0.5)")
+                    cleared_code.append(new_line)
+                    line_to_add = False
+                elif "i " in line:
+                    new_line = line.replace("i ", "id ")
+                    cleared_code.append(new_line)
+                    line_to_add = False
+                elif "cnot" in line:
+                    new_line = line.replace("cnot", "cx")
+                    cleared_code.append(new_line)
+                    line_to_add = False
+                elif "measure" in line:
+                    line_to_add = False
+                elif "phaseshift" in line:
+                    angle = re.search(r'\(([^)]+)\)', line)
+                    registeries = re.findall(r'(\w+)\[([^\]]+)\]', line)
+                    if len(registeries) > 1:
+                        new_line = "cp(" + str(angle.group(1)) + ") " # type: ignore
+                    else:
+                        new_line = "p(" + str(angle.group(1)) + ") " # type: ignore
+                    for register in registeries:
+                        new_line += str(register[0]) + "[" + str(register[1]) + "]"
+                        if not register == registeries[:1]:
+                            new_line += ","
+                        else:
+                            new_line += ";"
+                    cleared_code.append(new_line)
+                    line_to_add = False
+        
+                if line_to_add is True:
+                    cleared_code.append(line)
+                else:
+                    line_to_add = True
+                idx += 1
+
+            cleared_code = '\n'.join(cleared_code)
+            return qasm2_parse(cleared_code)
 
         elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
             lines = qcircuit.split('\n')
