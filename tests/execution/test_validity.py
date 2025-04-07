@@ -632,5 +632,6 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
     for r1, r2 in zip(br1.results, br2.results):
         assert isinstance(r1.expectation_values, dict)
         assert isinstance(r2.expectation_values, dict)
-        for k1, k2 in zip(r1.expectation_values, r2.expectation_values):
-            assert np.isclose(r1.expectation_values[k1], r2.expectation_values[k2])
+        assert r1.expectation_values.keys() == r2.expectation_values.keys()
+        for k in r1.expectation_values:
+            assert np.isclose(r1.expectation_values[k], r2.expectation_values[k])
