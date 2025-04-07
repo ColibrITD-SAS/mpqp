@@ -181,7 +181,7 @@ class Qubo:
             if not seen:
                 if len(coeffs[i][1]) != 0:
                     known_vars.append(coeffs[i][1][index])
-            
+
         return known_vars
 
     def get_size(self):
