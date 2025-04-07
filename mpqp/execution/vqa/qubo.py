@@ -170,7 +170,6 @@ class Qubo:
         index = 0
         seen = False
         for i in range(len(coeffs)):
-
             for j in range(len(coeffs[i][1])):
                 seen = False
                 for k in range(len(known_vars)):
@@ -180,9 +179,9 @@ class Qubo:
                         index = j
 
             if not seen:
-                if len(coeffs[i]) != 1:
+                if len(coeffs[i][1]) != 0:
                     known_vars.append(coeffs[i][1][index])
-
+            
         return known_vars
 
     def get_size(self):
