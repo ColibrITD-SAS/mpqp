@@ -1530,6 +1530,7 @@ class QCircuit:
             return circuit
         else:
             raise NotImplementedError(f"Error: {device} is not supported")
+
     @classmethod
     def from_other_language(cls, qcircuit: QuantumCircuit | str) -> QCircuit:
         """Transforms a quantum circuit from an external representation (Qiskit or QASM2) into
