@@ -87,7 +87,6 @@ class CustomGate(Gate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
         printing: bool = False,
     ):
-        print(printing)
         if language == Language.QISKIT:
             from qiskit.quantum_info.operators import Operator as QiskitOperator
             from sympy import Expr
