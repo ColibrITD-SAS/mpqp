@@ -93,11 +93,15 @@ def compute_expectation_value(
             "Cannot compute expectation value if measure used in job is not of "
             "type ExpectationMeasure"
         )
-    nb_shots = job.measure.shots
-    qiskit_observable = job.measure.observable.to_other_language(Language.QISKIT)
 
-    if TYPE_CHECKING:
-        assert isinstance(qiskit_observable, SparsePauliOp)
+    nb_shots = job.measure.shots
+
+    qiskit_observables: list[SparsePauliOp] = []
+    for obs in job.measure.observables:
+        translated = obs.to_other_language(Language.QISKIT)
+        if TYPE_CHECKING:
+            assert isinstance(translated, SparsePauliOp)
+        qiskit_observables.append(translated)
 
     if isinstance(job.device, IBMSimulatedDevice):
         from qiskit.transpiler.preset_passmanagers import generate_preset_pass_manager
@@ -107,10 +111,13 @@ def compute_expectation_value(
         pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
         ibm_circuit = pm.run(ibm_circuit)
 
-        qiskit_observable = qiskit_observable.apply_layout(ibm_circuit.layout)
+        if TYPE_CHECKING:
+            assert isinstance(ibm_circuit, QuantumCircuit)
 
+        qiskit_observables = [
+            obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
+        ]
         options = {"default_shots": nb_shots}
-
         estimator = Runtime_Estimator(mode=backend, options=options)
 
     else:
@@ -125,13 +132,8 @@ def compute_expectation_value(
         }
         estimator = Estimator(options=options)
 
-    # 3M-TODO: implement the possibility to compute several expectation values at
-    #  the same time when the circuit is the same apparently the estimator.run()
-    #  can take several circuits and observables at the same time, because
-    #  putting them all together will increase the performance
-
     job.status = JobStatus.RUNNING
-    job_expectation = estimator.run([(ibm_circuit, qiskit_observable)])
+    job_expectation = estimator.run([(ibm_circuit, qiskit_observables)])
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
@@ -536,11 +538,18 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=session)
-        qiskit_observable = meas.observable.to_other_language(Language.QISKIT)
+        qiskit_observables = [
+            obs.to_other_language(Language.QISKIT) for obs in meas.observables
+        ]
         if TYPE_CHECKING:
-            assert isinstance(qiskit_observable, SparsePauliOp)
+            assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
-        qiskit_observable = qiskit_observable.apply_layout(qiskit_circ.layout)
+        qiskit_observables = [
+            obs.apply_layout(  # pyright: ignore[reportAttributeAccessIssue]
+                qiskit_circ.layout
+            )
+            for obs in qiskit_observables
+        ]
 
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
         twirling = getattr(estimator.options, "twirling", None)
@@ -552,7 +561,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
         setattr(estimator.options, "default_shots", meas.shots)
 
-        ibm_job = estimator.run([(qiskit_circ, qiskit_observable)])
+        ibm_job = estimator.run([(qiskit_circ, qiskit_observables)])
+
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
@@ -587,6 +597,7 @@ def run_remote_ibm(job: Job) -> Result:
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
+
     return extract_result(ibm_result, job, job.device)
 
 
@@ -614,24 +625,43 @@ def extract_result(
 
     # If this is a PubResult from primitives V2
     if isinstance(result, PrimitiveResult):
-        res_data = result[0].data
         # res_data is a DataBin, which means all typechecking is out of the
         # windows for this specific object
+        res_data = result[0].data
 
-        # If we are in observable mode
         if hasattr(res_data, "evs"):
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
 
-            mean = float(res_data.evs)  # pyright: ignore[reportAttributeAccessIssue]
-            error = float(res_data.stds)  # pyright: ignore[reportAttributeAccessIssue]
+            exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
+            exp_values = np.atleast_1d(exp_values)
+
+            stds = res_data.stds  # pyright: ignore[reportAttributeAccessIssue]
+            stds = np.atleast_1d(stds)
             shots = (
                 job.measure.shots
                 if job.device.is_simulator() and job.measure is not None
                 else result[0].metadata["shots"]
             )
-            return Result(job, mean, error, shots)
-        # If we are in sample mode
+
+            # If only one result, we directly return the expectation value
+            if len(exp_values) == 1:
+                return Result(job, float(exp_values[0]), float(stds[0]), shots)
+
+            # If several results, we construct the dictionary with observable labels
+            exp_values_dict = dict()
+            errors_dict = dict()
+            for i in range(len(exp_values)):
+                label = (
+                    job.measure.observables[i].label
+                    if isinstance(job.measure, ExpectationMeasure)
+                    else f"ibm_obs_{i}"
+                )
+                exp_values_dict[label] = float(exp_values[i])
+                errors_dict[label] = float(stds[i])
+
+            return Result(job, exp_values_dict, errors_dict, shots)
+
         else:
             if job is None:
                 shots = (
@@ -649,15 +679,17 @@ def extract_result(
             if TYPE_CHECKING:
                 assert job.measure is not None
 
-            counts = (
-                res_data.c.get_counts()  # pyright: ignore[reportAttributeAccessIssue]
-            )
+            counts = getattr(res_data, 'c', None)
+            counts = counts.get_counts() if counts else {}
             data = [
                 Sample(
-                    bin_str=item, count=counts[item], nb_qubits=job.circuit.nb_qubits
+                    bin_str=item,
+                    count=counts[item],
+                    nb_qubits=job.circuit.nb_qubits,
                 )
                 for item in counts
             ]
+
             return Result(job, data, None, job.measure.shots)
 
     else:
@@ -671,15 +703,42 @@ def extract_result(
             )
 
         if isinstance(result, EstimatorResult):
+
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
+
+            if len(result.values) == 1:
+                return Result(
+                    job,
+                    result.values[0],
+                    (
+                        result.metadata[0]["variance"]
+                        if "variance" in result.metadata[0]
+                        else None
+                    ),
+                    result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0,
+                )
+
+            exp_values_dict = dict()
+            errors_dict = dict()
+
             shots = result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0
-            variance = (
-                result.metadata[0]["variance"]
-                if "variance" in result.metadata[0]
-                else None
-            )
-            return Result(job, result.values[0], variance, shots)
+
+            for i in range(len(result.values)):
+                label = (
+                    job.measure.observables[i].label
+                    if isinstance(job.measure, ExpectationMeasure)
+                    else f"ibm_obs_{i}"
+                )
+                variance = (
+                    result.metadata[i]["variance"]
+                    if "variance" in result.metadata[i]
+                    else None
+                )
+                exp_values_dict[label] = result.values[i]
+                errors_dict[label] = variance
+
+            return Result(job, exp_values_dict, errors_dict, shots)
 
         elif isinstance(
             result, QiskitResult
@@ -747,7 +806,7 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
         job_id: Id of the remote IBM job.
 
     Returns:
-        The result converted to our format.
+        The result (or batch of result) converted to our format.
     """
     from qiskit.providers import BackendV1, BackendV2
 
@@ -780,6 +839,16 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
 
 
 def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+    """Extracts measurement samples from the execution results.
+
+    Args:
+        job: ``MPQP`` job used to generate the run. Enables a more complete result.
+        result: Result returned by IBM after running of the job.
+
+    Returns:
+        A list of sample objects representing measurement outcomes.
+
+    """
     counts = result.get_counts(0)
     job_data = result.data()
     return [

@@ -35,40 +35,11 @@ def run_azure(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
-    from qiskit import QuantumCircuit
-
-    qiskit_circuit = (
-        (
-            # 3M-TODO: careful, if we ever support several measurements, the
-            # line bellow will have to changer
-            job.circuit.without_measurements()
-            + job.circuit.pre_measure()
-        ).to_other_language(Language.QISKIT)
-        if (job.job_type == JobType.STATE_VECTOR)
-        else job.circuit.to_other_language(Language.QISKIT)
-    )
-    if TYPE_CHECKING:
-        assert isinstance(qiskit_circuit, QuantumCircuit)
-
-    qiskit_circuit = qiskit_circuit.reverse_bits()
-
-    backend_sim = get_azure_provider().get_backend(job.device.value)
-
+    _, job_sim = submit_job_azure(job)
+    result_sim = job_sim.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, AZUREDevice)
-
-    if job.job_type == JobType.SAMPLE:
-        if TYPE_CHECKING:
-            assert job.measure is not None
-        job.status = JobStatus.RUNNING
-        job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
-        result_sim = job_sim.result()
-        result = extract_result(result_sim, job, job.device)
-    else:
-        raise ValueError(f"Job type {job.job_type} not handled on Azure devices.")
-
-    job.status = JobStatus.DONE
-    return result
+    return extract_result(result_sim, job, job.device)
 
 
 @typechecked

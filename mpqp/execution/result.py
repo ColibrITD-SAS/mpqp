@@ -24,14 +24,13 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
@@ -52,9 +51,9 @@ class StateVector:
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
         >>> print(state_vector)
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
 
     """
 
@@ -84,9 +83,9 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f""" State vector: {clean_1D_array(self.vector)}
- Probabilities: {clean_1D_array(self.probabilities)}
- Number of qubits: {self.nb_qubits}"""
+        return f"""  State vector: {clean_1D_array(self.vector)}
+  Probabilities: {clean_1D_array(self.probabilities)}
+  Number of qubits: {self.nb_qubits}"""
 
     def __repr__(self) -> str:
         return f"StateVector({clean_1D_array(self.vector)})"
@@ -238,15 +237,15 @@ class Result:
     The data type in a result depends on the job type, according to the
     following chart:
 
-    +-------------+--------------+
-    | Job Type    | Data Type    |
-    +=============+==============+
-    | OBSERVABLE  | float        |
-    +-------------+--------------+
-    | SAMPLE      | list[Sample] |
-    +-------------+--------------+
-    | STATE_VECTOR| StateVector  |
-    +-------------+--------------+
+    +-------------+---------------------------+
+    | Job Type    | Data Type                 |
+    +=============+===========================+
+    | OBSERVABLE  | float | dict[str, float]  |
+    +-------------+---------------------------+
+    | SAMPLE      | list[Sample]              |
+    +-------------+---------------------------+
+    | STATE_VECTOR| StateVector               |
+    +-------------+---------------------------+
 
     Args:
         job: Type of the job related to this result.
@@ -260,9 +259,9 @@ class Result:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
         >>> job = Job(
         ...     JobType.SAMPLE,
         ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
@@ -274,17 +273,17 @@ class Result:
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         Counts: [250, 0, 0, 250]
-         Probabilities: [0.5, 0, 0, 0.5]
-         Samples:
-          State: 00, Index: 0, Count: 250, Probability: 0.5
-          State: 11, Index: 3, Count: 250, Probability: 0.5
-         Error: 0.034
+          Counts: [250, 0, 0, 250]
+          Probabilities: [0.5, 0, 0, 0.5]
+          Samples:
+            State: 00, Index: 0, Count: 250, Probability: 0.5
+            State: 11, Index: 3, Count: 250, Probability: 0.5
+          Error: 0.034
         >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         Expectation value: -3.09834
-         Error/Variance: 0.021
+          Expectation value: -3.09834
+          Error/Variance: 0.021
 
     """
 
@@ -294,13 +293,13 @@ class Result:
     def __init__(
         self,
         job: Job,
-        data: float | StateVector | list[Sample],
-        errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
+        data: float | dict["str", float] | StateVector | list[Sample],
+        errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
         """See parameter description."""
-        self._expectation_value = None
+        self._expectation_values = None
         self._state_vector = None
         self._probabilities = None
         self._counts = None
@@ -313,13 +312,14 @@ class Result:
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
-            if not isinstance(data, float):
+            if not isinstance(data, float) and not isinstance(data, dict):
                 raise TypeError(
-                    "Wrong type of data in the result. "
-                    "Expecting float for expectation value of an observable"
+                    "Wrong type of data in the Result. "
+                    "Expecting float or dict[str, float] for expectation value of observable(s),"
+                    f"but got {type(data).__name__}"
                 )
             else:
-                self._expectation_value = data
+                self._expectation_values = data
         elif job.job_type == JobType.STATE_VECTOR:
             if not isinstance(data, StateVector):
                 raise TypeError(
@@ -387,16 +387,16 @@ class Result:
         return self.job.device
 
     @property
-    def expectation_value(self) -> float:
+    def expectation_values(self) -> Union[float, dict[str, float]]:
         """Get the expectation value stored in this result"""
         if self.job.job_type != JobType.OBSERVABLE:
             raise ResultAttributeError(
                 f"Job type: {self.job.job_type.name} but cannot get expectation"
-                " value if the job type is not OBSERVABLE."
+                " values if the job type is not OBSERVABLE."
             )
         if TYPE_CHECKING:
-            assert self._expectation_value is not None
-        return self._expectation_value
+            assert self._expectation_values is not None
+        return self._expectation_values
 
     @property
     def amplitudes(self) -> npt.NDArray[np.complex64]:
@@ -483,24 +483,36 @@ class Result:
                 )
 
             samples_str = "\n".join(
-                f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
+                f"    State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
                 f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
                 for sample, probability in zip(self.samples, probabilities)
             )
             return f"""{header}
- Counts: {self._counts}
- Probabilities: {clean_1D_array(self.probabilities)}
- Samples:
+  Counts: {self._counts}
+  Probabilities: {clean_1D_array(self.probabilities)}
+  Samples:
 {samples_str}
- Error: {self.error}"""
+  Error: {self.error}"""
 
         if self.job.job_type == JobType.STATE_VECTOR:
             return header + "\n" + str(self.state_vector)
 
         if self.job.job_type == JobType.OBSERVABLE:
-            return f"""{header}
- Expectation value: {self.expectation_value}
- Error/Variance: {self.error}"""
+            if isinstance(self.expectation_values, float):
+                return f"""{header}
+  Expectation value: {self.expectation_values}
+  Error/Variance: {self.error}"""
+            else:
+                if TYPE_CHECKING:
+                    assert isinstance(self.expectation_values, dict)
+                    assert isinstance(self.error, dict)
+                expectation_str = "\n".join(
+                    f"  {label}:\n"
+                    f"    Expectation value: {self.expectation_values[label]}\n"
+                    f"    Error/Variance: {self.error[label]}"
+                    for label in self.expectation_values
+                )
+                return header + "\n" + expectation_str
 
         raise NotImplementedError(
             f"I don't know how to represent results of {self.job.job_type} jobs"
@@ -562,6 +574,7 @@ class Result:
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Result):
             return False
+        # TODO: check here if he can compare a dict containing a dict[str, float]
         return self.to_dict() == other.to_dict()
 
     def to_dict(self):
@@ -734,25 +747,25 @@ class BatchResult:
         >>> batch_result = BatchResult([result1, result2, result3])
         >>> print(batch_result)
         BatchResult: 3 results
-        Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
-        Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
-         Counts: [250, 0, 0, 250]
-         Probabilities: [0.5, 0, 0, 0.5]
-         Samples:
-          State: 00, Index: 0, Count: 250, Probability: 0.5
-          State: 11, Index: 3, Count: 250, Probability: 0.5
-         Error: 0.034
-        Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
-         Expectation value: -3.09834
-         Error/Variance: 0.021
+            Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
+              State vector: [0.5, 0.5, 0.5, -0.5]
+              Probabilities: [0.25, 0.25, 0.25, 0.25]
+              Number of qubits: 2
+            Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
+              Counts: [250, 0, 0, 250]
+              Probabilities: [0.5, 0, 0, 0.5]
+              Samples:
+                State: 00, Index: 0, Count: 250, Probability: 0.5
+                State: 11, Index: 3, Count: 250, Probability: 0.5
+              Error: 0.034
+            Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
+              Expectation value: -3.09834
+              Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
 
     """
 
@@ -762,7 +775,11 @@ class BatchResult:
 
     def __str__(self):
         header = f"BatchResult: {len(self.results)} results\n"
-        body = "\n".join(map(str, self.results))
+        body = "\n".join(
+            "    " + line
+            for result in self.results
+            for line in str(result).splitlines()
+        )
         return header + body
 
     def __repr__(self):
@@ -806,7 +823,7 @@ class BatchResult:
         Uses :func:`~mpqp.local_storage.load.get_results_with_id`.
 
         Args:
-            result_id: Local id of the result you need.
+            result_ids: List of local id of the result you need.
 
         Example:
             >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS

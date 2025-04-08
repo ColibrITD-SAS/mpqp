@@ -20,12 +20,9 @@ from __future__ import annotations
 
 from numbers import Complex
 from textwrap import indent
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional
 
 import numpy as np
-from sympy import Expr
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -52,6 +49,8 @@ from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
+from sympy import Expr
+from typeguard import typechecked
 
 
 @typechecked
@@ -76,8 +75,16 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """
     Id_before = np.eye(2 ** measure.rearranged_targets[0])
     Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
+
+    tweaked_observables = [
+        Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+        # TODO: avoid to force using matrix representation to add identities if the observable is defined by
+        #  pauli string (use I @ obs @ I) or diagonal coefficients (perform kron product with [1,1] instead of I matrix)
+        for obs in measure.observables
+    ]
+
     tweaked_measure = ExpectationMeasure(
-        Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
+        tweaked_observables,
         list(range(circuit.nb_qubits)),
         measure.shots,
     )
@@ -243,29 +250,29 @@ def run(
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
         >>> print(result)
         Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+          Counts: [0, 0, 0, 1000]
+          Probabilities: [0, 0, 0, 1]
+          Samples:
+            State: 11, Index: 3, Count: 1000, Probability: 1
+          Error: None
         >>> batch_result = run(
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
         >>> print(batch_result)
         BatchResult: 2 results
-        Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: 0.0
-        Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+            Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: 0.0
+            Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
@@ -273,18 +280,18 @@ def run(
         >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
         >>> print(result)
         BatchResult: 2 results
-        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
-        Result: X circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+            Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
+            Result: X circuit, IBMDevice, AER_SIMULATOR
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
 
     """
     if values is None:
@@ -293,6 +300,8 @@ def run(
     def namer(circ: QCircuit, i: int):
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
+
+    # TODO: here detect that we have a full diag observable job
 
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
@@ -398,6 +407,8 @@ def display_kth_breakpoint(
             label=circuit.label,
         )
         res = _run_single(copy, device, {}, False)
+        if TYPE_CHECKING:
+            assert isinstance(res, Result)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
         print("       " + state_vector_ket_shape(res.amplitudes))
         if bp.draw_circuit:

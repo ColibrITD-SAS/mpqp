@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
+import numpy.typing as npt
 from numpy.random import Generator
 from qiskit import QuantumCircuit
 from qiskit.circuit.quantumcircuitdata import CircuitInstruction
@@ -90,6 +91,35 @@ def random_circuit(
     for _ in range(nb_gates):
         qcircuit.add(random_gate(gate_classes, nb_qubits, rng))
     return qcircuit
+
+
+def statevector_from_random_circuit(
+    nb_qubits: int = 5,
+    seed: Optional[int] = None,
+) -> npt.NDArray[np.complex64]:
+    """
+    This function creates a statevector with a specified number of qubits,
+    generated from a random circuit executed on IBM AER Simulator.
+    The QCircuit is generated randomly and his statevector is calculated.
+
+    args:
+        nb_qubits : Number of qubits in the circuit.
+        seed: Seed used to initialize the random number generation.
+
+    Returns:
+        The statevector with the specified number of qubits
+
+    Examples:
+        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
+        [0.70710678+0.j 0.        +0.j 0.70710678+0.j 0.        +0.j]
+    """
+    from mpqp.execution import run, IBMDevice, Result
+
+    mpqp_circ = random_circuit(None, nb_qubits, None, seed)
+    res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
+    if TYPE_CHECKING:
+        assert isinstance(res, Result)
+    return res.state_vector.vector
 
 
 @typechecked
