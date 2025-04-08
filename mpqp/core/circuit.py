@@ -858,7 +858,7 @@ class QCircuit:
                  ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
             q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
                  └────────────────┘└───┘└──────────────────────┘
-            >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).state_vector.vector)
+            >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).amplitudes)
             [0.70711, 0, 0, 0.70711]
 
         # 6-M: TODO: Give only U-gates, find a better decomposition method
