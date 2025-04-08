@@ -852,12 +852,14 @@ class QCircuit:
 
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
-            >>> print(qc)  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
+            >>> print(qc)  # doctest: +SKIP
                    ┌────────────┐
             q_0: ──┤ U(π/2,0,0) ├────■──────────────────────────
                  ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
-            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.89...,0.6...) ├
+            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
                  └────────────────┘└───┘└──────────────────────┘
+            >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).state_vector.vector)
+            [0.70711, 0, 0, 0.70711]
 
         # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
