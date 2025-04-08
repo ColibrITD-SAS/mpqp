@@ -89,10 +89,10 @@ def remove_jobs_with_id(job_id: int | list[int]):
         cursor = connection.cursor()
         try:
             if isinstance(job_id, int):
-                cursor.execute('DELETE FROM jobs WHERE id is ?', (job_id,))
+                cursor.execute('DELETE FROM jobs WHERE id = ?', (job_id,))
             else:
                 cursor.executemany(
-                    'DELETE FROM jobs WHERE id is ?', [(id,) for id in job_id]
+                    'DELETE FROM jobs WHERE id = ?', [(id,) for id in job_id]
                 )
             connection.commit()
         finally:
@@ -125,11 +125,11 @@ def remove_results_with_id(result_id: int | list[int]):
         cursor = connection.cursor()
         try:
             if isinstance(result_id, int):
-                cursor.execute('DELETE FROM results WHERE id is ?', (result_id,))
+                cursor.execute('DELETE FROM results WHERE id = ?', (result_id,))
                 connection.commit()
             else:
                 cursor.executemany(
-                    'DELETE FROM results WHERE id is ?', [(id,) for id in result_id]
+                    'DELETE FROM results WHERE id = ?', [(id,) for id in result_id]
                 )
                 connection.commit()
         finally:
@@ -225,11 +225,11 @@ def remove_results_with_job_id(job_id: int | list[int]):
         cursor = connection.cursor()
         try:
             if isinstance(job_id, int):
-                cursor.execute('DELETE FROM results WHERE job_id is ?', (job_id,))
+                cursor.execute('DELETE FROM results WHERE job_id = ?', (job_id,))
                 connection.commit()
             else:
                 cursor.executemany(
-                    'DELETE FROM results WHERE job_id is ?', [(id,) for id in job_id]
+                    'DELETE FROM results WHERE job_id = ?', [(id,) for id in job_id]
                 )
                 connection.commit()
         finally:
