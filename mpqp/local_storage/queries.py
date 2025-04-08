@@ -262,7 +262,7 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
                 circuit_json = json.dumps(repr(j.circuit))
                 measure_json = json.dumps(repr(j.measure)) if j.measure else None
                 job_filters.append(
-                    "(type = ? AND circuit = ? AND device = ? AND measure IS ?)"
+                    "(type is ? AND circuit is ? AND device is ? AND measure IS ?)"
                 )
                 params.extend(
                     [j.job_type.name, circuit_json, str(j.device), measure_json]
@@ -338,8 +338,8 @@ def fetch_jobs_with_result_and_job(
 
                 job_filters.append(
                     """
-                    (results.data = ? AND results.error = ? AND results.shots = ? 
-                    AND jobs.type = ? AND jobs.circuit = ? AND jobs.device = ? AND jobs.measure = ?)
+                    (results.data is ? AND results.error is ? AND results.shots is ? 
+                    AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
                 """
                 )
                 params.extend(
@@ -356,7 +356,7 @@ def fetch_jobs_with_result_and_job(
 
             query = f"""
                 SELECT jobs.* FROM jobs
-                INNER JOIN results ON jobs.id = results.job_id
+                INNER JOIN results ON jobs.id is results.job_id
                 WHERE {' OR '.join(job_filters)}
             """
 
@@ -416,7 +416,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
 
                 job_filters.append(
                     """
-                    (results.data = ? AND results.error = ? AND results.shots = ?)
+                    (results.data is ? AND results.error is ? AND results.shots is ?)
                 """
                 )
                 params.extend(
@@ -429,7 +429,7 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
 
             query = f"""
                 SELECT jobs.* FROM jobs
-                INNER JOIN results ON jobs.id = results.job_id
+                INNER JOIN results ON jobs.id is results.job_id
                 WHERE {' OR '.join(job_filters)}
             """
 
@@ -500,8 +500,8 @@ def fetch_results_with_result_and_job(
 
                 result_filters.append(
                     """
-                    (results.data = ? AND results.error = ? AND results.shots = ? 
-                    AND jobs.type = ? AND jobs.circuit = ? AND jobs.device = ? AND jobs.measure = ?)
+                    (results.data is ? AND results.error is ? AND results.shots is ? 
+                    AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
                 """
                 )
                 params.extend(
@@ -518,7 +518,7 @@ def fetch_results_with_result_and_job(
 
             query = f"""
                 SELECT results.* FROM results
-                INNER JOIN jobs ON jobs.id = results.job_id
+                INNER JOIN jobs ON jobs.id is results.job_id
                 WHERE {' OR '.join(result_filters)}
             """
 
@@ -574,7 +574,7 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
 
                 result_filters.append(
                     """
-                    (jobs.type = ? AND jobs.circuit = ? AND jobs.device = ? AND jobs.measure = ?)
+                    (jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
                 """
                 )
                 params.extend(
@@ -588,7 +588,7 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
 
             query = f"""
                 SELECT results.* FROM results
-                INNER JOIN jobs ON jobs.id = results.job_id
+                INNER JOIN jobs ON jobs.id is results.job_id
                 WHERE {' OR '.join(result_filters)}
             """
 
@@ -650,7 +650,7 @@ def fetch_results_with_result(
 
                 result_filters.append(
                     """
-                    (results.data = ? AND results.error = ? AND results.shots = ?)
+                    (results.data is ? AND results.error is ? AND results.shots is ?)
                 """
                 )
                 params.extend([data_json, error_json, res.shots])
