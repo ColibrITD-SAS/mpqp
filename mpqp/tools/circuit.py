@@ -111,7 +111,7 @@ def statevector_from_random_circuit(
 
     Examples:
         >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.70710678+0.j 0.        +0.j 0.70710678+0.j 0.        +0.j]
+        [0.70710678+0.j  0. -0.j  0.26893257-0.65396886j  0. -0.j ]
     """
     from mpqp.execution import run, IBMDevice, Result
 

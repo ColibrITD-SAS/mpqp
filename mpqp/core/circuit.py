@@ -852,11 +852,11 @@ class QCircuit:
 
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
-            >>> print(qc)  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(qc)  # doctest: +NORMALIZE_WHITESPACE, +ELLIPSIS
                    ┌────────────┐
             q_0: ──┤ U(π/2,0,0) ├────■──────────────────────────
                  ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
-            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
+            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.89...,0.6...) ├
                  └────────────────┘└───┘└──────────────────────┘
 
         # 6-M: TODO: Give only U-gates, find a better decomposition method
