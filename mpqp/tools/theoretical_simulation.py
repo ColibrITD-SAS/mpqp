@@ -41,7 +41,7 @@ from mpqp.measures import BasisMeasure
 def amplitude(
     circ: QCircuit,
 ) -> npt.NDArray[np.complex64]:
-    """Computes the theoretical probabilities of a (potentially) noisy 
+    """Computes the theoretical probabilities of a (potentially) noisy
     circuit execution.
 
     Args:
