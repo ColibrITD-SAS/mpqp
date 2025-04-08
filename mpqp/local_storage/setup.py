@@ -23,11 +23,17 @@ def get_database_version() -> str:
     """Retrieves the current database version from the version table."""
     from sqlite3 import connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
         cursor = connection.cursor()
-        cursor.execute("SELECT version FROM version WHERE id = 1")
-        result = cursor.fetchone()
-        return str(result[0]) if result else "0.0"
+        try:
+            cursor.execute("SELECT version FROM version WHERE id = 1")
+            result = cursor.fetchone()
+            return str(result[0]) if result else "0.0"
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
 
 def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
@@ -71,7 +77,7 @@ def setup_local_storage(path: Optional[str] = None):
         >>> setup_local_storage()
 
     """
-    import sqlite3
+    from sqlite3 import connect
 
     if path is not None:
         p = Path(path).expanduser().resolve()
@@ -80,7 +86,7 @@ def setup_local_storage(path: Optional[str] = None):
     else:
         path = str(Path("~/.mpqp/result_storage.db").expanduser().resolve())
     save_env_variable("DB_PATH", path)
-    connection = sqlite3.connect(path)
+    connection = connect(path)
     cursor = connection.cursor()
 
     # Create the jobs table
@@ -126,5 +132,6 @@ def setup_local_storage(path: Optional[str] = None):
         "INSERT OR IGNORE INTO version (id, version) VALUES (1, ?)", (DATABASE_VERSION,)
     )
 
+    cursor.close()
     connection.commit()
     connection.close()
