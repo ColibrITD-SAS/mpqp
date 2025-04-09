@@ -95,8 +95,8 @@ def run_braket(job: Job, translation_warning: bool = True) -> Result:
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`mpqp.execution.devices.AWSDevice`.
-        translation_warning: Boolean to enable/disable warnings about
-                translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
 
     Returns:
         The result of the job.

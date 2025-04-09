@@ -599,6 +599,8 @@ class QCircuit:
             output: Format of the output, see
                 `docs.quantum.ibm.com/build/circuit-visualization <https://docs.quantum.ibm.com/build/circuit-visualization#alternative-renderers>`_
                 for more information.
+            warn: Enable/Disable warnings for matplotlib figure. If `True` and we are not running headless 
+                (i.e. on Linux with an unset DISPLAY), issue warning when called on a non-GUI backend.
         
         Examples:
             >>> theta = symbols("θ")
@@ -1070,8 +1072,8 @@ class QCircuit:
 
         Args:
             language: Enum representing the target language.
-            translation_warning: Boolean to enable/disable warnings about
-                translation issues. Default True, warnings will be raised.
+            translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 
@@ -1352,8 +1354,8 @@ class QCircuit:
 
         Args:
             device: representing the target device.
-            translation_warning: Boolean to enable/disable warnings about
-                translation issues. if True, a warning will be raised.
+            translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 

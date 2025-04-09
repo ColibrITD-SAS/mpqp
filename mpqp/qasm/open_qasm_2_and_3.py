@@ -271,8 +271,8 @@ def convert_instruction_2_to_3(
         defined_gates: Set of custom gates already defined.
         path_to_main: Path to the main folder from which include paths are
             described.
-        translation_warning: Boolean to enable/disable warnings about
-            translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+            If `True`, a warning will be raised.
 
     Returns:
         The upgraded instruction and the potential code to add in the header as
@@ -429,8 +429,8 @@ def open_qasm_2_to_3(
         included_tree_current_node: Current Node in the file inclusion tree.
         path_to_file: Path to the location of the file from which the code is
             coming (useful for locating imports).
-        translation_warning: Boolean to enable/disable warnings about
-            translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+            If `True`, a warning will be raised.
         defined_gates: Set of custom gates already defined.
 
     Returns:
@@ -502,8 +502,8 @@ def open_qasm_file_conversion_2_to_3(
     Args:
         path: Path to the file containing the OpenQASM 2.0 code, and eventual
             imports.
-        translation_warning: Boolean to enable/disable warnings about
-            translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+            If `True`, a warning will be raised.
 
     Returns:
         Converted OpenQASM code in the 3.0 version.

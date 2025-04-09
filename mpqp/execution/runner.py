@@ -151,12 +151,15 @@ def _run_diagonal_observables(
     device: AvailableDevice,
     observable_job: Job,
     values: dict[Expr | str, Complex],
+    translation_warning: bool = True,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(adapted_circuit, device, values, False)
+    result = _run_single(
+        adapted_circuit, device, values, False, translation_warning=translation_warning
+    )
     probas = result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
@@ -202,8 +205,8 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: Boolean to enable/disable warnings about
-                translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -240,7 +243,9 @@ def _run_single(
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.are_all_diagonal():
-                return _run_diagonal_observables(circuit, measure, device, job, values)
+                return _run_diagonal_observables(
+                    circuit, measure, device, job, values, translation_warning
+                )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -288,8 +293,8 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: Boolean to enable/disable warnings about
-                translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.

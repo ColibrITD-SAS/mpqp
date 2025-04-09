@@ -44,8 +44,8 @@ def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
 
     Args:
         job: Mpqp job used to instantiate the myQLM circuit.
-        translation_warning: Boolean to enable/disable warnings about
-                translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
 
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
@@ -671,8 +671,8 @@ def run_atos(job: Job, translation_warning: bool = True) -> Result:
 
     Args:
         job: Job to be executed.
-        translation_warning: Boolean to enable/disable warnings about
-                translation issues. Default True, warnings will be raised.
+        translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -751,6 +751,8 @@ def submit_QLM(job: Job, translation_warning: bool = True) -> tuple[str, "AsyncR
 
     Args:
         job: Job to be executed.
+        translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
 
     Returns:
         The job_id and the AsyncResult of the submitted job.
@@ -801,6 +803,8 @@ def run_QLM(job: Job, translation_warning: bool = True) -> Result:
 
     Args:
         job: Job to be executed.
+        translation_warning: Enable/Disable warnings about translation issues.
+            If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -820,7 +824,7 @@ def run_QLM(job: Job, translation_warning: bool = True) -> Result:
         )
 
     # TODO: update this to take into account the case when we have list of Observables
-    _, async_result = submit_QLM(job)
+    _, async_result = submit_QLM(job, translation_warning)
     qlm_result = async_result.join()
 
     return extract_result(qlm_result, job, job.device)

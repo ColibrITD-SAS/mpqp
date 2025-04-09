@@ -43,7 +43,9 @@ def run_azure(job: Job, warnings: bool = True) -> Result:
 
 
 @typechecked
-def submit_job_azure(job: Job, warnings: bool = True) -> tuple[str, "AzureQuantumJob"]:
+def submit_job_azure(
+    job: Job, translation_warning: bool = True
+) -> tuple[str, "AzureQuantumJob"]:
     """Submits the job on the remote Azure device (quantum computer or simulator).
 
     Args:
@@ -51,6 +53,8 @@ def submit_job_azure(job: Job, warnings: bool = True) -> tuple[str, "AzureQuantu
 
     Returns:
         Azure's job id and the job itself.
+        translation_warning: Enable/Disable warnings about translation issues.
+                If `True`, a warning will be raised.
 
     Note:
         This function is not meant to be used directly, please use
