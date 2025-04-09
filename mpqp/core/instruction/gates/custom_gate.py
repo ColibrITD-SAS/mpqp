@@ -93,18 +93,24 @@ class CustomGate(Gate):
 
             if qiskit_parameters is None:
                 qiskit_parameters = set()
-            for symbol in set().union(
+            gate_symbols = set().union(
                 *(
                     elt.free_symbols
                     for elt in self.matrix.flatten()
                     if isinstance(elt, Expr)
                 )
-            ):
+            )
+            for symbol in gate_symbols:
                 if TYPE_CHECKING:
                     assert isinstance(symbol, Expr)
                 _qiskit_parameter_adder(symbol, qiskit_parameters)
 
-            if printing:
+            if len(gate_symbols) > 0:
+                if not printing:
+                    raise ValueError(
+                        "Custom gates defined with symbolic variables cannot be"
+                        " exported to qiskit."
+                    )
                 from qiskit import QuantumCircuit
 
                 dummy_circuit = QuantumCircuit(self.nb_qubits)
