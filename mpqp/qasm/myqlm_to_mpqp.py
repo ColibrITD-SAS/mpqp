@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Union, Tuple, List
+from typing import Sequence, Union, Tuple, List
 
 import numpy as np
 
@@ -24,6 +24,7 @@ Gates = Union[
     type[CNOT],
     type[CZ],
     type[SWAP],
+    type[U]
 ]
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
@@ -55,67 +56,51 @@ def _define_parameters(gate: MyQLM_Gate) -> tuple[int, int, int, int, int, int]:
     return theta, phi, gamma, target, control_1, control_2
 
 
+def _find_mpqp_gates(
+        gate: str, 
+        mpqp_gates: Sequence[tuple[str, Gates | None]]
+    ) -> tuple[str, Gates | None]:
+    
+    idx = 0
+    for idx in range(len(mpqp_gates)):
+        if gate == mpqp_gates[idx][0]:
+            return mpqp_gates[idx]
+    raise SyntaxError(f"Unknown Gate: {str(gate[0])}")
+
+
 def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     qc = QCircuit()
     for i in range(circuit.nbqbits):
         qc.add(Id(i))
 
-    one_qubit_gates = ['H', 'X', 'Y', 'Z', 'I', 'S', 'T']
-    mpqp_one_qubit_gates = [H, X, Y, Z, Id, S, T]
-    two_qubits_gates = ['RX', 'RY', 'RZ', 'PH']
-    mpqp_two_qubits_gates = [Rx, Ry, Rz, P]
-    controlled_gates = ['CNOT', 'CSIGN', 'SWAP']
-    mpqp_controlled_gates = [CNOT, CZ, SWAP]
-    idx = 0
+    gates = [('H', H), ('X', X), ('Y', Y), ('Z', Z), ('I', Id), ('S', S), ('T', T),
+             ('RX', Rx), ('RY', Ry), ('RZ', Rz), ('PH', P), ('CNOT', CNOT), ('CSIGN', CZ),
+             ('SWAP', SWAP), ('U', U), ('U1', P), ('ISWAP', None), ('SQRTSWAP', None), 
+             ('MEASURE', None), ('CCNOT', None)]
 
     for gate in circuit.iterate_simple():
 
         theta, phi, gamma, target, control_1, control_2 = _define_parameters(gate)
 
-        if gate[0] == 'CCNOT':
-            qc.add(TOF([control_2, control_1], target))
+        mpqp_gate = _find_mpqp_gates(gate[0], gates)[1]
 
-        elif gate[0] in one_qubit_gates:
-            idx = 0
-            for idx in range(len(one_qubit_gates)):
-                if gate[0] == one_qubit_gates[idx]:
-                    break
-            qc.add(mpqp_one_qubit_gates[idx](target))
-
-        elif gate[0] in two_qubits_gates:
-            for idx in range(len(two_qubits_gates)):
-                if gate[0] == two_qubits_gates[idx]:
-                    break
-            qc.add(mpqp_two_qubits_gates[idx](theta, target))
-
-        elif gate[0] in controlled_gates:
-            for idx in range(len(controlled_gates)):
-                if gate[0] == controlled_gates[idx]:
-                    break
-            qc.add(mpqp_controlled_gates[idx](control_1, target))
-
-        else:
-            if gate[0] == 'U':
-                qc.add(U(theta, phi, gamma, target))
-            elif gate[0] == 'U1':
-                qc.add(P(theta, target))
-            elif gate[0] == 'ISWAP':
-                qc.add(S(target))
-                qc.add(S(target))
-                qc.add(H(target))
-                qc.add(CNOT(control_1, target))
-                qc.add(CNOT(control_1, target))
-                qc.add(H(target))
+        if mpqp_gate is None:
+            if gate[0] == 'ISWAP':
+                qc += QCircuit([S(target), S(target), H(target), CNOT(control_1, target), CNOT(control_1, target), H(target)])
             elif gate[0] == 'SQRTSWAP':
-                qc.add(CNOT(control_1, target))
-                qc.add(H(target))
-                qc.add(CP(np.pi / 2, control_1, target))
-                qc.add(H(target))
-                qc.add(CNOT(control_1, target))
+                qc += QCircuit([CNOT(control_1, target), H(target), CP(np.pi / 2, control_1, target), H(target), CNOT(control_1, target)])
+            elif gate[0] == 'CCNOT':
+                qc.add(TOF([control_2, control_1], target))
             elif gate[0] == 'MEASURE':
                 break
-
-            else:
-                raise SyntaxError(f"Unknown Gate: {str(gate[0])}")
-
+        
+        elif issubclass(mpqp_gate, (H, X, Y, Z, Id, S, T)):
+            qc.add(mpqp_gate(target))
+        elif issubclass(mpqp_gate, (Rx, Ry, Rz, P)):
+            qc.add(mpqp_gate(theta, target))
+        elif issubclass(mpqp_gate, (CNOT, CZ, SWAP)):
+            qc.add(mpqp_gate(control_1, target))
+        else:
+            qc.add(U(theta, phi, gamma, target))
+        
     return qc
