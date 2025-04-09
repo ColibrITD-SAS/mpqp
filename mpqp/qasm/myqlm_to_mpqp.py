@@ -28,6 +28,7 @@ Gates = Union[
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
 
+
 def _define_parameters(gate: MyQLM_Gate) -> tuple[int, int, int, int, int, int]:
     theta = phi = gamma = target = control_1 = control_2 = 0
     if gate[1] != []:
