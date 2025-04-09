@@ -24,7 +24,7 @@ Gates = Union[
     type[CNOT],
     type[CZ],
     type[SWAP],
-    type[U]
+    type[U],
 ]
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
@@ -57,10 +57,9 @@ def _define_parameters(gate: MyQLM_Gate) -> tuple[int, int, int, int, int, int]:
 
 
 def _find_mpqp_gates(
-        gate: str, 
-        mpqp_gates: Sequence[tuple[str, Gates | None]]
-    ) -> tuple[str, Gates | None]:
-    
+    gate: str, mpqp_gates: Sequence[tuple[str, Gates | None]]
+) -> tuple[str, Gates | None]:
+
     idx = 0
     for idx in range(len(mpqp_gates)):
         if gate == mpqp_gates[idx][0]:
@@ -73,10 +72,28 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     for i in range(circuit.nbqbits):
         qc.add(Id(i))
 
-    gates = [('H', H), ('X', X), ('Y', Y), ('Z', Z), ('I', Id), ('S', S), ('T', T),
-             ('RX', Rx), ('RY', Ry), ('RZ', Rz), ('PH', P), ('CNOT', CNOT), ('CSIGN', CZ),
-             ('SWAP', SWAP), ('U', U), ('U1', P), ('ISWAP', None), ('SQRTSWAP', None), 
-             ('MEASURE', None), ('CCNOT', None)]
+    gates = [
+        ('H', H),
+        ('X', X),
+        ('Y', Y),
+        ('Z', Z),
+        ('I', Id),
+        ('S', S),
+        ('T', T),
+        ('RX', Rx),
+        ('RY', Ry),
+        ('RZ', Rz),
+        ('PH', P),
+        ('CNOT', CNOT),
+        ('CSIGN', CZ),
+        ('SWAP', SWAP),
+        ('U', U),
+        ('U1', P),
+        ('ISWAP', None),
+        ('SQRTSWAP', None),
+        ('MEASURE', None),
+        ('CCNOT', None),
+    ]
 
     for gate in circuit.iterate_simple():
 
@@ -86,14 +103,31 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
 
         if mpqp_gate is None:
             if gate[0] == 'ISWAP':
-                qc += QCircuit([S(target), S(target), H(target), CNOT(control_1, target), CNOT(control_1, target), H(target)])
+                qc += QCircuit(
+                    [
+                        S(target),
+                        S(target),
+                        H(target),
+                        CNOT(control_1, target),
+                        CNOT(control_1, target),
+                        H(target),
+                    ]
+                )
             elif gate[0] == 'SQRTSWAP':
-                qc += QCircuit([CNOT(control_1, target), H(target), CP(np.pi / 2, control_1, target), H(target), CNOT(control_1, target)])
+                qc += QCircuit(
+                    [
+                        CNOT(control_1, target),
+                        H(target),
+                        CP(np.pi / 2, control_1, target),
+                        H(target),
+                        CNOT(control_1, target),
+                    ]
+                )
             elif gate[0] == 'CCNOT':
                 qc.add(TOF([control_2, control_1], target))
             elif gate[0] == 'MEASURE':
                 break
-        
+
         elif issubclass(mpqp_gate, (H, X, Y, Z, Id, S, T)):
             qc.add(mpqp_gate(target))
         elif issubclass(mpqp_gate, (Rx, Ry, Rz, P)):
@@ -102,5 +136,5 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
             qc.add(mpqp_gate(control_1, target))
         else:
             qc.add(U(theta, phi, gamma, target))
-        
+
     return qc
