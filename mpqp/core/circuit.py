@@ -1052,6 +1052,7 @@ class QCircuit:
         language: Language = Language.QISKIT,
         translation_warning: bool = True,
         skip_pre_measure: bool = False,
+        printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
@@ -1076,6 +1077,9 @@ class QCircuit:
                 translation issues. if True, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
+            printing: If ``True`` dummy gates will replace custom gates (because
+                qiskit's ``Operators`` cannot have ``Parameters`` in their
+                definition.)
 
         Returns:
             The corresponding circuit in the target language.
@@ -1126,7 +1130,10 @@ class QCircuit:
             circuit += self.pre_measure()
             circuit.add(self.measurements)
             circuit_other = circuit.to_other_language(
-                language, translation_warning, True
+                language,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
+                printing=printing,
             )
             self.gphase = circuit.gphase
             return circuit_other
@@ -1150,8 +1157,13 @@ class QCircuit:
             for instruction in self.instructions:
                 if isinstance(instruction, (Measure, Breakpoint)):
                     continue
+                options = (
+                    {"printing": printing}
+                    if isinstance(instruction, CustomGate)
+                    else {}
+                )
                 qiskit_inst = instruction.to_other_language(
-                    Language.QISKIT, qiskit_parameters
+                    language, qiskit_parameters, **options
                 )
                 if TYPE_CHECKING:
                     assert isinstance(
@@ -1679,7 +1691,7 @@ class QCircuit:
         print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
-        qiskit_circ = self.to_other_language(Language.QISKIT)
+        qiskit_circ = self.to_other_language(Language.QISKIT, printing=True)
         if TYPE_CHECKING:
             from qiskit import QuantumCircuit
 
