@@ -158,8 +158,8 @@ class CustomGate(Gate):
             raise NotImplementedError(f"Error: {language} is not supported")
 
     def __repr__(self) -> str:
-        label = ", " + self.label if self.label else ""
-        return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets} {label})"
+        label = f", \"{self.label}\"" if self.label else ""
+        return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets}{label})"
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.

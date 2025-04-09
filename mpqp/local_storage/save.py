@@ -33,60 +33,64 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int]:
     from sqlite3 import connect
 
     connection = connect(get_env_variable("DB_PATH"))
-    cursor = connection.cursor()
+    try:
+        cursor = connection.cursor()
+        try:
+            job_ids: list[int] = []
+            if isinstance(jobs, list):
+                for job in jobs:
+                    circuit_json = json.dumps(repr(job.circuit))
+                    measure_json = (
+                        json.dumps(repr(job.measure)) if job.measure else None
+                    )
 
-    job_ids: list[int] = []
-    if isinstance(jobs, list):
-        for job in jobs:
-            circuit_json = json.dumps(repr(job.circuit))
-            measure_json = json.dumps(repr(job.measure)) if job.measure else None
+                    cursor.execute(
+                        '''
+                        INSERT INTO jobs (type, circuit, device, measure, remote_id, status)
+                        VALUES (?, ?, ?, ?)
+                    ''',
+                        (
+                            job.job_type.name,
+                            circuit_json,
+                            str(job.device),
+                            measure_json,
+                            str(job.id),
+                            str(job.status),
+                        ),
+                    )
+                    id = cursor.lastrowid
+                    if id is None:
+                        raise ValueError("Job saving failed")
+                    job_ids.append(id)
 
-            cursor.execute(
-                '''
-                INSERT INTO jobs (type, circuit, device, measure, remote_id, status)
-                VALUES (?, ?, ?, ?)
-            ''',
-                (
-                    job.job_type.name,
-                    circuit_json,
-                    str(job.device),
-                    measure_json,
-                    str(job.id),
-                    str(job.status),
-                ),
-            )
-            id = cursor.lastrowid
-            if id is None:
-                raise ValueError("Job saving failed")
-            job_ids.append(id)
+                    connection.commit()
+            else:
+                # TODO: I think we could factorize this part
+                circuit_json = json.dumps(repr(jobs.circuit))
+                measure_json = json.dumps(repr(jobs.measure)) if jobs.measure else None
 
-            connection.commit()
-    else:
-        # TODO: I think we could factorize this part
-        circuit_json = json.dumps(repr(jobs.circuit))
-        measure_json = json.dumps(repr(jobs.measure)) if jobs.measure else None
+                cursor.execute(
+                    '''
+                    INSERT INTO jobs (type, circuit, device, measure)
+                    VALUES (?, ?, ?, ?)
+                ''',
+                    (
+                        jobs.job_type.name,
+                        circuit_json,
+                        str(jobs.device),
+                        measure_json,
+                    ),
+                )
+                id = cursor.lastrowid
+                if id is None:
+                    raise ValueError("Job saving failed")
+                job_ids.append(id)
 
-        cursor.execute(
-            '''
-            INSERT INTO jobs (type, circuit, device, measure)
-            VALUES (?, ?, ?, ?)
-        ''',
-            (
-                jobs.job_type.name,
-                circuit_json,
-                str(jobs.device),
-                measure_json,
-            ),
-        )
-        id = cursor.lastrowid
-        if id is None:
-            raise ValueError("Job saving failed")
-        job_ids.append(id)
-
-        connection.commit()
-
-    connection.close()
-
+                connection.commit()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
     return job_ids
 
 
@@ -133,23 +137,31 @@ def _insert_result(result: Result, reuse_similar_job: bool = True):
         job_id = insert_jobs(result.job)[0]
 
     connection = connect(get_env_variable("DB_PATH"))
-    cursor = connection.cursor()
+    try:
+        cursor = connection.cursor()
+        try:
+            data_json = json.dumps(
+                repr(result._data)  # pyright: ignore[reportPrivateUsage]
+            )
+            error_json = (
+                json.dumps(repr(result.error)) if result.error is not None else None
+            )
 
-    data_json = json.dumps(repr(result._data))  # pyright: ignore[reportPrivateUsage]
-    error_json = json.dumps(repr(result.error)) if result.error is not None else None
+            cursor.execute(
+                '''
+                INSERT INTO results (job_id, data, error, shots)
+                VALUES (?, ?, ?, ?)
+            ''',
+                (job_id, data_json, error_json, result.shots),
+            )
 
-    cursor.execute(
-        '''
-        INSERT INTO results (job_id, data, error, shots)
-        VALUES (?, ?, ?, ?)
-    ''',
-        (job_id, data_json, error_json, result.shots),
-    )
+            result_id = cursor.lastrowid
+            if result_id is None:
+                raise ValueError("Result saving failed")
 
-    result_id = cursor.lastrowid
-    if result_id is None:
-        raise ValueError("Result saving failed")
-
-    connection.commit()
-    connection.close()
+            connection.commit()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
     return result_id
