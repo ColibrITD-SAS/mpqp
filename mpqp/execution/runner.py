@@ -151,12 +151,15 @@ def _run_diagonal_observables(
     device: AvailableDevice,
     observable_job: Job,
     values: dict[Expr | str, Complex],
+    translation_warning: bool = True,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(adapted_circuit, device, values, False)
+    result = _run_single(
+        adapted_circuit, device, values, False, translation_warning=translation_warning
+    )
     probas = result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
@@ -190,6 +193,7 @@ def _run_single(
     device: AvailableDevice,
     values: dict[Expr | str, Complex],
     display_breakpoints: bool = True,
+    translation_warning: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -201,6 +205,7 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -237,7 +242,9 @@ def _run_single(
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.are_all_diagonal():
-                return _run_diagonal_observables(circuit, measure, device, job, values)
+                return _run_diagonal_observables(
+                    circuit, measure, device, job, values, translation_warning
+                )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -250,15 +257,15 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
-        return run_ibm(job)
+        return run_ibm(job, translation_warning)
     elif isinstance(device, ATOSDevice):
-        return run_atos(job)
+        return run_atos(job, translation_warning)
     elif isinstance(device, AWSDevice):
-        return run_braket(job)
+        return run_braket(job, translation_warning)
     elif isinstance(device, GOOGLEDevice):
-        return run_google(job)
+        return run_google(job, translation_warning)
     elif isinstance(device, AZUREDevice):
-        return run_azure(job)
+        return run_azure(job, translation_warning)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -269,6 +276,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    translation_warning: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -284,6 +292,7 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -352,13 +361,21 @@ def run(
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
             [
-                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
+                _run_single(
+                    namer(circ, i + 1),
+                    dev,
+                    values,
+                    display_breakpoints,
+                    translation_warning,
+                )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(
+            circuit, device, values, display_breakpoints, translation_warning
+        )
 
 
 @typechecked

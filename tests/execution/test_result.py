@@ -5,10 +5,21 @@ import pytest
 from numpy import pi
 
 from mpqp import QCircuit
-from mpqp.execution import Job, JobType, Result, Sample, StateVector
-from mpqp.execution.devices import IBMDevice
+from mpqp.core.instruction import Observable
+from mpqp.execution import (
+    ATOSDevice,
+    GOOGLEDevice,
+    Job,
+    JobType,
+    Result,
+    Sample,
+    StateVector,
+    run,
+)
+from mpqp.execution.devices import AWSDevice, IBMDevice
+from mpqp.execution.result import BatchResult
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure
+from mpqp.measures import BasisMeasure, ExpectationMeasure
 
 
 @pytest.mark.parametrize(
@@ -110,3 +121,56 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
 )
 def test_result_str(result: Result, expected_string: str):
     assert str(result) == expected_string
+
+
+state_vector_devices = [
+    IBMDevice.AER_SIMULATOR_STATEVECTOR,
+    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    ATOSDevice.MYQLM_CLINALG,
+    ATOSDevice.MYQLM_PYLINALG,
+    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+]
+
+sampling_devices = [
+    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    IBMDevice.AER_SIMULATOR,
+    ATOSDevice.MYQLM_CLINALG,
+    ATOSDevice.MYQLM_PYLINALG,
+    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+]
+
+
+def test_sample_nb_shot_handle():
+    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
+    batch = run(circuit, sampling_devices, translation_warning=False)
+    assert isinstance(batch, BatchResult)
+    for result in batch:
+        assert result.error != 0.0
+        assert result.shots == 1024
+
+
+def test_state_vector_nb_shot_handle():
+    circuit = QCircuit(
+        [
+            H(0),
+            CNOT(0, 1),
+            ExpectationMeasure(
+                Observable(
+                    np.array(
+                        [
+                            [4, 2, 3, 8],
+                            [2, -3, 1, 0],
+                            [3, 1, -1, 5],
+                            [8, 0, 5, 2],
+                        ]
+                    )
+                ),
+                shots=1024,
+            ),
+        ]
+    )
+    batch = run(circuit, sampling_devices, translation_warning=False)
+    assert isinstance(batch, BatchResult)
+    for result in batch:
+        assert result.error != 0.0
+        assert result.shots == 1024
