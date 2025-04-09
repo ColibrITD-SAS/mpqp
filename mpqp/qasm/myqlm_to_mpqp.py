@@ -10,16 +10,27 @@ from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
 
 Gates = Union[
-        type[H], type[X], type[Y], type[Z], type[Id], type[S], type[T],
-        type[Rx], type[Ry], type[Rz], type[P], type[CNOT], type[CZ], type[SWAP]
-    ]
+    type[H],
+    type[X],
+    type[Y],
+    type[Z],
+    type[Id],
+    type[S],
+    type[T],
+    type[Rx],
+    type[Ry],
+    type[Rz],
+    type[P],
+    type[CNOT],
+    type[CZ],
+    type[SWAP],
+]
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
 
-def _define_parameters(
-        gate: MyQLM_Gate
-    ) -> tuple[int, int, int, int, int, int]:
-    
+
+def _define_parameters(gate: MyQLM_Gate) -> tuple[int, int, int, int, int, int]:
+
     theta = phi = gamma = target = control_1 = control_2 = 0
     if gate[1] != []:
         if len(gate[1]) >= 1:
@@ -40,7 +51,7 @@ def _define_parameters(
         target = gate[2][2]
     else:
         raise SyntaxError(f"Unhandled Gate: {str(gate[0])}")
-    
+
     return theta, phi, gamma, target, control_1, control_2
 
 
@@ -98,7 +109,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
             elif gate[0] == 'SQRTSWAP':
                 qc.add(CNOT(control_1, target))
                 qc.add(H(target))
-                qc.add(CP(np.pi/2, control_1, target))
+                qc.add(CP(np.pi / 2, control_1, target))
                 qc.add(H(target))
                 qc.add(CNOT(control_1, target))
             elif gate[0] == 'MEASURE':
