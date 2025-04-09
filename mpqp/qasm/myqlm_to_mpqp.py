@@ -8,6 +8,7 @@ from mpqp import QCircuit
 from mpqp.core.instruction.gates import *
 from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
+
 Gates = Union[
         type[H], type[X], type[Y], type[Z], type[Id], type[S], type[T],
         type[Rx], type[Ry], type[Rz], type[P], type[CNOT], type[CZ], type[SWAP]
@@ -15,7 +16,7 @@ Gates = Union[
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
 
-def define_parameters(
+def _define_parameters(
         gate: MyQLM_Gate
     ) -> tuple[int, int, int, int, int, int]:
     
@@ -43,7 +44,6 @@ def define_parameters(
     return theta, phi, gamma, target, control_1, control_2
 
 
-
 def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     qc = QCircuit()
     for i in range(circuit.nbqbits):
@@ -56,10 +56,10 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     controlled_gates = ['CNOT', 'CSIGN', 'SWAP']
     mpqp_controlled_gates = [CNOT, CZ, SWAP]
     idx = 0
-    
+
     for gate in circuit.iterate_simple():
 
-        theta, phi, gamma, target, control_1, control_2 = define_parameters(gate)
+        theta, phi, gamma, target, control_1, control_2 = _define_parameters(gate)
 
         if gate[0] == 'CCNOT':
             qc.add(TOF([control_2, control_1], target))
@@ -106,5 +106,5 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
 
             else:
                 raise SyntaxError(f"Unknown Gate: {str(gate[0])}")
-            
-    return qc 
+
+    return qc
