@@ -69,7 +69,9 @@ def submit_job_azure(
                 # line bellow will have to changer
                 job.circuit.without_measurements()
                 + job.circuit.pre_measure()
-            ).to_other_language(Language.QISKIT, translation_warning=translation_warning)
+            ).to_other_language(
+                Language.QISKIT, translation_warning=translation_warning
+            )
             if (job.job_type == JobType.STATE_VECTOR)
             else job.circuit.to_other_language(
                 Language.QISKIT, translation_warning=translation_warning
