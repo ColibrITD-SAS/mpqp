@@ -1340,7 +1340,8 @@ class QCircuit:
 
     @classmethod
     def from_other_language(
-        cls, qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str
+        cls,
+        qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str,
     ) -> QCircuit:
         """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM or QASM2) into
         the corresponding internal `QCircuit` format.
@@ -1404,7 +1405,7 @@ class QCircuit:
             >>> myqlm_circuit = prog.to_circ()
             >>> qcircuit4 = QCircuit.from_other_language(myqlm_circuit)
             >>> print(qcircuit4) # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐┌───┐     
+                 ┌───┐┌───┐
             q_0: ┤ I ├┤ H ├──■──
                  ├───┤└───┘┌─┴─┐
             q_1: ┤ I ├─────┤ X ├

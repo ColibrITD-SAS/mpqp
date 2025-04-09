@@ -17,7 +17,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     controlled_gates = ['CNOT', 'CSIGN', 'SWAP']
     mpqp_controlled_gates = [CNOT, CZ, SWAP]
     idx = 0
-    
+
     for gate in circuit.iterate_simple():
         if gate[0] == 'CCNOT':
             qc.add(TOF([gate[2][0], gate[2][1]], gate[2][2]))
@@ -56,7 +56,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
             elif gate[0] == 'SQRTSWAP':
                 qc.add(CNOT(0, 1))
                 qc.add(H(0))
-                qc.add(CP(np.pi/2, 1, 0))
+                qc.add(CP(np.pi / 2, 1, 0))
                 qc.add(H(0))
                 qc.add(CNOT(0, 1))
             elif gate[0] == 'MEASURE':
@@ -64,5 +64,5 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
 
             else:
                 raise SyntaxError(f"Unknown Gate: {str(gate[0])}")
-            
-    return qc 
+
+    return qc
