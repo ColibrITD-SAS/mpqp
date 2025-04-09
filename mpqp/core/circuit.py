@@ -1131,7 +1131,6 @@ class QCircuit:
             circuit.add(self.measurements)
             circuit_other = circuit.to_other_language(
                 language,
-                cirq_proc_id=cirq_proc_id,
                 translation_warning=translation_warning,
                 skip_pre_measure=True,
                 printing=printing,
