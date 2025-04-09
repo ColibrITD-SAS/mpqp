@@ -27,8 +27,7 @@ def run_google(job: Job, translation_warning: bool = True) -> Result:
 
     Args:
         job: Job to be executed.
-        translation_warning: Enable/Disable warnings about translation issues.
-                If `True`, a warning will be raised.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -53,8 +52,7 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
-        translation_warning: Enable/Disable warnings about translation issues.
-            If `True`, a warning will be raised.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -113,8 +111,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
     Args:
         job : Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
-        translation_warning: Enable/Disable warnings about translation issues.
-            If `True`, a warning will be raised.
+        translation_warning: If `True`, a warning will be raised.
         If `True`, a warning will be raised.
 
     Returns:

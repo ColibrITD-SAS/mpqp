@@ -53,8 +53,7 @@ def submit_job_azure(
 
     Returns:
         Azure's job id and the job itself.
-        translation_warning: Enable/Disable warnings about translation issues.
-                If `True`, a warning will be raised.
+        translation_warning: If `True`, a warning will be raised.
 
     Note:
         This function is not meant to be used directly, please use
@@ -69,7 +68,9 @@ def submit_job_azure(
                 # line bellow will have to changer
                 job.circuit.without_measurements()
                 + job.circuit.pre_measure()
-            ).to_other_language(Language.QISKIT, translation_warning=translation_warning)
+            ).to_other_language(
+                Language.QISKIT, translation_warning=translation_warning
+            )
             if (job.job_type == JobType.STATE_VECTOR)
             else job.circuit.to_other_language(
                 Language.QISKIT, translation_warning=translation_warning

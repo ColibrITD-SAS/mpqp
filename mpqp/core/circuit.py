@@ -1072,8 +1072,7 @@ class QCircuit:
 
         Args:
             language: Enum representing the target language.
-            translation_warning: Enable/Disable warnings about translation issues.
-                If `True`, a warning will be raised.
+            translation_warning: If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 
@@ -1354,8 +1353,7 @@ class QCircuit:
 
         Args:
             device: representing the target device.
-            translation_warning: Enable/Disable warnings about translation issues.
-                If `True`, a warning will be raised.
+            translation_warning: If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 

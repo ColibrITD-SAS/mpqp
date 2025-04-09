@@ -205,8 +205,7 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: Enable/Disable warnings about translation issues.
-                If `True`, a warning will be raised.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -293,8 +292,7 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: Enable/Disable warnings about translation issues.
-                If `True`, a warning will be raised.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
