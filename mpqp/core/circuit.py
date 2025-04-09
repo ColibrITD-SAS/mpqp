@@ -1077,7 +1077,7 @@ class QCircuit:
                 translation issues. if True, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
-            printing: If printing dummy gates will replace custom gates (because
+            printing: If ``True`` dummy gates will replace custom gates (because
                 qiskit's ``Operators`` cannot have ``Parameters`` in their
                 definition.)
 

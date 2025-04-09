@@ -115,6 +115,8 @@ class CustomGate(Gate):
 
                 dummy_circuit = QuantumCircuit(self.nb_qubits)
                 for param in qiskit_parameters:
+                    # Rx is just a random choice so to have the parameter in the
+                    # list of inputs
                     dummy_circuit.rx(param, 0)
                 return dummy_circuit.to_gate(label="CustomGate")
             return QiskitOperator(self.matrix)
