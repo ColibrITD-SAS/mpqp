@@ -64,6 +64,7 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
+
     from mpqp.execution.devices import AvailableDevice
 
 
@@ -874,8 +875,9 @@ class QCircuit:
         # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
         from qiskit import QuantumCircuit
-        from qiskit.quantum_info import Statevector
         from qiskit.circuit.library import StatePreparation
+        from qiskit.quantum_info import Statevector
+
         from mpqp.tools.circuit import replace_custom_gate
         from mpqp.tools.maths import normalize
 
@@ -1152,39 +1154,36 @@ class QCircuit:
                     Language.QISKIT, qiskit_parameters
                 )
                 if TYPE_CHECKING:
-                    assert (
-                        isinstance(qiskit_inst, CircuitInstruction)
-                        or isinstance(qiskit_inst, Operation)
-                        or isinstance(qiskit_inst, Operator)
+                    assert isinstance(
+                        qiskit_inst, (CircuitInstruction, Operation, Operator)
                     )
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    instr = instruction.to_other_language(Language.QISKIT)
                     if TYPE_CHECKING:
-                        assert isinstance(instr, Operator)
+                        assert isinstance(qiskit_inst, Operator)
                     new_circ.unitary(
-                        instr,
+                        qiskit_inst,
                         list(reversed(instruction.targets)),  # dang qiskit qubits order
                         instruction.label,
                     )
-                    continue
-                elif isinstance(instruction, ControlledGate):
-                    qargs = instruction.controls + instruction.targets
-                elif isinstance(instruction, Gate):
-                    qargs = instruction.targets
-                elif isinstance(instruction, Barrier):
-                    qargs = range(self.nb_qubits)
                 else:
-                    raise ValueError(f"Instruction not handled: {instruction}")
+                    if isinstance(instruction, ControlledGate):
+                        qargs = instruction.controls + instruction.targets
+                    elif isinstance(instruction, Gate):
+                        qargs = instruction.targets
+                    elif isinstance(instruction, Barrier):
+                        qargs = range(self.nb_qubits)
+                    else:
+                        raise ValueError(f"Instruction not handled: {instruction}")
 
-                if TYPE_CHECKING:
-                    assert not isinstance(qiskit_inst, Operator)
-                new_circ.append(
-                    qiskit_inst,
-                    qargs,
-                    cargs,
-                )
+                    if TYPE_CHECKING:
+                        assert not isinstance(qiskit_inst, Operator)
+                    new_circ.append(
+                        qiskit_inst,
+                        qargs,
+                        cargs,
+                    )
 
             for measurement in self.measurements:
                 if isinstance(measurement, ExpectationMeasure):
@@ -1381,10 +1380,10 @@ class QCircuit:
 
         """
         from mpqp.execution.devices import (
-            IBMDevice,
+            ATOSDevice,
             AWSDevice,
             GOOGLEDevice,
-            ATOSDevice,
+            IBMDevice,
         )
         from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
@@ -1462,6 +1461,7 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
+
                 from mpqp.execution.connection.ibm_connection import get_backend
 
                 backend = get_backend(device)
@@ -1480,10 +1480,10 @@ class QCircuit:
                 assert isinstance(cirq_circuit, CirqCircuit)
 
             if device.is_remote() and device.is_ionq():
+                from cirq.devices.line_qubit import LineQubit
                 from cirq.transformers.optimize_for_target_gateset import (
                     optimize_for_target_gateset,
                 )
-                from cirq.devices.line_qubit import LineQubit
                 from cirq_ionq.ionq_gateset import IonQTargetGateset
 
                 cirq_circuit = optimize_for_target_gateset(
@@ -1576,8 +1576,9 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
         """
-        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
         from qiskit import QuantumCircuit
+
+        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
