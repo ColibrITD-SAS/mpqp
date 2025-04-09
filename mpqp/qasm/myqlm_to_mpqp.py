@@ -8,7 +8,6 @@ from mpqp import QCircuit
 from mpqp.core.instruction.gates import *
 from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
-
 Gates = Union[
     type[H],
     type[X],
@@ -29,9 +28,7 @@ Gates = Union[
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
 
-
 def _define_parameters(gate: MyQLM_Gate) -> tuple[int, int, int, int, int, int]:
-
     theta = phi = gamma = target = control_1 = control_2 = 0
     if gate[1] != []:
         if len(gate[1]) >= 1:
@@ -68,6 +65,33 @@ def _find_mpqp_gates(
 
 
 def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
+    """
+    Parses a MyQLM circuit's instructions and returns a MPQP circuit.
+
+    Args:
+        circuit: the MyQLM circuit to be transformed.
+
+    Returns:
+        QCircuit object representing the parsed MyQLM circuit.
+
+    Raises:
+        SyntaxError: If the input circuit contains gates that are not handled or that have syntax error.
+
+    Example:
+        >>> from qat.lang.AQASM import Program, H, CNOT
+        >>> prog = Program()
+        >>> qbits = prog.qalloc(2)
+        >>> _ = H(qbits[0])
+        >>> _ = CNOT(qbits[0], qbits[1])
+        >>> myqlm_circuit = prog.to_circ()
+        >>> qcircuit = from_myqlm_to_mpqp(myqlm_circuit)
+        >>> print(qcircuit) # doctest: +NORMALIZE_WHITESPACE
+             ┌───┐┌───┐
+        q_0: ┤ I ├┤ H ├──■──
+             ├───┤└───┘┌─┴─┐
+        q_1: ┤ I ├─────┤ X ├
+             └───┘     └───┘
+    """
     qc = QCircuit()
     for i in range(circuit.nbqbits):
         qc.add(Id(i))
