@@ -1340,9 +1340,9 @@ class QCircuit:
 
     @classmethod
     def from_other_language(
-        cls, qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | str
+        cls, qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str
     ) -> QCircuit:
-        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket or QASM2) into
+        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM or QASM2) into
         the corresponding internal `QCircuit` format.
 
         Args:
@@ -1350,6 +1350,7 @@ class QCircuit:
                 - `QuantumCircuit`: A Qiskit QuantumCircuit object.
                 - `cirq_Circuit`: A Cirq Circuit object.
                 - `braket_Circuit`: A Braket Circuit object.
+                - `myQLM_Circuit`: A MyQLM Circuit object.
                 - `str`: A string representing an OpenQASM 2.0 circuit.
 
         Returns:
@@ -1395,14 +1396,28 @@ class QCircuit:
                       └───┘
             c: 2/══════════
 
+            >>> from qat.lang.AQASM import Program, H, CNOT
+            >>> prog = Program()
+            >>> qbits = prog.qalloc(2)
+            >>> _ = H(qbits[0])
+            >>> _ = CNOT(qbits[0], qbits[1])
+            >>> myqlm_circuit = prog.to_circ()
+            >>> qcircuit4 = QCircuit.from_other_language(myqlm_circuit)
+            >>> print(qcircuit4) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐┌───┐     
+            q_0: ┤ I ├┤ H ├──■──
+                 ├───┤└───┘┌─┴─┐
+            q_1: ┤ I ├─────┤ X ├
+                 └───┘     └───┘
+
             >>> qasm2_code = '''
             ... OPENQASM 2.0;
             ... qreg q[2];
             ... h q[0];
             ... cx q[0], q[1];
             ... '''
-            >>> qcircuit4 = QCircuit.from_other_language(qasm2_code)
-            >>> print(qcircuit4) # doctest: +NORMALIZE_WHITESPACE
+            >>> qcircuit5 = QCircuit.from_other_language(qasm2_code)
+            >>> print(qcircuit5) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
@@ -1413,20 +1428,18 @@ class QCircuit:
         from qiskit import QuantumCircuit
         from cirq.circuits.circuit import Circuit as cirq_Circuit
         from braket.circuits import Circuit as braket_Circuit
+        from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
 
-            qasm2_code = qasm2.dumps(qcircuit)
-            return qasm2_parse(qasm2_code)
+            return qasm2_parse(qasm2.dumps(qcircuit))
 
         elif isinstance(qcircuit, cirq_Circuit):
             cleared_code = []
             line_to_add = True
 
-            qasm2_code = qcircuit.to_qasm()
-            lines = qasm2_code.split('\n')
-            for line in lines:
+            for line in qcircuit.to_qasm().split('\n'):
                 if "sdg" in line:
                     new_line = line.replace("sdg", "p(-pi*0.5)")
                     cleared_code.append(new_line)
@@ -1453,7 +1466,7 @@ class QCircuit:
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, Program)
-            qasm2_code, _ = open_qasm_3_to_2(
+            qasm2_code, phase = open_qasm_3_to_2(
                 str(qasm3_code.source),
                 None,
                 None,
@@ -1505,11 +1518,17 @@ class QCircuit:
                 idx += 1
 
             cleared_code = '\n'.join(cleared_code)
-            return qasm2_parse(cleared_code)
+            qc = qasm2_parse(cleared_code)
+            qc.gphase = phase
+            return qc
 
-        elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-            lines = qcircuit.split('\n')
-            for line in lines:
+        elif isinstance(qcircuit, myQLM_Circuit):
+            from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
+
+            return from_myqlm_to_mpqp(qcircuit)
+
+        elif isinstance(qcircuit, str):
+            for line in qcircuit.split('\n'):
                 if not line.startswith("//") and line != '':
                     if not line.startswith("OPENQASM 2.0"):
                         raise NotImplementedError(

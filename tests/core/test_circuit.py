@@ -367,6 +367,9 @@ def test_to_other_language(
         (QCircuit([H(0), CNOT(0, 1)]), Language.BRAKET, None),
         (random_circuit(None, 2), Language.BRAKET, None),
         (random_circuit(None, 10), Language.BRAKET, None),
+        (QCircuit([H(0), CNOT(0, 1)]), Language.MY_QLM, None),
+        (random_circuit(None, 2), Language.MY_QLM, None),
+        (random_circuit(None, 10), Language.MY_QLM, None)
     ],
 )
 def test_from_other_language(
