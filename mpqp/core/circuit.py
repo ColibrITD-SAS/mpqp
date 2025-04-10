@@ -1485,8 +1485,10 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
-
                 from mpqp.execution.connection.ibm_connection import get_backend
+
+                if TYPE_CHECKING:
+                    assert isinstance(device, IBMDevice)
 
                 backend = get_backend(device)
                 pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
