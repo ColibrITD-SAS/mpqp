@@ -87,7 +87,7 @@ def apply_noise_to_braket_circuit(
 
 
 @typechecked
-def run_braket(job: Job) -> Result:
+def run_braket(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
@@ -95,6 +95,7 @@ def run_braket(job: Job) -> Result:
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`mpqp.execution.devices.AWSDevice`.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The result of the job.
@@ -113,7 +114,7 @@ def run_braket(job: Job) -> Result:
 
     from braket.tasks import GateModelQuantumTaskResult
 
-    _, task = submit_job_braket(job)
+    _, task = submit_job_braket(job, translation_warning)
     res = task.result()
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
@@ -122,7 +123,9 @@ def run_braket(job: Job) -> Result:
 
 
 @typechecked
-def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
+def submit_job_braket(
+    job: Job, translation_warning: bool = True
+) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
 
@@ -169,7 +172,12 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     from braket.circuits import Circuit
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
-    braket_circuit = job.circuit.to_other_language(Language.BRAKET)
+
+    if job.circuit.transpiled_circuit is None:
+        braket_circuit = job.circuit.to_other_device(job.device, translation_warning)
+    else:
+        braket_circuit = job.circuit.transpiled_circuit
+
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
 

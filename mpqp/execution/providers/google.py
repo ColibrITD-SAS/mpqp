@@ -20,12 +20,13 @@ from mpqp.execution.result import Result, Sample, StateVector
 
 
 @typechecked
-def run_google(job: Job) -> Result:
+def run_google(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -35,17 +36,22 @@ def run_google(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return run_local(job) if not job.device.is_remote() else run_google_remote(job)
+    return (
+        run_local(job, translation_warning)
+        if not job.device.is_remote()
+        else run_google_remote(job, translation_warning)
+    )
 
 
 @typechecked
-def run_google_remote(job: Job) -> Result:
+def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job remotely on a Google quantum device. At present, only
     IonQ devices are supported.
 
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -64,13 +70,12 @@ def run_google_remote(job: Job) -> Result:
 
     import cirq_ionq as ionq
     from cirq.circuits.circuit import Circuit as CirqCircuit
-    from cirq.devices.line_qubit import LineQubit
-    from cirq.transformers.optimize_for_target_gateset import (
-        optimize_for_target_gateset,
-    )
-    from cirq_ionq.ionq_gateset import IonQTargetGateset
 
-    job_CirqCircuit = job.circuit.to_other_language(Language.CIRQ)
+    if job.circuit.transpiled_circuit is None:
+        job_CirqCircuit = job.circuit.to_other_device(job.device, translation_warning)
+    else:
+        job_CirqCircuit = job.circuit.transpiled_circuit
+
     if TYPE_CHECKING:
         assert isinstance(job_CirqCircuit, CirqCircuit)
 
@@ -85,15 +90,10 @@ def run_google_remote(job: Job) -> Result:
             )
 
         service = ionq.Service(default_target=job.device.value)
-        job_CirqCircuit = optimize_for_target_gateset(
-            job_CirqCircuit, gateset=IonQTargetGateset()
-        )
-        job_CirqCircuit = job_CirqCircuit.transform_qubits(
-            {qb: LineQubit(i) for i, qb in enumerate(job_CirqCircuit.all_qubits())}
-        )
 
         if TYPE_CHECKING:
             assert isinstance(job.measure, BasisMeasure)
+
         return extract_result_SAMPLE(
             service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
         )
@@ -104,12 +104,14 @@ def run_google_remote(job: Job) -> Result:
 
 
 @typechecked
-def run_local(job: Job) -> Result:
+def run_local(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job locally.
 
     Args:
         job : Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
+        translation_warning: If `True`, a warning will be raised.
+        If `True`, a warning will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -135,14 +137,18 @@ def run_local(job: Job) -> Result:
     if job.device.is_processor():
         return run_local_processor(job)
 
-    if job.job_type == JobType.STATE_VECTOR:
-        # 3M-TODO: careful, if we ever support several measurements, the
-        # line bellow will have to changer
-        circuit = job.circuit.without_measurements() + job.circuit.pre_measure()
-        cirq_circuit = circuit.to_other_language(Language.CIRQ)
-        job.circuit.gphase = circuit.gphase
+    if job.circuit.transpiled_circuit is None:
+        if job.job_type == JobType.STATE_VECTOR:
+            # 3M-TODO: careful, if we ever support several measurements, the
+            # line bellow will have to changer
+            circuit = job.circuit.without_measurements() + job.circuit.pre_measure()
+            cirq_circuit = circuit.to_other_device(job.device, translation_warning)
+            job.circuit.gphase = circuit.gphase
+        else:
+            cirq_circuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
-        cirq_circuit = job.circuit.to_other_language(Language.CIRQ)
+        cirq_circuit = job.circuit.transpiled_circuit
+
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)
 
@@ -247,7 +253,11 @@ def run_local_processor(job: Job) -> Result:
     )
     simulator = SimulatedLocalEngine([sim_processor])
 
-    cirq_circuit = job.circuit.to_other_language(Language.CIRQ, job.device.value)
+    if job.circuit.transpiled_circuit is None:
+        cirq_circuit = job.circuit.to_other_device(job.device)
+    else:
+        cirq_circuit = job.circuit.transpiled_circuit
+
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)
 
