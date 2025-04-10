@@ -506,6 +506,7 @@ def run_aer(job: Job):
         if isinstance(job.device, IBMSimulatedDevice):
             # TODO this transpiled circuit should maybe stored ?
             from qiskit import transpile
+
             qiskit_circuit = transpile(qiskit_circuit, backend_sim)
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
