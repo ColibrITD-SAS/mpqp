@@ -33,10 +33,11 @@ def test_adjust_measure(
     measure = ExpectationMeasure(Observable(obs_matrix), measure_targets)
     adjusted_observable_matrix = np.kron(
         np.kron(
-            np.eye(2**nb_ids_before, dtype=np.complex64), measure.observable.matrix
+            np.eye(2**nb_ids_before, dtype=np.complex64), measure.observables[0].matrix
         ),
         np.eye(2**nb_ids_after),
     )
     assert matrix_eq(
-        adjust_measure(measure, circuit).observable.matrix, adjusted_observable_matrix
+        adjust_measure(measure, circuit).observables[0].matrix,
+        adjusted_observable_matrix,
     )

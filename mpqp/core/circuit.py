@@ -35,8 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from pickle import dumps
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Optional, Sequence, Type
 from warnings import warn
 
 import numpy as np
@@ -54,6 +53,7 @@ from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
+from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -64,6 +64,8 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
+
+    from mpqp.execution.devices import AvailableDevice
 
 
 @typechecked
@@ -142,6 +144,14 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
+        self.transpiled_circuit = None
+        """A pre-transpiled circuit to skip repeated transpilation when running the circuit.  
+        Useful when working with a symbolic circuit that needs to be executed with different parameters."""
+        self.transpiled_noise_model = None
+        """A pre-transpiled noise model that skips repeated transpilation when running the circuit. 
+        Currently, it is only useful in Qiskit when working with a symbolic circuit that needs 
+        to be executed with different parameters."""
+
         self.gphase: float = 0
         """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
         to OpenQASM2. It is used to correct the global phase when the job type
@@ -166,13 +176,13 @@ class QCircuit:
                     connections: set[int] = set.union(
                         *(instruction.connections() for instruction in data)
                     )
-                    self._nb_qubits = max(connections, default=0) + 1
+                    self._nb_qubits = max(connections, default=-1) + 1
             else:
                 self._user_nb_qubits = nb_qubits
             self.add(deepcopy(data))
 
     def __eq__(self, value: object) -> bool:
-        return dumps(self) == dumps(value)
+        return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
 
     def add(self, components: OneOrMany[Instruction | NoiseModel]):
         """Adds a ``component`` or a list of ``component`` at the end of the
@@ -212,7 +222,7 @@ class QCircuit:
 
         """
 
-        if isinstance(components, Iterable):
+        if not isinstance(components, (Instruction, NoiseModel)):
             for comp in components:
                 self.add(comp)
             return
@@ -244,7 +254,9 @@ class QCircuit:
                 components.c_targets = [
                     self.nb_cbits + i for i in range(len(components.targets))
                 ]
-            self._update_cbits(max(components.c_targets) + 1)
+            self._update_cbits(
+                max(components.c_targets) + 1 if len(components.c_targets) != 0 else 0
+            )
 
         if isinstance(components, NoiseModel):
             self.noises.append(components)
@@ -260,7 +272,7 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             if (
                 isinstance(components, DimensionalNoiseModel)
-                and len(components.targets) < components.dimension
+                and 0 < len(components.targets) < components.dimension
             ):
                 raise ValueError(
                     f"Number of target qubits {len(components.targets)} should be higher than "
@@ -343,7 +355,7 @@ class QCircuit:
                 if instruction != component and isinstance(instruction, BasisMeasure):
                     if instruction.c_targets:
                         unique_cbits.update(instruction.c_targets)
-            c_targets = []
+            c_targets: list[int] = []
             i = 0
             for _ in range(len(component.targets)):
                 while i in unique_cbits:
@@ -461,12 +473,15 @@ class QCircuit:
 
         """
 
-        if self.nb_qubits < other.nb_qubits:
+        if self._user_nb_qubits is not None and self.nb_qubits < other.nb_qubits:
             raise NumberQubitsError(
                 "Size of the circuit to be appended is greater than the size of"
                 " this circuit"
             )
-        if qubits_offset + other.nb_qubits > self.nb_qubits:
+        if (
+            self._user_nb_qubits is not None
+            and qubits_offset + other.nb_qubits > self.nb_qubits
+        ):
             raise NumberQubitsError(
                 "Size of the circuit to be appended is too large given the"
                 " index and the size of this circuit"
@@ -477,10 +492,25 @@ class QCircuit:
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
             if isinstance(inst, BasisMeasure):
-                if not inst.user_set_c_targets:
+                if not inst._user_set_c_targets:  # pyright: ignore[reportPrivateUsage]
                     inst.c_targets = None
 
             self.add(inst)
+
+    def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
+        """
+        Serialize the quantum circuit to a dictionary.
+        Returns:
+            dict: A dictionary representation of the circuit.
+        """
+
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if attr_name not in {'_nb_qubits', 'gates', 'measurements', 'breakpoints'}
+            and not attr_name.startswith("__")
+            and not callable(getattr(self, attr_name))
+        }
 
     def __iadd__(self, other: QCircuit):
         self.append(other)
@@ -560,7 +590,7 @@ class QCircuit:
     def __matmul__(self, other: QCircuit) -> QCircuit:
         return self.tensor(other)
 
-    def display(self, output: str = "mpl"):
+    def display(self, output: str = "mpl", warn: bool = True):
         r"""Displays the circuit in the desired output format.
 
         For now, this uses the qiskit circuit drawer, so all formats supported
@@ -570,6 +600,8 @@ class QCircuit:
             output: Format of the output, see
                 `docs.quantum.ibm.com/build/circuit-visualization <https://docs.quantum.ibm.com/build/circuit-visualization#alternative-renderers>`_
                 for more information.
+            warn: Enable/Disable warnings for matplotlib figure. If `True` and we are not running headless 
+                (i.e. on Linux with an unset DISPLAY), issue warning when called on a non-GUI backend.
         
         Examples:
             >>> theta = symbols("θ")
@@ -599,7 +631,7 @@ class QCircuit:
         fig = circuit_drawer(qc, output=output, style={"backgroundcolor": "#EEEEEE"})
 
         if isinstance(fig, Figure):
-            fig.show()
+            fig.show(warn=warn)
         return fig
 
     def size(self) -> tuple[int, int]:
@@ -760,29 +792,29 @@ class QCircuit:
             The inverse circuit.
 
         Examples:
-            >>> c1 = QCircuit([S(0), CZ(0,1), H(1), Ry(4.56, 1)])
+            >>> c1 = QCircuit([T(0), CZ(0,1), H(1), Ry(4.56, 1)])
             >>> print(c1)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
-            q_0: ┤ S ├─■──────────────────
+            q_0: ┤ T ├─■──────────────────
                  └───┘ │ ┌───┐┌──────────┐
             q_1: ──────■─┤ H ├┤ Ry(4.56) ├
                          └───┘└──────────┘
             >>> print(c1.inverse())  # doctest: +NORMALIZE_WHITESPACE
                                       ┌────┐
-            q_0: ───────────────────■─┤ S† ├
+            q_0: ───────────────────■─┤ T† ├
                  ┌───────────┐┌───┐ │ └────┘
             q_1: ┤ Ry(-4.56) ├┤ H ├─■───────
                  └───────────┘└───┘
-             >>> c2 = QCircuit([S(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1)])
+             >>> c2 = QCircuit([T(0), CRk(2, 0, 1), Barrier(), H(1), Ry(4.56, 1)])
             >>> print(c2)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐          ░
-            q_0: ┤ S ├─■────────░──────────────────
+            q_0: ┤ T ├─■────────░──────────────────
                  └───┘ │P(π/2)  ░ ┌───┐┌──────────┐
             q_1: ──────■────────░─┤ H ├┤ Ry(4.56) ├
                                 ░ └───┘└──────────┘
             >>> print(c2.inverse())  # doctest: +NORMALIZE_WHITESPACE
                                     ░           ┌────┐
-            q_0: ───────────────────░──■────────┤ S† ├
+            q_0: ───────────────────░──■────────┤ T† ├
                  ┌───────────┐┌───┐ ░  │P(-π/2) └────┘
             q_1: ┤ Ry(-4.56) ├┤ H ├─░──■──────────────
                  └───────────┘└───┘ ░
@@ -833,22 +865,37 @@ class QCircuit:
 
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
-            >>> print(qc)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐
-            q_0: ┤ H ├──■──
-                 └───┘┌─┴─┐
-            q_1: ─────┤ X ├
-                      └───┘
+            >>> print(qc)  # doctest: +SKIP
+                   ┌────────────┐
+            q_0: ──┤ U(π/2,0,0) ├────■──────────────────────────
+                 ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
+            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
+                 └────────────────┘└───┘└──────────────────────┘
+            >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).amplitudes)
+            [0.70711, 0, 0, 0.70711]
 
-        # 3M-TODO : to implement --> a first short term way could be to reuse
-        # the qiskit QuantumCircuit feature qc.initialize()
+        # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
+        from qiskit import QuantumCircuit
+        from qiskit.circuit.library import StatePreparation
+        from qiskit.quantum_info import Statevector
+
+        from mpqp.tools.circuit import replace_custom_gate
+        from mpqp.tools.maths import normalize
+
         size = int(np.log2(len(state)))
         if 2**size != len(state):
             raise ValueError(f"Input state {state} should have a power of 2 size")
-        res = cls(size)
-        ...
-        return res
+
+        qiskit_circuit = QuantumCircuit(size)
+        qiskit_circuit.append(
+            StatePreparation(Statevector(normalize(state))), range(size)
+        )
+        circ, phase = replace_custom_gate(qiskit_circuit[0], size)
+        circ = circ.reverse_bits()
+        cls = QCircuit.from_other_language(circ)
+        cls.gphase = phase
+        return cls
 
     def count_gates(self, gate: Optional[Type[Gate]] = None) -> int:
         """Returns the number of gates contained in the circuit. If a specific
@@ -906,7 +953,8 @@ class QCircuit:
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure(shots=1000),
-            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]
+            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'),
+            [1], shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
@@ -1004,9 +1052,9 @@ class QCircuit:
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        cirq_proc_id: Optional[str] = None,
         translation_warning: bool = True,
         skip_pre_measure: bool = False,
+        printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
@@ -1027,9 +1075,12 @@ class QCircuit:
 
         Args:
             language: Enum representing the target language.
-            cirq_proc_id: Identifier of the processor for cirq.
+            translation_warning: If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
+            printing: If ``True`` dummy gates will replace custom gates (because
+                qiskit's ``Operators`` cannot have ``Parameters`` in their
+                definition.)
 
         Returns:
             The corresponding circuit in the target language.
@@ -1080,7 +1131,10 @@ class QCircuit:
             circuit += self.pre_measure()
             circuit.add(self.measurements)
             circuit_other = circuit.to_other_language(
-                language, cirq_proc_id, translation_warning, True
+                language,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
+                printing=printing,
             )
             self.gphase = circuit.gphase
             return circuit_other
@@ -1104,41 +1158,45 @@ class QCircuit:
             for instruction in self.instructions:
                 if isinstance(instruction, (Measure, Breakpoint)):
                     continue
-                qiskit_inst = instruction.to_other_language(language, qiskit_parameters)
+                options = (
+                    {"printing": printing}
+                    if isinstance(instruction, CustomGate)
+                    else {}
+                )
+                qiskit_inst = instruction.to_other_language(
+                    language, qiskit_parameters, **options
+                )
                 if TYPE_CHECKING:
-                    assert (
-                        isinstance(qiskit_inst, CircuitInstruction)
-                        or isinstance(qiskit_inst, Operation)
-                        or isinstance(qiskit_inst, Operator)
+                    assert isinstance(
+                        qiskit_inst, (CircuitInstruction, Operation, Operator)
                     )
                 cargs = []
 
                 if isinstance(instruction, CustomGate):
-                    instr = instruction.to_other_language(Language.QISKIT)
                     if TYPE_CHECKING:
-                        assert isinstance(instr, Operator)
+                        assert isinstance(qiskit_inst, Operator)
                     new_circ.unitary(
-                        instr,
+                        qiskit_inst,
                         list(reversed(instruction.targets)),  # dang qiskit qubits order
                         instruction.label,
                     )
-                    continue
-                elif isinstance(instruction, ControlledGate):
-                    qargs = instruction.controls + instruction.targets
-                elif isinstance(instruction, Gate):
-                    qargs = instruction.targets
-                elif isinstance(instruction, Barrier):
-                    qargs = range(self.nb_qubits)
                 else:
-                    raise ValueError(f"Instruction not handled: {instruction}")
+                    if isinstance(instruction, ControlledGate):
+                        qargs = instruction.controls + instruction.targets
+                    elif isinstance(instruction, Gate):
+                        qargs = instruction.targets
+                    elif isinstance(instruction, Barrier):
+                        qargs = range(self.nb_qubits)
+                    else:
+                        raise ValueError(f"Instruction not handled: {instruction}")
 
-                if TYPE_CHECKING:
-                    assert not isinstance(qiskit_inst, Operator)
-                new_circ.append(
-                    qiskit_inst,
-                    qargs,
-                    cargs,
-                )
+                    if TYPE_CHECKING:
+                        assert not isinstance(qiskit_inst, Operator)
+                    new_circ.append(
+                        qiskit_inst,
+                        qargs,
+                        cargs,
+                    )
 
             for measurement in self.measurements:
                 if isinstance(measurement, ExpectationMeasure):
@@ -1166,7 +1224,9 @@ class QCircuit:
         elif language == Language.MY_QLM:
             cleaned_circuit = self.without_measurements()
             qasm2_code = cleaned_circuit.to_other_language(
-                Language.QASM2, skip_pre_measure=True
+                Language.QASM2,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
             )
             self.gphase = cleaned_circuit.gphase
             if TYPE_CHECKING:
@@ -1204,7 +1264,9 @@ class QCircuit:
                     )
 
             qasm3_code = circuit.to_other_language(
-                Language.QASM3, translation_warning=False, skip_pre_measure=True
+                Language.QASM3,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
             )
             self.gphase = circuit.gphase
             if TYPE_CHECKING:
@@ -1212,7 +1274,7 @@ class QCircuit:
             from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(qasm3_code),
+                qasm3_to_braket_Circuit(qasm3_code, translation_warning),
                 self.noises,
                 self.nb_qubits,
             )
@@ -1234,7 +1296,9 @@ class QCircuit:
                     custom_circuit = QCircuit(self.nb_qubits)
                     custom_circuit.add(instruction)
                     qasm2_code = custom_circuit.to_other_language(
-                        Language.QASM2, skip_pre_measure=True
+                        Language.QASM2,
+                        translation_warning=translation_warning,
+                        skip_pre_measure=True,
                     )
                     if TYPE_CHECKING:
                         assert isinstance(qasm2_code, str)
@@ -1259,7 +1323,201 @@ class QCircuit:
                     cirq_instruction = instruction.to_other_language(Language.CIRQ)
                     cirq_circuit.append(cirq_instruction.on(*targets))
 
-            if cirq_proc_id:
+            return cirq_circuit
+        elif language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+
+            qasm_str, gphase = mpqp_to_qasm2(self)
+            self.gphase = gphase
+            return qasm_str
+        elif language == Language.QASM3:
+            qasm2_code = self.to_other_language(
+                Language.QASM2,
+                translation_warning=translation_warning,
+                skip_pre_measure=True,
+            )
+            if TYPE_CHECKING:
+                assert isinstance(qasm2_code, str)
+            from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
+
+            qasm3_code = open_qasm_2_to_3(
+                qasm2_code, translation_warning=translation_warning
+            )
+            return qasm3_code
+        else:
+            raise NotImplementedError(f"Error: {language} is not supported")
+
+    def to_other_device(
+        self,
+        device: AvailableDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
+        """Transforms this circuit into the corresponding device specified
+        in the ``device` arg.
+
+        Some measurements require some adaptation between the user defined
+        circuit and the measure. For instance if the targets are not given in a
+        contiguous ordered list or if the basis measurement is in a basis other
+        than the computational basis. We automatically add this adaptation as an
+        intermediate circuit called ``pre_measure``.
+
+        Args:
+            device: representing the target device.
+            translation_warning: If `True`, a warning will be raised.
+            skip_pre_measure: If true, the ``pre_measure`` circuit will not be
+                added to the output.
+
+        Returns:
+            The corresponding circuit in the target device.
+
+        Examples:
+            >>> circuit = QCircuit([H(0), BasisMeasure()])
+            >>> qc = circuit.to_other_device(IBMDevice.AER_SIMULATOR)
+            >>> type(qc)
+            <class 'qiskit.circuit.quantumcircuit.QuantumCircuit'>
+            >>> print(qc) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐┌─┐
+              q: ┤ H ├┤M├
+                 └───┘└╥┘
+            c: 1/══════╩═
+                       0
+            >>> print(circuit.to_other_device(IBMDevice.IBM_BRISBANE))  # doctest: +SKIP
+            global phase: π/4
+                               ┌─────────┐┌────┐┌─────────┐┌─┐
+                      q_0 -> 0 ┤ Rz(π/2) ├┤ √X ├┤ Rz(π/2) ├┤M├
+                               └─────────┘└────┘└─────────┘└╥┘
+                ancilla_0 -> 1 ─────────────────────────────╫─ ...
+                                                            ║
+            ancilla_125 -> 126 ─────────────────────────────╫─
+                                                            ║
+                          c: 1/═════════════════════════════╩═
+                                                            0
+
+        Note:
+            Most providers take noise into account at the job level. A notable
+            exception is Braket, where the noise is contained in the circuit
+            object. For this reason, you will find the noise included in the Braket
+            circuits.
+
+        """
+        from mpqp.execution.devices import (
+            ATOSDevice,
+            AWSDevice,
+            GOOGLEDevice,
+            IBMDevice,
+        )
+        from mpqp.execution.simulated_devices import IBMSimulatedDevice
+
+        if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
+            from mpqp.execution.providers.ibm import generate_qiskit_noise_model
+
+            circuit = deepcopy(self)
+            backend_sim = None
+
+            if not device.is_remote():
+                from qiskit_aer import AerSimulator
+
+                if isinstance(device, IBMSimulatedDevice):
+                    if len(circuit.noises) != 0:
+                        warn(
+                            "NoiseModel are ignored when running the circuit on a "
+                            "SimulatedDevice"
+                        )
+                        backend_sim = device.to_noisy_simulator()
+                elif len(circuit.noises) != 0:
+                    noise_model, circuit = generate_qiskit_noise_model(
+                        circuit, translation_warning
+                    )
+                    self.transpiled_noise_model = noise_model
+                    backend_sim = AerSimulator(
+                        method=device.value, noise_model=noise_model
+                    )
+                else:
+                    backend_sim = AerSimulator(method=device.value)
+
+            if any(
+                isinstance(i, tuple(device.incompatible_gate()))
+                for i in circuit.instructions
+            ):
+                raise ValueError(
+                    f"Gate(s) {', '.join(map(str, device.incompatible_gate()))} cannot be simulated on {device}."
+                )
+            if (
+                isinstance(device, IBMSimulatedDevice)
+                and device.value().num_qubits < circuit.nb_qubits
+            ):
+                raise DeviceJobIncompatibleError(
+                    f"Number of qubits of the circuit ({circuit.nb_qubits}) is higher "
+                    f"than the one of the IBMSimulatedDevice ({device.value().num_qubits})."
+                )
+
+            qiskit_circuit = circuit.to_other_language(
+                Language.QISKIT, translation_warning, skip_pre_measure
+            )
+            if TYPE_CHECKING:
+                assert isinstance(qiskit_circuit, QuantumCircuit)
+            qiskit_circuit = qiskit_circuit.reverse_bits()
+
+            if not device.is_remote():
+                if len(self.measurements) == 1:
+                    if (
+                        isinstance(self.measurements[0], BasisMeasure)
+                        and self.measurements[0].shots <= 0
+                    ):  # JobType.SAMPLE
+                        from qiskit import transpile
+
+                        qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+                    elif isinstance(
+                        self.measurements[0], ExpectationMeasure
+                    ):  # JobType.OBSERVABLE
+                        if isinstance(device, IBMSimulatedDevice):
+                            from qiskit.transpiler.preset_passmanagers import (
+                                generate_preset_pass_manager,
+                            )
+
+                            backend = device.value()
+                            pm = generate_preset_pass_manager(
+                                optimization_level=0, backend=backend
+                            )
+                            qiskit_circuit = pm.run(qiskit_circuit)
+            else:
+                from qiskit.transpiler.preset_passmanagers import (
+                    generate_preset_pass_manager,
+                )
+                from mpqp.execution.connection.ibm_connection import get_backend
+
+                if TYPE_CHECKING:
+                    assert isinstance(device, IBMDevice)
+
+                backend = get_backend(device)
+                pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
+                qiskit_circuit = pm.run(qiskit_circuit)
+            return qiskit_circuit
+        elif isinstance(device, GOOGLEDevice):
+            from cirq.circuits.circuit import Circuit as CirqCircuit
+
+            cirq_circuit = self.to_other_language(
+                Language.CIRQ, translation_warning, skip_pre_measure
+            )
+
+            if TYPE_CHECKING:
+                assert isinstance(cirq_circuit, CirqCircuit)
+
+            if device.is_remote() and device.is_ionq():
+                from cirq.devices.line_qubit import LineQubit
+                from cirq.transformers.optimize_for_target_gateset import (
+                    optimize_for_target_gateset,
+                )
+                from cirq_ionq.ionq_gateset import IonQTargetGateset
+
+                cirq_circuit = optimize_for_target_gateset(
+                    cirq_circuit, gateset=IonQTargetGateset()
+                )
+                cirq_circuit = cirq_circuit.transform_qubits(
+                    {qb: LineQubit(i) for i, qb in enumerate(cirq_circuit.all_qubits())}
+                )
+            elif device.is_processor():
                 from cirq.transformers.optimize_for_target_gateset import (
                     optimize_for_target_gateset,
                 )
@@ -1271,40 +1529,100 @@ class QCircuit:
                     create_device_from_processor_id,
                 )
 
-                device = create_device_from_processor_id(cirq_proc_id)
-                if device.metadata is None:
+                cirq_device = create_device_from_processor_id(device.value)
+                if cirq_device.metadata is None:
                     raise ValueError(
-                        f"Device {device} does not have metadata for processor {cirq_proc_id}"
+                        f"Device {device} does not have metadata for processor {device.value}"
                     )
 
                 # For some processors, the circuits need to be optimized for the
                 # architecture. This is done here.
-                router = RouteCQC(device.metadata.nx_graph)
+                router = RouteCQC(cirq_device.metadata.nx_graph)
                 route_circ, _, _ = router.route_circuit(cirq_circuit)
                 cirq_circuit = optimize_for_target_gateset(
                     route_circ, gateset=SqrtIswapTargetGateset()
                 )
 
-                device.validate_circuit(cirq_circuit)
+                cirq_device.validate_circuit(cirq_circuit)
             return cirq_circuit
-        elif language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
-
-            qasm_str, gphase = mpqp_to_qasm2(self)
-            self.gphase = gphase
-            return qasm_str
-        elif language == Language.QASM3:
-            qasm2_code = self.to_other_language(Language.QASM2, skip_pre_measure=True)
-            if TYPE_CHECKING:
-                assert isinstance(qasm2_code, str)
-            from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
-
-            qasm3_code = open_qasm_2_to_3(
-                qasm2_code, translation_warning=translation_warning
+        elif isinstance(device, AWSDevice):
+            aws_circuit = self.to_other_language(
+                Language.BRAKET, translation_warning, skip_pre_measure
             )
-            return qasm3_code
+            return aws_circuit
+        elif isinstance(device, ATOSDevice):
+            circuit = self.to_other_language(
+                Language.MY_QLM, translation_warning, skip_pre_measure
+            )
+            return circuit
         else:
-            raise NotImplementedError(f"Error: {language} is not supported")
+            raise NotImplementedError(f"Error: {device} is not supported")
+
+    @classmethod
+    def from_other_language(cls, qcircuit: QuantumCircuit | str) -> QCircuit:
+        """Transforms a quantum circuit from an external representation (Qiskit or QASM2) into
+        the corresponding internal `QCircuit` format.
+
+        Args:
+            qcircuit: The input quantum circuit which can be one of the following types:
+                - `QuantumCircuit`: A Qiskit QuantumCircuit object.
+                - `str`: A string representing an OpenQASM 2.0 circuit.
+
+        Returns:
+            QCircuit: The circuit in the internal `QCircuit` representation.
+
+        Raises:
+            NotImplementedError: If the input circuit is a string but not in OpenQASM 2.0 format.
+
+        Examples:
+            >>> from qiskit.circuit import QuantumCircuit
+            >>> qiskit_circuit = QuantumCircuit(2)
+            >>> _ = qiskit_circuit.h(0)
+            >>> _ = qiskit_circuit.cx(0, 1)
+            >>> qcircuit1 = QCircuit.from_other_language(qiskit_circuit)
+            >>> print(qcircuit1) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+
+            >>> qasm2_code = '''
+            ... OPENQASM 2.0;
+            ... qreg q[2];
+            ... h q[0];
+            ... cx q[0], q[1];
+            ... '''
+            >>> qcircuit2 = QCircuit.from_other_language(qasm2_code)
+            >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+        """
+        from qiskit import QuantumCircuit
+
+        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+
+        if isinstance(qcircuit, QuantumCircuit):
+            from qiskit import qasm2
+
+            qasm2_code = qasm2.dumps(qcircuit)
+            return qasm2_parse(qasm2_code)
+
+        elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
+            lines = qcircuit.split('\n')
+            for line in lines:
+                if not line.startswith("//") and line != '':
+                    if not line.startswith("OPENQASM 2.0"):
+                        raise NotImplementedError(
+                            f"Error: only OpenQASM2 is supported for qasm external description of the circuit"
+                        )
+                    break
+            return qasm2_parse(qcircuit)
+        else:
+            raise NotImplementedError(f"Error: {type(qcircuit)} is not supported.")
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
@@ -1386,7 +1704,7 @@ class QCircuit:
         print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
-        qiskit_circ = self.to_other_language(Language.QISKIT)
+        qiskit_circ = self.to_other_language(Language.QISKIT, printing=True)
         if TYPE_CHECKING:
             from qiskit import QuantumCircuit
 
@@ -1398,20 +1716,22 @@ class QCircuit:
         return output
 
     def __repr__(self) -> str:
-        instructions_repr = ", ".join(repr(instr) for instr in self.instructions)
-        options = []
+        args = []
+        components: list[Instruction | NoiseModel] = self.instructions + self.noises
+        if len(components) != 0:
+            args.append(f"[{', '.join(repr(component) for component in components)}]")
         if self._user_nb_qubits is not None:
-            options.append(f"nb_qubits={self.nb_qubits}")
+            if len(components) == 0:
+                args.append(f"{self.nb_qubits}")
+            else:
+                args.append(f"nb_qubits={self.nb_qubits}")
         if self._user_nb_cbits is not None:
-            options.append(f"nb_cbits={self.nb_cbits}")
+            args.append(f"nb_cbits={self.nb_cbits}")
         if self.label is not None:
-            options.append(f'label="{self.label}')
+            args.append(f'label="{self.label}"')
+        args_repr = ', '.join(args)
 
-        options_repr = f", {', '.join(options)}" if options else ""
-        components = instructions_repr + (
-            "" if len(self.noises) == 0 else (", " + ", ".join(map(repr, self.noises)))
-        )
-        return f'QCircuit([{components}]{options_repr})'
+        return f'QCircuit({args_repr})'
 
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.

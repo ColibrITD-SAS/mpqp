@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
-    from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
+    from azure.quantum.qiskit.job import AzureQuantumJob
 
 from typeguard import typechecked
 
@@ -21,7 +21,7 @@ from mpqp.execution.result import Result, Sample
 
 
 @typechecked
-def run_azure(job: Job) -> Result:
+def run_azure(job: Job, warnings: bool = True) -> Result:
     """Executes the job on the right AZURE device precised in the job in
     parameter.
 
@@ -35,18 +35,49 @@ def run_azure(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
+    _, job_sim = submit_job_azure(job, warnings)
+    result_sim = job_sim.result()
+    if TYPE_CHECKING:
+        assert isinstance(job.device, AZUREDevice)
+    return extract_result(result_sim, job, job.device)
+
+
+@typechecked
+def submit_job_azure(
+    job: Job, translation_warning: bool = True
+) -> tuple[str, "AzureQuantumJob"]:
+    """Submits the job on the remote Azure device (quantum computer or simulator).
+
+    Args:
+        job: Job to be executed.
+
+    Returns:
+        Azure's job id and the job itself.
+        translation_warning: If `True`, a warning will be raised.
+
+    Note:
+        This function is not meant to be used directly, please use
+        :func:`~mpqp.execution.runner.run` instead.
+    """
     from qiskit import QuantumCircuit
 
-    qiskit_circuit = (
-        (
-            # 3M-TODO: careful, if we ever support several measurements, the
-            # line bellow will have to changer
-            job.circuit.without_measurements()
-            + job.circuit.pre_measure()
-        ).to_other_language(Language.QISKIT)
-        if (job.job_type == JobType.STATE_VECTOR)
-        else job.circuit.to_other_language(Language.QISKIT)
-    )
+    if job.circuit.transpiled_circuit is None:
+        qiskit_circuit = (
+            (
+                # 3M-TODO: careful, if we ever support several measurements, the
+                # line bellow will have to changer
+                job.circuit.without_measurements()
+                + job.circuit.pre_measure()
+            ).to_other_language(
+                Language.QISKIT, translation_warning=translation_warning
+            )
+            if (job.job_type == JobType.STATE_VECTOR)
+            else job.circuit.to_other_language(
+                Language.QISKIT, translation_warning=translation_warning
+            )
+        )
+    else:
+        qiskit_circuit = job.circuit.transpiled_circuit
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
@@ -62,18 +93,15 @@ def run_azure(job: Job) -> Result:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
-        result_sim = job_sim.result()
-        result = extract_result(result_sim, job, job.device)
     else:
         raise ValueError(f"Job type {job.job_type} not handled on Azure devices.")
 
-    job.status = JobStatus.DONE
-    return result
+    return job_sim.id(), job_sim
 
 
 @typechecked
 def extract_result(
-    result: "MicrosoftEstimatorResult | QiskitResult",
+    result: "QiskitResult",
     job: Optional[Job],
     device: AZUREDevice,
 ) -> Result:
@@ -90,21 +118,10 @@ def extract_result(
     Raises:
         ValueError: If the result type is unsupported.
     """
-    from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
-    from qiskit.result import Result as QiskitResult
 
-    if isinstance(result, QiskitResult):
-        from mpqp.execution.providers.ibm import extract_result as extract_result_ibm
+    from mpqp.execution.providers.ibm import extract_result as extract_result_ibm
 
-        return extract_result_ibm(result, job, device)
-    elif isinstance(
-        result, MicrosoftEstimatorResult
-    ):  # pyright: ignore[reportUnnecessaryIsInstance]
-        if job is None:
-            job = Job(JobType.OBSERVABLE, QCircuit(1), device)
-        return Result(job, 0, result.data())
-    else:
-        raise ValueError(f"result type not supported: {type(result)}")
+    return extract_result_ibm(result, job, device)
 
 
 @typechecked
@@ -149,8 +166,18 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
             )
             for (state, count) in result_dict.items()
         ]
+    elif isinstance(result, dict):
+        data = [
+            Sample(
+                index=int("".join(map(str, eval(state))), 2),
+                count=int(count),
+                probability=count,
+                nb_qubits=nb_qubits,
+            )
+            for (state, count) in result.items()
+        ]
     else:
-        raise ValueError(f"Result dictionary not compatible: {result}")
+        raise ValueError(f"Result dictionary not compatible: {type(result)}\n{result}")
 
     shots = 0
     if job.details.input_params is not None:
@@ -159,7 +186,9 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
 
     job_ = Job(
         JobType.SAMPLE,
-        QCircuit(nb_qubits),
+        QCircuit(
+            [BasisMeasure(list(range(nb_qubits)), shots=shots)], nb_qubits=nb_qubits
+        ),
         device,
         BasisMeasure(list(range(nb_qubits)), shots=shots),
     )

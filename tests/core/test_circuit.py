@@ -3,10 +3,12 @@ from __future__ import annotations
 from typing import Optional, Sequence
 
 import numpy as np
+import numpy.typing as npt
 import pytest
 from braket.circuits import Circuit as BraketCircuit
 from qiskit import QuantumCircuit as QiskitCircuit
 from typeguard import TypeCheckError
+from typing import TYPE_CHECKING
 
 from mpqp import Barrier, Instruction, Language, QCircuit
 from mpqp.core.instruction.gates import native_gates
@@ -14,13 +16,17 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import I
 from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
-from mpqp.execution.devices import ATOSDevice
-from mpqp.execution.runner import run
+from mpqp.execution.devices import ATOSDevice, IBMDevice
+from mpqp.execution.runner import run, Result
 from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
 from mpqp.tools import NumberQubitsError
-from mpqp.tools.circuit import compute_expected_matrix, random_circuit
+from mpqp.tools.circuit import (
+    compute_expected_matrix,
+    random_circuit,
+    statevector_from_random_circuit,
+)
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
@@ -156,6 +162,28 @@ def test_tensor(
 
 
 @pytest.mark.parametrize(
+    "state",
+    [
+        (np.array([1 / np.sqrt(2), 1 / np.sqrt(2)])),
+        (np.array([1, 0, 0, 1]) / np.sqrt(2)),
+        (statevector_from_random_circuit(1)),
+        (statevector_from_random_circuit(2)),
+        (statevector_from_random_circuit(4)),
+        (statevector_from_random_circuit(6)),
+        (np.array([1 / 2, np.sqrt(3) / 2])),
+        (np.array([1, 1j]) / np.sqrt(2)),
+    ],
+)
+def test_initializer(state: npt.NDArray[np.complex64]):
+    qc = QCircuit.initializer(state)
+    res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
+    if TYPE_CHECKING:
+        assert isinstance(res, Result)
+    state_vector_initialized = res.state_vector.vector
+    assert matrix_eq(state, state_vector_initialized)
+
+
+@pytest.mark.parametrize(
     "circuit, filter, count",
     [
         (
@@ -191,7 +219,7 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                 ]
             ),
             "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure("
-            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64)), [1], shots=1000)]",
+            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'), [1], shots=1000)]",
         )
     ],
 )
@@ -312,6 +340,21 @@ def test_to_other_language(
 
 
 @pytest.mark.parametrize(
+    "circuit, language",
+    [
+        (random_circuit(None, 10), Language.QISKIT),
+        (random_circuit(None, 10), Language.QASM2),
+    ],
+)
+def test_from_other_language(circuit: QCircuit, language: Language):
+    circ_to_test = circuit.to_other_language(language)
+    if TYPE_CHECKING:
+        assert isinstance(circ_to_test, (QiskitCircuit, str))
+    qcircuit = QCircuit.from_other_language(circ_to_test)
+    assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+
+
+@pytest.mark.parametrize(
     "circuit, printed_result_filename",
     [(QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)]), "all")],
 )
@@ -377,7 +420,7 @@ def test_measure_no_target(measure: Measure):
     circuit.add(measure)
 
     if isinstance(measure, ExpectationMeasure):
-        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_value, float)  # type: ignore[AttributeAccessIssue]
+        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_values, float)  # type: ignore[AttributeAccessIssue]
     else:
         assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
 
@@ -551,7 +594,7 @@ def test_inverse_random():
         ),
     ],
 )
-def test_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
+def test_qubits_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
     assert circuit.nb_qubits == expected_qubits
     circuit.add(H(expected_qubits))
     assert circuit.nb_qubits == expected_qubits + 1
@@ -580,7 +623,7 @@ def test_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
         ),
     ],
 )
-def test_not_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
+def test_qubits_not_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
     assert circuit.nb_qubits == expected_qubits
     with pytest.raises(NumberQubitsError):
         circuit.add(H(expected_qubits))
@@ -601,8 +644,139 @@ def test_not_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
         ),
     ],
 )
-def test_dynamic_to_not_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
+def test_qubits_dynamic_to_not_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
     assert circuit.nb_qubits == expected_qubits
     circuit.nb_qubits = expected_qubits
     with pytest.raises(NumberQubitsError):
         circuit.add(H(expected_qubits))
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_cbits",
+    [
+        (QCircuit(), 0),
+        (QCircuit([BasisMeasure([0], [0], shots=2000)]), 1),
+        (QCircuit([BasisMeasure([0, 1], [0, 1], shots=2000)]), 2),
+        (
+            QCircuit(
+                [
+                    BasisMeasure([0], [0], shots=2000),
+                    BasisMeasure([1, 2], [1, 2], shots=2000),
+                ]
+            ),
+            3,
+        ),
+        (
+            QCircuit(
+                [
+                    BasisMeasure([0], [0], shots=2000),
+                    BasisMeasure([0, 1], [0, 1], shots=2000),
+                ]
+            ),
+            2,
+        ),
+        (
+            QCircuit([BasisMeasure([0, 1, 2, 3], [0, 1, 2, 3], shots=2000)]),
+            4,
+        ),
+        (
+            QCircuit([BasisMeasure()], nb_qubits=3),
+            3,
+        ),
+    ],
+)
+def test_cbits_dynamic_circuit(circuit: QCircuit, expected_cbits: int):
+    assert circuit.nb_qubits == expected_cbits
+    circuit.add(BasisMeasure([0], [expected_cbits]))
+    assert circuit.nb_cbits == expected_cbits + 1
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_cbits",
+    [
+        (QCircuit(nb_cbits=0), 0),
+        (QCircuit([BasisMeasure([0], [0], shots=2000)], nb_cbits=1), 1),
+        (QCircuit([BasisMeasure([0, 1], [0, 1], shots=2000)], nb_cbits=2), 2),
+        (
+            QCircuit(
+                [
+                    BasisMeasure([0], [0], shots=2000),
+                    BasisMeasure([1, 2], [1, 2], shots=2000),
+                ],
+                nb_cbits=3,
+            ),
+            3,
+        ),
+        (
+            QCircuit(
+                [
+                    BasisMeasure([0], [0], shots=2000),
+                    BasisMeasure([0, 1], [0, 1], shots=2000),
+                ],
+                nb_cbits=2,
+            ),
+            2,
+        ),
+        (
+            QCircuit(
+                [BasisMeasure([0, 1, 2, 3], [0, 1, 2, 3], shots=2000)],
+                nb_cbits=4,
+            ),
+            4,
+        ),
+        (
+            QCircuit(
+                [BasisMeasure()],
+                nb_cbits=3,
+            ),
+            3,
+        ),
+    ],
+)
+def test_cbits_undersized_static_circuit(circuit: QCircuit, expected_cbits: int):
+    assert circuit.nb_cbits == expected_cbits
+    with pytest.raises(ValueError):
+        circuit.add(BasisMeasure([expected_cbits], [expected_cbits]))
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_cbits",
+    [
+        (QCircuit(), 0),
+        (QCircuit([BasisMeasure([0], [0], shots=2000)]), 1),
+        (QCircuit([BasisMeasure([0, 1], [0, 1], shots=2000)]), 2),
+        (
+            QCircuit(
+                [
+                    BasisMeasure([0], [0], shots=2000),
+                    BasisMeasure([1, 2], [1, 2], shots=2000),
+                ]
+            ),
+            3,
+        ),
+        (
+            QCircuit(
+                [
+                    BasisMeasure([0], [0], shots=2000),
+                    BasisMeasure([0, 1], [0, 1], shots=2000),
+                ]
+            ),
+            2,
+        ),
+        (
+            QCircuit([BasisMeasure([0, 1, 2, 3], [0, 1, 2, 3], shots=2000)]),
+            4,
+        ),
+        (
+            QCircuit([BasisMeasure()], nb_qubits=3),
+            3,
+        ),
+    ],
+)
+def test_cbits_dynamic_toggled_off_undersized_circuit(
+    circuit: QCircuit, expected_cbits: int
+):
+    assert circuit.nb_qubits == expected_cbits
+    circuit.nb_qubits = expected_cbits
+    with pytest.raises(ValueError):
+        circuit.add(BasisMeasure([expected_cbits], [expected_cbits]))

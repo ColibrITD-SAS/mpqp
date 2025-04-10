@@ -4,13 +4,11 @@ from copy import deepcopy
 import numpy as np
 import numpy.typing as npt
 import pytest
-
 from mpqp import QCircuit
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
 from mpqp.core.instruction.instruction import Instruction
-from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import I as Ip
 from mpqp.core.instruction.measurement.pauli_string import PauliString
@@ -131,6 +129,7 @@ def test_state_vector_result_HEA_ansatz(
         batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        assert isinstance(result, Result)
         assert matrix_eq(result.amplitudes, expected_vector)
 
 
@@ -201,6 +200,7 @@ def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: M
         batch = run(QCircuit(gates), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        assert isinstance(result, Result)
         if isinstance(result.device, GOOGLEDevice):
             # TODO : Cirq needs atol 1 as some results differ by 0.1
             assert matrix_eq(result.amplitudes, expected_vector, atol=1)
@@ -251,6 +251,7 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
+        assert isinstance(result, Result)
         assert len(result.samples) == nb_states
 
 
@@ -275,6 +276,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        assert isinstance(result, Result)
         print(result)
         print("expected_counts: " + str(expected_counts))
         counts = result.counts
@@ -324,7 +326,8 @@ def test_observable_ideal_case(
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
-        assert abs(result.expectation_value - expected_value) < (
+        assert isinstance(result, Result)
+        assert abs(result.expectation_values - expected_value) < (
             atol + rtol * abs(expected_value)
         )
 
@@ -457,9 +460,9 @@ def measures():
             shots=1024,
             basis=VariableSizeBasis([np.array([1, 0]), np.array([0, -1])]),
         ),
-        BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(3)),
+        BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(2)),
         BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
-        ExpectationMeasure(Observable(np.diag([0.7, -1, 1, 1])), shots=10),
+        ExpectationMeasure(Observable([0.7, -1, 1, 1]), shots=10),
     ]
 
 
@@ -543,3 +546,94 @@ def test_validity_other_instr_to_other_language(
                 instr.to_other_language(language)
         else:
             assert instr.to_other_language(language) is not None
+
+
+@pytest.mark.parametrize(
+    "circuit, observable",
+    [
+        (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3])),
+        (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1])),
+        (QCircuit([Rx(0.5, 0), Ry(0.6, 1)]), Observable([0, 0, -9, 7])),
+    ],
+)
+def test_validity_optim_ideal_single_diag_obs_and_regular_run(
+    circuit: QCircuit, observable: Observable
+):
+    e1 = ExpectationMeasure(observable, shots=0, optim_diagonal=False)
+    e2 = ExpectationMeasure(observable, shots=0, optim_diagonal=True)
+    c1 = circuit + QCircuit([e1], nb_qubits=2)
+    c2 = circuit + QCircuit([e2], nb_qubits=2)
+    br1 = run(
+        c1,
+        [
+            IBMDevice.AER_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+        translation_warning=False,
+    )
+    br2 = run(
+        c2,
+        [
+            IBMDevice.AER_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+        translation_warning=False,
+    )
+    assert isinstance(br1, BatchResult)
+    assert isinstance(br2, BatchResult)
+    for r1, r2 in zip(br1.results, br2.results):
+        assert isinstance(r1.expectation_values, float)
+        assert isinstance(r2.expectation_values, float)
+        assert np.isclose(r1.expectation_values, r2.expectation_values)
+
+
+@pytest.mark.parametrize(
+    "circuit, o1, o2",
+    [
+        (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3]), Observable([-1, 4, 0, 1])),
+        (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1]), Observable([0, 0, -9, 7])),
+        (
+            QCircuit([Rx(0.5, 0), Ry(0.6, 1)]),
+            Observable([0, 0, -9, 7]),
+            Observable([1, 2, 5, 3]),
+        ),
+    ],
+)
+def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
+    circuit: QCircuit, o1: Observable, o2: Observable
+):
+    e1 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=False)
+    e2 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=True)
+    c1 = circuit + QCircuit([e1], nb_qubits=2)
+    c2 = circuit + QCircuit([e2], nb_qubits=2)
+    br1 = run(
+        c1,
+        [
+            IBMDevice.AER_SIMULATOR,
+            # ATOSDevice.MYQLM_PYLINALG,
+            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+    br2 = run(
+        c2,
+        [
+            IBMDevice.AER_SIMULATOR,
+            # ATOSDevice.MYQLM_PYLINALG,
+            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+
+    assert isinstance(br1, BatchResult)
+    assert isinstance(br2, BatchResult)
+    for r1, r2 in zip(br1.results, br2.results):
+        assert isinstance(r1.expectation_values, dict)
+        assert isinstance(r2.expectation_values, dict)
+        assert r1.expectation_values.keys() == r2.expectation_values.keys()
+        for k in r1.expectation_values:
+            assert np.isclose(r1.expectation_values[k], r2.expectation_values[k])

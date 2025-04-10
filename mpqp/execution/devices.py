@@ -25,6 +25,7 @@ For more information about handling Remote devices, please refer to the `Remote 
 from abc import abstractmethod
 from enum import Enum, auto
 
+from mpqp.core.instruction.gates import Gate
 from mpqp.execution.connection.env_manager import get_env_variable
 
 
@@ -87,6 +88,9 @@ class AvailableDevice(Enum):
     @abstractmethod
     def supports_observable_ideal(self) -> bool:
         pass
+
+    def incompatible_gate(self) -> set[type[Gate]]:
+        return set()
 
 
 class IBMDevice(AvailableDevice):
@@ -182,6 +186,16 @@ class IBMDevice(AvailableDevice):
             # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
+
+    def incompatible_gate(self) -> set[type[Gate]]:
+        from mpqp.core.instruction.gates import TOF, CRk, P, Rk, Rx, Ry, Rz, T, U
+
+        if self == IBMDevice.AER_SIMULATOR_STABILIZER:
+            return {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}
+        elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
+            return {Rx, Rz}
+        else:
+            return set()
 
 
 class ATOSDevice(AvailableDevice):
@@ -453,9 +467,7 @@ class AZUREDevice(AvailableDevice):
     QUANTINUUM_SIM_H1_1E = "quantinuum.sim.h1-1e"
 
     RIGETTI_SIM_QVM = "rigetti.sim.qvm"
-    RIGETTI_SIM_QPU_ANKAA_2 = "rigetti.qpu.ankaa-2"
-
-    MICROSOFT_ESTIMATOR = "microsoft.estimator"
+    RIGETTI_SIM_QPU_ANKAA_3 = "rigetti.qpu.ankaa-3"
 
     def is_remote(self):
         return True
@@ -475,7 +487,7 @@ class AZUREDevice(AvailableDevice):
         return self.name.startswith("IONQ")
 
     def supports_samples(self) -> bool:
-        return not self == AZUREDevice.MICROSOFT_ESTIMATOR
+        return True
 
     def supports_state_vector(self) -> bool:
         return False

@@ -1,18 +1,18 @@
 from __future__ import annotations
 
-from typing import Any, Callable, Collection, Optional, TypeVar, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
-from scipy.optimize import OptimizeResult
-from scipy.optimize import minimize as scipy_minimize
-from sympy import Expr
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction import ExpectationMeasure
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.execution.vqa.optimizer import Optimizer
+from scipy.optimize import OptimizeResult
+from scipy.optimize import minimize as scipy_minimize
+from sympy import Basic
+from typeguard import typechecked
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
@@ -23,6 +23,11 @@ OptimizerCallable = Callable[
     [OptimizableFunc, Optional[OptimizerInput], Optional[OptimizerOptions]],
     tuple[float, OptimizerInput],
 ]
+OptimizerCallback = Union[
+    Callable[[OptimizeResult], None],
+    Callable[[Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None],
+]
+
 
 # TODO: all those functions with almost or exactly the same signature look like
 #  a code smell to me.
@@ -47,6 +52,7 @@ def minimize(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, in order to
     minimize the measured expectation value of observables associated with the given circuit.
@@ -71,6 +77,7 @@ def minimize(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         The optimal value reached and the parameters corresponding to this value.
@@ -103,7 +110,7 @@ def minimize(
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         {alpha: params[0], beta: params[1]}
         ...     )
-        ...     return 1 - run_res.expectation_value ** 2
+        ...     return 1 - run_res.expectation_values ** 2
         >>> minimize(
         ...     cost_func,
         ...     Optimizer.BFGS,
@@ -117,11 +124,25 @@ def minimize(
         if device is None:
             raise ValueError("A device is needed to optimize a circuit")
         optimizer = _minimize_remote if device.is_remote() else _minimize_local
-        return optimizer(optimizable, method, device, init_params, nb_params)
+        return optimizer(
+            optimizable,
+            method,
+            device,
+            init_params,
+            nb_params,
+            optimizer_options,
+            callback,
+        )
     else:
         # TODO: find a way to know if the job is remote or local from the function
         return _minimize_local(
-            optimizable, method, device, init_params, nb_params, optimizer_options
+            optimizable,
+            method,
+            device,
+            init_params,
+            nb_params,
+            optimizer_options,
+            callback,
         )
 
 
@@ -133,6 +154,7 @@ def _minimize_remote(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -158,6 +180,7 @@ def _minimize_remote(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         The optimal value reached and the parameters used to reach this value.
@@ -175,6 +198,7 @@ def _minimize_local(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -200,6 +224,7 @@ def _minimize_local(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         the optimal value reached and the parameters used to reach this value.
@@ -208,11 +233,11 @@ def _minimize_local(
         if device is None:
             raise ValueError("A device is needed to optimize a circuit")
         return _minimize_local_circ(
-            optimizable, device, method, init_params, optimizer_options
+            optimizable, device, method, init_params, optimizer_options, callback
         )
     else:
         return _minimize_local_func(
-            optimizable, method, init_params, nb_params, optimizer_options
+            optimizable, method, init_params, nb_params, optimizer_options, callback
         )
 
 
@@ -223,11 +248,12 @@ def _minimize_local_circ(
     method: Optimizer | OptimizerCallable,
     init_params: Optional[OptimizerInput] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
-    minimize the expectation value of the measure of the circuit by it's
-    observables. Note that this means that the circuit should contain an
-    expectation measure!
+    minimize the expectation value of the measure of the circuit by its
+    observable. This is equivalent to the run of a VQE. Note that this means
+    that the circuit should contain an expectation measure, with only one measurement!
 
     Args:
         circ: Either the circuit, containing symbols and an expectation measure.
@@ -244,6 +270,7 @@ def _minimize_local_circ(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
 
     Returns:
         The optimal value reached and the parameters used to reach this value.
@@ -252,19 +279,33 @@ def _minimize_local_circ(
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
     # TODO: bellow might be a bug, check why we need this type ignore
-    variables: set[Expr] = circ.variables()  # pyright: ignore[reportAssignmentType]
+    variables: set[Basic] = circ.variables()
+
+    if len(circ.measurements) != 1:
+        raise ValueError("Cannot optimize a circuit containing several measurements.")
+
+    if not isinstance(circ.measurements[0], ExpectationMeasure):
+        raise ValueError("Expected an ExpectationMeasure to optimize the circuit.")
+    else:
+        if len(circ.measurements[0].observables) > 1:
+            raise ValueError(
+                f"Expected only one observable in the ExpectationMeasure but got {len(circ.measurements[0].observables)}"
+            )
 
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:
         # "float" is incompatible with "Complex"
-        return _run_single(
+        result = _run_single(
             circ,
             device,
             _maps(variables, params),  # pyright: ignore[reportArgumentType]
-        ).expectation_value
+        )
+        if TYPE_CHECKING:
+            assert isinstance(result.expectation_values, float)
+        return result.expectation_values
 
     return _minimize_local_func(
-        eval_circ, method, init_params, len(variables), optimizer_options
+        eval_circ, method, init_params, len(variables), optimizer_options, callback
     )
 
 
@@ -275,6 +316,7 @@ def _minimize_local_func(
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[OptimizerOptions] = None,
+    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -298,6 +340,8 @@ def _minimize_local_func(
         optimizer_options: Options used to configure the VQA optimizer (maximum
             iterations, convergence threshold, etc...). These options are passed
             as is to the minimizer.
+        callback:  A callable called after each iteration.
+
 
     Returns:
         The optimal value reached and the parameters used to reach this value.
@@ -317,6 +361,7 @@ def _minimize_local_func(
             x0=np.array(init_params),
             method=method.name.lower(),
             options=optimizer_options,
+            callback=callback,
         )
         return res.fun, res.x
     else:

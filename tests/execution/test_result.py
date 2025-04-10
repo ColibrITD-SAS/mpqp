@@ -5,10 +5,21 @@ import pytest
 from numpy import pi
 
 from mpqp import QCircuit
-from mpqp.execution import Job, JobType, Result, Sample, StateVector
-from mpqp.execution.devices import IBMDevice
+from mpqp.core.instruction import Observable
+from mpqp.execution import (
+    ATOSDevice,
+    GOOGLEDevice,
+    Job,
+    JobType,
+    Result,
+    Sample,
+    StateVector,
+    run,
+)
+from mpqp.execution.devices import AWSDevice, IBMDevice
+from mpqp.execution.result import BatchResult
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure
+from mpqp.measures import BasisMeasure, ExpectationMeasure
 
 
 @pytest.mark.parametrize(
@@ -70,9 +81,9 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                 StateVector(np.ones(4, dtype=np.complex64) / 2),
             ),
             """Result: IBMDevice, AER_SIMULATOR_STATEVECTOR
- State vector: [0.5, 0.5, 0.5, 0.5]
- Probabilities: [0.25, 0.25, 0.25, 0.25]
- Number of qubits: 2""",
+  State vector: [0.5, 0.5, 0.5, 0.5]
+  Probabilities: [0.25, 0.25, 0.25, 0.25]
+  Number of qubits: 2""",
         ),
         (
             Result(
@@ -91,22 +102,75 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                 shots=600,
             ),
             """Result: IBMDevice, AER_SIMULATOR
- Counts: [135, 226, 8, 231]
- Probabilities: [0.225, 0.37667, 0.01333, 0.385]
- Samples:
-  State: 00, Index: 0, Count: 135, Probability: 0.225
-  State: 01, Index: 1, Count: 226, Probability: 0.3766667
-  State: 10, Index: 2, Count: 8, Probability: 0.0133333
-  State: 11, Index: 3, Count: 231, Probability: 0.385
- Error: None""",
+  Counts: [135, 226, 8, 231]
+  Probabilities: [0.225, 0.37667, 0.01333, 0.385]
+  Samples:
+    State: 00, Index: 0, Count: 135, Probability: 0.225
+    State: 01, Index: 1, Count: 226, Probability: 0.3766667
+    State: 10, Index: 2, Count: 8, Probability: 0.0133333
+    State: 11, Index: 3, Count: 231, Probability: 0.385
+  Error: None""",
         ),
         (
             Result(Job(JobType.OBSERVABLE, QCircuit(2), IBMDevice.AER_SIMULATOR), 0.65),
             """Result: IBMDevice, AER_SIMULATOR
- Expectation value: 0.65
- Error/Variance: None""",
+  Expectation value: 0.65
+  Error/Variance: None""",
         ),
     ],
 )
 def test_result_str(result: Result, expected_string: str):
     assert str(result) == expected_string
+
+
+state_vector_devices = [
+    IBMDevice.AER_SIMULATOR_STATEVECTOR,
+    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    ATOSDevice.MYQLM_CLINALG,
+    ATOSDevice.MYQLM_PYLINALG,
+    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+]
+
+sampling_devices = [
+    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    IBMDevice.AER_SIMULATOR,
+    ATOSDevice.MYQLM_CLINALG,
+    ATOSDevice.MYQLM_PYLINALG,
+    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+]
+
+
+def test_sample_nb_shot_handle():
+    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
+    batch = run(circuit, sampling_devices, translation_warning=False)
+    assert isinstance(batch, BatchResult)
+    for result in batch:
+        assert result.error != 0.0
+        assert result.shots == 1024
+
+
+def test_state_vector_nb_shot_handle():
+    circuit = QCircuit(
+        [
+            H(0),
+            CNOT(0, 1),
+            ExpectationMeasure(
+                Observable(
+                    np.array(
+                        [
+                            [4, 2, 3, 8],
+                            [2, -3, 1, 0],
+                            [3, 1, -1, 5],
+                            [8, 0, 5, 2],
+                        ]
+                    )
+                ),
+                shots=1024,
+            ),
+        ]
+    )
+    batch = run(circuit, sampling_devices, translation_warning=False)
+    assert isinstance(batch, BatchResult)
+    for result in batch:
+        assert result.error != 0.0
+        assert result.shots == 1024

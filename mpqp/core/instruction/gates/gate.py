@@ -196,6 +196,29 @@ class Gate(Instruction, ABC):
         # TODO: test
         return matrix_eq(self.to_matrix(), other.to_matrix())
 
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
+
+    def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
+        """
+        Serialize the gate to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the gate.
+        """
+        result = {}
+        for attr_name in dir(self):
+            if (
+                attr_name not in {'_abc_impl'}
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            ):
+                value = getattr(self, attr_name)
+                if isinstance(value, np.ndarray):
+                    value = value.tolist()
+                result[attr_name] = value
+        return result
+
     def power(self, exponent: float) -> Gate:
         """Compute the exponentiation `G^{exponent}` of this gate G.
 

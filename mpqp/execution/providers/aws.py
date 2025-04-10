@@ -87,7 +87,7 @@ def apply_noise_to_braket_circuit(
 
 
 @typechecked
-def run_braket(job: Job) -> Result:
+def run_braket(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
@@ -95,6 +95,7 @@ def run_braket(job: Job) -> Result:
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`mpqp.execution.devices.AWSDevice`.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The result of the job.
@@ -103,6 +104,8 @@ def run_braket(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    # TODO : [multi-obs] update this to take into account the case when we have list of Observables
+    # TODO : [multi-obs] check if Braket allows for a list of several observables
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
@@ -111,7 +114,7 @@ def run_braket(job: Job) -> Result:
 
     from braket.tasks import GateModelQuantumTaskResult
 
-    _, task = submit_job_braket(job)
+    _, task = submit_job_braket(job, translation_warning)
     res = task.result()
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
@@ -120,7 +123,9 @@ def run_braket(job: Job) -> Result:
 
 
 @typechecked
-def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
+def submit_job_braket(
+    job: Job, translation_warning: bool = True
+) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
 
@@ -167,7 +172,12 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     from braket.circuits import Circuit
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
-    braket_circuit = job.circuit.to_other_language(Language.BRAKET)
+
+    if job.circuit.transpiled_circuit is None:
+        braket_circuit = job.circuit.to_other_device(job.device, translation_warning)
+    else:
+        braket_circuit = job.circuit.transpiled_circuit
+
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
 
@@ -183,9 +193,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
+        # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        herm_op = job.measure.observable.to_other_language(Language.BRAKET)
+        herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
@@ -196,7 +207,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
-    return task.id, task
+    return (
+        task.id,
+        task,
+    )  # TODO : [multi-obs] update this to take into account the case when we have list of Observables
 
 
 @typechecked

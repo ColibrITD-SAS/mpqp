@@ -195,6 +195,22 @@ class NoiseModel(ABC):
     # def subs(self):
     #     pass
 
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, self.__class__):
+            return False
+        return self.to_dict() == value.to_dict()
+
+    def to_dict(self):
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if (
+                not attr_name.startswith("_abc_")
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            )
+        }
+
 
 @typechecked
 class DimensionalNoiseModel(NoiseModel, ABC):

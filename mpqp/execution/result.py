@@ -24,14 +24,13 @@ from __future__ import annotations
 import math
 import random
 from numbers import Complex
-from typing import Any, Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import Job, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
@@ -52,9 +51,9 @@ class StateVector:
         >>> state_vector.probabilities
         array([0.25, 0.25, 0.25, 0.25])
         >>> print(state_vector)
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
 
     """
 
@@ -84,12 +83,43 @@ class StateVector:
         return self.vector
 
     def __str__(self):
-        return f""" State vector: {clean_1D_array(self.vector)}
- Probabilities: {clean_1D_array(self.probabilities)}
- Number of qubits: {self.nb_qubits}"""
+        return f"""  State vector: {clean_1D_array(self.vector)}
+  Probabilities: {clean_1D_array(self.probabilities)}
+  Number of qubits: {self.nb_qubits}"""
 
     def __repr__(self) -> str:
         return f"StateVector({clean_1D_array(self.vector)})"
+
+    def to_dict(self) -> dict[str, list[str] | Any | int]:
+        """
+        Converts the StateVector object into a dictionary format.
+
+        Returns:
+            A dictionary representation of the StateVector instance.
+        """
+        vector_dict = [str(complex_num) for complex_num in self.vector]
+        probabilities_dict = self.probabilities.tolist()
+
+        return {
+            "vector": vector_dict,
+            "probabilities": probabilities_dict,
+            "nb_qubits": self.nb_qubits,
+        }
+
+    def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, StateVector):
+            return False
+
+        if self.nb_qubits != other.nb_qubits:
+            return False
+
+        if not np.allclose(self.vector, other.vector):
+            return False
+
+        if not np.allclose(self.probabilities, other.probabilities):
+            return False
+
+        return True
 
 
 @typechecked
@@ -161,6 +191,21 @@ class Sample:
                         f" index provided {index} and the number of qubits {self.nb_qubits}"
                     )
 
+    def to_dict(self) -> dict[str, int | float | str | None]:
+        """
+        Converts the Sample object into a dictionary format.
+
+        Returns:
+            A dictionary representation of the Sample instance.
+        """
+        return {
+            "nb_qubits": self.nb_qubits,
+            "probability": self.probability,
+            "index": self.index,
+            "count": self.count,
+            "bin_str": self.bin_str,
+        }
+
     def __str__(self):
         return (
             f"State: {self.bin_str}, Index: {self.index}, Count: {self.count}"
@@ -170,6 +215,20 @@ class Sample:
     def __repr__(self):
         return f"Sample({self.nb_qubits}, index={self.index}, count={self.count}, probability={self.probability})"
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Sample):
+            return False
+        if (
+            self.nb_qubits == other.nb_qubits
+            and self.index == other.index
+            and self.bin_str == other.bin_str
+            and self.count == other.count
+            and self.probability == other.probability
+        ):
+            return True
+        else:
+            return False
+
 
 @typechecked
 class Result:
@@ -178,15 +237,15 @@ class Result:
     The data type in a result depends on the job type, according to the
     following chart:
 
-    +-------------+--------------+
-    | Job Type    | Data Type    |
-    +=============+==============+
-    | OBSERVABLE  | float        |
-    +-------------+--------------+
-    | SAMPLE      | list[Sample] |
-    +-------------+--------------+
-    | STATE_VECTOR| StateVector  |
-    +-------------+--------------+
+    +-------------+---------------------------+
+    | Job Type    | Data Type                 |
+    +=============+===========================+
+    | OBSERVABLE  | float | dict[str, float]  |
+    +-------------+---------------------------+
+    | SAMPLE      | list[Sample]              |
+    +-------------+---------------------------+
+    | STATE_VECTOR| StateVector               |
+    +-------------+---------------------------+
 
     Args:
         job: Type of the job related to this result.
@@ -200,9 +259,9 @@ class Result:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
         >>> job = Job(
         ...     JobType.SAMPLE,
         ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
@@ -214,17 +273,17 @@ class Result:
         ...     Sample(2, index=3, count=250)
         ... ], 0.034, 500)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         Counts: [250, 0, 0, 250]
-         Probabilities: [0.5, 0, 0, 0.5]
-         Samples:
-          State: 00, Index: 0, Count: 250, Probability: 0.5
-          State: 11, Index: 3, Count: 250, Probability: 0.5
-         Error: 0.034
+          Counts: [250, 0, 0, 250]
+          Probabilities: [0.5, 0, 0, 0.5]
+          Samples:
+            State: 00, Index: 0, Count: 250, Probability: 0.5
+            State: 11, Index: 3, Count: 250, Probability: 0.5
+          Error: 0.034
         >>> job = Job(JobType.OBSERVABLE, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
         >>> print(Result(job, -3.09834, 0.021, 2048)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
-         Expectation value: -3.09834
-         Error/Variance: 0.021
+          Expectation value: -3.09834
+          Error/Variance: 0.021
 
     """
 
@@ -234,13 +293,13 @@ class Result:
     def __init__(
         self,
         job: Job,
-        data: float | StateVector | list[Sample],
-        errors: Optional[float | dict[PauliString, float] | dict[Any, Any]] = None,
+        data: float | dict["str", float] | StateVector | list[Sample],
+        errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
         """See parameter description."""
-        self._expectation_value = None
+        self._expectation_values = None
         self._state_vector = None
         self._probabilities = None
         self._counts = None
@@ -253,13 +312,14 @@ class Result:
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
-            if not isinstance(data, float):
+            if not isinstance(data, float) and not isinstance(data, dict):
                 raise TypeError(
-                    "Wrong type of data in the result. "
-                    "Expecting float for expectation value of an observable"
+                    "Wrong type of data in the Result. "
+                    "Expecting float or dict[str, float] for expectation value of observable(s),"
+                    f"but got {type(data).__name__}"
                 )
             else:
-                self._expectation_value = data
+                self._expectation_values = data
         elif job.job_type == JobType.STATE_VECTOR:
             if not isinstance(data, StateVector):
                 raise TypeError(
@@ -327,16 +387,16 @@ class Result:
         return self.job.device
 
     @property
-    def expectation_value(self) -> float:
+    def expectation_values(self) -> Union[float, dict[str, float]]:
         """Get the expectation value stored in this result"""
         if self.job.job_type != JobType.OBSERVABLE:
             raise ResultAttributeError(
                 f"Job type: {self.job.job_type.name} but cannot get expectation"
-                " value if the job type is not OBSERVABLE."
+                " values if the job type is not OBSERVABLE."
             )
         if TYPE_CHECKING:
-            assert self._expectation_value is not None
-        return self._expectation_value
+            assert self._expectation_values is not None
+        return self._expectation_values
 
     @property
     def amplitudes(self) -> npt.NDArray[np.complex64]:
@@ -423,24 +483,36 @@ class Result:
                 )
 
             samples_str = "\n".join(
-                f"  State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
+                f"    State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
                 f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
                 for sample, probability in zip(self.samples, probabilities)
             )
             return f"""{header}
- Counts: {self._counts}
- Probabilities: {clean_1D_array(self.probabilities)}
- Samples:
+  Counts: {self._counts}
+  Probabilities: {clean_1D_array(self.probabilities)}
+  Samples:
 {samples_str}
- Error: {self.error}"""
+  Error: {self.error}"""
 
         if self.job.job_type == JobType.STATE_VECTOR:
             return header + "\n" + str(self.state_vector)
 
         if self.job.job_type == JobType.OBSERVABLE:
-            return f"""{header}
- Expectation value: {self.expectation_value}
- Error/Variance: {self.error}"""
+            if isinstance(self.expectation_values, float):
+                return f"""{header}
+  Expectation value: {self.expectation_values}
+  Error/Variance: {self.error}"""
+            else:
+                if TYPE_CHECKING:
+                    assert isinstance(self.expectation_values, dict)
+                    assert isinstance(self.error, dict)
+                expectation_str = "\n".join(
+                    f"  {label}:\n"
+                    f"    Expectation value: {self.expectation_values[label]}\n"
+                    f"    Error/Variance: {self.error[label]}"
+                    for label in self.expectation_values
+                )
+                return header + "\n" + expectation_str
 
         raise NotImplementedError(
             f"I don't know how to represent results of {self.job.job_type} jobs"
@@ -499,6 +571,146 @@ class Result:
         y_array = self.counts
         return x_array, y_array
 
+    def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, Result):
+            return False
+        # TODO: check here if he can compare a dict containing a dict[str, float]
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        """
+        Serialize the result to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the result.
+        """
+        return {
+            "job": self.job,
+            "device": self.device,
+            "data": self._data,
+            "error": self.error,
+            "shots": self.shots,
+        }
+
+    @staticmethod
+    def load_all():
+        """Get all locally stored results.
+
+        Uses :func:`~mpqp.local_storage.load.get_all_results`.
+
+        Example:
+            >>> for result in Result.load_all(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+
+        """
+        from mpqp.local_storage.load import get_all_results
+
+        return get_all_results()
+
+    @staticmethod
+    def load_by_local_id(result_id: int):
+        """Get the locally stored result(s) associated with a local result id.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_id`.
+
+        Args:
+            result_id: Local id of the result you need.
+
+        Example:
+            >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+
+        """
+        from mpqp.local_storage.load import get_results_with_id
+
+        return get_results_with_id(result_id)[0]
+
+    @staticmethod
+    def load_by_local_job_id(job_id: int):
+        """Get the locally stored result(s) associated with a specific job.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_job_id`.
+
+        Args:
+            job_id: Local id of the job you need.
+
+        Example:
+            >>> for result in Result.load_by_local_job_id(1): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+
+        """
+        from mpqp.local_storage.load import get_results_with_job_id
+
+        return get_results_with_job_id(job_id)
+
+    def load_similar(self):
+        """Get the results similar to the target result.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_result`.
+
+        Example:
+            >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            >>> for result in result.load_similar(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+        """
+        from mpqp.local_storage.load import get_results_with_result
+
+        return get_results_with_result(self)
+
+    def save(self):
+        """Save a result to the local storage and returns the corresponding
+        local ``id`` to be used when the result needs to be retrieved.
+
+        Uses :func:`~mpqp.local_storage.save.insert_results`."""
+        from mpqp.local_storage.save import insert_results
+
+        return insert_results(self)[0]
+
+    @staticmethod
+    def delete_by_local_id(result_id: int):
+        """Delete the locally stored result associated with a local result id.
+
+        Uses :func:`~mpqp.local_storage.delete.remove_results_with_id`.
+
+        Args:
+            result_id: Local id of the result you want to delete.
+
+        Example:
+            >>> for result in Result.load_all(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            >>> Result.delete_by_local_id(1)
+            >>> for result in Result.load_all(): # doctest: +ELLIPSIS
+            ...     print(repr(result))
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+
+        """
+        from mpqp.local_storage.delete import remove_results_with_id
+
+        remove_results_with_id(result_id)
+
 
 @typechecked
 class BatchResult:
@@ -535,25 +747,25 @@ class BatchResult:
         >>> batch_result = BatchResult([result1, result2, result3])
         >>> print(batch_result)
         BatchResult: 3 results
-        Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
-        Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
-         Counts: [250, 0, 0, 250]
-         Probabilities: [0.5, 0, 0, 0.5]
-         Samples:
-          State: 00, Index: 0, Count: 250, Probability: 0.5
-          State: 11, Index: 3, Count: 250, Probability: 0.5
-         Error: 0.034
-        Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
-         Expectation value: -3.09834
-         Error/Variance: 0.021
+            Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
+              State vector: [0.5, 0.5, 0.5, -0.5]
+              Probabilities: [0.25, 0.25, 0.25, 0.25]
+              Number of qubits: 2
+            Result: Sample circuit, ATOSDevice, MYQLM_PYLINALG
+              Counts: [250, 0, 0, 250]
+              Probabilities: [0.5, 0, 0, 0.5]
+              Samples:
+                State: 00, Index: 0, Count: 250, Probability: 0.5
+                State: 11, Index: 3, Count: 250, Probability: 0.5
+              Error: 0.034
+            Result: Observable circuit, ATOSDevice, MYQLM_PYLINALG
+              Expectation value: -3.09834
+              Error/Variance: 0.021
         >>> print(batch_result[0])
         Result: StateVector circuit, ATOSDevice, MYQLM_PYLINALG
-         State vector: [0.5, 0.5, 0.5, -0.5]
-         Probabilities: [0.25, 0.25, 0.25, 0.25]
-         Number of qubits: 2
+          State vector: [0.5, 0.5, 0.5, -0.5]
+          Probabilities: [0.25, 0.25, 0.25, 0.25]
+          Number of qubits: 2
 
     """
 
@@ -563,7 +775,11 @@ class BatchResult:
 
     def __str__(self):
         header = f"BatchResult: {len(self.results)} results\n"
-        body = "\n".join(map(str, self.results))
+        body = "\n".join(
+            "    " + line
+            for result in self.results
+            for line in str(result).splitlines()
+        )
         return header + body
 
     def __repr__(self):
@@ -599,3 +815,31 @@ class BatchResult:
 
         if show:
             plt.show()
+
+    @staticmethod
+    def load_by_local_ids(result_ids: list[int]):
+        """Get the locally stored result(s) associated with a local result id.
+
+        Uses :func:`~mpqp.local_storage.load.get_results_with_id`.
+
+        Args:
+            result_ids: List of local id of the result you need.
+
+        Example:
+            >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+
+        """
+        from mpqp.local_storage.load import get_results_with_id
+
+        return BatchResult(get_results_with_id(result_ids))
+
+    def save(self):
+        """Save a batch of results to the local storage and returns the
+        corresponding local ``id``s to be used when the results needs to be
+        retrieved.
+
+        Uses :func:`~mpqp.local_storage.save.insert_results`."""
+        from mpqp.local_storage.save import insert_results
+
+        return insert_results(self)

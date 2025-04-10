@@ -32,6 +32,6 @@ cirq_circuit = circuit.to_other_language(Language.CIRQ)
 print(f"Cirq circuit:\n{cirq_circuit}\n")
 
 
-processor_id = "rainbow"
-grid_circuit = circuit.to_other_language(Language.CIRQ, cirq_proc_id=processor_id)
-print(f"circuit for processor {processor_id}:\n{grid_circuit}\n")
+processor = GOOGLEDevice.PROCESSOR_RAINBOW
+grid_circuit = circuit.to_other_device(processor)
+print(f"circuit for processor {processor.value}:\n{grid_circuit}\n")
