@@ -61,7 +61,7 @@ def submit_job_azure(
     """
     from qiskit import QuantumCircuit
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         qiskit_circuit = (
             (
                 # 3M-TODO: careful, if we ever support several measurements, the
@@ -77,7 +77,7 @@ def submit_job_azure(
             )
         )
     else:
-        qiskit_circuit = job.circuit.transpile_circuit
+        qiskit_circuit = job.circuit.transpiled_circuit
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 

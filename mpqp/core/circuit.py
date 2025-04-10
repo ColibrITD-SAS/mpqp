@@ -144,7 +144,7 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpile_circuit = None
+        self.transpiled_circuit = None
         """A pre-transpiled circuit to skip repeated transpilation when running the circuit.  
         Useful when working with a symbolic circuit that needs to be executed with different parameters."""
         self.transpiled_noise_model = None
@@ -1409,7 +1409,7 @@ class QCircuit:
         )
         from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
-        if isinstance(device, IBMDevice):
+        if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
             from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 
             circuit = deepcopy(self)
@@ -1418,21 +1418,21 @@ class QCircuit:
             if not device.is_remote():
                 from qiskit_aer import AerSimulator
 
-                if len(circuit.noises) != 0:
-                    if isinstance(device, IBMSimulatedDevice):
+                if isinstance(device, IBMSimulatedDevice):
+                    if len(circuit.noises) != 0:
                         warn(
                             "NoiseModel are ignored when running the circuit on a "
                             "SimulatedDevice"
                         )
                         backend_sim = device.to_noisy_simulator()
-                    else:
-                        noise_model, circuit = generate_qiskit_noise_model(
-                            circuit, translation_warning
-                        )
-                        self.transpiled_noise_model = noise_model
-                        backend_sim = AerSimulator(
-                            method=device.value, noise_model=noise_model
-                        )
+                elif len(circuit.noises) != 0:
+                    noise_model, circuit = generate_qiskit_noise_model(
+                        circuit, translation_warning
+                    )
+                    self.transpiled_noise_model = noise_model
+                    backend_sim = AerSimulator(
+                        method=device.value, noise_model=noise_model
+                    )
                 else:
                     backend_sim = AerSimulator(method=device.value)
 
@@ -1485,13 +1485,14 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
-
                 from mpqp.execution.connection.ibm_connection import get_backend
+
+                if TYPE_CHECKING:
+                    assert isinstance(device, IBMDevice)
 
                 backend = get_backend(device)
                 pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
                 qiskit_circuit = pm.run(qiskit_circuit)
-
             return qiskit_circuit
         elif isinstance(device, GOOGLEDevice):
             from cirq.circuits.circuit import Circuit as CirqCircuit

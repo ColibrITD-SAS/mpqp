@@ -6,8 +6,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -24,10 +22,11 @@ from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
-    IBMRemoteExecutionError,
     IBMNoiseModelGeneration,
+    IBMRemoteExecutionError,
     InstructionParsingError,
 )
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -53,6 +52,7 @@ def run_ibm(job: Job, warnings: bool = True) -> Result:
 
     Args:
         job: Job to be executed.
+        warnings:
 
     Returns:
         The result of the job.
@@ -111,10 +111,11 @@ def compute_expectation_value(
     if isinstance(job.device, IBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
-        if isinstance(job.device, IBMSimulatedDevice):
-            backend = job.device.value()
-        else:
-            backend = simulator
+        backend = (
+            job.device.value()
+            if isinstance(job.device, IBMSimulatedDevice)
+            else simulator
+        )
 
         if TYPE_CHECKING:
             assert isinstance(ibm_circuit, QuantumCircuit)
@@ -442,7 +443,7 @@ def run_aer(job: Job):
 
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         qiskit_circuit = (
             (
                 # 3M-TODO: careful, if we ever support several measurements, the
@@ -454,7 +455,7 @@ def run_aer(job: Job):
             else job.circuit.to_other_device(job.device)
         )
     else:
-        qiskit_circuit = job.circuit.transpile_circuit
+        qiskit_circuit = job.circuit.transpiled_circuit
 
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
@@ -496,6 +497,13 @@ def run_aer(job: Job):
             assert job.measure is not None
 
         job.status = JobStatus.RUNNING
+
+        if isinstance(job.device, IBMSimulatedDevice):
+            from qiskit import transpile
+
+            # TODO I don't know why we need to retranspile here, it is supposed to be done in to_other_device,
+            #  but without it, it doesn't woghk
+            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
@@ -543,10 +551,10 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     job.device = IBMDevice(backend.name)
     session = Session(service=service, backend=backend)
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
     else:
-        qiskit_circ = job.circuit.transpile_circuit
+        qiskit_circ = job.circuit.transpiled_circuit
 
     if TYPE_CHECKING:
         assert isinstance(qiskit_circ, QuantumCircuit)
