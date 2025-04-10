@@ -93,6 +93,10 @@ def submit_job_azure(
             assert job.measure is not None
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
+        result_sim = job_sim.result()
+        if TYPE_CHECKING:
+            assert isinstance(result_sim, QiskitResult)
+        result = extract_result(result_sim, job, job.device)
     else:
         raise ValueError(f"Job type {job.job_type} not handled on Azure devices.")
 

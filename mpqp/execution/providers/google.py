@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, Union
 
-from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.tools.errors import DeviceJobIncompatibleError
 
 if TYPE_CHECKING:
@@ -127,7 +126,8 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
         )
 
     from cirq.circuits.circuit import Circuit as CirqCircuit
-    from cirq.ops.pauli_string import PauliString as CirqPauliString
+
+    # from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.sim.sparse_simulator import Simulator
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
@@ -170,16 +170,30 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
             assert isinstance(job.measure, ExpectationMeasure)
         # TODO: update this to take into account the case when we have list of Observables
         # TODO: check if Cirq allows for a list of observable when computing expectation values (apparently yes)
-        cirq_obs = job.measure.observables[0].to_other_language(
-            language=Language.CIRQ, circuit=cirq_circuit
-        )
-        if TYPE_CHECKING:
-            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
+        cirq_observables: list[Union[Cirq_PauliSum, Cirq_PauliString]] = []
+        for obs in job.measure.observables:
+            translated = obs.to_other_language(
+                language=Language.CIRQ, circuit=cirq_circuit
+            )
+
+            if isinstance(translated, Cirq_PauliSum):
+                if TYPE_CHECKING:
+                    assert isinstance(translated, list)
+                    assert all(
+                        isinstance(item, Cirq_PauliString) for item in translated
+                    )
+                translated = next(iter(translated), None)
+
+            if TYPE_CHECKING:
+                assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
+
+            if translated is not None:
+                cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
                 simulator.simulate_expectation_values(
-                    cirq_circuit, observables=cirq_obs
+                    cirq_circuit, observables=cirq_observables
                 ),
                 job,
             )
@@ -188,11 +202,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
                 # TODO: here precise the 'grouper' argument of measure_observable to precise the pauli grouping strategy
                 measure_observables(
                     cirq_circuit,
-                    observables=(  # pyright: ignore[reportArgumentType]
-                        [cirq_obs]
-                        if isinstance(cirq_obs, CirqPauliString)
-                        else cirq_obs
-                    ),
+                    observables=cirq_observables,
                     sampler=simulator,
                     stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
                 ),
@@ -263,11 +273,25 @@ def run_local_processor(job: Job) -> Result:
             assert isinstance(job.measure, ExpectationMeasure)
 
         # TODO: update this to take into account the case when we have list of Observables
-        cirq_obs = job.measure.observables[0].to_other_language(
-            language=Language.CIRQ, circuit=cirq_circuit
-        )
-        if TYPE_CHECKING:
-            assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
+        cirq_observables: list[Union[Cirq_PauliSum, Cirq_PauliString]] = []
+        for obs in job.measure.observables:
+            translated = obs.to_other_language(
+                language=Language.CIRQ, circuit=cirq_circuit
+            )
+
+            if isinstance(translated, Cirq_PauliSum):
+                if TYPE_CHECKING:
+                    assert isinstance(translated, list)
+                    assert all(
+                        isinstance(item, Cirq_PauliString) for item in translated
+                    )
+                translated = next(iter(translated), None)
+
+            if TYPE_CHECKING:
+                assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
+
+            if translated is not None:
+                cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             raise DeviceJobIncompatibleError(
@@ -275,9 +299,8 @@ def run_local_processor(job: Job) -> Result:
             )
         return extract_result_OBSERVABLE_processors(
             simulator.get_sampler(job.device.value).sample_expectation_values(
-                # TODO: update for multi-observable runs
                 cirq_circuit,
-                observables=cirq_obs,
+                observables=cirq_observables,
                 num_samples=job.measure.shots,
             ),
             job,
@@ -365,13 +388,31 @@ def extract_result_OBSERVABLE_processors(
         NotImplementedError: If the job does not contain a measurement (i.e.,
             ``job.measure`` is ``None``).
     """
-    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
+
     mean = 0
-    for result in results:
-        mean += sum(result) / len(result)
-    return Result(job, mean, 0, job.measure.shots)
+    for res in results:
+        mean += sum(res) / len(res)
+
+    shots = job.measure.shots
+
+    if len(results) == 1:
+        return Result(job, mean, 0, shots)
+
+    exp_values_dict = dict()
+    errors_dict = dict()
+
+    for i, _ in enumerate(results):
+        label = (
+            job.measure.observables[i].label
+            if isinstance(job.measure, ExpectationMeasure)
+            else f"cirq_obs_{i}"
+        )
+        exp_values_dict[label] = mean
+        errors_dict[label] = 0
+
+    return Result(job, exp_values_dict, errors_dict, shots)
 
 
 def extract_result_OBSERVABLE_ideal(
@@ -398,10 +439,31 @@ def extract_result_OBSERVABLE_ideal(
     Returns:
         The formatted result.
     """
-    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    return Result(job, sum(map(lambda r: r.real, results)), 0, job.measure.shots)
+
+    mean = 0
+    for r in results:
+        mean += float(r.real)
+
+    shots = job.measure.shots
+
+    if len(results) == 1:
+        return Result(job, mean, 0, shots)
+
+    exp_values_dict = dict()
+    errors_dict = dict()
+
+    for i, r in enumerate(results):
+        label = (
+            job.measure.observables[i].label
+            if isinstance(job.measure, ExpectationMeasure)
+            else f"cirq_obs_{i}"
+        )
+        exp_values_dict[label] = float(r.real)
+        errors_dict[label] = 0
+
+    return Result(job, exp_values_dict, errors_dict, shots)
 
 
 def extract_result_OBSERVABLE_shot_noise(
@@ -417,18 +479,30 @@ def extract_result_OBSERVABLE_shot_noise(
     Returns:
         The formatted result.
     """
-    # TODO: update for multi-observable runs
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-    pauli_mono = PauliString.from_other_language(
-        [r.observable for r in results], job.measure.nb_qubits
-    )
-    if TYPE_CHECKING:
-        assert isinstance(pauli_mono, list)
-    variances = {pm: r.variance for pm, r in zip(pauli_mono, results)}
-    return Result(
-        job,
-        sum(map(lambda r: r.mean, results)),
-        variances,
-        job.measure.shots,
-    )
+
+    mean = 0
+    variance = 0
+    for r in results:
+        mean += float(r.mean)
+        variance += float(r.variance)
+
+    shots = job.measure.shots
+
+    if len(results) == 1:
+        return Result(job, mean, variance, shots)
+
+    exp_values_dict = dict()
+    errors_dict = dict()
+
+    for i, r in enumerate(results):
+        label = (
+            job.measure.observables[i].label
+            if isinstance(job.measure, ExpectationMeasure)
+            else f"cirq_obs_{i}"
+        )
+        exp_values_dict[label] = float(r.mean)
+        errors_dict[label] = float(r.variance)
+
+    return Result(job, exp_values_dict, errors_dict, shots)
