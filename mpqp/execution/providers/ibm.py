@@ -53,6 +53,7 @@ def run_ibm(job: Job, warnings: bool = True) -> Result:
 
     Args:
         job: Job to be executed.
+        warnings:
 
     Returns:
         The result of the job.
@@ -112,7 +113,12 @@ def compute_expectation_value(
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
         if isinstance(job.device, IBMSimulatedDevice):
+            from qiskit import generate_preset_pass_manager
+
             backend = job.device.value()
+            pm = generate_preset_pass_manager(optimization_level=0, backend=backend)
+            # TODO : this is a transpiled circuit, it may be stored in job.circuit_transpiled blablabla
+            ibm_circuit = pm.run(ibm_circuit)
         else:
             backend = simulator
 
@@ -496,6 +502,11 @@ def run_aer(job: Job):
             assert job.measure is not None
 
         job.status = JobStatus.RUNNING
+
+        if isinstance(job.device, IBMSimulatedDevice):
+            # TODO this transpiled circuit should maybe stored ?
+            from qiskit import transpile
+            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
