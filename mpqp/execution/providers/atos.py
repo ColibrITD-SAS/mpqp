@@ -84,10 +84,10 @@ def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
                 "`OBSERVABLE` jobs with shots!=0 are disabled for MPO."
             )
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         myqlm_circuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
-        myqlm_circuit = job.circuit.transpile_circuit
+        myqlm_circuit = job.circuit.transpiled_circuit
 
     return myqlm_circuit
 

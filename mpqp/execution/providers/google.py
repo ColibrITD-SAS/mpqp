@@ -72,10 +72,10 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     import cirq_ionq as ionq
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         job_CirqCircuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
-        job_CirqCircuit = job.circuit.transpile_circuit
+        job_CirqCircuit = job.circuit.transpiled_circuit
 
     if TYPE_CHECKING:
         assert isinstance(job_CirqCircuit, CirqCircuit)
@@ -137,7 +137,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
     if job.device.is_processor():
         return run_local_processor(job)
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         if job.job_type == JobType.STATE_VECTOR:
             # 3M-TODO: careful, if we ever support several measurements, the
             # line bellow will have to changer
@@ -147,7 +147,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
         else:
             cirq_circuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
-        cirq_circuit = job.circuit.transpile_circuit
+        cirq_circuit = job.circuit.transpiled_circuit
 
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)
@@ -243,10 +243,10 @@ def run_local_processor(job: Job) -> Result:
     )
     simulator = SimulatedLocalEngine([sim_processor])
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         cirq_circuit = job.circuit.to_other_device(job.device)
     else:
-        cirq_circuit = job.circuit.transpile_circuit
+        cirq_circuit = job.circuit.transpiled_circuit
 
     if TYPE_CHECKING:
         assert isinstance(cirq_circuit, CirqCircuit)

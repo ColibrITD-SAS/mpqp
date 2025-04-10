@@ -173,10 +173,10 @@ def submit_job_braket(
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
 
-    if job.circuit.transpile_circuit is None:
+    if job.circuit.transpiled_circuit is None:
         braket_circuit = job.circuit.to_other_device(job.device, translation_warning)
     else:
-        braket_circuit = job.circuit.transpile_circuit
+        braket_circuit = job.circuit.transpiled_circuit
 
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
