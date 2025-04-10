@@ -1493,9 +1493,6 @@ class QCircuit:
                 backend = get_backend(device)
                 pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
                 qiskit_circuit = pm.run(qiskit_circuit)
-
-            # TODO his was added to effectively stored the transpiled circuit, double check
-            self.transpiled_circuit = qiskit_circuit
             return qiskit_circuit
         elif isinstance(device, GOOGLEDevice):
             from cirq.circuits.circuit import Circuit as CirqCircuit
@@ -1547,9 +1544,6 @@ class QCircuit:
                 )
 
                 cirq_device.validate_circuit(cirq_circuit)
-
-            # TODO his was added to effectively stored the transpiled circuit, double check
-            self.transpiled_circuit = cirq_circuit
             return cirq_circuit
         elif isinstance(device, AWSDevice):
             aws_circuit = self.to_other_language(
