@@ -52,7 +52,7 @@ import re
 from enum import Enum, auto
 from os.path import splitext
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 from warnings import warn
 
 from anytree import Node, PreOrderIter
@@ -81,6 +81,7 @@ class Instr(Enum):
     OQASM2_ALL_STDGATES = auto()
     OQASM3_ALL_STDGATES = auto()
     BRAKET_CUSTOM_INCLUDE = auto()
+    BRAKET_INVERSE_CUSTOM_INCLUDE = auto()
 
 
 std_gates_2 = [
@@ -169,6 +170,28 @@ std_gates_3_to_2_map = {
     "phase": "u1",
     "cphase": "cu1",
 }
+std_braket_gates = [
+    "i",
+    "cnot",
+    "ccnot",
+    "phaseshift",
+    "cphaseshift",
+    "cswap",
+    "cy",
+    "iswap",
+    "si",
+    "ti",
+    "v",
+    "vi",
+    "xx",
+    "xy",
+    "yy",
+    "zz",
+    "ecr",
+    "gpi",
+    "gpi2",
+    "ms"
+]
 
 
 @typechecked
@@ -191,6 +214,7 @@ def qasm_code(instr: Instr) -> str:
         Instr.OQASM2_ALL_STDGATES: "qelib1.inc",
         Instr.OQASM3_ALL_STDGATES: "stdgates.inc",
         Instr.BRAKET_CUSTOM_INCLUDE: "braket_custom_include.inc",
+        Instr.BRAKET_INVERSE_CUSTOM_INCLUDE: "braket_inverse_custom_include.inc"
     }
 
     if instr in special_file_names:
@@ -613,6 +637,8 @@ def open_qasm_hard_includes(
                     converted_code.append(qasm_code(Instr.OQASM3_ALL_STDGATES))
                 elif file_name in {"braket_custom_include.inc"}:
                     converted_code.append(qasm_code(Instr.BRAKET_CUSTOM_INCLUDE))
+                elif file_name in {"braket_inverse_custom_include.inc"}:
+                    converted_code.append(qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE))
                 else:
                     with open(path_to_file + file_name, "r") as f:
                         converted_code.append(
@@ -1058,6 +1084,27 @@ def convert_instruction_3_to_2(
     return instructions_code, header_code, gphase
 
 
+def _extract_gphase_from_braket_qasm3(qasm_code: str) -> Tuple[str, float]:
+    import numpy as np
+    from sympy import sympify
+    
+    matches = list(re.finditer(r"gphase\(([^)]+)\)", qasm_code))
+    values = []
+    new_s = qasm_code
+
+    for match in reversed(matches):
+        expr = match.group(1).strip()
+        if expr:
+            value = float(sympify(expr).evalf(subs={"pi": np.pi}))
+            values.append(value)
+
+        start, end = match.span()
+        new_s = new_s[:start] + new_s[end:]
+
+    phase = sum(values)
+    return new_s, phase
+
+
 @typechecked
 def open_qasm_3_to_2(
     code: str,
@@ -1065,6 +1112,7 @@ def open_qasm_3_to_2(
     path_to_file: Optional[str] = None,
     defined_gates: Optional[set[str]] = None,
     gphase: float = 0.0,
+    from_braket_qasm3: bool = False,
 ) -> tuple[str, float]:
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
@@ -1119,6 +1167,9 @@ def open_qasm_3_to_2(
 
     included_instructions = set()
     defined_gates.update(std_gates_3)
+    if from_braket_qasm3:
+        defined_gates.update(std_braket_gates)
+
 
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(
@@ -1129,10 +1180,40 @@ def open_qasm_3_to_2(
             path_to_file,
             gphase,
         )
-        header_code += h_code
+        if not from_braket_qasm3:
+            header_code += h_code
+        else:
+            if not "include" in h_code:
+                header_code += h_code
         instructions_code += i_code
     gphase_code = f"// gphase {gphase}\n" if gphase != 0 else ""
+    if from_braket_qasm3:
+        header_code += "include \"braket_inverse_custom_include.inc\";\n"
     target_code = header_code + gphase_code + instructions_code
+
+    cleared_code = []
+    idx = 0
+    qasm_code = target_code.split(";")
+    for line in qasm_code:
+        if "creg" in line and "qreg" in qasm_code[idx + 1]:
+            qasm_code[idx], qasm_code[idx + 1] = (
+                qasm_code[idx + 1],
+                qasm_code[idx],
+            )
+            line = qasm_code[idx]
+        if "ctrl" in line:
+            line = re.sub(r'ctrl\s*@\s*', 'c', line)
+
+        cleared_code.append(line)
+        idx += 1
+    target_code = ';'.join(cleared_code)
+
+    if from_braket_qasm3:
+        target_code = open_qasm_hard_includes(target_code, set())
+        target_code = remove_user_gates(target_code)
+
+        target_code, phase = _extract_gphase_from_braket_qasm3(target_code)
+        gphase += phase
 
     return target_code, gphase
 

@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import Sequence, Union, Tuple, List
+from typing import List, Sequence, Tuple, Union
 
 import numpy as np
+from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
 from mpqp import QCircuit
 from mpqp.core.instruction.gates import *
-from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
 Gates = Union[
     type[H],
@@ -129,11 +129,11 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
             if gate[0] == 'ISWAP':
                 qc += QCircuit(
                     [
+                        S(control_1),
                         S(target),
-                        S(target),
-                        H(target),
+                        H(control_1),
                         CNOT(control_1, target),
-                        CNOT(control_1, target),
+                        CNOT(target, control_1),
                         H(target),
                     ]
                 )
@@ -141,9 +141,9 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
                 qc += QCircuit(
                     [
                         CNOT(control_1, target),
-                        H(target),
-                        CP(np.pi / 2, control_1, target),
-                        H(target),
+                        H(control_1),
+                        CP(np.pi / 2, target, control_1),
+                        H(control_1),
                         CNOT(control_1, target),
                     ]
                 )

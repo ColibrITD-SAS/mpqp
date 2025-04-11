@@ -862,8 +862,9 @@ class QCircuit:
         # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
         from qiskit import QuantumCircuit
-        from qiskit.quantum_info import Statevector
         from qiskit.circuit.library import StatePreparation
+        from qiskit.quantum_info import Statevector
+
         from mpqp.tools.circuit import replace_custom_gate
         from mpqp.tools.maths import normalize
 
@@ -1425,11 +1426,12 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
         """
-        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-        from qiskit import QuantumCircuit
-        from cirq.circuits.circuit import Circuit as cirq_Circuit
         from braket.circuits import Circuit as braket_Circuit
+        from cirq.circuits.circuit import Circuit as cirq_Circuit
         from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+        from qiskit import QuantumCircuit
+
+        from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm2
@@ -1457,70 +1459,16 @@ class QCircuit:
         elif isinstance(qcircuit, braket_Circuit):
             from braket.circuits.serialization import IRType
             from braket.ir.openqasm.program_v1 import Program
-            from mpqp.qasm import open_qasm_3_to_2
-            import re
 
-            cleared_code = []
-            idx = 0
-            line_to_add = True
+            from mpqp.qasm import open_qasm_3_to_2
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, Program)
-            qasm2_code, phase = open_qasm_3_to_2(
-                str(qasm3_code.source),
-                None,
-                None,
-                {"i", "cnot", "ccnot", "ctrl", "phaseshift", "si"},
-            )
-            qasm_code = qasm2_code.split("\n")
-
-            for line in qasm_code:
-                if "creg" in line and "qreg" in qasm_code[idx + 1]:
-                    qasm_code[idx], qasm_code[idx + 1] = (
-                        qasm_code[idx + 1],
-                        qasm_code[idx],
-                    )
-                    line = qasm_code[idx]
-                if "si" in line:
-                    new_line = line.replace("si", "p(-pi*0.5)")
-                    cleared_code.append(new_line)
-                    line_to_add = False
-                elif "i " in line:
-                    new_line = line.replace("i ", "id ")
-                    cleared_code.append(new_line)
-                    line_to_add = False
-                elif "cnot" in line:
-                    new_line = line.replace("cnot", "cx")
-                    cleared_code.append(new_line)
-                    line_to_add = False
-                elif "measure" in line:
-                    line_to_add = False
-                elif "phaseshift" in line:
-                    angle = re.search(r'\(([^)]+)\)', line)
-                    registeries = re.findall(r'(\w+)\[([^\]]+)\]', line)
-                    if len(registeries) > 1:
-                        new_line = "cp(" + str(angle.group(1)) + ") "  # type: ignore
-                    else:
-                        new_line = "p(" + str(angle.group(1)) + ") "  # type: ignore
-                    for register in registeries:
-                        new_line += str(register[0]) + "[" + str(register[1]) + "]"
-                        if not register == registeries[:1]:
-                            new_line += ","
-                        else:
-                            new_line += ";"
-                    cleared_code.append(new_line)
-                    line_to_add = False
-
-                if line_to_add is True:
-                    cleared_code.append(line)
-                else:
-                    line_to_add = True
-                idx += 1
-
-            cleared_code = '\n'.join(cleared_code)
-            qc = qasm2_parse(cleared_code)
+            qasm2_code, phase = open_qasm_3_to_2(str(qasm3_code.source), None, None, {"ctrl"}, 0, True)
+            qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
+            qc = qc.without_measurements()
             return qc
 
         elif isinstance(qcircuit, myQLM_Circuit):
