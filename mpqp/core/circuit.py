@@ -1465,7 +1465,9 @@ class QCircuit:
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, Program)
-            qasm2_code, phase = open_qasm_3_to_2(str(qasm3_code.source), None, None, {"ctrl"}, 0, True)
+            qasm2_code, phase = open_qasm_3_to_2(
+                str(qasm3_code.source), None, None, {"ctrl"}, 0, True
+            )
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
             qc = qc.without_measurements()

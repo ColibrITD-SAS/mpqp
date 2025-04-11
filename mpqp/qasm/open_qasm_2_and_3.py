@@ -190,7 +190,7 @@ std_braket_gates = [
     "ecr",
     "gpi",
     "gpi2",
-    "ms"
+    "ms",
 ]
 
 
@@ -214,7 +214,7 @@ def qasm_code(instr: Instr) -> str:
         Instr.OQASM2_ALL_STDGATES: "qelib1.inc",
         Instr.OQASM3_ALL_STDGATES: "stdgates.inc",
         Instr.BRAKET_CUSTOM_INCLUDE: "braket_custom_include.inc",
-        Instr.BRAKET_INVERSE_CUSTOM_INCLUDE: "braket_inverse_custom_include.inc"
+        Instr.BRAKET_INVERSE_CUSTOM_INCLUDE: "braket_inverse_custom_include.inc",
     }
 
     if instr in special_file_names:
@@ -638,7 +638,9 @@ def open_qasm_hard_includes(
                 elif file_name in {"braket_custom_include.inc"}:
                     converted_code.append(qasm_code(Instr.BRAKET_CUSTOM_INCLUDE))
                 elif file_name in {"braket_inverse_custom_include.inc"}:
-                    converted_code.append(qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE))
+                    converted_code.append(
+                        qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE)
+                    )
                 else:
                     with open(path_to_file + file_name, "r") as f:
                         converted_code.append(
@@ -1087,7 +1089,7 @@ def convert_instruction_3_to_2(
 def _extract_gphase_from_braket_qasm3(qasm_code: str) -> Tuple[str, float]:
     import numpy as np
     from sympy import sympify
-    
+
     matches = list(re.finditer(r"gphase\(([^)]+)\)", qasm_code))
     values = []
     new_s = qasm_code
@@ -1169,7 +1171,6 @@ def open_qasm_3_to_2(
     defined_gates.update(std_gates_3)
     if from_braket_qasm3:
         defined_gates.update(std_braket_gates)
-
 
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(
