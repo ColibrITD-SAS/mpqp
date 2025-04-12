@@ -56,9 +56,13 @@ def gray_code_decomposition(
         )  # CNOT's control is the changed bit of two consecutive natural numbers in gray code
         control = next(i for i in range(len(thetas)) if (control_1 >> i & 1))
         control = max(-control - 1, -circuit.nb_qubits + 1)
-        if np.abs(angle) > 1e-9: # Dodge unnecessary rotations
-            circuit.add(Ry(angle,position)) if rotation == "Ry" else circuit.add(Rz(angle,position))
-        circuit.add(CNOT(control + position,position))
+        if np.abs(angle) > 1e-9:  # Dodge unnecessary rotations
+            (
+                circuit.add(Ry(angle, position))
+                if rotation == "Ry"
+                else circuit.add(Rz(angle, position))
+            )
+        circuit.add(CNOT(control + position, position))
     return circuit
 
 
@@ -106,12 +110,10 @@ def _decompose(U, circuit: QCircuit, position: int = 0):
         dv = np.angle(Dv.diagonal())
         for i in range(len(dv) // 2):
             dv[i] *= -1
-        
-        
 
-        circuit = _decompose(Wv,circuit, position+1)
-        circuit = gray_code_decomposition(dv, circuit, position,"Rz")
-        circuit = _decompose(Vv,circuit, position+1)
+        circuit = _decompose(Wv, circuit, position + 1)
+        circuit = gray_code_decomposition(dv, circuit, position, "Rz")
+        circuit = _decompose(Vv, circuit, position + 1)
 
         circuit = gray_code_decomposition(
             MuxRy,

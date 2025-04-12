@@ -22,6 +22,7 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 from mpqp.tools.unitary_decomposition import decompose
 
+
 @typechecked
 class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
