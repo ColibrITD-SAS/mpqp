@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.native_gates import (
     _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
 )
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
-
+from mpqp.tools.unitary_decomposition import decompose
 
 @typechecked
 class CustomGate(Gate):
@@ -163,9 +164,9 @@ class CustomGate(Gate):
         label = f", \"{self.label}\"" if self.label else ""
         return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets}{label})"
 
-    def decompose(self):
+    def decompose(self) -> QCircuit:
         """Returns the circuit made of native gates equivalent to this gate.
 
         3M-TODO refine this doc and implement
         """
-        raise NotImplementedError()
+        return decompose(self.matrix)
