@@ -339,7 +339,11 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
 
 
 @typechecked
-def pprint(matrix: Matrix, round: int = 5, align: bool = True):
+def pprint(
+    matrix: Matrix | list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
+    round: int = 5,
+    align: bool = True,
+):
     """Print a cleans and formats elements of a matrix. It rounds the real parts of complex numbers
     in the matrix places and formats them as integers if they are whole numbers. It returns a
     string representation of the cleaned matrix without parentheses.
@@ -356,9 +360,30 @@ def pprint(matrix: Matrix, round: int = 5, align: bool = True):
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]
+        >>> pprint([1.0, 2.1, 3.0])
+        [1, 2.1, 3]
+        >>> pprint([1+0j, 0+0j, 5.])
+        [1, 0, 5]
+        >>> pprint([1.0, 2.0, 3.0])
+        [1, 2, 3]
 
     """
-    print(clean_matrix(matrix, round, align))
+    if isinstance(matrix, list):
+        print(clean_1D_array(matrix, round))
+    else:
+        shape = matrix.shape
+        if len(shape) == 1:
+            print(clean_1D_array(matrix, round))  # pyright: ignore[reportArgumentType]
+        elif len(shape) == 2:
+            print(
+                clean_matrix(
+                    matrix, round, align  # pyright: ignore[reportArgumentType]
+                )
+            )
+        else:
+            raise ValueError(
+                f"Input matrix {matrix} should be a 1D or 2D array (1 or 2 dimensional matrix)."
+            )
 
 
 @typechecked

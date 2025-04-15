@@ -34,13 +34,19 @@ def fetch_all_jobs() -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
+            cursor.execute('SELECT * FROM jobs')
+            jobs = cursor.fetchall()
 
-        cursor.execute('SELECT * FROM jobs')
-        jobs = cursor.fetchall()
-        return [dict(job) for job in jobs]
+            return [dict(job) for job in jobs]
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
 
 @ensure_local_storage
@@ -65,13 +71,19 @@ def fetch_all_results() -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        cursor.execute('SELECT * FROM results')
-        results = cursor.fetchall()
-        return [dict(result) for result in results]
+            cursor.execute('SELECT * FROM results')
+            results = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return [dict(result) for result in results]
 
 
 @ensure_local_storage
@@ -95,21 +107,27 @@ def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        if isinstance(result_id, int):
-            result_id = [result_id]
+            if isinstance(result_id, int):
+                result_id = [result_id]
 
-        placeholders = ",".join("?" for _ in result_id)
+            placeholders = ",".join("?" for _ in result_id)
 
-        cursor.execute(
-            f"SELECT * FROM results WHERE id IN ({placeholders})", tuple(result_id)
-        )
+            cursor.execute(
+                f"SELECT * FROM results WHERE id IN ({placeholders})", tuple(result_id)
+            )
 
-        results = cursor.fetchall()
-        return [dict(result) for result in results]
+            results = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return [dict(result) for result in results]
 
 
 @ensure_local_storage
@@ -136,21 +154,27 @@ def fetch_jobs_with_id(job_id: int | list[int]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        if isinstance(job_id, int):
-            job_id = [job_id]
+            if isinstance(job_id, int):
+                job_id = [job_id]
 
-        placeholders = ",".join("?" for _ in job_id)
+            placeholders = ",".join("?" for _ in job_id)
 
-        cursor.execute(
-            f"SELECT * FROM jobs WHERE id IN ({placeholders})", tuple(job_id)
-        )
+            cursor.execute(
+                f"SELECT * FROM jobs WHERE id IN ({placeholders})", tuple(job_id)
+            )
 
-        jobs = cursor.fetchall()
-        return [dict(job) for job in jobs]
+            jobs = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return [dict(job) for job in jobs]
 
 
 @ensure_local_storage
@@ -173,21 +197,28 @@ def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        if isinstance(job_id, int):
-            job_id = [job_id]
+            if isinstance(job_id, int):
+                job_id = [job_id]
 
-        placeholders = ",".join("?" for _ in job_id)
+            placeholders = ",".join("?" for _ in job_id)
 
-        cursor.execute(
-            f"SELECT * FROM results WHERE job_id IN ({placeholders})", tuple(job_id)
-        )
+            cursor.execute(
+                f"SELECT * FROM results WHERE job_id IN ({placeholders})", tuple(job_id)
+            )
 
-        results = cursor.fetchall()
-        return [dict(result) for result in results]
+            results = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+
+    return [dict(result) for result in results]
 
 
 @ensure_local_storage
@@ -215,29 +246,37 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        job_filters = []
-        params = []
+            job_filters = []
+            params = []
 
-        if isinstance(job, Job):
-            job = [job]
+            if isinstance(job, Job):
+                job = [job]
 
-        for j in job:
-            circuit_json = json.dumps(repr(j.circuit))
-            measure_json = json.dumps(repr(j.measure)) if j.measure else None
-            job_filters.append(
-                "(type is ? AND circuit is ? AND device is ? AND measure IS ?)"
-            )
-            params.extend([j.job_type.name, circuit_json, str(j.device), measure_json])
+            for j in job:
+                circuit_json = json.dumps(repr(j.circuit))
+                measure_json = json.dumps(repr(j.measure)) if j.measure else None
+                job_filters.append(
+                    "(type is ? AND circuit is ? AND device is ? AND measure IS ?)"
+                )
+                params.extend(
+                    [j.job_type.name, circuit_json, str(j.device), measure_json]
+                )
 
-        query = f"SELECT * FROM jobs WHERE {' OR '.join(job_filters)}"
-        cursor.execute(query, params)
+            query = f"SELECT * FROM jobs WHERE {' OR '.join(job_filters)}"
+            cursor.execute(query, params)
 
-        jobs = cursor.fetchall()
-        return [dict(job) for job in jobs]
+            jobs = cursor.fetchall()
+            return [dict(job) for job in jobs]
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
 
 @ensure_local_storage
@@ -273,54 +312,61 @@ def fetch_jobs_with_result_and_job(
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        job_filters = []
-        params = []
+            job_filters = []
+            params = []
 
-        if isinstance(result, Result):
-            result = [result]
+            if isinstance(result, Result):
+                result = [result]
 
-        for res in result:
-            data_json = json.dumps(
-                repr(res._data)  # pyright: ignore[reportPrivateUsage]
-            )
-            error_json = json.dumps(repr(res.error)) if res.error is not None else None
-            circuit_json = json.dumps(repr(res.job.circuit))
-            measure_json = (
-                json.dumps(repr(res.job.measure)) if res.job.measure else None
-            )
+            for res in result:
+                data_json = json.dumps(
+                    repr(res._data)  # pyright: ignore[reportPrivateUsage]
+                )
+                error_json = (
+                    json.dumps(repr(res.error)) if res.error is not None else None
+                )
+                circuit_json = json.dumps(repr(res.job.circuit))
+                measure_json = (
+                    json.dumps(repr(res.job.measure)) if res.job.measure else None
+                )
 
-            job_filters.append(
+                job_filters.append(
+                    """
+                    (results.data is ? AND results.error is ? AND results.shots is ? 
+                    AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
                 """
-                (results.data is ? AND results.error is ? AND results.shots is ? 
-                AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
+                )
+                params.extend(
+                    [
+                        data_json,
+                        error_json,
+                        res.shots,
+                        res.job.job_type.name,
+                        circuit_json,
+                        str(res.job.device),
+                        measure_json,
+                    ]
+                )
+
+            query = f"""
+                SELECT jobs.* FROM jobs
+                INNER JOIN results ON jobs.id is results.job_id
+                WHERE {' OR '.join(job_filters)}
             """
-            )
-            params.extend(
-                [
-                    data_json,
-                    error_json,
-                    res.shots,
-                    res.job.job_type.name,
-                    circuit_json,
-                    str(res.job.device),
-                    measure_json,
-                ]
-            )
 
-        query = f"""
-            SELECT jobs.* FROM jobs
-            INNER JOIN results ON jobs.id is results.job_id
-            WHERE {' OR '.join(job_filters)}
-        """
-
-        cursor.execute(query, params)
-        jobs = cursor.fetchall()
-
-        return [dict(job) for job in jobs]
+            cursor.execute(query, params)
+            jobs = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return [dict(job) for job in jobs]
 
 
 @ensure_local_storage
@@ -349,45 +395,51 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
+            job_filters = []
+            params = []
 
-        job_filters = []
-        params = []
+            if isinstance(result, Result):
+                result = [result]
 
-        if isinstance(result, Result):
-            result = [result]
+            for res in result:
+                data_json = json.dumps(
+                    repr(res._data)  # pyright: ignore[reportPrivateUsage]
+                )
+                error_json = (
+                    json.dumps(repr(res.error)) if res.error is not None else None
+                )
 
-        for res in result:
-            data_json = json.dumps(
-                repr(res._data)  # pyright: ignore[reportPrivateUsage]
-            )
-            error_json = json.dumps(repr(res.error)) if res.error is not None else None
-
-            job_filters.append(
+                job_filters.append(
+                    """
+                    (results.data is ? AND results.error is ? AND results.shots is ?)
                 """
-                (results.data is ? AND results.error is ? AND results.shots is ?)
+                )
+                params.extend(
+                    [
+                        data_json,
+                        error_json,
+                        res.shots,
+                    ]
+                )
+
+            query = f"""
+                SELECT jobs.* FROM jobs
+                INNER JOIN results ON jobs.id is results.job_id
+                WHERE {' OR '.join(job_filters)}
             """
-            )
-            params.extend(
-                [
-                    data_json,
-                    error_json,
-                    res.shots,
-                ]
-            )
 
-        query = f"""
-            SELECT jobs.* FROM jobs
-            INNER JOIN results ON jobs.id is results.job_id
-            WHERE {' OR '.join(job_filters)}
-        """
-
-        cursor.execute(query, params)
-        jobs = cursor.fetchall()
-
-        return [dict(job) for job in jobs]
+            cursor.execute(query, params)
+            jobs = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return [dict(job) for job in jobs]
 
 
 @ensure_local_storage
@@ -423,54 +475,60 @@ def fetch_results_with_result_and_job(
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
+            result_filters = []
+            params = []
 
-        result_filters = []
-        params = []
+            if isinstance(result, Result):
+                result = [result]
 
-        if isinstance(result, Result):
-            result = [result]
+            for res in result:
+                data_json = json.dumps(
+                    repr(res._data)  # pyright: ignore[reportPrivateUsage]
+                )
+                error_json = (
+                    json.dumps(repr(res.error)) if res.error is not None else None
+                )
+                circuit_json = json.dumps(repr(res.job.circuit))
+                measure_json = (
+                    json.dumps(repr(res.job.measure)) if res.job.measure else None
+                )
 
-        for res in result:
-            data_json = json.dumps(
-                repr(res._data)  # pyright: ignore[reportPrivateUsage]
-            )
-            error_json = json.dumps(repr(res.error)) if res.error is not None else None
-            circuit_json = json.dumps(repr(res.job.circuit))
-            measure_json = (
-                json.dumps(repr(res.job.measure)) if res.job.measure else None
-            )
-
-            result_filters.append(
+                result_filters.append(
+                    """
+                    (results.data is ? AND results.error is ? AND results.shots is ? 
+                    AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
                 """
-                (results.data is ? AND results.error is ? AND results.shots is ? 
-                AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
+                )
+                params.extend(
+                    [
+                        data_json,
+                        error_json,
+                        res.shots,
+                        res.job.job_type.name,
+                        circuit_json,
+                        str(res.job.device),
+                        measure_json,
+                    ]
+                )
+
+            query = f"""
+                SELECT results.* FROM results
+                INNER JOIN jobs ON jobs.id is results.job_id
+                WHERE {' OR '.join(result_filters)}
             """
-            )
-            params.extend(
-                [
-                    data_json,
-                    error_json,
-                    res.shots,
-                    res.job.job_type.name,
-                    circuit_json,
-                    str(res.job.device),
-                    measure_json,
-                ]
-            )
 
-        query = f"""
-            SELECT results.* FROM results
-            INNER JOIN jobs ON jobs.id is results.job_id
-            WHERE {' OR '.join(result_filters)}
-        """
-
-        cursor.execute(query, params)
-        results = cursor.fetchall()
-
-        return [dict(result) for result in results]
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return [dict(result) for result in results]
 
 
 @ensure_local_storage
@@ -498,44 +556,49 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        result_filters = []
-        params = []
+            result_filters = []
+            params = []
 
-        if isinstance(jobs, Job):
-            jobs = [jobs]
+            if isinstance(jobs, Job):
+                jobs = [jobs]
 
-        for job in jobs:
-            circuit_json = json.dumps(repr(job.circuit))
-            measure_json = json.dumps(repr(job.measure)) if job.measure else None
+            for job in jobs:
+                circuit_json = json.dumps(repr(job.circuit))
+                measure_json = json.dumps(repr(job.measure)) if job.measure else None
 
-            result_filters.append(
+                result_filters.append(
+                    """
+                    (jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
                 """
-                (jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
+                )
+                params.extend(
+                    [
+                        job.job_type.name,
+                        circuit_json,
+                        str(job.device),
+                        measure_json,
+                    ]
+                )
+
+            query = f"""
+                SELECT results.* FROM results
+                INNER JOIN jobs ON jobs.id is results.job_id
+                WHERE {' OR '.join(result_filters)}
             """
-            )
-            params.extend(
-                [
-                    job.job_type.name,
-                    circuit_json,
-                    str(job.device),
-                    measure_json,
-                ]
-            )
 
-        query = f"""
-            SELECT results.* FROM results
-            INNER JOIN jobs ON jobs.id is results.job_id
-            WHERE {' OR '.join(result_filters)}
-        """
-
-        cursor.execute(query, params)
-        jobs_local_storage = cursor.fetchall()
-
-        return [dict(job) for job in jobs_local_storage]
+            cursor.execute(query, params)
+            jobs_local_storage = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
+    return [dict(job) for job in jobs_local_storage]
 
 
 @ensure_local_storage
@@ -565,35 +628,43 @@ def fetch_results_with_result(
     """
     from sqlite3 import Row, connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
+        connection.row_factory = Row
         cursor = connection.cursor()
-        cursor.row_factory = Row  # pyright: ignore[reportAttributeAccessIssue]
+        try:
 
-        result_filters = []
-        params = []
+            result_filters = []
+            params = []
 
-        if isinstance(result, Result):
-            result = [result]
+            if isinstance(result, Result):
+                result = [result]
 
-        for res in result:
-            data_json = json.dumps(
-                repr(res._data)  # pyright: ignore[reportPrivateUsage]
-            )
-            error_json = json.dumps(repr(res.error)) if res.error is not None else None
+            for res in result:
+                data_json = json.dumps(
+                    repr(res._data)  # pyright: ignore[reportPrivateUsage]
+                )
+                error_json = (
+                    json.dumps(repr(res.error)) if res.error is not None else None
+                )
 
-            result_filters.append(
+                result_filters.append(
+                    """
+                    (results.data is ? AND results.error is ? AND results.shots is ?)
                 """
-                (results.data is ? AND results.error is ? AND results.shots is ?)
+                )
+                params.extend([data_json, error_json, res.shots])
+
+            query = f"""
+                SELECT * FROM results
+                WHERE {' OR '.join(result_filters)}
             """
-            )
-            params.extend([data_json, error_json, res.shots])
 
-        query = f"""
-            SELECT * FROM results
-            WHERE {' OR '.join(result_filters)}
-        """
+            cursor.execute(query, params)
+            results = cursor.fetchall()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
-        cursor.execute(query, params)
-        results = cursor.fetchall()
-
-        return [dict(result) for result in results]
+    return [dict(result) for result in results]

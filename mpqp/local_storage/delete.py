@@ -25,14 +25,21 @@ def clear_local_storage():
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
         cursor = connection.cursor()
+        try:
+            cursor.execute('DELETE FROM results')
+            cursor.execute('DELETE FROM jobs')
+            cursor.execute(
+                'DELETE FROM sqlite_sequence WHERE name IN ("results", "jobs")'
+            )
 
-        cursor.execute('DELETE FROM results')
-        cursor.execute('DELETE FROM jobs')
-        cursor.execute('DELETE FROM sqlite_sequence WHERE name IN ("results", "jobs")')
-
-        connection.commit()
+            connection.commit()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
 
 def remove_all_with_job_id(job_id: int | list[int]):
@@ -77,15 +84,21 @@ def remove_jobs_with_id(job_id: int | list[int]):
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
         cursor = connection.cursor()
-        if isinstance(job_id, int):
-            cursor.execute('DELETE FROM jobs WHERE id is ?', (job_id,))
-        else:
-            cursor.executemany(
-                'DELETE FROM jobs WHERE id is ?', [(id,) for id in job_id]
-            )
-        connection.commit()
+        try:
+            if isinstance(job_id, int):
+                cursor.execute('DELETE FROM jobs WHERE id is ?', (job_id,))
+            else:
+                cursor.executemany(
+                    'DELETE FROM jobs WHERE id is ?', [(id,) for id in job_id]
+                )
+            connection.commit()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
 
 def remove_results_with_id(result_id: int | list[int]):
@@ -107,16 +120,22 @@ def remove_results_with_id(result_id: int | list[int]):
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
         cursor = connection.cursor()
-        if isinstance(result_id, int):
-            cursor.execute('DELETE FROM results WHERE id is ?', (result_id,))
-            connection.commit()
-        else:
-            cursor.executemany(
-                'DELETE FROM results WHERE id is ?', [(id,) for id in result_id]
-            )
-            connection.commit()
+        try:
+            if isinstance(result_id, int):
+                cursor.execute('DELETE FROM results WHERE id is ?', (result_id,))
+                connection.commit()
+            else:
+                cursor.executemany(
+                    'DELETE FROM results WHERE id is ?', [(id,) for id in result_id]
+                )
+                connection.commit()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
 
 def remove_results_with_results_local_storage(results: Optional[list[DictDB] | DictDB]):
@@ -201,16 +220,22 @@ def remove_results_with_job_id(job_id: int | list[int]):
     """
     from sqlite3 import connect
 
-    with connect(get_env_variable("DB_PATH")) as connection:
+    connection = connect(get_env_variable("DB_PATH"))
+    try:
         cursor = connection.cursor()
-        if isinstance(job_id, int):
-            cursor.execute('DELETE FROM results WHERE job_id is ?', (job_id,))
-            connection.commit()
-        else:
-            cursor.executemany(
-                'DELETE FROM results WHERE job_id is ?', [(id,) for id in job_id]
-            )
-            connection.commit()
+        try:
+            if isinstance(job_id, int):
+                cursor.execute('DELETE FROM results WHERE job_id is ?', (job_id,))
+                connection.commit()
+            else:
+                cursor.executemany(
+                    'DELETE FROM results WHERE job_id is ?', [(id,) for id in job_id]
+                )
+                connection.commit()
+        finally:
+            cursor.close()
+    finally:
+        connection.close()
 
 
 def remove_results_with_job(jobs: Job | list[Job]):

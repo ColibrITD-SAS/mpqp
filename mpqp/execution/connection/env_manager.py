@@ -24,7 +24,7 @@ def _create_config_if_needed():
 
     if not MPQP_ENV.exists():
         MPQP_ENV.parent.mkdir(parents=True, exist_ok=True)
-        MPQP_ENV.open("a").close()
+        MPQP_ENV.touch()
 
 
 def get_existing_config_str() -> str:

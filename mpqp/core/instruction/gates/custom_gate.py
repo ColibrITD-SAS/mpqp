@@ -8,6 +8,9 @@ from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
+from mpqp.core.instruction.gates.native_gates import (
+    _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
+)
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
@@ -82,12 +85,40 @@ class CustomGate(Gate):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
+        printing: bool = False,
     ):
         if language == Language.QISKIT:
             from qiskit.quantum_info.operators import Operator as QiskitOperator
+            from sympy import Expr
 
             if qiskit_parameters is None:
                 qiskit_parameters = set()
+            gate_symbols = set().union(
+                *(
+                    elt.free_symbols
+                    for elt in self.matrix.flatten()
+                    if isinstance(elt, Expr)
+                )
+            )
+            for symbol in gate_symbols:
+                if TYPE_CHECKING:
+                    assert isinstance(symbol, Expr)
+                _qiskit_parameter_adder(symbol, qiskit_parameters)
+
+            if len(gate_symbols) > 0:
+                if not printing:
+                    raise ValueError(
+                        "Custom gates defined with symbolic variables cannot be"
+                        " exported to qiskit."
+                    )
+                from qiskit import QuantumCircuit
+
+                dummy_circuit = QuantumCircuit(self.nb_qubits)
+                for param in qiskit_parameters:
+                    # Rx is just a random choice so to have the parameter in the
+                    # list of inputs
+                    dummy_circuit.rx(param, 0)
+                return dummy_circuit.to_gate(label="CustomGate")
             return QiskitOperator(self.matrix)
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
@@ -129,8 +160,8 @@ class CustomGate(Gate):
             raise NotImplementedError(f"Error: {language} is not supported")
 
     def __repr__(self) -> str:
-        label = ", " + self.label if self.label else ""
-        return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets} {label})"
+        label = f", \"{self.label}\"" if self.label else ""
+        return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets}{label})"
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
