@@ -146,12 +146,14 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     assert isinstance(result2, Result)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 
+
 def test_decomposition_short():
     from scipy.stats import unitary_group
-    for i in range(1,4):
+
+    for i in range(1, 4):
         U = np.asarray(unitary_group.rvs(2**i), dtype=np.complex64)
-        gate = CustomGate(UnitaryMatrix(U),list(range(i)))
+        gate = CustomGate(UnitaryMatrix(U), list(range(i)))
         cirq = gate.decompose()
         assert matrix_eq(U, gate.matrix)
         print(i)
-        assert matrix_eq(U,cirq.to_matrix())
+        assert matrix_eq(U, cirq.to_matrix())

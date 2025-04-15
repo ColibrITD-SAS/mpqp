@@ -33,6 +33,7 @@ from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 import random
 
+
 @pytest.mark.parametrize(
     "init_param, printed_result_filename",
     [
@@ -498,6 +499,7 @@ def test_to_matrix_random():
         expected_matrix = compute_expected_matrix(qcircuit)
         matrix_eq(qcircuit.to_matrix(), expected_matrix)
 
+
 def test_to_matrix_gphase():
     gates = [
         gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
@@ -506,7 +508,10 @@ def test_to_matrix_gphase():
         qcircuit = random_circuit(gates, nb_qubits=4)
         qcircuit.gphase = random.random()
         expected_matrix = compute_expected_matrix(qcircuit)
-        assert matrix_eq(qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.gphase))
+        assert matrix_eq(
+            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.gphase)
+        )
+
 
 @pytest.mark.parametrize(
     "circuit, expected_inverse",

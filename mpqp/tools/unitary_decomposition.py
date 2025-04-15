@@ -1,7 +1,7 @@
 from mpqp.core.circuit import QCircuit
 from mpqp.tools import Matrix
 import math
-from mpqp.gates import CNOT,Ry,Rz
+from mpqp.gates import CNOT, Ry, Rz
 from scipy.linalg import cossin
 import numpy as np
 
@@ -86,7 +86,7 @@ def gray_code_decomposition(
             i + 1
         )  # CNOT's control is the changed bit of two consecutive natural numbers in gray code
         control = next(i for i in range(len(thetas)) if (control_1 >> i & 1))
-        control = max(-position -control - 1, -circuit.nb_qubits + 1)
+        control = max(-position - control - 1, -circuit.nb_qubits + 1)
         if np.abs(angle) > 1e-9:  # Dodge unnecessary rotations
             (
                 circuit.add(Ry(angle, position))
@@ -97,7 +97,7 @@ def gray_code_decomposition(
     return circuit
 
 
-def _decompose(U : Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
+def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
     """
     This function recursively decompose the matrix U into the circuit then returns it.
 
@@ -105,8 +105,8 @@ def _decompose(U : Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
     For higher dimensions it does a Quantum Shannon decomposition.
     """
     if len(U) == 2:  # Decompose a 1 qubit operator
-        delta = np.angle(np.linalg.det(np.asarray(U,dtype=np.complex64))) / len(U)
-        V = U / np.exp(1j * delta) # extract the global phase so that V is SU
+        delta = np.angle(np.linalg.det(np.asarray(U, dtype=np.complex64))) / len(U)
+        V = U / np.exp(1j * delta)  # extract the global phase so that V is SU
         beta = 2 * math.acos(np.abs(V[0][0]))
         alpha = -np.angle(V[0][0]) - np.angle(V[1][0])
         gamma = -np.angle(V[0][0]) + np.angle(V[1][0])
@@ -121,7 +121,7 @@ def _decompose(U : Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         (U1, U2), MuxRy, (V1, V2) = cossin(
             U, p=length // 2, q=length // 2, separate=True
         )
-        # Reconstruct the 
+        # Reconstruct the
         U12 = np.zeros((len(U1) * 2, len(U1) * 2), dtype=np.complex64)
         for i in range(len(U1)):
             for j in range(len(U1)):
@@ -163,7 +163,7 @@ def _decompose(U : Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         return circuit
 
 
-def quantum_shannon_decomposition(U : Matrix) -> QCircuit:
+def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
     """
     Returns a circuit containing the decomposition of a unitary.
     The resulting circuit is composed of gates CNOT, Ry and Rz.
@@ -177,7 +177,7 @@ def quantum_shannon_decomposition(U : Matrix) -> QCircuit:
 
     Args:
         U: The unitary matrix to be decomposed
-    
+
     Returns:
         A quantum circuit containing the decomposition of U.
     """
