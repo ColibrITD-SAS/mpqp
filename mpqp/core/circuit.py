@@ -289,9 +289,13 @@ class QCircuit:
                 )
         if isinstance(components, ControlledGate):
             for i in range(len(components.controls)):
-                components.controls[i] += self.nb_qubits if components.controls[i] < 0 else 0
+                components.controls[i] += (
+                    self.nb_qubits if components.controls[i] < 0 else 0
+                )
                 for j in range(len(components.targets)):
-                    components.targets[j] += self.nb_qubits if components.controls[i] < 0 else 0
+                    components.targets[j] += (
+                        self.nb_qubits if components.controls[i] < 0 else 0
+                    )
                     if components.controls[i] == components.targets[j]:
                         raise ValueError(
                             f"Common registers between targets {components.controls[i]} and controls {components.targets[j]}"

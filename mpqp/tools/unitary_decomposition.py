@@ -43,7 +43,7 @@ def unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
 
     eigvals, V = np.linalg.eig(G)
     D = np.diag(np.sqrt(eigvals.astype(complex)))
-    W = np.asarray(D @ V.conj().T @ G1,dtype=np.complex128)
+    W = np.asarray(D @ V.conj().T @ G1, dtype=np.complex128)
     D_dagg = D.conj().T
     padding = np.zeros(length // 2)
     D_result = []
@@ -86,7 +86,7 @@ def gray_code_decomposition(
             i + 1
         )  # CNOT's control is the changed bit of two consecutive natural numbers in gray code
         control = next(i for i in range(len(thetas)) if (control_1 >> i & 1))
-        control = max( -control - position - 1, -circuit.nb_qubits + 1)
+        control = max(-control - position - 1, -circuit.nb_qubits + 1)
         if np.abs(angle) > 1e-9:  # Dodge unnecessary rotations
             (
                 circuit.add(Ry(angle, position))
@@ -105,7 +105,7 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
     For higher dimensions it does a Quantum Shannon decomposition.
     """
     if len(U) == 2:  # Decompose a 1 qubit operator
-        delta = np.angle(np.linalg.det(np.asarray(U,dtype=np.complex128))) / len(U)
+        delta = np.angle(np.linalg.det(np.asarray(U, dtype=np.complex128))) / len(U)
         V = U / np.exp(1j * delta)  # extract the global phase so that V is SU
         beta = 2 * math.acos(np.abs(V[0][0]))
         alpha = -np.angle(V[0][0]) - np.angle(V[1][0])

@@ -457,7 +457,8 @@ def test_instruction_no_target(component: Instruction | NoiseModel):
 def test_invalid_controlled_gate():
     circuit = QCircuit(3)
     with pytest.raises(ValueError):
-        circuit.add(CNOT(0,-3))
+        circuit.add(CNOT(0, -3))
+
 
 @pytest.mark.parametrize(
     "circuit, expected_matrix",
