@@ -1438,7 +1438,9 @@ class QCircuit:
             from mpqp.qasm import open_qasm_3_to_2
 
             qasm3_code = qasm3.dumps(qcircuit)
-            qasm2_code, phase = open_qasm_3_to_2(str(qasm3_code), None, None, None, 0, 1)
+            qasm2_code, phase = open_qasm_3_to_2(
+                str(qasm3_code), None, None, None, 0, 1
+            )
 
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase

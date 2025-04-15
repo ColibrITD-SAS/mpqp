@@ -187,7 +187,7 @@ std_qiskit_gates = [
     "cu1",
     "rxx",
     "ryy",
-    "rzz"
+    "rzz",
 ]
 std_braket_gates = [
     "i",
@@ -656,7 +656,7 @@ def open_qasm_hard_includes(
                 elif file_name in {"stdgates.inc"}:
                     converted_code.append(qasm_code(Instr.OQASM3_ALL_STDGATES))
                 elif file_name in {"qiskit_custom_include.inc"}:
-                    converted_code.append(qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))                
+                    converted_code.append(qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
                 elif file_name in {"braket_custom_include.inc"}:
                     converted_code.append(qasm_code(Instr.BRAKET_CUSTOM_INCLUDE))
                 elif file_name in {"braket_inverse_custom_include.inc"}:
@@ -1218,7 +1218,7 @@ def open_qasm_3_to_2(
     elif from_specific_language == 1:
         header_code += "include \"qiskit_custom_include.inc\";\n"
     target_code = header_code + gphase_code + instructions_code
-    
+
     cleared_code = []
     idx = 0
     qasm_code = target_code.split(";")

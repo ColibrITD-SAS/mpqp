@@ -347,15 +347,9 @@ def test_to_other_language(
 @pytest.mark.parametrize(
     "circuit, language, expected_str",
     [
-        (
-            random_qiskit_circuit(2, 5), Language.QISKIT, None
-        ),
-        (
-            random_qiskit_circuit(5, 5), Language.QISKIT, None
-        ),
-        (
-            random_qiskit_circuit(10, 5), Language.QISKIT, None
-        ),
+        (random_qiskit_circuit(2, 5), Language.QISKIT, None),
+        (random_qiskit_circuit(5, 5), Language.QISKIT, None),
+        (random_qiskit_circuit(10, 5), Language.QISKIT, None),
         (QCircuit([H(0), CNOT(0, 1)]), Language.QASM2, None),
         (random_circuit(None, 2), Language.QASM2, None),
         (random_circuit(None, 10), Language.QASM2, None),
@@ -380,7 +374,9 @@ def test_to_other_language(
     ],
 )
 def test_from_other_language(
-    circuit: QiskitCircuit | QCircuit | cirq_Circuit | str, language: Language, expected_str: str
+    circuit: QiskitCircuit | QCircuit | cirq_Circuit | str,
+    language: Language,
+    expected_str: str,
 ):
     if isinstance(circuit, QiskitCircuit):
         from qiskit.quantum_info import Operator
