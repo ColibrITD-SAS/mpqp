@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
-from mpqp.core.circuit import QCircuit
+#from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.native_gates import (
     _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
 )
@@ -16,11 +16,11 @@ from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+    from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
-from mpqp.tools.unitary_decomposition import decompose
 
 
 @typechecked
@@ -165,9 +165,10 @@ class CustomGate(Gate):
         label = f", \"{self.label}\"" if self.label else ""
         return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets}{label})"
 
-    def decompose(self) -> QCircuit:
+    def decompose(self) -> "QCircuit":
+        from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
         """Returns the circuit made of native gates equivalent to this gate.
 
-        3M-TODO refine this doc and implement
+        The circuit follows the quantum Shannon decomposition which decomposes any unitary matrix into Ry,Rx and CNOT gates.
         """
-        return decompose(self.matrix)
+        return quantum_shannon_decomposition(self.matrix)
