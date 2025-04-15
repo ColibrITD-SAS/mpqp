@@ -770,7 +770,7 @@ class QCircuit:
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
 
-        return matrix
+        return matrix * np.exp(1j * self.gphase)
 
     def inverse(self) -> QCircuit:
         """Generate the inverse (dagger) of this circuit.
@@ -1434,15 +1434,21 @@ class QCircuit:
         from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
         if isinstance(qcircuit, QuantumCircuit):
-            from qiskit import qasm2
+            from qiskit import qasm3
+            from mpqp.qasm import open_qasm_3_to_2
 
-            return qasm2_parse(qasm2.dumps(qcircuit))
+            qasm3_code = qasm3.dumps(qcircuit)
+            qasm2_code, phase = open_qasm_3_to_2(str(qasm3_code), None, None, None, 0, 1)
+
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = phase
+            return qc
 
         elif isinstance(qcircuit, cirq_Circuit):
             cleared_code = []
             line_to_add = True
 
-            for line in qcircuit.to_qasm().split('\n'):
+            for line in qcircuit.to_qasm().split(';'):
                 if "sdg" in line:
                     new_line = line.replace("sdg", "p(-pi*0.5)")
                     cleared_code.append(new_line)
@@ -1453,20 +1459,19 @@ class QCircuit:
                 else:
                     line_to_add = True
 
-            cleared_code = '\n'.join(cleared_code)
+            cleared_code = ';'.join(cleared_code)
             return qasm2_parse(cleared_code)
 
         elif isinstance(qcircuit, braket_Circuit):
             from braket.circuits.serialization import IRType
             from braket.ir.openqasm.program_v1 import Program
-
             from mpqp.qasm import open_qasm_3_to_2
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, Program)
             qasm2_code, phase = open_qasm_3_to_2(
-                str(qasm3_code.source), None, None, {"ctrl"}, 0, True
+                str(qasm3_code.source), None, None, {"ctrl"}, 0, 2
             )
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase

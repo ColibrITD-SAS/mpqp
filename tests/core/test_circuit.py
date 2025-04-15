@@ -32,6 +32,7 @@ from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWar
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 
+from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
 from cirq.circuits.circuit import Circuit as cirq_Circuit
 from braket.circuits.circuit import Circuit as braket_Circuit
@@ -346,9 +347,15 @@ def test_to_other_language(
 @pytest.mark.parametrize(
     "circuit, language, expected_str",
     [
-        (QCircuit([H(0), CNOT(0, 1)]), Language.QISKIT, None),
-        (random_circuit(None, 2), Language.QISKIT, None),
-        (random_circuit(None, 10), Language.QISKIT, None),
+        (
+            random_qiskit_circuit(2, 5), Language.QISKIT, None
+        ),
+        (
+            random_qiskit_circuit(5, 5), Language.QISKIT, None
+        ),
+        (
+            random_qiskit_circuit(10, 5), Language.QISKIT, None
+        ),
         (QCircuit([H(0), CNOT(0, 1)]), Language.QASM2, None),
         (random_circuit(None, 2), Language.QASM2, None),
         (random_circuit(None, 10), Language.QASM2, None),
@@ -373,9 +380,20 @@ def test_to_other_language(
     ],
 )
 def test_from_other_language(
-    circuit: QCircuit | cirq_Circuit | str, language: Language, expected_str: str
+    circuit: QiskitCircuit | QCircuit | cirq_Circuit | str, language: Language, expected_str: str
 ):
-    if isinstance(circuit, cirq_Circuit):
+    if isinstance(circuit, QiskitCircuit):
+        from qiskit.quantum_info import Operator
+        import numpy as np
+
+        qcircuit = QCircuit.from_other_language(circuit)
+        circuit = circuit.reverse_bits()
+        matrix = Operator(circuit).data
+        if TYPE_CHECKING:
+            assert isinstance(matrix, np.ndarray)
+        assert matrix_eq(matrix, qcircuit.to_matrix())
+
+    elif isinstance(circuit, cirq_Circuit):
         from cirq.protocols.unitary_protocol import unitary
 
         qcircuit = QCircuit.from_other_language(circuit)
@@ -392,7 +410,7 @@ def test_from_other_language(
     else:
         circ_to_test = circuit.to_other_language(language)
         if TYPE_CHECKING:
-            assert isinstance(circ_to_test, (QiskitCircuit, braket_Circuit, str))
+            assert isinstance(circ_to_test, (braket_Circuit, str))
         qcircuit = QCircuit.from_other_language(circ_to_test)
         assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
 
