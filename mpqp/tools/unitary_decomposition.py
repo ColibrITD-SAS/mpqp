@@ -43,7 +43,7 @@ def unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
 
     eigvals, V = np.linalg.eig(G)
     D = np.diag(np.sqrt(eigvals.astype(complex)))
-    W = np.asarray(D @ V.conj().T @ G1, dtype=np.complex64)
+    W = np.asarray(D @ V.conj().T @ G1,dtype=np.complex128)
     D_dagg = D.conj().T
     padding = np.zeros(length // 2)
     D_result = []
@@ -86,7 +86,7 @@ def gray_code_decomposition(
             i + 1
         )  # CNOT's control is the changed bit of two consecutive natural numbers in gray code
         control = next(i for i in range(len(thetas)) if (control_1 >> i & 1))
-        control = max(-position - control - 1, -circuit.nb_qubits + 1)
+        control = max( -control - position - 1, -circuit.nb_qubits + 1)
         if np.abs(angle) > 1e-9:  # Dodge unnecessary rotations
             (
                 circuit.add(Ry(angle, position))
@@ -105,7 +105,7 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
     For higher dimensions it does a Quantum Shannon decomposition.
     """
     if len(U) == 2:  # Decompose a 1 qubit operator
-        delta = np.angle(np.linalg.det(np.asarray(U, dtype=np.complex64))) / len(U)
+        delta = np.angle(np.linalg.det(np.asarray(U,dtype=np.complex128))) / len(U)
         V = U / np.exp(1j * delta)  # extract the global phase so that V is SU
         beta = 2 * math.acos(np.abs(V[0][0]))
         alpha = -np.angle(V[0][0]) - np.angle(V[1][0])
@@ -122,13 +122,13 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
             U, p=length // 2, q=length // 2, separate=True
         )
         # Reconstruct the
-        U12 = np.zeros((len(U1) * 2, len(U1) * 2), dtype=np.complex64)
+        U12 = np.zeros((len(U1) * 2, len(U1) * 2), dtype=np.complex128)
         for i in range(len(U1)):
             for j in range(len(U1)):
                 U12[i][j] = U1[i][j]
                 U12[i + len(U12) // 2][j + len(U12) // 2] = U2[i][j]
 
-        V12 = np.zeros((len(V1) * 2, len(V1) * 2), dtype=np.complex64)
+        V12 = np.zeros((len(V1) * 2, len(V1) * 2), dtype=np.complex128)
         for i in range(len(V1)):
             for j in range(len(V1)):
                 V12[i][j] = V1[i][j]
