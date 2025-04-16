@@ -372,11 +372,15 @@ def test_to_other_language(
         (random_circuit(None, 2), Language.MY_QLM, None),
         (random_circuit(None, 10), Language.MY_QLM, None),
         (
-            "OPENQASM 3.0;include \"stdgates.inc\";qubit[2] q;h q[0];cx q[0], q[1];", Language.QASM3, QCircuit([H(0), CNOT(0, 1)])
+            "OPENQASM 3.0;include \"stdgates.inc\";qubit[2] q;h q[0];cx q[0], q[1];",
+            Language.QASM3,
+            QCircuit([H(0), CNOT(0, 1)]),
         ),
         (
-            "//Generated with Qiskit\n\nOPENQASM 3.0;include \"stdgates.inc\";\n//Qubits\nqubit[2] q;h q[0];cx q[0], q[1];", Language.QASM3, QCircuit([H(0), CNOT(0, 1)])
-        )
+            "//Generated with Qiskit\n\nOPENQASM 3.0;include \"stdgates.inc\";\n//Qubits\nqubit[2] q;h q[0];cx q[0], q[1];",
+            Language.QASM3,
+            QCircuit([H(0), CNOT(0, 1)]),
+        ),
     ],
 )
 def test_from_other_language(

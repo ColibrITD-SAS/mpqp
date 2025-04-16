@@ -1721,7 +1721,9 @@ class QCircuit:
             is_qasm3 = False
             for line in qcircuit.split('\n'):
                 if not line.startswith("//") and line != '':
-                    if not line.startswith("OPENQASM 2.0") and not line.startswith("OPENQASM 3.0"):
+                    if not line.startswith("OPENQASM 2.0") and not line.startswith(
+                        "OPENQASM 3.0"
+                    ):
                         raise NotImplementedError(
                             f"Error: only OpenQASM2 and OpenQASM3 is supported for qasm external description of the circuit"
                         )
@@ -1736,7 +1738,7 @@ class QCircuit:
                 qc = qasm2_parse(qasm2_code)
                 qc.gphase = phase
                 return qc
-            
+
             return qasm2_parse(qcircuit)
 
         else:
