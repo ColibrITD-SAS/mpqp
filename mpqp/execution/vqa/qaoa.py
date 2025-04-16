@@ -70,7 +70,7 @@ def qaoa_solver(problem: Qubo, depth: int, type: MixerType, optimizer: str) -> s
         '01'
     """
     observable = problem.to_cost_hamiltonian()
-    
+
     mixer = _generate_mixer_hamiltonian(problem.get_size(), type)
 
     loss_optimize = partial(
@@ -100,10 +100,12 @@ def _apply_unitary(
     Args:
         circuit: Generated Ansatz on which the unitary matrix will me applied
         operator: Either the cost hamiltonian or the mixer hamiltonian
-        parameter: The parameter used to create the unitary matrix 
+        parameter: The parameter used to create the unitary matrix
     """
-    unitary = scipy.linalg.expm(-1j * parameter * operator) 
-    unitary_gate = CustomGate(UnitaryMatrix(unitary.astype(np.complex128)), list(range(circuit.nb_qubits)))
+    unitary = scipy.linalg.expm(-1j * parameter * operator)
+    unitary_gate = CustomGate(
+        UnitaryMatrix(unitary.astype(np.complex128)), list(range(circuit.nb_qubits))
+    )
     circuit.add(unitary_gate)
 
 
@@ -120,7 +122,7 @@ def _generate_mixer_hamiltonian(
             - `MIXER_Y`
             - `MIXER_Z`
 
-    Returns: 
+    Returns:
         NDArray[complex128]: The matrix of the Mixer Hamiltonian
     """
     result = 0
@@ -154,13 +156,13 @@ def _generate_ansatz(
     """
     Generate the QAOA ansatz, which is composed of unitary operators acting on all of the circuit.
 
-    Args: 
+    Args:
         parameters: The parameters of the QAOA operators
         cost_hamiltonian: The cost hamiltonian generated from que QUBO expression
         qubits: Number of variables in the QUBO expression
         mixer: The mixer hamiltonian chose for the ansatz
 
-    Returns: 
+    Returns:
         QCircuit: the generated ansatz
     """
     ansatz = QCircuit(qubits)
