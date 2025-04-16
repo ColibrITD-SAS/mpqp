@@ -51,7 +51,12 @@ x2_1 = Qubo('x2_1')
             "010",
         ),
         (
-            2 * x0_1 + x0_2 + 2 * x1_0 + 4 * x1_2 + x2_0 + x2_1
+            2 * x0_1
+            + x0_2
+            + 2 * x1_0
+            + 4 * x1_2
+            + x2_0
+            + x2_1
             - 10 * ((x0_1 ^ x2_1) + (x1_0 ^ x2_0) + (x1_2 ^ x0_2))
             - 10 * ((x0_1 ^ x0_2) + (x1_0 ^ x1_2) + (x2_0 ^ x2_1)),
             5,
@@ -62,6 +67,7 @@ x2_1 = Qubo('x2_1')
 )
 def qaoa(expr: Qubo, depth: int, mixer: MixerType, state: str):
     assert qaoa_solver(expr, depth, mixer) == state
+
 
 if "--long-local" in sys.argv or "--long" in sys.argv:
     test_qaoa = qaoa
