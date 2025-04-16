@@ -50,7 +50,7 @@ def loss(
     return result.expectation_values
 
 
-def qaoa_solver(problem: Qubo, depth: int, type: MixerType):
+def qaoa_solver(problem: Qubo, depth: int, type: MixerType, optimizer: str) -> str:
     """
     This function solves decision problems using QAOA, the problem needs to be inputted as a QUBO expression.
 
@@ -78,7 +78,7 @@ def qaoa_solver(problem: Qubo, depth: int, type: MixerType):
         loss, cost=observable, nqubit=problem.get_size(), mixer=mixer
     )
     optimal_params = scipy.optimize.minimize(
-        fun=loss_optimize, method='Powell', x0=np.zeros(depth * 2)
+        fun=loss_optimize, method=optimizer, x0=np.zeros(depth * 2)
     )
 
     circuit = generate_ansatz(optimal_params.x, observable, problem.get_size(), mixer)

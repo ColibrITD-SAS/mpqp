@@ -303,6 +303,8 @@ class Qubo:
             right = self.right._print(level + 1, verbose)
             if verbose:
                 print(" " * (level + 1) + "}")
+        if self.value == "*":
+            return right + self.value + left
         return left + self.value + right
 
     def pprint(self, verbose: bool = False):
