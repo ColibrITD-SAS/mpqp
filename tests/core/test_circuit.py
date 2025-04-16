@@ -345,7 +345,7 @@ def test_to_other_language(
 
 
 @pytest.mark.parametrize(
-    "circuit, language, expected_str",
+    "circuit, language, expected_output",
     [
         (random_qiskit_circuit(2, 5), Language.QISKIT, None),
         (random_qiskit_circuit(5, 5), Language.QISKIT, None),
@@ -371,16 +371,21 @@ def test_to_other_language(
         (QCircuit([H(0), CNOT(0, 1)]), Language.MY_QLM, None),
         (random_circuit(None, 2), Language.MY_QLM, None),
         (random_circuit(None, 10), Language.MY_QLM, None),
+        (
+            "OPENQASM 3.0;include \"stdgates.inc\";qubit[2] q;h q[0];cx q[0], q[1];", Language.QASM3, QCircuit([H(0), CNOT(0, 1)])
+        ),
+        (
+            "//Generated with Qiskit\n\nOPENQASM 3.0;include \"stdgates.inc\";\n//Qubits\nqubit[2] q;h q[0];cx q[0], q[1];", Language.QASM3, QCircuit([H(0), CNOT(0, 1)])
+        )
     ],
 )
 def test_from_other_language(
     circuit: QiskitCircuit | QCircuit | cirq_Circuit | str,
     language: Language,
-    expected_str: str,
+    expected_output: str | QCircuit,
 ):
     if isinstance(circuit, QiskitCircuit):
         from qiskit.quantum_info import Operator
-        import numpy as np
 
         qcircuit = QCircuit.from_other_language(circuit)
         circuit = circuit.reverse_bits()
@@ -396,12 +401,18 @@ def test_from_other_language(
         cirq_circuit = qcircuit.to_other_language(language)
         assert matrix_eq(unitary(cirq_circuit), unitary(circuit))
 
+    elif language == Language.QASM3:
+        qcircuit = QCircuit.from_other_language(circuit)
+        if TYPE_CHECKING:
+            assert isinstance(expected_output, QCircuit)
+        assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
+
     elif isinstance(circuit, str):
         from mpqp.qasm import mpqp_to_qasm2
 
         qcircuit = QCircuit.from_other_language(circuit)
         qasm2_str = mpqp_to_qasm2(qcircuit)
-        assert qasm2_str[0] == expected_str
+        assert qasm2_str[0] == expected_output
 
     else:
         circ_to_test = circuit.to_other_language(language)

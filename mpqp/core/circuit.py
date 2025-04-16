@@ -1563,7 +1563,7 @@ class QCircuit:
         cls,
         qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str,
     ) -> QCircuit:
-        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM or QASM2) into
+        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM, QASM2 or QASM3) into
         the corresponding internal `QCircuit` format.
 
         Args:
@@ -1572,7 +1572,7 @@ class QCircuit:
                 - `cirq_Circuit`: A Cirq Circuit object.
                 - `braket_Circuit`: A Braket Circuit object.
                 - `myQLM_Circuit`: A MyQLM Circuit object.
-                - `str`: A string representing an OpenQASM 2.0 circuit.
+                - `str`: A string representing an OpenQASM 2.0 or OpenQASM3 circuit.
 
         Returns:
             QCircuit: The circuit in the internal `QCircuit` representation.
@@ -1644,6 +1644,19 @@ class QCircuit:
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
+            >>> qasm3_code = '''
+            ... OPENQASM 3.0;
+            ... qubit[2] q;
+            ... h q[0];
+            ... cx q[0], q[1];
+            ... '''
+            >>> qcircuit6 = QCircuit.from_other_language(qasm3_code)
+            >>> print(qcircuit6) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
         """
         from braket.circuits import Circuit as braket_Circuit
         from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -1705,14 +1718,27 @@ class QCircuit:
             return from_myqlm_to_mpqp(qcircuit)
 
         elif isinstance(qcircuit, str):
+            is_qasm3 = False
             for line in qcircuit.split('\n'):
                 if not line.startswith("//") and line != '':
-                    if not line.startswith("OPENQASM 2.0"):
+                    if not line.startswith("OPENQASM 2.0") and not line.startswith("OPENQASM 3.0"):
                         raise NotImplementedError(
-                            f"Error: only OpenQASM2 is supported for qasm external description of the circuit"
+                            f"Error: only OpenQASM2 and OpenQASM3 is supported for qasm external description of the circuit"
                         )
+                    else:
+                        if line.startswith("OPENQASM 3.0"):
+                            is_qasm3 = True
                     break
+            if is_qasm3:
+                from mpqp.qasm import open_qasm_3_to_2
+
+                qasm2_code, phase = open_qasm_3_to_2(qcircuit)
+                qc = qasm2_parse(qasm2_code)
+                qc.gphase = phase
+                return qc
+            
             return qasm2_parse(qcircuit)
+
         else:
             raise NotImplementedError(f"Error: {type(qcircuit)} is not supported.")
 
