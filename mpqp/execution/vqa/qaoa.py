@@ -1,14 +1,14 @@
 import scipy.optimize
-from mpqp.execution.vqa.qubo import *
+from mpqp.execution.vqa.qubo import Qubo
 from functools import partial
 
 from enum import Enum
 from mpqp.measures import ExpectationMeasure
 from mpqp import QCircuit
-from mpqp.tools.maths import *
+from mpqp.tools.maths import Matrix
 from mpqp.execution import run, IBMDevice, Result
-from mpqp.gates import *
-from mpqp.measures import *
+from mpqp.gates import H, CustomGate, UnitaryMatrix
+from mpqp.measures import BasisMeasure, Observable
 
 import numpy as np
 import numpy.typing as npt
@@ -23,7 +23,7 @@ class MixerType(Enum):
     MIXER_Z = 3
 
 
-def loss(
+def _loss(
     parameters: list[float],
     cost: Observable,
     nqubit: int,
@@ -41,7 +41,7 @@ def loss(
     Returns:
         A float containing the expectation value of the ansatz.
     """
-    circuit = generate_ansatz(parameters, cost, nqubit, mixer)
+    circuit = _generate_ansatz(parameters, cost, nqubit, mixer)
     circuit.add(ExpectationMeasure(cost, shots=0))
     result = run(circuit, IBMDevice.AER_SIMULATOR)
     if TYPE_CHECKING:
@@ -66,25 +66,23 @@ def qaoa_solver(problem: Qubo, depth: int, type: MixerType, optimizer: str) -> s
         >>> x0 = Qubo('x0')
         >>> x1 = Qubo('x1')
         >>> expr = -3*x0 - 5*x1 + 3*(x0 & x1)
-        >>> qaoa_solver(expr, 2, MixerType.MIXER_X)
-        "01"
+        >>> qaoa_solver(expr, 4, MixerType.MIXER_X, 'Powell')
+        '01'
     """
-    # build the cost hamiltonian
     observable = problem.to_cost_hamiltonian()
-    # 4. Optimization
-    mixer = generate_mixer_hamiltonian(problem.get_size(), type)
+    
+    mixer = _generate_mixer_hamiltonian(problem.get_size(), type)
 
     loss_optimize = partial(
-        loss, cost=observable, nqubit=problem.get_size(), mixer=mixer
+        _loss, cost=observable, nqubit=problem.get_size(), mixer=mixer
     )
     optimal_params = scipy.optimize.minimize(
         fun=loss_optimize, method=optimizer, x0=np.zeros(depth * 2)
     )
 
-    circuit = generate_ansatz(optimal_params.x, observable, problem.get_size(), mixer)
+    circuit = _generate_ansatz(optimal_params.x, observable, problem.get_size(), mixer)
     circuit.add(BasisMeasure(list(range(circuit.nb_qubits))))
 
-    # 6 interpret result
     result = run(circuit, IBMDevice.AER_SIMULATOR)
     if TYPE_CHECKING:
         assert isinstance(result, Result)
@@ -94,19 +92,36 @@ def qaoa_solver(problem: Qubo, depth: int, type: MixerType, optimizer: str) -> s
     return res
 
 
-def apply_unitary(
+def _apply_unitary(
     circuit: QCircuit, operator: Matrix | npt.NDArray[np.complex128], parameter: float
 ):
-    unitary: npt.NDArray[np.complex64] = scipy.linalg.expm(-1j * parameter * operator)  # type: ignore
-    unitary_gate = CustomGate(UnitaryMatrix(unitary), list(range(circuit.nb_qubits)))
+    """
+    Apply the cost hamiltonian or the mixer hamiltonian to the generated ansatz.
+    Args:
+        circuit: Generated Ansatz on which the unitary matrix will me applied
+        operator: Either the cost hamiltonian or the mixer hamiltonian
+        parameter: The parameter used to create the unitary matrix 
+    """
+    unitary = scipy.linalg.expm(-1j * parameter * operator) 
+    unitary_gate = CustomGate(UnitaryMatrix(unitary.astype(np.complex128)), list(range(circuit.nb_qubits)))
     circuit.add(unitary_gate)
 
 
-def generate_mixer_hamiltonian(
+def _generate_mixer_hamiltonian(
     qubits: int, type: MixerType
 ) -> npt.NDArray[np.complex128]:
     """
     Generates the mixer Hamiltonian according to the mixer type.
+
+    Args:
+        qubits: Number of variables in the QUBO expression
+        type: the type of the mixer with can be one of the following:
+            - `MIXER_X`
+            - `MIXER_Y`
+            - `MIXER_Z`
+
+    Returns: 
+        NDArray[complex128]: The matrix of the Mixer Hamiltonian
     """
     result = 0
     if type == MixerType.MIXER_X:
@@ -130,14 +145,23 @@ def generate_mixer_hamiltonian(
     return result
 
 
-def generate_ansatz(
+def _generate_ansatz(
     parameters: list[float],
     cost_hamiltonian: Observable,
     qubits: int,
     mixer: npt.NDArray[np.complex128],
 ) -> QCircuit:
     """
-    Generate the QAOA ansatz, it is composed of unitary operators acting on all of the circuit.
+    Generate the QAOA ansatz, which is composed of unitary operators acting on all of the circuit.
+
+    Args: 
+        parameters: The parameters of the QAOA operators
+        cost_hamiltonian: The cost hamiltonian generated from que QUBO expression
+        qubits: Number of variables in the QUBO expression
+        mixer: The mixer hamiltonian chose for the ansatz
+
+    Returns: 
+        QCircuit: the generated ansatz
     """
     ansatz = QCircuit(qubits)
     num_layers = len(parameters) // 2
@@ -145,6 +169,6 @@ def generate_ansatz(
     for i in range(qubits):
         ansatz.add(H(i))
     for i in range(num_layers):
-        apply_unitary(ansatz, cost_hamiltonian.matrix, parameters[2 * i])
-        apply_unitary(ansatz, mixer, parameters[2 * i + 1])
+        _apply_unitary(ansatz, cost_hamiltonian.matrix, parameters[2 * i])
+        _apply_unitary(ansatz, mixer, parameters[2 * i + 1])
     return ansatz

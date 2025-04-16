@@ -14,14 +14,12 @@ class Qubo:
     Examples:
         >>> x0 = Qubo('x0')
         >>> x1 = Qubo('x1')
-        >>> x2 = Qubo('x2')
-        >>> y  = Qubo ('y')
-
-        >>> expr = 3*x0 - x1 + 1000*x2 + 3
-
         >>> expr = 3*x0*x1 + x0 - 2*x1
-
-        >>> expr = 3*x0 + 10*x1 - 2*x2 - 3*(x1 ^ x0) + 2*(x0 & x2) - 5*(x1 | x2) - y
+        >>> print(expr.to_cost_hamiltonian().matrix)
+        [[ 0.+0.j  0.+0.j  0.+0.j  0.+0.j]
+         [ 0.+0.j -2.+0.j  0.+0.j  0.+0.j]
+         [ 0.+0.j  0.+0.j  1.+0.j  0.+0.j]
+         [ 0.+0.j  0.+0.j  0.+0.j  2.+0.j]]
 
     """
 
@@ -103,19 +101,25 @@ class Qubo:
         self, coeffs: list[tuple[int, list[str]]]
     ) -> list[tuple[int, list[str]]]:
         """
-        Returns a list of lists containing the coefficients of the monomials of the QUBO.
+        Creates a list of lists containing the coefficients of the monomials of the QUBO.
+
+        Args:
+            coeffs: An empty list
+
+        Returns:
+            List[tuple[int, list[str]]]: The list of coefficients and variables in the QUBO expression
 
         Examples:
             >>> x0 = Qubo('x0')
             >>> x1 = Qubo('x1')
 
             >>> expr = 3*x0 - x1 + 1
-            >>> expr.get_coeffs()
-            [[3,'x0'],[-1, 'x1'], [1]]
+            >>> expr.get_coeffs([])
+            [(3, ['x0']), (-1, ['x1']), (1, [])]
 
             >>> expr = 3*(x0 | x1)
-            >>> expr.get_coeffs()
-            [[3,'x0'], [3, 'x1'], [-3, 'x0', 'x1']]
+            >>> expr.get_coeffs([])
+            [(3, ['x0']), (3, ['x1']), (-3, ['x0', 'x1'])]
         """
         if self == None:
             return []
@@ -146,7 +150,7 @@ class Qubo:
 
         return coeffs
 
-    def get_matrix_size(self) -> list[str]:
+    def get_variables(self) -> list[str]:
         """
         Returns a list of all of the unique boolean variables of the QUBO. They are ordered from the left of the expression to the right.
 
@@ -155,14 +159,15 @@ class Qubo:
             >>> x1 = Qubo('x1')
 
             >>> expr = 3*x0 - x1
-            >>> expr.get_matrix_size()
+            >>> expr.get_variables()
             ['x0', 'x1']
 
             >>> expr = 3*x1 - 10*x0
-            >>> expr.get_matrix_size()
+            >>> expr.get_variables()
             ['x1', 'x0']
 
             >>> expr = 3*x0*x1 - x1 + x0
+            >>> expr.get_variables()
             ['x0', 'x1']
         """
         coeffs = self.get_coeffs([])
@@ -188,14 +193,29 @@ class Qubo:
         """
         Returns the number of unique boolean variables in the QUBO expression.
         """
-        return len(self.get_matrix_size())
+        return len(self.get_variables())
 
     def create_matrix(self) -> tuple[npt.NDArray[np.float64], int]:
         """
         Creates the weight matrix of this QUBO expression.
+
+        Returns:
+            A Tuple composed of the Weight Matrix and the eventual constants to add.
+
+        Examples:
+            >>> x0 = Qubo('x0')
+            >>> x1 = Qubo('x1')
+            >>> x2 = Qubo('x2')
+            >>> x3 = Qubo('x3')
+            >>> expr = 2 * x0 + 3 * x1 + 4 * x0 * x2 + x3
+            >>> print(expr.create_matrix()[0])
+            [[2. 0. 2. 0.]
+             [0. 3. 0. 0.]
+             [2. 0. 0. 0.]
+             [0. 0. 0. 1.]]
         """
         coeffs = self.get_coeffs(coeffs=[])
-        vars = self.get_matrix_size()
+        vars = self.get_variables()
         size = len(vars)
         matrix = np.zeros(shape=(size, size))
         constant = 0
@@ -224,66 +244,53 @@ class Qubo:
         return matrix, constant
 
     def to_cost_hamiltonian(self) -> Observable:
-        '''
+        """
         Converts the QUBO matrix into a cost Hamiltonian.
 
         Returns:
             Observable: The cost Hamiltonian.
 
         Examples:
-            >>> Qubo([BooleanExpression("3.x_0.x_1 - 4.x_0 - 2.x_1 + 1", ["x_0, x_1"])]).to_cost_hamiltonian()
-            Observable([[1, 0, 0, 0], [0, -1, 0, 0], [0, 0, -3, 0], [0, 0, 0, -2]])
-        '''
+            >>> x_0 = Qubo("x_0")
+            >>> x_1 = Qubo("x_1")
+            >>> expr = 3 * x_0 * x_1 - 4 * x_0 - 2 * x_1 + 1
+            >>> print(expr.to_cost_hamiltonian().matrix)
+            [[ 1.+0.j  0.+0.j  0.+0.j  0.+0.j]
+             [ 0.+0.j -1.+0.j  0.+0.j  0.+0.j]
+             [ 0.+0.j  0.+0.j -3.+0.j  0.+0.j]
+             [ 0.+0.j  0.+0.j  0.+0.j -2.+0.j]]
+        """
         matrix, constant = self.create_matrix()
         size = matrix.shape[0]
 
         resulting_cost = np.zeros(shape=(2**size,))
 
-        # Calculate all separate cost hamiltonians H(x_i) and store them.
-        hx_ns = np.array([self.h_xi(size, i) for i in range(size)])
+        hx_ns = np.array([self._h_xi(size, i) for i in range(size)])
 
-        # Iterate over the QUBO Matrix to recover coefficients of binary parameters and apply them to
-        # their corresponding costs hamiltonians.
-        # Since QUBO matrices are symmetric, taking the lower triangular matrix suffices.
         for i in range(size):
-            # Calculate the cost of the i-th term
             for j in range(i):
                 resulting_cost += matrix[i][j] * hx_ns[i] * hx_ns[j] * 2
-            # Calculate the cost of the diagonal term
             resulting_cost += matrix[i][i] * hx_ns[i]
-        # Add the constant term and transform as an Observable
         return Observable(
             np.diag(resulting_cost).astype(np.complex64) + np.eye(2**size) * constant
         )
 
-    def h_xi(self, size: int, i: int):
+    def _h_xi(self, size: int, i: int):
         r'''
         Calculates the cost Hamiltonian H(x_i) for a given i-th binary parameter.
         If follow this formula:
         $$ H(x_i) = \frac{I^{\otimes n} - Z_i}{2} $$
         $$ \text{with } ~~ Z_i = \underbrace{I \otimes \cdots \otimes I}_{i} \otimes Z \otimes \underbrace{I \otimes \cdots \otimes I}_{n-i-1} $$
-
-
-        Examples:
-            >>> Qubo.h_xi(2, 0)
-            array([0, 0, 1, 1])
-            >>> Qubo.h_xi(3, 0)
-            array([1, 1, 1, 1, -1, -1, -1, -1])
         '''
-        # Only treat I_n and Z_i as lists because they are diagonal matrices.
-        # As Z is diagonal we only need the coefficients of said diagonal.
         Z = np.array([1, -1])
         Z_i = Z
 
-        # Don't do kronecker product when the resulting matrix of np.ones (Identity) is [].
         if i != 0:
             Z_i = np.kron(np.ones(2**i), Z_i)
 
-        # Same here
         if size - i - 1 != 0:
             Z_i = np.kron(Z_i, np.ones(2 ** (size - i - 1)))
 
-        # H_xi = (I_n - Z_i) / 2
         result = (np.ones(2**size) - Z_i) / 2
         return result
 

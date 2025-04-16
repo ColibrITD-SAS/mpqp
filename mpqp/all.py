@@ -27,6 +27,8 @@ from .execution.devices import (
 from .execution.simulated_devices import IBMSimulatedDevice
 from .execution.remote_handler import get_all_remote_job_ids
 from .execution.vqa import Optimizer, minimize
+from .execution.vqa.qubo import Qubo
+from .execution.vqa.qaoa import qaoa_solver, MixerType
 from .gates import (
     CNOT,
     CZ,
