@@ -141,7 +141,7 @@ sampling_devices = [
 
 
 def test_sample_nb_shot_handle():
-    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])  
+    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
     batch = run(circuit, sampling_devices, translation_warning=False)
     assert isinstance(batch, BatchResult)
     assert isinstance(batch, BatchResult)
@@ -155,7 +155,7 @@ def test_sample_nb_shot_handle():
         assert result.shots == 1024
     # for result in batch:
     #     #TODO:
-    #     # check result.error is float  
+    #     # check result.error is float
     #     # then check if it is 0.0
     #     # if not , like it is a dictionary
     #     # we compute the variance because if there is a varaiance that means nb_shots is taken into account
@@ -193,17 +193,18 @@ def test_observable_nb_shot_handle():
             assert "variance" in result.error
             assert result.error["variance"] > 0
         assert result.shots == 1024
-    #for result in batch:
-        #TODO:
-        # check result.error is float  
-        # then check if it is 0.0
-        # if not , like it is a dictionary
-        # we compute the variance because if there is a varaiance that means nb_shots is taken into account
-        # assert result.error != 0.0
-        # assert result.shots == 1024
+    # for result in batch:
+    # TODO:
+    # check result.error is float
+    # then check if it is 0.0
+    # if not , like it is a dictionary
+    # we compute the variance because if there is a varaiance that means nb_shots is taken into account
+    # assert result.error != 0.0
+    # assert result.shots == 1024
+
 
 def test_sample_nb_shot_handle_test():
-    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])  
+    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
     batch = run(circuit, sampling_devices, translation_warning=False)
     assert isinstance(batch, BatchResult)
     for result in batch:
@@ -239,4 +240,3 @@ def test_observable_nb_shot_handle_test():
         assert isinstance(result.error, float)
         assert result.error > 0.0
         assert result.shots == 1024
-

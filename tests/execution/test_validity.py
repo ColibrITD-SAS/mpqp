@@ -320,7 +320,9 @@ def test_observable_ideal_case(
     c = QCircuit(gates)
     c.add(ExpectationMeasure(observable))
     expected_value = (
-        expected_vector.transpose().conjugate().dot(observable.matrix.dot(expected_vector))
+        expected_vector.transpose()
+        .conjugate()
+        .dot(observable.matrix.dot(expected_vector))
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(c, sampling_devices)
@@ -639,6 +641,3 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
         assert r1.expectation_values.keys() == r2.expectation_values.keys()
         for k in r1.expectation_values:
             assert np.isclose(r1.expectation_values[k], r2.expectation_values[k])
-          
-
-           
