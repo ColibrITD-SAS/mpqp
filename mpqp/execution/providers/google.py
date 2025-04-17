@@ -441,29 +441,34 @@ def extract_result_OBSERVABLE_ideal(
     """
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
-
-    mean = 0
-    for r in results:
-        mean += float(r.real)
-
+    
     shots = job.measure.shots
 
+    import numpy as np 
     if len(results) == 1:
-        return Result(job, mean, 0, shots)
+        return Result(
+            job,
+            results[0].real,
+            0, 
+            shots,
+        )
+
 
     exp_values_dict = dict()
     errors_dict = dict()
 
-    for i, r in enumerate(results):
+    for i, res in enumerate(results):
         label = (
             job.measure.observables[i].label
-            if isinstance(job.measure, ExpectationMeasure)
+            if hasattr(job.measure, "observables") and hasattr(job.measure.observables[i], "label")
             else f"cirq_obs_{i}"
         )
-        exp_values_dict[label] = float(r.real)
+        exp_values_dict[label] = res.real
         errors_dict[label] = 0
 
     return Result(job, exp_values_dict, errors_dict, shots)
+
+
 
 
 def extract_result_OBSERVABLE_shot_noise(
