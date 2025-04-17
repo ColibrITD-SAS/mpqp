@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from mpqp import QCircuit
 from mpqp.core.instruction import ExpectationMeasure, Observable
-from mpqp.execution import AvailableDevice, IBMDevice
+from mpqp.execution import AvailableDevice, IBMDevice, GOOGLEDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 
@@ -26,7 +26,7 @@ def list_observables():
 
 
 def list_devices():
-    return [IBMDevice.AER_SIMULATOR]
+    return [IBMDevice.AER_SIMULATOR, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
 
 
 @pytest.mark.parametrize(
