@@ -37,6 +37,12 @@ class ControlledGate(Gate, ABC):
             raise ValueError(
                 f"Common registers between targets {targets} and controls {controls}"
             )
+        for control in controls:
+            if control < 0:
+                raise ValueError(f"Negative index in controls: {control}")
+        for target in targets:
+            if target < 0:
+                raise ValueError(f"Negative index in targets: {target}")
         self.controls = controls
         """See parameter description."""
         self.non_controlled_gate = non_controlled_gate

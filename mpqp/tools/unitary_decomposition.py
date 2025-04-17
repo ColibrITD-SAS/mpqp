@@ -6,20 +6,22 @@ from scipy.linalg import cossin
 import numpy as np
 
 
-def gray_code(n: int):
+def _gray_code(n: int):
     """
     Returns the gray code of n.
     """
     return n ^ (n >> 1)
 
 
-def unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
-    """
+def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
+    r"""
     Returns the decomposition of the unitary using eigenvalues decomposition.
     The goal of this SVD is to have following result : U = (I ⊗ V) @ D @ (I ⊗ W).
     D is in the form of a multiplexed Rz operator.
+    The whole equation should be in the form :
+    `U = \begin{pmatrix}V & 0 \\ 0 & V end{pmatrix} \times \begin{pmatrix}D & 0 \\ 0 & D^{\dagger} \end{pmatrix} \times \begin{pmatrix}W & 0 \\ 0 & W \end{pmatrix}`
 
-    This function should be used only in the context of the Quantum Shannon Decomposition.
+    In the context of the quantum Shannon decomposition U is the result of a cosine sine decomposition, hence U is always in the form : `U =  \begin{pmatrix}U_0 & 0\\ 0 & U_1 \end{pmatrix}`
 
     Args:
         U : The unitary matrix to decompose.
@@ -27,6 +29,8 @@ def unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     Returns:
         3 matrices
     """
+
+    # Decompose U into it's 2 submatrices G0 and G1
     length = len(U)
     SU = U[0 : (length // 2)]
     SU2 = U[(length // 2) : length]
@@ -39,12 +43,17 @@ def unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     G0 = np.array(g0)
     G1 = np.array(g1)
 
+    # Build G as G = V @ D² @ V†
     G = G0 @ G1.conj().T
 
     eigvals, V = np.linalg.eig(G)
     D = np.diag(np.sqrt(eigvals.astype(complex)))
+
+    # W = D @ V† @ G1
     W = np.asarray(D @ V.conj().T @ G1, dtype=np.complex128)
     D_dagg = D.conj().T
+
+    # Reconstruct the whole D matrix
     padding = np.zeros(length // 2)
     D_result = []
 
@@ -57,13 +66,14 @@ def unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     return V, np.array(D_result), W
 
 
-def gray_code_decomposition(
+def _gray_code_decomposition(
     thetas: Matrix, circuit: QCircuit, position: int, rotation: str
 ) -> QCircuit:
     """
     Returns the decomposition of a multiplexed Rz or Ry gate.
     The circuit is composed of a succession of CNOTs and rotations according to the original operator.
 
+    This function is originally from cirq's implementation.
     Args:
         thetas : A list of floats that are the rotations to be applied on each qubits.
         circuit: The circuit in which the decomposition is stocked.
@@ -72,21 +82,22 @@ def gray_code_decomposition(
 
     Returns:
         The circuit containing the decomposed operator.
+
+    Reference:
+    .. [1] Mikko Möttönen, Juha J. Vartiainen, Ville Bergholm, and Martti M. Salomaa. 2004. Quantum circuits for general multi-qubit gates. American Physical Society (APS) : 93-13.
     """
     for i in range(len(thetas)):
 
         angle = sum(
-            -angle if bin(gray_code(i) & j).count('1') % 2 else angle
+            -angle if bin(_gray_code(i) & j).count('1') % 2 else angle
             for j, angle in enumerate(thetas)
         )
 
         angle *= 2 / len(thetas)
-
-        control_1 = gray_code(i) ^ gray_code(
-            i + 1
-        )  # CNOT's control is the changed bit of two consecutive natural numbers in gray code
-        control = next(i for i in range(len(thetas)) if (control_1 >> i & 1))
-        control = max(-control - position - 1, -circuit.nb_qubits + 1)
+        # CNOT's control is the changed bit of two consecutive natural numbers in gray code
+        changed = _gray_code(i) ^ _gray_code(i + 1)
+        control = next(i for i in range(len(thetas)) if (changed >> i & 1))
+        control = max(-control - position - 1 + circuit.nb_qubits, 1)
         if np.abs(angle) > 1e-9:  # Dodge unnecessary rotations
             (
                 circuit.add(Ry(angle, position))
@@ -103,10 +114,15 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
 
     For 1 qubit operators it executes a ZYZ decomposition.
     For higher dimensions it does a Quantum Shannon decomposition.
+
+    Reference:
+    .. [1] Mikko Möttönen, Juha J. Vartiainen, Ville Bergholm, and Martti M. Salomaa. 2004. Quantum circuits for general multi-qubit gates. American Physical Society (APS) : 93-13.
     """
     if len(U) == 2:  # Decompose a 1 qubit operator
         delta = np.angle(np.linalg.det(np.asarray(U, dtype=np.complex128))) / len(U)
-        V = U / np.exp(1j * delta)  # extract the global phase so that V is SU
+
+        # extract the global phase so that V is a special unitary, note that if U is SU then delta = 0
+        V = U / np.exp(1j * delta)
         beta = 2 * math.acos(np.abs(V[0][0]))
         alpha = -np.angle(V[0][0]) - np.angle(V[1][0])
         gamma = -np.angle(V[0][0]) + np.angle(V[1][0])
@@ -114,50 +130,46 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         circuit.add(Rz(alpha, position))
         circuit.add(Ry(beta, position))
         circuit.add(Rz(gamma, position))
-        circuit.gphase += delta
+        circuit.gphase += delta  # Stores the gphase in the circuit
         return circuit
     else:  # 2 qubits or more
         length = len(U)
-        (U1, U2), MuxRy, (V1, V2) = cossin(
-            U, p=length // 2, q=length // 2, separate=True
-        )
-        # Reconstruct the
-        U12 = np.zeros((len(U1) * 2, len(U1) * 2), dtype=np.complex128)
-        for i in range(len(U1)):
-            for j in range(len(U1)):
-                U12[i][j] = U1[i][j]
-                U12[i + len(U12) // 2][j + len(U12) // 2] = U2[i][j]
+        U12, MuxRy, V12 = cossin(U, p=length // 2, q=length // 2, separate=False)
 
-        V12 = np.zeros((len(V1) * 2, len(V1) * 2), dtype=np.complex128)
-        for i in range(len(V1)):
-            for j in range(len(V1)):
-                V12[i][j] = V1[i][j]
-                V12[i + len(V12) // 2][j + len(V12) // 2] = V2[i][j]
+        # Extracts the rotations of the multiplexed Ry for later decomposition
+        thetas = []
+        for i in range(MuxRy.shape[0] // 2):
+            thetas.append(np.arccos(MuxRy[i][i]))
+        thetas = np.array(thetas)
+        # checks typing because of cossin U12 and V12 could be tuples themselves
+        assert isinstance(U12, np.ndarray)
+        assert isinstance(V12, np.ndarray)
+        Vu, MuxRzu, Wu = _unitary_SVD(U12)
+        Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
-        Vu, Du, Wu = unitary_SVD(U12)
-        Vv, Dv, Wv = unitary_SVD(V12)
-
-        du = np.angle(Du.diagonal())
+        # Extracts the rotations of both multiplexed Rz for later decomposition
+        du = np.angle(MuxRzu.diagonal())
         for i in range(len(du) // 2):
             du[i] *= -1
 
-        dv = np.angle(Dv.diagonal())
+        dv = np.angle(MuxRzv.diagonal())
         for i in range(len(dv) // 2):
             dv[i] *= -1
 
+        # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, position + 1)
-        circuit = gray_code_decomposition(dv, circuit, position, "Rz")
+        circuit = _gray_code_decomposition(dv, circuit, position, "Rz")
         circuit = _decompose(Vv, circuit, position + 1)
 
-        circuit = gray_code_decomposition(
-            MuxRy,
+        circuit = _gray_code_decomposition(
+            thetas,
             circuit,
             position,
             "Ry",
         )
 
         circuit = _decompose(Wu, circuit, position + 1)
-        circuit = gray_code_decomposition(du, circuit, position, "Rz")
+        circuit = _gray_code_decomposition(du, circuit, position, "Rz")
         circuit = _decompose(Vu, circuit, position + 1)
 
         return circuit
@@ -169,9 +181,9 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
     The resulting circuit is composed of gates CNOT, Ry and Rz.
 
     The Quantum Shannon Decomposition works by splitting an unitary into 3 matrices using the CSD (cosine sine decomposition).
-    Which decompose an unitary matrix into 2 matrices around a multiplexed Ry gate.
+    Which decompose an unitary matrix into 2 n-sized matrices around a multiplexed Ry gate.
 
-    The two other matrices are then decomposed into 2 unitaries surrounding a multiplexed Rz gate.
+    The two other matrices are then decomposed into 2 n-1 sized unitaries surrounding a multiplexed Rz gate.
 
     This process repeats until the matrices are reduced to 1 qubit gates which can be easily split with the ZYZ decomposition.
 
@@ -180,6 +192,17 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
 
     Returns:
         A quantum circuit containing the decomposition of U.
+
+    References:
+
+    Examples:
+        >>> from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
+        >>> import numpy as np
+        >>> from mpqp.tools.maths import matrix_eq
+        >>> U = np.array([[1,0],[0,1]])
+        >>> circuit = quantum_shannon_decomposition(U)
+        >>> print(matrix_eq(U, circuit.to_matrix()))
+        True
     """
     circuit = QCircuit(int(np.log2(len(U))))
     return _decompose(U, circuit, 0)
