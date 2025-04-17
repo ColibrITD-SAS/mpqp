@@ -176,19 +176,10 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
                 language=Language.CIRQ, circuit=cirq_circuit
             )
 
-            if isinstance(translated, Cirq_PauliSum):
-                if TYPE_CHECKING:
-                    assert isinstance(translated, list)
-                    assert all(
-                        isinstance(item, Cirq_PauliString) for item in translated
-                    )
-                translated = next(iter(translated), None)
-
             if TYPE_CHECKING:
                 assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
 
-            if translated is not None:
-                cirq_observables.append(translated)
+            cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
@@ -416,7 +407,7 @@ def extract_result_OBSERVABLE_processors(
 
 
 def extract_result_OBSERVABLE_ideal(
-    results: list[float],
+    results: list[complex],
     job: Job,
 ) -> Result:
     """Extracts the result from an observable-based ideal job.
@@ -446,6 +437,8 @@ def extract_result_OBSERVABLE_ideal(
 
     import numpy as np
 
+    print("cirq result, ", results)
+
     if len(results) == 1:
         return Result(
             job,
@@ -464,7 +457,7 @@ def extract_result_OBSERVABLE_ideal(
             and hasattr(job.measure.observables[i], "label")
             else f"cirq_obs_{i}"
         )
-        exp_values_dict[label] = res.real
+        exp_values_dict[label] = res.real,
         errors_dict[label] = 0
 
     return Result(job, exp_values_dict, errors_dict, shots)

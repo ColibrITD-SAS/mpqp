@@ -293,7 +293,7 @@ class Result:
     def __init__(
         self,
         job: Job,
-        data: float | dict["str", float] | StateVector | list[Sample],
+        data: float | dict[str, float] | StateVector | list[Sample],
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
     ):
