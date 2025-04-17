@@ -17,8 +17,6 @@ if TYPE_CHECKING:
     from cirq.work.observable_measurement_data import ObservableMeasuredResult
 
 
-
-
 @typechecked
 def run_google(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right Google device precised in the job in
