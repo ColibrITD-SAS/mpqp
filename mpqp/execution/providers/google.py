@@ -2,21 +2,21 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence, Union
 
-from mpqp.tools.errors import DeviceJobIncompatibleError
-
-if TYPE_CHECKING:
-    from cirq.sim.state_vector_simulator import StateVectorTrialResult
-    from cirq.study.result import Result as CirqResult
-    from cirq.work.observable_measurement_data import ObservableMeasuredResult
-
-from typeguard import typechecked
-
 from mpqp import Language
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.tools.errors import DeviceJobIncompatibleError
+from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from cirq.sim.state_vector_simulator import StateVectorTrialResult
+    from cirq.study.result import Result as CirqResult
+    from cirq.work.observable_measurement_data import ObservableMeasuredResult
+
+
 
 
 @typechecked
@@ -435,10 +435,6 @@ def extract_result_OBSERVABLE_ideal(
 
     shots = job.measure.shots
 
-    import numpy as np
-
-    print("cirq result, ", results)
-
     if len(results) == 1:
         return Result(
             job,
@@ -457,7 +453,7 @@ def extract_result_OBSERVABLE_ideal(
             and hasattr(job.measure.observables[i], "label")
             else f"cirq_obs_{i}"
         )
-        exp_values_dict[label] = res.real,
+        exp_values_dict[label] = (res.real,)
         errors_dict[label] = 0
 
     return Result(job, exp_values_dict, errors_dict, shots)
