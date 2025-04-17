@@ -298,7 +298,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     [
         (
             [H(0), Rk(4, 1), H(2), Rx(pi / 3, 0), CRk(6, 1, 2), CNOT(0, 1), X(2)],
-            rand_hermitian_matrix(2**3),
+            Observable(rand_hermitian_matrix(2**3)),
             np.array(
                 [
                     s(3) / 4 - 1j / 4,
@@ -315,12 +315,12 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     ],
 )
 def test_observable_ideal_case(
-    gates: list[Gate], observable: npt.NDArray[np.complex64], expected_vector: Matrix
+    gates: list[Gate], observable: Observable, expected_vector: Matrix
 ):
     c = QCircuit(gates)
-    c.add(ExpectationMeasure(Observable(observable), list(range(c.nb_qubits))))
+    c.add(ExpectationMeasure(observable))
     expected_value = (
-        expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
+        expected_vector.transpose().conjugate().dot(observable.matrix.dot(expected_vector))
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(c, sampling_devices)
@@ -610,22 +610,24 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
     e2 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=True)
     c1 = circuit + QCircuit([e1], nb_qubits=2)
     c2 = circuit + QCircuit([e2], nb_qubits=2)
+    print("\n--- Running without optimization ---")
     br1 = run(
         c1,
         [
             IBMDevice.AER_SIMULATOR,
             # ATOSDevice.MYQLM_PYLINALG,
             # AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
     )
+    print("--- Running with diagonal optimization ---")
     br2 = run(
         c2,
         [
             IBMDevice.AER_SIMULATOR,
             # ATOSDevice.MYQLM_PYLINALG,
             # AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
     )
 
@@ -637,3 +639,6 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
         assert r1.expectation_values.keys() == r2.expectation_values.keys()
         for k in r1.expectation_values:
             assert np.isclose(r1.expectation_values[k], r2.expectation_values[k])
+          
+
+           

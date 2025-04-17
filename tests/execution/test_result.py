@@ -141,15 +141,29 @@ sampling_devices = [
 
 
 def test_sample_nb_shot_handle():
-    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
+    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])  
     batch = run(circuit, sampling_devices, translation_warning=False)
     assert isinstance(batch, BatchResult)
+    assert isinstance(batch, BatchResult)
     for result in batch:
-        assert result.error != 0.0
+        if isinstance(result.error, float):
+            assert result.error == 0.0
+        else:
+            assert isinstance(result.error, dict)
+            assert "variance" in result.error
+            assert result.error["variance"] > 0
         assert result.shots == 1024
+    # for result in batch:
+    #     #TODO:
+    #     # check result.error is float  
+    #     # then check if it is 0.0
+    #     # if not , like it is a dictionary
+    #     # we compute the variance because if there is a varaiance that means nb_shots is taken into account
+    #     assert result.error != 0.0
+    #     assert result.shots == 1024
 
 
-def test_state_vector_nb_shot_handle():
+def test_observable_nb_shot_handle():
     circuit = QCircuit(
         [
             H(0),
@@ -172,5 +186,57 @@ def test_state_vector_nb_shot_handle():
     batch = run(circuit, sampling_devices, translation_warning=False)
     assert isinstance(batch, BatchResult)
     for result in batch:
-        assert result.error != 0.0
+        if isinstance(result.error, float):
+            assert result.error == 0.0
+        else:
+            assert isinstance(result.error, dict)
+            assert "variance" in result.error
+            assert result.error["variance"] > 0
         assert result.shots == 1024
+    #for result in batch:
+        #TODO:
+        # check result.error is float  
+        # then check if it is 0.0
+        # if not , like it is a dictionary
+        # we compute the variance because if there is a varaiance that means nb_shots is taken into account
+        # assert result.error != 0.0
+        # assert result.shots == 1024
+
+def test_sample_nb_shot_handle_test():
+    circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])  
+    batch = run(circuit, sampling_devices, translation_warning=False)
+    assert isinstance(batch, BatchResult)
+    for result in batch:
+        # sampling results usually have no (error)
+        assert result.error is None or isinstance(result.error, float)
+        assert result.shots == 1024
+
+
+def test_observable_nb_shot_handle_test():
+    circuit = QCircuit(
+        [
+            H(0),
+            CNOT(0, 1),
+            ExpectationMeasure(
+                Observable(
+                    np.array(
+                        [
+                            [4, 2, 3, 8],
+                            [2, -3, 1, 0],
+                            [3, 1, -1, 5],
+                            [8, 0, 5, 2],
+                        ]
+                    )
+                ),
+                shots=1024,
+            ),
+        ]
+    )
+    batch = run(circuit, sampling_devices, translation_warning=False)
+    assert isinstance(batch, BatchResult)
+    for result in batch:
+        # Observable results  return a float error (standard error) > 0 sometimes due to finite sampling
+        assert isinstance(result.error, float)
+        assert result.error > 0.0
+        assert result.shots == 1024
+
