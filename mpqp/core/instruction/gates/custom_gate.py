@@ -8,7 +8,6 @@ from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
 
-# from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.native_gates import (
     _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
 )

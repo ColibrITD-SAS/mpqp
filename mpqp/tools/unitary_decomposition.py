@@ -27,11 +27,18 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
         U : The unitary matrix to decompose.
 
     Returns:
-        3 matrices
+        A tuple of 3 matrices (V,D,W) so that U = (I ⊗ V) @ D @ (I ⊗ W)
+
+    Reference:
+    .. [1] V. Shende, S. S. Bullock, and I. Markov, “Synthesis of quantum logic
+        circuits,” Computer-Aided Design of Integrated Circuits and Systems,
+        IEEE Transactions on, vol. 25, pp. 1000 – 1010, July 2006.
     """
 
     # Decompose U into it's 2 submatrices G0 and G1
     length = len(U)
+
+    # U is composed of 2 matrices on it's diagonal here we need to extract them into G0 and G1
     SU = U[0 : (length // 2)]
     SU2 = U[(length // 2) : length]
     g0 = []
@@ -94,7 +101,7 @@ def _gray_code_decomposition(
         )
 
         angle *= 2 / len(thetas)
-        # CNOT's control is the changed bit of two consecutive natural numbers in gray code
+        # CNOT's control is the changed bit of two consecutive numbers in gray code
         changed = _gray_code(i) ^ _gray_code(i + 1)
         control = next(i for i in range(len(thetas)) if (changed >> i & 1))
         control = max(-control - position - 1 + circuit.nb_qubits, 1)
@@ -121,11 +128,11 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
     if len(U) == 2:  # Decompose a 1 qubit operator
         delta = np.angle(np.linalg.det(np.asarray(U, dtype=np.complex128))) / len(U)
 
-        # extract the global phase so that V is a special unitary, note that if U is SU then delta = 0
-        V = U / np.exp(1j * delta)
-        beta = 2 * math.acos(np.abs(V[0][0]))
-        alpha = -np.angle(V[0][0]) - np.angle(V[1][0])
-        gamma = -np.angle(V[0][0]) + np.angle(V[1][0])
+        # extract the global phase so that SU is a special unitary, note that if U is a special unitary then delta = 0
+        SU = U / np.exp(1j * delta)
+        beta = 2 * math.acos(np.abs(SU[0][0]))
+        alpha = -np.angle(SU[0][0]) - np.angle(SU[1][0])
+        gamma = -np.angle(SU[0][0]) + np.angle(SU[1][0])
 
         circuit.add(Rz(alpha, position))
         circuit.add(Ry(beta, position))
