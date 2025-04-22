@@ -1,4 +1,5 @@
 import pytest
+
 from mpqp.execution.vqa.qubo import *
 from mpqp.tools.maths import matrix_eq
 

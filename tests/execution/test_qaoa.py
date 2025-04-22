@@ -1,7 +1,9 @@
-import pytest
-from mpqp.execution.vqa.qaoa import qaoa_solver, MixerType
-from mpqp.execution.vqa.qubo import Qubo
 import sys
+
+import pytest
+
+from mpqp.execution.vqa.qaoa import MixerType, qaoa_solver
+from mpqp.execution.vqa.qubo import Qubo
 
 x = Qubo('x')
 y = Qubo('y')

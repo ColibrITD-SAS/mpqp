@@ -1,20 +1,19 @@
-import scipy.optimize
-from mpqp.execution.vqa.qubo import Qubo
-from functools import partial
-
 from enum import Enum
-from mpqp.measures import ExpectationMeasure
-from mpqp import QCircuit
-from mpqp.tools.maths import Matrix
-from mpqp.execution import run, IBMDevice, Result
-from mpqp.gates import H, CustomGate, UnitaryMatrix
-from mpqp.measures import BasisMeasure, Observable
+from functools import partial
+from typing import TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
 import scipy
 import scipy.linalg
-from typing import TYPE_CHECKING
+import scipy.optimize
+
+from mpqp import QCircuit
+from mpqp.execution import IBMDevice, Result, run
+from mpqp.execution.vqa.qubo import Qubo
+from mpqp.gates import CustomGate, H, UnitaryMatrix
+from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
+from mpqp.tools.maths import Matrix
 
 
 class MixerType(Enum):
