@@ -5,10 +5,10 @@ from mpqp.measures import Observable
 
 
 class Qubo:
-    """
-    Class defining a QUBO representation, used to represent decision problems.
+    """Class defining a QUBO representation, used to represent decision problems.
 
-    A QUBO is defined by a quadratic expression of boolean variables, hence, the available operators are : + , - , * , & , | , ^
+    A QUBO is defined by a quadratic expression of boolean variables, hence, the
+    available operators are: ``+``, ``-``, ``*``, ``&``, ``|`` and ``^``.
 
     The QUBO expression can be solved with the qaoa_solver function.
 
@@ -101,8 +101,8 @@ class Qubo:
     def get_coeffs(
         self, coeffs: list[tuple[int, list[str]]]
     ) -> list[tuple[int, list[str]]]:
-        """
-        Creates a list of lists containing the coefficients of the monomials of the QUBO.
+        """Creates a list of lists containing the coefficients of the monomials
+        of the QUBO.
 
         Args:
             coeffs: An empty list
@@ -152,8 +152,8 @@ class Qubo:
         return coeffs
 
     def get_variables(self) -> list[str]:
-        """
-        Returns a list of all of the unique boolean variables of the QUBO. They are ordered from the left of the expression to the right.
+        """Returns a list of all of the unique boolean variables of the QUBO.
+        They are ordered from the left of the expression to the right.
 
         Examples:
             >>> x0 = Qubo('x0')
@@ -191,17 +191,15 @@ class Qubo:
         return known_vars
 
     def get_size(self):
-        """
-        Returns the number of unique boolean variables in the QUBO expression.
-        """
+        """Returns the number of unique boolean variables in the QUBO expression."""
         return len(self.get_variables())
 
     def create_matrix(self) -> tuple[npt.NDArray[np.float64], int]:
-        """
-        Creates the weight matrix of this QUBO expression.
+        """Creates the weight matrix of this QUBO expression.
 
         Returns:
-            A Tuple composed of the Weight Matrix and the eventual constants to add.
+            A Tuple composed of the Weight Matrix and the eventual constants to
+            add.
 
         Examples:
             >>> x0 = Qubo('x0')
@@ -245,8 +243,7 @@ class Qubo:
         return matrix, constant
 
     def to_cost_hamiltonian(self) -> Observable:
-        """
-        Converts the QUBO matrix into a cost Hamiltonian.
+        """Converts the QUBO matrix into a cost Hamiltonian.
 
         Returns:
             Observable: The cost Hamiltonian.
@@ -277,12 +274,13 @@ class Qubo:
         )
 
     def _h_xi(self, size: int, i: int):
-        r'''
-        Calculates the cost Hamiltonian H(x_i) for a given i-th binary parameter.
-        If follow this formula:
+        r"""Calculates the cost Hamiltonian `H(x_i)` for a given i-th binary
+        parameter.
+
+        `H` is defined as:
         $$ H(x_i) = \frac{I^{\otimes n} - Z_i}{2} $$
         $$ \text{with } ~~ Z_i = \underbrace{I \otimes \cdots \otimes I}_{i} \otimes Z \otimes \underbrace{I \otimes \cdots \otimes I}_{n-i-1} $$
-        '''
+        """
         Z = np.array([1, -1])
         Z_i = Z
 
@@ -315,10 +313,11 @@ class Qubo:
             return right + self.value + left
         return left + self.value + right
 
-    def pprint(self, verbose: bool = False):
-        """
-        Prints the QUBO expression.
+    def pprint(self, tree_representation: bool = False):
+        """Prints the QUBO expression.
+
         Arg:
-            verbose : A boolean value to print the tree representation of the expression. If False then it will only print the resulting expression.
+            tree_representation: If ``True`` the tree representation of the
+                expression will be printed, otherwise only prints the expression.
         """
-        print(self._print(1, verbose))
+        print(self._print(1, tree_representation))
