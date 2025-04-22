@@ -28,8 +28,8 @@ def _loss(
     nqubit: int,
     mixer: npt.NDArray[np.complex128],
 ) -> float:
-    """
-    Loss function calculating the expectation value of a QAOA ansatz initialized with the parameters.
+    """Loss function calculating the expectation value of a QAOA ansatz
+    initialized with the parameters.
 
     Args :
         parameters : list of floats representing the gamma and beta coefficient in the QAOA ansatz.
@@ -50,8 +50,8 @@ def _loss(
 
 
 def qaoa_solver(problem: Qubo, depth: int, type: MixerType, optimizer: str) -> str:
-    """
-    This function solves decision problems using QAOA, the problem needs to be inputted as a QUBO expression.
+    """This function solves decision problems using QAOA, the problem needs to
+    be inputted as a QUBO expression.
 
     Args:
         problem : QUBO expression representing the problem
@@ -94,8 +94,9 @@ def qaoa_solver(problem: Qubo, depth: int, type: MixerType, optimizer: str) -> s
 def _apply_unitary(
     circuit: QCircuit, operator: Matrix | npt.NDArray[np.complex128], parameter: float
 ):
-    """
-    Apply the cost hamiltonian or the mixer hamiltonian to the generated ansatz.
+    """Apply the cost hamiltonian or the mixer hamiltonian to the generated
+    ansatz.
+
     Args:
         circuit: Generated Ansatz on which the unitary matrix will me applied
         operator: Either the cost hamiltonian or the mixer hamiltonian
@@ -111,8 +112,7 @@ def _apply_unitary(
 def _generate_mixer_hamiltonian(
     qubits: int, type: MixerType
 ) -> npt.NDArray[np.complex128]:
-    """
-    Generates the mixer Hamiltonian according to the mixer type.
+    """Generates the mixer Hamiltonian according to the mixer type.
 
     Args:
         qubits: Number of variables in the QUBO expression
@@ -152,8 +152,8 @@ def _generate_ansatz(
     qubits: int,
     mixer: npt.NDArray[np.complex128],
 ) -> QCircuit:
-    """
-    Generate the QAOA ansatz, which is composed of unitary operators acting on all of the circuit.
+    """Generate the QAOA ansatz, which is composed of unitary operators acting
+    on all of the circuit.
 
     Args:
         parameters: The parameters of the QAOA operators
