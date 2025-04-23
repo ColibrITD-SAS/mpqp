@@ -3,18 +3,18 @@ import sys
 import pytest
 
 from mpqp.execution.vqa.qaoa import MixerType, qaoa_solver
-from mpqp.execution.vqa.qubo import Qubo
+from mpqp.execution.vqa.qubo import *
 
-x = Qubo('x')
-y = Qubo('y')
-z = Qubo('z')
+x = QuboAtom('x')
+y = QuboAtom('y')
+z = QuboAtom('z')
 
-x0_1 = Qubo('x0_1')
-x0_2 = Qubo('x0_2')
-x1_0 = Qubo('x1_0')
-x1_2 = Qubo('x1_2')
-x2_0 = Qubo('x2_0')
-x2_1 = Qubo('x2_1')
+x0_1 = QuboAtom('x0_1')
+x0_2 = QuboAtom('x0_2')
+x1_0 = QuboAtom('x1_0')
+x1_2 = QuboAtom('x1_2')
+x2_0 = QuboAtom('x2_0')
+x2_1 = QuboAtom('x2_1')
 
 
 @pytest.mark.parametrize(

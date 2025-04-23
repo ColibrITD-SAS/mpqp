@@ -1,3 +1,4 @@
+from typing import Optional
 import numpy as np
 import numpy.typing as npt
 
@@ -12,55 +13,61 @@ class Qubo:
 
     The QUBO expression can be solved with the qaoa_solver function.
 
-    Examples:
-        >>> x0 = Qubo('x0')
-        >>> x1 = Qubo('x1')
-        >>> expr = 3*x0*x1 + x0 - 2*x1
-        >>> print(expr.to_cost_hamiltonian().matrix)
-        [[ 0.+0.j  0.+0.j  0.+0.j  0.+0.j]
-         [ 0.+0.j -2.+0.j  0.+0.j  0.+0.j]
-         [ 0.+0.j  0.+0.j  1.+0.j  0.+0.j]
-         [ 0.+0.j  0.+0.j  0.+0.j  2.+0.j]]
+    Args:
+        value: string holding the name of the monomial
+        left: left child of the node
+        right: right child of the node
 
+    Examples:
+        >>> x0 = QuboAtom('x0')
+        >>> x1 = QuboAtom('x1')
+        >>> expr = 3*x0*x1 + x0 - 2*x1
+        >>> pprint(expr.to_cost_hamiltonian().matrix)
+        [[0, 0 , 0, 0],
+         [0, -2, 0, 0],
+         [0, 0 , 1, 0],
+         [0, 0 , 0, 2]]
     """
 
     def __init__(
-        self,
-        value: str,
-        left: "None | Qubo" = None,
-        right: "Qubo | None" = None,
-        flag: bool = False,
+        self, value: str, left: Optional["Qubo"] = None, right: Optional["Qubo"] = None
     ):
         self.left = left
         self.right = right
         self.value = value
-        self.flag = flag
 
     def __neg__(self) -> "Qubo":
-        return self * -1
+        return UnaryOperation('-', self)
 
     def __add__(self, other: "Qubo | int | float") -> "Qubo":
-        if isinstance(other, int) or isinstance(other, float):
-            other = Qubo(str(other), flag=True)
-        current = Qubo("+", self, other)
+        if isinstance(other, float | int):
+            other = QuboConstant(str(other))
+        current = BinaryOperation("+", self, other)
         return current
 
     def __radd__(self, other: "Qubo | int | float") -> "Qubo":
         return self + other
 
     def __sub__(self, other: "Qubo | int | float") -> "Qubo":
-        if isinstance(other, int) or isinstance(other, float):
-            other = Qubo(str(other), flag=True)
-        current = Qubo("-", self, other)
+        if isinstance(other, float | int):
+            other = QuboConstant(str(other))
+        current = BinaryOperation('-', self, other)
         return current
 
     def __rsub__(self, other: "Qubo | int | float") -> "Qubo":
         return self - other
 
     def __mul__(self, other: "Qubo | int | float") -> "Qubo":
-        if isinstance(other, int) or isinstance(other, float):
-            other = Qubo(str(other), flag=True)
-        current = Qubo("*", self, other)
+        if isinstance(other, float | int):
+            other = QuboConstant(str(other))
+        if not isinstance(other, QuboConstant):
+            degree = self._check_degree()
+            degree += other._check_degree()
+            if degree > 2:
+                raise ValueError(
+                    f"The degree of the Qubo shouldn't be more than 2 not {degree}"
+                )
+        current = BinaryOperation("*", self, other)
         return current
 
     def __rmul__(self, other: "Qubo | int | float") -> "Qubo":
@@ -73,12 +80,19 @@ class Qubo:
         return self + other - self * other
 
     def __xor__(self, other: "Qubo") -> "Qubo":
-        return self + other - self * other * 2
+        return self + other - 2 * (self * other)
 
     def __eq__(self, other: object) -> bool:
         if other == None:
             return False
         return False
+
+    def __len__(self) -> int:
+        """Returns the number of unique boolean variables in the QUBO expression."""
+        return len(self.get_variables())
+
+    def ___str___(self):
+        print(self._print())
 
     def __collapse_coeffs(
         self, left: list[tuple[int, list[str]]], right: list[tuple[int, list[str]]]
@@ -98,43 +112,57 @@ class Qubo:
                 right[i] = (hold, right[i][1])
             return right
 
-    def get_coeffs(
-        self, coeffs: list[tuple[int, list[str]]]
-    ) -> list[tuple[int, list[str]]]:
+    def _check_degree(self):
+        if isinstance(self, QuboAtom):
+            return 1
+        degree = 0
+
+        if self.value == "+":
+            assert self.left != None and self.right != None
+
+            degree += max(self.left._check_degree(), self.right._check_degree())
+        else:
+            if self.left != None:
+                degree += self.left._check_degree()
+            if self.right != None:
+                degree += self.right._check_degree()
+        return degree
+
+    def get_coeffs(self) -> list[tuple[int, list[str]]]:
         """Creates a list of lists containing the coefficients of the monomials
         of the QUBO.
 
-        Args:
-            coeffs: An empty list
-
         Returns:
-            List[tuple[int, list[str]]]: The list of coefficients and variables in the QUBO expression
+            The list of coefficients and variables in the QUBO expression
 
         Examples:
-            >>> x0 = Qubo('x0')
-            >>> x1 = Qubo('x1')
+            >>> x0 = QuboAtom('x0')
+            >>> x1 = QuboAtom('x1')
 
             >>> expr = 3*x0 - x1 + 1
-            >>> expr.get_coeffs([])
+            >>> expr.get_coeffs()
             [(3, ['x0']), (-1, ['x1']), (1, [])]
 
             >>> expr = 3*(x0 | x1)
-            >>> expr.get_coeffs([])
+            >>> expr.get_coeffs()
             [(3, ['x0']), (3, ['x1']), (-3, ['x0', 'x1'])]
         """
-        if self == None:
-            return []
+        coeffs = []
 
         if self.left == None and self.right == None:
-            return [(int(self.value), [])] if self.flag else [(1, [self.value])]
+            return (
+                [(int(self.value), [])]
+                if isinstance(self, QuboConstant)
+                else [(1, [self.value])]
+            )
 
         left = []
         right = []
-
+        hold = self.left
         if self.left != None:
-            left = self.left.get_coeffs([])
+            left = self.left.get_coeffs()
         if self.right != None:
-            right = self.right.get_coeffs([])
+            right = self.right.get_coeffs()
 
         if self.value == "+":
             coeffs.extend(left)
@@ -156,8 +184,8 @@ class Qubo:
         They are ordered from the left of the expression to the right.
 
         Examples:
-            >>> x0 = Qubo('x0')
-            >>> x1 = Qubo('x1')
+            >>> x0 = QuboAtom('x0')
+            >>> x1 = QuboAtom('x1')
 
             >>> expr = 3*x0 - x1
             >>> expr.get_variables()
@@ -171,74 +199,59 @@ class Qubo:
             >>> expr.get_variables()
             ['x0', 'x1']
         """
-        coeffs = self.get_coeffs([])
-        known_vars = coeffs[0][1]
-        index = 0
-        seen = False
-        for i in range(len(coeffs)):
-            for j in range(len(coeffs[i][1])):
-                seen = False
-                for k in range(len(known_vars)):
-                    if coeffs[i][1][j] == known_vars[k]:
-                        seen = True
-                    else:
-                        index = j
-
-            if not seen:
-                if len(coeffs[i][1]) != 0:
-                    known_vars.append(coeffs[i][1][index])
-
+        coeffs = self.get_coeffs()
+        known_vars = []
+        for coeff in coeffs:
+            for variable in coeff[1]:
+                if not variable in known_vars:
+                    known_vars.append(variable)
         return known_vars
 
-    def get_size(self):
-        """Returns the number of unique boolean variables in the QUBO expression."""
-        return len(self.get_variables())
-
-    def create_matrix(self) -> tuple[npt.NDArray[np.float64], int]:
+    def matrix(self) -> tuple[npt.NDArray[np.float64], int]:
         """Creates the weight matrix of this QUBO expression.
 
         Returns:
-            A Tuple composed of the Weight Matrix and the eventual constants to
+            A tuple composed of the weight matrix and the eventual constants to
             add.
 
         Examples:
-            >>> x0 = Qubo('x0')
-            >>> x1 = Qubo('x1')
-            >>> x2 = Qubo('x2')
-            >>> x3 = Qubo('x3')
+            >>> x0 = QuboAtom('x0')
+            >>> x1 = QuboAtom('x1')
+            >>> x2 = QuboAtom('x2')
+            >>> x3 = QuboAtom('x3')
             >>> expr = 2 * x0 + 3 * x1 + 4 * x0 * x2 + x3
-            >>> print(expr.create_matrix()[0])
-            [[2. 0. 2. 0.]
-             [0. 3. 0. 0.]
-             [2. 0. 0. 0.]
-             [0. 0. 0. 1.]]
+            >>> pprint(expr.matrix()[0])
+            [[2, 0, 2, 0],
+             [0, 3, 0, 0],
+             [2, 0, 0, 0],
+             [0, 0, 0, 1]]
         """
-        coeffs = self.get_coeffs(coeffs=[])
+        coeffs = self.get_coeffs()
         vars = self.get_variables()
         size = len(vars)
         matrix = np.zeros(shape=(size, size))
         constant = 0
 
-        for i in range(len(coeffs)):
-            if len(coeffs[i][1]) == 0:
-                constant += coeffs[i][0]
-            elif len(coeffs[i][1]) == 1:
+        for coeff in coeffs:
+            if len(coeff[1]) == 0:
+                constant += coeff[0]
+            elif len(coeff[1]) == 1:
                 coord = 0
                 for j in range(size):
-                    if coeffs[i][1][0] == vars[j]:
+                    if coeff[1][0] == vars[j]:
                         coord = j
-                matrix[coord][coord] += coeffs[i][0]
+                matrix[coord][coord] += coeff[0]
             else:
                 abs = 0
                 ord = 0
                 for j in range(size):
-                    if coeffs[i][1][0] == vars[j]:
+                    if coeff[1][0] == vars[j]:
                         abs = j
-                    if coeffs[i][1][1] == vars[j]:
+                    if coeff[1][1] == vars[j]:
                         ord = j
 
-                matrix[abs][ord] += coeffs[i][0] / 2
-                matrix[ord][abs] += coeffs[i][0] / 2
+                matrix[abs][ord] += coeff[0] / 2
+                matrix[ord][abs] += coeff[0] / 2
 
         return matrix, constant
 
@@ -249,16 +262,16 @@ class Qubo:
             Observable: The cost Hamiltonian.
 
         Examples:
-            >>> x_0 = Qubo("x_0")
-            >>> x_1 = Qubo("x_1")
+            >>> x_0 = QuboAtom("x_0")
+            >>> x_1 = QuboAtom("x_1")
             >>> expr = 3 * x_0 * x_1 - 4 * x_0 - 2 * x_1 + 1
-            >>> print(expr.to_cost_hamiltonian().matrix)
-            [[ 1.+0.j  0.+0.j  0.+0.j  0.+0.j]
-             [ 0.+0.j -1.+0.j  0.+0.j  0.+0.j]
-             [ 0.+0.j  0.+0.j -3.+0.j  0.+0.j]
-             [ 0.+0.j  0.+0.j  0.+0.j -2.+0.j]]
+            >>> pprint(expr.to_cost_hamiltonian().matrix)
+            [[1, 0 , 0 , 0 ],
+             [0, -1, 0 , 0 ],
+             [0, 0 , -3, 0 ],
+             [0, 0 , 0 , -2]]
         """
-        matrix, constant = self.create_matrix()
+        matrix, constant = self.matrix()
         size = matrix.shape[0]
 
         resulting_cost = np.zeros(shape=(2**size,))
@@ -293,31 +306,55 @@ class Qubo:
         result = (np.ones(2**size) - Z_i) / 2
         return result
 
-    def _print(self, level: int = 1, verbose: bool = False):
+    def _print(self, level: int = 1):
         left = ''
         right = ''
-        if verbose:
-            print(" " * level + "{")
-            print(" " * (level + 1) + self.value + " FLAG:" + str(self.flag))
 
         if self.left != None:
-            left = self.left._print(level + 1, verbose)
-            if verbose:
-                print(" " * (level + 1) + "}")
+            left = self.left._print(level + 1)
         if self.right != None:
 
-            right = self.right._print(level + 1, verbose)
-            if verbose:
-                print(" " * (level + 1) + "}")
+            right = self.right._print(level + 1)
         if self.value == "*":
             return right + self.value + left
         return left + self.value + right
 
-    def pprint(self, tree_representation: bool = False):
-        """Prints the QUBO expression.
 
-        Arg:
-            tree_representation: If ``True`` the tree representation of the
-                expression will be printed, otherwise only prints the expression.
-        """
-        print(self._print(1, tree_representation))
+class QuboAtom(Qubo):
+    """Class defining a boolean variable for a QUBO problem.
+
+    See class Qubo for full usage of this class.
+
+    Arg:
+        value: String holding the name of the variable.
+
+    Example:
+        >>> x = QuboAtom("x")
+        >>> expr = 2 * x + 2
+        >>> print(expr.get_variables())
+        ['x']
+    """
+
+    def __init__(self, value: str):
+        super().__init__(value, None, None)
+
+
+class BinaryOperation(Qubo):
+    """Class defining binary operations in a Qubo expression."""
+
+    def __init__(self, value: str, left: Qubo, right: Qubo):
+        super().__init__(value, left, right)
+
+
+class UnaryOperation(Qubo):
+    """Class defining a unary operation for a Qubo expression."""
+
+    def __init__(self, value: str, right: Qubo):
+        super().__init__(value, None, right)
+
+
+class QuboConstant(Qubo):
+    """Class defining constant terms in a Qubo expression."""
+
+    def __init__(self, value: str):
+        super().__init__(value)

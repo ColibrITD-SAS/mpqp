@@ -3,10 +3,10 @@ import pytest
 from mpqp.execution.vqa.qubo import *
 from mpqp.tools.maths import matrix_eq
 
-x = Qubo('x')
-y = Qubo('y')
-z = Qubo('z')
-a = Qubo('a')
+x = QuboAtom('x')
+y = QuboAtom('y')
+z = QuboAtom('z')
+a = QuboAtom('a')
 
 
 @pytest.mark.parametrize(
@@ -16,6 +16,7 @@ a = Qubo('a')
         (x * 2, [(2, ['x'])]),
         (x * 2 + 2, [(2, ['x']), (2, [])]),
         (x * 2 + 3 * y, [(2, ['x']), (3, ['y'])]),
+        (-x, [(-1, ['x'])]),
         (
             4 * x * y,
             [(4, ['x', 'y'])],
@@ -51,7 +52,7 @@ a = Qubo('a')
     ],
 )
 def test_Qubo_coeffs(expr: Qubo, res: npt.NDArray[np.complex64]):
-    assert expr.get_coeffs(coeffs=[]) == res
+    assert expr.get_coeffs() == res
 
 
 @pytest.mark.parametrize(
@@ -83,13 +84,13 @@ def test_Qubo_coeffs(expr: Qubo, res: npt.NDArray[np.complex64]):
     ],
 )
 def test_Qubo_weight_matrix(expr: Qubo, matrix: npt.NDArray[np.complex64]):
-    assert matrix_eq(expr.create_matrix()[0].astype(np.complex64), matrix)
+    assert matrix_eq(expr.matrix()[0].astype(np.complex64), matrix)
 
 
-x0 = Qubo('x0')
-x1 = Qubo('x1')
-x2 = Qubo('x2')
-x3 = Qubo('x3')
+x0 = QuboAtom('x0')
+x1 = QuboAtom('x1')
+x2 = QuboAtom('x2')
+x3 = QuboAtom('x3')
 
 
 @pytest.mark.parametrize(
@@ -176,3 +177,17 @@ x3 = Qubo('x3')
 )
 def test_Qubo_cost_hamiltonian(expression: Qubo, matrix: npt.NDArray[np.complex64]):
     assert matrix_eq(expression.to_cost_hamiltonian().matrix, matrix)
+
+
+def test_Qubo_error():
+    x = QuboAtom("x")
+    y = QuboAtom("y")
+    z = QuboAtom("z")
+    with pytest.raises(ValueError):
+        print(x * y * z)
+    with pytest.raises(ValueError):
+        print(x * (y * z))
+    with pytest.raises(ValueError):
+        print((x + 2) * y * (z + 1))
+    with pytest.raises(ValueError):
+        print(x * ((z * y) + x * 2))
