@@ -782,7 +782,9 @@ class QCircuit:
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
-        return matrix * np.exp(1j * self.gphase)
+        if self.gphase != 0:
+            matrix *= np.exp(1j * self.gphase)
+        return matrix
 
     def inverse(self) -> QCircuit:
         """Generate the inverse (dagger) of this circuit.
