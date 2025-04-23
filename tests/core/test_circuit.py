@@ -20,7 +20,13 @@ from mpqp.execution.devices import ATOSDevice, IBMDevice
 from mpqp.execution.runner import run, Result
 from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
+from mpqp.noise.noise_model import (
+    AmplitudeDamping,
+    BitFlip,
+    Depolarizing,
+    PhaseDamping,
+    NoiseModel,
+)
 from mpqp.tools import NumberQubitsError
 from mpqp.tools.circuit import (
     compute_expected_matrix,
@@ -386,7 +392,7 @@ def test_to_other_language(
 def test_from_other_language(
     circuit: QiskitCircuit | QCircuit | cirq_Circuit | str,
     language: Language,
-    expected_output: str | QCircuit,
+    expected_output: Optional[str | QCircuit],
 ):
     if isinstance(circuit, QiskitCircuit):
         from qiskit.quantum_info import Operator
@@ -424,6 +430,29 @@ def test_from_other_language(
             assert isinstance(circ_to_test, (braket_Circuit, str))
         qcircuit = QCircuit.from_other_language(circ_to_test)
         assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_str",
+    [
+        (
+            QCircuit(
+                [H(i) for i in range(3)]
+                + [
+                    PhaseDamping(0.32, list(range(3))),
+                    PhaseDamping(0.45, [0, 1]),
+                ]
+            ),
+            "[PhaseDamping(0.45, [0]), PhaseDamping(0.32, [0]), PhaseDamping(0.45, [1]), PhaseDamping(0.32, [1]), PhaseDamping(0.32, [2])]",
+        )
+    ],
+)
+def test_from_other_language_noise(circuit: QCircuit, expected_str: str):
+    braket_circuit = circuit.to_other_language(Language.BRAKET)
+    qc = QCircuit.from_other_language(braket_circuit)
+    print(str(qc.noises))
+    print(expected_str)
+    assert str(qc.noises) == expected_str
 
 
 @pytest.mark.parametrize(

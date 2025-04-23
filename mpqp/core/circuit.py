@@ -783,7 +783,9 @@ class QCircuit:
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
 
-        return matrix * np.exp(1j * self.gphase)
+        if self.gphase != 0:
+            matrix *= np.exp(1j * self.gphase)
+        return matrix
 
     def inverse(self) -> QCircuit:
         """Generate the inverse (dagger) of this circuit.
@@ -869,7 +871,7 @@ class QCircuit:
                    ┌────────────┐
             q_0: ──┤ U(π/2,0,0) ├────■──────────────────────────
                  ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
-            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.89...,0.6...) ├
+            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
                  └────────────────┘└───┘└──────────────────────┘
             >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).amplitudes)
             [0.70711, 0, 0, 0.70711]
@@ -1625,11 +1627,11 @@ class QCircuit:
             >>> myqlm_circuit = prog.to_circ()
             >>> qcircuit4 = QCircuit.from_other_language(myqlm_circuit)
             >>> print(qcircuit4) # doctest: +NORMALIZE_WHITESPACE
-                 ┌───┐┌───┐
-            q_0: ┤ I ├┤ H ├──■──
-                 ├───┤└───┘┌─┴─┐
-            q_1: ┤ I ├─────┤ X ├
-                 └───┘     └───┘
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
 
             >>> qasm2_code = '''
             ... OPENQASM 2.0;
@@ -1671,7 +1673,7 @@ class QCircuit:
 
             qasm3_code = qasm3.dumps(qcircuit)
             qasm2_code, phase = open_qasm_3_to_2(
-                str(qasm3_code), None, None, None, 0, 1
+                str(qasm3_code), language=Language.QISKIT
             )
 
             qc = qasm2_parse(qasm2_code)
@@ -1679,37 +1681,64 @@ class QCircuit:
             return qc
 
         elif isinstance(qcircuit, cirq_Circuit):
-            cleared_code = []
-            line_to_add = True
-
-            for line in qcircuit.to_qasm().split(';'):
-                if "sdg" in line:
-                    new_line = line.replace("sdg", "p(-pi*0.5)")
-                    cleared_code.append(new_line)
-                    line_to_add = False
-
-                if line_to_add is True:
-                    cleared_code.append(line)
-                else:
-                    line_to_add = True
-
-            cleared_code = ';'.join(cleared_code)
-            return qasm2_parse(cleared_code)
+            qasm2_code = qcircuit.to_qasm()
+            return qasm2_parse(qasm2_code)
 
         elif isinstance(qcircuit, braket_Circuit):
             from braket.circuits.serialization import IRType
             from braket.ir.openqasm.program_v1 import Program
             from mpqp.qasm import open_qasm_3_to_2
+            from mpqp.noise import (
+                NoiseModel,
+                Depolarizing,
+                BitFlip,
+                AmplitudeDamping,
+                PhaseDamping,
+            )
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, Program)
+
+            noise_circuit = QCircuit()
+            for line in qasm3_code.source.split("\n"):
+                if "depolarizing" in line or "two_qubit_depolarizing" in line:
+                    noise_circuit.add(
+                        NoiseModel.from_other_language(line, Depolarizing)
+                    )
+
+                elif "bit_flip" in line:
+                    noise_circuit.add(NoiseModel.from_other_language(line, BitFlip))
+
+                elif (
+                    "amplitude_damping" in line
+                    or "generalized_amplitude_damping" in line
+                ):
+                    noise_circuit.add(
+                        NoiseModel.from_other_language(line, AmplitudeDamping)
+                    )
+
+                elif "phase_damping" in line:
+                    noise_circuit.add(
+                        NoiseModel.from_other_language(line, PhaseDamping)
+                    )
+
+                elif (
+                    "phase_flip" in line
+                    or "two_qubit_dephasing" in line
+                    or "pauli_channel" in line
+                ):
+                    raise NotImplementedError(
+                        f"Error: phase flip, two_qubit_dephasing or pauli_channel is not supported."
+                    )
+
             qasm2_code, phase = open_qasm_3_to_2(
-                str(qasm3_code.source), None, None, {"ctrl"}, 0, 2
+                str(qasm3_code.source), language=Language.BRAKET
             )
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
             qc = qc.without_measurements()
+            qc.add(noise_circuit.noises)
             return qc
 
         elif isinstance(qcircuit, myQLM_Circuit):
@@ -1718,29 +1747,25 @@ class QCircuit:
             return from_myqlm_to_mpqp(qcircuit)
 
         elif isinstance(qcircuit, str):
-            is_qasm3 = False
             for line in qcircuit.split('\n'):
                 if not line.startswith("//") and line != '':
-                    if not line.startswith("OPENQASM 2.0") and not line.startswith(
-                        "OPENQASM 3.0"
+                    OPENQASM_VERSIONS = ("OPENQASM 2.0", "OPENQASM 3.0")
+                    if not any(
+                        line.startswith(version) for version in OPENQASM_VERSIONS
                     ):
                         raise NotImplementedError(
-                            f"Error: only OpenQASM2 and OpenQASM3 is supported for qasm external description of the circuit"
+                            f"Error: only OpenQASM2 and OpenQASM3 are supported for qasm external description of the circuit"
                         )
-                    else:
-                        if line.startswith("OPENQASM 3.0"):
-                            is_qasm3 = True
+                    elif line.startswith("OPENQASM 3.0"):
+                        from mpqp.qasm import open_qasm_3_to_2
+
+                        qasm2_code, phase = open_qasm_3_to_2(qcircuit)
+                        qc = qasm2_parse(qasm2_code)
+                        qc.gphase = phase
+
+                        return qc
                     break
-            if is_qasm3:
-                from mpqp.qasm import open_qasm_3_to_2
-
-                qasm2_code, phase = open_qasm_3_to_2(qcircuit)
-                qc = qasm2_parse(qasm2_code)
-                qc.gphase = phase
-                return qc
-
             return qasm2_parse(qcircuit)
-
         else:
             raise NotImplementedError(f"Error: {type(qcircuit)} is not supported.")
 

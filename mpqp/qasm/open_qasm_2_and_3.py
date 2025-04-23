@@ -52,13 +52,14 @@ import re
 from enum import Enum, auto
 from os.path import splitext
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 from warnings import warn
 
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
 
 from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
+from mpqp.core.languages import Language
 
 
 class Instr(Enum):
@@ -174,10 +175,13 @@ std_gates_3_to_2_map = {
 std_qiskit_gates = [
     "ch",
     "sx",
+    "sy",
+    "sz",
     "sxdg",
     "csx",
     "cy",
     "cz",
+    "cswap",
     "sdg",
     "tdg",
     "crx",
@@ -926,6 +930,7 @@ def convert_instruction_3_to_2(
     defined_gates: set[str],
     path_to_main: Optional[str] = None,
     gphase: float = 0.0,
+    language: Language = Language.QASM3,
 ) -> tuple[str, str, float]:
     r"""Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
@@ -942,6 +947,7 @@ def convert_instruction_3_to_2(
         path_to_main: Path to the main folder from which include paths are
             described.
         gphase: The global phase of a circuit, which is not handled in OpenQASM2.
+        language: The language of origin of the OpenQASM3 instruction
 
     Returns:
         The upgraded instruction, the potential code to add in the header as
@@ -972,6 +978,8 @@ def convert_instruction_3_to_2(
     instr_match = re.match(r"\s*(\w+)\s*", instr)
     if instr_match:
         instr_name = instr_match.group(1)
+    elif "#pragma" in instr:
+        instr_name = "pragma"
     else:
         raise ValueError(f"Could not parse instruction: {instr}")
 
@@ -1089,15 +1097,48 @@ def convert_instruction_3_to_2(
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
     elif instr_name == "gphase":
-        instr_match = re.match(r"gphase\((.*)\)\s*", instr)
-        if instr_match:
-            try:
-                phase = float(instr_match.group(1))
-            except ValueError:
-                raise ValueError(
-                    f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
-                )
-            gphase += phase
+        import numpy as np
+        from sympy import sympify
+
+        depth = 0
+        i = 0
+        values = []
+
+        while i < len(instr):
+            if instr[i] == '{':
+                depth += 1
+                i += 1
+            elif instr[i] == '}':
+                depth = max(depth - 1, 0)
+                i += 1
+            elif instr[i : i + 7] == 'gphase(' and depth == 0:
+                i += 7
+                start = i
+                paren_count = 1
+
+                while i < len(instr) and paren_count > 0:
+                    if instr[i] == '(':
+                        paren_count += 1
+                    elif instr[i] == ')':
+                        paren_count -= 1
+                    i += 1
+
+                arg_expr = instr[start : i - 1].strip()
+                try:
+                    val = float(sympify(arg_expr).evalf(subs={"pi": np.pi}))
+                    values.append(val)
+                except ValueError:
+                    if instr_match:
+                        raise ValueError(
+                            f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
+                        )
+                else:
+                    i += 1
+
+        gphase += sum(values)
+    elif language == Language.BRAKET and instr_name == "pragma":
+        pass
+
     else:
         gate = instr.split()[0].split("(")[0]
         if gate not in defined_gates:
@@ -1111,25 +1152,19 @@ def convert_instruction_3_to_2(
     return instructions_code, header_code, gphase
 
 
-def _extract_gphase_from_specific_qasm3(qasm_code: str) -> Tuple[str, float]:
-    import numpy as np
-    from sympy import sympify
+def _replace_header(code: str) -> str:
+    code_with_right_instructions = []
 
-    matches = list(re.finditer(r"gphase\(([^)]+)\)\s*;?", qasm_code))
-    values = []
-    new_s = qasm_code
+    for line in code.split(";"):
+        line_to_add = True
+        if "stdgates.inc" in line:
+            line_to_add = False
+        if "ctrl" in line:
+            line = re.sub(r'ctrl\s*@\s*', 'c', line)
 
-    for match in reversed(matches):
-        expr = match.group(1).strip()
-        if expr:
-            value = float(sympify(expr).evalf(subs={"pi": np.pi}))
-            values.append(value)
-
-        start, end = match.span()
-        new_s = new_s[:start] + new_s[end:]
-
-    phase = sum(values)
-    return new_s, phase
+        if line_to_add:
+            code_with_right_instructions.append(line)
+    return ';'.join(code_with_right_instructions)
 
 
 @typechecked
@@ -1139,7 +1174,7 @@ def open_qasm_3_to_2(
     path_to_file: Optional[str] = None,
     defined_gates: Optional[set[str]] = None,
     gphase: float = 0.0,
-    from_specific_language: int = 0,
+    language: Language = Language.QASM3,
 ) -> tuple[str, float]:
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
@@ -1155,7 +1190,7 @@ def open_qasm_3_to_2(
         path_to_file: Path to the location of the file from which the code is coming (useful for locating imports).
         defined_gates: Set of custom gates already defined.
         gphase: The global phase of a circuit, which is not handled in OpenQASM2.
-        from_specific_language: Set the specific gates to parse in function of the origin of the OpenQASM 3.0 code (0: Default, 1: Qiskit, 2: Braket)
+        language: Set the specific gates to parse in function of the origin of the OpenQASM 3.0 code
 
     Returns:
         Converted OpenQASM code in the 2.0 version.
@@ -1191,14 +1226,31 @@ def open_qasm_3_to_2(
     header_code = ""
     instructions_code = ""
 
+    if language == Language.QISKIT:
+        from mpqp.qasm.open_qasm_2_and_3 import qasm_code
+
+        lines = code.split(";")
+        lines.insert(1, qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
+        code = ";".join(lines)
+    elif language == Language.BRAKET:
+        from mpqp.qasm.open_qasm_2_and_3 import qasm_code
+
+        lines = code.split(";")
+        lines.insert(1, qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE))
+        code = ";".join(lines)
+
+    if language == Language.QISKIT or language == Language.BRAKET:
+        code = _replace_header(code)
+        code = remove_user_gates(code)
+
     instructions = parse_openqasm_3_file(code)
 
     included_instructions = set()
     defined_gates.update(std_gates_3)
-    if from_specific_language == 2:
-        defined_gates.update(std_braket_gates)
-    elif from_specific_language == 1:
+    if language == Language.QISKIT:
         defined_gates.update(std_qiskit_gates)
+    elif language == Language.BRAKET:
+        defined_gates.update(std_braket_gates)
 
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(
@@ -1208,42 +1260,12 @@ def open_qasm_3_to_2(
             defined_gates,
             path_to_file,
             gphase,
+            language,
         )
-        if from_specific_language == 0:
-            header_code += h_code
-        else:
-            if not "include" in h_code:
-                header_code += h_code
+        header_code += h_code
         instructions_code += i_code
     gphase_code = f"// gphase {gphase}\n" if gphase != 0 else ""
-    if from_specific_language == 2:
-        header_code += "include \"braket_inverse_custom_include.inc\";\n"
-    elif from_specific_language == 1:
-        header_code += "include \"qiskit_custom_include.inc\";\n"
     target_code = header_code + gphase_code + instructions_code
-
-    cleared_code = []
-    idx = 0
-    qasm_code = target_code.split(";")
-    for line in qasm_code:
-        if "creg" in line and "qreg" in qasm_code[idx + 1]:
-            qasm_code[idx], qasm_code[idx + 1] = (
-                qasm_code[idx + 1],
-                qasm_code[idx],
-            )
-            line = qasm_code[idx]
-        if "ctrl" in line:
-            line = re.sub(r'ctrl\s*@\s*', 'c', line)
-
-        cleared_code.append(line)
-        idx += 1
-    target_code = ';'.join(cleared_code)
-
-    if not from_specific_language == 0:
-        target_code = open_qasm_hard_includes(target_code, set())
-        target_code = remove_user_gates(target_code)
-        target_code, phase = _extract_gphase_from_specific_qasm3(target_code)
-        gphase += phase
 
     return target_code, gphase
 

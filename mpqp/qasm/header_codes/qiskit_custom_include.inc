@@ -15,9 +15,21 @@ gate sx a {
     gphase(pi/4);
 }
 
+gate sy a {
+    ry(pi/2) a;
+    gphase(pi/4);
+}
+
+gate sz a {
+    rz(pi/2) a;
+    gphase(pi/4);
+}
+
 gate sxdg a {
-    rx(- pi/2) a;
-    gphase(- pi/4);
+    s a;
+    h a;
+    s a;
+    gphase(-pi/4);
 }
 
 gate csx a, b {
