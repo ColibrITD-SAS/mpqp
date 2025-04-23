@@ -7,9 +7,23 @@ from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
 from mpqp import QCircuit
 from mpqp.gates import *
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
 
-Gates = Union[tuple(type(g) for g in NATIVE_GATES)]
+Gates = Union[
+    type[H],
+    type[X],
+    type[Y],
+    type[Z],
+    type[Id],
+    type[S],
+    type[T],
+    type[Rx],
+    type[Ry],
+    type[Rz],
+    type[P],
+    type[CNOT],
+    type[CZ],
+    type[SWAP],
+]
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
 
