@@ -2,6 +2,7 @@ from mpqp.core.circuit import QCircuit
 from mpqp.tools import Matrix
 import math
 from mpqp.gates import CNOT, Ry, Rz
+from typing import Union
 from scipy.linalg import cossin
 import numpy as np
 
@@ -78,7 +79,7 @@ def _gray_code_decomposition(
     thetas: Matrix,
     circuit: QCircuit,
     position: int,
-    rotation: type[Rz] | type[Ry],
+    rotation: Union[type[Rz], type[Ry]],
 ) -> QCircuit:
     """
     Returns the decomposition of a multiplexed Rz or Ry gate.
