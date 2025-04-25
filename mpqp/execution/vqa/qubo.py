@@ -91,8 +91,8 @@ class Qubo:
         """Returns the number of unique boolean variables in the QUBO expression."""
         return len(self.get_variables())
 
-    def ___str___(self):
-        print(self._print())
+    def __str__(self) -> str:
+        return self._print()
 
     def __collapse_coeffs(
         self, left: list[tuple[int, list[str]]], right: list[tuple[int, list[str]]]
