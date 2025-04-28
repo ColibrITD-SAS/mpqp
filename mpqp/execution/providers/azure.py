@@ -85,8 +85,6 @@ def extract_result(
     Raises:
         ValueError: If the result type is unsupported.
     """
-    from qiskit.result import Result as QiskitResult
-    from azure.quantum.target.microsoft.result import MicrosoftEstimatorResult
 
     if isinstance(result, QiskitResult):
         from mpqp.execution.providers.ibm import extract_result as extract_result_ibm
