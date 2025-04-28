@@ -12,6 +12,9 @@ from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+from numbers import Complex
+from sympy import Expr
+
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -131,6 +134,23 @@ class CustomGate(Gate):
     def __repr__(self) -> str:
         label = ", " + self.label if self.label else ""
         return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets} {label})"
+
+    def subs(
+        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+    ) -> "CustomGate":
+        import sympy
+        import numpy as np
+
+        M = sympy.Matrix(self.matrix).subs(values)
+        return CustomGate(
+            UnitaryMatrix(
+                np.asarray(
+                    M,
+                    dtype=np.complex128,
+                )
+            ),
+            self.targets,
+        )
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
