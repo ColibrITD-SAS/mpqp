@@ -1,4 +1,4 @@
-"""An :class:`AvailableDevice` is a device on which one can run or submit a 
+"""An :class:`AvailableDevice` is a device on which one can run or submit a
 circuit. While it is an abstract class, all its concrete implementations are
 enums with a few methods, required by :class:`AvailableDevice`.
 
@@ -10,7 +10,7 @@ Each supported provider has its available devices listed as these enums:
 - :class:`GOOGLEDevice`.
 - :class:`AZUREDevice`.
 
-Not all combinations of :class:`AvailableDevice` and 
+Not all combinations of :class:`AvailableDevice` and
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
 compatible jobs types and devices.
 
