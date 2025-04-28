@@ -410,12 +410,16 @@ class Depolarizing(DimensionalNoiseModel):
                 depol_type="pauli",
             )
         elif language == Language.CIRQ:
+            from cirq.devices.line_qubit import LineQubit
             from cirq.ops.common_channels import depolarize
 
-            noise = depolarize(self.prob, self.dimension)
+            qubits = LineQubit.range(self.dimension)
+            noise = depolarize(self.prob).on_each(*qubits)
             if TYPE_CHECKING:
                 assert isinstance(noise, DepolarizingChannel)
+
             return noise
+
         else:
             raise NotImplementedError(f"Depolarizing is not implemented for {language}")
 
