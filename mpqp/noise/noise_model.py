@@ -540,6 +540,11 @@ class BitFlip(NoiseModel):
 
             return pauli_error([("X", self.prob), ("I", 1 - self.prob)])
 
+        elif language == Language.CIRQ:
+            from cirq.ops.common_channels import BitFlipChannel
+
+            return BitFlipChannel(self.prob)
+
         # TODO: MY_QLM implementation
 
         else:
