@@ -1,4 +1,4 @@
-"""Add ``--long`` to the cli args to run this test (disabled by default because 
+"""Add ``--long`` to the cli args to run this test (disabled by default because
 too slow)"""
 
 import sys

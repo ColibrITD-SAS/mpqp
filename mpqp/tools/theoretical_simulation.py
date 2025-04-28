@@ -1,9 +1,9 @@
-"""This module contains the tools to check if a result obtained by running the 
+"""This module contains the tools to check if a result obtained by running the
 circuit on one of our provider's device produce a result compatible with the
 theory. (Which could itself be useful to find problems either in our code or in
 our provider's code.)
 
-In order to do so, :func:`theoretical_probs` performs a theoretical simulation 
+In order to do so, :func:`theoretical_probs` performs a theoretical simulation
 of a :class:`~mpqp.core.circuit.QCircuit`. The noise models in the circuit will
 be taken into account (but not the shot noise).
 
@@ -13,7 +13,7 @@ comparison is performed using a distance between statistical distribution called
 the Jensen-Shannon distance.
 
 If the distance is small enough, :func:`validate_noisy_circuit` will return
-``True``, meaning that the empirical data is within the expected range. 
+``True``, meaning that the empirical data is within the expected range.
 
 The size of the trust interval is computed in :func:`trust_int` by computing the
 Jensen-Shannon distance between a non noisy circuit and a noisy one. The idea

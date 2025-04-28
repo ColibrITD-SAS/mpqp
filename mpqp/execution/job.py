@@ -1,10 +1,10 @@
 """When you call :func:`~mpqp.execution.runner.run` or
-:func:`~mpqp.execution.runner.submit`, a :class:`Job` is created by 
+:func:`~mpqp.execution.runner.submit`, a :class:`Job` is created by
 :func:`~mpqp.execution.runner.generate_job`. This job contains all
 the needed information to configure the execution, and eventually retrieve
 remote results.
 
-A :class:`Job` can be of three types, given by the :class:`JobType` enum. In 
+A :class:`Job` can be of three types, given by the :class:`JobType` enum. In
 addition, it has a status, given by the :class:`JobStatus` enum.
 
 As described above, a :class:`Job` is generated on circuit submission so you
