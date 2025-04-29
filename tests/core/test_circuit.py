@@ -425,15 +425,6 @@ def test_from_other_language(
         assert qasm2_str[0] == expected_output
 
     else:
-        if isinstance(circuit, braket_Circuit):
-            import warnings
-
-            warnings.filterwarnings(
-                "ignore",
-                category=UserWarning,
-                message=".*UnsupportedBraketFeaturesWarning.*",
-            )
-
         circ_to_test = circuit.to_other_language(language)
         if TYPE_CHECKING:
             assert isinstance(circ_to_test, (braket_Circuit, str))
