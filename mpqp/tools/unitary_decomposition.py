@@ -183,6 +183,23 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         return circuit
 
 
+def _optimize_circuit(circuit: QCircuit) -> QCircuit:
+    from copy import deepcopy
+
+    cirq = deepcopy(circuit)
+    length = len(cirq.instructions)
+    # removes two same consecutive gates (often CNOTs)
+    i = 0
+    while i < length - 1:
+        if cirq.instructions[i] == cirq.instructions[i + 1]:
+            cirq.instructions.pop(i)
+            cirq.instructions.pop(i + 1)
+            length -= 2
+        i += 1
+
+    return cirq
+
+
 def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
     """
     Returns a circuit containing the decomposition of a unitary.
@@ -215,4 +232,6 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
             f"The size of the unitary matrix should be of the form 2**n : got {len(U)}"
         )
     circuit = QCircuit(int(np.log2(len(U))))
-    return _decompose(U, circuit, 0)
+    circuit = _decompose(U, circuit, 0)
+    print(len(circuit.instructions))
+    return _optimize_circuit(circuit)
