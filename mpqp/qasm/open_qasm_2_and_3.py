@@ -58,8 +58,8 @@ from warnings import warn
 from anytree import Node, PreOrderIter
 from typeguard import typechecked
 
-from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 from mpqp.core.languages import Language
+from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
 
 class Instr(Enum):

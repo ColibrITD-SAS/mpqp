@@ -85,9 +85,9 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
                   └───┘
     """
     from mpqp.core.instruction.gates.native_gates import (
+        NoParameterGate,
         OneQubitNoParamGate,
         RotationGate,
-        NoParameterGate,
     )
 
     qc = QCircuit(circuit.nbqbits)

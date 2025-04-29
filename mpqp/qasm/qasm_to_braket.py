@@ -168,10 +168,10 @@ def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
 
     """
     from mpqp.noise import (
-        NoiseModel,
-        Depolarizing,
-        BitFlip,
         AmplitudeDamping,
+        BitFlip,
+        Depolarizing,
+        NoiseModel,
         PhaseDamping,
     )
 

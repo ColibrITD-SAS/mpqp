@@ -1485,6 +1485,7 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
+
                 from mpqp.execution.connection.ibm_connection import get_backend
 
                 if TYPE_CHECKING:
@@ -1667,6 +1668,7 @@ class QCircuit:
 
         if isinstance(qcircuit, QuantumCircuit):
             from qiskit import qasm3
+
             from mpqp.qasm import open_qasm_3_to_2
 
             qasm3_code = qasm3.dumps(qcircuit)
@@ -1685,8 +1687,9 @@ class QCircuit:
         elif isinstance(qcircuit, braket_Circuit):
             from braket.circuits.serialization import IRType
             from braket.ir.openqasm.program_v1 import Program
-            from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
+
             from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
+            from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
