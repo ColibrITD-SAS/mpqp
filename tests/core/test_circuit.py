@@ -425,6 +425,15 @@ def test_from_other_language(
         assert qasm2_str[0] == expected_output
 
     else:
+        if isinstance(circuit, braket_Circuit):
+            import warnings
+
+            warnings.filterwarnings(
+                "ignore",
+                category=UserWarning,
+                message=".*UnsupportedBraketFeaturesWarning.*",
+            )
+
         circ_to_test = circuit.to_other_language(language)
         if TYPE_CHECKING:
             assert isinstance(circ_to_test, (braket_Circuit, str))
@@ -450,8 +459,6 @@ def test_from_other_language(
 def test_from_other_language_noise(circuit: QCircuit, expected_str: str):
     braket_circuit = circuit.to_other_language(Language.BRAKET)
     qc = QCircuit.from_other_language(braket_circuit)
-    print(str(qc.noises))
-    print(expected_str)
     assert str(qc.noises) == expected_str
 
 

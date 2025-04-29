@@ -875,8 +875,6 @@ class QCircuit:
                  └────────────────┘└───┘└──────────────────────┘
             >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).amplitudes)
             [0.70711, 0, 0, 0.70711]
-
-        # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
         from qiskit import QuantumCircuit
         from qiskit.circuit.library import StatePreparation
@@ -1566,21 +1564,21 @@ class QCircuit:
         qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str,
     ) -> QCircuit:
         """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM, QASM2 or QASM3) into
-        the corresponding internal `QCircuit` format.
+        the corresponding internal ``QCircuit`` format.
 
         Args:
             qcircuit: The input quantum circuit which can be one of the following types:
-                - `QuantumCircuit`: A Qiskit QuantumCircuit object.
-                - `cirq_Circuit`: A Cirq Circuit object.
-                - `braket_Circuit`: A Braket Circuit object.
-                - `myQLM_Circuit`: A MyQLM Circuit object.
-                - `str`: A string representing an OpenQASM 2.0 or OpenQASM3 circuit.
+                - ``QuantumCircuit`` : A Qiskit QuantumCircuit object.
+                - ``cirq_Circuit`` : A Cirq Circuit object.
+                - ``braket_Circuit``: A Braket Circuit object.
+                - ``myQLM_Circuit``: A MyQLM Circuit object.
+                - ``str``: A string representing an OpenQASM 2.0 or OpenQASM3 circuit.
 
         Returns:
-            The mpqp `QCircuit` corresponding to the external circuit in parameter.
+            The mpqp ``QCircuit`` corresponding to the external circuit in parameter.
 
         Raises:
-            NotImplementedError: If the input circuit is a string but not in OpenQASM 2.0 format.
+            NotImplementedError: If the input circuit is from an other provider or a string but not in OpenQASM 2.0 or 3.0 format.
 
         Examples:
             >>> from qiskit.circuit import QuantumCircuit
@@ -1702,7 +1700,8 @@ class QCircuit:
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
             qc = qc.without_measurements()
-            qc.add(noises)
+            if not noises == []:
+                qc.add(noises)
             return qc
 
         elif isinstance(qcircuit, myQLM_Circuit):
