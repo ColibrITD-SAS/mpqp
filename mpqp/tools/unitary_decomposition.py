@@ -233,5 +233,4 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
         )
     circuit = QCircuit(int(np.log2(len(U))))
     circuit = _decompose(U, circuit, 0)
-    print(len(circuit.instructions))
     return _optimize_circuit(circuit)
