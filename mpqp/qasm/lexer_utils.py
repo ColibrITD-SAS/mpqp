@@ -118,6 +118,7 @@ single_qubits_gate_qasm = {
     "y": Y,
     "z": Z,
     "s": S,
+    "sdg": S_dagger,
     "id": Id,
     "t": T,
 }

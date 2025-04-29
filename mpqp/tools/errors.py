@@ -39,6 +39,10 @@ class IBMRemoteExecutionError(RemoteExecutionError):
     job(s) on an IBM device."""
 
 
+class IBMNoiseModelGeneration(UserWarning):
+    """Warning for potential compatibility issues with IBM noise model."""
+
+
 class QLMRemoteExecutionError(RemoteExecutionError):
     """Raised when an error occurred during the remote execution process of
     job(s) on the remote QLM."""

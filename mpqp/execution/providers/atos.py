@@ -38,12 +38,13 @@ if TYPE_CHECKING:
 
 
 @typechecked
-def job_pre_processing(job: Job) -> "Circuit":
+def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
     """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
     are coherent.
 
     Args:
         job: Mpqp job used to instantiate the myQLM circuit.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
@@ -83,7 +84,10 @@ def job_pre_processing(job: Job) -> "Circuit":
                 "`OBSERVABLE` jobs with shots!=0 are disabled for MPO."
             )
 
-    myqlm_circuit = job.circuit.to_other_language(Language.MY_QLM)
+    if job.circuit.transpiled_circuit is None:
+        myqlm_circuit = job.circuit.to_other_device(job.device, translation_warning)
+    else:
+        myqlm_circuit = job.circuit.transpiled_circuit
 
     return myqlm_circuit
 
@@ -248,9 +252,10 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     Returns:
         A myQLM Job for retrieving the expectation value of the observable.
     """
+    # TODO: [multi-obs] update this to take into account the case when we have list of Observables
     if TYPE_CHECKING:
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-    qlm_obs = job.measure.observable.to_other_language(Language.MY_QLM)
+    qlm_obs = job.measure.observables[0].to_other_language(Language.MY_QLM)
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
         observable=qlm_obs,
@@ -659,12 +664,13 @@ def extract_result(
 
 
 @typechecked
-def run_atos(job: Job) -> Result:
+def run_atos(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -673,11 +679,15 @@ def run_atos(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return run_myQLM(job) if not job.device.is_remote() else run_QLM(job)
+    return (
+        run_myQLM(job, translation_warning)
+        if not job.device.is_remote()
+        else run_QLM(job, translation_warning)
+    )
 
 
 @typechecked
-def run_myQLM(job: Job) -> Result:
+def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the local myQLM simulator.
 
     Args:
@@ -696,7 +706,7 @@ def run_myQLM(job: Job) -> Result:
     myqlm_result = None
     qpu = None
 
-    myqlm_circuit = job_pre_processing(job)
+    myqlm_circuit = job_pre_processing(job, translation_warning)
 
     if TYPE_CHECKING:
         assert isinstance(job.device, ATOSDevice)
@@ -713,27 +723,33 @@ def run_myQLM(job: Job) -> Result:
         myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
+        # TODO: update this to take into account the case when we have list of Observables
         myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
     job.status = JobStatus.RUNNING
-    myqlm_result = qpu.submit(myqlm_job)
+    myqlm_result = qpu.submit(
+        myqlm_job
+    )  # TODO: update this to take into account the case when we have list of Observables
 
     # retrieving the results
-    result = extract_result(myqlm_result, job, job.device)
+    result = extract_result(
+        myqlm_result, job, job.device
+    )  # TODO: update this to take into account the case when we have list of Observables
 
     job.status = JobStatus.DONE
-    return result
+    return result  # TODO: update this to take into account the case when we have list of Observables
 
 
 @typechecked
-def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
+def submit_QLM(job: Job, translation_warning: bool = True) -> tuple[str, "AsyncResult"]:
     """Submits the job on the remote QLM machine.
 
     Args:
         job: Job to be executed.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The job_id and the AsyncResult of the submitted job.
@@ -750,7 +766,7 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
     myqlm_job = None
     qpu = None
 
-    myqlm_circuit = job_pre_processing(job)
+    myqlm_circuit = job_pre_processing(job, translation_warning)
 
     if TYPE_CHECKING:
         assert isinstance(job.device, ATOSDevice)
@@ -763,11 +779,13 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
         myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
+        # TODO: update this to take into account the case when we have list of Observables
         myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
+    # TODO: update this to take into account the case when we have list of Observables
     job.status = JobStatus.RUNNING
     async_result = qpu.submit(myqlm_job)
     job_id = async_result.get_info().id
@@ -777,11 +795,12 @@ def submit_QLM(job: Job) -> tuple[str, "AsyncResult"]:
 
 
 @typechecked
-def run_QLM(job: Job) -> Result:
+def run_QLM(job: Job, translation_warning: bool = True) -> Result:
     """Submits the job on the remote QLM machine and waits for it to be done.
 
     Args:
         job: Job to be executed.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -800,7 +819,8 @@ def run_QLM(job: Job) -> Result:
             "this function. Use `run` instead."
         )
 
-    _, async_result = submit_QLM(job)
+    # TODO: update this to take into account the case when we have list of Observables
+    _, async_result = submit_QLM(job, translation_warning)
     qlm_result = async_result.join()
 
     return extract_result(qlm_result, job, job.device)

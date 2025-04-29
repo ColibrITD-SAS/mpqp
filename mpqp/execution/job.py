@@ -13,6 +13,7 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
@@ -123,9 +124,14 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
-        self.measure = measure
+        self.measure = deepcopy(measure)
         """See parameter description."""
-
+        if self.measure is not None:
+            self.measure._dynamic = False  # pyright: ignore[reportPrivateUsage]
+            if isinstance(self.measure, BasisMeasure):
+                self.measure._user_set_c_targets = (  # pyright: ignore[reportPrivateUsage]
+                    True
+                )
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
@@ -163,6 +169,130 @@ class Job:
     @status.setter
     def status(self, job_status: JobStatus):
         self._status = job_status
+
+    def __repr__(self) -> str:
+        measure = ", " + repr(self.measure) if self.measure is not None else ""
+        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}{measure})"
+
+    def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
+        if not isinstance(other, Job):
+            return False
+        return (
+            self.job_type == other.job_type
+            and self.circuit == other.circuit
+            and self.device == other.device
+            and self.measure == other.measure
+        )
+
+    def to_dict(self):
+        return {
+            "job_type": self.job_type,
+            "circuit": self.circuit,
+            "device": self.device,
+            "measure": self.measure,
+            "id": self.id,
+            "status": self.status,
+        }
+
+    @staticmethod
+    def load_all():
+        """Get all locally stored jobs.
+
+        Uses :func:`~mpqp.local_storage.load.get_all_jobs`.
+
+        Example:
+            >>> for job in Job.load_all(): # doctest: +ELLIPSIS
+            ...     print(job)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+
+        """
+        from mpqp.local_storage.load import get_all_jobs
+
+        return get_all_jobs()
+
+    @staticmethod
+    def load_by_local_id(job_id: int):
+        """Get the locally stored job associated with a local job id.
+
+        Uses :func:`~mpqp.local_storage.load.get_jobs_with_id`.
+
+        Args:
+            job_id: Local id of the job you need.
+
+        Example:
+            >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+        """
+        from mpqp.local_storage.load import get_jobs_with_id
+
+        return get_jobs_with_id(job_id)[0]
+
+    def load_similar(self):
+        """Get the jobs similar to the target job.
+
+        Uses :func:`~mpqp.local_storage.load.get_jobs_with_job`.
+
+        Example:
+            >>> job = Job(JobType.STATE_VECTOR, QCircuit([], nb_qubits=2, label="circuit 1"), IBMDevice.AER_SIMULATOR)
+            >>> print(job.load_similar()) # doctest: +ELLIPSIS
+            [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
+        """
+        from mpqp.local_storage.load import get_jobs_with_job
+
+        return get_jobs_with_job(self)
+
+    def save(self):
+        """Saves a job and return the local id.
+
+        Uses :func:`~mpqp.local_storage.save.insert_jobs`."""
+        from mpqp.local_storage.save import insert_jobs
+
+        return insert_jobs(self)[0]
+
+    @staticmethod
+    def delete_by_local_id(job_id: int):
+        """Delete the locally stored job associated with a local job id.
+
+        Uses :func:`~mpqp.local_storage.delete.remove_jobs_with_id`.
+
+        Args:
+            job_id: Local id of the job you want to delete.
+
+        Example:
+            >>> for job in Job.load_all(): # doctest: +ELLIPSIS
+            ...     print(job)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            >>> Job.delete_by_local_id(1)
+            >>> for job in Job.load_all(): # doctest: +ELLIPSIS
+            ...     print(job)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+
+        """
+        from mpqp.local_storage.delete import remove_jobs_with_id
+
+        remove_jobs_with_id(job_id)
+
+    def delete_associated_results(self):
+        """Delete the results associated with the target job.
+
+        Uses :func:`~mpqp.local_storage.delete.remove_results_with_job`."""
+        from mpqp.local_storage.delete import remove_results_with_job
+
+        remove_results_with_job(self)
 
 
 @typechecked

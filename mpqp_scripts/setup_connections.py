@@ -5,7 +5,7 @@ the tokens, passwords, etc... but for now, it is a prerequisite that you already
 have these credentials to use this script.
 
 Information concerning which provider is configured and related credentials are
-stored in the ``~/.mpqp`` file."""
+stored in the ``~/.mpqp/.env`` file."""
 
 import os
 
@@ -26,7 +26,7 @@ def print_config_info():
     try:
         print(ibmqc.get_active_account_info())
     except IBMRemoteExecutionError as err:
-        if "No IBM Q account configured" in str(err):
+        if "Unable to find account" in str(err):
             print("Account not configured")
 
     print("===== Qaptiva QLMaaS info : ===== ")

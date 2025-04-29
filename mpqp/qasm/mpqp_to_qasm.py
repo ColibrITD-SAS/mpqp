@@ -10,11 +10,11 @@ if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction import Instruction
+from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import *
 from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.measurement import ExpectationMeasure, BasisMeasure
 
 
 @typechecked
@@ -126,7 +126,7 @@ def mpqp_to_qasm2(qcircuit: QCircuit, simplify: bool = False) -> tuple[str, floa
         + f"\nqreg q[{qcircuit.nb_qubits}];"
     )
     qasm_measure = ""
-    if qcircuit.nb_cbits != None and qcircuit.nb_cbits != 0:
+    if qcircuit.nb_cbits != 0:
         qasm_str += f"\ncreg c[{qcircuit.nb_cbits}];"
 
     previous = None

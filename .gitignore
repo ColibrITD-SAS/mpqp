@@ -23,3 +23,6 @@ __pycache__/
 # results of tests
 examples/notebooks/latex_error.log
 examples/scripts/qasm_files/test_qasm_converted.inc
+tests/local_storage/test_local_storage.db
+tests/local_storage/test_local_storage_tmp.db
+examples/notebooks/example_db_for_notebook.db
