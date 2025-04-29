@@ -458,7 +458,9 @@ def extract_result_OBSERVABLE_ideal(
             and hasattr(job.measure.observables[i], "label")
             else f"cirq_obs_{i}"
         )
-        exp_values_dict[label] = (res.real,)  # TODO: modify here to extract from a list[CirqPauliString] ??
+        exp_values_dict[label] = (
+            res.real,
+        )  # TODO: modify here to extract from a list[CirqPauliString] ??
         errors_dict[label] = 0
 
     return Result(job, exp_values_dict, errors_dict, shots)
