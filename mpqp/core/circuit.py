@@ -1577,7 +1577,7 @@ class QCircuit:
                 - `str`: A string representing an OpenQASM 2.0 or OpenQASM3 circuit.
 
         Returns:
-            QCircuit: The circuit in the internal `QCircuit` representation.
+            The mpqp `QCircuit` corresponding to the external circuit in parameter.
 
         Raises:
             NotImplementedError: If the input circuit is a string but not in OpenQASM 2.0 format.
@@ -1687,50 +1687,14 @@ class QCircuit:
         elif isinstance(qcircuit, braket_Circuit):
             from braket.circuits.serialization import IRType
             from braket.ir.openqasm.program_v1 import Program
-            from mpqp.qasm import open_qasm_3_to_2
-            from mpqp.noise import (
-                NoiseModel,
-                Depolarizing,
-                BitFlip,
-                AmplitudeDamping,
-                PhaseDamping,
-            )
+            from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
+            from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, Program)
 
-            noise_circuit = QCircuit()
-            for line in qasm3_code.source.split("\n"):
-                if "depolarizing" in line or "two_qubit_depolarizing" in line:
-                    noise_circuit.add(
-                        NoiseModel.from_other_language(line, Depolarizing)
-                    )
-
-                elif "bit_flip" in line:
-                    noise_circuit.add(NoiseModel.from_other_language(line, BitFlip))
-
-                elif (
-                    "amplitude_damping" in line
-                    or "generalized_amplitude_damping" in line
-                ):
-                    noise_circuit.add(
-                        NoiseModel.from_other_language(line, AmplitudeDamping)
-                    )
-
-                elif "phase_damping" in line:
-                    noise_circuit.add(
-                        NoiseModel.from_other_language(line, PhaseDamping)
-                    )
-
-                elif (
-                    "phase_flip" in line
-                    or "two_qubit_dephasing" in line
-                    or "pauli_channel" in line
-                ):
-                    raise NotImplementedError(
-                        f"Error: phase flip, two_qubit_dephasing or pauli_channel is not supported."
-                    )
+            noises = braket_noise_to_mpqp(qasm3_code.source)
 
             qasm2_code, phase = open_qasm_3_to_2(
                 str(qasm3_code.source), language=Language.BRAKET
@@ -1738,7 +1702,7 @@ class QCircuit:
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
             qc = qc.without_measurements()
-            qc.add(noise_circuit.noises)
+            qc.add(noises)
             return qc
 
         elif isinstance(qcircuit, myQLM_Circuit):

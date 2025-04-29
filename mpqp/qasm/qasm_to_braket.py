@@ -38,6 +38,7 @@ if TYPE_CHECKING:
     from braket.ir.openqasm import Program
     from braket.circuits import Circuit
 
+from mpqp.noise import NoiseModel
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
@@ -142,3 +143,59 @@ def qasm3_to_braket_Circuit(
                 braket_logger.warning(message)
 
     return circuit
+
+
+@typechecked
+def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
+    """
+    Parse braket's qasm3 pragmas into mpqp's Noise Models.
+
+    Args:
+        qasm3_code: The OpenQASM3 string containing the noise information.
+
+    Returns:
+        A list of MPQP Noise models contained in the qasm3 string.
+
+    Example:
+        >>> qasm_code = '''
+        ... OPENQASM 3.0;
+        ... qubit[2] q;
+        ... h q[0];
+        ... #pragma braket noise phase_damping(0.1) q[0]
+        ... '''
+        >>> print(braket_noise_to_mpqp(qasm_code)) # doctest: +NORMALIZE_WHITESPACE
+        [PhaseDamping(0.1, [0])]
+
+    """
+    from mpqp.noise import (
+        NoiseModel,
+        Depolarizing,
+        BitFlip,
+        AmplitudeDamping,
+        PhaseDamping,
+    )
+
+    noises = []
+    for line in qasm3_code.split("\n"):
+        if "depolarizing" in line or "two_qubit_depolarizing" in line:
+            noises.append(NoiseModel.from_other_language(line, Depolarizing))
+
+        elif "bit_flip" in line:
+            noises.append(NoiseModel.from_other_language(line, BitFlip))
+
+        elif "amplitude_damping" in line or "generalized_amplitude_damping" in line:
+            noises.append(NoiseModel.from_other_language(line, AmplitudeDamping))
+
+        elif "phase_damping" in line:
+            noises.append(NoiseModel.from_other_language(line, PhaseDamping))
+
+        elif "braket noise" in line:
+            import re
+
+            noise_model = re.search(r'noise\s+([^(]+)', line)
+            if noise_model:
+                raise NotImplementedError(
+                    f"Error: {noise_model.group(1)} is not supported."
+                )
+
+    return noises
