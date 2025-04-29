@@ -18,14 +18,18 @@ from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools.maths import Matrix
 
 
-class MixerType(Enum):
+class QAOAMixerType(Enum):
     MIXER_X = auto()
     MIXER_Y = auto()
     MIXER_Z = auto()
 
 
 def qaoa_solver(
-    problem: Qubo, depth: int, type: MixerType, device: AvailableDevice, optimizer: str
+    problem: Qubo,
+    depth: int,
+    type: QAOAMixerType | Matrix,
+    device: AvailableDevice,
+    optimizer: str,
 ) -> str:
     """This function solves decision problems using QAOA, the problem needs to
     be inputted as a QUBO expression.
@@ -33,7 +37,7 @@ def qaoa_solver(
     Args:
         problem: QUBO expression representing the problem.
         depth: The number of cost/mixer gates used in the circuit, the total depth of the ansatz being 2*depth.
-        type: Type of the Mixer Hamiltonian to be used.
+        type: Type of the Mixer Hamiltonian to be used or directly the mixer Hamiltonian.
         device: The device that will be used to run the ansatz.
         optimizer: The optimizer used to minimize. 'Powell' is recommended for better results, but other can be more efficient on specific use cases.
 
@@ -49,8 +53,10 @@ def qaoa_solver(
     """
     observable = problem.to_cost_hamiltonian()
     problem_size = len(problem)
-    mixer = _generate_mixer_hamiltonian(problem_size, type)
-
+    if isinstance(type, QAOAMixerType):
+        mixer = _generate_mixer_hamiltonian(problem_size, type)
+    else:
+        mixer = type
     loss_optimize = partial(
         _loss, cost=observable, nqubit=problem_size, mixer=mixer, device=device
     )
@@ -72,7 +78,7 @@ def _loss(
     parameters: list[float],
     cost: Observable,
     nqubit: int,
-    mixer: npt.NDArray[np.complex128],
+    mixer: Matrix,
     device: AvailableDevice,
 ) -> float:
     """Loss function calculating the expectation value of a QAOA ansatz
@@ -98,7 +104,7 @@ def _loss(
 
 
 def _generate_mixer_hamiltonian(
-    qubits: int, type: MixerType
+    qubits: int, type: QAOAMixerType
 ) -> npt.NDArray[np.complex128]:
     """Generates the mixer hamiltonian according to the mixer type.
 
@@ -110,9 +116,9 @@ def _generate_mixer_hamiltonian(
         The matrix of the Mixer Hamiltonian.
     """
     result = 0
-    if type == MixerType.MIXER_X:
+    if type == QAOAMixerType.MIXER_X:
         mixer = np.array([[0, 1], [1, 0]])
-    elif type == MixerType.MIXER_Y:
+    elif type == QAOAMixerType.MIXER_Y:
         mixer = np.array([[0, -1.0j], [1.0j, 0]])
     else:
         mixer = np.array([[1, 0], [0, -1]])
@@ -153,7 +159,7 @@ def _generate_ansatz(
     parameters: list[float],
     cost_hamiltonian: Observable,
     qubits: int,
-    mixer: npt.NDArray[np.complex128],
+    mixer: Matrix,
 ) -> QCircuit:
     """Generate the QAOA ansatz, which is composed of unitary operators acting
     on all of the circuit.
