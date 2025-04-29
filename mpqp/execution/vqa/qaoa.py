@@ -27,7 +27,7 @@ class QAOAMixerType(Enum):
 def qaoa_solver(
     problem: Qubo,
     depth: int,
-    type: QAOAMixerType | Matrix,
+    mixer: QAOAMixerType | Matrix,
     device: AvailableDevice,
     optimizer: str,
 ) -> str:
@@ -37,7 +37,7 @@ def qaoa_solver(
     Args:
         problem: QUBO expression representing the problem.
         depth: The number of cost/mixer gates used in the circuit, the total depth of the ansatz being 2*depth.
-        type: Type of the Mixer Hamiltonian to be used or directly the mixer Hamiltonian.
+        mixer: Type of the Mixer Hamiltonian to be used or directly the mixer Hamiltonian.
         device: The device that will be used to run the ansatz.
         optimizer: The optimizer used to minimize. 'Powell' is recommended for better results, but other can be more efficient on specific use cases.
 
@@ -53,10 +53,8 @@ def qaoa_solver(
     """
     observable = problem.to_cost_hamiltonian()
     problem_size = len(problem)
-    if isinstance(type, QAOAMixerType):
-        mixer = _generate_mixer_hamiltonian(problem_size, type)
-    else:
-        mixer = type
+    if isinstance(mixer, QAOAMixerType):
+        mixer = _generate_mixer_hamiltonian(problem_size, mixer)
     loss_optimize = partial(
         _loss, cost=observable, nqubit=problem_size, mixer=mixer, device=device
     )
