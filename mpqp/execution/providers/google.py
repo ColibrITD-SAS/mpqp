@@ -167,12 +167,16 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
         # TODO: update this to take into account the case when we have list of Observables
-        # TODO: check if Cirq allows for a list of observable when computing expectation values (apparently yes)
+        # TODO: check if Cirq allows for a list of observable when computing expectation values
+        #  ANSWER is NO! You cannot compute expectation value of several CirqPauliSum!
         cirq_observables: list[Union[Cirq_PauliSum, Cirq_PauliString]] = []
         for obs in job.measure.observables:
             translated = obs.to_other_language(
                 language=Language.CIRQ, circuit=cirq_circuit
             )
+            # TODO: modify here to submit a list[CirqPauliString] with grouping and then modify the extraction ??
+            print(type(translated), type(translated).__name__)
+            print(translated.__dict__)
 
             if TYPE_CHECKING:
                 assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
@@ -181,6 +185,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
 
         if job.measure.shots == 0:
             return extract_result_OBSERVABLE_ideal(
+                # TODO: modify here to put a list[CirqPauliString] ??
                 simulator.simulate_expectation_values(
                     cirq_circuit, observables=cirq_observables
                 ),
@@ -188,6 +193,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
             )
         else:
             return extract_result_OBSERVABLE_shot_noise(
+                # TODO: modify here to get a list[CirqPauliString] ??
                 # TODO: here precise the 'grouper' argument of measure_observable to precise the pauli grouping strategy
                 measure_observables(
                     cirq_circuit,
@@ -261,7 +267,7 @@ def run_local_processor(job: Job) -> Result:
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
 
-        # TODO: update this to take into account the case when we have list of Observables
+        # TODO: modify here to manipulate a list[CirqPauliString] ??
         cirq_observables: list[Union[Cirq_PauliSum, Cirq_PauliString]] = []
         for obs in job.measure.observables:
             translated = obs.to_other_language(
@@ -399,6 +405,7 @@ def extract_result_OBSERVABLE_processors(
             else f"cirq_obs_{i}"
         )
         exp_values_dict[label] = mean
+        # TODO: modify here to extract from a list[CirqPauliString] ??
         errors_dict[label] = 0
 
     return Result(job, exp_values_dict, errors_dict, shots)
@@ -451,7 +458,7 @@ def extract_result_OBSERVABLE_ideal(
             and hasattr(job.measure.observables[i], "label")
             else f"cirq_obs_{i}"
         )
-        exp_values_dict[label] = (res.real,)
+        exp_values_dict[label] = (res.real,)  # TODO: modify here to extract from a list[CirqPauliString] ??
         errors_dict[label] = 0
 
     return Result(job, exp_values_dict, errors_dict, shots)
@@ -478,7 +485,7 @@ def extract_result_OBSERVABLE_shot_noise(
     for r in results:
         mean += float(r.mean)
         variance += float(r.variance)
-
+    # TODO: modify here to extract from a list[CirqPauliString] ??
     shots = job.measure.shots
 
     if len(results) == 1:
