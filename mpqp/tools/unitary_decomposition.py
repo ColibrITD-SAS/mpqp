@@ -184,20 +184,25 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
 
 
 def _optimize_circuit(circuit: QCircuit) -> QCircuit:
-    from copy import deepcopy
-
-    cirq = deepcopy(circuit)
-    length = len(cirq.instructions)
-    # removes two same consecutive gates (often CNOTs)
+    """
+    Optimize the circuit of the decomposition by removing useless CNOT gates.
+    """
+    length = len(circuit.instructions)
     i = 0
-    while i < length - 1:
-        if cirq.instructions[i] == cirq.instructions[i + 1]:
-            cirq.instructions.pop(i)
-            cirq.instructions.pop(i + 1)
-            length -= 2
+    while i < length - 2:
+        if isinstance(circuit.instructions[i], CNOT):
+            j = i + 1
+            while isinstance(circuit.instructions[j], CNOT):
+                if circuit.instructions[i] == circuit.instructions[j]:
+                    circuit.instructions.pop(j)
+                    circuit.instructions.pop(i)
+                    length -= 2
+                    i -= 1
+                    break
+                j += 1
         i += 1
 
-    return cirq
+    return circuit
 
 
 def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
