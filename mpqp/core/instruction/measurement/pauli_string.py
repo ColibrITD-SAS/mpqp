@@ -765,6 +765,7 @@ class PauliString:
                 )
             return pauli_string
         elif language == Language.CIRQ:
+            # TODO: modify here to get a list[CirqPauliString] ??
             cirq_pauli_string = None
             for monomial in self.monomials:
                 cirq_monomial = monomial.to_other_language(language, circuit)
