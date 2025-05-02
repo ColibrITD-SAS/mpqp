@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Sequence, Union
 
+from typeguard import typechecked
+
 from mpqp import Language
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -9,7 +11,6 @@ from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from cirq.sim.state_vector_simulator import StateVectorTrialResult
@@ -174,8 +175,8 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
                 language=Language.CIRQ, circuit=cirq_circuit
             )
 
-            if TYPE_CHECKING:
-                assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
+            # if TYPE_CHECKING:
+            #     assert isinstance(translated, Cirq_PauliSum)
 
             cirq_observables.append(translated)
 
@@ -268,19 +269,19 @@ def run_local_processor(job: Job) -> Result:
                 language=Language.CIRQ, circuit=cirq_circuit
             )
 
-            if isinstance(translated, Cirq_PauliSum):
-                if TYPE_CHECKING:
-                    assert isinstance(translated, list)
-                    assert all(
-                        isinstance(item, Cirq_PauliString) for item in translated
-                    )
-                translated = next(iter(translated), None)
+            # if isinstance(translated, Cirq_PauliSum):
+            #     if TYPE_CHECKING:
+            #         assert isinstance(translated, list)
+            #         assert all(
+            #             isinstance(item, Cirq_PauliString) for item in translated
+            #         )
+            #     translated = next(iter(translated), None)
 
-            if TYPE_CHECKING:
-                assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
+            # if TYPE_CHECKING:
+            #     assert isinstance(translated, (Cirq_PauliSum, Cirq_PauliString))
 
-            if translated is not None:
-                cirq_observables.append(translated)
+            # if translated is not None:
+            cirq_observables.append(translated)
 
         if job.measure.shots == 0:
             raise DeviceJobIncompatibleError(
@@ -360,7 +361,7 @@ def extract_result_STATE_VECTOR(
 
 
 def extract_result_OBSERVABLE_processors(
-    results: Sequence[Sequence[float]],
+    results: Sequence[float | complex],  # Sequence[Sequence[float]],
     job: Job,
 ) -> Result:
     """Process measurement results for an observable from a quantum job.
@@ -401,11 +402,13 @@ def extract_result_OBSERVABLE_processors(
         exp_values_dict[label] = mean
         errors_dict[label] = 0
 
-    return Result(job, exp_values_dict, errors_dict, shots)
+    processed_exp_values_dict = {k: float(v[0]) for k, v in exp_values_dict.items()}
+
+    return Result(job, processed_exp_values_dict, errors_dict, shots)
 
 
 def extract_result_OBSERVABLE_ideal(
-    results: list[complex],
+    results: Sequence[float | complex],
     job: Job,
 ) -> Result:
     """Extracts the result from an observable-based ideal job.
@@ -447,14 +450,15 @@ def extract_result_OBSERVABLE_ideal(
     for i, res in enumerate(results):
         label = (
             job.measure.observables[i].label
-            if hasattr(job.measure, "observables")
-            and hasattr(job.measure.observables[i], "label")
+            if isinstance(job.measure, ExpectationMeasure)
             else f"cirq_obs_{i}"
         )
         exp_values_dict[label] = (res.real,)
         errors_dict[label] = 0
 
-    return Result(job, exp_values_dict, errors_dict, shots)
+    processed_exp_values_dict = {k: float(v[0]) for k, v in exp_values_dict.items()}
+
+    return Result(job, processed_exp_values_dict, errors_dict, shots)
 
 
 def extract_result_OBSERVABLE_shot_noise(
@@ -496,4 +500,6 @@ def extract_result_OBSERVABLE_shot_noise(
         exp_values_dict[label] = float(r.mean)
         errors_dict[label] = float(r.variance)
 
-    return Result(job, exp_values_dict, errors_dict, shots)
+    processed_exp_values_dict = {k: float(v[0]) for k, v in exp_values_dict.items()}
+
+    return Result(job, processed_exp_values_dict, errors_dict, shots)
