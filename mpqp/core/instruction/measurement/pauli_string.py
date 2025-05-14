@@ -998,6 +998,15 @@ class PauliStringMonomial(PauliString):
             == 0
         )
 
+    def qubit_wise_commutes_with(self, other: PauliStringMonomial) -> bool:
+        if len(other.atoms) != len(self.atoms):
+            raise NumberQubitsError(
+                f"Mismatch between {self.nb_qubits=} and {other.nb_qubits=}."
+            )
+        return all(
+            self.atoms[i].commutes_with(other.atoms[i]) for i in range(len(self.atoms))
+        )
+
     def subs(
         self, values: dict[Expr | str, Real], remove_symbolic: bool = True
     ) -> PauliStringMonomial:

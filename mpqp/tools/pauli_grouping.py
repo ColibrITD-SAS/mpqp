@@ -1,4 +1,10 @@
+from enum import Enum, auto
 from mpqp.core.instruction.measurement.pauli_string import PauliStringMonomial
+
+
+class CommutingTypes(Enum):
+    FULL = auto()
+    QUBITWISE = auto()
 
 
 def full_commutation_pauli_grouping_greedy(
@@ -40,5 +46,25 @@ def full_commutation_pauli_grouping_ibm_clique(monomials: list[PauliStringMonomi
     pass
 
 
-def qubit_wise_commutation_pauli_grouping(monomials: list[PauliStringMonomial]):
+def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingTypes):
+    groups: list[list[PauliStringMonomial]] = []
+    for monomial in monomials:
+        added = False
+        for group in groups:
+            for monom in group:
+                if type == CommutingTypes.QUBITWISE:
+                    if monomial.qubit_wise_commutes_with(monom):
+                        group.append(monomial)
+                        added = True
+                        break
+
+        if not added:
+            groups.append([monomial])
+
+    return groups
+
+
+def _generate_commuting_graph(
+    monomials: list[PauliStringMonomial], type: CommutingTypes
+):
     pass
