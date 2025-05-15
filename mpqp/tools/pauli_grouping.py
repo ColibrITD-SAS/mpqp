@@ -51,12 +51,16 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
     for monomial in monomials:
         added = False
         for group in groups:
-            for monom in group:
-                if type == CommutingTypes.QUBITWISE:
-                    if monomial.qubit_wise_commutes_with(monom):
-                        group.append(monomial)
-                        added = True
-                        break
+            if type == CommutingTypes.QUBITWISE:
+                if all(monomial.qubit_wise_commutes_with(m_g) for m_g in group):
+                    group.append(monomial)
+                    added = True
+                    break
+            elif type == CommutingTypes.FULL:
+                if all(monomial.commutes_with(m_g) for m_g in group):
+                    group.append(monomial)
+                    added = True
+                    break
 
         if not added:
             groups.append([monomial])
@@ -64,7 +68,7 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
     return groups
 
 
-def _generate_commuting_graph(
+def generate_commuting_graph(
     monomials: list[PauliStringMonomial], type: CommutingTypes
 ):
     pass
