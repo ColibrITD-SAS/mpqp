@@ -26,7 +26,7 @@ from mpqp.noise.noise_model import NoiseModel
 def apply_noise_to_cirq_circuit(
     cirq_circuit: Circuit,
     noises: list[NoiseModel],
-    #nb_qubits: int,
+    # nb_qubits: int,
 ) -> Circuit:
     """Apply noise models to a Cirq circuit"""
 
