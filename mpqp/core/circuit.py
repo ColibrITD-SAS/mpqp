@@ -1323,7 +1323,17 @@ class QCircuit:
                     cirq_instruction = instruction.to_other_language(Language.CIRQ)
                     cirq_circuit.append(cirq_instruction.on(*targets))
 
+            if self.noises:
+                from mpqp.execution.providers.google import apply_noise_to_cirq_circuit
+
+                return apply_noise_to_cirq_circuit(
+                    cirq_circuit,
+                    self.noises,
+                    # self.nb_qubits,
+                )
+
             return cirq_circuit
+
         elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 
@@ -1485,6 +1495,7 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
+
                 from mpqp.execution.connection.ibm_connection import get_backend
 
                 if TYPE_CHECKING:
