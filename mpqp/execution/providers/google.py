@@ -10,6 +10,7 @@ if TYPE_CHECKING:
     from cirq.study.result import Result as CirqResult
     from cirq.work.observable_measurement_data import ObservableMeasuredResult
 
+from cirq.circuits.circuit import Circuit
 from typeguard import typechecked
 
 from mpqp import Language
@@ -18,6 +19,51 @@ from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasu
 from mpqp.execution.devices import GOOGLEDevice
 from mpqp.execution.job import Job, JobType
 from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.noise.noise_model import NoiseModel
+
+
+@typechecked
+def apply_noise_to_cirq_circuit(
+    cirq_circuit: Circuit,
+    noises: list[NoiseModel],
+    #nb_qubits: int,
+) -> Circuit:
+    """Apply noise models to a Cirq circuit"""
+
+    noisy_moments = []
+
+    for moment in cirq_circuit:
+        new_ops = []
+        for op in moment.operations:
+            new_ops.append(op)
+
+            for noise in noises:
+                if noise.gates:
+                    gates_str = {g.cirq_gate for g in noise.gates}
+                    if op.gate not in gates_str:
+                        continue
+
+                if noise.targets and not all(
+                    int(str(q).split('_')[-1]) in noise.targets for q in op.qubits
+                ):
+                    continue
+
+                cirq_noise = noise.to_other_language(Language.CIRQ)
+                if isinstance(cirq_noise, list):
+                    new_ops.extend(cirq_noise)
+                else:
+                    for qubit in op.qubits:
+                        new_ops.append(cirq_noise.on(qubit))
+
+        noisy_moments.append(new_ops)
+
+    modified_circuit = Circuit()
+    for ops in noisy_moments:
+        from cirq.circuits.insert_strategy import InsertStrategy
+
+        modified_circuit.append(ops, strategy=InsertStrategy.NEW_THEN_INLINE)
+
+    return modified_circuit
 
 
 @typechecked
