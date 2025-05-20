@@ -119,7 +119,11 @@ from mpqp.tools.maths import (
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
 )
-from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
+from mpqp.tools.pauli_grouping import (
+    CommutingTypes,
+    GroupingMethods,
+    pauli_grouping_greedy,
+)
 from numpy.random import default_rng
 
 sys.path.insert(0, os.path.abspath("."))
