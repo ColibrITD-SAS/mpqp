@@ -17,6 +17,8 @@ from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
     PauliString,
     PauliStringMonomial,
+    CommutingTypes,
+    GroupingMethods,
 )
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
@@ -343,6 +345,8 @@ class ExpectationMeasure(Measure):
             will be applied.
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
+        commuting_type: Used to group the observables when running the circuit.
+        grouping_method: How the pauli groups are formed.
         label: Label used to identify the measure.
         optim_diagonal: Indicates if the computation of expectation value for
             diagonal observables is optimized. Default to False.
@@ -365,6 +369,8 @@ class ExpectationMeasure(Measure):
         observable: Union[Observable, list[Observable]],
         targets: Optional[list[int]] = None,
         shots: int = 0,
+        commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
+        grouping_method: GroupingMethods = GroupingMethods.GREEDY,
         label: Optional[str] = None,
         optim_diagonal: Optional[bool] = False,
     ):
@@ -374,7 +380,10 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optim_diagonal = optim_diagonal
         """See parameter description."""
-
+        self.commuting_type = commuting_type
+        """See parameter description."""
+        self.grouping_method = grouping_method
+        """See parameter description."""
         if isinstance(observable, Observable):
             self.observables = [observable]
         else:

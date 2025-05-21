@@ -1,38 +1,11 @@
-from enum import Enum, auto
-from typing import Union
-
 import numpy as np
-from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.native_gates import Rx, Ry
+from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.instruction import Instruction
-from mpqp.core.instruction.measurement.expectation_value import Observable
 from mpqp.core.instruction.measurement.pauli_string import (
-    I,
-    X,
-    Y,
-    PauliString,
+    CommutingTypes,
     PauliStringMonomial,
 )
-from mpqp.execution.devices import AvailableDevice, IBMDevice
-from mpqp.execution.result import Result
-from mpqp.execution.runner import run
 import numpy.typing as npt
-
-
-class CommutingTypes(Enum):
-    FULL = auto()
-    QUBITWISE = auto()
-
-
-class GroupingMethods(Enum):
-    GREEDY = auto()
-    COLORING_GREEDY = auto()
-    COLORING_SF = auto()
-    COLORING_LF = auto()
-    COLORING_RECURSIVE_LF = auto()
-    COLORING_DB = auto()
-    COLORING_DSATUR = auto()
-    CLIQUE_REMOVING = auto()
 
 
 def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instruction]:
@@ -45,10 +18,19 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
     """
     result = []
     for i, atoms in enumerate(group[0].atoms):
-        if atoms == X:
-            result.append(Ry(-np.pi / 2, i))
-        elif atoms == Y:
-            result.append(Rx(-np.pi / 2, i))
+        if atoms.name == "I":
+            all_identity = True
+            for monomial in group:
+                all_identity &= monomial.atoms[i].name == "I"
+                if not all_identity:
+                    for base in monomial.atoms[i].get_basis_change():
+                        assert isinstance(base, type(SingleQubitGate))
+                        result.append(base(i))
+                    break
+            continue
+        for base in atoms.get_basis_change():
+            assert isinstance(base, type(SingleQubitGate))
+            result.append(base(i))
     return result
 
 
@@ -73,16 +55,18 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
     for monomial in monomials:
         added = False
         for group in groups:
-            if type == CommutingTypes.QUBITWISE:
-                if all(monomial.qubit_wise_commutes_with(m_g) for m_g in group):
-                    group.append(monomial)
-                    added = True
+            found = False
+            for monoms in group:
+                if monoms.name == monomial.name:
+                    found = True
                     break
-            elif type == CommutingTypes.FULL:
-                if all(monomial.commutes_with(m_g) for m_g in group):
-                    group.append(monomial)
-                    added = True
-                    break
+            if found:
+                added = True
+                break
+            if all(monomial.commutes_with(m_g, type) for m_g in group):
+                group.append(monomial)
+                added = True
+                break
 
         if not added:
             groups.append([monomial])
@@ -92,50 +76,8 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
 
 def pauli_monomial_eigenvalues(monom: PauliStringMonomial) -> npt.NDArray[np.float64]:
     result = np.array([1], dtype=np.float64)
-    eigen_I = np.array([1, 1])
-    eigen_XYZ = np.array([1, -1])
     for atom in monom.atoms:
-        if atom == I:
-            result = np.kron(result, eigen_I)
-        else:
-            result = np.kron(result, eigen_XYZ)
-    return result
-
-
-def run_optimized_multi_observables(
-    circuit: QCircuit,
-    observable: Union[PauliString, Observable],
-    device: AvailableDevice = IBMDevice.AER_SIMULATOR,
-    commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
-    grouping_method: GroupingMethods = GroupingMethods.GREEDY,
-) -> float:
-    """This function performs the Pauli grouping and returns the expectation value of the observable.
-
-    Args:
-        circuit: The quantum circuit to measure
-        observable: The observable by which the circuit is measured, either a Pauli string or a matrix.
-        device: The device on which the circuit should be ran.
-        commuting_type: The type of commuting used for the Pauli grouping.
-        grouping_method: The method used to group the commuting monomials.
-
-    Returns:
-        The expectation value of the circuit by the observable.
-    """
-    if isinstance(observable, Observable):
-        observable = observable.pauli_string
-    if grouping_method == GroupingMethods.GREEDY:
-        grouping = pauli_grouping_greedy(observable.monomials, commuting_type)
-    else:
-        raise ValueError("This type of grouping is not currently supported.")
-    result = 0
-    for group in grouping:
-        local_result = run(circuit + QCircuit(find_qubitwise_rotations(group)), device)
-        assert isinstance(local_result, Result)
-        for monom in group:
-            expectation_value = np.dot(
-                pauli_monomial_eigenvalues(monom), local_result.probabilities
-            )
-            result += expectation_value * monom.coef
+        result = np.kron(result, atom.eigen_values)
     return result
 
 
