@@ -105,11 +105,17 @@ class NativeGate(Gate, SimpleClassReprABC):
     """Keyword corresponding to the gate in ``qiskit``. This needs to be
     available at the class level and is not enforced by the type checker so be
     careful about it!"""
+    qasm3_string: str
 
     @classproperty
     def qasm2_gate(cls) -> str:
         """Keyword(s) corresponding to the gate in ``QASM2``."""
         return cls.qiskit_string
+
+    @classproperty
+    def qasm3_gate(cls) -> str:
+        """Keyword(s) corresponding to the gate in ``QASM3``"""
+        return cls.qasm3_string
 
     native_gate_options = {"disable_symbol_warn": True}
 
@@ -362,6 +368,16 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             qubits += ",".join([f"q[{j}]" for j in self.targets])
 
             return instruction_str + " " + qubits + ";"
+        elif language == Language.QASM3:
+            instruction_str = self.qasm3_gate
+
+            qubits = ""
+            if isinstance(self, ControlledGate):
+                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
+            qubits += ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -419,6 +435,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "I"
     qiskit_string = "id"
+    qasm3_string = qiskit_string
 
     def __init__(self, target: int, label: Optional[str] = None):
         super().__init__(target)
@@ -444,6 +461,12 @@ class Id(OneQubitNoParamGate, InvolutionGate):
             qubits = ",".join([f"q[{j}]" for j in self.targets])
 
             return instruction_str + " " + qubits + ";"
+        elif language == Language.QASM3:
+            instruction_str = self.qasm3_gate
+            qubits = ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -483,6 +506,7 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "X"
     qiskit_string = "x"
+    qasm3_string = qiskit_string
 
     def __init__(self, target: int):
         super().__init__(target)
@@ -524,6 +548,7 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "Y"
     qiskit_string = "y"
+    qasm3_string = qiskit_string
 
     def __init__(self, target: int):
         super().__init__(target)
@@ -565,6 +590,7 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "Z"
     qiskit_string = "z"
+    qasm3_string = qiskit_string
 
     def __init__(self, target: int):
         super().__init__(target)
@@ -604,6 +630,7 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "H"
     qiskit_string = "h"
+    qasm3_string = qiskit_string
 
     def __init__(self, target: int):
         super().__init__(target)
@@ -646,6 +673,7 @@ class P(RotationGate, SingleQubitGate):
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
+    qasm3_string = qiskit_string
 
     def __init__(self, theta: Expr | float, target: int):
         super().__init__(theta, target)
@@ -1106,6 +1134,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             qubits = ",".join([f"q[{j}]" for j in self.targets])
 
             return instruction_str + " " + qubits + ";"
+        # elif language == Language.QASM3:
+
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
