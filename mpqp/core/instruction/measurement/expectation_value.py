@@ -372,6 +372,7 @@ class ExpectationMeasure(Measure):
         commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
         grouping_method: GroupingMethods = GroupingMethods.GREEDY,
         label: Optional[str] = None,
+        optimize_measurement: Optional[bool] = True,
         optim_diagonal: Optional[bool] = False,
     ):
 
@@ -383,6 +384,8 @@ class ExpectationMeasure(Measure):
         self.commuting_type = commuting_type
         """See parameter description."""
         self.grouping_method = grouping_method
+        """See parameter description."""
+        self.optimize_measurement = optimize_measurement
         """See parameter description."""
         if isinstance(observable, Observable):
             self.observables = [observable]
@@ -464,26 +467,16 @@ class ExpectationMeasure(Measure):
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
 
-    def get_pauli_grouping(
-        self,
-        method: Literal[
-            "full_greedy"
-        ] = "full_greedy",  # , "full_clique", "qubit_wise_clique"
-    ) -> list[list[PauliStringMonomial]]:
-        """Decompose the observables and regroup the pauli measurements
-        by commutativity relation using different strategies.
+    def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
+        monomials = []
+        for obs in self.observables:
+            monomials.extend(obs.pauli_string.monomials)
+        if self.grouping_method == GroupingMethods.GREEDY:
+            from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
-        Args:
-            method: The grouping method to use.
-                - "full_clique": Finds the largest possible commuting groups (cliques).
-                - "full_greedy": Uses a greedy algorithm to iteratively build commuting groups.
-                - "qubit_wise_clique": Groups Pauli strings based on qubit-wise commutativity.
-
-        Returns:
-            A list of list, where each list contains Pauli strings that can be measured simultaneously.
-        3M-TODO
-        """
-        ...
+            return pauli_grouping_greedy(monomials, self.commuting_type)
+        else:
+            raise ValueError("This type of grouping is not currently supported.")
 
     def are_all_diagonal(self) -> bool:
         """Returns True if all the observables in the ExpectationMeasure are diagonal."""

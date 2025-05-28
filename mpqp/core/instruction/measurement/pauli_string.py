@@ -18,7 +18,7 @@ import numpy.typing as npt
 from sympy import Expr
 from typeguard import typechecked
 
-from mpqp.core.instruction.gates.native_gates import H, NativeGate, S_dagger, S
+from mpqp.core.instruction.gates.native_gates import H, S, NativeGate
 from mpqp.core.languages import Language
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
@@ -1056,7 +1056,9 @@ class PauliStringMonomial(PauliString):
         new_monomial = deepcopy(self)
         caster = lambda v: format_element(v) if remove_symbolic else v
         if isinstance(new_monomial.coef, Expr):
-            new_monomial.coef = caster(new_monomial.coef.subs(values))
+            new_monomial.coef = caster(
+                new_monomial.coef.subs(values)
+            )  # pyright: ignore[reportAttributeAccessIssue]
 
         return new_monomial
 
@@ -1167,7 +1169,7 @@ class PauliStringAtom(PauliStringMonomial):
         return [self]
 
     @property
-    def coef(self) -> Coef:
+    def coef(self) -> Coef:  # type: ignore
         """Coefficient of the monomial."""
         return 1
 

@@ -121,7 +121,6 @@ from mpqp.tools.maths import (
 )
 from mpqp.tools.pauli_grouping import (
     CommutingTypes,
-    GroupingMethods,
     pauli_grouping_greedy,
 )
 from numpy.random import default_rng

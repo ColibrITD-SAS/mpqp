@@ -90,6 +90,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         tweaked_observables,
         list(range(circuit.nb_qubits)),
         measure.shots,
+        measure.commuting_type,
+        measure.grouping_method,
+        optimize_measurement=measure.optimize_measurement,
     )
     return tweaked_measure
 
@@ -200,9 +203,7 @@ def _run_optimized_multi_observables(
             assert isinstance(monoms.coef, (int, float))
             local += expectation_values[monoms.name] * monoms.coef
         result.update({f"observable_{i}": local})
-    print(len(result))
     if len(result) == 1:
-        print(f"DANS LE RUNNER : {result['observable_0']}")
         return Result(job, result["observable_0"])
     return Result(job, result)
 
@@ -300,7 +301,7 @@ def _run_single(
     circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
-
+    print(job.job_type)
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
@@ -308,14 +309,6 @@ def _run_single(
                 return _run_diagonal_observables(
                     circuit, measure, device, job, values, translation_warning
                 )
-            return _run_optimized_multi_observables(
-                circuit,
-                measure.observables,
-                job,
-                device,
-                measure.commuting_type,
-                measure.grouping_method,
-            )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
