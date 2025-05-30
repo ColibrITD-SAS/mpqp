@@ -301,7 +301,6 @@ def _run_single(
     circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
-    print(job.job_type)
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):

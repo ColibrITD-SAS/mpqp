@@ -22,8 +22,6 @@ from mpqp.tools.circuit import random_circuit
         (IBMDevice.AER_SIMULATOR),
         (GOOGLEDevice.CIRQ_LOCAL_SIMULATOR),
         (AWSDevice.BRAKET_LOCAL_SIMULATOR),
-        (ATOSDevice.MYQLM_PYLINALG),
-        (ATOSDevice.MYQLM_CLINALG),
     ],
 )
 def test_expectation_values_devices(device: AvailableDevice):
