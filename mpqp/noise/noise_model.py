@@ -429,8 +429,7 @@ class Depolarizing(DimensionalNoiseModel):
             from cirq.devices.line_qubit import LineQubit
             from cirq.ops.common_channels import depolarize
 
-            qubits = LineQubit.range(self.dimension)
-            noise = depolarize(self.prob).on_each(*qubits)
+            noise = depolarize(self.prob, self.dimension)
             if TYPE_CHECKING:
                 assert isinstance(noise, DepolarizingChannel)
 
