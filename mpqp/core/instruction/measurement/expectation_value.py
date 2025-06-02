@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 from numbers import Real
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
 import numpy as np

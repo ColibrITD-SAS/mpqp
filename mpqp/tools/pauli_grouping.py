@@ -1,5 +1,4 @@
 import numpy as np
-from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
@@ -24,12 +23,10 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
                 all_identity &= monomial.atoms[i].name == "I"
                 if not all_identity:
                     for base in monomial.atoms[i].get_basis_change():
-                        assert isinstance(base, type(SingleQubitGate))
                         result.append(base(i))
                     break
             continue
         for base in atoms.get_basis_change():
-            assert isinstance(base, type(SingleQubitGate))
             result.append(base(i))
     return result
 

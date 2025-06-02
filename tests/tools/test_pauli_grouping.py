@@ -6,7 +6,6 @@ from mpqp.core.instruction.measurement.expectation_value import (
 )
 from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
 from mpqp.execution.devices import (
-    ATOSDevice,
     AWSDevice,
     AvailableDevice,
     GOOGLEDevice,

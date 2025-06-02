@@ -30,7 +30,6 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.core.instruction.measurement.pauli_string import GroupingMethods
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -52,8 +51,6 @@ from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
 from sympy import Expr
 from typeguard import typechecked
-
-from mpqp.tools.pauli_grouping import CommutingTypes
 
 
 @typechecked
@@ -148,64 +145,6 @@ def generate_job(
         )
 
     return job
-
-
-def _run_optimized_multi_observables(
-    circuit: QCircuit,
-    observables: list[Observable],
-    job: Job,
-    device: AvailableDevice = IBMDevice.AER_SIMULATOR,
-    commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
-    grouping_method: GroupingMethods = GroupingMethods.GREEDY,
-) -> Result:
-    """This function performs the Pauli grouping and returns the expectation value of the observable.
-
-    Args:
-        circuit: The quantum circuit to measure
-        observable: The observable by which the circuit is measured, either a Pauli string or a matrix.
-        device: The device on which the circuit should be ran.
-        commuting_type: The type of commuting used for the Pauli grouping.
-        grouping_method: The method used to group the commuting monomials.
-
-    Returns:
-        The expectation value of the circuit by the observable.
-    """
-    circuit = job.circuit.without_measurements()
-    monomials = []
-    for obs in observables:
-        monomials.extend(obs.pauli_string.monomials)
-    if grouping_method == GroupingMethods.GREEDY:
-        from mpqp.tools.pauli_grouping import pauli_grouping_greedy
-
-        grouping = pauli_grouping_greedy(monomials, commuting_type)
-    else:
-        raise ValueError("This type of grouping is not currently supported.")
-    from mpqp.tools.pauli_grouping import (
-        find_qubitwise_rotations,
-        pauli_monomial_eigenvalues,
-    )
-
-    expectation_values: dict[str, float] = {}
-    result: dict[str, float] = {}
-    for group in grouping:
-        local_result = run(circuit + QCircuit(find_qubitwise_rotations(group)), device)
-        assert isinstance(local_result, Result)
-        for monom in group:
-            expectation_value: float = np.dot(
-                pauli_monomial_eigenvalues(monom), local_result.probabilities
-            )
-            expectation_values.update({monom.name: expectation_value})
-
-    for i, obs in enumerate(observables):
-        string = obs.pauli_string
-        local: float = 0
-        for monoms in string.monomials:
-            assert isinstance(monoms.coef, (int, float))
-            local += expectation_values[monoms.name] * monoms.coef
-        result.update({f"observable_{i}": local})
-    if len(result) == 1:
-        return Result(job, result["observable_0"])
-    return Result(job, result)
 
 
 @typechecked

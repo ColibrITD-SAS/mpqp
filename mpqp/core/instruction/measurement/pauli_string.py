@@ -18,7 +18,8 @@ import numpy.typing as npt
 from sympy import Expr
 from typeguard import typechecked
 
-from mpqp.core.instruction.gates.native_gates import H, S, NativeGate
+from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.core.instruction.gates.native_gates import H, S
 from mpqp.core.languages import Language
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
@@ -1143,7 +1144,7 @@ class PauliStringAtom(PauliStringMonomial):
         matrix: npt.NDArray[np.complex64],
         eig_values: list[int],
         eig_vectors: npt.NDArray[np.complex64],
-        basis_change: list[type[NativeGate]],
+        basis_change: list[type[SingleQubitGate]],
     ):
         if _allow_atom_creation:
             self.label = label
@@ -1243,7 +1244,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_matrix(self) -> npt.NDArray[np.complex64]:
         return self.matrix
 
-    def get_basis_change(self) -> list[type[NativeGate]]:
+    def get_basis_change(self) -> list[type[SingleQubitGate]]:
         return self._basis_change
 
     def commutes_with(
