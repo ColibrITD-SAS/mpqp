@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -41,26 +41,26 @@ class Qubo:
     def __neg__(self) -> "Qubo":
         return UnaryOperation('-', self)
 
-    def __add__(self, other: "Qubo" | int | float) -> "Qubo":
-        if isinstance(other, float | int):
+    def __add__(self, other: Union["Qubo", int, float]) -> "Qubo":
+        if isinstance(other, (float, int)):
             other = QuboConstant(str(other))
         current = BinaryOperation("+", self, other)
         return current
 
-    def __radd__(self, other: "Qubo" | int | float) -> "Qubo":
+    def __radd__(self, other: Union["Qubo", int, float]) -> "Qubo":
         return self + other
 
-    def __sub__(self, other: "Qubo" | int | float) -> "Qubo":
-        if isinstance(other, float | int):
+    def __sub__(self, other: Union["Qubo", int, float]) -> "Qubo":
+        if isinstance(other, (float, int)):
             other = QuboConstant(str(other))
         current = BinaryOperation('-', self, other)
         return current
 
-    def __rsub__(self, other: "Qubo" | int | float) -> "Qubo":
+    def __rsub__(self, other: Union["Qubo", int, float]) -> "Qubo":
         return self - other
 
-    def __mul__(self, other: "Qubo" | int | float) -> "Qubo":
-        if isinstance(other, float | int):
+    def __mul__(self, other: Union["Qubo", int, float]) -> "Qubo":
+        if isinstance(other, (float, int)):
             other = QuboConstant(str(other))
         if not isinstance(other, QuboConstant):
             degree = self._check_degree()
@@ -72,7 +72,7 @@ class Qubo:
         current = BinaryOperation("*", self, other)
         return current
 
-    def __rmul__(self, other: "Qubo" | int | float) -> "Qubo":
+    def __rmul__(self, other: Union["Qubo", int, float]) -> "Qubo":
         return self * other
 
     def __and__(self, other: "Qubo") -> "Qubo":

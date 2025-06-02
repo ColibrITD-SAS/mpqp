@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import Enum, auto
 from functools import partial
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -27,7 +27,7 @@ class QAOAMixerType(Enum):
 def qaoa_solver(
     problem: Qubo,
     depth: int,
-    mixer: QAOAMixerType | Matrix,
+    mixer: Union[QAOAMixerType, Matrix],
     device: AvailableDevice,
     optimizer: str,
 ) -> str:
@@ -135,9 +135,7 @@ def _generate_mixer_hamiltonian(
     return result
 
 
-def _apply_unitary(
-    circuit: QCircuit, operator: Matrix | npt.NDArray[np.complex128], parameter: float
-):
+def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):
     """Apply the cost hamiltonian or the mixer hamiltonian to the generated
     ansatz.
 
