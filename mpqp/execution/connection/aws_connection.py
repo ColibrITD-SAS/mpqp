@@ -11,9 +11,24 @@ from configparser import ConfigParser
 from getpass import getpass
 from pathlib import Path
 
+import boto3
+
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
+
+
+def validate_aws_credentials() -> bool:
+    """Validate AWS credentials by calling STS get_caller_identity."""
+    try:
+        session = boto3.Session(profile_name="default")
+        sts_client = session.client("sts")
+        sts_client.get_caller_identity()
+        return True
+    except Exception as e:
+        print(colored("Invalid AWS credentials or configuration.", "red"))
+        print(colored(str(e), "red"))
+        return False
 
 
 def setup_aws_braket_account() -> tuple[str, list[Any]]:
@@ -61,6 +76,7 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     run_choice_tree(braket_auth_choices)
 
     try:
+        boto3.setup_default_session()
         session = AwsSession()
         save_env_variable("AWS_DEFAULT_REGION", session.region)
 
@@ -116,17 +132,25 @@ def configure_account_iam() -> tuple[str, list[Any]]:
     print("Configuring IAM authentication for Amazon Braket...")
     os.system("aws configure")
 
+    if not validate_aws_credentials():
+        save_env_variable("BRAKET_CONFIGURED", "False")
+        return "Invalid AWS IAM credentials.", []
+
     print("IAM authentication configured successfully.")
     save_env_variable("BRAKET_AUTH_METHOD", "IAM")
     save_env_variable("BRAKET_CONFIGURED", "True")
 
     credentials_file = Path.home() / ".aws" / "credentials"
+    config_file = Path.home() / ".aws" / "config"
+
+    credentials = ConfigParser()
+    credentials.read(credentials_file)
 
     config = ConfigParser()
-    config.read(credentials_file)
+    config.read(config_file)
 
-    access_key_id = config.get("default", "aws_access_key_id", fallback="")
-    secret_access_key = config.get("default", "aws_secret_access_key", fallback="")
+    access_key_id = credentials.get("default", "aws_access_key_id", fallback="")
+    secret_access_key = credentials.get("default", "aws_secret_access_key", fallback="")
     region = config.get("default", "region", fallback="us-east-1")
 
     update_aws_credentials_file(
@@ -163,16 +187,12 @@ def get_user_sso_credentials() -> Union[dict[str, str], None]:
 
 
 def configure_account_sso() -> tuple[str, list[Any]]:
-    """Configure SSO authentication for Amazon Braket.
-    This function guides the user through the Amazon Braket SSO configuration process.
-    """
+    """Configure SSO authentication for Amazon Braket."""
     print("Configuring SSO authentication for Amazon Braket...")
 
     sso_credentials = get_user_sso_credentials()
     if not sso_credentials:
         raise Exception("Failed to retrieve SSO credentials after configuration.")
-
-    print("SSO authentication configured successfully.")
 
     update_aws_credentials_file(
         profile_name="default",
@@ -182,6 +202,11 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         region=sso_credentials["region"],
     )
 
+    if not validate_aws_credentials():
+        save_env_variable("BRAKET_CONFIGURED", "False")
+        return "Invalid AWS SSO credentials.", []
+
+    print("SSO authentication configured successfully.")
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
 
@@ -219,7 +244,7 @@ def get_aws_braket_account_info() -> str:
         raise AWSBraketRemoteExecutionError(
             "Error when trying to get AWS credentials. No AWS Braket account configured."
         )
-    import boto3
+
     from braket.aws import AwsSession
 
     try:
@@ -295,7 +320,6 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
         else:
             return LocalSimulator()
 
-    import boto3
     import pkg_resources
     from botocore.exceptions import NoRegionError
     from braket.aws import AwsDevice, AwsSession
