@@ -20,8 +20,6 @@ if TYPE_CHECKING:
     from qiskit.circuit import Parameter
 
 
-
-
 @typechecked
 class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
