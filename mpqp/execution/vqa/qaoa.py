@@ -48,7 +48,7 @@ def qaoa_solver(
         >>> x0 = QuboAtom('x0')
         >>> x1 = QuboAtom('x1')
         >>> expr = -3*x0 - 5*x1 + 3*(x0 & x1)
-        >>> qaoa_solver(expr, 4, MixerType.MIXER_X, IBMDevice.AER_SIMULATOR, 'Powell')
+        >>> qaoa_solver(expr, 4, QAOAMixerType.MIXER_X, IBMDevice.AER_SIMULATOR, 'Powell')
         '01'
     """
     observable = problem.to_cost_hamiltonian()

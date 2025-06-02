@@ -41,7 +41,7 @@ from mpqp.execution.devices import (
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
-from mpqp.execution.providers.azure import run_azure
+from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
@@ -145,11 +145,55 @@ def generate_job(
 
 
 @typechecked
+def _run_diagonal_observables(
+    circuit: QCircuit,
+    exp_measure: ExpectationMeasure,
+    device: AvailableDevice,
+    observable_job: Job,
+    values: dict[Expr | str, Complex],
+    translation_warning: bool = True,
+) -> Result:
+
+    adapted_circuit = circuit.without_measurements()
+    adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
+
+    result = _run_single(
+        adapted_circuit, device, values, False, translation_warning=translation_warning
+    )
+    probas = result.probabilities
+
+    error = 0 if exp_measure.shots == 0 else None
+    if exp_measure.nb_observables == 1:
+        exp_value = float(probas.dot(exp_measure.observables[0].diagonal_elements))
+        return Result(
+            observable_job,
+            exp_value,
+            error,
+            exp_measure.shots,
+        )
+
+    exp_values = dict()
+    errors = dict()
+    for obs in exp_measure.observables:
+        # 3M-TODO: replace this dot product with cupy, apparently more optim
+        exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
+        errors[obs.label] = error
+
+    return Result(
+        observable_job,
+        exp_values,
+        errors,
+        exp_measure.shots,
+    )
+
+
+@typechecked
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
     values: dict[Expr | str, Complex],
     display_breakpoints: bool = True,
+    translation_warning: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -161,6 +205,7 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -193,6 +238,14 @@ def _run_single(
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
 
+    if len(circuit.measurements) == 1:
+        measure = circuit.measurements[0]
+        if isinstance(measure, ExpectationMeasure):
+            if measure.optim_diagonal and measure.are_all_diagonal():
+                return _run_diagonal_observables(
+                    circuit, measure, device, job, values, translation_warning
+                )
+
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
@@ -204,15 +257,15 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
-        return run_ibm(job)
+        return run_ibm(job, translation_warning)
     elif isinstance(device, ATOSDevice):
-        return run_atos(job)
+        return run_atos(job, translation_warning)
     elif isinstance(device, AWSDevice):
-        return run_braket(job)
+        return run_braket(job, translation_warning)
     elif isinstance(device, GOOGLEDevice):
-        return run_google(job)
+        return run_google(job, translation_warning)
     elif isinstance(device, AZUREDevice):
-        return run_azure(job)
+        return run_azure(job, translation_warning)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -223,6 +276,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    translation_warning: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -238,6 +292,7 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -306,13 +361,21 @@ def run(
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
             [
-                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
+                _run_single(
+                    namer(circ, i + 1),
+                    dev,
+                    values,
+                    display_breakpoints,
+                    translation_warning,
+                )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(
+            circuit, device, values, display_breakpoints, translation_warning
+        )
 
 
 @typechecked
@@ -368,6 +431,8 @@ def submit(
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
         job_id, _ = submit_job_braket(job)
+    elif isinstance(device, AZUREDevice):
+        job_id, _ = submit_job_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
