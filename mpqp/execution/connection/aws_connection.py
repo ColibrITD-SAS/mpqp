@@ -257,20 +257,20 @@ def get_aws_braket_account_info() -> str:
 
         access_key_id = credentials.access_key
         secret_access_key = credentials.secret_key
-        obfuscate_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
+        obfuscated_key = secret_access_key[:5] + "*" * (len(secret_access_key) - 5)
 
         session_token = credentials.token
         if session_token:
             auth_method = "SSO"
             token_length = len(session_token)
-            obfuscate_token = (
+            obfuscated_token = (
                 f"{session_token[:15]}...{session_token[-15:]}"
                 if token_length > 30
                 else session_token
             )
 
         else:
-            obfuscate_token = ""
+            obfuscated_token = ""
             auth_method = "IAM"
 
         region_name = session.boto_session.region_name
@@ -283,9 +283,9 @@ def get_aws_braket_account_info() -> str:
 
     result = f"""    Authentication method: {auth_method}  
     Access Key ID: '{access_key_id}'
-    Secret Access Key: '{obfuscate_key}'"""
+    Secret Access Key: '{obfuscated_key}'"""
     if session_token:
-        result += f"\n    SSO Session Token: '{obfuscate_token}'"
+        result += f"\n    SSO Session Token: '{obfuscated_token}'"
 
     result += f"\n    Region: '{region_name}'"
     return result

@@ -6,28 +6,26 @@ from __future__ import annotations
 
 from typing import Optional
 
-from typeguard import typechecked
-
 from mpqp.execution import Result
 from mpqp.execution.connection.aws_connection import get_all_task_ids as aws_ids
+from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
 from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
-from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
-from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_ids
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    GOOGLEDevice,
     AZUREDevice,
+    GOOGLEDevice,
     IBMDevice,
 )
 from mpqp.execution.job import Job
 from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 from mpqp.execution.providers.aws import get_result_from_aws_task_arn
-from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
 from mpqp.execution.providers.azure import get_result_from_azure_job_id
+from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
+from typeguard import typechecked
 
 
 @typechecked
@@ -44,7 +42,7 @@ def get_remote_result(
             ``job_data`` is the identifier of the job.
 
     Returns:
-        The ``Result`` of the desired remote job.
+        The result(s) associated with the desired remote job in parameter.
 
     Examples:
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
@@ -114,7 +112,7 @@ def get_remote_result(
         )
 
 
-def get_all_job_ids() -> dict[type[AvailableDevice], list[str]]:
+def get_all_remote_job_ids() -> dict[type[AvailableDevice], list[str]]:
     """Retrieve from the remote providers all the job-ids associated with this
     account.
 

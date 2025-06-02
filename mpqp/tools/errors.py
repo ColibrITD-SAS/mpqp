@@ -1,4 +1,4 @@
-"""You will find here the custom exceptions we created in order to provide 
+"""You will find here the custom exceptions we created in order to provide
 clearer errors. When relevant, we also append the trace of the error raised by a
 provider's SDK."""
 
@@ -37,6 +37,10 @@ class RemoteExecutionError(ConnectionError):
 class IBMRemoteExecutionError(RemoteExecutionError):
     """Raised when an error occurred during the remote execution process of
     job(s) on an IBM device."""
+
+
+class IBMNoiseModelGeneration(UserWarning):
+    """Warning for potential compatibility issues with IBM noise model."""
 
 
 class QLMRemoteExecutionError(RemoteExecutionError):

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from numbers import Complex, Real
 from typing import TYPE_CHECKING, Union
 
 import numpy as np
@@ -83,8 +84,65 @@ def _unpack_expr(expr: Expr | Basic):
     return expr
 
 
+def format_element(element: Union[Real, int, float, complex, Expr], round: int = 10):
+    """
+    Formats a numeric or symbolic element for cleaner representation. Rounds the real and
+    imaginary parts of a number to a specified number of decimal places, formats whole
+    numbers as integers, and properly handles symbolic expressions by simplifying them.
+
+    Args:
+        element: The element to format, which can be an integer, float, complex number, or symbolic expression.
+        round: The number of decimal places to round to for real and imaginary parts.
+
+    Returns:
+        The formatted element without converting it to a string.
+
+    Example:
+        >>> type(format_element(3.456789, round=4))
+        <class 'float'>
+        >>> type(format_element(1+2j, round=2))
+        <class 'complex'>
+        >>> type(format_element(3+0j))
+        <class 'int'>
+        >>> from sympy import symbols, Expr
+        >>> x = symbols('x')
+        >>> x_ = 1 +x
+        >>> x_ = x_.subs({'x': 1})
+        >>> type(x_)
+        <class 'sympy.core.numbers.Integer'>
+        >>> type(format_element(x_))
+        <class 'int'>
+
+    """
+    from sympy import Expr
+
+    if isinstance(element, Expr):
+        if element.is_Float:
+            return float(element)
+        elif element.is_Integer:
+            return int(element)
+        return _unpack_expr(element.simplify())
+
+    real_part = float(np.round(np.real(complex(element)), round))
+    imag_part = float(np.round(np.imag(element), round))
+
+    if abs(real_part - int(real_part)) < 10 ** (-round):
+        real_part = int(real_part)
+    if abs(imag_part - int(imag_part)) < 10 ** (-round):
+        imag_part = int(imag_part)
+
+    if real_part == 0 and imag_part != 0:
+        return imag_part * 1j
+    if imag_part == 0:
+        return real_part
+
+    return real_part + imag_part * 1j
+
+
 @typechecked
-def format_element(element: Union[int, float, complex | Expr], round: int = 5) -> str:
+def format_element_str(
+    element: Union[int, float, complex | Expr], round: int = 5
+) -> str:
     """
     Formats a numeric or symbolic element for cleaner representation. Rounds the real and
     imaginary parts of a number to a specified number of decimal places, formats whole
@@ -97,18 +155,18 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
         round: The number of decimal places to round to for real and imaginary parts.
 
     Returns:
-        str: A string representation of the formatted element.
+        A string representation of the formatted element.
 
     Example:
-        >>> format_element(3.456789, round=4)
+        >>> format_element_str(3.456789, round=4)
         '3.4568'
-        >>> format_element(1+2j, round=2)
+        >>> format_element_str(1+2j, round=2)
         '1+2j'
-        >>> format_element(3+0j)
+        >>> format_element_str(3+0j)
         '3'
         >>> from sympy import symbols, Expr
         >>> x = symbols('x')
-        >>> format_element(Expr(x + x))
+        >>> format_element_str(Expr(x + x))
         '2*x'
 
     """
@@ -143,7 +201,8 @@ def format_element(element: Union[int, float, complex | Expr], round: int = 5) -
 
 @typechecked
 def clean_1D_array(
-    array: list[complex] | npt.NDArray[np.complex64 | np.float32], round: int = 5
+    array: list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
+    round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function
     rounds the parts of the numbers in the array and formats them as integers if
@@ -259,7 +318,7 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     """
 
     formatted_matrix = [
-        [format_element(element, round) for element in row] for row in matrix
+        [format_element_str(element, round) for element in row] for row in matrix
     ]
     if align:
         max_lengths = [
@@ -280,7 +339,11 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
 
 
 @typechecked
-def pprint(matrix: Matrix, round: int = 5, align: bool = True):
+def pprint(
+    matrix: Matrix | list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
+    round: int = 5,
+    align: bool = True,
+):
     """Print a cleans and formats elements of a matrix. It rounds the real parts of complex numbers
     in the matrix places and formats them as integers if they are whole numbers. It returns a
     string representation of the cleaned matrix without parentheses.
@@ -297,9 +360,30 @@ def pprint(matrix: Matrix, round: int = 5, align: bool = True):
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]
+        >>> pprint([1.0, 2.1, 3.0])
+        [1, 2.1, 3]
+        >>> pprint([1+0j, 0+0j, 5.])
+        [1, 0, 5]
+        >>> pprint([1.0, 2.0, 3.0])
+        [1, 2, 3]
 
     """
-    print(clean_matrix(matrix, round, align))
+    if isinstance(matrix, list):
+        print(clean_1D_array(matrix, round))
+    else:
+        shape = matrix.shape
+        if len(shape) == 1:
+            print(clean_1D_array(matrix, round))  # pyright: ignore[reportArgumentType]
+        elif len(shape) == 2:
+            print(
+                clean_matrix(
+                    matrix, round, align  # pyright: ignore[reportArgumentType]
+                )
+            )
+        else:
+            raise ValueError(
+                f"Input matrix {matrix} should be a 1D or 2D array (1 or 2 dimensional matrix)."
+            )
 
 
 @typechecked

@@ -5,7 +5,7 @@ the tokens, passwords, etc... but for now, it is a prerequisite that you already
 have these credentials to use this script.
 
 Information concerning which provider is configured and related credentials are
-stored in the ``~/.mpqp`` file."""
+stored in the ``~/.mpqp/.env`` file."""
 
 import os
 

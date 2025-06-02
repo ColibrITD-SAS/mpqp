@@ -1,4 +1,4 @@
-"""Mathematical tools for linear algebra, functions generalized to more data 
+"""Mathematical tools for linear algebra, functions generalized to more data
 types, etc…"""
 
 from __future__ import annotations
@@ -6,18 +6,18 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union, Any
+
+import numpy as np
+import numpy.typing as npt
+from mpqp.tools.generics import Matrix
+from scipy.linalg import inv, sqrtm
+from typeguard import typechecked
 
 if TYPE_CHECKING:
     from sympy import Expr
     import sympy as sp
 
-import numpy as np
-import numpy.typing as npt
-from scipy.linalg import inv, sqrtm
-from typeguard import typechecked
-
-from mpqp.tools.generics import Matrix
 
 rtol = 1e-05
 """The relative tolerance parameter."""
@@ -118,7 +118,7 @@ def is_unitary(matrix: Matrix) -> bool:
     Returns:
         ``True`` if the matrix in parameter is Unitary.
 
-    Example:
+    Examples:
         >>> is_unitary(np.array([[1,1],[1,-1]]))
         False
         >>> is_unitary(np.array([[1,1],[1,-1]])/np.sqrt(2))
@@ -133,7 +133,39 @@ def is_unitary(matrix: Matrix) -> bool:
 
 
 @typechecked
-def closest_unitary(matrix: Matrix):
+def is_diagonal(matrix: npt.NDArray[Any]) -> bool:
+    """Checks whether the square matrix in parameter is diagonal.
+
+    Args:
+        matrix: Matrix for which we want to know if it is diagonal.
+
+    Returns:
+        ``True`` if the matrix in parameter is diagonal.
+
+    Examples:
+        >>> is_diagonal(np.diag([1, 4, 2, 3]))
+        True
+        >>> is_diagonal(np.array([[1, 1], [1, -1]]))
+        False
+    """
+    # Reference: https://stackoverflow.com/questions/43884189/check-if-a-large-matrix-is-diagonal-matrix-in-python
+    # Author: Daniel F, 10th May 2017
+
+    i, j = matrix.shape
+    if i != j:
+        raise ValueError(
+            "The input matrix is not square. Dimensions = ("
+            + str(i)
+            + ", "
+            + str(j)
+            + ")."
+        )
+    test = matrix.reshape(-1)[:-1].reshape(i - 1, j + 1)
+    return not np.any(test[:, 1:])
+
+
+@typechecked
+def closest_unitary(matrix: Matrix) -> Matrix:
     """Calculate the unitary matrix that is closest with respect to the operator
     norm distance to the general matrix in parameter.
 
@@ -161,7 +193,7 @@ def closest_unitary(matrix: Matrix):
 
 
 @typechecked
-def cos(angle: Expr | Real) -> sp.Expr | float:
+def cos(angle: Expr | float) -> sp.Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -186,7 +218,7 @@ def cos(angle: Expr | Real) -> sp.Expr | float:
 
 
 @typechecked
-def sin(angle: Expr | Real) -> sp.Expr | float:
+def sin(angle: Expr | float) -> sp.Expr | float:
     """Generalization of the sine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -211,7 +243,7 @@ def sin(angle: Expr | Real) -> sp.Expr | float:
 
 
 @typechecked
-def exp(angle: Expr | Complex) -> sp.Expr | complex:
+def exp(angle: Expr | complex) -> sp.Expr | complex:
     """Generalization of the exponential function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -273,7 +305,7 @@ def rand_clifford_matrix(
     """Generate a random Clifford matrix.
 
     Args:
-        size: Size (number of columns) of the square matrix to generate.
+        nb_qubits: Qubits of the clifford operator to be generated.
         seed: Seed used to initialize the random number generation.
 
     Returns:
@@ -305,12 +337,11 @@ def rand_clifford_matrix(
 
 @typechecked
 def rand_unitary_2x2_matrix(
-    seed: Optional[Union[int, np.random.Generator]] = None
+    seed: Optional[Union[int, np.random.Generator]] = None,
 ) -> npt.NDArray[np.complex64]:
     """Generate a random one-qubit unitary matrix.
 
     Args:
-        size: Size (number of columns) of the square matrix to generate.
         seed: Used for the random number generation. If unspecified, a new
             generator will be used. If a ``Generator`` is provided, it will be
             used to generate any random number needed. Finally if an ``int`` is
@@ -409,7 +440,7 @@ def rand_hermitian_matrix(
 
 
 @typechecked
-def is_power_of_two(n: int):
+def is_power_of_two(n: int) -> bool:
     """Checks if the integer in parameter is a (positive) power of two.
 
     Args:

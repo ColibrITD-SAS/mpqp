@@ -1,4 +1,4 @@
-"""This module contains a collection of generic types and functions needed 
+"""This module contains a collection of generic types and functions needed
 across the library.
 
 Type aliases :obj:`Matrix`, :obj:`OneOrMany` and :obj:`ArbitraryNestedSequence`
@@ -6,12 +6,12 @@ are used across the library. In particular, :obj:`ArbitraryNestedSequence` is
 used in cases the nesting of the sequence is unknown; and in these cases you
 might want to flatten the list using :func:`flatten`.
 
-On occasion, there is also a need to "flatten" the string representation of an 
+On occasion, there is also a need to "flatten" the string representation of an
 object *i.e.* to display it on one line. In this case :func:`one_line_repr` is
 your friend.
 
 Lastly, we find the default list search mechanism in python a bit too
-restrictive. :func:`find` allow us a much more versatile search using an 
+restrictive. :func:`find` allow us a much more versatile search using an
 ``oracle``.
 """
 
@@ -59,7 +59,9 @@ Examples:
     >>> l = [2,1,3]
 
 """
-Matrix = Union[npt.NDArray[np.complex64], npt.NDArray[np.object_]]
+Matrix = Union[
+    npt.NDArray[np.complex64], npt.NDArray[np.float64], npt.NDArray[np.object_]
+]
 """Type alias denoting all the matrices we consider (either matrices of complex 
 or of ``sympy`` expressions, given to ``numpy`` as objects)"""
 

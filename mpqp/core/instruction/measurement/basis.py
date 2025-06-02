@@ -10,13 +10,16 @@ On the other hand, some common basis are available for you to use:
 
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
+from abc import abstractmethod
 from functools import reduce
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from mpqp import QCircuit
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -41,15 +44,15 @@ class Basis:
             [1, 0],
             [0, -1]
         ]
-        >>> circ = QCircuit([X(0), H(1), CNOT(1, 2), Y(2)])
-        >>> circ.add(BasisMeasure([0, 1, 2], basis=custom_basis, shots=10000))
+        >>> circ = QCircuit([X(0), H(0)])
+        >>> circ.add(BasisMeasure([0], basis=custom_basis, shots=10000))
         >>> print(run(circ, IBMDevice.AER_SIMULATOR)) # doctest: +SKIP
-        Result: None, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 0, 0, 4936, 5064, 0]
-         Probabilities: [0, 0, 0, 0, 0, 0.4936, 0.5064, 0]
+        Result: IBMDevice, AER_SIMULATOR
+         Counts: [5035, 4965]
+         Probabilities: [0.5035, 0.4965]
          Samples:
-          State: ↓↑↓, Index: 5, Count: 4936, Probability: 0.4936
-          State: ↓↓↑, Index: 6, Count: 5064, Probability: 0.5064
+          State: ↑, Index: 0, Count: 5035, Probability: 0.5035
+          State: ↓, Index: 1, Count: 4965, Probability: 0.4965
          Error: None
 
     """
@@ -129,11 +132,18 @@ class Basis:
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
-        joint_vectors = ", ".join(map(one_lined_repr, self.basis_vectors))
-        qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
-        return f"{type(self).__name__}({joint_vectors}{qubits})"
+        joint_vectors = "[" + ", ".join(map(one_lined_repr, self.basis_vectors)) + "]"
+        args = []
+        args.append(joint_vectors)
+        if isinstance(self, VariableSizeBasis):
+            args.append(f"nb_qubits={self.nb_qubits}")
+        if self.symbols != ("0", "1"):
+            args.append(f"symbols={self.symbols}")
+        if self.basis_vectors_labels is not None:
+            args.append(f"basis_vectors_labels={self.basis_vectors_labels}")
+        return f"{type(self).__name__}({', '.join(args)})"
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         """Converts the custom basis to the computational basis.
 
         This method creates a quantum circuit with a custom gate represented by
@@ -163,26 +173,61 @@ class Basis:
             ]
         )
 
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Basis):
+            return False
+
+        return (
+            self.nb_qubits == other.nb_qubits
+            and np.array_equal(self.basis_vectors, other.basis_vectors)
+            and self.symbols == other.symbols
+            and self.basis_vectors_labels == other.basis_vectors_labels
+        )
+
 
 @typechecked
-class VariableSizeBasis(Basis, ABC):
+class VariableSizeBasis(Basis):
     """A variable-size basis with a dynamically adjustable size to different qubit numbers
     during circuit execution.
 
     Args:
         nb_qubits: number of qubits in the basis. If not provided,
             the basis can be dynamically sized later using the `set_size` method.
-
         symbols: custom symbols for representing basis states, defaults to ("0", "1").
+
+    Example:
+        >>> custom_basis = VariableSizeBasis([np.array([1,0]), np.array([0,-1])], symbols=("↑", "↓"))
+        >>> custom_basis.pretty_print()
+        Basis: [
+            [1, 0],
+            [0, -1]
+        ]
+        >>> circ = QCircuit([X(0), H(1), CNOT(1, 2), Y(2)])
+        >>> circ.add(BasisMeasure(basis=custom_basis, shots=10000))
+        >>> print(run(circ, IBMDevice.AER_SIMULATOR)) # doctest: +SKIP
+        Result: None, IBMDevice, AER_SIMULATOR
+         Counts: [0, 0, 0, 0, 0, 4936, 5064, 0]
+         Probabilities: [0, 0, 0, 0, 0, 0.4936, 0.5064, 0]
+         Samples:
+          State: ↓↑↓, Index: 5, Count: 4936, Probability: 0.4936
+          State: ↓↓↑, Index: 6, Count: 5064, Probability: 0.5064
+         Error: None
+
     """
 
-    @abstractmethod
     def __init__(
-        self, nb_qubits: Optional[int] = None, symbols: Optional[tuple[str, str]] = None
+        self,
+        basis_vectors: list[npt.NDArray[np.complex64]],
+        nb_qubits: Optional[int] = None,
+        symbols: Optional[tuple[str, str]] = None,
     ):
-        super().__init__([], 0, symbols=symbols)
-        if nb_qubits is not None:
-            self.set_size(nb_qubits)
+        super().__init__(basis_vectors, symbols=symbols)
+        self._init_basis = Basis(basis_vectors, symbols=symbols)
+        self._dynamic = True if nb_qubits is None else False
+        nb_qubits = (
+            int(np.log2(len(basis_vectors[0]))) if nb_qubits is None else nb_qubits
+        )
+        self.set_size(nb_qubits)
 
     @abstractmethod
     def set_size(self, nb_qubits: int):
@@ -195,10 +240,38 @@ class VariableSizeBasis(Basis, ABC):
         Args:
             nb_qubits: number of qubits in the basis
         """
-        pass
+        if self.nb_qubits == nb_qubits:
+            return
+
+        if nb_qubits < self._init_basis.nb_qubits:
+            raise ValueError(
+                f"Invalid number of qubits ({nb_qubits}): must be at least the "
+                f"size of the initial basis ({self._init_basis.nb_qubits})."
+            )
+        if nb_qubits % self._init_basis.nb_qubits != 0:
+            raise ValueError(
+                f"Invalid number of qubits ({nb_qubits}): must be a multiple of "
+                f"the initial basis size ({self._init_basis.nb_qubits})."
+            )
+
+        basis_matrix = reduce(
+            np.kron,
+            [self._init_basis.basis_vectors]
+            * (nb_qubits // self._init_basis.nb_qubits),
+            np.eye(1),
+        )
+        self.basis_vectors = [line for line in basis_matrix]
+        self.nb_qubits = nb_qubits
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}()"
+        args = []
+        args.append(f"{self._init_basis.basis_vectors}")
+        if not self._dynamic:
+            args.append(f"{self.nb_qubits}")
+        if self.symbols != ("0", "1"):
+            args.append(f"symbols={self.symbols}")
+
+        return f"{type(self).__name__}({', '.join(args)})"
 
 
 class ComputationalBasis(VariableSizeBasis):
@@ -235,19 +308,24 @@ class ComputationalBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__(nb_qubits)
+        super().__init__([np.array([1, 0]), np.array([0, 1])], nb_qubits=nb_qubits)
 
     def set_size(self, nb_qubits: int):
+        if self.nb_qubits == nb_qubits:
+            return
         self.basis_vectors = [
             np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex64)
             for i in range(2**nb_qubits)
         ]
         self.nb_qubits = nb_qubits
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         from mpqp.core.circuit import QCircuit
 
         return QCircuit(self.nb_qubits)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.nb_qubits if not self._dynamic else ''})"
 
 
 class HadamardBasis(VariableSizeBasis):
@@ -281,18 +359,27 @@ class HadamardBasis(VariableSizeBasis):
     """
 
     def __init__(self, nb_qubits: Optional[int] = None):
-        super().__init__(nb_qubits, symbols=('+', '-'))
+        super().__init__(
+            [np.array([1, 1]) / np.sqrt(2), np.array([1, -1]) / np.sqrt(2)],
+            nb_qubits=nb_qubits,
+            symbols=('+', '-'),
+        )
 
     def set_size(self, nb_qubits: int):
+        if self.nb_qubits == nb_qubits:
+            return
         H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         from mpqp.core.circuit import QCircuit
         from mpqp.core.instruction.gates.native_gates import H
 
         if self.nb_qubits == 0:
             return QCircuit(self.nb_qubits)
         return QCircuit([H(qb) for qb in range(self.nb_qubits)])
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.nb_qubits if not self._dynamic else ''})"

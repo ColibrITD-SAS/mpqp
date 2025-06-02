@@ -12,6 +12,7 @@ from mpqp.execution import (
     AWSDevice,
     GOOGLEDevice,
     IBMDevice,
+    Result,
 )
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
@@ -62,6 +63,7 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
         result = _run_single(c, device, {})
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
+    assert isinstance(result, Result)
     assert matrix_eq(result.amplitudes, exp_state_vector, 1e-5, 1e-5)
 
 
@@ -107,7 +109,9 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
         result2 = _run_single(c2, device, {})
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-5, 1e-5)
+    assert isinstance(result1, Result)
+    assert isinstance(result2, Result)
+    assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 
 
 @pytest.mark.parametrize(
@@ -138,4 +142,6 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
         result2 = _run_single(custom_gate_circ, device, {})
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
+    assert isinstance(result1, Result)
+    assert isinstance(result2, Result)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)

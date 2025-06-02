@@ -6,7 +6,7 @@ import numpy.typing as npt
 import pytest
 
 from mpqp import QCircuit
-from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, Result
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.execution.runner import run
@@ -53,12 +53,131 @@ def test_wrong_init_basis(
 
 
 @pytest.mark.parametrize(
-    "basis, size, is_initialized, result_pp",
+    "basis_vectors, size, result_pp",
+    [
+        (
+            [
+                np.array([1, 0, 0, 0]),
+                np.array([0, -1, 0, 0]),
+                np.array([0, 0, -1, 0]),
+                np.array([0, 0, 0, 1]),
+            ],
+            4,
+            (
+                "Basis: [\n"
+                "    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]\n"
+                "]\n"
+            ),
+        ),
+        (
+            [np.array([-1, 0]), np.array([0, -1])],
+            2,
+            (
+                "Basis: [\n"
+                "    [1, 0, 0, 0],\n"
+                "    [0, 1, 0, 0],\n"
+                "    [0, 0, 1, 0],\n"
+                "    [0, 0, 0, 1]\n"
+                "]\n"
+            ),
+        ),
+        (
+            [np.array([1, 0]), np.array([0, -1])],
+            3,
+            (
+                "Basis: [\n"
+                "    [1, 0, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, -1, 0, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, -1, 0, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 1, 0, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, -1, 0, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 1, 0, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 1, 0],\n"
+                "    [0, 0, 0, 0, 0, 0, 0, -1]\n"
+                "]\n"
+            ),
+        ),
+    ],
+)
+def test_variable_size_basis(
+    basis_vectors: list[npt.NDArray[np.complex64]],
+    size: int,
+    result_pp: str,
+    capsys: pytest.CaptureFixture[str],
+):
+    b = VariableSizeBasis(basis_vectors)
+    b.set_size(size)
+    b.pretty_print()
+    captured = capsys.readouterr()
+    assert captured.out == result_pp
+
+
+@pytest.mark.parametrize(
+    "basis_vectors, size",
+    [
+        (
+            [
+                np.array([1, 0, 0, 0]),
+                np.array([0, -1, 0, 0]),
+                np.array([0, 0, -1, 0]),
+                np.array([0, 0, 0, 1]),
+            ],
+            3,
+        ),
+        (
+            [
+                np.array([1, 0, 0, 0]),
+                np.array([0, -1, 0, 0]),
+                np.array([0, 0, -1, 0]),
+                np.array([0, 0, 0, 1]),
+            ],
+            5,
+        ),
+        (
+            [
+                np.array([1, 0, 0, 0, 0, 0, 0, 0]),
+                np.array([0, -1, 0, 0, 0, 0, 0, 0]),
+                np.array([0, 0, -1, 0, 0, 0, 0, 0]),
+                np.array([0, 0, 0, 1, 0, 0, 0, 0]),
+                np.array([0, 0, 0, 0, -1, 0, 0, 0]),
+                np.array([0, 0, 0, 0, 0, 1, 0, 0]),
+                np.array([0, 0, 0, 0, 0, 0, 1, 0]),
+                np.array([0, 0, 0, 0, 0, 0, 0, -1]),
+            ],
+            4,
+        ),
+    ],
+)
+def test_value_error_variable_size_basis(
+    basis_vectors: list[npt.NDArray[np.complex64]],
+    size: int,
+):
+    b = VariableSizeBasis(basis_vectors)
+    with pytest.raises(ValueError):
+        b.set_size(size)
+
+
+@pytest.mark.parametrize(
+    "basis, size, result_pp",
     [
         (
             ComputationalBasis,
             3,
-            True,
             (
                 "Basis: [\n"
                 "    [1, 0, 0, 0, 0, 0, 0, 0],\n"
@@ -75,7 +194,6 @@ def test_wrong_init_basis(
         (
             ComputationalBasis,
             2,
-            False,
             (
                 "Basis: [\n"
                 "    [1, 0, 0, 0],\n"
@@ -88,7 +206,6 @@ def test_wrong_init_basis(
         (
             HadamardBasis,
             2,
-            True,
             (
                 "Basis: [\n"
                 "    [0.5, 0.5, 0.5, 0.5],\n"
@@ -103,15 +220,10 @@ def test_wrong_init_basis(
 def test_basis_implementations(
     basis: type[VariableSizeBasis],
     size: int,
-    is_initialized: bool,
     result_pp: str,
     capsys: pytest.CaptureFixture[str],
 ):
-    if is_initialized:
-        b = basis(size)
-    else:
-        b = basis()
-        b.set_size(size)
+    b = basis(nb_qubits=size)  # pyright: ignore[reportCallIssue]
     b.pretty_print()
     captured = capsys.readouterr()
     assert captured.out == result_pp
@@ -169,7 +281,7 @@ def test_run_with_custom_basis_probas(
     circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex64]
 ):
     res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
-
+    assert isinstance(res, Result)
     assert matrix_eq(expected_probabilities, res.probabilities.astype(np.complex64))
 
 
@@ -206,7 +318,7 @@ def test_valid_run_custom_basis_state_vector_one_qubit(
             device,
             {},
         )
-
+    assert isinstance(result, Result)
     assert matrix_eq(vectors[expected_vector_index], result.amplitudes)
 
 

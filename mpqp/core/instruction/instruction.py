@@ -103,17 +103,24 @@ class Instruction(SimpleClassReprABC):
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
 
-        connection = self.connections()
-        circuit_size = max(connection) + 1 if connection else 1
-        circuit = QCircuit(circuit_size)
-        circuit.add(self)
-        return str(circuit)
+        return str(QCircuit([self], nb_qubits=max(self.connections(), default=0) + 1))
 
     def __repr__(self) -> str:
         from mpqp.core.instruction.gates import ControlledGate
 
         controls = str(self.controls) + "," if isinstance(self, ControlledGate) else ""
         return f"{type(self).__name__}({controls}{self.targets})"
+
+    def to_dict(self):
+        return {
+            attr_name: getattr(self, attr_name)
+            for attr_name in dir(self)
+            if (
+                not attr_name.startswith("_abc_")
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            )
+        }
 
     def connections(self) -> set[int]:
         """Returns the indices of the qubits connected to the instruction.

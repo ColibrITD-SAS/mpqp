@@ -1,4 +1,4 @@
-"""Amazon Braket made the choice to directly support a subset of OpenQASM 3.0 
+"""Amazon Braket made the choice to directly support a subset of OpenQASM 3.0
 for gate-based devices and simulators. In fact, Braket supports a set of data
 types, statements and pragmas (specific to Braket) for OpenQASM 3.0, sometimes
 with a different syntax.
@@ -14,8 +14,8 @@ all definitions in there. We also hard-include all included files in the
 OpenQASM 3.0 code inputted for conversion.
 
 .. note::
-    In the custom hard-imported file for native and standard gate redefinitions, 
-    we use ``ggphase`` to define the global phase, instead of the OpenQASM 3.0 
+    In the custom hard-imported file for native and standard gate redefinitions,
+    we use ``ggphase`` to define the global phase, instead of the OpenQASM 3.0
     keyword ``gphase``, which is already used and protected by Braket.
 
 Braket ``Circuit``s are created using :func:`qasm3_to_braket_Circuit`. If
@@ -76,11 +76,14 @@ def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
 
 
 @typechecked
-def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
+def qasm3_to_braket_Circuit(
+    qasm3_str: str, translation_warning: bool = True
+) -> "Circuit":
     """Converting a OpenQASM 3.0 code into a Braket Circuit.
 
     Args:
         qasm3_str: A string representing the OpenQASM 3.0 code.
+        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Circuit equivalent to the QASM code in parameter.
@@ -130,9 +133,10 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     log_lines = logger_output_stream.getvalue().split("\n")
     for message in log_lines:
         if message == braket_warning_message:
-            warnings.warn(
-                "\n" + braket_warning_message, UnsupportedBraketFeaturesWarning
-            )
+            if translation_warning:
+                warnings.warn(
+                    "\n" + braket_warning_message, UnsupportedBraketFeaturesWarning
+                )
         else:
             if message != "":
                 braket_logger.warning(message)

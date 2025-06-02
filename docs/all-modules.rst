@@ -15,3 +15,4 @@ mpqp
     execution
     qasm
     tools
+    local_storage

@@ -90,16 +90,64 @@ class GateDefinition(ABC):
         """
         mat = self.to_matrix()
 
-        if not all(
-            isinstance(
-                elt.item(), Complex  # pyright: ignore[reportAttributeAccessIssue]
-            )
-            for elt in np.nditer(mat, ["refs_ok"])
-        ):
+        if not all(isinstance(elt, Complex) for elt in mat.flatten()):
             raise ValueError("Cannot invert arbitrary gates using symbolic variables")
         return UnitaryMatrix(
             np.linalg.inv(mat)  # pyright: ignore[reportCallIssue, reportArgumentType]
         )
+
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, self.__class__):
+            return False
+        self_dict = self.to_dict()
+        value_dict = value.to_dict()
+
+        if self_dict.keys() != value_dict.keys():
+            return False
+
+        for key in self_dict:
+            val1, val2 = self_dict[key], value_dict[key]
+
+            if isinstance(val1, list) and isinstance(val2, list):
+                try:
+                    from sympy import N
+
+                    # TODO: replace by matrix_eq
+                    val1_numeric = np.array(
+                        [[N(el) for el in row] for row in val1], dtype=complex
+                    )
+                    val2_numeric = np.array(
+                        [[N(el) for el in row] for row in val2], dtype=complex
+                    )
+                    if not np.allclose(val1_numeric, val2_numeric, atol=1e-7):
+                        return False
+                except:
+                    if val1 != val2:
+                        return False
+            else:
+                if val1 != val2:
+                    return False
+        return True
+
+    def to_dict(self):
+        """
+        Serialize the gate to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the circuit.
+        """
+        result = {}
+        for attr_name in dir(self):
+            if (
+                attr_name not in {'_abc_impl', '_nb_qubits'}
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            ):
+                value = getattr(self, attr_name)
+                if isinstance(value, np.ndarray):
+                    value = value.tolist()
+                result[attr_name] = value
+        return result
 
 
 @typechecked
@@ -207,4 +255,4 @@ class UnitaryMatrix(GateDefinition):
         )
 
     def __repr__(self) -> str:
-        return f"UnitaryMatrix({one_lined_repr(getattr(self, 'matrix', ''))})"
+        return f"UnitaryMatrix({one_lined_repr(self.matrix)})"

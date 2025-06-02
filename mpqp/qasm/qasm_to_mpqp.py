@@ -1,19 +1,18 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from venv import logger
 
 from ply.lex import lex
 
-
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
+from mpqp.core.instruction import Barrier
 from mpqp.gates import *
 from mpqp.measures import *
-from mpqp.core.instruction import Barrier
 from mpqp.qasm.lexer_utils import *
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include_and_comment
-
+from mpqp.qasm.open_qasm_2_and_3 import remove_include_and_comment, remove_user_gates
 
 # TODO:
 # if: not handle
@@ -166,6 +165,10 @@ def _TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     idx += 2
+    while (
+        tokens[idx].type != 'SEMICOLON'
+    ):  # 3M-TODO: to be removed if we handle multi target
+        idx += 1
     if tokens[idx].type != 'SEMICOLON':
         raise SyntaxError(f"Barrier: {idx} {tokens[idx]}")
     circuit.add(Barrier())
