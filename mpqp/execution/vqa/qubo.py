@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from typing import Optional
+
 import numpy as np
 import numpy.typing as npt
-
 from mpqp.measures import Observable
 
 
@@ -39,25 +41,25 @@ class Qubo:
     def __neg__(self) -> "Qubo":
         return UnaryOperation('-', self)
 
-    def __add__(self, other: "Qubo | int | float") -> "Qubo":
+    def __add__(self, other: "Qubo" | int | float) -> "Qubo":
         if isinstance(other, float | int):
             other = QuboConstant(str(other))
         current = BinaryOperation("+", self, other)
         return current
 
-    def __radd__(self, other: "Qubo | int | float") -> "Qubo":
+    def __radd__(self, other: "Qubo" | int | float) -> "Qubo":
         return self + other
 
-    def __sub__(self, other: "Qubo | int | float") -> "Qubo":
+    def __sub__(self, other: "Qubo" | int | float) -> "Qubo":
         if isinstance(other, float | int):
             other = QuboConstant(str(other))
         current = BinaryOperation('-', self, other)
         return current
 
-    def __rsub__(self, other: "Qubo | int | float") -> "Qubo":
+    def __rsub__(self, other: "Qubo" | int | float) -> "Qubo":
         return self - other
 
-    def __mul__(self, other: "Qubo | int | float") -> "Qubo":
+    def __mul__(self, other: "Qubo" | int | float) -> "Qubo":
         if isinstance(other, float | int):
             other = QuboConstant(str(other))
         if not isinstance(other, QuboConstant):
@@ -70,7 +72,7 @@ class Qubo:
         current = BinaryOperation("*", self, other)
         return current
 
-    def __rmul__(self, other: "Qubo | int | float") -> "Qubo":
+    def __rmul__(self, other: "Qubo" | int | float) -> "Qubo":
         return self * other
 
     def __and__(self, other: "Qubo") -> "Qubo":
@@ -211,8 +213,7 @@ class Qubo:
         """Creates the weight matrix of this QUBO expression.
 
         Returns:
-            A tuple composed of the weight matrix and the eventual constants to
-            add.
+            A tuple composed of the weight matrix and a potential additive constant.
 
         Examples:
             >>> x0 = QuboAtom('x0')

@@ -4,21 +4,22 @@ cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate`
 to add your custom unitary operation to the circuit, which will be decomposed
 and executed transparently."""
 
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
 
-from typeguard import typechecked
-
-from mpqp.tools import Matrix
-
-if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
 from numbers import Complex
-from sympy import Expr
-
+from typing import TYPE_CHECKING, Optional
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
+from mpqp.tools import Matrix
+from sympy import Expr
+from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from qiskit.circuit import Parameter
+
+
 
 
 @typechecked
