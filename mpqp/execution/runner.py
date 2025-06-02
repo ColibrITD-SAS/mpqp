@@ -3,7 +3,7 @@ Once the circuit is defined, you can execute it and retrieve the result using
 the function :func:`run`. You can execute said circuit on one or several devices
 (local or remote). The function will wait (blocking) until the job is completed
 and will return a :class:`~mpqp.execution.result.Result` if only one
-device was given or a :class:`~mpqp.execution.result.BatchResult` 
+device was given or a :class:`~mpqp.execution.result.BatchResult`
 otherwise (see the section :ref:`Results` for more details).
 
 Alternatively, when running jobs on a remote device, you might prefer to

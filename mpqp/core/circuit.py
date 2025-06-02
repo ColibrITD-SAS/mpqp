@@ -1,7 +1,7 @@
 """MPQP is focused on gate-based quantum computing. As such, the main element of
 a script using MPQP is the quantum circuit, or :class:`QCircuit`. The
 :class:`QCircuit` contains the data for all gates, measurements, and noise models you
-want to apply to your qubits. 
+want to apply to your qubits.
 
 The qubits are only referred to by their indices, so one could keep track of
 specific registers using Python features, for instance
@@ -26,7 +26,7 @@ specific registers using Python features, for instance
               └───┘┌─┴─┐
     q_5: ──────────┤ X ├
                    └───┘
-    
+
 could be used to add CNOT gates to your circuit, using the two registers
 ``targets`` and ``ancillas``.
 """
