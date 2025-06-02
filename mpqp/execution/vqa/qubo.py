@@ -85,8 +85,6 @@ class Qubo:
         return self + other - 2 * (self * other)
 
     def __eq__(self, other: object) -> bool:
-        if other == None:
-            return False
         return False
 
     def __len__(self) -> int:
