@@ -440,6 +440,28 @@ def rand_hermitian_matrix(
 
 
 @typechecked
+def ran_unitary_matrix(size: int) -> Matrix:
+    """Generate a random Unitary matrix.
+
+    Args:
+        size: Size (number of columns) of the square matrix to generate.
+
+    Returns:
+        A random unitary matrix with complex coefficients.
+
+    Example:
+        >>> is_unitary(ran_unitary_matrix(4))
+        True
+        >>> is_unitary(ran_unitary_matrix(8))
+        True
+    """
+    from scipy.stats import unitary_group
+    import numpy as np
+
+    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
+
+
+@typechecked
 def is_power_of_two(n: int) -> bool:
     """Checks if the integer in parameter is a (positive) power of two.
 

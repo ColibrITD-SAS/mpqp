@@ -18,6 +18,9 @@ def _gray_code(n: int):
 def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     r"""
     Returns the decomposition of the unitary using eigenvalues decomposition.
+    This decomposition is used to decompose matrices that are the result of a cosine-sine decomposition.
+
+    Hence we have $$U = \begin{pmatrix}U_0 & 0\\ 0 & U_1 \end{pmatrix}$$ with $U_0$ and $U_1$ being unitary matrices themselves.
     The goal of this SVD is to have following result : $$U = (I \otimes V) \times D \times (I \otimes W)$$.
     D is in the form of a multiplexed Rz operator.
     The whole equation should be in the form :
@@ -225,6 +228,7 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
 
     References:
     .. [1] Mikko Möttönen, Juha J. Vartiainen, Ville Bergholm, and Martti M. Salomaa. 2004. Quantum circuits for general multi-qubit gates. American Physical Society (APS) : 93-13.
+
     Examples:
         >>> from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
         >>> U = np.array([[1,0],[0,1]])

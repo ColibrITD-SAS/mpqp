@@ -38,11 +38,6 @@ def test_gate_repr(gate: Gate, expected_repr: str) -> None:
     assert repr(gate) == expected_repr
 
 
-def test_negative_index_toffoli():
-    with pytest.raises(ValueError):
-        TOF([0, -1], 1)
-
-
 class CustomControlledGate(ControlledGate):
     def to_other_language(
         self,

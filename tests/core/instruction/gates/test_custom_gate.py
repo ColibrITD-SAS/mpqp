@@ -149,20 +149,20 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
 
 
 def test_decomposition_short():
-    from scipy.stats import unitary_group
+    from mpqp.tools.maths import ran_unitary_matrix
 
     for i in range(1, 4):
-        u = np.asarray(unitary_group.rvs(2**i), dtype=np.complex128)
+        u = ran_unitary_matrix(2**i)
         gate = CustomGate(UnitaryMatrix(u), list(range(i)))
         cirq = gate.decompose()
         assert matrix_eq(u, cirq.to_matrix())
 
 
 def decomposition_long():
-    from scipy.stats import unitary_group
+    from mpqp.tools.maths import ran_unitary_matrix
 
     for i in range(4, 9):
-        U = np.asarray(unitary_group.rvs(2**i), dtype=np.complex128)
+        U = ran_unitary_matrix(2**i)
         gate = CustomGate(UnitaryMatrix(U), list(range(i)))
         cirq = gate.decompose()
         assert matrix_eq(U, cirq.to_matrix())
