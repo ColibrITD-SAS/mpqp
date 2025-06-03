@@ -10,6 +10,10 @@ from mpqp.measures import Observable
 class Qubo:
     """Class defining a QUBO representation, used to represent decision problems.
 
+    TODO : precise that it is not meant to be used directly to instanciate a qubo but rather
+        to use operations between atoms, etc
+    TODO : precise that we don't allow for QUBO that is a constant, it must at least contain a QuboAtom
+
     A QUBO is defined by a quadratic expression of boolean variables, hence, the
     available operators are: ``+``, ``-``, ``*``, ``&``, ``|`` and ``^``.
 
@@ -34,6 +38,10 @@ class Qubo:
     def __init__(
         self, value: str, left: Optional["Qubo"] = None, right: Optional["Qubo"] = None
     ):
+
+        if isinstance(left, QuboConstant) and isinstance(right, QuboConstant):
+            raise ValueError("Qubo is not meant to model constant functions")
+
         self.left = left
         self.right = right
         self.value = value
@@ -94,7 +102,16 @@ class Qubo:
     def __str__(self) -> str:
         return self._print()
 
-    def __collapse_coeffs(
+    def __repr__(self) -> str:
+        return (
+            "("
+            + (self.left.__repr__() if self.left is not None else "")
+            + self.value
+            + (self.right.__repr__() if self.right is not None else "")
+            + ")"
+        )
+
+    def _collapse_coeffs(
         self, left: list[tuple[int, list[str]]], right: list[tuple[int, list[str]]]
     ):
         if len(right) == 1:
@@ -118,13 +135,13 @@ class Qubo:
         degree = 0
 
         if self.value == "+":
-            assert self.left != None and self.right != None
+            assert self.left is not None and self.right is not None
 
             degree += max(self.left._check_degree(), self.right._check_degree())
         else:
-            if self.left != None:
+            if self.left is not None:
                 degree += self.left._check_degree()
-            if self.right != None:
+            if self.right is not None:
                 degree += self.right._check_degree()
         return degree
 
@@ -133,7 +150,7 @@ class Qubo:
         of the QUBO.
 
         Returns:
-            The list of coefficients and variables in the QUBO expression
+            The list of coefficients and variables in the QUBO expression.
 
         Examples:
             >>> x0 = QuboAtom('x0')
@@ -158,10 +175,10 @@ class Qubo:
 
         left = []
         right = []
-        hold = self.left
-        if self.left != None:
+
+        if self.left is not None:
             left = self.left.get_coeffs()
-        if self.right != None:
+        if self.right is not None:
             right = self.right.get_coeffs()
 
         if self.value == "+":
@@ -175,7 +192,7 @@ class Qubo:
                 right[i] = (hold, right[i][1])
             coeffs.extend(right)
         elif self.value == "*":
-            return self.__collapse_coeffs(left, right)
+            return self._collapse_coeffs(left, right)
 
         return coeffs
 
@@ -203,7 +220,7 @@ class Qubo:
         known_vars = []
         for coeff in coeffs:
             for variable in coeff[1]:
-                if not variable in known_vars:
+                if variable not in known_vars:
                     known_vars.append(variable)
         return known_vars
 
@@ -226,8 +243,8 @@ class Qubo:
              [0, 0, 0, 1]]
         """
         coeffs = self.get_coeffs()
-        vars = self.get_variables()
-        size = len(vars)
+        variables = self.get_variables()
+        size = len(variables)
         matrix = np.zeros(shape=(size, size))
         constant = 0
 
@@ -237,20 +254,20 @@ class Qubo:
             elif len(coeff[1]) == 1:
                 coord = 0
                 for j in range(size):
-                    if coeff[1][0] == vars[j]:
+                    if coeff[1][0] == variables[j]:
                         coord = j
                 matrix[coord][coord] += coeff[0]
             else:
-                abs = 0
-                ord = 0
+                x_axis = 0
+                y_axis = 0
                 for j in range(size):
-                    if coeff[1][0] == vars[j]:
-                        abs = j
-                    if coeff[1][1] == vars[j]:
-                        ord = j
+                    if coeff[1][0] == variables[j]:
+                        x_axis = j
+                    if coeff[1][1] == variables[j]:
+                        y_axis = j
 
-                matrix[abs][ord] += coeff[0] / 2
-                matrix[ord][abs] += coeff[0] / 2
+                matrix[x_axis][y_axis] += coeff[0] / 2
+                matrix[y_axis][x_axis] += coeff[0] / 2
 
         return matrix, constant
 
@@ -306,17 +323,16 @@ class Qubo:
         return result
 
     def _print(self, level: int = 1):
-        left = ''
-        right = ''
-
-        if self.left != None:
-            left = self.left._print(level + 1)
-        if self.right != None:
-
-            right = self.right._print(level + 1)
+        left = self.left._print(level + 1) if self.left is not None else ""
+        right = self.right._print(level + 1) if self.right is not None else ""
         if self.value == "*":
             return right + self.value + left
         return left + self.value + right
+
+    def simplify(self) -> "Qubo":
+        """TODO: implement a simplification of the QUBO, that can be useful to accelerate the
+        generation of the cost hamiltonian"""
+        raise NotImplementedError()
 
 
 class QuboAtom(Qubo):
@@ -337,23 +353,70 @@ class QuboAtom(Qubo):
     def __init__(self, value: str):
         super().__init__(value, None, None)
 
+    def __repr__(self):
+        return 'QuboAtom("' + self.value + '")'
+
+    def simplify(self) -> "Qubo":
+        return self
+
 
 class BinaryOperation(Qubo):
-    """Class defining binary operations in a Qubo expression."""
+    """Class defining binary operations in a Qubo expression.
+    TODO: say that it is not meant to be called by the user
+    """
 
     def __init__(self, value: str, left: Qubo, right: Qubo):
         super().__init__(value, left, right)
 
+    def __repr__(self) -> str:
+        return (
+            "("
+            + self.left.__repr__()
+            + " "
+            + self.value
+            + " "
+            + self.right.__repr__()
+            + ")"
+        )
+
+    def simplify(self) -> "Qubo":
+        """3M-TODO"""
+        raise NotImplementedError
+
 
 class UnaryOperation(Qubo):
-    """Class defining a unary operation for a Qubo expression."""
+    """Class defining a unary operation for a Qubo expression.
+
+    TODO: say that it is not meant to be called by the user
+    """
 
     def __init__(self, value: str, right: Qubo):
         super().__init__(value, None, right)
 
+    def __repr__(self) -> str:
+        return self.value + self.right.__repr__()
+
+    def simplify(self) -> "Qubo":
+        """3M-TODO"""
+        # Ideas : if it is the same unary operation (not, or - for instance) then it becomes a QuboConstant or QuboAtom
+        # If it is a + unary operation, then it becomes a QuboConstant or QuboAtom
+        raise NotImplementedError()
+
 
 class QuboConstant(Qubo):
-    """Class defining constant terms in a Qubo expression."""
+    """Class defining constant terms in a Qubo expression.
+
+    TODO: say that it is not meant to be called by the user
+    TODO: docstring
+    Args:
+        value:
+    """
 
     def __init__(self, value: str):
         super().__init__(value)
+
+    def __repr__(self) -> str:
+        return self.value
+
+    def simplify(self) -> "Qubo":
+        return self
