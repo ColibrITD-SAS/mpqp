@@ -230,7 +230,6 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
     .. [1] Mikko Möttönen, Juha J. Vartiainen, Ville Bergholm, and Martti M. Salomaa. 2004. Quantum circuits for general multi-qubit gates. American Physical Society (APS) : 93-13.
 
     Examples:
-        >>> from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
         >>> U = np.array([[1,0],[0,1]])
         >>> circuit = quantum_shannon_decomposition(U)
         >>> print(matrix_eq(U, circuit.to_matrix()))
