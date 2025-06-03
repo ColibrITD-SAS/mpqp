@@ -107,15 +107,16 @@ def run_cirq_observable(
                 for i, res in enumerate(local_result):
                     expectation_values.update({f"{group[i].name}": res.mean})
                     variances.update({f"{group[i].name}": res.variance})
-
         errors = {}
         for i, obs in enumerate(job.measure.observables):
             string = obs.pauli_string
-            local: float = 0
+            local: float = 0.0
             var = {}
 
             for monoms in string.monomials:
-                local += expectation_values[monoms.name]
+                if TYPE_CHECKING:
+                    assert isinstance(monoms.coef, (float, int))
+                local += expectation_values[monoms.name] * monoms.coef
                 var.update({monoms.name: variances[monoms.name]})
             errors.update({f"observable_{i}": var})
             result.update({f"observable_{i}": local})
@@ -190,6 +191,13 @@ def run_cirq_observable(
                 )
                 errors.update({f"observable_{len(errors)}": variances})
     job.status = JobStatus.DONE
+    if len(expectation_values) == 1:
+        return Result(
+            job,
+            expectation_values["observable_0"],
+            errors['observable_0'],
+            job.measure.shots,
+        )
     return Result(
         job,
         expectation_values,

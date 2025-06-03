@@ -3,6 +3,7 @@ import pytest
 from mpqp import QCircuit
 from mpqp.core.instruction import ExpectationMeasure, Observable
 from mpqp.execution import AvailableDevice, IBMDevice
+from mpqp.execution.devices import AWSDevice, GOOGLEDevice
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 
@@ -10,7 +11,8 @@ from mpqp.gates import *
 def list_circuits():
     return [
         QCircuit([H(0), CNOT(0, 1)]),
-        QCircuit([H(0), X(1)]),
+        QCircuit([H(0), X(1)]),  # type: ignore
+        QCircuit([Rx(np.pi / 2, 0), Ry(np.pi / 5, 1), CNOT(0, 1)]),
         # TODO add random circuit
     ]
 
@@ -65,3 +67,75 @@ def test_sequential_versus_multi(
     # TODO modify here to match the logic of dict and observable.label etc
     for r1, e2 in zip(seq_results, multi_result.expectation_values.values()):
         assert r1.expectation_values == e2
+
+
+from mpqp.measures import X, Y, Z, I
+
+
+def pauliObservables():
+    return [
+        [Observable(X @ X @ X + I @ X @ I + X @ I @ X - 2 * Z @ Z @ Z)],
+        [
+            Observable(X @ X @ X + I @ X @ I + X @ I @ X - 2 * Z @ Z @ Z),
+            Observable(Y @ Y @ Y + X @ X @ X),
+        ],
+        [
+            Observable(X @ X @ X + I @ X @ I + X @ I @ X - 2 * Z @ Z @ Z),
+            Observable(Y @ Y @ Y + X @ X @ X),
+            Observable(Z @ I @ Z - 5 * X @ X @ X),
+        ],
+    ]
+
+
+def optimized_devices():
+    return [
+        IBMDevice.AER_SIMULATOR,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    ]
+
+
+@pytest.mark.parametrize(
+    "observable, device",
+    [(i, j) for i in pauliObservables() for j in optimized_devices()],
+)
+def test_pauli_grouping_optimization(
+    observable: list[Observable], device: AvailableDevice
+):
+    print(observable)
+    print(device)
+    from mpqp.execution import run, Result
+
+    circuit = QCircuit(
+        [
+            Rx(np.pi / 3, 0),
+            Ry(np.pi / 12, 1),
+            CNOT(0, 1),
+            Rz(np.pi / 6, 1),
+            Ry(1.5 * np.pi, 2),
+        ]
+    )
+    if device.supports_state_vector():
+        non_optimized = run(
+            circuit
+            + QCircuit([ExpectationMeasure(observable, optimize_measurement=False)]),
+            device,
+        )
+        optimized = run(
+            circuit
+            + QCircuit([ExpectationMeasure(observable, optimize_measurement=True)]),
+            device,
+        )
+        assert isinstance(non_optimized, Result)
+        assert isinstance(optimized, Result)
+        print(non_optimized)
+        print(optimized)
+        if isinstance(non_optimized.expectation_values, float) and isinstance(
+            optimized.expectation_values, float
+        ):
+            assert round(non_optimized.expectation_values, 5) == round(optimized.expectation_values, 5)  # type: ignore
+        else:
+            for i in range(len(non_optimized.expectation_values)):  # type: ignore
+                assert round(non_optimized.expectation_values[f"observable_{i}"], 5) == round(optimized.expectation_values[f"observable_{i}"], 5)  # type: ignore
+    else:
+        assert True

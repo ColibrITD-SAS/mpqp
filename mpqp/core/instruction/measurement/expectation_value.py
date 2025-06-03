@@ -468,6 +468,9 @@ class ExpectationMeasure(Measure):
         contiguous."""
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
+        """Return the grouped monomials of the Pauli string of the observable.
+        The grouping is done according to the grouping method of the expectation measure and the chosen commutativity type.
+        """
         monomials = []
         for obs in self.observables:
             monomials.extend(obs.pauli_string.monomials)
