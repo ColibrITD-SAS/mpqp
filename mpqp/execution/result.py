@@ -73,7 +73,9 @@ class StateVector:
         )
         """See parameter description."""
         self.probabilities = (
-            abs(self.vector) ** 2 if probabilities is None else np.array(probabilities)
+            np.abs(self.vector) ** 2
+            if probabilities is None
+            else np.array(probabilities)
         )
         """See parameter description."""
 

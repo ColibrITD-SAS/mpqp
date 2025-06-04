@@ -120,11 +120,13 @@ def test_pauli_grouping_optimization(
             circuit
             + QCircuit([ExpectationMeasure(observable, optimize_measurement=False)]),
             device,
+            translation_warning=False,
         )
         optimized = run(
             circuit
             + QCircuit([ExpectationMeasure(observable, optimize_measurement=True)]),
             device,
+            translation_warning=False,
         )
         assert isinstance(non_optimized, Result)
         assert isinstance(optimized, Result)
@@ -133,7 +135,7 @@ def test_pauli_grouping_optimization(
         if isinstance(non_optimized.expectation_values, float) and isinstance(
             optimized.expectation_values, float
         ):
-            assert round(non_optimized.expectation_values, 5) == round(optimized.expectation_values, 5)  # type: ignore
+            assert round(non_optimized.expectation_values, 10) == round(optimized.expectation_values, 10)  # type: ignore
         else:
             for i in range(len(non_optimized.expectation_values)):  # type: ignore
                 assert round(non_optimized.expectation_values[f"observable_{i}"], 5) == round(optimized.expectation_values[f"observable_{i}"], 5)  # type: ignore

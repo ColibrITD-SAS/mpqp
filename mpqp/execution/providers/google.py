@@ -53,7 +53,20 @@ def run_cirq_observable(
     job: Job,
     circuit: "CirqCircuit",
     simulator: Union["Simulator", "SimulatedLocalEngine"],
-):
+) -> Result:
+    """Returns the result of an OBSERVABLE job.
+    Here optimize_measurement allows cirq to do the grouping on the Pauli string of every observable.
+    Otherwise each observables are sent without modification.
+
+    This function should be called by run_local and run_local_processor, not with any remote jobs.
+    Args:
+        job: Job to be executed.
+        circuit: The circuit to measure.
+        simulator: The simulator on which the circuit is ran.
+
+    Returns:
+        A result containing the expectation values of the observables.
+    """
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
@@ -210,6 +223,19 @@ def run_cirq_observable(
 def run_cirq_observable_remote(
     job: Job, circuit: "CirqCircuit", service: "Service"
 ) -> Result:
+    """Returns the result of an OBSERVABLE job.
+    Here optimize_measurements will performs the whole grouping of the pauli monomials in mpqp.
+    This function is not available without optimize_measurement at True.
+
+    This function should be called by run_remote, not with any local jobs.
+    Args:
+        job: Job to be executed.
+        circuit: The circuit to measure.
+        service: The service on which the circuit is ran.
+
+    Returns:
+        A result containing the expectation values of the observables.
+    """
     expectation_values = {}
     result = {}
     if job.measure is None:
@@ -222,11 +248,11 @@ def run_cirq_observable_remote(
     )
 
     for group in grouping:
-        pre_mesure = QCircuit(find_qubitwise_rotations(group)).to_other_language(
+        pre_measure = QCircuit(find_qubitwise_rotations(group)).to_other_language(
             Language.CIRQ
         )
         local_result = extract_result_SAMPLE(
-            service.run(circuit=circuit + pre_mesure, repetitions=job.measure.shots),
+            service.run(circuit=circuit + pre_measure, repetitions=job.measure.shots),
             job,
         )
         assert isinstance(local_result, Result)
@@ -491,8 +517,5 @@ def extract_result_STATE_VECTOR(
     Returns:
         The formatted result.
     """
-    from mpqp.tools.maths import normalize
-
-    state_vector = normalize(result.final_state_vector)
-    state_vector = StateVector(state_vector, job.circuit.nb_qubits)
+    state_vector = StateVector(result.final_state_vector, job.circuit.nb_qubits)
     return Result(job, state_vector, 0, 0)

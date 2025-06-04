@@ -126,6 +126,17 @@ def run_braket(job: Job, translation_warning: bool = True) -> Result:
 
 @typechecked
 def run_braket_observable(job: Job, translation_warning: bool = True):
+    """Returns the result of an OBSERVABLE job.
+    Here optimize_measurements will performs the whole grouping of the pauli monomials in mpqp.
+    Otherwise each observable will be ran one by one.
+
+    Args:
+        job: Job to be executed.
+        translation_warning: raises a warning if True.
+
+    Returns:
+        A result containing the expectation values of the observables.
+    """
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult
 
@@ -150,7 +161,7 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
         expectation_values = {}
         for group in grouping:
             pre_measure = QCircuit(find_qubitwise_rotations(group)).to_other_language(
-                Language.BRAKET
+                Language.BRAKET, translation_warning
             )
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
@@ -161,9 +172,10 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
                 local_result = device.run(cirq, shots=0, inputs=None).result()
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)
-                sorted_values = local_result.values[0]
-                for i in range(len(sorted_values)):
-                    sorted_values[i] = float(np.abs(sorted_values[i]) ** 2)
+                values = local_result.values[0]
+                sorted_values = []
+                for i in range(len(values)):
+                    sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
                 local_result = device.run(
                     circuit + pre_measure,
@@ -173,14 +185,13 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
                 length = 2**job.circuit.nb_qubits
-                sorted_values = []
+                sorted_values: list[float] = []
                 for i in range(length):
                     key = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
                     if key in result.measurement_probabilities:
-                        sorted_values.append(result.measurement_probabilities[key])
+                        sorted_values.append(result.measurement_probabilities[key].real)
                     else:
                         sorted_values.append(0)
-
             for monom in group:
                 expectation_value: float = np.dot(
                     pauli_monomial_eigenvalues(monom),
@@ -214,7 +225,7 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
                 copy, shots=job.measure.shots, inputs=None
             ).result()
             assert isinstance(local_result, GateModelQuantumTaskResult)
-            results.update({f"observable_{len(results)}": local_result.values[0]})
+            results.update({f"observable_{len(results)}": local_result.values[0].real})
             errors.update({f"observable_{len(errors)}": None})
         if len(results) == 1:
             return Result(job, results["observable_0"], None, job.measure.shots)

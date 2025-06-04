@@ -29,12 +29,14 @@ def test_expectation_values_devices(device: AvailableDevice):
     str2 = I @ Z @ Z - 2 * Y @ Z @ Z + 3 * X @ Y @ Z
     str3 = X @ X @ X + X @ I @ X + I @ X @ X
     obs = [Observable(string), Observable(str2), Observable(str3)]
-    true_result = run(circuit + QCircuit([ExpectationMeasure(obs)]), device).expectation_values  # type: ignore
+    true_result = run(circuit + QCircuit([ExpectationMeasure(obs)]), device, translation_warning=False).expectation_values  # type: ignore
     single_exp_values = []
     for observable in obs:
         single_exp_values.append(
             run(
-                circuit + QCircuit([ExpectationMeasure(observable)]), device
+                circuit + QCircuit([ExpectationMeasure(observable)]),
+                device,
+                translation_warning=False,
             ).expectation_values  # type: ignore
         )
     equal = True
