@@ -333,7 +333,7 @@ def test_observable_ideal_case(
         assert isinstance(result, Result)
         assert abs(result.expectation_values - expected_value) < (
             atol + rtol * abs(expected_value)
-        )  # type: ignore
+        )
 
 
 @pytest.fixture
