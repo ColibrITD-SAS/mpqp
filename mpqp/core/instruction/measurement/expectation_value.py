@@ -473,7 +473,14 @@ class ExpectationMeasure(Measure):
         """
         monomials = []
         for obs in self.observables:
-            monomials.extend(obs.pauli_string.monomials)
+            for monom in obs.pauli_string.monomials:
+                found = False
+                for m in monomials:
+                    if monom.name == m.name:
+                        found = True
+                        break
+                if not found:
+                    monomials.append(monom / monom.coef)
         if self.grouping_method == GroupingMethods.GREEDY:
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 

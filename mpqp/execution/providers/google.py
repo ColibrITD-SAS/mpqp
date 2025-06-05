@@ -80,46 +80,54 @@ def run_cirq_observable(
     assert isinstance(job.measure, ExpectationMeasure)
 
     if job.measure.optimize_measurement:
-        grouping = job.measure.get_pauli_grouping()
-
+        monomials = []
+        for obs in job.measure.observables:
+            for monom in obs.pauli_string.monomials:
+                found = False
+                for m in monomials:
+                    if monom.name == m.name:
+                        found = True
+                        break
+                if not found:
+                    monomials.append(monom / monom.coef)
         expectation_values: dict[str, float] = {}
         result: dict[str, float] = {}
 
-        for group in grouping:
-            cirq_obs = [
-                obs.to_other_language(Language.CIRQ, circuit=circuit) for obs in group
-            ]
-            job.status = JobStatus.RUNNING
-            from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
+        cirq_obs = [
+            monom.to_other_language(Language.CIRQ, circuit=circuit)
+            for monom in monomials
+        ]
+        job.status = JobStatus.RUNNING
+        from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
 
-            if isinstance(simulator, SimulatedLocalEngine):
-                local_result = simulator.get_sampler(
-                    job.device.value
-                ).sample_expectation_values(
-                    circuit,
-                    observables=cirq_obs,
-                    num_samples=job.measure.shots,
-                )
-                for i, res in enumerate(local_result[0]):
-                    expectation_values.update({f"{group[i].name}": res})
-                    variances.update({f"{group[i].name}": None})
-            elif job.measure.shots == 0:
-                local_result = simulator.simulate_expectation_values(
-                    circuit, observables=cirq_obs
-                )
-                for i, res in enumerate(local_result):
-                    expectation_values.update({f"{group[i].name}": res.real})
-                    variances.update({f"{group[i].name}": 0})
-            else:
-                local_result = measure_observables(
-                    circuit,
-                    observables=cirq_obs,
-                    sampler=simulator,
-                    stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
-                )
-                for i, res in enumerate(local_result):
-                    expectation_values.update({f"{group[i].name}": res.mean})
-                    variances.update({f"{group[i].name}": res.variance})
+        if isinstance(simulator, SimulatedLocalEngine):
+            local_result = simulator.get_sampler(
+                job.device.value
+            ).sample_expectation_values(
+                circuit,
+                observables=cirq_obs,
+                num_samples=job.measure.shots,
+            )
+            for i, res in enumerate(local_result[0]):
+                expectation_values.update({f"{monomials[i].name}": res})
+                variances.update({f"{monomials[i].name}": None})
+        elif job.measure.shots == 0:
+            local_result = simulator.simulate_expectation_values(
+                circuit, observables=cirq_obs
+            )
+            for i, res in enumerate(local_result):
+                expectation_values.update({f"{monomials[i].name}": res.real})
+                variances.update({f"{monomials[i].name}": 0})
+        else:
+            local_result = measure_observables(
+                circuit,
+                observables=cirq_obs,
+                sampler=simulator,
+                stopping_criteria=RepetitionsStoppingCriteria(job.measure.shots),
+            )
+            for i, res in enumerate(local_result):
+                expectation_values.update({f"{monomials[i].name}": res.mean})
+                variances.update({f"{monomials[i].name}": res.variance})
         errors = {}
         for i, obs in enumerate(job.measure.observables):
             string = obs.pauli_string

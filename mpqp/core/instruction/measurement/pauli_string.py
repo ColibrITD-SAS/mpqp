@@ -890,7 +890,7 @@ class PauliStringMonomial(PauliString):
 
     @property
     def name(self) -> str:
-        return f"{'@'.join(map(str,self.atoms))}"
+        return f"{'@'.join(map(str, self.atoms))}"
 
     def __str__(self):
         coef = format_element(self.coef)
@@ -1018,7 +1018,7 @@ class PauliStringMonomial(PauliString):
         if method == CommutingTypes.QUBITWISE:
             return all(
                 self.atoms[i].commutes_with(other.atoms[i])
-                for i in range(len(self.atoms))
+                for i in range(self.nb_qubits)
             )
         else:
             return (
