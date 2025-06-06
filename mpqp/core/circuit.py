@@ -260,6 +260,10 @@ class QCircuit:
 
         if isinstance(components, NoiseModel):
             self.noises.append(components)
+        elif isinstance(components, CustomGate) and components.swaps != []:
+            self.add(components.swaps)
+            self.instructions.append(components)
+            self.add(components.swaps)
         else:
             self.instructions.append(components)
 

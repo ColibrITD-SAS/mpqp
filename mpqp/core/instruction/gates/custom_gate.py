@@ -11,6 +11,7 @@ from typeguard import typechecked
 from mpqp.core.instruction.gates.native_gates import (
     _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
 )
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
@@ -60,14 +61,16 @@ class CustomGate(Gate):
                 f"Size of the targets ({len(targets)}) must match the number of qubits of the "
                 f"UnitaryMatrix ({definition.nb_qubits})"
             )
-        if not all([targets[i] + 1 == targets[i + 1] for i in range(len(targets) - 1)]):
-            raise ValueError(
-                "Target qubits must be ordered and contiguous for a CustomGate."
-            )
+        targets.sort()
+        self.swaps: list[Instruction] = []
+        for i in range(1, len(targets)):
+            if targets[i] == targets[i - 1]:
+                raise ValueError(f"Each targets must be unique got : {targets} ")
+            if targets[i] - 1 != targets[i - 1]:
+                from mpqp.gates import SWAP
 
-        # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate,
-        #  use the to_matrix() method inherited from Gate, maybe
-
+                self.swaps.append(SWAP(targets[i], targets[i - 1] + 1))
+        targets = list(range(targets[0], targets[0] + len(targets)))
         super().__init__(targets, label)
 
     @property
