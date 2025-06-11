@@ -1329,7 +1329,7 @@ class QCircuit:
                 return apply_noise_to_cirq_circuit(
                     cirq_circuit,
                     self.noises,
-                    # self.nb_qubits,
+                    self.nb_qubits,
                 )
 
             return cirq_circuit
