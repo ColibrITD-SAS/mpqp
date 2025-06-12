@@ -70,9 +70,9 @@ class CustomGate(Gate):
                 targets, ordered
             )
         if non_ordered:
-            from mpqp.tools.maths import swap_columns
+            from mpqp.tools.maths import rearrange_matrix
 
-            definition = UnitaryMatrix(swap_columns(definition.matrix, targets))
+            definition = UnitaryMatrix(rearrange_matrix(definition.matrix, targets))
 
         self.definition = definition
         super().__init__(ordered, label)

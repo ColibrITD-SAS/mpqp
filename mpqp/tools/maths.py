@@ -469,7 +469,7 @@ def successive_kron_products(matrices: list[Matrix]):
 
 
 @typechecked
-def swap_columns(matrix: Matrix, targets: list[int]):
+def rearrange_matrix(matrix: Matrix, targets: list[int]):
     """Function to reorder the rows and columns of a matrix in order to change the targets of a gate.
     The intended order for a gate is having continuous targets in growing order.
 
@@ -490,7 +490,7 @@ def swap_columns(matrix: Matrix, targets: list[int]):
         >>> m2 = np.array([[0,1], [1,0]])
         >>> matrix = np.kron(m1,m2)
         >>> matrix_swapped = np.kron(m2,m1)
-        >>> matrix_eq(matrix_swapped,swap_columns(matrix, [1,0]))
+        >>> matrix_eq(matrix_swapped,rearrange_matrix(matrix, [1,0]))
         True
     """
     l = len(targets)
