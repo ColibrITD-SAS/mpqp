@@ -263,7 +263,9 @@ class QCircuit:
         elif isinstance(components, CustomGate) and components.swaps != []:
             self.add(components.swaps)
             self.instructions.append(components)
-            self.add(components.swaps)
+            tmp = components.swaps.copy()
+            tmp.reverse()
+            self.add(tmp)
         else:
             self.instructions.append(components)
 

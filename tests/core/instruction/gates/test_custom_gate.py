@@ -20,7 +20,13 @@ from mpqp.tools.circuit import random_circuit
 from mpqp.tools.errors import (
     UnsupportedBraketFeaturesWarning,
 )
-from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
+from mpqp.tools.generics import Matrix
+from mpqp.tools.maths import (
+    is_unitary,
+    matrix_eq,
+    rand_orthogonal_matrix,
+    successive_kron_products,
+)
 
 
 def test_custom_gate_is_unitary():
@@ -145,3 +151,58 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     assert isinstance(result1, Result)
     assert isinstance(result2, Result)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
+
+
+@pytest.mark.parametrize(
+    "targets, circuit, matrix",
+    [
+        (
+            [0, 1, 3],
+            QCircuit([H(0), X(1), Z(3)]),
+            successive_kron_products(
+                [H(0).to_matrix(), X(0).to_matrix(), Z(0).to_matrix()]
+            ),
+        ),
+    ],
+)
+def test_non_continuous_targets(targets: list[int], circuit: QCircuit, matrix: Matrix):
+    gate = CustomGate(UnitaryMatrix(matrix), targets)
+    cirq = QCircuit([gate])
+    assert matrix_eq(cirq.to_matrix(), circuit.to_matrix())
+
+
+@pytest.mark.parametrize(
+    "targets, circuit, matrix",
+    [
+        (
+            [1, 0],
+            QCircuit([X(0), Y(1)]),
+            np.kron(Y(0).to_matrix(), X(0).to_matrix()),
+        ),
+        (
+            [2, 1, 0],
+            QCircuit([H(0), X(1), Y(2)]),
+            successive_kron_products(
+                [Y(0).to_matrix(), X(0).to_matrix(), H(0).to_matrix()]
+            ),
+        ),
+        (
+            [0, 2, 1],
+            QCircuit([H(0), X(1), Y(2)]),
+            successive_kron_products(
+                [H(0).to_matrix(), Y(0).to_matrix(), X(0).to_matrix()]
+            ),
+        ),
+        (
+            [2, 0, 1],
+            QCircuit([Y(0), H(1), X(2)]),
+            successive_kron_products(
+                [H(0).to_matrix(), X(0).to_matrix(), Y(0).to_matrix()]
+            ),
+        ),
+    ],
+)
+def test_non_ordered_targets(targets: list[int], circuit: QCircuit, matrix: Matrix):
+    gate = CustomGate(UnitaryMatrix(matrix), targets)
+    cirq = QCircuit([gate])
+    assert matrix_eq(cirq.to_matrix(), circuit.to_matrix())

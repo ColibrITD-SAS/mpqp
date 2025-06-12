@@ -457,3 +457,69 @@ def is_power_of_two(n: int) -> bool:
 
     """
     return n >= 1 and (n & (n - 1)) == 0
+
+
+@typechecked
+def successive_kron_products(matrices: list[Matrix]):
+    """This function performs several kronecker products in a row."""
+    result = matrices[0]
+    for matrix in matrices[1:]:
+        result = np.kron(result, matrix)
+    return result
+
+
+@typechecked
+def swap_columns(matrix: Matrix, targets: list[int]):
+    """Function to reorder the rows and columns of a matrix in order to change the targets of a gate.
+    The intended order for a gate is having continuous targets in growing order.
+
+    For example the targets for a 3 qubit gate should be [1,2,3], changing it for [3,2,1] would
+    reverse the effects on the qubits 3 and 1 (akin to a SWAP gate on those qubits).
+
+    Note: This function's goal is not to move around a gate in a circuit but to shuffle the targets in a sense.
+
+    Args:
+        matrix: The matrix for which we want to reorder the targets.
+        targets: The changed targets for
+
+    Returns:
+        The shuffled matrix according to the given targets.
+
+    Example:
+        >>> m1 = np.eye(2)
+        >>> m2 = np.array([[0,1], [1,0]])
+        >>> matrix = np.kron(m1,m2)
+        >>> matrix_swapped = np.kron(m2,m1)
+        >>> matrix_eq(matrix_swapped,swap_columns(matrix, [1,0]))
+        True
+    """
+    l = len(targets)
+    shuffled = list(range(min(targets), len(targets)))
+    for index in range(l - 1):
+        if targets[index] == index:
+            continue
+        # If no swaps happened of the target then shuffled_index = targets[index]
+        shuffled_index = shuffled.index(targets[index])
+
+        i = 1 << (l - 1 - shuffled_index)
+        j = 1 << (l - 1 - index)
+        for change in range(1 << l):
+            current = bin(change)[2:].zfill(l)
+            if current[shuffled_index - l] == "0" and current[index - l] == "1":
+                current = int(current, 2)
+                conjugate = current + i - j
+                for k in range(len(matrix)):
+                    hold = matrix[k][current]
+                    matrix[k][current] = matrix[k][conjugate]
+                    matrix[k][conjugate] = hold
+
+                for k in range(len(matrix)):
+                    hold = matrix[current][k]
+                    matrix[current][k] = matrix[conjugate][k]
+                    matrix[conjugate][k] = hold
+
+        # keeps tracks of the position of the targets in the matrix
+        hold = shuffled[index]
+        shuffled[index] = shuffled[targets[index]]
+        shuffled[targets[index]] = hold
+    return matrix

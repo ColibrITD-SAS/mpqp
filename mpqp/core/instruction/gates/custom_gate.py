@@ -4,7 +4,7 @@ cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate`
 to add your custom unitary operation to the circuit, which will be decomposed
 and executed transparently."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Tuple
 
 from typeguard import typechecked
 
@@ -53,25 +53,29 @@ class CustomGate(Gate):
     def __init__(
         self, definition: UnitaryMatrix, targets: list[int], label: Optional[str] = None
     ):
-        self.definition = definition
-        """See parameter description."""
 
         if definition.nb_qubits != len(targets):
             raise ValueError(
                 f"Size of the targets ({len(targets)}) must match the number of qubits of the "
                 f"UnitaryMatrix ({definition.nb_qubits})"
             )
-        targets.sort()
-        self.swaps: list[Instruction] = []
-        for i in range(1, len(targets)):
-            if targets[i] == targets[i - 1]:
-                raise ValueError(f"Each targets must be unique got : {targets} ")
-            if targets[i] - 1 != targets[i - 1]:
-                from mpqp.gates import SWAP
+        from copy import deepcopy
 
-                self.swaps.append(SWAP(targets[i], targets[i - 1] + 1))
-        targets = list(range(targets[0], targets[0] + len(targets)))
-        super().__init__(targets, label)
+        ordered = deepcopy(targets)
+        ordered.sort()
+        non_ordered = targets != ordered
+        self.swaps: list[Instruction] = []
+        if any(ordered[i + 1] != ordered[i] + 1 for i in range(len(ordered) - 1)):
+            (targets, ordered) = self.__organize_non_continuous_targets(
+                targets, ordered
+            )
+        if non_ordered:
+            from mpqp.tools.maths import swap_columns
+
+            definition = UnitaryMatrix(swap_columns(definition.matrix, targets))
+
+        self.definition = definition
+        super().__init__(ordered, label)
 
     @property
     def matrix(self) -> Matrix:
@@ -165,6 +169,49 @@ class CustomGate(Gate):
     def __repr__(self) -> str:
         label = f", \"{self.label}\"" if self.label else ""
         return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets}{label})"
+
+    def __organize_non_continuous_targets(
+        self, targets: list[int], sorted: list[int]
+    ) -> Tuple[list[int], list[int]]:
+        """This function is used in the constructor in case the user gives non-continuous targets for this gate.
+        It should not be called by the user of any other methods other than the constructor.
+        """
+        biggest_block = 0
+        current = 1
+        start = 0
+        for i in range(len(sorted) - 1):
+            if sorted[i + 1] == sorted[i] + 1:
+                current += 1
+            else:
+                if current >= biggest_block:
+                    biggest_block = current
+                    start = i - biggest_block + 1
+                current = 1
+        if biggest_block < current:
+            biggest_block = current
+            start = len(sorted) - biggest_block
+        from mpqp.core.instruction import SWAP
+
+        for i in range(start - 1, -1, -1):
+            self.swaps.append(SWAP(sorted[i], sorted[start] - start + i))
+
+            targets[targets.index(sorted[i])] = sorted[start] - start + i
+            sorted[i] = sorted[start] - start + i
+        for i in range(len(targets) - start - biggest_block):
+
+            self.swaps.append(
+                SWAP(
+                    sorted[start + biggest_block + i],
+                    sorted[start + biggest_block - 1] + i + 1,
+                )
+            )
+            targets[targets.index(sorted[start + biggest_block + i])] = (
+                sorted[start + biggest_block - 1] + i + 1
+            )
+            sorted[start + biggest_block + i] = (
+                sorted[start + biggest_block - 1] + i + 1
+            )
+        return (targets, sorted)
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
