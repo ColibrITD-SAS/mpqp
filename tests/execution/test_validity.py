@@ -4,6 +4,7 @@ from copy import deepcopy
 import numpy as np
 import numpy.typing as npt
 import pytest
+
 from mpqp import QCircuit
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -35,7 +36,13 @@ from mpqp.measures import (
     Observable,
     VariableSizeBasis,
 )
-from mpqp.noise.noise_model import NOISE_MODELS, BitFlip, Depolarizing, PhaseDamping
+from mpqp.noise.noise_model import (
+    NOISE_MODELS,
+    AmplitudeDamping,
+    BitFlip,
+    Depolarizing,
+    PhaseDamping,
+)
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
@@ -519,7 +526,7 @@ def test_validity_noise_to_other_language(language: Language):
                 noise_build.to_other_language(language)
 
         elif language == Language.CIRQ:
-            if isinstance(noise_build, (Depolarizing, BitFlip)):
+            if isinstance(noise_build, (Depolarizing, BitFlip, AmplitudeDamping)):
                 noise_build.to_other_language(language)
             else:
                 with pytest.raises(NotImplementedError):
