@@ -426,7 +426,6 @@ class Depolarizing(DimensionalNoiseModel):
                 depol_type="pauli",
             )
         elif language == Language.CIRQ:
-            from cirq.devices.line_qubit import LineQubit
             from cirq.ops.common_channels import depolarize
 
             noise = depolarize(self.prob, self.dimension)
@@ -707,14 +706,24 @@ class AmplitudeDamping(NoiseModel):
 
                 return GeneralizedAmplitudeDamping(self.gamma, float(self.prob))
 
-        # TODO: MY_QLM implementation
-
         elif language == Language.QISKIT:
             from qiskit_aer.noise.errors.standard_errors import amplitude_damping_error
 
             return amplitude_damping_error(
                 self.gamma, 1 - self.prob  # pyright: ignore[reportArgumentType]
             )
+
+        elif language == Language.CIRQ:
+            if self.prob == 1:
+                from cirq.ops.common_channels import amplitude_damp
+
+                return amplitude_damp(gamma=self.gamma)
+            else:
+                from cirq.ops.common_channels import generalized_amplitude_damp
+
+                return generalized_amplitude_damp(gamma=self.gamma, p=self.prob)
+
+        # TODO: MY_QLM implementation
 
         else:
             raise NotImplementedError(
