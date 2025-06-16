@@ -32,7 +32,7 @@ from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.execution import Job, JobType
-from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.devices import AvailableDevice, GOOGLEDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
 
@@ -483,10 +483,27 @@ class Result:
                 )
 
             samples_str = "\n".join(
-                f"    State: {measure.basis.binary_to_custom(bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits))}, "
-                f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
-                for sample, probability in zip(self.samples, probabilities)
+                (
+                    f"    State: {measure.basis.binary_to_custom(bitstring)}, "
+                    f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
+                )
+                for sample, probability in sorted(
+                    zip(self.samples, probabilities),
+                    key=lambda sample_prob: sample_prob[0].index,
+                )
+                for bitstring in [
+                    (
+                        "".join(
+                            reversed(
+                                bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits)
+                            )
+                        )
+                        if isinstance(self.device, GOOGLEDevice)
+                        else bin(sample.index)[2:].zfill(self.job.circuit.nb_qubits)
+                    )
+                ]
             )
+
             return f"""{header}
   Counts: {self._counts}
   Probabilities: {clean_1D_array(self.probabilities)}
