@@ -75,13 +75,14 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     )
     run_choice_tree(braket_auth_choices)
 
+    if get_env_variable("BRAKET_CONFIGURED") != "True":
+        return "Amazon Braket configuration failed.", []
+
     try:
         boto3.setup_default_session()
         session = AwsSession()
         save_env_variable("AWS_DEFAULT_REGION", session.region)
-
         return "Amazon Braket account correctly configured", []
-
     except Exception as e:
         print(colored("Error configuring Amazon Braket account", "red"))
         print(colored(str(e), "red"))
@@ -130,18 +131,23 @@ def configure_account_iam() -> tuple[str, list[Any]]:
     """Configure IAM authentication for Amazon Braket."""
 
     print("Configuring IAM authentication for Amazon Braket...")
+
+    credentials_file = Path.home() / ".aws" / "credentials"
+    config_file = Path.home() / ".aws" / "config"
+    for file in [credentials_file, config_file]:
+        if file.exists():
+            file.unlink()
+
     os.system("aws configure")
 
     if not validate_aws_credentials():
+        print("Invalid AWS IAM credentials.")
         save_env_variable("BRAKET_CONFIGURED", "False")
         return "Invalid AWS IAM credentials.", []
 
     print("IAM authentication configured successfully.")
     save_env_variable("BRAKET_AUTH_METHOD", "IAM")
     save_env_variable("BRAKET_CONFIGURED", "True")
-
-    credentials_file = Path.home() / ".aws" / "credentials"
-    config_file = Path.home() / ".aws" / "config"
 
     credentials = ConfigParser()
     credentials.read(credentials_file)
@@ -190,9 +196,16 @@ def configure_account_sso() -> tuple[str, list[Any]]:
     """Configure SSO authentication for Amazon Braket."""
     print("Configuring SSO authentication for Amazon Braket...")
 
+    credentials_file = Path.home() / ".aws" / "credentials"
+    config_file = Path.home() / ".aws" / "config"
+    for file in [credentials_file, config_file]:
+        if file.exists():
+            file.unlink()
+
     sso_credentials = get_user_sso_credentials()
     if not sso_credentials:
-        raise Exception("Failed to retrieve SSO credentials after configuration.")
+        save_env_variable("BRAKET_CONFIGURED", "False")
+        return "Failed to retrieve SSO credentials after configuration.", []
 
     update_aws_credentials_file(
         profile_name="default",
@@ -202,15 +215,15 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         region=sso_credentials["region"],
     )
 
-    if not validate_aws_credentials():
+    if validate_aws_credentials():
+        print("SSO authentication configured successfully.")
+        save_env_variable("BRAKET_AUTH_METHOD", "SSO")
+        save_env_variable("BRAKET_CONFIGURED", "True")
+        return "SSO configuration successful.", []
+    else:
+        print("Invalid AWS SSO credentials.")
         save_env_variable("BRAKET_CONFIGURED", "False")
         return "Invalid AWS SSO credentials.", []
-
-    print("SSO authentication configured successfully.")
-    save_env_variable("BRAKET_AUTH_METHOD", "SSO")
-    save_env_variable("BRAKET_CONFIGURED", "True")
-
-    return "SSO configuration successful.", []
 
 
 def get_aws_braket_account_info() -> str:
@@ -240,10 +253,6 @@ def get_aws_braket_account_info() -> str:
         in the AWS credentials/config file ``~/.aws/credentials``.
 
     """
-    if get_env_variable("BRAKET_CONFIGURED") == "False":
-        raise AWSBraketRemoteExecutionError(
-            "Error when trying to get AWS credentials. No AWS Braket account configured."
-        )
 
     from braket.aws import AwsSession
 
