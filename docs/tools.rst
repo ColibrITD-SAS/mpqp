@@ -146,6 +146,6 @@ Unitary decomposition
 .. code-block:: python
     :class: import
 
-    from mpqp.tools.unitary_decomposition.py import *
+    from mpqp.tools.unitary_decomposition import *
 
 .. automodule:: mpqp.tools.unitary_decomposition
