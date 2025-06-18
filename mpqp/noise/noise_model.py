@@ -385,6 +385,9 @@ class Depolarizing(DimensionalNoiseModel):
             [[ 0.31622777+0.j  0.        +0.j]
              [ 0.        +0.j -0.31622777+0.j]]
 
+            >>> Depolarizing(0.3, [0,1]).to_other_language(Language.CIRQ)
+            cirq.depolarize(p=0.3)
+
         """
         if language == Language.BRAKET:
             if self.dimension > 2:
@@ -542,6 +545,9 @@ class BitFlip(NoiseModel):
                      [0.3+0.j, 0. +0.j, 0. +0.j, 0.7+0.j]],
                     input_dims=(2,), output_dims=(2,))
 
+            >>> BitFlip(0.3, [0,1]).to_other_language(Language.CIRQ)
+            cirq.bit_flip(p=0.3)
+
         """
 
         if language == Language.BRAKET:
@@ -692,6 +698,12 @@ class AmplitudeDamping(NoiseModel):
                      [0.        +0.j, 0.        +0.j, 0.89442719+0.j, 0.        +0.j],
                      [0.12      +0.j, 0.        +0.j, 0.        +0.j, 0.92      +0.j]],
                     input_dims=(2,), output_dims=(2,))
+
+            >>> AmplitudeDamping(0.4, targets=[0, 1]).to_other_language(Language.CIRQ)
+            cirq.amplitude_damp(gamma=0.4)
+
+            >>> AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.CIRQ)
+            cirq.generalized_amplitude_damp(p=0.2,gamma=0.4)
 
         """
         if language == Language.BRAKET:

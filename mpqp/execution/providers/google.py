@@ -25,11 +25,24 @@ from mpqp.noise.noise_model import NoiseModel
 
 @typechecked
 def apply_noise_to_cirq_circuit(
-    cirq_circuit: Circuit,
+    cirq_circuit: "Circuit",
     noises: list[NoiseModel],
     nb_qubits: int,
-) -> Circuit:
+) -> "Circuit":
+    """Apply noise models to a Cirq circuit.
 
+    This function applies noise models to a given Cirq circuit based on the specified noise models and
+    the number of qubits in the circuit. It modifies the original circuit by adding noise operations
+    after the original gates and returns a new circuit with the noise applied.
+
+    Args:
+        cirq_circuit: The Cirq circuit to apply noise to.
+        noises: A list of noise models to apply to the circuit.
+        nb_qubits: The number of qubits in the circuit.
+
+    Returns:
+        A new circuit with the noise operations applied.
+    """
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
     from cirq.ops.raw_types import Gate
@@ -64,13 +77,13 @@ def apply_noise_to_cirq_circuit(
                 allowed_gates = set()
                 if noise.gates:
                     for gate in noise.gates:
-                        gate_cls = (
+                        gate_obj = (
                             gate.cirq_gate if hasattr(gate, "cirq_gate") else gate
                         )
                         gate_cls = (
-                            type(gate_cls)
-                            if not isinstance(gate_cls, type)
-                            else gate_cls
+                            type(gate_obj)
+                            if not isinstance(gate_obj, type)
+                            else gate_obj
                         )
                         allowed_gates.add(gate_cls)
 
