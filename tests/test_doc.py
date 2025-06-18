@@ -116,7 +116,7 @@ from mpqp.tools.maths import (
     normalize,
     rand_clifford_matrix,
     rand_hermitian_matrix,
-    random_unitary_matrix,
+    rand_unitary_matrix,
     rand_orthogonal_matrix,
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,

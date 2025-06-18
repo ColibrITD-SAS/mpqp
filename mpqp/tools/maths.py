@@ -423,9 +423,9 @@ def rand_unitary_matrix(size: int) -> Matrix:
         A random unitary matrix with complex coefficients.
 
     Example:
-        >>> is_unitary(random_unitary_matrix(4))
+        >>> is_unitary(rand_unitary_matrix(4))
         True
-        >>> is_unitary(random_unitary_matrix(8))
+        >>> is_unitary(rand_unitary_matrix(8))
         True
     """
     from scipy.stats import unitary_group
