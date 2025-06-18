@@ -30,7 +30,9 @@ def apply_noise_to_cirq_circuit(
     nb_qubits: int,
 ) -> Circuit:
 
-    from cirq import ops as cirq_ops
+    from cirq.ops.identity import IdentityGate
+    from cirq.ops.measurement_gate import MeasurementGate
+    from cirq.ops.raw_types import Gate
 
     qubit_list = sorted(list(cirq_circuit.all_qubits()))
     noisy_moments = []
@@ -38,17 +40,20 @@ def apply_noise_to_cirq_circuit(
     for moment in cirq_circuit:
         moment_ops = list(moment.operations)
         for op in moment_ops:
-            if isinstance(op.gate, cirq_ops.MeasurementGate):
+            if isinstance(op.gate, MeasurementGate):
                 noisy_moments.append(Moment([op]))
                 continue
 
-            if isinstance(op.gate, cirq_ops.IdentityGate):
+            if isinstance(op.gate, IdentityGate):
                 continue
 
             noisy_moments.append(Moment([op]))
 
             for noise in reversed(noises):
                 cirq_noise = noise.to_other_language(Language.CIRQ)
+                if TYPE_CHECKING:
+                    assert isinstance(cirq_noise, Gate)
+
                 noise_dim = getattr(noise, "dimension", 1)
 
                 if len(noise.targets) == 0 or len(noise.targets) == nb_qubits:
