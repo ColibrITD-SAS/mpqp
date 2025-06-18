@@ -6,7 +6,7 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Optional, Union, Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -58,6 +58,8 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
     Args:
         lhs: Left-hand side matrix of the equality.
         rhs: Right-hand side matrix of the equality.
+        atol: The absolute tolerance parameter.
+        rtol: The relative tolerance parameter.
 
     Returns:
         ``True`` if the two matrix are equal (according to the definition above).
@@ -411,6 +413,28 @@ def rand_product_local_unitaries(
 
 
 @typechecked
+def random_unitary_matrix(size: int) -> Matrix:
+    """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
+
+    Args:
+        size: Size (number of columns) of the square matrix to generate.
+
+    Returns:
+        A random unitary matrix with complex coefficients.
+
+    Example:
+        >>> is_unitary(random_unitary_matrix(4))
+        True
+        >>> is_unitary(random_unitary_matrix(8))
+        True
+    """
+    from scipy.stats import unitary_group
+    import numpy as np
+
+    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
+
+
+@typechecked
 def rand_hermitian_matrix(
     size: int, seed: Optional[int] = None
 ) -> npt.NDArray[np.complex64]:
@@ -437,28 +461,6 @@ def rand_hermitian_matrix(
 
     m = rng.random((size, size)).astype(np.complex64)
     return m + m.conjugate().transpose()
-
-
-@typechecked
-def ran_unitary_matrix(size: int) -> Matrix:
-    """Generate a random Unitary matrix.
-
-    Args:
-        size: Size (number of columns) of the square matrix to generate.
-
-    Returns:
-        A random unitary matrix with complex coefficients.
-
-    Example:
-        >>> is_unitary(ran_unitary_matrix(4))
-        True
-        >>> is_unitary(ran_unitary_matrix(8))
-        True
-    """
-    from scipy.stats import unitary_group
-    import numpy as np
-
-    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
 
 
 @typechecked
