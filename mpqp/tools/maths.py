@@ -413,7 +413,7 @@ def rand_product_local_unitaries(
 
 
 @typechecked
-def random_unitary_matrix(size: int) -> Matrix:
+def rand_unitary_matrix(size: int) -> Matrix:
     """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
 
     Args:
