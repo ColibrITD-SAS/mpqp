@@ -92,9 +92,6 @@ class Qubo:
     def __xor__(self, other: "Qubo") -> "Qubo":
         return self + other - 2 * (self * other)
 
-    def __eq__(self, other: object) -> bool:
-        return False
-
     def __len__(self) -> int:
         """Returns the number of unique boolean variables in the QUBO expression."""
         return len(self.get_variables())
@@ -166,7 +163,7 @@ class Qubo:
         """
         coeffs = []
 
-        if self.left == None and self.right == None:
+        if self.left is None and self.right is None:
             return (
                 [(int(self.value), [])]
                 if isinstance(self, QuboConstant)
