@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from qat.quops.class_concepts import QuantumChannel as QLMNoise
     from qiskit_aer.noise.errors.quantum_error import QuantumError
     from cirq.devices.noise_model import NOISE_MODEL_LIKE
-    from cirq.ops.common_channels import DepolarizingChannel
+    from cirq.ops.raw_types import Gate
 
 from typeguard import typechecked
 
@@ -357,7 +357,7 @@ class Depolarizing(DimensionalNoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> "BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError | type[DepolarizingChannel]":
+    ) -> "BraketNoise | TwoQubitDepolarizing | QLMNoise | QuantumError | Gate":
         """See the documentation for this method in the abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -431,11 +431,7 @@ class Depolarizing(DimensionalNoiseModel):
         elif language == Language.CIRQ:
             from cirq.ops.common_channels import depolarize
 
-            noise = depolarize(self.prob, self.dimension)
-            if TYPE_CHECKING:
-                assert isinstance(noise, DepolarizingChannel)
-
-            return noise
+            return depolarize(self.prob, self.dimension)
 
         else:
             raise NotImplementedError(f"Depolarizing is not implemented for {language}")
@@ -528,7 +524,7 @@ class BitFlip(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> "BraketNoise | QLMNoise | QuantumError":
+    ) -> "BraketNoise | QLMNoise | QuantumError | Gate":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -679,7 +675,7 @@ class AmplitudeDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> "BraketNoise | QLMNoise | QuantumError":
+    ) -> "BraketNoise | QLMNoise | QuantumError | Gate":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -828,7 +824,7 @@ class PhaseDamping(NoiseModel):
 
     def to_other_language(
         self, language: Language = Language.QISKIT
-    ) -> "BraketNoise | QLMNoise | QuantumError":
+    ) -> "BraketNoise | QLMNoise | QuantumError | Gate":
         """See documentation of this method in abstract mother class :class:`NoiseModel`.
 
         Args:
@@ -862,6 +858,11 @@ class PhaseDamping(NoiseModel):
             from qiskit_aer.noise.errors.standard_errors import phase_damping_error
 
             return phase_damping_error(self.gamma)
+
+        elif language == Language.CIRQ:
+            from cirq.ops.common_channels import phase_damp
+
+            return phase_damp(self.gamma)
 
         elif language == Language.MY_QLM:
             from qat.quops.quantum_channels import QuantumChannelKraus
