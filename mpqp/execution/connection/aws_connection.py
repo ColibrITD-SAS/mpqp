@@ -11,8 +11,6 @@ from configparser import ConfigParser
 from getpass import getpass
 from pathlib import Path
 
-import boto3
-
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
@@ -21,6 +19,8 @@ from mpqp.tools.errors import AWSBraketRemoteExecutionError
 def validate_aws_credentials() -> bool:
     """Validate AWS credentials by calling STS get_caller_identity."""
     try:
+        import boto3
+
         session = boto3.Session(profile_name="default")
         sts_client = session.client("sts")
         sts_client.get_caller_identity()
@@ -79,6 +79,8 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         return "Amazon Braket configuration failed.", []
 
     try:
+        import boto3
+
         boto3.setup_default_session()
         session = AwsSession()
         save_env_variable("AWS_DEFAULT_REGION", session.region)
@@ -257,6 +259,8 @@ def get_aws_braket_account_info() -> str:
     from braket.aws import AwsSession
 
     try:
+        import boto3
+
         boto3_session = boto3.Session(profile_name="default")
         session = AwsSession(boto_session=boto3_session)
 
@@ -334,6 +338,8 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
     from braket.aws import AwsDevice, AwsSession
 
     try:
+        import boto3
+
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
         mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
