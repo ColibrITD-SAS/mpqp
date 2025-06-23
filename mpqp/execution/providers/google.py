@@ -45,31 +45,29 @@ def apply_noise_to_cirq_circuit(
     """
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
-    from cirq.ops.raw_types import Gate
+    from cirq.ops.raw_types import Gate, Operation
 
-    qubit_list = sorted(list(cirq_circuit.all_qubits()))
+    qubit_list = sorted(cirq_circuit.all_qubits())
     noisy_moments = []
 
     for moment in cirq_circuit:
         moment_ops = list(moment.operations)
+        noisy_moments.append(Moment(moment_ops))
+
+        qubit_noise_op: list[list[Operation]] = [[] for _ in range(nb_qubits)]
+
         for op in moment_ops:
-            if isinstance(op.gate, MeasurementGate):
-                noisy_moments.append(Moment([op]))
+            if isinstance(op.gate, (MeasurementGate, IdentityGate)):
                 continue
-
-            if isinstance(op.gate, IdentityGate):
-                continue
-
-            noisy_moments.append(Moment([op]))
 
             for noise in reversed(noises):
                 cirq_noise = noise.to_other_language(Language.CIRQ)
                 if TYPE_CHECKING:
                     assert isinstance(cirq_noise, Gate)
 
-                noise_dim = getattr(noise, "dimension", 1)
+                noise_dimension = getattr(noise, "dimension", 1)
 
-                if len(noise.targets) == 0 or len(noise.targets) == nb_qubits:
+                if not noise.targets or len(noise.targets) == nb_qubits:
                     target_qubits = qubit_list
                 else:
                     target_qubits = [qubit_list[i] for i in noise.targets]
@@ -87,25 +85,29 @@ def apply_noise_to_cirq_circuit(
                         )
                         allowed_gates.add(gate_cls)
 
-                if noise_dim == 2 and len(op.qubits) == 2:
-                    if all(q in target_qubits for q in op.qubits) and (
-                        not allowed_gates
-                        or any(
-                            isinstance(op.gate, ag_type) for ag_type in allowed_gates
-                        )
-                    ):
-                        noisy_moments.append(Moment([cirq_noise.on(*op.qubits)]))
-
-                elif noise_dim == 1:
-                    for q in op.qubits:
-                        if q in target_qubits and (
-                            not allowed_gates
-                            or any(
-                                isinstance(op.gate, ag_type)
-                                for ag_type in allowed_gates
-                            )
+                if noise_dimension == 2 and len(op.qubits) == 2:
+                    if all(q in target_qubits for q in op.qubits):
+                        if not allowed_gates or isinstance(
+                            op.gate, tuple(allowed_gates)
                         ):
-                            noisy_moments.append(Moment([cirq_noise.on(q)]))
+                            noisy_gate = cirq_noise.on(*op.qubits)
+                            noisy_moments.append(Moment([noisy_gate]))
+
+                elif noise_dimension == 1:
+                    for q in op.qubits:
+                        if q in target_qubits:
+                            if not allowed_gates or isinstance(
+                                op.gate, tuple(allowed_gates)
+                            ):
+                                qubit_index = qubit_list.index(q)
+                                qubit_noise_op[qubit_index].append(cirq_noise.on(q))
+
+        while any(qubit_noise_op):
+            current_moment_ops = []
+            for qubit_ops in qubit_noise_op:
+                if qubit_ops:
+                    current_moment_ops.append(qubit_ops.pop(0))
+            noisy_moments.append(Moment(current_moment_ops))
 
     return Circuit(noisy_moments)
 
