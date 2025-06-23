@@ -10,10 +10,6 @@ from mpqp.measures import Observable
 class Qubo:
     """Class defining a QUBO representation, used to represent decision problems.
 
-    TODO : precise that it is not meant to be used directly to instanciate a qubo but rather
-        to use operations between atoms, etc
-    TODO : precise that we don't allow for QUBO that is a constant, it must at least contain a QuboAtom
-
     A QUBO is defined by a quadratic expression of boolean variables, hence, the
     available operators are: ``+``, ``-``, ``*``, ``&``, ``|`` and ``^``.
 
