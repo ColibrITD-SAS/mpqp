@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Optional, Sequence, Type, Union
 from warnings import warn
 
 import numpy as np
@@ -144,18 +144,22 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit = None
-        """A pre-transpiled circuit to skip repeated transpilation when running the circuit.  
-        Useful when working with a symbolic circuit that needs to be executed with different parameters."""
+        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit]]" = (None)
+        """A pre-transpiled circuit to skip repeated transpilation when running 
+        the circuit. Useful when working with a symbolic circuit that needs to
+        be executed with different parameters."""
         self.transpiled_noise_model = None
-        """A pre-transpiled noise model that skips repeated transpilation when running the circuit. 
-        Currently, it is only useful in Qiskit when working with a symbolic circuit that needs 
-        to be executed with different parameters."""
+        """A pre-transpiled noise model that skips repeated transpilation when
+        running the circuit. Currently, it is only useful in Qiskit when working
+        with a symbolic circuit that needs to be executed with different
+        parameters."""
 
         self.gphase: float = 0
-        """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
-        to OpenQASM2. It is used to correct the global phase when the job type
-        is STATE_VECTOR, and when this circuit contains CustomGate."""
+        """Stores the global phase (angle) arising from the Qiskit conversion of
+        :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates` to 
+        OpenQASM2. It is used to correct the global phase when the job type is 
+        `STATE_VECTOR`, and when this circuit contains 
+        :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates`."""
 
         if nb_cbits is None:
             self._nb_cbits = 0
@@ -1485,6 +1489,7 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
+
                 from mpqp.execution.connection.ibm_connection import get_backend
 
                 if TYPE_CHECKING:

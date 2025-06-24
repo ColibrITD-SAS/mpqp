@@ -1,16 +1,18 @@
 import numpy as np
+import numpy.typing as npt
+
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
     PauliStringMonomial,
 )
-import numpy.typing as npt
 
 
 def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instruction]:
-    """Returns the single qubit rotations to handle multi observables in case of qwc grouping.
-    This function is used in conjunction with the observables grouping it rotates each qubits
-    into the shared eigenbasis of the elements of the group.
+    """Returns the single qubit rotations to handle multi observables in case of
+    QWC grouping. This function is used in conjunction with the observables
+    grouping, it rotates each qubits into the shared eigenbasis of the elements
+    of the group.
 
     Returns:
         A list of single qubit instructions.

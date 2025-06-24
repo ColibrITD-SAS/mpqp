@@ -126,13 +126,18 @@ def run_braket(job: Job, translation_warning: bool = True) -> Result:
 
 @typechecked
 def run_braket_observable(job: Job, translation_warning: bool = True):
-    """Returns the result of an OBSERVABLE job.
-    Here optimize_measurements will performs the whole grouping of the pauli monomials in mpqp.
+    """Returns the result of an ``OBSERVABLE`` job.
+
+    TODO: check that the link bellow is correctly generated.
+    If :attr:`~mpqp.execution.job.Job.measure.optimize_measurement`, this
+    function will run based on the grouping of the pauli monomials (Read
+    :ref:`TODO here` for more information).
+
     Otherwise each observable will be ran one by one.
 
     Args:
         job: Job to be executed.
-        translation_warning: raises a warning if True.
+        translation_warning: If ``False``, the translation warnings are disabled.
 
     Returns:
         A result containing the expectation values of the observables.
@@ -141,10 +146,12 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
     from braket.tasks import GateModelQuantumTaskResult
 
     if job.circuit.transpiled_circuit is None:
-        circuit = job.circuit.to_other_device(job.device, translation_warning)
+        transpiled_circuit = job.circuit.to_other_device(
+            job.device, translation_warning
+        )
     else:
-        circuit = job.circuit.transpiled_circuit
-    assert isinstance(circuit, Circuit)
+        transpiled_circuit = job.circuit.transpiled_circuit
+    assert isinstance(transpiled_circuit, Circuit)
     device = get_braket_device(job.device, is_noisy=bool(job.circuit.noises))  # type: ignore
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
@@ -160,14 +167,14 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
 
         expectation_values = {}
         for group in grouping:
-            pre_measure = QCircuit(find_qubitwise_rotations(group)).to_other_language(
-                Language.BRAKET, translation_warning
-            )
+            transpiled_pre_measure = QCircuit(
+                find_qubitwise_rotations(group)
+            ).to_other_language(Language.BRAKET, translation_warning)
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
                 from copy import deepcopy
 
-                cirq = deepcopy(circuit + pre_measure)
+                cirq = deepcopy(transpiled_circuit + transpiled_pre_measure)
                 cirq.state_vector()  # type: ignore
                 local_result = device.run(cirq, shots=0, inputs=None).result()
 
@@ -178,7 +185,7 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
                 local_result = device.run(
-                    circuit + pre_measure,
+                    transpiled_circuit + transpiled_pre_measure,
                     shots=job.measure.shots,
                     inputs=None,
                 )
@@ -187,9 +194,11 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
                 length = 2**job.circuit.nb_qubits
                 sorted_values: list[float] = []
                 for i in range(length):
-                    key = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
-                    if key in result.measurement_probabilities:
-                        sorted_values.append(result.measurement_probabilities[key].real)
+                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+                    if binary_state in result.measurement_probabilities:
+                        sorted_values.append(
+                            result.measurement_probabilities[binary_state].real
+                        )
                     else:
                         sorted_values.append(0)
             for monom in group:
@@ -215,7 +224,7 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
         for obs in job.measure.observables:
             from copy import deepcopy
 
-            copy = deepcopy(circuit)
+            copy = deepcopy(transpiled_circuit)
             braket_obs = obs.to_other_language(Language.BRAKET)
             copy.expectation(  # pyright: ignore[reportAttributeAccessIssue]
                 observable=braket_obs, target=job.measure.targets

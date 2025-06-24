@@ -12,20 +12,21 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import typechecked
+
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
-    PauliString,
-    PauliStringMonomial,
     CommutingTypes,
     GroupingMethods,
+    PauliString,
+    PauliStringMonomial,
 )
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Hermitian
@@ -422,7 +423,8 @@ class ExpectationMeasure(Measure):
         return [o.label for o in self.observables if o.label is not None]
 
     def _check_targets_order(self):
-        """Ensures target qubits are ordered and contiguous, rearranging them if necessary (private)."""
+        """Ensures target qubits are ordered and contiguous, rearranging them if
+        necessary (private)."""
         from mpqp.core.circuit import QCircuit
 
         if len(self.targets) == 0:
@@ -469,26 +471,23 @@ class ExpectationMeasure(Measure):
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
         """Return the grouped monomials of the Pauli string of the observable.
-        The grouping is done according to the grouping method of the expectation measure and the chosen commutativity type.
-        """
-        monomials = []
-        for obs in self.observables:
-            for monom in obs.pauli_string.monomials:
-                found = False
-                for m in monomials:
-                    if monom.name == m.name:
-                        found = True
-                        break
-                if not found:
-                    monomials.append(monom / monom.coef)
+        The grouping is done according to the grouping method of the expectation
+        measure and the chosen commutativity type."""
+        unique_monos = list(
+            {
+                mono / mono.coef
+                for obs in self.observables
+                for mono in obs.pauli_string.monomials
+            }
+        )
         if self.grouping_method == GroupingMethods.GREEDY:
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
-            return pauli_grouping_greedy(monomials, self.commuting_type)
+            return pauli_grouping_greedy(unique_monos, self.commuting_type)
         else:
-            raise ValueError("This type of grouping is not currently supported.")
+            raise NotImplementedError(f"{self.grouping_method} is not yet supported.")
 
-    def are_all_diagonal(self) -> bool:
+    def only_diagonal_observables(self) -> bool:
         """Returns True if all the observables in the ExpectationMeasure are diagonal."""
         return all([o.is_diagonal for o in self.observables])
 
