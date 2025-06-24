@@ -7,10 +7,6 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from braket.devices.device import Device as BraketDevice
 
-from configparser import ConfigParser
-from getpass import getpass
-from pathlib import Path
-
 from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
@@ -55,6 +51,7 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
         success, cancelled, or error, ...) and an empty list. The list is
         included for consistency with the existing code structure.
     """
+
     from braket.aws import AwsSession
 
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
@@ -103,6 +100,9 @@ def update_aws_credentials_file(
     Ensure that the directory and file exist before making changes.
     """
 
+    from configparser import ConfigParser
+    from pathlib import Path
+
     credentials_file = Path.home() / ".aws" / "credentials"
 
     credentials_dir = credentials_file.parent
@@ -131,6 +131,9 @@ def update_aws_credentials_file(
 
 def configure_account_iam() -> tuple[str, list[Any]]:
     """Configure IAM authentication for Amazon Braket."""
+
+    from configparser import ConfigParser
+    from pathlib import Path
 
     print("Configuring IAM authentication for Amazon Braket...")
 
@@ -174,6 +177,8 @@ def configure_account_iam() -> tuple[str, list[Any]]:
 
 def get_user_sso_credentials() -> Union[dict[str, str], None]:
 
+    from getpass import getpass
+
     print("Please enter your AWS SSO credentials:")
 
     try:
@@ -196,6 +201,9 @@ def get_user_sso_credentials() -> Union[dict[str, str], None]:
 
 def configure_account_sso() -> tuple[str, list[Any]]:
     """Configure SSO authentication for Amazon Braket."""
+
+    from pathlib import Path
+
     print("Configuring SSO authentication for Amazon Braket...")
 
     credentials_file = Path.home() / ".aws" / "credentials"
