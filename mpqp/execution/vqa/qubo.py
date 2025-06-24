@@ -9,15 +9,12 @@ from mpqp.measures import Observable
 
 class Qubo:
     """Class defining a QUBO representation, used to represent decision problems.
-
-    TODO : precise that it is not meant to be used directly to instanciate a qubo but rather
-        to use operations between atoms, etc
-    TODO : precise that we don't allow for QUBO that is a constant, it must at least contain a QuboAtom
+    This class is instantiated through the use of QuboAtoms, not directly (see examples below).
 
     A QUBO is defined by a quadratic expression of boolean variables, hence, the
     available operators are: ``+``, ``-``, ``*``, ``&``, ``|`` and ``^``.
 
-    The QUBO expression can be solved with the qaoa_solver function.
+    The QUBO expression can be solved with the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` function.
 
     Args:
         value: string holding the name of the monomial
@@ -33,6 +30,11 @@ class Qubo:
          [0, -2, 0, 0],
          [0, 0 , 1, 0],
          [0, 0 , 0, 2]]
+
+    Note:
+        This class is a binary tree representing the whole operation of the Qubo with QuboAtoms or QuboConstants as its leafs.
+
+        Meanwhile the classes BinaryOperation and UnaryOperation are used as nodes representing the Qubo's operators.
     """
 
     def __init__(
@@ -92,7 +94,7 @@ class Qubo:
     def __xor__(self, other: "Qubo") -> "Qubo":
         return self + other - 2 * (self * other)
 
-    def __len__(self) -> int:
+    def size(self) -> int:
         """Returns the number of unique boolean variables in the QUBO expression."""
         return len(self.get_variables())
 
@@ -284,12 +286,14 @@ class Qubo:
              [0, 0 , -3, 0 ],
              [0, 0 , 0 , -2]]
         """
+        from mpqp.tools.maths import generate_ith_Hamiltonian
+
         matrix, constant = self.matrix()
         size = matrix.shape[0]
 
         resulting_cost = np.zeros(shape=(2**size,))
 
-        hx_ns = np.array([self._h_xi(size, i) for i in range(size)])
+        hx_ns = np.array([generate_ith_Hamiltonian(size, i) for i in range(size)])
 
         for i in range(size):
             for j in range(i):
@@ -299,26 +303,6 @@ class Qubo:
             np.diag(resulting_cost).astype(np.complex64) + np.eye(2**size) * constant
         )
 
-    def _h_xi(self, size: int, i: int):
-        r"""Calculates the cost Hamiltonian `H(x_i)` for a given i-th binary
-        parameter.
-
-        `H` is defined as:
-        $$ H(x_i) = \frac{I^{\otimes n} - Z_i}{2} $$
-        $$ \text{with } ~~ Z_i = \underbrace{I \otimes \cdots \otimes I}_{i} \otimes Z \otimes \underbrace{I \otimes \cdots \otimes I}_{n-i-1} $$
-        """
-        Z = np.array([1, -1])
-        Z_i = Z
-
-        if i != 0:
-            Z_i = np.kron(np.ones(2**i), Z_i)
-
-        if size - i - 1 != 0:
-            Z_i = np.kron(Z_i, np.ones(2 ** (size - i - 1)))
-
-        result = (np.ones(2**size) - Z_i) / 2
-        return result
-
     def _print(self, level: int = 1):
         left = self.left._print(level + 1) if self.left is not None else ""
         right = self.right._print(level + 1) if self.right is not None else ""
@@ -327,7 +311,7 @@ class Qubo:
         return left + self.value + right
 
     def simplify(self) -> "Qubo":
-        """TODO: implement a simplification of the QUBO, that can be useful to accelerate the
+        """3M-TODO: implement a simplification of the QUBO, that can be useful to accelerate the
         generation of the cost hamiltonian"""
         raise NotImplementedError()
 
@@ -348,6 +332,10 @@ class QuboAtom(Qubo):
     """
 
     def __init__(self, value: str):
+        import re
+
+        if re.search("^[A-Z|a-z]", value) == None:
+            raise ValueError("QuboAtoms have to be named using a letter at the start.")
         super().__init__(value, None, None)
 
     def __repr__(self):
@@ -359,7 +347,12 @@ class QuboAtom(Qubo):
 
 class BinaryOperation(Qubo):
     """Class defining binary operations in a Qubo expression.
-    TODO: say that it is not meant to be called by the user
+
+    This class should be exclusively used by other classes and not by the user.
+
+    Available binary operations : `+`, `-`, `*`
+    Technically boolean operations (`|`, `&`, `^`) are available but they are decomposed
+    into the previous operations.
     """
 
     def __init__(self, value: str, left: Qubo, right: Qubo):
@@ -384,7 +377,9 @@ class BinaryOperation(Qubo):
 class UnaryOperation(Qubo):
     """Class defining a unary operation for a Qubo expression.
 
-    TODO: say that it is not meant to be called by the user
+    This class should be exclusively used by other classes and not by the user.
+
+    Unary operations supported : `-`
     """
 
     def __init__(self, value: str, right: Qubo):
@@ -403,10 +398,10 @@ class UnaryOperation(Qubo):
 class QuboConstant(Qubo):
     """Class defining constant terms in a Qubo expression.
 
-    TODO: say that it is not meant to be called by the user
-    TODO: docstring
+    This class should be exclusively used by other classes and not by the user.
+
     Args:
-        value:
+        value: String hold the value of the int or float of the node.
     """
 
     def __init__(self, value: str):

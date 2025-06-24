@@ -20,8 +20,8 @@ from mpqp.tools.maths import Matrix
 
 class QAOAMixerType(Enum):
     MIXER_X = auto()
-    MIXER_Y = auto()
-    MIXER_Z = auto()
+    MIXER_XY = auto()
+    MIXER_BITFLIP = auto()
 
 
 def qaoa_solver(
@@ -36,7 +36,7 @@ def qaoa_solver(
 
     Args:
         problem: QUBO expression representing the problem.
-        depth: The number of cost/mixer gates used in the circuit, the total depth of the ansatz being 2*depth.
+        depth: Number of cost/mixer gates used in the circuit, the total depth of the ansatz being 2*depth.
         mixer: Type of the Mixer Hamiltonian to be used or directly the mixer Hamiltonian.
         device: The device that will be used to run the ansatz.
         optimizer: The optimizer used to minimize. 'Powell' is recommended for better results, but other can be more efficient on specific use cases.
@@ -52,7 +52,7 @@ def qaoa_solver(
         '01'
     """
     observable = problem.to_cost_hamiltonian()
-    problem_size = len(problem)
+    problem_size = problem.size()
     if isinstance(mixer, QAOAMixerType):
         mixer = _generate_mixer_hamiltonian(problem_size, mixer)
     loss_optimize = partial(
@@ -85,7 +85,7 @@ def _loss(
     Args:
         parameters: List of floats representing the gamma and beta coefficient in the QAOA ansatz.
         cost: The cost Hamiltonian of the ansatz.
-        nqubit: The size of the circuit.
+        nqubit: Size of the circuit.
         mixer: Mixer hamiltonian of the ansatz.
         device: The device that will be used to run the ansatz.
 
@@ -108,7 +108,7 @@ def _generate_mixer_hamiltonian(
 
     Args:
         qubits: Number of variables in the QUBO expression.
-        type: The type of the mixer hamiltonian.
+        type: Type of the mixer hamiltonian.
 
     Returns:
         The matrix of the Mixer Hamiltonian.
@@ -116,10 +116,8 @@ def _generate_mixer_hamiltonian(
     result = 0
     if type == QAOAMixerType.MIXER_X:
         mixer = np.array([[0, 1], [1, 0]])
-    elif type == QAOAMixerType.MIXER_Y:
-        mixer = np.array([[0, -1.0j], [1.0j, 0]])
     else:
-        mixer = np.array([[1, 0], [0, -1]])
+        raise NotImplementedError("This mixer hamiltonian is not implemented yet.")
 
     result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
     for i in range(qubits):
