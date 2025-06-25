@@ -59,6 +59,8 @@ class Qubo:
 
     def __add__(self, other: Union["Qubo", int, float]) -> "Qubo":
         if isinstance(other, (float, int)):
+            if other == 0:
+                return self
             other = QuboConstant(str(other))
         current = BinaryOperation("+", self, other)
         return current
@@ -77,6 +79,8 @@ class Qubo:
 
     def __mul__(self, other: Union["Qubo", int, float]) -> "Qubo":
         if isinstance(other, (float, int)):
+            if other == 1:
+                return self
             other = QuboConstant(str(other))
         if not isinstance(other, QuboConstant):
             degree = self._check_degree()
@@ -323,13 +327,66 @@ class Qubo:
                 isinstance(self.right, BinaryOperation) and self.right.value != "*"
             ):
                 return f"{left}{self.value}({right})"
-            return left + self.value + right
+        elif isinstance(self, UnaryOperation):
+            if self.right and isinstance(self.right, UnaryOperation | BinaryOperation):
+                return f"{self.value}({right})"
         return left + self.value + right
 
     def simplify(self) -> "Qubo":
-        """3M-TODO: implement a simplification of the QUBO, that can be useful to accelerate the
-        generation of the cost hamiltonian"""
-        raise NotImplementedError()
+        """Returns the simplified form of the given Qubo.
+
+        Notes:
+            In the case of all the coefficients of an atom cancel each other
+             then the simplified form will not declare the atom.
+
+            The resulting cost hamiltonian hence would be changed.
+
+        Examples:
+            >>> x0 = QuboAtom("x0")
+            >>> x1 = QuboAtom("x1")
+            >>> expr = 3*x0 - x1 - 2*(x0^x1)
+            >>> simplified = expr.simplify()
+            >>> print(simplified)
+            x0-3*x1+4*x0*x1
+            >>> print(matrix_eq(expr.to_cost_hamiltonian().matrix, simplified.to_cost_hamiltonian().matrix))
+            True
+        """
+        coefficients = {var: 0 for var in self.get_variables()}
+        coeffs = self.get_coeffs()
+        for coeff in coeffs:
+            coef, var = coeff
+            if len(var) == 1:
+                coefficients.update({var[0]: coef + coefficients[var[0]]})
+            else:
+                var_name = f"{var[0]}*{var[1]}"
+                reversed_name = f"{var[1]}*{var[0]}"
+                keys = coefficients.keys()
+                if keys.__contains__(var_name):
+                    coefficients.update({var_name: coef + coefficients[var_name]})
+                elif keys.__contains__(reversed_name):
+                    coefficients.update(
+                        {reversed_name: coef + coefficients[reversed_name]}
+                    )
+                else:
+                    coefficients.update({var_name: coef})
+        variables = coefficients.keys()
+        result = 0
+        for var in variables:
+            if coefficients[var] == 0:
+                continue
+            if var.count('*') == 1:
+                vars = var.split('*')
+                if coefficients[var] > 0:
+                    result += coefficients[var] * QuboAtom(vars[0]) * QuboAtom(vars[1])
+                else:
+                    result -= -coefficients[var] * QuboAtom(vars[0]) * QuboAtom(vars[1])
+            else:
+                if coefficients[var] > 0:
+                    result += coefficients[var] * QuboAtom(var)
+                else:
+                    result -= -coefficients[var] * QuboAtom(var)
+        assert isinstance(result, Qubo)
+        return result
 
 
 class QuboAtom(Qubo):
@@ -361,9 +418,6 @@ class QuboAtom(Qubo):
     def __repr__(self):
         return 'QuboAtom("' + self.value + '")'
 
-    def simplify(self) -> "Qubo":
-        return self
-
 
 class BinaryOperation(Qubo):
     """Class defining binary operations in a Qubo expression.
@@ -391,10 +445,6 @@ class BinaryOperation(Qubo):
             + ")"
         )
 
-    def simplify(self) -> "Qubo":
-        """3M-TODO"""
-        raise NotImplementedError
-
 
 class UnaryOperation(Qubo):
     """Class defining a unary operation for a Qubo expression.
@@ -409,12 +459,6 @@ class UnaryOperation(Qubo):
 
     def __repr__(self) -> str:
         return self.value + self.right.__repr__()
-
-    def simplify(self) -> "Qubo":
-        """3M-TODO"""
-        # Ideas : if it is the same unary operation (not, or - for instance) then it becomes a QuboConstant or QuboAtom
-        # If it is a + unary operation, then it becomes a QuboConstant or QuboAtom
-        raise NotImplementedError()
 
 
 class QuboConstant(Qubo):
@@ -431,6 +475,3 @@ class QuboConstant(Qubo):
 
     def __repr__(self) -> str:
         return self.value
-
-    def simplify(self) -> "Qubo":
-        return self
