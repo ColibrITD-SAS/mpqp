@@ -6,6 +6,8 @@ import numpy as np
 import numpy.typing as npt
 from mpqp.measures import Observable
 
+from typing import TYPE_CHECKING
+
 
 class Qubo:
     """Class defining a QUBO representation, used to represent decision problems.
@@ -49,6 +51,10 @@ class Qubo:
         self.value = value
 
     def __neg__(self) -> "Qubo":
+        if isinstance(self, UnaryOperation):
+            if TYPE_CHECKING:
+                assert self.right
+            return self.right
         return UnaryOperation('-', self)
 
     def __add__(self, other: Union["Qubo", int, float]) -> "Qubo":
@@ -309,7 +315,15 @@ class Qubo:
         left = self.left._print(level + 1) if self.left is not None else ""
         right = self.right._print(level + 1) if self.right is not None else ""
         if self.value == "*":
-            return right + self.value + left
+            if isinstance(self.right, QuboConstant):
+                tmp = right
+                right = left
+                left = tmp
+            if (isinstance(self.left, BinaryOperation) and self.left.value != "*") or (
+                isinstance(self.right, BinaryOperation) and self.right.value != "*"
+            ):
+                return f"{left}{self.value}({right})"
+            return left + self.value + right
         return left + self.value + right
 
     def simplify(self) -> "Qubo":
@@ -331,6 +345,10 @@ class QuboAtom(Qubo):
         >>> expr = 2 * x + 2
         >>> print(expr.get_variables())
         ['x']
+        >>> y = QuboAtom("y")
+        >>> expr = 2 * x + 2 - 5 * y + 4 * (x ^ y)
+        >>> print(expr.get_variables())
+        ['x', 'y']
     """
 
     def __init__(self, value: str):
@@ -358,6 +376,8 @@ class BinaryOperation(Qubo):
     """
 
     def __init__(self, value: str, left: Qubo, right: Qubo):
+        if value != "+" and value != "-" and value != "*":
+            raise ValueError("Not an available binary operation")
         super().__init__(value, left, right)
 
     def __repr__(self) -> str:
