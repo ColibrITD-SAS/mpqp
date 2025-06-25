@@ -271,10 +271,12 @@ class Qubo:
         return matrix, constant
 
     def to_cost_hamiltonian(self) -> Observable:
-        """Converts the QUBO matrix into a cost Hamiltonian.
+        """Converts this Qubo into a cost Hamiltonian, represented by an
+        :class:`~mpqp.core.instruction.measurement.expectation_value.Observable`,
+        that can typically be used in the QAOA algorithm.
 
         Returns:
-            Observable: The cost Hamiltonian.
+             The cost Hamiltonian representing this Qubo.
 
         Examples:
             >>> x_0 = QuboAtom("x_0")
