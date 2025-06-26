@@ -52,7 +52,7 @@ a = QuboAtom('a')
     ],
 )
 def test_Qubo_coeffs(expr: Qubo, res: npt.NDArray[np.complex64]):
-    assert expr.get_coeffs() == res
+    assert expr.get_terms_and_coefs() == res
 
 
 @pytest.mark.parametrize(

@@ -457,32 +457,3 @@ def is_power_of_two(n: int) -> bool:
 
     """
     return n >= 1 and (n & (n - 1)) == 0
-
-
-@typechecked
-def generate_ith_Hamiltonian(size: int, i: int) -> Matrix:
-    r"""Calculates the cost Hamiltonian `H(x_i)` for a given i-th binary
-    parameter.
-
-    `H(x_i)` is defined as:
-    $$ H(x_i) = \frac{I^{\otimes n} - Z_i}{2} $$
-    $$ \text{with } ~~ Z_i = \underbrace{I \otimes \cdots \otimes I}_{i} \otimes Z \otimes \underbrace{I \otimes \cdots \otimes I}_{n-i-1} $$
-
-    Since in this case the hamiltonian will only be a diagonal matrix this function only returns a list of 1s and 0s.
-
-    Example:
-        >>> print(generate_ith_Hamiltonian(2,0))
-        [0. 0. 1. 1.]
-        >>> print(generate_ith_Hamiltonian(2,1))
-        [0. 1. 0. 1.]
-    """
-    Z_i = np.array([1, -1])
-
-    if i != 0:
-        Z_i = np.kron(np.ones(2**i), Z_i)
-
-    if size - i - 1 != 0:
-        Z_i = np.kron(Z_i, np.ones(2 ** (size - i - 1)))
-
-    result = (np.ones(2**size) - Z_i) / 2
-    return result

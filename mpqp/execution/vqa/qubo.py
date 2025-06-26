@@ -8,6 +8,8 @@ from mpqp.measures import Observable
 
 from typing import TYPE_CHECKING
 
+from mpqp.tools.generics import Matrix
+
 
 class Qubo:
     """Class defining a QUBO representation, used to represent decision problems.
@@ -50,12 +52,23 @@ class Qubo:
         self.right = right
         self.value = value
 
+        self._inverted_variables = []
+
     def __neg__(self) -> "Qubo":
         if isinstance(self, UnaryOperation):
             if TYPE_CHECKING:
                 assert self.right
             return self.right
         return UnaryOperation('-', self)
+
+    def __invert__(self) -> "Qubo":
+        if isinstance(self, QuboAtom):
+            from copy import deepcopy
+
+            copy = deepcopy(self)
+            copy.value = '~' + self.value
+            return copy
+        return -self
 
     def __add__(self, other: Union["Qubo", int, float]) -> "Qubo":
         if isinstance(other, (float, int)):
@@ -154,7 +167,7 @@ class Qubo:
                 degree += self.right._check_degree()
         return degree
 
-    def get_coeffs(self) -> list[tuple[int, list[str]]]:
+    def get_terms_and_coefs(self) -> list[tuple[int, list[str]]]:
         """Creates a list of lists containing the coefficients of the monomials
         of the QUBO.
 
@@ -166,11 +179,11 @@ class Qubo:
             >>> x1 = QuboAtom('x1')
 
             >>> expr = 3*x0 - x1 + 1
-            >>> expr.get_coeffs()
+            >>> expr.get_terms_and_coefs()
             [(3, ['x0']), (-1, ['x1']), (1, [])]
 
             >>> expr = 3*(x0 | x1)
-            >>> expr.get_coeffs()
+            >>> expr.get_terms_and_coefs()
             [(3, ['x0']), (3, ['x1']), (-3, ['x0', 'x1'])]
         """
         coeffs = []
@@ -186,9 +199,9 @@ class Qubo:
         right = []
 
         if self.left is not None:
-            left = self.left.get_coeffs()
+            left = self.left.get_terms_and_coefs()
         if self.right is not None:
-            right = self.right.get_coeffs()
+            right = self.right.get_terms_and_coefs()
 
         if self.value == "+":
             coeffs.extend(left)
@@ -225,11 +238,14 @@ class Qubo:
             >>> expr.get_variables()
             ['x0', 'x1']
         """
-        coeffs = self.get_coeffs()
+        coeffs = self.get_terms_and_coefs()
         known_vars = []
         for coeff in coeffs:
             for variable in coeff[1]:
-                if variable not in known_vars:
+                if variable[0] == "~":
+                    if variable[1:] not in known_vars:
+                        known_vars.append(variable[1:])
+                elif variable not in known_vars:
                     known_vars.append(variable)
         return known_vars
 
@@ -251,29 +267,45 @@ class Qubo:
              [2, 0, 0, 0],
              [0, 0, 0, 1]]
         """
-        coeffs = self.get_coeffs()
+        coeffs = self.get_terms_and_coefs()
         variables = self.get_variables()
         size = len(variables)
         matrix = np.zeros(shape=(size, size))
         constant = 0
 
         for coeff in coeffs:
-            if len(coeff[1]) == 0:
+            coef_names = coeff[1]
+            if len(coef_names) == 0:
                 constant += coeff[0]
-            elif len(coeff[1]) == 1:
+            elif len(coef_names) == 1:
                 coord = 0
                 for j in range(size):
-                    if coeff[1][0] == variables[j]:
+                    if coef_names[0][0] == '~':
+                        if coef_names[0][1:] == variables[j]:
+                            self._inverted_variables.extend([j, -1, 1])
+                            coord = j
+                    elif coef_names[0] == variables[j]:
                         coord = j
                 matrix[coord][coord] += coeff[0]
             else:
                 x_axis = 0
                 y_axis = 0
-                for j in range(size):
-                    if coeff[1][0] == variables[j]:
-                        x_axis = j
-                    if coeff[1][1] == variables[j]:
-                        y_axis = j
+                inv_variable = 0  # variable used to know which one of the two variables is inverted
+
+                if coef_names[0][0] == "~":
+                    x_axis = variables.index(coef_names[0][1:])
+                    inv_variable += 1
+                else:
+                    x_axis = variables.index(coef_names[0])
+
+                if coef_names[1][0] == "~":
+                    y_axis = variables.index(coef_names[1][1:])
+                    inv_variable += 2
+                else:
+                    y_axis = variables.index(coef_names[1])
+
+                if coef_names[0][0] == "~" or coef_names[1][0] == "~":
+                    self._inverted_variables.extend([x_axis, y_axis, inv_variable])
 
                 matrix[x_axis][y_axis] += coeff[0] / 2
                 matrix[y_axis][x_axis] += coeff[0] / 2
@@ -286,7 +318,7 @@ class Qubo:
         that can typically be used in the QAOA algorithm.
 
         Returns:
-             The cost Hamiltonian representing this Qubo.
+            The cost Hamiltonian representing this Qubo.
 
         Examples:
             >>> x_0 = QuboAtom("x_0")
@@ -298,19 +330,13 @@ class Qubo:
              [0, 0 , -3, 0 ],
              [0, 0 , 0 , -2]]
         """
-        from mpqp.tools.maths import generate_ith_Hamiltonian
 
         matrix, constant = self.matrix()
         size = matrix.shape[0]
+        inv_variables = self._inverted_variables
 
-        resulting_cost = np.zeros(shape=(2**size,))
+        resulting_cost = _build_cost_hamiltonian(matrix, inv_variables, size)
 
-        hx_ns = np.array([generate_ith_Hamiltonian(size, i) for i in range(size)])
-
-        for i in range(size):
-            for j in range(i):
-                resulting_cost += matrix[i][j] * hx_ns[i] * hx_ns[j] * 2
-            resulting_cost += matrix[i][i] * hx_ns[i]
         return Observable(
             np.diag(resulting_cost).astype(np.complex64) + np.eye(2**size) * constant
         )
@@ -328,7 +354,9 @@ class Qubo:
             ):
                 return f"{left}{self.value}({right})"
         elif isinstance(self, UnaryOperation):
-            if self.right and isinstance(self.right, UnaryOperation | BinaryOperation):
+            if self.right and isinstance(
+                self.right, Union[UnaryOperation | BinaryOperation]
+            ):
                 return f"{self.value}({right})"
         return left + self.value + right
 
@@ -352,7 +380,7 @@ class Qubo:
             True
         """
         coefficients = {var: 0 for var in self.get_variables()}
-        coeffs = self.get_coeffs()
+        coeffs = self.get_terms_and_coefs()
         for coeff in coeffs:
             coef, var = coeff
             if len(var) == 1:
@@ -475,3 +503,90 @@ class QuboConstant(Qubo):
 
     def __repr__(self) -> str:
         return self.value
+
+
+def _build_cost_hamiltonian(matrix: Matrix, inv_variables: list[int], size: int):
+    resulting_cost = np.zeros(shape=(2**size,))
+    # Avoid recomputing several time the same hamiltonian
+    hx_ns = [_generate_ith_Hamiltonian(size, i) for i in range(size)]
+    for index in range(size):
+        for j in range(index):
+            if matrix[index][j] == 0:
+                continue
+            found = False  # check if one of the variables is inverted or not
+
+            for k in range(0, len(inv_variables), 3):
+                if (index == inv_variables[k] or index == inv_variables[k + 1]) and (
+                    j == inv_variables[k] or j == inv_variables[k + 1]
+                ):
+                    local_cost = 1
+                    if inv_variables[k + 2] == 0:
+                        break
+                    if inv_variables[k + 2] != 2:
+                        local_cost *= _generate_ith_Hamiltonian(size, index, True)
+                    else:
+                        local_cost *= hx_ns[index]
+
+                    if inv_variables[k + 2] >= 2:
+                        local_cost *= _generate_ith_Hamiltonian(size, j, True)
+                    else:
+                        local_cost *= hx_ns[j]
+                    resulting_cost += local_cost * matrix[index][j] * 2
+                    found = True
+                    break
+            if not found:  # no inverted variables
+                resulting_cost += matrix[index][j] * hx_ns[index] * hx_ns[j] * 2
+        found = False
+        for i in range(0, len(inv_variables), 3):
+            if inv_variables[i] == index and inv_variables[i + 1] == -1:
+                resulting_cost += matrix[index][index] * _generate_ith_Hamiltonian(
+                    size, index, True
+                )
+                found = True
+        if not found:
+            resulting_cost += matrix[index][index] * hx_ns[index]
+    return resulting_cost
+
+
+def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
+    r"""Calculates the cost Hamiltonian `H(x_i)` for a given i-th binary parameter.
+    This function has the purpose of being used with a QUBO object to generate the cost hamiltonian
+    of a QUBO. see `~mpqp.execution.Qubo.to_cost_hamiltonian`
+
+    `H(x_i)` is defined as:
+    $$ H(x_i) = \frac{I^{\otimes n} - Z_i}{2} $$
+    $$ \text{with } ~~ Z_i = \underbrace{I \otimes \cdots \otimes I}_{i} \otimes Z \otimes \underbrace{I \otimes \cdots \otimes I}_{n-i-1} $$
+
+    Since in this case the hamiltonian will only be a diagonal matrix this function only returns a list of 1s and 0s.
+
+    Args:
+        Size: The total size of the hamiltonian in the context of QUBO it's the number of total variables in the expression.
+        i: The index of the variable.
+        neg: Boolean if the boolean variable is reversed.
+
+    Example:
+        >>> print(generate_ith_Hamiltonian(2,0))
+        [0. 0. 1. 1.]
+        >>> print(generate_ith_Hamiltonian(2,1))
+        [0. 1. 0. 1.]
+    """
+    if i >= size:
+        raise ValueError(
+            "The index of the variable cannot be equal or higher than the total number of variables."
+        )
+    Z_i = np.array([1, -1])
+
+    if i != 0:
+        Z_i = np.kron(np.ones(2**i), Z_i)
+
+    if size - i - 1 != 0:
+        Z_i = np.kron(Z_i, np.ones(2 ** (size - i - 1)))
+
+    result = (np.ones(2**size) - Z_i) / 2
+    if neg:
+        for j in range(len(result)):
+            if result[j] == 0:
+                result[j] = 1
+            else:
+                result[j] = 0
+    return result
