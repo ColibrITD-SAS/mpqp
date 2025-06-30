@@ -6,8 +6,6 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
-
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -18,6 +16,7 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Z,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
+from typeguard import typechecked
 
 paulis: list[PauliStringAtom] = [I, X, Y, Z]
 
@@ -101,7 +100,7 @@ def compute_coefficients(
         k: A list of column indices where the non-zero elements of the matrix
             are located.
         m: A list of booleans corresponding to the non-zero coefficients of the
-            matrix indexed in `k`. False refers to 1, while True to -1.
+            matrix indexed in `k`. False refers to -1, while True to 1.
         current_node: The current node in the Pauli tree.
         matrix: The given Hermitian matrix to be decomposed.
         monomial_list: A list to store the computed monomials.
@@ -112,7 +111,7 @@ def compute_coefficients(
 
     current_node.coefficient = (
         sum(
-            matrix[j, k[j]] * (-1 if m[j] else 1) * (-1j) ** (current_node.nY % 4)
+            matrix[j, k[j]] * (1 if m[j] else -1) * 1j ** (current_node.nY % 4)
             for j in range(m_size)
         ).real
         / m_size  # This factor was forgotten in the article
@@ -132,7 +131,7 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[bool]):
         k: A list of column indices where the non-zero elements of the matrix
             are located.
         m: A list of booleans corresponding to the non-zero coefficients of the
-            matrix indexed in `k`. False refers to 1, while True to -1.
+            matrix indexed in `k`. False refers to -1, while True to 1.
 
     """
     l = current_node.depth - 1
@@ -175,7 +174,7 @@ def generate_and_explore_node(
             non-zero element per line, we only store the index of this element for each line.
         m: A list of booleans corresponding to the non-zero coefficients of the
             matrix indexed in `k`. By considering the modified Pauli basis (``Y`` replaced by ``iY``), only 2
-            values are possible: 1 and -1. Thus, they can be stored as booleans: False refers to 1, while True to -1.
+            values are possible: 1 and -1. Thus, they can be stored as booleans: False refers to -1, while True to 1.
         current_node: The current node in the Pauli tree.
         matrix: The given Hermitian matrix to be decomposed.
         n: Number of qubits of the observable.
@@ -246,7 +245,7 @@ def decompose_hermitian_matrix_ptdr(
     nb_qubits = int(np.log2(size))
     root = PauliNode()
     i_k = [0] * size
-    i_m = [False] * size
+    i_m = [True] * size
     progression = [1, 2 ** (2 * nb_qubits)] if print_progression else None
     generate_and_explore_node(i_k, i_m, root, matrix, nb_qubits, monomials, progression)
 
@@ -314,7 +313,7 @@ def compute_coefficients_diagonal_case(
 
     Args:
         m: A list of booleans corresponding to the non-zero coefficients of the
-            matrix indexed in `k`. False refers to 1, while True to -1.
+            matrix indexed in `k`. False refers to -1, while True to 1.
         current_node: The current node in the Pauli tree.
         diag_elements: The diagonal elements of the observable.
         monomial_list: A list to store the computed monomials.
@@ -324,7 +323,7 @@ def compute_coefficients_diagonal_case(
     m_size = len(diag_elements)
 
     current_node.coefficient = (
-        sum(diag_elements[j] * (-1 if m[j] else 1) for j in range(m_size))
+        sum(diag_elements[j] * (1 if m[j] else -1) for j in range(m_size))
         / m_size  # This factor was forgotten in the article
     )
 
@@ -338,7 +337,7 @@ def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
     Args:
         current_node: The current node in the tree.
         m: A list of booleans corresponding to the non-zero coefficients of the
-            matrix indexed in `k`. False refers to 1, while True to -1.
+            matrix indexed in `k`. False refers to -1, while True to 1.
 
     """
     l = current_node.depth - 1
@@ -365,7 +364,7 @@ def generate_and_explore_node_diagonal_case(
     Args:
         m: A list of booleans corresponding to the non-zero coefficients of the
             matrix indexed in `k`. By considering monomials only made of I and Z, only 2 values are possible: 1 and -1.
-            Thus, they can be stored as booleans: False refers to 1, while True to -1.
+            Thus, they can be stored as booleans: False refers to -1, while True to 1.
         current_node: The current node in the Pauli tree.
         diag_elements: The diagonal elements of the observable.
         n: The number of qubits.
@@ -436,7 +435,7 @@ def decompose_diagonal_observable_ptdr(
 
     nb_qubits = int(np.log2(size))
     root = DiagPauliNode()
-    i_m = [False] * size
+    i_m = [True] * size
     progression = [1, size] if print_progression else None
     generate_and_explore_node_diagonal_case(
         i_m, root, diags, nb_qubits, monomials, progression

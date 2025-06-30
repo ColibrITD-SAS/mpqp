@@ -6,18 +6,16 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Optional, Union, Any
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from mpqp.tools.generics import Matrix
 from scipy.linalg import inv, sqrtm
 from typeguard import typechecked
 
 if TYPE_CHECKING:
     from sympy import Expr
-    import sympy as sp
-
+    from mpqp.tools.generics import Matrix
 
 rtol = 1e-05
 """The relative tolerance parameter."""
@@ -58,6 +56,8 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
     Args:
         lhs: Left-hand side matrix of the equality.
         rhs: Right-hand side matrix of the equality.
+        atol: The absolute tolerance parameter.
+        rtol: The relative tolerance parameter.
 
     Returns:
         ``True`` if the two matrix are equal (according to the definition above).
@@ -193,7 +193,7 @@ def closest_unitary(matrix: Matrix) -> Matrix:
 
 
 @typechecked
-def cos(angle: Expr | float) -> sp.Expr | float:
+def cos(angle: Expr | float) -> Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -208,17 +208,16 @@ def cos(angle: Expr | float) -> sp.Expr | float:
             assert isinstance(angle, float)
         return np.cos(angle)
     else:
-        import sympy as sp
-        from sympy import Expr
+        from sympy import cos as sp_cos
 
-        res = sp.cos(angle)
+        res = sp_cos(angle)
         if TYPE_CHECKING:
             assert isinstance(res, Expr)
         return res
 
 
 @typechecked
-def sin(angle: Expr | float) -> sp.Expr | float:
+def sin(angle: Expr | float) -> Expr | float:
     """Generalization of the sine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -233,17 +232,16 @@ def sin(angle: Expr | float) -> sp.Expr | float:
             assert isinstance(angle, float)
         return np.sin(angle)
     else:
-        import sympy as sp
-        from sympy import Expr
+        from sympy import sin as sp_sin
 
-        res = sp.sin(angle)
+        res = sp_sin(angle)
         if TYPE_CHECKING:
             assert isinstance(res, Expr)
         return res
 
 
 @typechecked
-def exp(angle: Expr | complex) -> sp.Expr | complex:
+def exp(angle: Expr | complex) -> Expr | complex:
     """Generalization of the exponential function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -258,10 +256,9 @@ def exp(angle: Expr | complex) -> sp.Expr | complex:
             assert isinstance(angle, complex)
         return np.exp(angle)
     else:
-        import sympy as sp
-        from sympy import Expr
+        from sympy import exp as sp_exp
 
-        res = sp.exp(angle)
+        res = sp_exp(angle)
         if TYPE_CHECKING:
             assert isinstance(res, Expr)
         return res
@@ -325,11 +322,11 @@ def rand_clifford_matrix(
          [0.70711j, 0        , 0.70711j , 0        ]]
 
     """
-    from qiskit import quantum_info
+    from qiskit.quantum_info import random_clifford
 
     rng = np.random.default_rng(seed)
 
-    res = quantum_info.random_clifford(nb_qubits, seed=rng).to_matrix()
+    res = random_clifford(nb_qubits, seed=rng).to_matrix()
     if TYPE_CHECKING:
         assert isinstance(res, np.ndarray)
     return res
@@ -408,6 +405,27 @@ def rand_product_local_unitaries(
     rng = np.random.default_rng(seed)
 
     return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
+
+
+@typechecked
+def rand_unitary_matrix(size: int) -> Matrix:
+    """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
+
+    Args:
+        size: Size (number of columns) of the square matrix to generate.
+
+    Returns:
+        A random unitary matrix with complex coefficients.
+
+    Example:
+        >>> is_unitary(rand_unitary_matrix(4))
+        True
+        >>> is_unitary(rand_unitary_matrix(8))
+        True
+    """
+    from scipy.stats import unitary_group
+
+    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
 
 
 @typechecked

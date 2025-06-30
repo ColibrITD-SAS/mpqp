@@ -113,13 +113,16 @@ from mpqp.tools.maths import (
     is_hermitian,
     is_power_of_two,
     is_unitary,
+    matrix_eq,
     normalize,
     rand_clifford_matrix,
     rand_hermitian_matrix,
+    rand_unitary_matrix,
     rand_orthogonal_matrix,
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
 )
+from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
 from numpy.random import default_rng
 

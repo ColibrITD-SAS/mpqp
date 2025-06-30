@@ -782,7 +782,6 @@ class QCircuit:
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
-
         if self.gphase != 0:
             matrix *= np.exp(1j * self.gphase)
         return matrix

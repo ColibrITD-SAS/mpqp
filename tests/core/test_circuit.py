@@ -37,6 +37,7 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
+import random
 
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
@@ -596,6 +597,19 @@ def test_to_matrix_random():
         qcircuit = random_circuit(gates, nb_qubits=4)
         expected_matrix = compute_expected_matrix(qcircuit)
         matrix_eq(qcircuit.to_matrix(), expected_matrix)
+
+
+def test_to_matrix_gphase():
+    gates = [
+        gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
+    ]
+    for _ in range(10):
+        qcircuit = random_circuit(gates, nb_qubits=4)
+        qcircuit.gphase = random.random()
+        expected_matrix = compute_expected_matrix(qcircuit)
+        assert matrix_eq(
+            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.gphase)
+        )
 
 
 @pytest.mark.parametrize(
