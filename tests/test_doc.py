@@ -120,7 +120,6 @@ from mpqp.tools.maths import (
     rand_orthogonal_matrix,
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
-    generate_ith_Hamiltonian,
     matrix_eq,
 )
 from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy

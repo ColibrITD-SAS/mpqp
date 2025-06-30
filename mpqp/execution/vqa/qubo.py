@@ -52,6 +52,8 @@ class Qubo:
         self.right = right
         self.value = value
 
+        # This property is used to tract inverted variables (~x0 for example).
+        # This is encoded when calling the matrix method.
         self._inverted_variables = []
 
     def __neg__(self) -> "Qubo":
@@ -282,7 +284,8 @@ class Qubo:
                 for j in range(size):
                     if coef_names[0][0] == '~':
                         if coef_names[0][1:] == variables[j]:
-                            self._inverted_variables.extend([j, -1, 1])
+                            # This list is encoded with the coordinates of the variable's weight
+                            self._inverted_variables.extend([j, j, 1])
                             coord = j
                     elif coef_names[0] == variables[j]:
                         coord = j
@@ -290,7 +293,9 @@ class Qubo:
             else:
                 x_axis = 0
                 y_axis = 0
-                inv_variable = 0  # variable used to know which one of the two variables is inverted
+
+                # variable used to know which one of the two variables is inverted
+                inv_variable = 0  # 1 : first variables, 2 : second, 3 : both
 
                 if coef_names[0][0] == "~":
                     x_axis = variables.index(coef_names[0][1:])
@@ -305,6 +310,7 @@ class Qubo:
                     y_axis = variables.index(coef_names[1])
 
                 if coef_names[0][0] == "~" or coef_names[1][0] == "~":
+                    # This list is encoded with the coordinates of the variables' weight
                     self._inverted_variables.extend([x_axis, y_axis, inv_variable])
 
                 matrix[x_axis][y_axis] += coeff[0] / 2
@@ -341,24 +347,25 @@ class Qubo:
             np.diag(resulting_cost).astype(np.complex64) + np.eye(2**size) * constant
         )
 
-    def _print(self, level: int = 1):
-        left = self.left._print(level + 1) if self.left is not None else ""
-        right = self.right._print(level + 1) if self.right is not None else ""
+    def _print(self):
+        """Prints the expression of the Qubo including parenthesis for correct operation priority."""
+        left_str = self.left._print() if self.left is not None else ""
+        right_str = self.right._print() if self.right is not None else ""
         if self.value == "*":
             if isinstance(self.right, QuboConstant):
-                tmp = right
-                right = left
-                left = tmp
+                tmp = right_str
+                right_str = left_str
+                left_str = tmp
             if (isinstance(self.left, BinaryOperation) and self.left.value != "*") or (
                 isinstance(self.right, BinaryOperation) and self.right.value != "*"
             ):
-                return f"{left}{self.value}({right})"
+                return f"{left_str}{self.value}({right_str})"
         elif isinstance(self, UnaryOperation):
             if self.right and isinstance(
                 self.right, Union[UnaryOperation | BinaryOperation]
             ):
-                return f"{self.value}({right})"
-        return left + self.value + right
+                return f"{self.value}({right_str})"
+        return left_str + self.value + right_str
 
     def simplify(self) -> "Qubo":
         """Returns the simplified form of the given Qubo.
@@ -441,6 +448,10 @@ class QuboAtom(Qubo):
 
         if re.search("^[A-Z|a-z]", value) == None:
             raise ValueError("QuboAtoms have to be named using a letter at the start.")
+        if re.search("[*|^|+|-|&|~|(|)|=|%]", value) != None:
+            raise ValueError(
+                "QuboAtoms cannot be named using operators or special characters."
+            )
         super().__init__(value, None, None)
 
     def __repr__(self):
@@ -509,42 +520,42 @@ def _build_cost_hamiltonian(matrix: Matrix, inv_variables: list[int], size: int)
     resulting_cost = np.zeros(shape=(2**size,))
     # Avoid recomputing several time the same hamiltonian
     hx_ns = [_generate_ith_Hamiltonian(size, i) for i in range(size)]
-    for index in range(size):
-        for j in range(index):
-            if matrix[index][j] == 0:
+    for i in range(size):
+        for j in range(i):
+            if matrix[i][j] == 0:
                 continue
             found = False  # check if one of the variables is inverted or not
-
+            # inv_variables is encoded in the method matrix.
             for k in range(0, len(inv_variables), 3):
-                if (index == inv_variables[k] or index == inv_variables[k + 1]) and (
+                if (i == inv_variables[k] or i == inv_variables[k + 1]) and (
                     j == inv_variables[k] or j == inv_variables[k + 1]
                 ):
                     local_cost = 1
                     if inv_variables[k + 2] == 0:
                         break
                     if inv_variables[k + 2] != 2:
-                        local_cost *= _generate_ith_Hamiltonian(size, index, True)
-                    else:
-                        local_cost *= hx_ns[index]
-
-                    if inv_variables[k + 2] >= 2:
                         local_cost *= _generate_ith_Hamiltonian(size, j, True)
                     else:
                         local_cost *= hx_ns[j]
-                    resulting_cost += local_cost * matrix[index][j] * 2
+
+                    if inv_variables[k + 2] >= 2:
+                        local_cost *= _generate_ith_Hamiltonian(size, i, True)
+                    else:
+                        local_cost *= hx_ns[i]
+                    resulting_cost += local_cost * matrix[i][j] * 2
                     found = True
                     break
             if not found:  # no inverted variables
-                resulting_cost += matrix[index][j] * hx_ns[index] * hx_ns[j] * 2
+                resulting_cost += matrix[i][j] * hx_ns[i] * hx_ns[j] * 2
         found = False
-        for i in range(0, len(inv_variables), 3):
-            if inv_variables[i] == index and inv_variables[i + 1] == -1:
-                resulting_cost += matrix[index][index] * _generate_ith_Hamiltonian(
+        for index in range(0, len(inv_variables), 3):
+            if inv_variables[index] == i and inv_variables[index + 1] == i:
+                resulting_cost += matrix[i][i] * _generate_ith_Hamiltonian(
                     size, index, True
                 )
                 found = True
         if not found:
-            resulting_cost += matrix[index][index] * hx_ns[index]
+            resulting_cost += matrix[i][i] * hx_ns[i]
     return resulting_cost
 
 
@@ -565,10 +576,12 @@ def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
         neg: Boolean if the boolean variable is reversed.
 
     Example:
-        >>> print(generate_ith_Hamiltonian(2,0))
+        >>> print(_generate_ith_Hamiltonian(2,0))
         [0. 0. 1. 1.]
-        >>> print(generate_ith_Hamiltonian(2,1))
+        >>> print(_generate_ith_Hamiltonian(2,1))
         [0. 1. 0. 1.]
+        >>> print(_generate_ith_Hamiltonian(2,1,True))
+        [1. 0. 1. 0.]
     """
     if i >= size:
         raise ValueError(
