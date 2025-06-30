@@ -52,9 +52,13 @@ class Qubo:
         self.right = right
         self.value = value
 
-        # This property is used to tract inverted variables (~x0 for example).
+        # This field is used to tract inverted variables (~x0 for example).
         # This is encoded when calling the matrix method.
         self._inverted_variables = []
+
+        # This integer is used to keep track of the degree of the Qubo polynom.
+        # it is here to make sure that we have a quadratic expression.
+        self._degree = 0
 
     def __neg__(self) -> "Qubo":
         if isinstance(self, UnaryOperation):
@@ -78,6 +82,7 @@ class Qubo:
                 return self
             other = QuboConstant(str(other))
         current = BinaryOperation("+", self, other)
+        current._degree = max(self._degree, other._degree)
         return current
 
     def __radd__(self, other: Union["Qubo", int, float]) -> "Qubo":
@@ -87,24 +92,26 @@ class Qubo:
         if isinstance(other, (float, int)):
             other = QuboConstant(str(other))
         current = BinaryOperation('-', self, other)
+        current._degree = max(self._degree, other._degree)
         return current
 
     def __rsub__(self, other: Union["Qubo", int, float]) -> "Qubo":
         return self - other
 
     def __mul__(self, other: Union["Qubo", int, float]) -> "Qubo":
+        degree = self._degree
         if isinstance(other, (float, int)):
             if other == 1:
                 return self
             other = QuboConstant(str(other))
         if not isinstance(other, QuboConstant):
-            degree = self._check_degree()
-            degree += other._check_degree()
+            degree += other._degree
             if degree > 2:
                 raise ValueError(
                     f"The degree of the Qubo shouldn't be more than 2 not {degree}"
                 )
         current = BinaryOperation("*", self, other)
+        current._degree = degree
         return current
 
     def __rmul__(self, other: Union["Qubo", int, float]) -> "Qubo":
@@ -152,6 +159,56 @@ class Qubo:
                 right[i][1].extend(left[0][1])
                 right[i] = (hold, right[i][1])
             return right
+
+    def evaluate(self, variables: dict[str, bool]) -> float:
+        """Function used to evaluate the result of a Qubo expression.
+
+        Args:
+            variables: Dictionary with the name of the variables as keys and the associated binary value.
+
+        Returns:
+            The value of the expression for the given binary values.
+
+        Examples:
+            >>> x0 = QuboAtom("x0")
+            >>> x1 = QuboAtom("x1")
+            >>> expr = 3*x0
+            >>> expr.evaluate({"x0":True})
+            3.
+            >>> expr.evaluate({"x0":False})
+            0.
+            >>> expr = 3*(~x0)
+            >>> expr.evaluate({"x0": False})
+            3.
+            >>> expr = 3*x0*x1 - 2*x1
+            >>> expr.evaluate({"x1": True, "x0": False})
+            -2.
+        """
+        terms = self.get_terms_and_coefs()
+        result = 0
+        for term in terms:
+            coef, vars = term
+            if len(vars) == 0:
+                result += coef
+            else:
+                inverted_indexes = []
+                for i in range(len(vars)):
+                    if vars[i][0] == "~":
+                        inverted_indexes.append(i)
+                        vars[i] = vars[i][1:]
+
+                if not all(variables.__contains__(var) for var in vars):
+                    raise ValueError(
+                        f"Variables {vars} were not found in the dictionary."
+                    )
+                local_result = 1
+                for i in range(len(vars)):
+                    if inverted_indexes.count(i) == 1:
+                        local_result *= not variables[vars[i]]
+                    else:
+                        local_result *= variables[vars[i]]
+                result += coef * local_result
+        return result
 
     def _check_degree(self):
         if isinstance(self, QuboAtom):
@@ -220,6 +277,20 @@ class Qubo:
 
         return coeffs
 
+    def depth(self) -> int:
+        """Return the maximum depth of the tree representing the Qubo expression."""
+        return self._depth()
+
+    def _depth(self, level: int = 0) -> int:
+        if not self.left:
+            if not self.right:
+                return level
+            return self.right._depth(level + 1)
+        else:
+            if not self.right:
+                return self.left._depth(level + 1)
+            return max(self.right._depth(level + 1), self.left._depth(level + 1))
+
     def get_variables(self) -> list[str]:
         """Returns a list of all of the unique boolean variables of the QUBO.
         They are ordered from the left of the expression to the right.
@@ -262,12 +333,15 @@ class Qubo:
             >>> x1 = QuboAtom('x1')
             >>> x2 = QuboAtom('x2')
             >>> x3 = QuboAtom('x3')
-            >>> expr = 2 * x0 + 3 * x1 + 4 * x0 * x2 + x3
-            >>> pprint(expr.matrix()[0])
+            >>> expr = 2 * x0 + 3 * x1 + 4 * x0 * x2 + x3 + 18
+            >>> matrix, constant = expr.matrix()
+            >>> pprint(matrix)
             [[2, 0, 2, 0],
              [0, 3, 0, 0],
              [2, 0, 0, 0],
              [0, 0, 0, 1]]
+            >>> print(constant)
+            18
         """
         coeffs = self.get_terms_and_coefs()
         variables = self.get_variables()
@@ -453,6 +527,7 @@ class QuboAtom(Qubo):
                 "QuboAtoms cannot be named using operators or special characters."
             )
         super().__init__(value, None, None)
+        self._degree = 1
 
     def __repr__(self):
         return 'QuboAtom("' + self.value + '")'
