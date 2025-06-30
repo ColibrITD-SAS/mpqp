@@ -40,8 +40,6 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import TypeCheckError, typechecked
-
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -57,6 +55,7 @@ from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
+from typeguard import TypeCheckError, typechecked
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
