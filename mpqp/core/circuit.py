@@ -1701,7 +1701,7 @@ class QCircuit:
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
             qc = qc.without_measurements()
-            if not noises == []:
+            if len(noises) != 0:
                 qc.add(noises)
             return qc
 

@@ -61,7 +61,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     Parses a MyQLM circuit's instructions and returns a MPQP circuit.
 
     Args:
-        circuit: the MyQLM circuit to be transformed.
+        circuit: the MyQLM circuit to be translated.
 
     Returns:
         QCircuit object representing the parsed MyQLM circuit.

@@ -177,6 +177,18 @@ class NoiseModel(ABC):
     def from_other_language(
         cls, qasm3_code: str, noise_type: type[NoiseModel]
     ) -> NoiseModel:
+        """
+        Transforms the qasm3 code into an MPQP Noise Model instruction.
+
+        In the current version, only Braket is available for conversion.
+
+        Args:
+            qasm3_code: the qasm3 string containing the noise model's options.
+            noise_type: the mpqp noise model class corresponding to the qasm3 code.
+
+        Returns:
+            The corresponding noise model in MPQP.
+        """
         import re
 
         probability_str = re.findall(r'\(([^)]+)\)', qasm3_code)
