@@ -20,12 +20,15 @@ def test_gate_repr(gate: CustomControlledGate) -> None:
     assert gate == eval(gate.__repr__())
 
 
-def test_negative_indices():
+@pytest.mark.parametrize(
+    "gate, args",
+    [
+        (CNOT, (-1, 0)),
+        (TOF, ([1, -1], 0)),
+        (CustomControlledGate, (-10, Z(0))),
+        (CustomControlledGate, ([0, 1, -3], S(2))),
+    ],
+)
+def test_negative_indices(gate: Gate, args: tuple[Any]):
     with pytest.raises(ValueError):
-        CNOT(-1, 0)
-    with pytest.raises(ValueError):
-        TOF([1, -1], 0)
-    with pytest.raises(ValueError):
-        CustomControlledGate(-10, Z(0))
-    with pytest.raises(ValueError):
-        CustomControlledGate([0, 1, -3], S(2))
+        gate(*args)
