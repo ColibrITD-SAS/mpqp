@@ -1,3 +1,8 @@
+"""These classes are used to generate a Quadratic Unconstrained Binary Operation (QUBO)
+which can be used in many optimization problems.
+In the context of MPQP, these classes are used in the QAOA module to encode the problem
+to optimize in the function :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
+
 from __future__ import annotations
 
 from typing import Optional, Union
@@ -174,15 +179,15 @@ class Qubo:
             >>> x1 = QuboAtom("x1")
             >>> expr = 3*x0
             >>> expr.evaluate({"x0":True})
-            3.
+            3
             >>> expr.evaluate({"x0":False})
-            0.
+            0
             >>> expr = 3*(~x0)
             >>> expr.evaluate({"x0": False})
-            3.
+            3
             >>> expr = 3*x0*x1 - 2*x1
             >>> expr.evaluate({"x1": True, "x0": False})
-            -2.
+            -2
         """
         terms = self.get_terms_and_coefs()
         result = 0

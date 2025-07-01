@@ -1,3 +1,11 @@
+"""This module is one implementation of a particular type of VQA : QAOA.
+This algorithm works by generating a circuit of alternating operators : cost operators and
+mixer operators.
+Cost operators are generated with the cost hamiltonian which represents the problem we want
+to optimize.
+Mixer operators are here to "search" for solutions, they can be custom to the problem but a
+generic set does exist."""
+
 from __future__ import annotations
 
 from enum import Enum, auto
