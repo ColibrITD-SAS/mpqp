@@ -1048,7 +1048,9 @@ class PauliStringMonomial(PauliString):
             3.1415926536*I@X
 
         """
-        from mpqp.tools.display import _unpack_expr # pyright: ignore[reportPrivateUsage]
+        from mpqp.tools.display import (
+            _unpack_expr,
+        )  # pyright: ignore[reportPrivateUsage]
 
         new_monomial = deepcopy(self)
         caster = lambda v: _unpack_expr(v) if remove_symbolic else v

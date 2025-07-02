@@ -36,7 +36,17 @@ from cirq.ops.pauli_gates import Y as Cirq_Y
 from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
 
-from mpqp.core.instruction.measurement.pauli_string import I, Coef, PauliString, X, Y, Z, PauliStringAtom, pauli_string_from_str, pauli_string_with_atom
+from mpqp.core.instruction.measurement.pauli_string import (
+    I,
+    Coef,
+    PauliString,
+    X,
+    Y,
+    Z,
+    PauliStringAtom,
+    pauli_string_from_str,
+    pauli_string_with_atom,
+)
 from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
 
@@ -452,19 +462,26 @@ def test_to_from_other_language(
 @pytest.mark.parametrize(
     "input_str, subs_dict, expected_str",
     [
-        ("2*XZ", None, 2*X@Z),
-        ("theta*IX", {}, symbols("theta")*I@X),
-        ("theta*IX", {"theta": 2}, 2*I@X),
-        ("k*XY", {"k": 2}, 2*X@Y),
-        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7*I@X + Z@Y),
-        ("-a*YZ", {"a": -1}, Y@Z),
-        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6*X@Z + Y@I - 3*Z@Z),
-        ("o*2*XZ + YI - 3o*ZZ", None, symbols("o")*2*X@Z + Y@I - 3*symbols("o")*Z@Z),
+        ("2*XZ", None, 2 * X @ Z),
+        ("theta*IX", {}, symbols("theta") * I @ X),
+        ("theta*IX", {"theta": 2}, 2 * I @ X),
+        ("k*XY", {"k": 2}, 2 * X @ Y),
+        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7 * I @ X + Z @ Y),
+        ("-a*YZ", {"a": -1}, Y @ Z),
+        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6 * X @ Z + Y @ I - 3 * Z @ Z),
+        (
+            "o*2*XZ + YI - 3o*ZZ",
+            None,
+            symbols("o") * 2 * X @ Z + Y @ I - 3 * symbols("o") * Z @ Z,
+        ),
     ],
 )
-def test_pauli_string_from_str(input_str: str, subs_dict: Optional[dict[str, Coef]], expected_str: PauliString):
+def test_pauli_string_from_str(
+    input_str: str, subs_dict: Optional[dict[str, Coef]], expected_str: PauliString
+):
     ps = pauli_string_from_str(input_str, subs_dict)
     assert ps == expected_str
+
 
 @pytest.mark.parametrize(
     "n, atom, qubit_index, expected_ps",
@@ -476,6 +493,8 @@ def test_pauli_string_from_str(input_str: str, subs_dict: Optional[dict[str, Coe
         (1, X, 0, X),
     ],
 )
-def test_pauli_string_with_atom(n: int, atom: PauliStringAtom, qubit_index: Optional[int], expected_ps: PauliString):
+def test_pauli_string_with_atom(
+    n: int, atom: PauliStringAtom, qubit_index: Optional[int], expected_ps: PauliString
+):
     result = pauli_string_with_atom(n, atom, qubit_index)
     assert result == expected_ps
