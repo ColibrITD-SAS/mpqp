@@ -44,7 +44,7 @@ def test_result_wrong_type(job_type: JobType, data: float | StateVector | list[S
 @pytest.mark.parametrize(
     "job_type, data",
     [
-        (JobType.STATE_VECTOR, StateVector(np.ones(4, dtype=np.complex64) / 2)),
+        (JobType.STATE_VECTOR, StateVector(np.ones(4, dtype=np.complex128) / 2)),
         (JobType.OBSERVABLE, 0.4),
         (
             JobType.SAMPLE,
@@ -78,7 +78,7 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                     QCircuit(2),
                     IBMDevice.AER_SIMULATOR_STATEVECTOR,
                 ),
-                StateVector(np.ones(4, dtype=np.complex64) / 2),
+                StateVector(np.ones(4, dtype=np.complex128) / 2),
             ),
             """Result: IBMDevice, AER_SIMULATOR_STATEVECTOR
   State vector: [0.5, 0.5, 0.5, 0.5]

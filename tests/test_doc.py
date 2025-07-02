@@ -121,6 +121,7 @@ from mpqp.tools.maths import (
 )
 from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
 from numpy.random import default_rng
+from mpqp.measures import pauli_string_with_atom, pauli_string_from_str
 
 sys.path.insert(0, os.path.abspath("."))
 

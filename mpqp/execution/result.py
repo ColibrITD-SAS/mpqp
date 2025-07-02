@@ -59,14 +59,14 @@ class StateVector:
 
     def __init__(
         self,
-        vector: list[Complex] | npt.NDArray[np.complex64],
+        vector: list[Complex] | npt.NDArray[np.complex128],
         nb_qubits: Optional[int] = None,
         probabilities: Optional[list[float] | npt.NDArray[np.float32]] = None,
     ):
         if len(np.asarray(vector)) == 0:
             raise ValueError("vector should not be empty")
 
-        self.vector: npt.NDArray[np.complex64] = np.array(vector, dtype=complex)
+        self.vector: npt.NDArray[np.complex128] = np.array(vector, dtype=complex)
 
         self.nb_qubits = (
             int(math.log(len(vector), 2)) if nb_qubits is None else nb_qubits
@@ -257,7 +257,7 @@ class Result:
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
-        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex128) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
           State vector: [0.5, 0.5, 0.5, -0.5]
           Probabilities: [0.25, 0.25, 0.25, 0.25]
@@ -399,7 +399,7 @@ class Result:
         return self._expectation_values
 
     @property
-    def amplitudes(self) -> npt.NDArray[np.complex64]:
+    def amplitudes(self) -> npt.NDArray[np.complex128]:
         """Get the amplitudes of the state of this result"""
         if self.job.job_type != JobType.STATE_VECTOR:
             raise ResultAttributeError(

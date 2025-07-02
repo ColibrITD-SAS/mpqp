@@ -57,7 +57,7 @@ class Observable:
 
     Examples:
         >>> Observable(np.array([[1, 0], [0, -1]]))
-        Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]], dtype=complex64))
+        Observable(array([[ 1, 0], [ 0, -1]]))
 
         >>> from mpqp.measures import I, X, Y, Z
         >>> Observable(3 * I @ Z + 4 * X @ Y)
@@ -76,7 +76,7 @@ class Observable:
         self._matrix = None
         self._pauli_string = None
         self._is_diagonal = None
-        self._diag_elements = None
+        self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
         "See parameter description."
 
@@ -114,16 +114,16 @@ class Observable:
                             "The matrix in parameter is not hermitian (cannot define an observable)."
                         )
 
-                    self._matrix = np.array(observable)
+                    self._matrix = observable
 
                 else:
                     self._is_diagonal = True
-                    self._diag_elements = observable.real
+                    self._diag_elements = observable.real.flatten().astype(np.float64)
 
             # correspond to isinstance(observable, list)
             else:
                 self._is_diagonal = True
-                self._diag_elements = np.array(observable)
+                self._diag_elements = np.array(observable, dtype=np.float64)
 
     @property
     def matrix(self) -> Matrix:
@@ -132,10 +132,10 @@ class Observable:
             if self.is_diagonal and self._diag_elements is not None:
                 if TYPE_CHECKING:
                     assert isinstance(self._diag_elements, np.ndarray)
-                self._matrix = np.diag(self._diag_elements)
+                self._matrix = np.diag(self._diag_elements).astype(np.complex128)
             else:
                 self._matrix = self.pauli_string.to_matrix()
-        matrix = copy.deepcopy(self._matrix).astype(np.complex64)
+        matrix = copy.deepcopy(self._matrix)
         return matrix
 
     @property
@@ -155,7 +155,9 @@ class Observable:
     def diagonal_elements(self) -> npt.NDArray[np.float64]:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
-            self._diag_elements = np.diagonal(self.matrix).real
+            self._diag_elements = (
+                np.diagonal(self.matrix).real.flatten().astype(np.float64)
+            )
         return copy.deepcopy(np.array(self._diag_elements, dtype=np.float64))
 
     @matrix.setter
@@ -191,8 +193,10 @@ class Observable:
             raise ValueError(
                 "The size of the diagonal elements of the matrix is not a power of two."
             )
-
-        self._diag_elements = diag_elements
+        if isinstance(diag_elements, list):
+            self._diag_elements = np.array(diag_elements, dtype=np.float64)
+        else:
+            self._diag_elements = diag_elements
         self._is_diagonal = True
         self._pauli_string = None
         self._matrix = None
@@ -237,11 +241,11 @@ class Observable:
 
     def __repr__(self) -> str:
         if self._is_diagonal and self._diag_elements is not None:
-            data = f"{np.array2string(self.diagonal_elements, separator=', ')}"
+            data = f"{np.array2string(self._diag_elements, separator=', ')}"
         elif self._matrix is not None:
-            data = f"{one_lined_repr(self.matrix)}"
+            data = f"{one_lined_repr(self._matrix)}"
         else:
-            data = f"{self.pauli_string}"
+            data = f"{self._pauli_string}"
         label_str = f", '{self.label}'" if self.label is not None else ""
         return f"{type(self).__name__}({data}{label_str})"
 
@@ -286,14 +290,17 @@ class Observable:
             >>> obs = Observable([0.7, -1, 1, 1])
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> obs_qiskit.to_list()  # doctest: +NORMALIZE_WHITESPACE
-            [('II', (0.42499999701976776+0j)), ('IZ', (0.42499999701976776+0j)),
-             ('ZI', (-0.5750000029802322+0j)), ('ZZ', (0.42499999701976776+0j))]
+            [('II', (0.425+0j)), ('IZ', (0.425+0j)), ('ZI', (-0.575+0j)), ('ZZ', (0.425+0j))]
 
         """
+        # TODO: use PauliString instead of matrix
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator, SparsePauliOp
 
-            return SparsePauliOp.from_operator(Operator(self.matrix))
+            if self._pauli_string:
+                return self.pauli_string.to_other_language(Language.QISKIT)
+            else:
+                return SparsePauliOp.from_operator(Operator(self.matrix))
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Observable as QLMObservable
 
@@ -370,13 +377,13 @@ class ExpectationMeasure(Measure):
     ):
 
         super().__init__(targets, shots, label)
-        self.observables: list[Observable]
+        self.observables: list[Observable] = []
         """See parameter description."""
         self.optim_diagonal = optim_diagonal
         """See parameter description."""
 
         if isinstance(observable, Observable):
-            self.observables = [observable]
+            observable = [observable]
         else:
             if not all(
                 observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
@@ -385,20 +392,36 @@ class ExpectationMeasure(Measure):
                     "All observables in ExpectationMeasure must have the same size. Sizes: "
                     + str([o.nb_qubits for o in observable])
                 )
-            self.observables = observable
 
         # Fill observables labels if not set
-        label_defined = set()
+        label_defined = set([obs.label for obs in observable])
         label_counter = 0
         default_label = self.label if self.label is not None else "observable"
-        for obs in self.observables:
+        for obs in observable:
             if obs.label is None:
                 while f"{default_label}_{label_counter}" in label_defined:
                     label_counter += 1
-                obs.label = f"{default_label}_{label_counter}"
+                if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
+                    obs = Observable(
+                        obs._pauli_string,  # pyright: ignore[reportPrivateUsage]
+                        f"{default_label}_{label_counter}",
+                    )
+                elif obs._matrix is not None:  # pyright: ignore[reportPrivateUsage]
+                    obs = Observable(
+                        obs._matrix,  # pyright: ignore[reportPrivateUsage]
+                        f"{default_label}_{label_counter}",
+                    )
+                else:
+                    assert (
+                        obs._diag_elements  # pyright: ignore[reportPrivateUsage]
+                        is not None
+                    )
+                    obs = Observable(
+                        obs._diag_elements,  # pyright: ignore[reportPrivateUsage]
+                        f"{default_label}_{label_counter}",
+                    )
                 label_counter += 1
-            else:
-                label_defined.add(obs.label)
+            self.observables.append(obs)
         self._check_targets_order()
 
     @property

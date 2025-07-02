@@ -18,7 +18,7 @@ def list_circuits():
 def list_observables():
     return [
         [
-            Observable(np.ones((4, 4)).astype(np.complex64)),
+            Observable(np.ones((4, 4)).astype(np.complex128)),
             Observable(np.diag([1, 2, -3, 4])),
             # TODO add random observable ?
         ]
@@ -59,9 +59,12 @@ def test_sequential_versus_multi(
         device,
         {},
     )
-    assert isinstance(multi_result.expectation_values, dict)
-    assert len(seq_results) == len(multi_result.expectation_values)
+    expectation_values = multi_result.expectation_values
+    assert isinstance(expectation_values, dict)
+    print(multi_result)
+    print(observables)
+    assert len(seq_results) == len(expectation_values)
 
     # TODO modify here to match the logic of dict and observable.label etc
-    for r1, e2 in zip(seq_results, multi_result.expectation_values.values()):
+    for r1, e2 in zip(seq_results,expectation_values.values()):
         assert r1.expectation_values == e2

@@ -59,7 +59,7 @@ class Basis:
 
     def __init__(
         self,
-        basis_vectors: list[npt.NDArray[np.complex64]],
+        basis_vectors: list[npt.NDArray[np.complex128]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
         basis_vectors_labels: Optional[list[str]] = None,
@@ -217,7 +217,7 @@ class VariableSizeBasis(Basis):
 
     def __init__(
         self,
-        basis_vectors: list[npt.NDArray[np.complex64]],
+        basis_vectors: list[npt.NDArray[np.complex128]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
     ):
@@ -314,7 +314,7 @@ class ComputationalBasis(VariableSizeBasis):
         if self.nb_qubits == nb_qubits:
             return
         self.basis_vectors = [
-            np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex64)
+            np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex128)
             for i in range(2**nb_qubits)
         ]
         self.nb_qubits = nb_qubits
@@ -368,7 +368,7 @@ class HadamardBasis(VariableSizeBasis):
     def set_size(self, nb_qubits: int):
         if self.nb_qubits == nb_qubits:
             return
-        H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)
+        H = np.array([[1, 1], [1, -1]], dtype=np.complex128) / np.sqrt(2)
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits

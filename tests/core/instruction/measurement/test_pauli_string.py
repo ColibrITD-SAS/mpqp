@@ -14,7 +14,7 @@ from operator import (
     truediv,
 )
 from random import randint
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 from sympy import symbols
 
 if TYPE_CHECKING:
@@ -36,7 +36,7 @@ from cirq.ops.pauli_gates import Y as Cirq_Y
 from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
 
-from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
+from mpqp.core.instruction.measurement.pauli_string import I, Coef, PauliString, X, Y, Z, PauliStringAtom, pauli_string_from_str, pauli_string_with_atom
 from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
 
@@ -84,7 +84,7 @@ def pauli_string_combinations():
 
 
 @pytest.mark.parametrize("ps, matrix", pauli_string_combinations())
-def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex64]):
+def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex128]):
     assert matrix_eq(ps.to_matrix(), matrix)
 
 
@@ -447,3 +447,35 @@ def test_to_from_other_language(
         PauliString.from_other_language(mpqp_ps.to_other_language(Language.MY_QLM))
         == mpqp_ps
     )
+
+
+@pytest.mark.parametrize(
+    "input_str, subs_dict, expected_str",
+    [
+        ("2*XZ", None, 2*X@Z),
+        ("theta*IX", {}, symbols("theta")*I@X),
+        ("theta*IX", {"theta": 2}, 2*I@X),
+        ("k*XY", {"k": 2}, 2*X@Y),
+        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7*I@X + Z@Y),
+        ("-a*YZ", {"a": -1}, Y@Z),
+        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6*X@Z + Y@I - 3*Z@Z),
+        ("o*2*XZ + YI - 3o*ZZ", None, symbols("o")*2*X@Z + Y@I - 3*symbols("o")*Z@Z),
+    ],
+)
+def test_pauli_string_from_str(input_str: str, subs_dict: Optional[dict[str, Coef]], expected_str: PauliString):
+    ps = pauli_string_from_str(input_str, subs_dict)
+    assert ps == expected_str
+
+@pytest.mark.parametrize(
+    "n, atom, qubit_index, expected_ps",
+    [
+        (3, X, None, I @ I @ X),
+        (3, Y, 0, Y @ I @ I),
+        (4, Z, 2, I @ I @ Z @ I),
+        (2, I, 1, I @ I),
+        (1, X, 0, X),
+    ],
+)
+def test_pauli_string_with_atom(n: int, atom: PauliStringAtom, qubit_index: Optional[int], expected_ps: PauliString):
+    result = pauli_string_with_atom(n, atom, qubit_index)
+    assert result == expected_ps

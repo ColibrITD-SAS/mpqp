@@ -110,7 +110,7 @@ class NoiseModel(ABC):
         return set(self.targets)
 
     @abstractmethod
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         r"""Noise models can be represented by Kraus operators. They represent how the
         state is affected by the noise following the formula
 
@@ -127,7 +127,7 @@ class NoiseModel(ABC):
 
     def to_adjusted_kraus_operators(
         self, targets: set[int], size: int
-    ) -> list[npt.NDArray[np.complex64]]:
+    ) -> list[npt.NDArray[np.complex128]]:
         r"""In some cases, you may prefer the Kraus operators to match the size
         of your circuit, and the targets involved. In particular, the targets of
         the noise application may not match the noise targets, because the noise
@@ -339,7 +339,7 @@ class Depolarizing(DimensionalNoiseModel):
                 f"and {prob_upper_bound}."
             )
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
             np.sqrt(1 - 3 * self.prob / 4) * I.matrix,
             np.sqrt(self.prob / 4) * X.matrix,
@@ -504,7 +504,7 @@ class BitFlip(NoiseModel):
         self.prob = prob
         """See parameter description."""
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [np.sqrt(1 - self.prob) * I.matrix, np.sqrt(self.prob) * X.matrix]
 
     def __repr__(self):
@@ -643,7 +643,7 @@ class AmplitudeDamping(NoiseModel):
         self.prob = prob
         """See parameter description."""
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
             np.diag(1, np.sqrt(1 - self.prob)),
             np.array([[0, np.sqrt(self.prob)], [0, 0]]),
@@ -776,7 +776,7 @@ class PhaseDamping(NoiseModel):
         self.gamma = gamma
         """Probability of phase damping."""
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
             np.sqrt(1 - self.gamma) * I.matrix,
             np.diag([np.sqrt(self.gamma), 0]),

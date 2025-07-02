@@ -30,6 +30,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
+
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -73,15 +74,32 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Returns:
         The measure padded with identities before and after.
     """
-    Id_before = np.eye(2 ** measure.rearranged_targets[0])
-    Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
+    # TODO: use this only for specific provider
 
-    tweaked_observables = [
-        Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
-        # TODO: avoid to force using matrix representation to add identities if the observable is defined by
-        #  pauli string (use I @ obs @ I) or diagonal coefficients (perform kron product with [1,1] instead of I matrix)
-        for obs in measure.observables
-    ]
+    if measure.targets == list(range(circuit.nb_qubits)):
+        return measure
+
+    tweaked_observables = []
+    n_before = measure.rearranged_targets[0]
+    n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
+    for obs in measure.observables:
+        if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
+            from mpqp.core.instruction.measurement.pauli_string import (
+                pauli_string_with_atom,
+            )
+
+            pauli = (
+                pauli_string_with_atom(n_before)
+                @ obs.pauli_string
+                @ pauli_string_with_atom(n_after)
+            )
+            tweaked_observables.append(Observable(pauli))
+        else:
+            Id_before = np.eye(2**n_before)
+            Id_after = np.eye(2**n_after)
+            tweaked_observables.append(
+                Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+            )
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,

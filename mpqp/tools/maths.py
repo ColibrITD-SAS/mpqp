@@ -26,7 +26,7 @@ atol = 1e-08
 
 
 @typechecked
-def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
+def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex128]:
     """Normalizes an array representing the amplitudes of the state.
 
     Args:
@@ -126,7 +126,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
     """
     return matrix_eq(
-        np.eye(len(matrix), dtype=np.complex64),
+        np.eye(len(matrix), dtype=np.complex128),
         matrix.transpose().conjugate().dot(matrix),
         atol=1e-5,
     )
@@ -270,7 +270,7 @@ def exp(angle: Expr | complex) -> sp.Expr | complex:
 @typechecked
 def rand_orthogonal_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random orthogonal matrix optionally with a given seed.
 
     Args:
@@ -301,7 +301,7 @@ def rand_orthogonal_matrix(
 @typechecked
 def rand_clifford_matrix(
     nb_qubits: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random Clifford matrix.
 
     Args:
@@ -338,7 +338,7 @@ def rand_clifford_matrix(
 @typechecked
 def rand_unitary_2x2_matrix(
     seed: Optional[Union[int, np.random.Generator]] = None,
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random one-qubit unitary matrix.
 
     Args:
@@ -380,7 +380,7 @@ def rand_unitary_2x2_matrix(
 @typechecked
 def rand_product_local_unitaries(
     nb_qubits: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a pseudo random matrix, resulting from a tensor product of
     random unitary matrices.
 
@@ -413,7 +413,7 @@ def rand_product_local_unitaries(
 @typechecked
 def rand_hermitian_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random Hermitian matrix.
 
     Args:
@@ -435,7 +435,7 @@ def rand_hermitian_matrix(
     """
     rng = np.random.default_rng(seed)
 
-    m = rng.random((size, size)).astype(np.complex64)
+    m = rng.random((size, size)).astype(np.complex128)
     return m + m.conjugate().transpose()
 
 

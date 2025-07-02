@@ -48,4 +48,4 @@ class CustomControlledGate(ControlledGate):
         return self.non_controlled_gate.to_other_language(language, qiskit_parameters)
 
     def to_matrix(self, desired_gate_size: int = 0):
-        return np.array([[1, 0], [0, 1]], dtype=np.complex64)
+        return np.array([[1, 0], [0, 1]], dtype=np.complex128)

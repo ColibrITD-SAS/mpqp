@@ -40,7 +40,7 @@ from mpqp.measures import BasisMeasure
 @typechecked
 def amplitude(
     circ: QCircuit,
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Computes the theoretical probabilities of a (potentially) noisy
     circuit execution.
 
@@ -52,13 +52,13 @@ def amplitude(
     """
     d: int = 2**circ.nb_qubits
 
-    state = np.zeros((d), dtype=np.complex64)
+    state = np.zeros((d), dtype=np.complex128)
     state[0] = 1
     gates = circ.gates
     print(state)
 
     for gate in gates:
-        g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
+        g = gate.to_matrix(circ.nb_qubits).astype(np.complex128)
         print(g)
         state = g @ state
         print(state)
@@ -75,7 +75,7 @@ def amplitude(
                             gate.connections(), circ.nb_qubits
                         )
                     ),
-                    start=np.zeros(d, dtype=np.complex64),
+                    start=np.zeros(d, dtype=np.complex128),
                 )
 
     connected_qubits = set().union(*[gate.connections() for gate in gates])
@@ -89,7 +89,7 @@ def amplitude(
                         unconnected_qubits, circ.nb_qubits
                     )
                 ),
-                start=np.zeros(d, dtype=np.complex64),
+                start=np.zeros(d, dtype=np.complex128),
             )
 
     return state
@@ -110,12 +110,12 @@ def theoretical_probs(
     """
     d: int = 2**circ.nb_qubits
 
-    state = np.zeros((d, d), dtype=np.complex64)
+    state = np.zeros((d, d), dtype=np.complex128)
     state[0, 0] = 1
     gates = circ.gates
 
     for gate in gates:
-        g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
+        g = gate.to_matrix(circ.nb_qubits).astype(np.complex128)
         state = g @ state @ g.T.conj()
         for noise in circ.noises:
             if (
@@ -130,7 +130,7 @@ def theoretical_probs(
                             gate.connections(), circ.nb_qubits
                         )
                     ),
-                    start=np.zeros((d, d), dtype=np.complex64),
+                    start=np.zeros((d, d), dtype=np.complex128),
                 )
 
     connected_qubits = set().union(*[gate.connections() for gate in gates])
@@ -144,7 +144,7 @@ def theoretical_probs(
                         unconnected_qubits, circ.nb_qubits
                     )
                 ),
-                start=np.zeros((d, d), dtype=np.complex64),
+                start=np.zeros((d, d), dtype=np.complex128),
             )
 
     return state.diagonal().real
