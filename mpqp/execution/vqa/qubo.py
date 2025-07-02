@@ -441,7 +441,7 @@ class Qubo:
                 return f"{left_str}{self.value}({right_str})"
         elif isinstance(self, UnaryOperation):
             if self.right and isinstance(
-                self.right, Union[UnaryOperation | BinaryOperation]
+                self.right, Union[UnaryOperation, BinaryOperation]
             ):
                 return f"{self.value}({right_str})"
         return left_str + self.value + right_str
