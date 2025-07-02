@@ -147,24 +147,6 @@ class Qubo:
             + ")"
         )
 
-    def _collapse_coeffs(
-        self, left: list[tuple[int, list[str]]], right: list[tuple[int, list[str]]]
-    ):
-        if len(right) == 1:
-            for i in range(len(left)):
-                hold: int = left[i][0]
-                hold *= right[0][0]
-                left[i][1].extend(right[0][1])
-                left[i] = (hold, left[i][1])
-            return left
-        else:
-            for i in range(len(right)):
-                hold: int = right[i][0]
-                hold *= left[0][0]
-                right[i][1].extend(left[0][1])
-                right[i] = (hold, right[i][1])
-            return right
-
     def evaluate(self, variables: dict[str, bool]) -> float:
         """Function used to evaluate the result of a Qubo expression.
 
@@ -278,7 +260,7 @@ class Qubo:
                 right[i] = (hold, right[i][1])
             coeffs.extend(right)
         elif self.value == "*":
-            return self._collapse_coeffs(left, right)
+            return _collapse_coeffs(left, right)
 
         return coeffs
 
@@ -655,13 +637,8 @@ def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
         i: The index of the variable.
         neg: Boolean if the boolean variable is reversed.
 
-    Example:
-        >>> print(_generate_ith_Hamiltonian(2,0))
-        [0. 0. 1. 1.]
-        >>> print(_generate_ith_Hamiltonian(2,1))
-        [0. 1. 0. 1.]
-        >>> print(_generate_ith_Hamiltonian(2,1,True))
-        [1. 0. 1. 0.]
+    Returns:
+        The diagonal of the cost hamiltonian
     """
     if i >= size:
         raise ValueError(
@@ -683,3 +660,28 @@ def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
             else:
                 result[j] = 0
     return result
+
+
+def _collapse_coeffs(
+    left: list[tuple[int, list[str]]], right: list[tuple[int, list[str]]]
+):
+    """
+    This function distribute the coefficient an expression in parenthesis.
+    This is used in the creation of the Qubo to be able to accurately create the weight matrix.
+    Left is the left part of the multiplication and right the right part. It returns the multiplication
+    with the coeff distributed.
+    """
+    if len(right) == 1:
+        for i in range(len(left)):
+            hold: int = left[i][0]
+            hold *= right[0][0]
+            left[i][1].extend(right[0][1])
+            left[i] = (hold, left[i][1])
+        return left
+    else:
+        for i in range(len(right)):
+            hold: int = right[i][0]
+            hold *= left[0][0]
+            right[i][1].extend(left[0][1])
+            right[i] = (hold, right[i][1])
+        return right
