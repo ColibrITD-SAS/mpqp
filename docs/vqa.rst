@@ -43,6 +43,10 @@ Quantum Approximate Optimization Algorithm
 
 QUBO
 ++++
+
+These classes are used to generate a Quadratic Unconstrained Binary Operation (QUBO) which can be used in many optimization problems.
+In the context of MPQP, these classes are used in the QAOA module to encode the problem to optimize in the function :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`.
+
 .. autoclass:: mpqp.execution.vqa.qubo.Qubo
 
 .. autoclass:: mpqp.execution.vqa.qubo.QuboAtom
