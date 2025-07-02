@@ -1301,6 +1301,9 @@ def parse_openqasm_3_file(code: str) -> list[str]:
         cleaned_code[: gate_matches[0].span()[0]] if gate_matches else cleaned_code
     )
 
+    if re.search(r"if\s*\(.*?\)\s*{[^}]*}", code, flags=re.DOTALL):
+        raise ValueError("\"If\" instructions aren't handled")
+
     instructions = sanitized_start.split(";")
 
     for i in range(len(gate_matches)):

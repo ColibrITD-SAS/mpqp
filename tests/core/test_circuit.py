@@ -370,12 +370,61 @@ def test_to_other_language(
         assert str(converted_circuit) == result_repr
 
 
+def create_qiskit_circuits() -> tuple[QiskitCircuit, QiskitCircuit]:
+    from qiskit import QuantumRegister, ClassicalRegister
+    from qiskit.circuit.library import RC3XGate
+
+    qreg_q = QuantumRegister(4, 'q')
+    creg_c = ClassicalRegister(4, 'c')
+    circuit = QiskitCircuit(qreg_q, creg_c)
+
+    circuit.sxdg(qreg_q[0])
+    circuit.sx(qreg_q[1])
+    circuit.sdg(qreg_q[2])
+    circuit.s(qreg_q[3])
+    circuit.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    circuit.z(qreg_q[0])
+    circuit.s(qreg_q[1])
+    circuit.rxx(np.pi / 2, qreg_q[2], qreg_q[3])
+    circuit.id(qreg_q[2])
+    circuit.rx(np.pi / 2, qreg_q[0])
+    circuit.rz(np.pi / 2, qreg_q[1])
+    circuit.p(np.pi / 2, qreg_q[0])
+    circuit.rzz(np.pi / 2, qreg_q[2], qreg_q[3])
+    circuit.rzz(np.pi / 2, qreg_q[1], qreg_q[2])
+    circuit.rxx(np.pi / 2, qreg_q[0], qreg_q[1])
+    circuit.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    circuit.rccx(qreg_q[1], qreg_q[2], qreg_q[3])
+    circuit.ccx(qreg_q[0], qreg_q[1], qreg_q[2])
+    circuit.swap(qreg_q[0], qreg_q[1])
+    circuit.cx(qreg_q[2], qreg_q[3])
+    circuit.x(qreg_q[1])
+    circuit.h(qreg_q[0])
+    circuit.id(qreg_q[2])
+    circuit.id(qreg_q[3])
+
+    circuit_2 = QiskitCircuit(qreg_q, creg_c)
+    circuit_2.rzz(np.pi / 2, qreg_q[1], qreg_q[2]).c_if(creg_c, 0)
+
+    return circuit, circuit_2
+
+
 @pytest.mark.parametrize(
     "circuit, language, expected_output",
     [
         (random_qiskit_circuit(2, 5), Language.QISKIT, None),
         (random_qiskit_circuit(5, 5), Language.QISKIT, None),
         (random_qiskit_circuit(10, 5), Language.QISKIT, None),
+        (
+            create_qiskit_circuits()[0],
+            Language.QISKIT,
+            None,
+        ),
+        (
+            create_qiskit_circuits()[1],
+            Language.QISKIT,
+            "\"If\" instructions aren't handled",
+        ),
         (QCircuit([H(0), CNOT(0, 1)]), Language.QASM2, None),
         (random_circuit(None, 2), Language.QASM2, None),
         (random_circuit(None, 10), Language.QASM2, None),
@@ -478,12 +527,16 @@ def test_from_other_language(
     if isinstance(circuit, QiskitCircuit):
         from qiskit.quantum_info import Operator
 
-        qcircuit = QCircuit.from_other_language(circuit)
-        circuit = circuit.reverse_bits()
-        matrix = Operator(circuit).data
-        if TYPE_CHECKING:
-            assert isinstance(matrix, np.ndarray)
-        assert matrix_eq(matrix, qcircuit.to_matrix())
+        if not isinstance(expected_output, str):
+            qcircuit = QCircuit.from_other_language(circuit)
+            circuit = circuit.reverse_bits()
+            matrix = Operator(circuit).data
+            if TYPE_CHECKING:
+                assert isinstance(matrix, np.ndarray)
+            assert matrix_eq(matrix, qcircuit.to_matrix())
+        else:
+            with pytest.raises(ValueError, match=expected_output):
+                QCircuit.from_other_language(circuit)
 
     elif isinstance(circuit, cirq_Circuit):
         from cirq.protocols.unitary_protocol import unitary
