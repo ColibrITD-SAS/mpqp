@@ -379,9 +379,9 @@ def parse_qasm2_gates(code: str) -> tuple[str, float]:
 
     for line in code.split("\n"):
         if line.startswith("gphase"):
-            gphase = parse_gphase_instruction(
-                gphase, line, re.match(r"\s*(\w+)\s*", line)
-            )
+            match = re.match(r"\s*(\w+)\s*", line)
+            if match:
+                gphase = parse_gphase_instruction(gphase, line, match)
             to_add = False
         elif line.startswith(";"):
             to_add = False

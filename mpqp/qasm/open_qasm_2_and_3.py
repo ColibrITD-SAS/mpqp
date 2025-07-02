@@ -923,7 +923,7 @@ def remove_include_and_comment(qasm_code: str) -> str:
 
 
 def parse_gphase_instruction(
-    gphase: float, instr: str, instr_match: re.Match[str] | None
+    gphase: float, instr: str, instr_match: re.Match[str]
 ) -> float:
     import numpy as np
     from sympy import sympify
@@ -1142,7 +1142,8 @@ def convert_instruction_3_to_2(
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
     elif instr_name == "gphase":
-        gphase = parse_gphase_instruction(gphase, instr, instr_match)
+        if instr_match:
+            gphase = parse_gphase_instruction(gphase, instr, instr_match)
     elif language == Language.BRAKET and instr_name == "pragma":
         pass
 
