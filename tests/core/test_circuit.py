@@ -18,7 +18,26 @@ from mpqp.core.instruction.measurement.pauli_string import I
 from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
 from mpqp.execution.devices import ATOSDevice, IBMDevice
 from mpqp.execution.runner import run, Result
-from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
+from mpqp.gates import (
+    CNOT,
+    CZ,
+    SWAP,
+    TOF,
+    CRk,
+    Gate,
+    H,
+    Id,
+    Rx,
+    Ry,
+    Rz,
+    S,
+    T,
+    X,
+    Y,
+    Z,
+    U,
+    P,
+)
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.noise.noise_model import (
     AmplitudeDamping,
@@ -363,12 +382,73 @@ def test_to_other_language(
         (
             "OPENQASM 2.0;\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
             Language.QASM2,
-            "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
+            QCircuit([H(0), CNOT(0, 1)]),
         ),
         (
             "// Generated from Cirq v1.3.0\n\nOPENQASM 2.0;\n\n// Qubits: [q0, q1]\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
             Language.QASM2,
-            "OPENQASM 2.0;\ninclude \"qelib1.inc\";\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
+            QCircuit([H(0), CNOT(0, 1)]),
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[4];
+            creg c[4];
+            z q[0];
+            s q[1];
+            id q[2];
+            rxx(pi/2) q[2], q[3];
+            rzz(pi/2) q[0], q[1];
+            rx(pi/2) q[0];
+            rccx q[1], q[2], q[3];
+            p(pi/2) q[0];
+            rz(pi/2) q[1];
+            tdg q[2];
+            ccx q[0], q[1], q[2];
+            swap q[0], q[1];
+            cx q[2], q[3];
+            x q[1];
+            h q[0];
+            id q[2];
+            id q[3];""",
+            Language.QASM2,
+            QCircuit(
+                [
+                    Z(0),
+                    S(1),
+                    Id(2),
+                    H(2),
+                    H(3),
+                    CNOT(2, 3),
+                    Rz(np.pi / 2, 3),
+                    CNOT(2, 3),
+                    H(3),
+                    H(2),
+                    CNOT(0, 1),
+                    Rz(np.pi / 2, 1),
+                    CNOT(0, 1),
+                    Rx(np.pi / 2, 0),
+                    U(np.pi / 2, 0, np.pi, 3),
+                    U(0, 0, np.pi / 4, 3),
+                    CNOT(2, 3),
+                    U(0, 0, -np.pi / 4, 3),
+                    CNOT(1, 3),
+                    U(0, 0, np.pi / 4, 3),
+                    CNOT(2, 3),
+                    U(0, 0, -np.pi / 4, 3),
+                    U(np.pi / 2, 0, np.pi, 3),
+                    P(np.pi / 2, 0),
+                    Rz(np.pi / 2, 1),
+                    P(-np.pi / 4, 2),
+                    TOF([0, 1], 2),
+                    SWAP(0, 1),
+                    CNOT(2, 3),
+                    X(1),
+                    H(0),
+                    Id(2),
+                    Id(3),
+                ]
+            ),
         ),
         (random_cirq_circuit(2, 5, 0.5), Language.CIRQ, None),
         (random_cirq_circuit(10, 5, 0.5), Language.CIRQ, None),
@@ -419,11 +499,10 @@ def test_from_other_language(
         assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
 
     elif isinstance(circuit, str):
-        from mpqp.qasm import mpqp_to_qasm2
-
         qcircuit = QCircuit.from_other_language(circuit)
-        qasm2_str = mpqp_to_qasm2(qcircuit)
-        assert qasm2_str[0] == expected_output
+        if TYPE_CHECKING:
+            assert isinstance(expected_output, QCircuit)
+        assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
 
     else:
         circ_to_test = circuit.to_other_language(language)

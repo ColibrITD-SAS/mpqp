@@ -922,6 +922,51 @@ def remove_include_and_comment(qasm_code: str) -> str:
     return "\n".join(replaced_code)
 
 
+def parse_gphase_instruction(
+    gphase: float, instr: str, instr_match: re.Match[str] | None
+) -> float:
+    import numpy as np
+    from sympy import sympify
+
+    depth = 0
+    i = 0
+    values = []
+
+    while i < len(instr):
+        if instr[i] == '{':
+            depth += 1
+            i += 1
+        elif instr[i] == '}':
+            depth = max(depth - 1, 0)
+            i += 1
+        elif instr[i : i + 7] == 'gphase(' and depth == 0:
+            i += 7
+            start = i
+            paren_count = 1
+
+            while i < len(instr) and paren_count > 0:
+                if instr[i] == '(':
+                    paren_count += 1
+                elif instr[i] == ')':
+                    paren_count -= 1
+                i += 1
+
+            arg_expr = instr[start : i - 1].strip()
+            try:
+                val = float(sympify(arg_expr).evalf(subs={"pi": np.pi}))
+                values.append(val)
+            except ValueError:
+                if instr_match:
+                    raise ValueError(
+                        f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
+                    )
+            else:
+                i += 1
+
+    gphase += sum(values)
+    return gphase
+
+
 @typechecked
 def convert_instruction_3_to_2(
     instr: str,
@@ -1097,45 +1142,7 @@ def convert_instruction_3_to_2(
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
     elif instr_name == "gphase":
-        import numpy as np
-        from sympy import sympify
-
-        depth = 0
-        i = 0
-        values = []
-
-        while i < len(instr):
-            if instr[i] == '{':
-                depth += 1
-                i += 1
-            elif instr[i] == '}':
-                depth = max(depth - 1, 0)
-                i += 1
-            elif instr[i : i + 7] == 'gphase(' and depth == 0:
-                i += 7
-                start = i
-                paren_count = 1
-
-                while i < len(instr) and paren_count > 0:
-                    if instr[i] == '(':
-                        paren_count += 1
-                    elif instr[i] == ')':
-                        paren_count -= 1
-                    i += 1
-
-                arg_expr = instr[start : i - 1].strip()
-                try:
-                    val = float(sympify(arg_expr).evalf(subs={"pi": np.pi}))
-                    values.append(val)
-                except ValueError:
-                    if instr_match:
-                        raise ValueError(
-                            f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
-                        )
-                else:
-                    i += 1
-
-        gphase += sum(values)
+        gphase = parse_gphase_instruction(gphase, instr, instr_match)
     elif language == Language.BRAKET and instr_name == "pragma":
         pass
 

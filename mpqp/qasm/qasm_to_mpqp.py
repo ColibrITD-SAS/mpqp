@@ -353,3 +353,43 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     target = tokens[idx + 2].value
     circuit.add(U(theta, phi, lbda, target))
     return idx + 5
+
+
+def parse_qasm2_gates(code: str) -> tuple[str, float]:
+    from mpqp.qasm.open_qasm_2_and_3 import (
+        qasm_code,
+        remove_user_gates,
+        Instr,
+        parse_gphase_instruction,
+        remove_include_and_comment,
+    )
+    import re
+
+    code = remove_include_and_comment(code)
+
+    lines = code.split(";")
+    lines.insert(1, qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
+    code = ";".join(lines)
+
+    code = remove_user_gates(code)
+
+    gphase = 0
+    clean_code = []
+    to_add = True
+
+    for line in code.split("\n"):
+        if line.startswith("gphase"):
+            gphase = parse_gphase_instruction(
+                gphase, line, re.match(r"\s*(\w+)\s*", line)
+            )
+            to_add = False
+        elif line.startswith(";"):
+            to_add = False
+        elif "//" in line:
+            line = line[:13]
+
+        if to_add == True:
+            clean_code.append(line)
+        to_add = True
+
+    return "\n".join(clean_code), gphase

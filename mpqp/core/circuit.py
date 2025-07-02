@@ -1720,6 +1720,15 @@ class QCircuit:
                         raise NotImplementedError(
                             f"Error: only OpenQASM2 and OpenQASM3 are supported for qasm external description of the circuit"
                         )
+                    elif line.startswith("OPENQASM 2.0"):
+                        from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+
+                        qasm2_code, gphase = parse_qasm2_gates(qcircuit)
+                        qc = qasm2_parse(qasm2_code)
+                        qc.gphase = gphase
+
+                        return qc
+
                     elif line.startswith("OPENQASM 3.0"):
                         from mpqp.qasm import open_qasm_3_to_2
 
