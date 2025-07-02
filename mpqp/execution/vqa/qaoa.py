@@ -27,9 +27,44 @@ from mpqp.tools.maths import Matrix
 
 
 class QAOAMixerType(Enum):
+    r"""Enum class that provide a set of commonly used Mixer Hamiltonians:
+
+    This mixer was introduced in A Quantum Approximate Optimization Algorithm by Edward Farhi, Jeffrey Goldstone, Sam Gutmann [<https://arxiv.org/abs/1411.4028>].
+
+    MIXER_X = `\large \sum\limits_{i} X_i`
+
+    Both mixers were introduced in From the Quantum Approximate Optimization Algorithm to a Quantum Alternating Operator Ansatz
+    by Stuart Hadfield, Zhihui Wang, Bryan O’Gorman, Eleanor G. Rieffel, Davide Venturelli, and Rupak Biswas [<https://doi.org/10.3390/a12020034>].
+
+    MIXER_XY = `\large\frac{1}{2} \sum\limits_{(i,j)\in E(G)} X_i X_j + Y_i Y_j`
+
+    MIXER_BITFLIP = `\large\sum \limits_{v\in V(G)} \frac{1}{2^{d(v)}}X_v \prod \limits_{w \in N(v)} (I + (-1)^b Z_w)`
+
+    """
+
     MIXER_X = auto()
     MIXER_XY = auto()
     MIXER_BITFLIP = auto()
+
+
+class QAOAResult:
+    """This class is used to pack the different interpretations of the result of a QAOA process.
+
+    We put at disposition : the minimal cost found, the state associated with this cost
+    and the interpretation of which variable acted on which qubits.
+
+    Args:
+        cost: The minimum cost that was found.
+        final_state: The quantum state associated with this cost.
+        values: The associated variables with the state.
+
+    Notes: This class should only be instantiated by the program not by the user.
+    """
+
+    def __init__(self, cost: float, final_state: str, values: dict[str, int]):
+        self.cost = cost
+        self.values: dict[str, int] = values
+        self.final_state: str = final_state
 
 
 def qaoa_solver(
@@ -38,25 +73,25 @@ def qaoa_solver(
     mixer: Union[QAOAMixerType, Matrix],
     device: AvailableDevice,
     optimizer: str,
-) -> str:
+) -> QAOAResult:
     """This function solves decision problems using QAOA, the problem needs to
-    be inputted as a QUBO expression.
+    be inputted as a Qubo expression.
 
     Args:
-        problem: QUBO expression representing the problem.
+        problem: Qubo expression representing the problem.
         depth: Number of cost/mixer gates used in the circuit, the total depth of the ansatz being 2*depth.
         mixer: Type of the Mixer Hamiltonian to be used or directly the mixer Hamiltonian.
         device: The device that will be used to run the ansatz.
         optimizer: The optimizer used to minimize. 'Powell' is recommended for better results, but other can be more efficient on specific use cases.
 
     Returns:
-        A string representing the resulting state of the QAOA optimization.
+        A QAOAResult object holding the minimal cost found and the associated state.
 
     Examples:
         >>> x0 = QuboAtom('x0')
         >>> x1 = QuboAtom('x1')
         >>> expr = -3*x0 - 5*x1 + 3*(x0 & x1)
-        >>> qaoa_solver(expr, 4, QAOAMixerType.MIXER_X, IBMDevice.AER_SIMULATOR, 'Powell')
+        >>> qaoa_solver(expr, 4, QAOAMixerType.MIXER_X, IBMDevice.AER_SIMULATOR, 'Powell').final_state
         '01'
     """
     observable = problem.to_cost_hamiltonian()
@@ -77,7 +112,15 @@ def qaoa_solver(
     if TYPE_CHECKING:
         assert isinstance(result, Result)
     res = str(np.binary_repr(result.counts.index(max(result.counts))))
-    return res.zfill(problem_size)
+
+    res = res.zfill(problem_size)
+
+    values = {}
+    variables = problem.get_variables()
+    for i in range(len(variables)):
+        values.update({variables[i]: int(res[i])})
+    cost = problem.evaluate(values)
+    return QAOAResult(cost, res, values)
 
 
 def _loss(
@@ -115,7 +158,7 @@ def _generate_mixer_hamiltonian(
     """Generates the mixer hamiltonian according to the mixer type.
 
     Args:
-        qubits: Number of variables in the QUBO expression.
+        qubits: Number of variables in the Qubo expression.
         type: Type of the mixer hamiltonian.
 
     Returns:
@@ -168,8 +211,8 @@ def _generate_ansatz(
 
     Args:
         parameters: The parameters of the QAOA operators.
-        cost_hamiltonian: The cost hamiltonian generated from que QUBO expression.
-        qubits: Number of variables in the QUBO expression.
+        cost_hamiltonian: The cost hamiltonian generated from que Qubo expression.
+        qubits: Number of variables in the Qubo expression.
         mixer: The mixer hamiltonian chose for the ansatz.
 
     Returns:

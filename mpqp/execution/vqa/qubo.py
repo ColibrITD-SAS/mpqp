@@ -17,13 +17,13 @@ from mpqp.tools.generics import Matrix
 
 
 class Qubo:
-    """Class defining a QUBO representation, used to represent decision problems.
+    """Class defining a Qubo representation, used to represent decision problems.
     This class is instantiated through the use of QuboAtoms, not directly (see examples below).
 
-    A QUBO is defined by a quadratic expression of boolean variables, hence, the
+    A Qubo is defined by a quadratic expression of boolean variables, hence, the
     available operators are: ``+``, ``-``, ``*``, ``&``, ``|`` and ``^``.
 
-    The QUBO expression can be solved with the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` function.
+    The Qubo expression can be solved with the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` function.
 
     Args:
         value: string holding the name of the monomial
@@ -132,7 +132,7 @@ class Qubo:
         return self + other - 2 * (self * other)
 
     def size(self) -> int:
-        """Returns the number of unique boolean variables in the QUBO expression."""
+        """Returns the number of unique boolean variables in the Qubo expression."""
         return len(self.get_variables())
 
     def __str__(self) -> str:
@@ -197,28 +197,12 @@ class Qubo:
                 result += coef * local_result
         return result
 
-    def _check_degree(self):
-        if isinstance(self, QuboAtom):
-            return 1
-        degree = 0
-
-        if self.value == "+":
-            assert self.left is not None and self.right is not None
-
-            degree += max(self.left._check_degree(), self.right._check_degree())
-        else:
-            if self.left is not None:
-                degree += self.left._check_degree()
-            if self.right is not None:
-                degree += self.right._check_degree()
-        return degree
-
     def get_terms_and_coefs(self) -> list[tuple[int, list[str]]]:
         """Creates a list of lists containing the coefficients of the monomials
-        of the QUBO.
+        of the Qubo.
 
         Returns:
-            The list of coefficients and variables in the QUBO expression.
+            The list of coefficients and variables in the Qubo expression.
 
         Examples:
             >>> x0 = QuboAtom('x0')
@@ -279,7 +263,7 @@ class Qubo:
             return max(self.right._depth(level + 1), self.left._depth(level + 1))
 
     def get_variables(self) -> list[str]:
-        """Returns a list of all of the unique boolean variables of the QUBO.
+        """Returns a list of all of the unique boolean variables of the Qubo.
         They are ordered from the left of the expression to the right.
 
         Examples:
@@ -309,8 +293,18 @@ class Qubo:
                     known_vars.append(variable)
         return known_vars
 
-    def matrix(self) -> tuple[npt.NDArray[np.float64], int]:
-        """Creates the weight matrix of this QUBO expression.
+    def weight_matrix(self) -> tuple[npt.NDArray[np.float64], int]:
+        r"""Generates the weight matrix corresponding to this Qubo expression.
+        The weight matrix regroups the coefficients that appears in front of all possible combinations of quadratic binary monomials.
+
+        The coefficient in front of QuboAtom `x_i` (which correspond to `x_i \cdot x_i`) gives us `i`-th the diagonal element of the weigh matrix.
+        For instance, the Qubo written as `3x_0 + 2x_1`, is a two-by-two diagonal matrix with elements `[3,2]`.
+
+        The off-diagonal element on the `i`-th line and the `j`-th column corresponds to the half of
+        the coefficient in front of the binary monomial `x_i \cdot x_j`. One can remark that the weight matrix is indeed a symmetric matrix.
+
+        If a constant is appearing in the Qubo, it will be stored aside of the weight matrix and returned by this function.
+        This is useful in the context of the generation of the corresponding cost Hamiltonian.
 
         Returns:
             A tuple composed of the weight matrix and a potential additive constant.
@@ -321,7 +315,7 @@ class Qubo:
             >>> x2 = QuboAtom('x2')
             >>> x3 = QuboAtom('x3')
             >>> expr = 2 * x0 + 3 * x1 + 4 * x0 * x2 + x3 + 18
-            >>> matrix, constant = expr.matrix()
+            >>> matrix, constant = expr.weight_matrix()
             >>> pprint(matrix)
             [[2, 0, 2, 0],
              [0, 3, 0, 0],
@@ -398,7 +392,7 @@ class Qubo:
              [0, 0 , 0 , -2]]
         """
 
-        matrix, constant = self.matrix()
+        matrix, constant = self.weight_matrix()
         size = matrix.shape[0]
         inv_variables = self._inverted_variables
 
@@ -486,7 +480,7 @@ class Qubo:
 
 
 class QuboAtom(Qubo):
-    """Class defining a boolean variable for a QUBO problem.
+    """Class defining a boolean variable for a Qubo problem.
 
     See class Qubo for full usage of this class.
 
@@ -623,8 +617,8 @@ def _build_cost_hamiltonian(matrix: Matrix, inv_variables: list[int], size: int)
 
 def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
     r"""Calculates the cost Hamiltonian `H(x_i)` for a given i-th binary parameter.
-    This function has the purpose of being used with a QUBO object to generate the cost hamiltonian
-    of a QUBO. see `~mpqp.execution.Qubo.to_cost_hamiltonian`
+    This function has the purpose of being used with a Qubo object to generate the cost hamiltonian
+    of a Qubo. see `~mpqp.execution.Qubo.to_cost_hamiltonian`
 
     `H(x_i)` is defined as:
     $$ H(x_i) = \frac{I^{\otimes n} - Z_i}{2} $$
@@ -633,7 +627,7 @@ def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
     Since in this case the hamiltonian will only be a diagonal matrix this function only returns a list of 1s and 0s.
 
     Args:
-        Size: The total size of the hamiltonian in the context of QUBO it's the number of total variables in the expression.
+        Size: The total size of the hamiltonian in the context of Qubo it's the number of total variables in the expression.
         i: The index of the variable.
         neg: Boolean if the boolean variable is reversed.
 

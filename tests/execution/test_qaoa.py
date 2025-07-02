@@ -128,7 +128,7 @@ def qaoa(
     optimizer: str,
     state: str,
 ):
-    assert qaoa_solver(expr, depth, mixer, device, optimizer) == state
+    assert qaoa_solver(expr, depth, mixer, device, optimizer).final_state == state
 
 
 if "--long-local" in sys.argv or "--long" in sys.argv:

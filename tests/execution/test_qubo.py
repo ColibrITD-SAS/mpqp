@@ -84,7 +84,7 @@ def test_Qubo_coeffs(expr: Qubo, res: npt.NDArray[np.complex64]):
     ],
 )
 def test_Qubo_weight_matrix(expr: Qubo, matrix: npt.NDArray[np.complex64]):
-    assert matrix_eq(expr.matrix()[0].astype(np.complex64), matrix)
+    assert matrix_eq(expr.weight_matrix()[0].astype(np.complex64), matrix)
 
 
 x0 = QuboAtom('x0')
