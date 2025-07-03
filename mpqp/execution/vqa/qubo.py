@@ -9,6 +9,7 @@ from typing import Optional, Union
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import typechecked
 from mpqp.measures import Observable
 
 from typing import TYPE_CHECKING
@@ -19,7 +20,7 @@ from mpqp.tools.operators import *
 
 
 class Qubo(ABC):
-    """Class defining a Qubo representation, used to represent decision problems.
+    """Abstract class defining a Qubo representation, used to represent decision problems.
     This class is instantiated through the use of QuboAtoms, not directly (see examples below).
 
     A Qubo is defined by a quadratic expression of boolean variables, hence, the
@@ -117,15 +118,6 @@ class Qubo(ABC):
 
     def __rmul__(self, other: Union["Qubo", int, float]) -> "Qubo":
         return self * other
-
-    def __and__(self, other: "Qubo") -> "Qubo":
-        return self * other
-
-    def __or__(self, other: "Qubo") -> "Qubo":
-        return self + other - self * other
-
-    def __xor__(self, other: "Qubo") -> "Qubo":
-        return self + other - 2 * (self * other)
 
     def size(self) -> int:
         """Returns the number of unique boolean variables in the Qubo expression."""
@@ -485,6 +477,7 @@ class Qubo(ABC):
         return result
 
 
+@typechecked
 class QuboAtom(Qubo):
     """Class defining a boolean variable for a Qubo problem.
 
@@ -523,6 +516,15 @@ class QuboAtom(Qubo):
         copy = deepcopy(self)
         copy.value = '~' + self.value
         return copy
+
+    def __and__(self, other: "QuboAtom") -> "Qubo":
+        return self * other
+
+    def __or__(self, other: "QuboAtom") -> "Qubo":
+        return self + other - self * other
+
+    def __xor__(self, other: "QuboAtom") -> "Qubo":
+        return self + other - 2 * (self * other)
 
     def __repr__(self):
         return f"QuboAtom({self.value})"
