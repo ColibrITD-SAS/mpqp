@@ -95,6 +95,7 @@ def qaoa_solver(
         '01'
     """
     observable = problem.to_cost_hamiltonian()
+    print("prout caca prout")
     problem_size = problem.size()
     if isinstance(mixer, QAOAMixerType):
         mixer = _generate_mixer_hamiltonian(problem_size, mixer)

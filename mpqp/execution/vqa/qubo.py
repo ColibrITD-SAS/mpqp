@@ -15,8 +15,10 @@ from typing import TYPE_CHECKING
 
 from mpqp.tools.generics import Matrix
 
+from mpqp.tools.operators import *
 
-class Qubo:
+
+class Qubo(ABC):
     """Class defining a Qubo representation, used to represent decision problems.
     This class is instantiated through the use of QuboAtoms, not directly (see examples below).
 
@@ -47,7 +49,10 @@ class Qubo:
     """
 
     def __init__(
-        self, value: str, left: Optional["Qubo"] = None, right: Optional["Qubo"] = None
+        self,
+        value: Union[str, Operator, float],
+        left: Optional["Qubo"] = None,
+        right: Optional["Qubo"] = None,
     ):
 
         if isinstance(left, QuboConstant) and isinstance(right, QuboConstant):
@@ -58,7 +63,7 @@ class Qubo:
         self.value = value
 
         # This field is used to tract inverted variables (~x0 for example).
-        # This is encoded when calling the matrix method.
+        # This is encoded when calling the weight_matrix method.
         self._inverted_variables = []
 
         # This integer is used to keep track of the degree of the Qubo polynom.
@@ -70,23 +75,14 @@ class Qubo:
             if TYPE_CHECKING:
                 assert self.right
             return self.right
-        return UnaryOperation('-', self)
-
-    def __invert__(self) -> "Qubo":
-        if isinstance(self, QuboAtom):
-            from copy import deepcopy
-
-            copy = deepcopy(self)
-            copy.value = '~' + self.value
-            return copy
-        return -self
+        return UnaryOperation(Minus(), self)
 
     def __add__(self, other: Union["Qubo", int, float]) -> "Qubo":
         if isinstance(other, (float, int)):
             if other == 0:
                 return self
-            other = QuboConstant(str(other))
-        current = BinaryOperation("+", self, other)
+            other = QuboConstant(other)
+        current = BinaryOperation(Addition(), self, other)
         current._degree = max(self._degree, other._degree)
         return current
 
@@ -95,8 +91,8 @@ class Qubo:
 
     def __sub__(self, other: Union["Qubo", int, float]) -> "Qubo":
         if isinstance(other, (float, int)):
-            other = QuboConstant(str(other))
-        current = BinaryOperation('-', self, other)
+            other = QuboConstant(other)
+        current = BinaryOperation(Subtraction(), self, other)
         current._degree = max(self._degree, other._degree)
         return current
 
@@ -108,14 +104,14 @@ class Qubo:
         if isinstance(other, (float, int)):
             if other == 1:
                 return self
-            other = QuboConstant(str(other))
+            other = QuboConstant(other)
         if not isinstance(other, QuboConstant):
             degree += other._degree
             if degree > 2:
                 raise ValueError(
                     f"The degree of the Qubo shouldn't be more than 2 not {degree}"
                 )
-        current = BinaryOperation("*", self, other)
+        current = BinaryOperation(Multiplication(), self, other)
         current._degree = degree
         return current
 
@@ -142,7 +138,7 @@ class Qubo:
         return (
             "("
             + (self.left.__repr__() if self.left is not None else "")
-            + self.value
+            + str(self.value)
             + (self.right.__repr__() if self.right is not None else "")
             + ")"
         )
@@ -197,7 +193,7 @@ class Qubo:
                 result += coef * local_result
         return result
 
-    def get_terms_and_coefs(self) -> list[tuple[int, list[str]]]:
+    def get_terms_and_coefs(self) -> list[tuple[float, list[str]]]:
         """Creates a list of lists containing the coefficients of the monomials
         of the Qubo.
 
@@ -219,8 +215,9 @@ class Qubo:
         coeffs = []
 
         if self.left is None and self.right is None:
+            assert isinstance(self, (QuboConstant, QuboAtom))
             return (
-                [(int(self.value), [])]
+                [(self.value, [])]
                 if isinstance(self, QuboConstant)
                 else [(1, [self.value])]
             )
@@ -233,17 +230,17 @@ class Qubo:
         if self.right is not None:
             right = self.right.get_terms_and_coefs()
 
-        if self.value == "+":
+        if isinstance(self.value, Addition):
             coeffs.extend(left)
             coeffs.extend(right)
-        elif self.value == "-":
+        elif isinstance(self.value, (Subtraction, Minus)):
             coeffs.extend(left)
             for i in range(len(right)):
                 hold = right[i][0]
                 hold *= -1
                 right[i] = (hold, right[i][1])
             coeffs.extend(right)
-        elif self.value == "*":
+        elif isinstance(self.value, Multiplication):
             return _collapse_coeffs(left, right)
 
         return coeffs
@@ -263,8 +260,12 @@ class Qubo:
             return max(self.right._depth(level + 1), self.left._depth(level + 1))
 
     def get_variables(self) -> list[str]:
-        """Returns a list of all of the unique boolean variables of the Qubo.
+        """This function generates a list containing every unique variables
+        used in the expression.
         They are ordered from the left of the expression to the right.
+
+        Returns:
+            A list of all of the unique boolean variables of the Qubo.
 
         Examples:
             >>> x0 = QuboAtom('x0')
@@ -293,7 +294,7 @@ class Qubo:
                     known_vars.append(variable)
         return known_vars
 
-    def weight_matrix(self) -> tuple[npt.NDArray[np.float64], int]:
+    def weight_matrix(self) -> tuple[npt.NDArray[np.float64], float]:
         r"""Generates the weight matrix corresponding to this Qubo expression.
         The weight matrix regroups the coefficients that appears in front of all possible combinations of quadratic binary monomials.
 
@@ -329,6 +330,7 @@ class Qubo:
         size = len(variables)
         matrix = np.zeros(shape=(size, size))
         constant = 0
+        self._inverted_variables = []
 
         for coeff in coeffs:
             coef_names = coeff[1]
@@ -406,13 +408,17 @@ class Qubo:
         """Prints the expression of the Qubo including parenthesis for correct operation priority."""
         left_str = self.left._print() if self.left is not None else ""
         right_str = self.right._print() if self.right is not None else ""
-        if self.value == "*":
+        if isinstance(self.value, Multiplication):
             if isinstance(self.right, QuboConstant):
                 tmp = right_str
                 right_str = left_str
                 left_str = tmp
-            if (isinstance(self.left, BinaryOperation) and self.left.value != "*") or (
-                isinstance(self.right, BinaryOperation) and self.right.value != "*"
+            if (
+                isinstance(self.left, BinaryOperation)
+                and not isinstance(self.left.value, Multiplication)
+            ) or (
+                isinstance(self.right, BinaryOperation)
+                and not isinstance(self.right.value, Multiplication)
             ):
                 return f"{left_str}{self.value}({right_str})"
         elif isinstance(self, UnaryOperation):
@@ -420,7 +426,7 @@ class Qubo:
                 self.right, Union[UnaryOperation, BinaryOperation]
             ):
                 return f"{self.value}({right_str})"
-        return left_str + self.value + right_str
+        return left_str + str(self.value) + right_str
 
     def simplify(self) -> "Qubo":
         """Returns the simplified form of the given Qubo.
@@ -441,7 +447,7 @@ class Qubo:
             >>> print(matrix_eq(expr.to_cost_hamiltonian().matrix, simplified.to_cost_hamiltonian().matrix))
             True
         """
-        coefficients = {var: 0 for var in self.get_variables()}
+        coefficients: dict[str, float] = {var: 0 for var in self.get_variables()}
         coeffs = self.get_terms_and_coefs()
         for coeff in coeffs:
             coef, var = coeff
@@ -482,7 +488,7 @@ class Qubo:
 class QuboAtom(Qubo):
     """Class defining a boolean variable for a Qubo problem.
 
-    See class Qubo for full usage of this class.
+    See class :class:`mpqp.execution.vqa.qubo.Qubo` for full usage of this class.
 
     Arg:
         value: String holding the name of the variable.
@@ -509,9 +515,17 @@ class QuboAtom(Qubo):
             )
         super().__init__(value, None, None)
         self._degree = 1
+        self.value = value
+
+    def __invert__(self) -> "QuboAtom":
+        from copy import deepcopy
+
+        copy = deepcopy(self)
+        copy.value = '~' + self.value
+        return copy
 
     def __repr__(self):
-        return 'QuboAtom("' + self.value + '")'
+        return f"QuboAtom({self.value})"
 
 
 class BinaryOperation(Qubo):
@@ -521,24 +535,14 @@ class BinaryOperation(Qubo):
 
     Available binary operations : `+`, `-`, `*`
     Technically boolean operations (`|`, `&`, `^`) are available but they are decomposed
-    into the previous operations.
+    into the previously mentioned operations.
     """
 
-    def __init__(self, value: str, left: Qubo, right: Qubo):
-        if value != "+" and value != "-" and value != "*":
-            raise ValueError("Not an available binary operation")
+    def __init__(self, value: BinaryOperator, left: Qubo, right: Qubo):
         super().__init__(value, left, right)
 
     def __repr__(self) -> str:
-        return (
-            "("
-            + self.left.__repr__()
-            + " "
-            + self.value
-            + " "
-            + self.right.__repr__()
-            + ")"
-        )
+        return f"({repr(self.left)} {repr(self.value)} {repr(self.right)})"
 
 
 class UnaryOperation(Qubo):
@@ -549,11 +553,13 @@ class UnaryOperation(Qubo):
     Unary operations supported : `-`
     """
 
-    def __init__(self, value: str, right: Qubo):
+    def __init__(self, value: UnaryOperator, right: Qubo):
         super().__init__(value, None, right)
 
     def __repr__(self) -> str:
-        return self.value + self.right.__repr__()
+        if isinstance(self.right, (BinaryOperation, UnaryOperation)):
+            return f"{repr(self.value)}({repr(self.right)})"
+        return repr(self.value) + repr(self.right)
 
 
 class QuboConstant(Qubo):
@@ -565,11 +571,12 @@ class QuboConstant(Qubo):
         value: String hold the value of the int or float of the node.
     """
 
-    def __init__(self, value: str):
-        super().__init__(value)
+    def __init__(self, value: float):
+        super().__init__(value, None, None)
+        self.value = value
 
     def __repr__(self) -> str:
-        return self.value
+        return f"{self.value}"
 
 
 def _build_cost_hamiltonian(matrix: Matrix, inv_variables: list[int], size: int):
@@ -657,7 +664,7 @@ def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
 
 
 def _collapse_coeffs(
-    left: list[tuple[int, list[str]]], right: list[tuple[int, list[str]]]
+    left: list[tuple[float, list[str]]], right: list[tuple[float, list[str]]]
 ):
     """
     This function distribute the coefficient an expression in parenthesis.
@@ -667,14 +674,14 @@ def _collapse_coeffs(
     """
     if len(right) == 1:
         for i in range(len(left)):
-            hold: int = left[i][0]
+            hold: float = left[i][0]
             hold *= right[0][0]
             left[i][1].extend(right[0][1])
             left[i] = (hold, left[i][1])
         return left
     else:
         for i in range(len(right)):
-            hold: int = right[i][0]
+            hold: float = right[i][0]
             hold *= left[0][0]
             right[i][1].extend(left[0][1])
             right[i] = (hold, right[i][1])
