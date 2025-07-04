@@ -5,6 +5,7 @@ import pytest
 from mpqp.execution import AvailableDevice, IBMDevice
 from mpqp.execution.vqa.qaoa import QAOAMixer, QAOAMixerType, qaoa_solver
 from mpqp.execution.vqa.qubo import Qubo, QuboAtom
+from networkx import Graph
 
 x = QuboAtom('x')
 y = QuboAtom('y')
@@ -16,7 +17,11 @@ x1_0 = QuboAtom('x1_0')
 x1_2 = QuboAtom('x1_2')
 x2_0 = QuboAtom('x2_0')
 x2_1 = QuboAtom('x2_1')
+
 mixer_x = QAOAMixer(QAOAMixerType.MIXER_X)
+
+graph_3 = Graph([(0, 1), (0, 2)])
+mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
 
 
 @pytest.mark.parametrize(
@@ -31,6 +36,14 @@ mixer_x = QAOAMixer(QAOAMixerType.MIXER_X)
             IBMDevice.AER_SIMULATOR,
             "Powell",
             "00",
+        ),
+        (
+            -3 * x - 2 * y + 4 * x * y - z,
+            2,
+            mixer_xy_3,
+            IBMDevice.AER_SIMULATOR,
+            "Powell",
+            "101",
         ),
         (
             x * 2 - 3 * y,

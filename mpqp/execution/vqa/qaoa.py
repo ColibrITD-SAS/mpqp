@@ -61,15 +61,18 @@ class QAOAMixer:
             raise ValueError(
                 f"A graph is needed to generate the type {self.type} of Hamiltonian."
             )
+        if len(self.graph.nodes) > qubits:
+            raise ValueError(
+                "Cannot have a graph with more nodes than qubits in the circuit."
+            )
         if self.type == QAOAMixerType.MIXER_XY:
             result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
-            x_matrix = np.array([0, 1], [1, 0])
-            y_matrix = np.array([0, -1j], [1j, 0])
+            x_matrix = np.array([[0, 1], [1, 0]])
+            y_matrix = np.array([[0, -1j], [1j, 0]])
             for i, j in self.graph.edges:
-                # Xi*Xj + Yi*Yj
-                result += _gen_ith_oper(qubits, x_matrix, i) * _gen_ith_oper(
+                result += _gen_ith_oper(qubits, x_matrix, i) @ _gen_ith_oper(
                     qubits, x_matrix, j
-                ) + _gen_ith_oper(qubits, y_matrix, i) * _gen_ith_oper(
+                ) + _gen_ith_oper(qubits, y_matrix, i) @ _gen_ith_oper(
                     qubits, y_matrix, j
                 )
             result = result / 2
