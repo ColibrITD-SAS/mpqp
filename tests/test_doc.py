@@ -17,7 +17,7 @@ from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import BatchResult
 from mpqp.execution.vqa.qubo import QuboAtom
-from mpqp.execution.vqa.qaoa import QAOAMixerType
+from mpqp.execution.vqa.qaoa import QAOAMixerType, QAOAMixer
 from mpqp.execution.connection.env_manager import (
     MPQP_ENV,
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]

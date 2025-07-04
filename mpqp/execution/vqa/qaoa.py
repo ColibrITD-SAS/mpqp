@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from enum import Enum, auto
 from functools import partial
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -24,6 +24,68 @@ from mpqp.execution.vqa.qubo import Qubo
 from mpqp.gates import CustomGate, H, UnitaryMatrix
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools.maths import Matrix
+from networkx import Graph
+
+
+class QAOAMixer:
+    """Class defining the Mixer Hamiltonian used in the qaoa solver function.
+
+    This class is used to help generate commonly used mixer hamiltonians,
+    for available Hamiltonian see :class:`~mpqp.execution.vqa.qaoa.QAOAMixerType`.
+
+    Args:
+        type: The type of the mixer hamiltonian to be generated.
+        graph: Optional graph needed to generate certain types of hamiltonian.
+    """
+
+    def __init__(self, type: QAOAMixerType, graph: Optional[Graph] = None):
+        self.type = type
+        self.graph = graph
+
+    def generate_mixer_hamiltonian(self, qubits: int) -> npt.NDArray[np.complex128]:
+        """Generates the mixer hamiltonian according to the mixer type.
+
+        Args:
+            qubits: Number of variables in the Qubo expression (also the number of qubits in the QAOA ansatz).
+
+        Returns:
+            The matrix of the Mixer Hamiltonian.
+        """
+        if self.type == QAOAMixerType.MIXER_X:
+            x_matrix = np.array([[0, 1], [1, 0]])
+            result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
+            for i in range(qubits):
+                identity = np.eye(2**i)
+                if i != 0:
+                    current = np.kron(identity, x_matrix)
+                else:
+                    current = x_matrix
+                if i != qubits - 1:
+                    identity = np.eye(2 ** (qubits - 1 - i))
+                    current = np.kron(current, identity)
+                result += current
+            return result
+        if self.graph == None:
+            raise ValueError(
+                f"A graph is needed to generate the type {self.type} of Hamiltonian."
+            )
+        if self.type == QAOAMixerType.MIXER_XY:
+            result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
+            x_matrix = np.array([0, 1], [1, 0])
+            y_matrix = np.array([0, -1j], [1j, 0])
+            for i, j in self.graph.edges:
+                # Xi*Xj + Yi*Yj
+                result += _gen_ith_oper(qubits, x_matrix, i) * _gen_ith_oper(
+                    qubits, x_matrix, j
+                ) + _gen_ith_oper(qubits, y_matrix, i) * _gen_ith_oper(
+                    qubits, y_matrix, j
+                )
+            result = result / 2
+            return result
+        else:
+            raise NotImplementedError(
+                f"The mixer type {self.type} is not implemented yet."
+            )
 
 
 class QAOAMixerType(Enum):
@@ -33,7 +95,7 @@ class QAOAMixerType(Enum):
 
     MIXER_X = `\large \sum\limits_{i} X_i`
 
-    Both mixers were introduced in From the Quantum Approximate Optimization Algorithm to a Quantum Alternating Operator Ansatz
+    Both upcoming mixers were introduced in From the Quantum Approximate Optimization Algorithm to a Quantum Alternating Operator Ansatz
     by Stuart Hadfield, Zhihui Wang, Bryan O’Gorman, Eleanor G. Rieffel, Davide Venturelli, and Rupak Biswas [<https://doi.org/10.3390/a12020034>].
 
     MIXER_XY = `\large\frac{1}{2} \sum\limits_{(i,j)\in E(G)} X_i X_j + Y_i Y_j`
@@ -66,11 +128,14 @@ class QAOAResult:
         self.values: dict[str, int] = values
         self.final_state: str = final_state
 
+    def __str__(self) -> str:
+        return f"Minimum cost: {self.cost}\nAssociated state: {self.final_state}\nAssociated values: {self.values}"
+
 
 def qaoa_solver(
     problem: Qubo,
     depth: int,
-    mixer: Union[QAOAMixerType, Matrix],
+    mixer: Union[QAOAMixer, Matrix],
     device: AvailableDevice,
     optimizer: str,
 ) -> QAOAResult:
@@ -91,22 +156,24 @@ def qaoa_solver(
         >>> x0 = QuboAtom('x0')
         >>> x1 = QuboAtom('x1')
         >>> expr = -3*x0 - 5*x1 + 3*(x0 & x1)
-        >>> qaoa_solver(expr, 4, QAOAMixerType.MIXER_X, IBMDevice.AER_SIMULATOR, 'Powell').final_state
+        >>> mixer = QAOAMixer(QAOAMixerType.MIXER_X)
+        >>> qaoa_solver(expr, 4, mixer, IBMDevice.AER_SIMULATOR, 'Powell').final_state
         '01'
     """
     observable = problem.to_cost_hamiltonian()
-    print("prout caca prout")
     problem_size = problem.size()
-    if isinstance(mixer, QAOAMixerType):
-        mixer = _generate_mixer_hamiltonian(problem_size, mixer)
+    if isinstance(mixer, QAOAMixer):
+        mixer_matrix = mixer.generate_mixer_hamiltonian(problem_size)
+    else:
+        mixer_matrix = mixer
     loss_optimize = partial(
-        _loss, cost=observable, nqubit=problem_size, mixer=mixer, device=device
+        _loss, cost=observable, nqubit=problem_size, mixer=mixer_matrix, device=device
     )
     optimal_params = scipy.optimize.minimize(
         fun=loss_optimize, method=optimizer, x0=np.zeros(depth * 2)
     )
 
-    circuit = _generate_ansatz(optimal_params.x, observable, problem_size, mixer)
+    circuit = _generate_ansatz(optimal_params.x, observable, problem_size, mixer_matrix)
     circuit.add(BasisMeasure(list(range(circuit.nb_qubits))))
 
     result = run(circuit, device)
@@ -153,35 +220,18 @@ def _loss(
     return result.expectation_values
 
 
-def _generate_mixer_hamiltonian(
-    qubits: int, type: QAOAMixerType
+def _gen_ith_oper(
+    qubits: int, matrix: npt.NDArray[np.complex128], index: int
 ) -> npt.NDArray[np.complex128]:
-    """Generates the mixer hamiltonian according to the mixer type.
+    from copy import deepcopy
 
-    Args:
-        qubits: Number of variables in the Qubo expression.
-        type: Type of the mixer hamiltonian.
+    result = deepcopy(matrix)
 
-    Returns:
-        The matrix of the Mixer Hamiltonian.
-    """
-    result = 0
-    if type == QAOAMixerType.MIXER_X:
-        mixer = np.array([[0, 1], [1, 0]])
-    else:
-        raise NotImplementedError("This mixer hamiltonian is not implemented yet.")
+    if index != 0:
+        result = np.kron(np.ones(2**index), result)
 
-    result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
-    for i in range(qubits):
-        identity = np.eye(2**i)
-        if i != 0:
-            current = np.kron(identity, mixer)
-        else:
-            current = mixer
-        if i != qubits - 1:
-            identity = np.eye(2 ** (qubits - 1 - i))
-            current = np.kron(current, identity)
-        result += current
+    if qubits - index - 1 != 0:
+        result = np.kron(result, np.ones(2 ** (qubits - index - 1)))
     return result
 
 
