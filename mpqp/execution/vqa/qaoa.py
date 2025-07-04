@@ -36,13 +36,18 @@ class QAOAMixer:
     Args:
         type: The type of the mixer hamiltonian to be generated.
         graph: Optional graph needed to generate certain types of hamiltonian.
+        bitflip: Optional binary value needed to build the bitflip hamiltonian, default at 0.
     """
 
     def __init__(
-        self, type: QAOAMixerType, graph: Optional[Graph] = None  # type:ignore
+        self,
+        type: QAOAMixerType,
+        graph: Optional[Graph] = None,  # type:ignore
+        bitflip: int = 0,
     ):
         self.type = type
         self.graph = graph
+        self.bitflip = bitflip
 
     def generate_mixer_hamiltonian(self, qubits: int) -> npt.NDArray[np.complex128]:
         """Generates the mixer hamiltonian according to the mixer type.
@@ -65,7 +70,7 @@ class QAOAMixer:
             )
         if len(self.graph.nodes) > qubits:
             raise ValueError(
-                "Cannot have a graph with more nodes than qubits in the circuit."
+                f"Cannot have a graph with more nodes ({len(self.graph.nodes)}) than qubits ({qubits}) in the circuit."
             )
         if self.type == QAOAMixerType.MIXER_XY:
             result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
@@ -80,9 +85,21 @@ class QAOAMixer:
             result = result / 2
             return result
         else:
-            raise NotImplementedError(
-                f"The mixer type {self.type} is not implemented yet."
-            )
+            result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
+            identity = np.eye(2**qubits)
+            x_matrix = np.array([[0, 1], [1, 0]])
+            z_matrix = np.array([[1, 0], [0, 1]])
+
+            for vertex in self.graph.nodes:
+                degree = len(self.graph[vertex])
+                x_vertex = _gen_ith_oper(qubits, x_matrix, vertex)
+                current = np.eye(2**qubits)
+                for w in self.graph[vertex]:
+                    current @= identity + (-1) ** self.bitflip * _gen_ith_oper(
+                        qubits, z_matrix, w
+                    )
+                result += 0.5 ** (degree) * x_vertex @ current
+            return result
 
 
 class QAOAMixerType(Enum):
@@ -92,7 +109,7 @@ class QAOAMixerType(Enum):
 
     MIXER_X = `\large \sum\limits_{i} X_i`
 
-    Both upcoming mixers were introduced in From the Quantum Approximate Optimization Algorithm to a Quantum Alternating Operator Ansatz
+    Both mixers below were introduced in From the Quantum Approximate Optimization Algorithm to a Quantum Alternating Operator Ansatz
     by Stuart Hadfield, Zhihui Wang, Bryan O’Gorman, Eleanor G. Rieffel, Davide Venturelli, and Rupak Biswas [<https://doi.org/10.3390/a12020034>].
 
     MIXER_XY = `\large\frac{1}{2} \sum\limits_{(i,j)\in E(G)} X_i X_j + Y_i Y_j`

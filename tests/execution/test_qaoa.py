@@ -22,6 +22,7 @@ mixer_x = QAOAMixer(QAOAMixerType.MIXER_X)
 
 graph_3 = Graph([(0, 1), (0, 2)])
 mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
+mixer_bitflip_3 = QAOAMixer(QAOAMixerType.MIXER_BITFLIP, graph_3, 0)
 
 
 @pytest.mark.parametrize(
@@ -31,14 +32,14 @@ mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
         (x * 2 + 2, 2, mixer_x, IBMDevice.AER_SIMULATOR, "Powell", "0"),
         (
             x * 2 + 3 * y,
-            2,
+            1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
             "Powell",
             "00",
         ),
         (
-            -3 * x - 2 * y + 4 * x * y - z,
+            -3 * x - 2 * y + 4 * x * y - 2 * z,
             2,
             mixer_xy_3,
             IBMDevice.AER_SIMULATOR,
@@ -54,6 +55,14 @@ mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
             "01",
         ),
         (
+            -3 * x - 2 * y + 4 * x * y - z,
+            2,
+            mixer_bitflip_3,
+            IBMDevice.AER_SIMULATOR,
+            "powell",
+            "101",
+        ),
+        (
             3 * x * y - 4 * x - 2 * y,
             2,
             mixer_x,
@@ -63,7 +72,7 @@ mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
         ),
         (
             3 * x * y - 4 * x - 2 * y - 3 * z + 1,
-            3,
+            2,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
             "Powell",
@@ -71,7 +80,7 @@ mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
         ),
         (
             2 * x + y + 3 * x + 4 * z,
-            3,
+            1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
             "Powell",
@@ -87,7 +96,7 @@ mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
         ),
         (
             3 * x + 2 * y - 100 * (x & y),
-            2,
+            1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
             "Powell",
@@ -111,7 +120,7 @@ mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
         ),
         (
             -10 * x - 100 * y + 100 * z - 1000 * (x ^ y),
-            4,
+            1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
             "Powell",
@@ -126,7 +135,7 @@ mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
             + x2_1
             - 10 * ((x0_1 ^ x2_1) + (x1_0 ^ x2_0) + (x1_2 ^ x0_2))
             - 10 * ((x0_1 ^ x0_2) + (x1_0 ^ x1_2) + (x2_0 ^ x2_1)),
-            5,
+            3,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
             "Nelder-Mead",
