@@ -1150,6 +1150,10 @@ def convert_instruction_3_to_2(
     else:
         gate = instr.split()[0].split("(")[0]
         if gate not in defined_gates:
+            if "pow" in gate:
+                raise ValueError("Pow instruction is not handled yet.")
+            elif "input" in gate:
+                raise ValueError("Gates with variable parameters are not handled yet.")
             raise ValueError(
                 f"Gates not defined/handled at the time of usage: {gate}, {instr_name}"
             )
@@ -1162,13 +1166,21 @@ def convert_instruction_3_to_2(
 
 def _replace_header(code: str) -> str:
     code_with_right_instructions = []
-
     for line in code.split(";"):
         line_to_add = True
         if "stdgates.inc" in line:
             line_to_add = False
         if "ctrl" in line:
-            line = re.sub(r'ctrl\s*@\s*', 'c', line)
+            regex = r"ctrl(?:\((\d+)\))?\s*@"
+            value = re.findall(regex, line)
+            lines = line.split("@ ")
+            c = ""
+            if value[0] == '':
+                c = "c"
+            else:
+                for _ in range(int(value[0])):
+                    c += "c"
+            line = c + lines[1]
 
         if line_to_add:
             code_with_right_instructions.append(line)
@@ -1259,6 +1271,8 @@ def open_qasm_3_to_2(
         defined_gates.update(std_qiskit_gates)
     elif language == Language.BRAKET:
         defined_gates.update(std_braket_gates)
+
+    print(instructions)
 
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(

@@ -53,7 +53,7 @@ gate ti a { p(- pi*0.25) a; }
 
 gate v a { 
     rx(pi/2) a; 
-    gphase(- pi/4);
+    gphase(pi/4);
 }
 
 gate vi a {
@@ -71,7 +71,24 @@ gate xx(a) b, c {
     h b;
 }
 
-// gate xy(theta) a, b
+gate xy(a) c, d {
+    rz(-a) c;
+    p(- pi/2) d;
+    s c;
+    rx(pi/2) d;
+    gphase(pi/4);
+    s d;
+    cx d, c;
+    ry(-a/2) c;
+    ry(-a/2) d;
+    cx d, c;
+    p(- pi/2) c;
+    p(- pi/2) d;
+    rz(a) c;
+    rx(-pi/2) d;
+    gphase(-pi/4);
+    s d;
+}
 
 gate yy(a) b, c {
     rx(pi/2) b;

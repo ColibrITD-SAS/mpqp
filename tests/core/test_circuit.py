@@ -370,7 +370,7 @@ def test_to_other_language(
         assert str(converted_circuit) == result_repr
 
 
-def create_qiskit_circuits() -> tuple[QiskitCircuit, QiskitCircuit]:
+def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
     from qiskit import QuantumRegister, ClassicalRegister
     from qiskit.circuit.library import RC3XGate
 
@@ -416,12 +416,12 @@ def create_qiskit_circuits() -> tuple[QiskitCircuit, QiskitCircuit]:
         (random_qiskit_circuit(5, 5), Language.QISKIT, None),
         (random_qiskit_circuit(10, 5), Language.QISKIT, None),
         (
-            create_qiskit_circuits()[0],
+            _create_large_circuits_for_tests()[0],
             Language.QISKIT,
             None,
         ),
         (
-            create_qiskit_circuits()[1],
+            _create_large_circuits_for_tests()[1],
             Language.QISKIT,
             "\"If\" instructions aren't handled",
         ),
