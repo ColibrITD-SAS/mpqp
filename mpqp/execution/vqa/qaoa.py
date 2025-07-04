@@ -38,7 +38,9 @@ class QAOAMixer:
         graph: Optional graph needed to generate certain types of hamiltonian.
     """
 
-    def __init__(self, type: QAOAMixerType, graph: Optional[Graph] = None):
+    def __init__(
+        self, type: QAOAMixerType, graph: Optional[Graph] = None  # type:ignore
+    ):
         self.type = type
         self.graph = graph
 
