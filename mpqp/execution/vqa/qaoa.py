@@ -55,15 +55,7 @@ class QAOAMixer:
             x_matrix = np.array([[0, 1], [1, 0]])
             result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
             for i in range(qubits):
-                identity = np.eye(2**i)
-                if i != 0:
-                    current = np.kron(identity, x_matrix)
-                else:
-                    current = x_matrix
-                if i != qubits - 1:
-                    identity = np.eye(2 ** (qubits - 1 - i))
-                    current = np.kron(current, identity)
-                result += current
+                result += _gen_ith_oper(qubits, x_matrix, i)
             return result
         if self.graph == None:
             raise ValueError(
@@ -221,17 +213,19 @@ def _loss(
 
 
 def _gen_ith_oper(
-    qubits: int, matrix: npt.NDArray[np.complex128], index: int
+    qubits: int, matrix: npt.NDArray[np.complex128], i: int
 ) -> npt.NDArray[np.complex128]:
+    """Returns the matrix equivalent to having the operator on the ith qubit on a circuit of size qubits.
+    This function is used to generate some types of mixer hamiltonian.
+    """
     from copy import deepcopy
 
     result = deepcopy(matrix)
+    if i != 0:
+        result = np.kron(np.eye(2**i), result)
 
-    if index != 0:
-        result = np.kron(np.ones(2**index), result)
-
-    if qubits - index - 1 != 0:
-        result = np.kron(result, np.ones(2 ** (qubits - index - 1)))
+    if qubits - i - 1 != 0:
+        result = np.kron(result, np.eye(2 ** (qubits - i - 1)))
     return result
 
 
