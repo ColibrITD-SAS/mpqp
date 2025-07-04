@@ -2,13 +2,13 @@ from abc import ABC, abstractmethod
 
 
 class Operator(ABC):
-    def __init__(self):
-        self.key = ""
+    """Abstract class used to define operators (in the arithmetic sense) used with other classes
+    to create expressions with editable variables. (see :class:`~mpqp.execution.vqa.qubo.Qubo`)
+    """
 
 
 class BinaryOperator(Operator, ABC):
-    def __init__(self):
-        self.key = ""
+    """Abstract class used to create a binary operator."""
 
     @abstractmethod
     def __repr__(self) -> str:
@@ -20,8 +20,7 @@ class BinaryOperator(Operator, ABC):
 
 
 class Multiplication(BinaryOperator):
-    def __init__(self):
-        self.key = "*"
+    """Class used to create an arithmetic multiplication operation."""
 
     def __repr__(self) -> str:
         return "Multiplication()"
@@ -31,6 +30,8 @@ class Multiplication(BinaryOperator):
 
 
 class Addition(BinaryOperator):
+    """Class used to create an arithmetic addition operation."""
+
     def __init__(self):
         self.key = "+"
 
@@ -42,6 +43,8 @@ class Addition(BinaryOperator):
 
 
 class Subtraction(BinaryOperator):
+    """Class used to create an arithmetic subtraction operation."""
+
     def __init__(self):
         self.key = "-"
 
@@ -53,11 +56,15 @@ class Subtraction(BinaryOperator):
 
 
 class UnaryOperator(Operator, ABC):
+    """Abstract class used to create unary operators."""
+
     def __init__(self):
         self.key = ""
 
 
 class Minus(UnaryOperator):
+    r"""Class used to create the equivalent of the arithmetic operation `-1 \mul`"""
+
     def __init__(self):
         self.key = "-"
 
@@ -69,6 +76,8 @@ class Minus(UnaryOperator):
 
 
 class Not(UnaryOperator):
+    """Class used to create the boolean operator not."""
+
     def __init__(self):
         self.key = "~"
 
