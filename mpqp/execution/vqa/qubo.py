@@ -5,17 +5,14 @@ to optimize in the function :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
 
 from __future__ import annotations
 
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from typeguard import typechecked
+
 from mpqp.measures import Observable
-
-from typing import TYPE_CHECKING
-
 from mpqp.tools.generics import Matrix
-
 from mpqp.tools.operators import *
 
 
@@ -319,8 +316,8 @@ class Qubo(ABC):
         """
         coeffs = self.get_terms_and_coefs()
         variables = self.get_variables()
-        size = len(variables)
-        matrix = np.zeros(shape=(size, size))
+        nb_vars = len(variables)
+        matrix = np.zeros(shape=(nb_vars, nb_vars))
         constant = 0
         self._inverted_variables = []
 
@@ -330,7 +327,7 @@ class Qubo(ABC):
                 constant += coeff[0]
             elif len(coef_names) == 1:
                 coord = 0
-                for j in range(size):
+                for j in range(nb_vars):
                     if coef_names[0][0] == '~':
                         if coef_names[0][1:] == variables[j]:
                             # This list is encoded with the coordinates of the variable's weight
