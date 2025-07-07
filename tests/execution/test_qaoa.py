@@ -1,11 +1,11 @@
 import sys
 
 import pytest
+from networkx import Graph
 
 from mpqp.execution import AvailableDevice, IBMDevice
-from mpqp.execution.vqa.qaoa import QAOAMixer, QAOAMixerType, qaoa_solver
+from mpqp.execution.vqa.qaoa import QaoaMixer, QaoaMixerType, qaoa_solver
 from mpqp.execution.vqa.qubo import Qubo, QuboAtom
-from networkx import Graph
 
 x = QuboAtom('x')
 y = QuboAtom('y')
@@ -18,11 +18,11 @@ x1_2 = QuboAtom('x1_2')
 x2_0 = QuboAtom('x2_0')
 x2_1 = QuboAtom('x2_1')
 
-mixer_x = QAOAMixer(QAOAMixerType.MIXER_X)
+mixer_x = QaoaMixer(QaoaMixerType.MIXER_X)
 
 graph_3 = Graph([(0, 1), (0, 2)])
-mixer_xy_3 = QAOAMixer(QAOAMixerType.MIXER_XY, graph_3)
-mixer_bitflip_3 = QAOAMixer(QAOAMixerType.MIXER_BITFLIP, graph_3, 0)
+mixer_xy_3 = QaoaMixer(QaoaMixerType.MIXER_XY, graph_3)
+mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
 
 
 @pytest.mark.parametrize(
@@ -146,7 +146,7 @@ mixer_bitflip_3 = QAOAMixer(QAOAMixerType.MIXER_BITFLIP, graph_3, 0)
 def qaoa(
     expr: Qubo,
     depth: int,
-    mixer: QAOAMixer,
+    mixer: QaoaMixer,
     device: AvailableDevice,
     optimizer: str,
     state: str,

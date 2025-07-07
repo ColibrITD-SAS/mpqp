@@ -2,6 +2,6 @@
 from sympy import symbols
 
 from .optimizer import Optimizer
-from .vqa import minimize
-from .qaoa import qaoa_solver, QAOAMixerType, QAOAMixer
+from .qaoa import QaoaMixer, QaoaMixerType, qaoa_solver
 from .qubo import QuboAtom
+from .vqa import minimize

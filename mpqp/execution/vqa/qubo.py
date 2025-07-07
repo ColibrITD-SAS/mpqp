@@ -1,7 +1,8 @@
-"""These classes are used to generate a Quadratic Unconstrained Binary Operation (QUBO)
-which can be used in many optimization problems.
-In the context of MPQP, these classes are used in the QAOA module to encode the problem
-to optimize in the function :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
+"""These classes are used to generate a Quadratic Unconstrained Binary Operation
+(Qubo) which can be used in many optimization problems.
+
+In the context of MPQP, these classes are used in the QAOA module to encode the
+problem to optimize in the function :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
 
 from __future__ import annotations
 
@@ -17,13 +18,15 @@ from mpqp.tools.operators import *
 
 
 class Qubo(ABC):
-    """Abstract class defining a Qubo representation, used to represent decision problems.
-    This class is instantiated through the use of QuboAtoms, not directly (see examples below).
+    """Abstract class defining a Qubo representation, used to represent decision
+    problems. This class is instantiated through the use of :class:`QuboAtoms`,
+    not directly (see examples below).
 
     A Qubo is defined by a quadratic expression of boolean variables, hence, the
     available operators are: ``+``, ``-``, ``*``, ``&``, ``|`` and ``^``.
 
-    The Qubo expression can be solved with the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` function.
+    The Qubo expression can be solved with the
+    :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` function.
 
     Args:
         value: string holding the name of the monomial
@@ -41,9 +44,12 @@ class Qubo(ABC):
          [0, 0 , 0, 2]]
 
     Note:
-        This class is a binary tree representing the whole operation of the Qubo with QuboAtoms or QuboConstants as its leafs.
+        This class is a binary tree representing the whole operation of the Qubo
+        with :class:`QuboAtoms` or :class:`QuboConstants` as its leafs.
 
-        Meanwhile the classes BinaryOperation and UnaryOperation are used as nodes representing the Qubo's operators.
+        Meanwhile the classes :class:`BinaryOperation` and
+        :class:`UnaryOperation` are used as nodes representing the Qubo's
+        operators.
     """
 
     def __init__(
@@ -60,12 +66,12 @@ class Qubo(ABC):
         self.right = right
         self.value = value
 
-        # This field is used to tract inverted variables (~x0 for example).
-        # This is encoded when calling the weight_matrix method.
+        # an inverted variable would be something like `~x0`
+        # We keep track of them to perform a special encoding when computing weight_matrix
         self._inverted_variables = []
 
-        # This integer is used to keep track of the degree of the Qubo polynom.
-        # it is here to make sure that we have a quadratic expression.
+        # This integer is used to keep track of the degree of the Qubo polynomial.
+        # It is needed because, by definition, the degree has to be <= 2
         self._degree = 0
 
     def __neg__(self) -> "Qubo":
@@ -136,10 +142,10 @@ class Qubo(ABC):
         """Function used to evaluate the result of a Qubo expression.
 
         Args:
-            variables: Dictionary with the name of the variables as keys and the associated binary value.
+            variables: Mapping of the variables to their binary value.
 
         Returns:
-            The value of the expression for the given binary values.
+            The value of the expression for the given values.
 
         Examples:
             >>> x0 = QuboAtom("x0")
@@ -187,7 +193,7 @@ class Qubo(ABC):
         of the Qubo.
 
         Returns:
-            The list of coefficients and variables in the Qubo expression.
+            The coefficients and variables in the Qubo expression.
 
         Examples:
             >>> x0 = QuboAtom('x0')
@@ -239,14 +245,10 @@ class Qubo(ABC):
         return self._depth()
 
     def _depth(self, level: int = 0) -> int:
-        if not self.left:
-            if not self.right:
-                return level
-            return self.right._depth(level + 1)
-        else:
-            if not self.right:
-                return self.left._depth(level + 1)
-            return max(self.right._depth(level + 1), self.left._depth(level + 1))
+        return max(
+            level if self.right is None else self.right._depth(level + 1),
+            level if self.left is None else self.left._depth(level + 1),
+        )
 
     def get_variables(self) -> list[str]:
         """This function generates a list containing every unique variables
@@ -285,19 +287,25 @@ class Qubo(ABC):
 
     def weight_matrix(self) -> tuple[npt.NDArray[np.float64], float]:
         r"""Generates the weight matrix corresponding to this Qubo expression.
-        The weight matrix regroups the coefficients that appears in front of all possible combinations of quadratic binary monomials.
+        The weight matrix regroups the coefficients that appears in front of all
+        possible combinations of quadratic binary monomials.
 
-        The coefficient in front of QuboAtom `x_i` (which correspond to `x_i \cdot x_i`) gives us `i`-th the diagonal element of the weigh matrix.
-        For instance, the Qubo written as `3x_0 + 2x_1`, is a two-by-two diagonal matrix with elements `[3,2]`.
+        The coefficient in front of QuboAtom `x_i` (which correspond to
+        `x_i \cdot x_i`) gives us `i`-th the diagonal element of the weigh matrix.
+        For instance, the Qubo written as `3x_0 + 2x_1`, is a two-by-two
+        diagonal matrix with elements `[3,2]`.
 
-        The off-diagonal element on the `i`-th line and the `j`-th column corresponds to the half of
-        the coefficient in front of the binary monomial `x_i \cdot x_j`. One can remark that the weight matrix is indeed a symmetric matrix.
+        The off-diagonal element on the `i`-th line and the `j`-th column
+        corresponds to the half of the coefficient in front of the binary
+        monomial `x_i \cdot x_j`. One can notice that the weight matrix is
+        indeed a symmetric matrix.
 
-        If a constant is appearing in the Qubo, it will be stored aside of the weight matrix and returned by this function.
-        This is useful in the context of the generation of the corresponding cost Hamiltonian.
+        If a constant is appearing in the Qubo, it will be stored aside of the
+        weight matrix and returned by this function. This is useful in the
+        context of the generation of the corresponding cost Hamiltonian.
 
         Returns:
-            A tuple composed of the weight matrix and a potential additive constant.
+            The weights matrix and a potential additive constant.
 
         Examples:
             >>> x0 = QuboAtom('x0')
@@ -394,7 +402,8 @@ class Qubo(ABC):
         )
 
     def _print(self):
-        """Prints the expression of the Qubo including parenthesis for correct operation priority."""
+        """Prints the expression of the Qubo including parenthesis for correct
+        operation priority."""
         left_str = self.left._print() if self.left is not None else ""
         right_str = self.right._print() if self.right is not None else ""
         if isinstance(self.value, Multiplication):
@@ -422,7 +431,7 @@ class Qubo(ABC):
 
         Notes:
             In the case of all the coefficients of an atom cancel each other
-             then the simplified form will not declare the atom.
+            then the simplified form will not declare the atom.
 
             The resulting cost hamiltonian hence would be changed.
 
@@ -433,7 +442,12 @@ class Qubo(ABC):
             >>> simplified = expr.simplify()
             >>> print(simplified)
             x0-3*x1+4*x0*x1
-            >>> print(matrix_eq(expr.to_cost_hamiltonian().matrix, simplified.to_cost_hamiltonian().matrix))
+            >>> print(
+            ...     matrix_eq(
+            ...         expr.to_cost_hamiltonian().matrix,
+            ...         simplified.to_cost_hamiltonian().matrix
+            ...     )
+            ... )
             True
         """
         coefficients: dict[str, float] = {var: 0 for var in self.get_variables()}
@@ -532,9 +546,9 @@ class BinaryOperation(Qubo):
 
     This class should be exclusively used by other classes and not by the user.
 
-    Available binary operations : `+`, `-`, `*`
-    Technically boolean operations (`|`, `&`, `^`) are available but they are decomposed
-    into the previously mentioned operations.
+    Available binary operations: `+`, `-`, `*`. (Technically boolean operations:
+    `|`, `&`, `^` are available but they are decomposed into the previously
+    mentioned operations.)
     """
 
     def __init__(self, value: BinaryOperator, left: Qubo, right: Qubo):
@@ -549,7 +563,7 @@ class UnaryOperation(Qubo):
 
     This class should be exclusively used by other classes and not by the user.
 
-    Unary operations supported : `-`
+    Unary operations supported: `-`.
     """
 
     def __init__(self, value: UnaryOperator, right: Qubo):
@@ -622,18 +636,21 @@ def _build_cost_hamiltonian(matrix: Matrix, inv_variables: list[int], size: int)
 
 
 def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
-    r"""Calculates the cost Hamiltonian `H(x_i)` for a given i-th binary parameter.
-    This function has the purpose of being used with a Qubo object to generate the cost hamiltonian
-    of a Qubo. see `~mpqp.execution.Qubo.to_cost_hamiltonian`
+    r"""Computes the cost Hamiltonian `H(x_i)` for a given i-th binary
+    parameter. This function has the purpose of being used with a Qubo object to
+    generate the cost hamiltonian of a Qubo. See
+    `~mpqp.execution.Qubo.to_cost_hamiltonian`
 
     `H(x_i)` is defined as:
     $$ H(x_i) = \frac{I^{\otimes n} - Z_i}{2} $$
     $$ \text{with } ~~ Z_i = \underbrace{I \otimes \cdots \otimes I}_{i} \otimes Z \otimes \underbrace{I \otimes \cdots \otimes I}_{n-i-1} $$
 
-    Since in this case the hamiltonian will only be a diagonal matrix this function only returns a list of 1s and 0s.
+    Since in this case the hamiltonian will only be a diagonal matrix this
+    function only returns a list of 1s and 0s.
 
     Args:
-        Size: The total size of the hamiltonian in the context of Qubo it's the number of total variables in the expression.
+        size: The total size of the hamiltonian in the context of Qubo it's the
+            number of total variables in the expression.
         i: The index of the variable.
         neg: Boolean if the boolean variable is reversed.
 
@@ -642,7 +659,8 @@ def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
     """
     if i >= size:
         raise ValueError(
-            "The index of the variable cannot be equal or higher than the total number of variables."
+            "The index of the variable cannot be equal or higher than the total"
+            " number of variables."
         )
     Z_i = np.array([1, -1])
 
@@ -663,25 +681,25 @@ def _generate_ith_Hamiltonian(size: int, i: int, neg: bool = False) -> Matrix:
 
 
 def _collapse_coeffs(
-    left: list[tuple[float, list[str]]], right: list[tuple[float, list[str]]]
+    lhs: list[tuple[float, list[str]]], rhs: list[tuple[float, list[str]]]
 ):
+    """This function distribute the coefficient an expression in parenthesis.
+    It is used in the creation of the Qubo to be able to accurately create the
+    weight matrix. ``lhs`` and ``rhs`` respectively stand for left and right
+    hand sides of the multiplication. It returns the multiplication with the
+    coeff distributed.
     """
-    This function distribute the coefficient an expression in parenthesis.
-    This is used in the creation of the Qubo to be able to accurately create the weight matrix.
-    Left is the left part of the multiplication and right the right part. It returns the multiplication
-    with the coeff distributed.
-    """
-    if len(right) == 1:
-        for i in range(len(left)):
-            hold: float = left[i][0]
-            hold *= right[0][0]
-            left[i][1].extend(right[0][1])
-            left[i] = (hold, left[i][1])
-        return left
+    if len(rhs) == 1:
+        for i in range(len(lhs)):
+            hold: float = lhs[i][0]
+            hold *= rhs[0][0]
+            lhs[i][1].extend(rhs[0][1])
+            lhs[i] = (hold, lhs[i][1])
+        return lhs
     else:
-        for i in range(len(right)):
-            hold: float = right[i][0]
-            hold *= left[0][0]
-            right[i][1].extend(left[0][1])
-            right[i] = (hold, right[i][1])
-        return right
+        for i in range(len(rhs)):
+            hold: float = rhs[i][0]
+            hold *= lhs[0][0]
+            rhs[i][1].extend(lhs[0][1])
+            rhs[i] = (hold, rhs[i][1])
+        return rhs

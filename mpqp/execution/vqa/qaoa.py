@@ -1,10 +1,13 @@
-"""This module is one implementation of a particular type of VQA : QAOA.
-This algorithm works by generating a circuit of alternating operators : cost operators and
-mixer operators.
-Cost operators are generated with the cost hamiltonian which represents the problem we want
-to optimize.
-Mixer operators are here to "search" for solutions, they can be custom to the problem but a
-generic set does exist."""
+"""This module is one implementation of a particular type of VQA: Qaoa.
+
+This algorithm works by generating a circuit of alternating operators: cost
+operators and mixer operators.
+
+Cost operators are generated with the cost hamiltonian which represents the
+problem we want to optimize.
+
+Mixer operators are here to "search" for solutions, they can be custom to the
+problem but a generic set does exist."""
 
 from __future__ import annotations
 
@@ -17,6 +20,7 @@ import numpy.typing as npt
 import scipy
 import scipy.linalg
 import scipy.optimize
+from networkx import Graph
 
 from mpqp import QCircuit
 from mpqp.execution import AvailableDevice, Result, run
@@ -24,25 +28,24 @@ from mpqp.execution.vqa.qubo import Qubo
 from mpqp.gates import CustomGate, H, UnitaryMatrix
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools.maths import Matrix
-from networkx import Graph
 
 
-class QAOAMixer:
-    """Class defining the Mixer Hamiltonian used in the qaoa solver function.
+class QaoaMixer:
+    """Class defining the Mixer hamiltonian used in the :func:`qaoa_solver` function.
 
     This class is used to help generate commonly used mixer hamiltonians,
-    for available Hamiltonian see :class:`~mpqp.execution.vqa.qaoa.QAOAMixerType`.
+    for available hamiltonian see :class:`~mpqp.execution.vqa.qaoa.QaoaMixerType`.
 
     Args:
-        type: The type of the mixer hamiltonian to be generated.
-        graph: Optional graph needed to generate certain types of hamiltonian.
-        bitflip: Optional binary value needed to build the bitflip hamiltonian, default at 0.
+        type: Type of the mixer hamiltonian to be generated.
+        graph: Graph needed to generate certain types of hamiltonian.
+        bitflip: Value needed to build the bitflip hamiltonian.
     """
 
     def __init__(
         self,
-        type: QAOAMixerType,
-        graph: Optional[Graph] = None,  # type:ignore
+        type: QaoaMixerType,
+        graph: Optional[Graph] = None,  # pyright: ignore[reportInvalidTypeArguments]
         bitflip: int = 0,
     ):
         self.type = type
@@ -53,12 +56,13 @@ class QAOAMixer:
         """Generates the mixer hamiltonian according to the mixer type.
 
         Args:
-            qubits: Number of variables in the Qubo expression (also the number of qubits in the QAOA ansatz).
+            qubits: Number of variables in the Qubo expression (also the number
+                of qubits in the Qaoa ansatz).
 
         Returns:
-            The matrix of the Mixer Hamiltonian.
+            The matrix of the mixer hamiltonian.
         """
-        if self.type == QAOAMixerType.MIXER_X:
+        if self.type == QaoaMixerType.MIXER_X:
             x_matrix = np.array([[0, 1], [1, 0]])
             result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
             for i in range(qubits):
@@ -66,13 +70,14 @@ class QAOAMixer:
             return result
         if self.graph == None:
             raise ValueError(
-                f"A graph is needed to generate the type {self.type} of Hamiltonian."
+                f"A graph is needed to generate the type {self.type} of hamiltonian."
             )
         if len(self.graph.nodes) > qubits:
             raise ValueError(
-                f"Cannot have a graph with more nodes ({len(self.graph.nodes)}) than qubits ({qubits}) in the circuit."
+                f"Cannot have a graph with more nodes ({len(self.graph.nodes)})"
+                f" than qubits ({qubits}) in the circuit."
             )
-        if self.type == QAOAMixerType.MIXER_XY:
+        if self.type == QaoaMixerType.MIXER_XY:
             result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
             x_matrix = np.array([[0, 1], [1, 0]])
             y_matrix = np.array([[0, -1j], [1j, 0]])
@@ -102,15 +107,18 @@ class QAOAMixer:
             return result
 
 
-class QAOAMixerType(Enum):
-    r"""Enum class that provide a set of commonly used Mixer Hamiltonians:
+class QaoaMixerType(Enum):
+    r"""Enum class that provide a set of commonly used mixer hamiltonians:
 
-    This mixer was introduced in A Quantum Approximate Optimization Algorithm by Edward Farhi, Jeffrey Goldstone, Sam Gutmann [<https://arxiv.org/abs/1411.4028>].
+    This mixer was introduced in A Quantum Approximate Optimization Algorithm by
+    Edward Farhi, Jeffrey Goldstone, Sam Gutmann in https://arxiv.org/abs/1411.4028.
 
     MIXER_X = `\large \sum\limits_{i} X_i`
 
-    Both mixers below were introduced in From the Quantum Approximate Optimization Algorithm to a Quantum Alternating Operator Ansatz
-    by Stuart Hadfield, Zhihui Wang, Bryan O’Gorman, Eleanor G. Rieffel, Davide Venturelli, and Rupak Biswas [<https://doi.org/10.3390/a12020034>].
+    Both mixers below were introduced in From the Quantum Approximate
+    Optimization Algorithm to a Quantum Alternating Operator Ansatz by Stuart
+    Hadfield, Zhihui Wang, Bryan O’Gorman, Eleanor G. Rieffel, Davide
+    Venturelli, and Rupak Biswas in https://doi.org/10.3390/a12020034.
 
     MIXER_XY = `\large\frac{1}{2} \sum\limits_{(i,j)\in E(G)} X_i X_j + Y_i Y_j`
 
@@ -123,11 +131,12 @@ class QAOAMixerType(Enum):
     MIXER_BITFLIP = auto()
 
 
-class QAOAResult:
-    """This class is used to pack the different interpretations of the result of a QAOA process.
+class QaoaResult:
+    """This class is used to pack the different interpretations of the result of
+    a Qaoa process.
 
-    We put at disposition : the minimal cost found, the state associated with this cost
-    and the interpretation of which variable acted on which qubits.
+    We put at disposition: the minimal cost found, the state associated with
+    this cost and the interpretation of which variable acted on which qubits.
 
     Args:
         cost: The minimum cost that was found.
@@ -143,45 +152,51 @@ class QAOAResult:
         self.final_state: str = final_state
 
     def __str__(self) -> str:
-        return f"Minimum cost: {self.cost}\nAssociated state: {self.final_state}\nAssociated values: {self.values}"
+        return (
+            f"Minimum cost: {self.cost}\nAssociated state: {self.final_state}\n"
+            f"Associated values: {self.values}"
+        )
 
 
 def qaoa_solver(
     problem: Qubo,
     depth: int,
-    mixer: Union[QAOAMixer, Matrix],
+    mixer: Union[QaoaMixer, Matrix],
     device: AvailableDevice,
     optimizer: str,
-) -> QAOAResult:
-    """This function solves decision problems using QAOA, the problem needs to
+) -> QaoaResult:
+    """This function solves decision problems using Qaoa, the problem needs to
     be inputted as a Qubo expression.
 
     Args:
         problem: Qubo expression representing the problem.
-        depth: Number of cost/mixer gates used in the circuit, the total depth of the ansatz being 2*depth.
-        mixer: Type of the Mixer Hamiltonian to be used or directly the mixer Hamiltonian.
+        depth: Number of cost/mixer gates used in the circuit, the total depth
+            of the ansatz being 2*depth.
+        mixer: Type of the Mixer hamiltonian to be used or directly the mixer
+            hamiltonian.
         device: The device that will be used to run the ansatz.
-        optimizer: The optimizer used to minimize. 'Powell' is recommended for better results, but other can be more efficient on specific use cases.
+        optimizer: The optimizer used to minimize. 'Powell' is recommended for
+            better results, but other can be more efficient on specific use cases.
 
     Returns:
-        A QAOAResult object holding the minimal cost found and the associated state.
+        A QaoaResult object holding the minimal cost found and the associated state.
 
     Examples:
         >>> x0 = QuboAtom('x0')
         >>> x1 = QuboAtom('x1')
         >>> expr = -3*x0 - 5*x1 + 3*(x0 & x1)
-        >>> mixer = QAOAMixer(QAOAMixerType.MIXER_X)
+        >>> mixer = QaoaMixer(QaoaMixerType.MIXER_X)
         >>> qaoa_solver(expr, 4, mixer, IBMDevice.AER_SIMULATOR, 'Powell').final_state
         '01'
     """
     observable = problem.to_cost_hamiltonian()
     problem_size = problem.size()
-    if isinstance(mixer, QAOAMixer):
+    if isinstance(mixer, QaoaMixer):
         mixer_matrix = mixer.generate_mixer_hamiltonian(problem_size)
     else:
         mixer_matrix = mixer
     loss_optimize = partial(
-        _loss, cost=observable, nqubit=problem_size, mixer=mixer_matrix, device=device
+        _loss, cost=observable, nb_qubit=problem_size, mixer=mixer_matrix, device=device
     )
     optimal_params = scipy.optimize.minimize(
         fun=loss_optimize, method=optimizer, x0=np.zeros(depth * 2)
@@ -202,30 +217,31 @@ def qaoa_solver(
     for i in range(len(variables)):
         values.update({variables[i]: int(res[i])})
     cost = problem.evaluate(values)
-    return QAOAResult(cost, res, values)
+    return QaoaResult(cost, res, values)
 
 
 def _loss(
     parameters: list[float],
     cost: Observable,
-    nqubit: int,
+    nb_qubit: int,
     mixer: Matrix,
     device: AvailableDevice,
 ) -> float:
-    """Loss function calculating the expectation value of a QAOA ansatz
+    """Loss function calculating the expectation value of a Qaoa ansatz
     initialized with the parameters.
 
     Args:
-        parameters: List of floats representing the gamma and beta coefficient in the QAOA ansatz.
-        cost: The cost Hamiltonian of the ansatz.
-        nqubit: Size of the circuit.
+        parameters: List of floats representing the gamma and beta coefficient
+            in the Qaoa ansatz.
+        cost: The cost hamiltonian of the ansatz.
+        nb_qubit: Size of the circuit.
         mixer: Mixer hamiltonian of the ansatz.
         device: The device that will be used to run the ansatz.
 
     Returns:
         A float containing the expectation value of the ansatz.
     """
-    circuit = _generate_ansatz(parameters, cost, nqubit, mixer)
+    circuit = _generate_ansatz(parameters, cost, nb_qubit, mixer)
     circuit.add(ExpectationMeasure(cost, shots=0))
     result = run(circuit, device)
     if TYPE_CHECKING:
@@ -237,9 +253,9 @@ def _loss(
 def _gen_ith_oper(
     qubits: int, matrix: npt.NDArray[np.complex128], i: int
 ) -> npt.NDArray[np.complex128]:
-    """Returns the matrix equivalent to having the operator on the ith qubit on a circuit of size qubits.
-    This function is used to generate some types of mixer hamiltonian.
-    """
+    """Returns the matrix equivalent to having the operator on the ith qubit on
+    a circuit of size qubits. This function is used to generate some types of
+    mixer hamiltonian."""
     from copy import deepcopy
 
     result = deepcopy(matrix)
@@ -273,11 +289,11 @@ def _generate_ansatz(
     qubits: int,
     mixer: Matrix,
 ) -> QCircuit:
-    """Generate the QAOA ansatz, which is composed of unitary operators acting
+    """Generate the Qaoa ansatz, which is composed of unitary operators acting
     on all of the circuit.
 
     Args:
-        parameters: The parameters of the QAOA operators.
+        parameters: The parameters of the Qaoa operators.
         cost_hamiltonian: The cost hamiltonian generated from que Qubo expression.
         qubits: Number of variables in the Qubo expression.
         mixer: The mixer hamiltonian chose for the ansatz.
