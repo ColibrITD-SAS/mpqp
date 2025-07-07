@@ -23,6 +23,9 @@ from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional
 
 import numpy as np
+from sympy import Expr
+from typeguard import typechecked
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -49,8 +52,6 @@ from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
-from sympy import Expr
-from typeguard import typechecked
 
 
 @typechecked
@@ -427,12 +428,16 @@ def submit(
 
     if isinstance(device, IBMDevice):
         job_id, _ = submit_remote_ibm(job)
+        job.id = job_id
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
+        job.id = job_id
     elif isinstance(device, AWSDevice):
         job_id, _ = submit_job_braket(job)
+        job.id = job_id
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
+        job.id = job_id
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
