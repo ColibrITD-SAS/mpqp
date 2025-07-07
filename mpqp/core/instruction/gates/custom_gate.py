@@ -167,15 +167,16 @@ class CustomGate(Gate):
     def decompose(self) -> "QCircuit":
         """Returns the circuit made of native gates equivalent to this gate.
 
-            The circuit follows the quantum Shannon decomposition which decomposes any unitary matrix into Ry,Rz and CNOT gates.
+        The circuit follows the quantum Shannon decomposition which decomposes any unitary matrix into Ry,Rz and CNOT gates.
 
-        Example:
-        >>> U = np.array([[0,1], [1,0]])
-        >>> gate = CustomGate(UnitaryMatrix(U), [0])
-        >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
-           ┌─────────┐┌───────┐┌──────────┐
-        q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
-           └─────────┘└───────┘└──────────┘
+        Examples:
+            >>> U = np.array([[0,1], [1,0]])
+            >>> gate = CustomGate(UnitaryMatrix(U), [0])
+            >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+               ┌─────────┐┌───────┐┌──────────┐
+            q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
+               └─────────┘└───────┘└──────────┘
+
         """
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
