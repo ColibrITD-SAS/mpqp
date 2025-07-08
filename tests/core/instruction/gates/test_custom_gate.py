@@ -4,7 +4,7 @@ from itertools import product
 
 import numpy as np
 import pytest
-
+from numpy import array  # pyright: ignore[reportUnusedImport]
 from mpqp import QCircuit
 from mpqp.execution import (
     ATOSDevice,

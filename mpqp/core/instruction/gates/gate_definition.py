@@ -85,7 +85,7 @@ class GateDefinition(ABC):
 
         Example:
             >>> UnitaryMatrix(np.array([[1, 0], [0, -1]])).inverse()
-            UnitaryMatrix(np.array([[ 1., 0.], [-0., -1.]]))
+            UnitaryMatrix(array([[ 1., 0.], [-0., -1.]]))
 
         """
         mat = self.to_matrix()
@@ -255,4 +255,4 @@ class UnitaryMatrix(GateDefinition):
         )
 
     def __repr__(self) -> str:
-        return f"UnitaryMatrix(np.{one_lined_repr(self.matrix)})"
+        return f"UnitaryMatrix({one_lined_repr(self.matrix)})"

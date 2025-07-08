@@ -1,7 +1,7 @@
 from typing import Any, Type
 import numpy as np
 import pytest
-
+from numpy import array  # pyright: ignore[reportUnusedImport]
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.gates import *
 
