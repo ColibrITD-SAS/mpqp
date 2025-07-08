@@ -1,6 +1,12 @@
 """These classes are used to generate a Quadratic Unconstrained Binary Operation
 (Qubo) which can be used in many optimization problems.
 
+A Qubo expression here is organized in a binary Tree, hence many classes here
+are just purely for developers. As a user only two classes are of interest:
+
+- Qubo: :class:`mpqp.execution.vqa.qubo.Qubo`
+- QuboAtom: :class:`~mpqp.execution.vqa.qubo.QuboAtom`
+
 In the context of MPQP, these classes are used in the QAOA module to encode the
 problem to optimize in the function :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
 
@@ -19,7 +25,7 @@ from mpqp.tools.operators import *
 
 class Qubo(ABC):
     """Abstract class defining a Qubo representation, used to represent decision
-    problems. This class is instantiated through the use of :class:`QuboAtoms`,
+    problems. This class is instantiated through the use of :class:`~mpqp.execution.vqa.qubo.QuboAtom`,
     not directly (see examples below).
 
     A Qubo is defined by a quadratic expression of boolean variables, hence, the
@@ -45,7 +51,7 @@ class Qubo(ABC):
 
     Note:
         This class is a binary tree representing the whole operation of the Qubo
-        with :class:`QuboAtoms` or :class:`QuboConstants` as its leafs.
+        with :class:`~mpqp.execution.vqa.qubo.QuboAtom` or :class:`~mpqp.execution.vqa.qubo.QuboConstant` as its leafs.
 
         Meanwhile the classes :class:`BinaryOperation` and
         :class:`UnaryOperation` are used as nodes representing the Qubo's
@@ -151,9 +157,9 @@ class Qubo(ABC):
             >>> x0 = QuboAtom("x0")
             >>> x1 = QuboAtom("x1")
             >>> expr = 3*x0
-            >>> expr.evaluate({"x0":True})
+            >>> expr.evaluate({"x0": True})
             3
-            >>> expr.evaluate({"x0":False})
+            >>> expr.evaluate({"x0": False})
             0
             >>> expr = 3*(~x0)
             >>> expr.evaluate({"x0": False})
@@ -525,6 +531,9 @@ class QuboAtom(Qubo):
         from copy import deepcopy
 
         copy = deepcopy(self)
+        if self.value[0] == "~":
+            copy.value = self.value[1:]
+            return copy
         copy.value = '~' + self.value
         return copy
 
@@ -546,9 +555,9 @@ class BinaryOperation(Qubo):
 
     This class should be exclusively used by other classes and not by the user.
 
-    Available binary operations: `+`, `-`, `*`. (Technically boolean operations:
-    `|`, `&`, `^` are available but they are decomposed into the previously
-    mentioned operations.)
+    Available binary operations: ``+``, ``-``, ``*``.
+    (Technically boolean operations: ``|``, ``&``, ``^`` are available but they are
+    decomposed into the previously mentioned operations.)
     """
 
     def __init__(self, value: BinaryOperator, left: Qubo, right: Qubo):
@@ -560,10 +569,14 @@ class BinaryOperation(Qubo):
 
 class UnaryOperation(Qubo):
     """Class defining a unary operation for a Qubo expression.
+    The value is the operator and the rest of the equation is store in the right child.
 
     This class should be exclusively used by other classes and not by the user.
 
-    Unary operations supported: `-`.
+    Unary operations supported: ``-``, ``~``.
+    Args:
+        value: The unary operator.
+        right: The Qubo representing the rest of the operation.
     """
 
     def __init__(self, value: UnaryOperator, right: Qubo):
@@ -577,11 +590,12 @@ class UnaryOperation(Qubo):
 
 class QuboConstant(Qubo):
     """Class defining constant terms in a Qubo expression.
+    In the context of the tree this node is always a leaf.
 
     This class should be exclusively used by other classes and not by the user.
 
     Args:
-        value: String hold the value of the int or float of the node.
+        value: The value of the constant in the expression.
     """
 
     def __init__(self, value: float):
