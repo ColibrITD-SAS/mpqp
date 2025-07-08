@@ -1272,8 +1272,6 @@ def open_qasm_3_to_2(
     elif language == Language.BRAKET:
         defined_gates.update(std_braket_gates)
 
-    print(instructions)
-
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(
             instr,
