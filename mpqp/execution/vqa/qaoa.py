@@ -42,7 +42,7 @@ class QaoaMixer:
     def __init__(
         self,
         type: QaoaMixerType,
-        graph: Optional[Graph] = None,  # pyright: ignore[reportInvalidTypeArguments]
+        graph: Optional[Graph] = None,  # pyright: ignore[reportMissingTypeArgument]
         bitflip: int = 0,
     ):
         self.type = type
