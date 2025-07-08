@@ -1,9 +1,9 @@
 from typing import Any, Optional, Union
+
 from qiskit.circuit import Parameter
 
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix
@@ -22,7 +22,7 @@ class CustomControlledGate(ControlledGate):
 
     Examples:
     >>> circuit = QCircuit(2)
-    >>> circuit.add(CustomControlledGate([0], Y(1)))
+    >>> circuit.add(CustomControlledGate(0, Y(1)))
     >>> pprint(circuit.to_matrix())
     [[1, 0, 0 , 0  ],
      [0, 1, 0 , 0  ],
@@ -34,7 +34,7 @@ class CustomControlledGate(ControlledGate):
     q_1: ┤ Y ├
          └───┘
     >>> circuit = QCircuit(3)
-    >>> circuit.add(CustomControlledGate([0,2], CustomGate(np.array([[1,0],[0,-1]]),[1])))
+    >>> circuit.add(CustomControlledGate([0, 2], CustomGate(np.array([[1, 0], [0, -1]]),[1])))
     >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
     q_0: ─────■─────
          ┌────┴────┐
@@ -64,8 +64,9 @@ class CustomControlledGate(ControlledGate):
         return f"CustomControlledGate({self.controls}, {self.non_controlled_gate.__repr__()})"
 
     def to_matrix(self, desired_gate_size: int = 0) -> Matrix:
-        import numpy as np
         from functools import reduce
+
+        import numpy as np
 
         if len(self.controls) != 1 or len(self.targets) != 1:
             from mpqp.core.instruction.gates.native_gates import SWAP
