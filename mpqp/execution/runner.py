@@ -428,16 +428,12 @@ def submit(
 
     if isinstance(device, IBMDevice):
         job_id, _ = submit_remote_ibm(job)
-        job.id = job_id
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
-        job.id = job_id
     elif isinstance(device, AWSDevice):
         job_id, _ = submit_job_braket(job)
-        job.id = job_id
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
-        job.id = job_id
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
