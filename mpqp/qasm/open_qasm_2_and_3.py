@@ -363,8 +363,7 @@ phase can become non-global.""",
             included_instr.add(new_instr)
     elif instr_name == "gate":
         g_name = instr.split()[1]
-        if g_name.count('(') != 0:
-            g_name = g_name.split('(')[0]
+        g_name = g_name.split('(')[0]
         defined_gates.add(g_name)
         g_string = instr.split("{")[0] + "{\n"
         g_instructions = filter(
