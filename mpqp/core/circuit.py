@@ -1687,12 +1687,16 @@ class QCircuit:
             from braket.ir.openqasm.program_v1 import Program
 
             from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
-            from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
+            from mpqp.qasm.qasm_to_braket import (
+                braket_noise_to_mpqp,
+                braket_custom_gates_to_mpqp,
+            )
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
             if TYPE_CHECKING:
                 assert isinstance(qasm3_code, Program)
 
+            custom_gates = braket_custom_gates_to_mpqp(qasm3_code.source)
             noises = braket_noise_to_mpqp(qasm3_code.source)
 
             qasm2_code, phase = open_qasm_3_to_2(
@@ -1701,6 +1705,8 @@ class QCircuit:
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
             qc = qc.without_measurements()
+            if len(custom_gates) != 0:
+                qc.add(custom_gates)
             if len(noises) != 0:
                 qc.add(noises)
             return qc
