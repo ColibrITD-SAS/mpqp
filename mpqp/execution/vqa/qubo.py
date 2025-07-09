@@ -44,7 +44,7 @@ class Qubo(ABC):
         - ``|`` : the logical OR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
         - ``^`` : the logical XOR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
         - ``+`` : the artihmetic addition operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
-        - ``-`` : the artihmetic substraction operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
+        - ``-`` : the artihmetic subtraction operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
         - ``*`` : the artihmetic multiplication operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
 
     The evaluation of a Qubo expression can be minimized using the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` solver.

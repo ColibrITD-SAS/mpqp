@@ -8,6 +8,11 @@ y = QuboAtom('y')
 z = QuboAtom('z')
 a = QuboAtom('a')
 
+x0 = QuboAtom('x0')
+x1 = QuboAtom('x1')
+x2 = QuboAtom('x2')
+x3 = QuboAtom('x3')
+
 
 @pytest.mark.parametrize(
     "expr, res",
@@ -85,12 +90,6 @@ def test_Qubo_coeffs(expr: Qubo, res: npt.NDArray[np.complex64]):
 )
 def test_Qubo_weight_matrix(expr: Qubo, matrix: npt.NDArray[np.complex64]):
     assert matrix_eq(expr.weight_matrix()[0].astype(np.complex64), matrix)
-
-
-x0 = QuboAtom('x0')
-x1 = QuboAtom('x1')
-x2 = QuboAtom('x2')
-x3 = QuboAtom('x3')
 
 
 @pytest.mark.parametrize(
@@ -177,6 +176,185 @@ x3 = QuboAtom('x3')
 )
 def test_Qubo_cost_hamiltonian(expression: Qubo, matrix: npt.NDArray[np.complex64]):
     assert matrix_eq(expression.to_cost_hamiltonian().matrix, matrix)
+
+
+@pytest.mark.parametrize(
+    "operand1, operand2, expected",
+    [
+        (x0, x1, x0 + x1),
+        (1, x0, 1 + x0),
+        (x0, 1, x0 + 1),
+        (x0, 0, x0),
+        (0, x0, x0),
+        (x0, x0, 2 * x0),
+        (x0, x0 * x0, 2 * x0),
+        (x0 * x1, x1 * x0, 2 * x0 * x1),
+        (x0 + x1, -x1, x0),
+        (x0 * x1, x0 * x2, x0 * (x1 + x2)),
+        (x0 + 2, 3, x0 + 5),
+    ],
+)
+def test_Qubo_addition(operand1: Qubo, operand2: Qubo, expected: Qubo):
+    addition = operand1 + operand2
+    assert matrix_eq(
+        addition.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+        addition.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
+    )
+
+
+@pytest.mark.parametrize(
+    "operand1, operand2, expected",
+    [
+        (x0, x1, x0 - x1),
+        (1, x0, 1 - x0),
+        (x0, 1, x0 - 1),
+        (x0, 0, x0),
+        (0, x0, -x0),
+        (x0, x0, -2 * x0),
+        (x0, x0 * x0, -2 * x0),
+        (x0 * x1, x1 * x0, -2 * x0 * x1),
+        (x0 + x1, -x1, x0 + 2 * x1),
+        (x0 + x1, x1, x0),
+        (x0 * x1, x0 * x2, x0 * (x1 - x2)),
+        (x0 + 2, 3, x0 - 1),
+    ],
+)
+def test_Qubo_subtraction(operand1: Qubo, operand2: Qubo, expected: Qubo):
+    subtraction = operand1 - operand2
+    assert matrix_eq(
+        subtraction.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+        subtraction.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
+    )
+
+
+@pytest.mark.parametrize(
+    "operand1, operand2, expected",
+    [
+        (x0, x1, x0 * x1),
+        (x0, x1, x0 & x1),
+        (1, x0, x0),
+        (x0, 1, x0),
+        (-1, x0, -x0),
+        (x0, -1, -x0),
+        (x0, 0, 0),
+        (0, x0, 0),
+        (x0, x0, x0 * x0),
+        (x0, x0, x0),
+        (x0, x0 * x0, x0),
+        (x0 + x1, 1, x0 + x1),
+        (1, x0 + x1, x0 + x1),
+        (x0 + x1, x2, x2 * (x0 + x1)),
+        (x0 + x1, x2, x0 * x2 + x1 * x2),
+        (x0 - x1, x2, x2 * (x0 + x1)),
+        (x0 - x1, x2, x0 * x2 - x1 * x2),
+        (x0, x1 + x2, x0 * (x1 + x2)),
+        (x0, x1 + x2, x0 * x1 + x0 * x2),
+        (-x0, x1 + x2, -x0 * x1 - x0 * x2),
+        (-x0, x1 + x2, -x0 * (x1 + x2)),
+        (-x0, x1, -x0 * x1),
+        (x0, -x1, -x0 * x1),
+        (x0 + x1, x1, x0 * x1 + x1),
+        (x0 + x1, x1, x0 * x1 + x1 * x1),
+        (x0 * x1, 3, 3 * x0 * x1),
+        (3, x0 * x1, 3 * x0 * x1),
+        (x0 * x1, -3, -3 * x0 * x1),
+        (-3, x0 * x1, -3 * x0 * x1),
+        (x0 + 2, 3, 3 * x0 + 6),
+        (3, x0 + 2, 3 * x0 + 6),
+        (
+            0.7 * x0 + 0.3 * x1 - 0.02,
+            0.7 * x0 + 0.3 * x1 - 0.02,
+            0.462 * x0 + 0.078 * x1 + 0.42 * x0 * x1 + 0.0004,
+        ),
+        (
+            3 * x0 + x0 - 2 * x1,
+            0.7 * x0 + 0.3 * x1 - 0.02,
+            2.72 * x0 - 0.2 * x0 * x1 + 0.64 * x1,
+        ),
+        (
+            3 * x0 * x1 - 5 * x2 * x3 + 4 * x0 * x2,
+            -1,
+            -(3 * x0 * x1 - 5 * x2 * x3 + 4 * x0 * x2),
+        ),
+        (
+            3 * x0 * x1 - 5 * x2 * x3 + 4 * x0 * x2,
+            -1,
+            -1 * (3 * x0 * x1 - 5 * x2 * x3 + 4 * x0 * x2),
+        ),
+        (
+            3 * x0 * x1 - 5 * x2 * x3 + 4 * x0 * x2,
+            -1,
+            -3 * x0 * x1 + 5 * x2 * x3 - 4 * x0 * x2,
+        ),
+    ],
+)
+def test_Qubo_multiplication(operand1: Qubo, operand2: Qubo, expected: Qubo):
+    multiplication = operand1 * operand2
+    assert matrix_eq(
+        multiplication.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+        multiplication.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
+    )
+
+@pytest.mark.parametrize(
+    "operand, expected",
+    [
+        (x0, -x0),
+        (-x0, x0),
+        (3, -3),
+        (-3, 3),
+        (x0*x1, -x0*x1),
+        (-x0*x1, x0*x1),
+        (x0 + x1, - (x0 + x1)),
+        (x0 + x1, - x0 - x1),
+        (x0 - x1, x1 - x0),
+        (x0*x0 + 3*x1 - 2*x1*x2, -x0 - 3*x1 + 2*x1*x2),
+    ],
+)
+def test_Qubo_opposite_sign(operand: Qubo, expected: Qubo):
+    opposite = - operand
+    assert matrix_eq(
+       opposite.to_cost_hamiltonian().matrix,
+       expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+       opposite.simplify().to_cost_hamiltonian().matrix,
+       expected.simplify().to_cost_hamiltonian().matrix,
+    )
+    if isinstance(operand, QuboAtom):
+        assert str(operand) == str(-opposite)
+        assert str(opposite) == str(-1*operand)
+
+
+def test_QuboAtom_AND():
+    # TODO
+    pass
+
+
+def test_QuboAtom_OR():
+    # TODO
+    pass
+
+
+def test_QuboAtom_XOR():
+    # TODO
+    pass
+
+
+def test_QuboAtom_NOT():
+    # TODO
+    pass
 
 
 def test_Qubo_error():
