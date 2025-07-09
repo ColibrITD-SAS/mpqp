@@ -568,6 +568,16 @@ class QuboAtom(Qubo):
         >>> expr = 2 * x + 2 - 5 * y + 4 * (x ^ y)
         >>> print(expr.get_variables())
         ['x', 'y']
+        >>> print(~y)
+        ~y
+        >>> ~(~y)
+        y
+        >>> print(x | y)
+        x+y-x*y
+        >>> print(x & y)
+        x*y
+        >>> print(x ^ y)
+        x+y-2*x*y
     """
 
     def __init__(self, value: str):
@@ -594,12 +604,15 @@ class QuboAtom(Qubo):
         return copy
 
     def __and__(self, other: "QuboAtom") -> "Qubo":
+        # TODO: add simplifications here
         return self * other
 
     def __or__(self, other: "QuboAtom") -> "Qubo":
+        # TODO: add simplifications here, example x OR ~x = True (=1)
         return self + other - self * other
 
     def __xor__(self, other: "QuboAtom") -> "Qubo":
+        # TODO: add simplifications here
         return self + other - 2 * (self * other)
 
     def __repr__(self):
