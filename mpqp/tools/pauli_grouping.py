@@ -47,7 +47,7 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
 
     Examples:
         >>> from mpqp.measures import I, X, Y, Z
-        >>> pauli_grouping_greedy([I@X@X, Y@Y@Z, I@I@I, -3*Z@Y@X, Y@X@Y, -Z@Z@Y, 2*X@X@Y],CommutingTypes.FULL )
+        >>> pauli_grouping_greedy([I@X@X, Y@Y@Z, I@I@I, -3*Z@Y@X, Y@X@Y, -Z@Z@Y, 2*X@X@Y], CommutingTypes.FULL )
         [[I@X@X, Y@Y@Z, I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [Y@X@Y], [2*X@X@Y]]
     """
     groups: list[list[PauliStringMonomial]] = []
