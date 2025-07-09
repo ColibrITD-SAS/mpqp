@@ -307,6 +307,7 @@ def test_Qubo_multiplication(operand1: Qubo, operand2: Qubo, expected: Qubo):
         expected.simplify().to_cost_hamiltonian().matrix,
     )
 
+
 @pytest.mark.parametrize(
     "operand, expected",
     [
@@ -314,27 +315,27 @@ def test_Qubo_multiplication(operand1: Qubo, operand2: Qubo, expected: Qubo):
         (-x0, x0),
         (3, -3),
         (-3, 3),
-        (x0*x1, -x0*x1),
-        (-x0*x1, x0*x1),
-        (x0 + x1, - (x0 + x1)),
-        (x0 + x1, - x0 - x1),
+        (x0 * x1, -x0 * x1),
+        (-x0 * x1, x0 * x1),
+        (x0 + x1, -(x0 + x1)),
+        (x0 + x1, -x0 - x1),
         (x0 - x1, x1 - x0),
-        (x0*x0 + 3*x1 - 2*x1*x2, -x0 - 3*x1 + 2*x1*x2),
+        (x0 * x0 + 3 * x1 - 2 * x1 * x2, -x0 - 3 * x1 + 2 * x1 * x2),
     ],
 )
 def test_Qubo_opposite_sign(operand: Qubo, expected: Qubo):
-    opposite = - operand
+    opposite = -operand
     assert matrix_eq(
-       opposite.to_cost_hamiltonian().matrix,
-       expected.to_cost_hamiltonian().matrix,
+        opposite.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
     )
     assert matrix_eq(
-       opposite.simplify().to_cost_hamiltonian().matrix,
-       expected.simplify().to_cost_hamiltonian().matrix,
+        opposite.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
     )
     if isinstance(operand, QuboAtom):
         assert str(operand) == str(-opposite)
-        assert str(opposite) == str(-1*operand)
+        assert str(opposite) == str(-1 * operand)
 
 
 def test_QuboAtom_AND():
