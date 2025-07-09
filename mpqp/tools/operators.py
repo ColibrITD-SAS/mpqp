@@ -2,8 +2,8 @@ from abc import ABC, abstractmethod
 
 
 class Operator(ABC):
-    """Abstract class used to define operators (in the arithmetic sense) used with other classes
-    to create expressions with editable variables. (see :class:`~mpqp.execution.vqa.qubo.Qubo`)
+    """Abstract class used to define operators (in the arithmetic sense) used by oter classes
+    to create expressions with editable variables (see :class:`~mpqp.execution.vqa.qubo.Qubo`).
     """
 
 
@@ -59,11 +59,11 @@ class UnaryOperator(Operator, ABC):
     """Abstract class used to create unary operators."""
 
     def __init__(self):
-        self.key = ""
+        self.key: str
 
 
 class Minus(UnaryOperator):
-    r"""Class used to create the equivalent of the arithmetic operation `-1 \mul`"""
+    r"""Class used to inverse the sign of a Qubo expression `q \rightarrow -q`."""
 
     def __init__(self):
         self.key = "-"

@@ -542,7 +542,12 @@ class QuboAtom(Qubo):
 
 
 class BinaryOperation(Qubo):
-    """Class defining binary operations in a Qubo expression.
+    """Class defining binary operations in a Qubo expression. A binary operation is defined by an operator
+    (`+`, `-` or `*`) applied on two operands (left and right), each of them potentially being:
+        - a Qubo expression,
+        - a QuboAtom variable,
+        - a QuboConstant,
+        - a BinaryOperation
 
     This class should be exclusively used by other classes and not by the user.
 
