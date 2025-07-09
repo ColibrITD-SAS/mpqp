@@ -41,20 +41,15 @@ Detailed example for those two options can be found in our example notebooks.
 Quantum Approximate Optimization Algorithm
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+See full example of this module in this :doc:`dedicated notebook <notebooks/8_TSP_QAOA>`.
+
+
 QUBO
 ++++
 
-.. autoclass:: mpqp.execution.vqa.qubo.Qubo
-
-.. autoclass:: mpqp.execution.vqa.qubo.QuboAtom
+.. automodule:: mpqp.execution.vqa.qubo
 
 QAOA
 ++++
-
-This module is one implementation of a particular type of VQA : QAOA. 
-
-| This algorithm works by generating a circuit of alternating operators : cost operators and mixer operators.
-| Cost operators are generated with the cost hamiltonian which represents the problem we want to optimize.
-| Mixer operators are here to "search" for solutions, they can be custom to the problem but a generic set does exist.
 
 .. automodule:: mpqp.execution.vqa.qaoa
