@@ -39,11 +39,8 @@ def test_expectation_values_devices(device: AvailableDevice):
                 translation_warning=False,
             ).expectation_values  # type: ignore
         )
-    equal = True
-    print(single_exp_values)
     assert isinstance(true_result, dict)
-    for i in range(len(true_result)):
-        equal &= round(true_result[f"observable_{i}"], 6) == round(
-            single_exp_values[i], 6
-        )
-    assert equal
+    assert all(
+        round(true_result[f"observable_{i}"], 6) == round(single_exp_values[i], 6)
+        for i in range(len(true_result))
+    )

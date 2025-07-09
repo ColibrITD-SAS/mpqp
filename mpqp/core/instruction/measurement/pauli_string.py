@@ -41,11 +41,17 @@ Coef = Union[Real, float, Expr]
 
 
 class CommutingTypes(Enum):
+    """Enum regrouping the types of commutation supported by the PauliStrings."""
+
     FULL = auto()
     QUBITWISE = auto()
 
 
 class GroupingMethods(Enum):
+    """Enum regrouping the different algorithm used to organize all of
+    the groups of Pauli monomials.
+    """
+
     GREEDY = auto()
     COLORING_GREEDY = auto()
     COLORING_SF = auto()
@@ -992,6 +998,7 @@ class PauliStringMonomial(PauliString):
 
         Args:
             other: The Pauli monomial for which we want to check commutativity with this monomial.
+            method: The type of commutation to be verified.
 
         Returns:
             True if this Pauli monomial commutes with the one in parameter.
@@ -1004,6 +1011,10 @@ class PauliStringMonomial(PauliString):
             False
             >>> (X @ Z @ Z).commutes_with(X @ Z @ Z)
             True
+            >>> (X @ X).commutes_with(Y @ Y, CommutingTypes.FULL)
+            True
+            >>> (X @ X).commutes_with(Y @ Y, CommutingTypes.QUBITWISE)
+            False
 
         """
         if not isinstance(other, PauliStringMonomial):

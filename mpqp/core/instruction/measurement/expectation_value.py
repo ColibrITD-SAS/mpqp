@@ -349,6 +349,8 @@ class ExpectationMeasure(Measure):
         commuting_type: Type of commutation (grouped in an Enum) used for Pauli grouping when optimizing the observables measurement.
         grouping_method: Enum describing the method used for Pauli grouping.
         label: Label used to identify the measure.
+        optimize_measurement: Indicates if the Pauli grouping must be done to
+            optimize the number of measurements. Default to True.
         optim_diagonal: Indicates if the computation of expectation value for
             diagonal observables is optimized. Default to False.
 
