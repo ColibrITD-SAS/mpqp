@@ -68,7 +68,7 @@ class Qubo(ABC):
         >>> print(qubo1)
         3*x0*x1+x0-2*x1
         >>> qubo2.__repr__()
-        TO FIX
+        '(((QuboAtom("x0") * 0.7) + (QuboAtom("x1") * 0.3)) - 0.02)'
         >>> print(qubo1 + qubo2)
         3*x0*x1+x0-2*x1+0.7*x0+0.3*x1-0.02
         >>> print(qubo2 * qubo2)
@@ -76,11 +76,11 @@ class Qubo(ABC):
         >>> print(qubo1 - x0)
         3*x0*x1+x0-2*x1-x0
         >>> print((qubo1 + qubo2).simplify())
-        TO FIX
-        >>> print((qubo1 * qubo2).simplify())
-        TO FIX
+        1.7*x0-1.7*x1+3*x0*x1-0.02
+        >>> print((qubo2 * x0).simplify())
+        -(0.02*x0)+0.7*x0*x0+0.3*x1*x0
         >>> print((qubo1 - x0).simplify())
-        TO FIX
+        -(2*x1)+3*x0*x1
         >>> print(qubo1.to_cost_hamiltonian().pauli_string)
         0.25*I@I + 0.25*I@Z - 1.25*Z@I + 0.75*Z@Z
         >>> pprint(qubo1.to_cost_hamiltonian().matrix)
@@ -96,8 +96,7 @@ class Qubo(ABC):
         2
         >>> qubo2.weight_matrix()
         (array([[0.7, 0. ],
-                [0. , 0.3]]),
-        -0.02)
+               [0. , 0.3]]), -0.02)
     """
 
     def __init__(
@@ -131,6 +130,7 @@ class Qubo(ABC):
 
     def __add__(self, other: Union["Qubo", int, float]) -> "Qubo":
         if isinstance(other, (float, int)):
+
             if other == 0:
                 return self
             other = QuboConstant(other)
@@ -143,12 +143,17 @@ class Qubo(ABC):
 
     def __sub__(self, other: Union["Qubo", int, float]) -> "Qubo":
         if isinstance(other, (float, int)):
+            if other == 0:
+                return self
             other = QuboConstant(other)
+
         current = BinaryOperation(Subtraction(), self, other)
         current._degree = max(self._degree, other._degree)
         return current
 
     def __rsub__(self, other: Union["Qubo", int, float]) -> "Qubo":
+        if other == 0:
+            return -self
         return self - other
 
     def __mul__(self, other: Union["Qubo", int, float]) -> "Qubo":
@@ -368,7 +373,7 @@ class Qubo(ABC):
              [2, 0, 0, 0],
              [0, 0, 0, 1]]
             >>> print(constant)
-            18
+            18.0
         """
         coeffs = self.get_terms_and_coefs()
         variables = self.get_variables()
@@ -455,18 +460,22 @@ class Qubo(ABC):
         left_str = self.left._print() if self.left is not None else ""
         right_str = self.right._print() if self.right is not None else ""
         if isinstance(self.value, Multiplication):
+            assert self.left and self.right
             if isinstance(self.right, QuboConstant):
                 tmp = right_str
                 right_str = left_str
                 left_str = tmp
-            if (
-                isinstance(self.left, BinaryOperation)
-                and not isinstance(self.left.value, Multiplication)
-            ) or (
-                isinstance(self.right, BinaryOperation)
-                and not isinstance(self.right.value, Multiplication)
-            ):
-                return f"{left_str}{self.value}({right_str})"
+            result = ""
+            if isinstance(self.left.value, (Addition, Subtraction)):
+                result += f"({left_str})"
+            else:
+                result += f"{left_str}"
+            result += f"{self.value}"
+            if isinstance(self.right.value, (Addition, Subtraction)):
+                result += f"({right_str})"
+            else:
+                result += f"{right_str}"
+            return result
         elif isinstance(self, UnaryOperation):
             if self.right and isinstance(self.right, (UnaryOperation, BinaryOperation)):
                 return f"{self.value}({right_str})"
@@ -497,10 +506,13 @@ class Qubo(ABC):
             True
         """
         coefficients: dict[str, float] = {var: 0 for var in self.get_variables()}
+        constant = 0
         coeffs = self.get_terms_and_coefs()
         for coeff in coeffs:
             coef, var = coeff
-            if len(var) == 1:
+            if len(var) == 0:
+                constant += coef
+            elif len(var) == 1:
                 coefficients.update({var[0]: coef + coefficients[var[0]]})
             else:
                 var_name = f"{var[0]}*{var[1]}"
@@ -529,7 +541,11 @@ class Qubo(ABC):
                 if coefficients[var] > 0:
                     result += coefficients[var] * QuboAtom(var)
                 else:
-                    result -= -coefficients[var] * QuboAtom(var)
+                    result -= -(coefficients[var]) * QuboAtom(var)
+        if constant < 0:
+            result -= -constant
+        else:
+            result += constant
         assert isinstance(result, Qubo)
         return result
 
@@ -564,6 +580,7 @@ class QuboAtom(Qubo):
                 "QuboAtoms cannot be named using operators or special characters."
             )
         super().__init__(value, None, None)
+        self.value = value
         self._degree = 1
 
     def __invert__(self) -> "QuboAtom":
@@ -586,7 +603,9 @@ class QuboAtom(Qubo):
         return self + other - 2 * (self * other)
 
     def __repr__(self):
-        return f"QuboAtom({self.value})"
+        if self.value[0] == "~":
+            return f"~QuboAtom(\"{self.value[1:]}\")"
+        return f"QuboAtom(\"{self.value}\")"
 
 
 class BinaryOperation(Qubo):
@@ -608,7 +627,7 @@ class BinaryOperation(Qubo):
         super().__init__(value, left, right)
 
     def __repr__(self) -> str:
-        return f"({repr(self.left)} {repr(self.value)} {repr(self.right)})"
+        return f"({repr(self.left)} {str(self.value)} {repr(self.right)})"
 
 
 class UnaryOperation(Qubo):
@@ -629,7 +648,7 @@ class UnaryOperation(Qubo):
     def __repr__(self) -> str:
         if isinstance(self.right, (BinaryOperation, UnaryOperation)):
             return f"{repr(self.value)}({repr(self.right)})"
-        return repr(self.value) + repr(self.right)
+        return str(self.value) + repr(self.right)
 
 
 class QuboConstant(Qubo):
