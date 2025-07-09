@@ -366,13 +366,13 @@ class Qubo(ABC):
             >>> x2 = QuboAtom('x2')
             >>> x3 = QuboAtom('x3')
             >>> expr = 2 * x0 + 3 * x1 + 4 * x0 * x2 + x3 + 18
-            >>> matrix, constant = expr.weight_matrix()
-            >>> pprint(matrix)
+            >>> w_matrix, add_constant = expr.weight_matrix()
+            >>> pprint(w_matrix)
             [[2, 0, 2, 0],
              [0, 3, 0, 0],
              [2, 0, 0, 0],
              [0, 0, 0, 1]]
-            >>> print(constant)
+            >>> print(add_constant)
             18.0
         """
         coeffs = self.get_terms_and_coefs()
@@ -532,11 +532,11 @@ class Qubo(ABC):
             if coefficients[var] == 0:
                 continue
             if var.count('*') == 1:
-                vars = var.split('*')
+                vars_split = var.split('*')
                 if coefficients[var] > 0:
-                    result += coefficients[var] * QuboAtom(vars[0]) * QuboAtom(vars[1])
+                    result += coefficients[var] * QuboAtom(vars_split[0]) * QuboAtom(vars_split[1])
                 else:
-                    result -= -coefficients[var] * QuboAtom(vars[0]) * QuboAtom(vars[1])
+                    result -= -coefficients[var] * QuboAtom(vars_split[0]) * QuboAtom(vars_split[1])
             else:
                 if coefficients[var] > 0:
                     result += coefficients[var] * QuboAtom(var)
@@ -583,9 +583,9 @@ class QuboAtom(Qubo):
     def __init__(self, value: str):
         import re
 
-        if re.search("^[A-Z|a-z]", value) == None:
+        if re.search("^[A-Z|a-z]", value) is None:
             raise ValueError("QuboAtoms have to be named using a letter at the start.")
-        if re.search("[*|^|+|-|&|~|(|)|=|%]", value) != None:
+        if re.search("[*|^|+|-|&|~|(|)|=|%]", value) is not None:
             raise ValueError(
                 "QuboAtoms cannot be named using operators or special characters."
             )
