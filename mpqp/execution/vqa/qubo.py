@@ -1,22 +1,23 @@
 """This module is designed to generate and manipulate Quadratic Unconstrained Binary Optimization
 (Qubo) problems, which are widely use to describe various optimization problems.
 
-We model Qubo expressions as binary trees, in the form of an Abstract Syntax Tree, useful for taking into account the
-hierarchies and priorities between the operations appearing in the Qubo. A node of this Qubo tree corresponds to an
+We model :class:`~mpqp.execution.vqa.qubo.Qubo` expressions as binary trees, in the form of an Abstract Syntax Tree,
+useful for taking into account the hierarchies and priorities between the operations appearing in the
+:class:`~mpqp.execution.vqa.qubo.Qubo`. A node of this :class:`~mpqp.execution.vqa.qubo.Qubo` tree corresponds to an
 operation while the leaves of the tree are boolean variables or constants on which the binary or unary operations are
-applied. One can find below an example of such tree structure for the Qubo $-1 + 2x$:
+applied. One can find below an example of such tree structure for the Qubo `-1 + 2x`::
 
           Addition
-        /          \
+        /          \\
  UnaryMinus   Multiplication
-    /           /       \
+    /           /       \\
    1           2    QuboAtom("x")
 
 Most of the classes implemented in this module are not meant to be directly used by the user, but are instantiated
 in the background when arithmetic or boolean operations are used. Every node in the tree is inheriting from the
-:class:`mpqp.execution.vqa.qubo.Qubo` class, regrouping all the common implementations for operations and simplifications.
+:class:`~mpqp.execution.vqa.qubo.Qubo` class, regrouping all the common implementations for operations and simplifications.
 The only class that is meant to be directly instantiated by the user is :class:`~mpqp.execution.vqa.qubo.QuboAtom`,
-allowing one to define boolean variables that will be manipulated withing the Qubo.
+allowing one to define boolean variables that will be manipulated withing the :class:`~mpqp.execution.vqa.qubo.Qubo`.
 
 In the context of the MPQP library, these classes are used in the QAOA module to encode the optimization problem solved
 by the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
@@ -35,38 +36,68 @@ from mpqp.tools.operators import *
 
 
 class Qubo(ABC):
-    """Abstract class defining a Qubo representation, used to represent decision
-    problems. This class is instantiated through the use of :class:`~mpqp.execution.vqa.qubo.QuboAtom`,
-    not directly (see examples below).
+    """Abstract class defining an optimization problem following the Qubo representation. This class is instantiated
+    through the use of :class:`~mpqp.execution.vqa.qubo.QuboAtom`, not directly (see examples below).
 
-    A Qubo is defined by a quadratic expression of boolean variables, hence, the
-    available operators are: ``+``, ``-``, ``*``, ``&``, ``|`` and ``^``.
+    A Qubo is defined as a quadratic expression of boolean variables, hence, the available operators are:
+        - ``&`` : the logical XOR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
+        - ``|`` : the logical OR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
+        - ``^`` : the logical XOR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
+        - ``+`` : the artihmetic addition operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
+        - ``-`` : the artihmetic substraction operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
+        - ``*`` : the artihmetic multiplication operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
 
-    The Qubo expression can be solved with the
-    :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` function.
+    The evaluation of a Qubo expression can be minimized using the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver` solver.
+
+    Conceptually, a :class:`~mpqp.execution.vqa.qubo.Qubo` is the the root node of a binary tree representing the whole
+    Qubo expression with :class:`~mpqp.execution.vqa.qubo.QuboAtom` or :class:`~mpqp.execution.vqa.qubo.QuboConstant` .
+    as its leafs. The classes :class:`BinaryOperation` and :class:`UnaryOperation` are used as nodes representing the
+    Qubo's operators.
 
     Args:
-        value: string holding the name of the monomial
-        left: left child of the node
-        right: right child of the node
+        value: Information concerning the root node, can be the ``Operator`` type, the name of the boolean variable or
+            the value of the constant.
+        left: Left child of this Qubo root node.
+        right: Right child of this Qubo root node.
 
     Examples:
         >>> x0 = QuboAtom('x0')
         >>> x1 = QuboAtom('x1')
-        >>> expr = 3*x0*x1 + x0 - 2*x1
-        >>> pprint(expr.to_cost_hamiltonian().matrix)
+        >>> qubo1 = 3*x0*x1 + x0 - 2*x1
+        >>> qubo2 = 0.7*x0 + 0.3*x1 - 0.02
+        >>> print(qubo1)
+        3*x0*x1+x0-2*x1
+        >>> qubo2.__repr__()
+        TO FIX
+        >>> print(qubo1 + qubo2)
+        3*x0*x1+x0-2*x1+0.7*x0+0.3*x1-0.02
+        >>> print(qubo2 * qubo2)
+        (0.7*x0+0.3*x1-0.02)*(0.7*x0+0.3*x1-0.02)
+        >>> print(qubo1 - x0)
+        3*x0*x1+x0-2*x1-x0
+        >>> print((qubo1 + qubo2).simplify())
+        TO FIX
+        >>> print((qubo1 * qubo2).simplify())
+        TO FIX
+        >>> print((qubo1 - x0).simplify())
+        TO FIX
+        >>> print(qubo1.to_cost_hamiltonian().pauli_string)
+        0.25*I@I + 0.25*I@Z - 1.25*Z@I + 0.75*Z@Z
+        >>> pprint(qubo1.to_cost_hamiltonian().matrix)
         [[0, 0 , 0, 0],
          [0, -2, 0, 0],
          [0, 0 , 1, 0],
          [0, 0 , 0, 2]]
-
-    Note:
-        This class is a binary tree representing the whole operation of the Qubo
-        with :class:`~mpqp.execution.vqa.qubo.QuboAtom` or :class:`~mpqp.execution.vqa.qubo.QuboConstant` as its leafs.
-
-        Meanwhile the classes :class:`BinaryOperation` and
-        :class:`UnaryOperation` are used as nodes representing the Qubo's
-        operators.
+        >>> qubo1.depth()
+        4
+        >>> (qubo1 -5).get_terms_and_coefs()
+        [(3, ['x0', 'x1']), (1, ['x0']), (-2, ['x1']), (-5, [])]
+        >>> qubo2.size()
+        2
+        >>> qubo2.weight_matrix()
+        (array([[0.7, 0. ],
+                [0. , 0.3]]),
+        -0.02)
     """
 
     def __init__(
@@ -437,9 +468,7 @@ class Qubo(ABC):
             ):
                 return f"{left_str}{self.value}({right_str})"
         elif isinstance(self, UnaryOperation):
-            if self.right and isinstance(
-                self.right, Union[UnaryOperation, BinaryOperation]
-            ):
+            if self.right and isinstance(self.right, (UnaryOperation, BinaryOperation)):
                 return f"{self.value}({right_str})"
         return left_str + str(self.value) + right_str
 
@@ -509,7 +538,7 @@ class Qubo(ABC):
 class QuboAtom(Qubo):
     """Class defining a boolean variable for a Qubo problem.
 
-    See class :class:`mpqp.execution.vqa.qubo.Qubo` for full usage of this class.
+    See class :class:`~mpqp.execution.vqa.qubo.Qubo` for full usage of this class.
 
     Arg:
         value: String holding the name of the variable.
@@ -536,7 +565,6 @@ class QuboAtom(Qubo):
             )
         super().__init__(value, None, None)
         self._degree = 1
-        self.value = value
 
     def __invert__(self) -> "QuboAtom":
         from copy import deepcopy
