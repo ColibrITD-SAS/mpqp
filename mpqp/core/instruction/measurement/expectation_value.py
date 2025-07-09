@@ -346,7 +346,7 @@ class ExpectationMeasure(Measure):
             will be applied.
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
-        commuting_type: Used to group the observables when running the circuit.
+        commuting_type: Type of commutation (grouped in an Enum) used for Pauli grouping when optimizing the observables measurement.
         grouping_method: How the pauli groups are formed.
         label: Label used to identify the measure.
         optim_diagonal: Indicates if the computation of expectation value for
