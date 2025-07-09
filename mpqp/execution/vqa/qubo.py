@@ -1,14 +1,25 @@
-"""These classes are used to generate a Quadratic Unconstrained Binary Operation
-(Qubo) which can be used in many optimization problems.
+"""This module is designed to generate and manipulate Quadratic Unconstrained Binary Optimization
+(Qubo) problems, which are widely use to describe various optimization problems.
 
-A Qubo expression here is organized in a binary Tree, hence many classes here
-are just purely for developers. As a user only two classes are of interest:
+We model Qubo expressions as binary trees, in the form of an Abstract Syntax Tree, useful for taking into account the
+hierarchies and priorities between the operations appearing in the Qubo. A node of this Qubo tree corresponds to an
+operation while the leaves of the tree are boolean variables or constants on which the binary or unary operations are
+applied. One can find below an example of such tree structure for the Qubo $-1 + 2x$:
 
-- Qubo: :class:`mpqp.execution.vqa.qubo.Qubo`
-- QuboAtom: :class:`~mpqp.execution.vqa.qubo.QuboAtom`
+          Addition
+        /          \
+ UnaryMinus   Multiplication
+    /           /       \
+   1           2    QuboAtom("x")
 
-In the context of MPQP, these classes are used in the QAOA module to encode the
-problem to optimize in the function :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
+Most of the classes implemented in this module are not meant to be directly used by the user, but are instantiated
+in the background when arithmetic or boolean operations are used. Every node in the tree is inheriting from the
+:class:`mpqp.execution.vqa.qubo.Qubo` class, regrouping all the common implementations for operations and simplifications.
+The only class that is meant to be directly instantiated by the user is :class:`~mpqp.execution.vqa.qubo.QuboAtom`,
+allowing one to define boolean variables that will be manipulated withing the Qubo.
+
+In the context of the MPQP library, these classes are used in the QAOA module to encode the optimization problem solved
+by the :func:`~mpqp.execution.vqa.qaoa.qaoa_solver`."""
 
 from __future__ import annotations
 
@@ -311,7 +322,7 @@ class Qubo(ABC):
         context of the generation of the corresponding cost Hamiltonian.
 
         Returns:
-            The weights matrix and a potential additive constant.
+            A tuple containing the weight matrix of this Qubo and the potential additive constant.
 
         Examples:
             >>> x0 = QuboAtom('x0')
@@ -332,7 +343,7 @@ class Qubo(ABC):
         variables = self.get_variables()
         nb_vars = len(variables)
         matrix = np.zeros(shape=(nb_vars, nb_vars))
-        constant = 0
+        constant = 0.0
         self._inverted_variables = []
 
         for coeff in coeffs:
