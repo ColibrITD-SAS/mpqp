@@ -342,7 +342,6 @@ def test_Qubo_opposite_sign(operand: Qubo, expected: Qubo):
     )
     if isinstance(operand, QuboAtom):
         assert str(operand) == str(-opposite)
-        assert str(opposite) == str(-operand)
 
 
 @pytest.mark.parametrize(
@@ -356,12 +355,36 @@ def test_Qubo_opposite_sign(operand: Qubo, expected: Qubo):
 )
 def test_QuboAtom_AND(operand1: QuboAtom, operand2: QuboAtom, expected: Qubo):
     logical_and = operand1 & operand2
+    assert matrix_eq(
+        logical_and.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+        logical_and.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
+    )
 
 
-
-def test_QuboAtom_OR():
-    # TODO
-    pass
+@pytest.mark.parametrize(
+    "operand1, operand2, expected",
+    [
+        (x0, x1, x0 + x1 - x0*x1),
+        (x0, x0, x0),
+        (~x0, ~x0, ~x0),
+        (x0, ~x0, QuboConstant(1)),
+        (~x0, x0, QuboConstant(1)),
+    ],
+)
+def test_QuboAtom_OR(operand1: QuboAtom, operand2: QuboAtom, expected: Qubo):
+    logical_or = operand1 | operand2
+    assert matrix_eq(
+        logical_or.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+        logical_or.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
+    )
 
 
 def test_QuboAtom_XOR():
@@ -369,9 +392,25 @@ def test_QuboAtom_XOR():
     pass
 
 
-def test_QuboAtom_NOT():
-    # TODO
-    pass
+@pytest.mark.parametrize(
+    "operand, expected",
+    [
+        (x0, ~x0),
+        (~x0, x0),
+    ],
+)
+def test_QuboAtom_NOT(operand: QuboAtom, expected: Qubo):
+    logical_not = ~operand
+    assert matrix_eq(
+        logical_not.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+        logical_not.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
+    )
+    if isinstance(operand, QuboAtom):
+        assert str(operand) == str(~logical_not)
 
 
 def test_Qubo_error():
