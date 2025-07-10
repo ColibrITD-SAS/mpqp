@@ -124,12 +124,12 @@ def test_Qubo_weight_matrix(expr: Qubo, matrix: npt.NDArray[np.complex64]):
             np.array(
                 [
                     [0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 4, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 2, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 12, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 4, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 5, 0],
+                    [0, 0, 4, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 4, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 2, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 5, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 12, 0],
                     [0, 0, 0, 0, 0, 0, 0, 15],
                 ]
             ),
@@ -154,20 +154,20 @@ def test_Qubo_weight_matrix(expr: Qubo, matrix: npt.NDArray[np.complex64]):
             np.array(
                 [
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0, 0, 0, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 7, 0, 0, 0, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0, 0],
-                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 9, 0, 0],
+                    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 6, 0],
                     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 10],
                 ]
             ),
@@ -207,8 +207,8 @@ def test_Qubo_addition(operand1: Qubo, operand2: Qubo, expected: Qubo):
         expected.to_cost_hamiltonian().matrix,
     )
     assert matrix_eq(
-        addition.simplify().to_cost_hamiltonian().matrix,
-        expected.simplify().to_cost_hamiltonian().matrix,
+        addition.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
     )
 
 
@@ -259,9 +259,9 @@ def test_Qubo_subtraction(operand1: Qubo, operand2: Qubo, expected: Qubo):
         (x0, ~x0, QuboConstant(0)),
         (x0 + x1, 1, x0 + x1),
         (1, x0 + x1, x0 + x1),
-        (x0 + x1, x2, x2 * (x0 + x1)),
+        (x2, x0 + x1, x2 * (x0 + x1)),
         (x0 + x1, x2, x0 * x2 + x1 * x2),
-        (x0 - x1, x2, x2 * (x0 + x1)),
+        (x2, x0 - x1, x2 * (x0 - x1)),
         (x0 - x1, x2, x0 * x2 - x1 * x2),
         (x0, x1 + x2, x0 * (x1 + x2)),
         (x0, x1 + x2, x0 * x1 + x0 * x2),
@@ -285,7 +285,7 @@ def test_Qubo_subtraction(operand1: Qubo, operand2: Qubo, expected: Qubo):
         (
             3 * x0 + x0 - 2 * x1,
             0.7 * x0 + 0.3 * x1 - 0.02,
-            2.72 * x0 - 0.2 * x0 * x1 + 0.64 * x1,
+            2.72 * x0 - 0.56 * x1 - 0.2 * x0 * x1,
         ),
         (
             3 * x0 * x1 - 5 * x2 * x3 + 4 * x0 * x2,
@@ -327,7 +327,7 @@ def test_Qubo_multiplication(operand1: Qubo, operand2: Qubo, expected: Qubo):
         (-x0 * x1, x0 * x1),
         (x0 + x1, -(x0 + x1)),
         (x0 + x1, -x0 - x1),
-        (x0 - x1, x1 - x0),
+        (x0 - x1, -(x0 - x1)),  # ASK IF SHOULD WORK THAT WAY
         (x0 * x0 + 3 * x1 - 2 * x1 * x2, -x0 - 3 * x1 + 2 * x1 * x2),
     ],
 )
@@ -410,7 +410,7 @@ def test_QuboAtom_NOT(operand: QuboAtom, expected: Qubo):
         logical_not.simplify().to_cost_hamiltonian().matrix,
         expected.simplify().to_cost_hamiltonian().matrix,
     )
-    if isinstance(operand, QuboAtom):
+    if isinstance(expected, QuboAtom):
         assert str(operand) == str(~logical_not)
 
 

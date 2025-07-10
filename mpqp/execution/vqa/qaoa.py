@@ -139,14 +139,22 @@ class QaoaResult:
         cost: The minimum cost that was found.
         final_state: The quantum state associated with this cost.
         values: The associated variables with the state.
+        final_parameters: Values of the parameters of the ansatz for the best found cost.
 
     Notes: This class should only be instantiated by the program not by the user.
     """
 
-    def __init__(self, cost: float, final_state: str, values: dict[str, int]):
+    def __init__(
+        self,
+        cost: float,
+        final_state: str,
+        values: dict[str, int],
+        final_params: list[float],
+    ):
         self.cost = cost
         self.values: dict[str, int] = values
         self.final_state: str = final_state
+        self.final_parameters: list[float] = final_params
 
     def __str__(self) -> str:
         return (
@@ -214,7 +222,7 @@ def qaoa_solver(
     for i in range(len(variables)):
         values.update({variables[i]: int(res[i])})
     cost = problem.evaluate(values)
-    return QaoaResult(cost, res, values)
+    return QaoaResult(cost, res, values, optimal_params)
 
 
 def _loss(

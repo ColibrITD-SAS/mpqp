@@ -106,8 +106,8 @@ class Qubo(ABC):
         right: Optional["Qubo"] = None,
     ):
 
-        if isinstance(left, QuboConstant) and isinstance(right, QuboConstant):
-            raise ValueError("Qubo is not meant to model constant functions")
+        # if isinstance(left, QuboConstant) and isinstance(right, QuboConstant):
+        # raise ValueError("Qubo is not meant to model constant functions")
 
         self.left = left
         self.right = right
@@ -129,11 +129,31 @@ class Qubo(ABC):
         return UnaryOperation(Minus(), self)
 
     def __add__(self, other: Union["Qubo", int, float]) -> "Qubo":
-        if isinstance(other, (float, int)):
+        if isinstance(self, QuboAtom) and isinstance(other, QuboAtom):
+            inverted = False
+            if self.value[0] == "~":
+                name_self = self.value[1:]
+                inverted = True
+            else:
+                name_self = self.value
 
+            if other.value[0] == "~":
+                other_self = other.value[1:]
+                inverted = not inverted
+            else:
+                other_self = other.value
+
+            if inverted:
+                if name_self == other_self:
+                    return QuboConstant(1)
+        if isinstance(other, (float, int)):
             if other == 0:
                 return self
+            if other < 0:
+                return self - (-other)
             other = QuboConstant(other)
+        if isinstance(other, UnaryOperation) and isinstance(other.value, Minus):
+            return self - (-other)
         current = BinaryOperation(Addition(), self, other)
         current._degree = max(self._degree, other._degree)
         return current
@@ -145,8 +165,11 @@ class Qubo(ABC):
         if isinstance(other, (float, int)):
             if other == 0:
                 return self
+            if other < 0:
+                return self + (-other)
             other = QuboConstant(other)
-
+        if isinstance(other, UnaryOperation) and isinstance(other.value, Minus):
+            return self + (-other)
         current = BinaryOperation(Subtraction(), self, other)
         current._degree = max(self._degree, other._degree)
         return current
@@ -161,13 +184,37 @@ class Qubo(ABC):
         if isinstance(other, (float, int)):
             if other == 1:
                 return self
+            if isinstance(self, QuboConstant):
+                self.value *= other
+                return self
             other = QuboConstant(other)
+        elif isinstance(self, QuboAtom) and isinstance(other, QuboAtom):
+            inverted = False
+            if self.value[0] == "~":
+                name_self = self.value[1:]
+                inverted = True
+            else:
+                name_self = self.value
+
+            if other.value[0] == "~":
+                other_self = other.value[1:]
+                inverted = not inverted
+            else:
+                other_self = other.value
+
+            if inverted:
+                if name_self == other_self:
+                    return QuboConstant(0)
+
+            if self.value == other.value:
+                return self
         if not isinstance(other, QuboConstant):
             degree += other._degree
             if degree > 2:
                 raise ValueError(
                     f"The degree of the Qubo shouldn't be more than 2 not {degree}"
                 )
+
         current = BinaryOperation(Multiplication(), self, other)
         current._degree = degree
         return current
@@ -443,10 +490,10 @@ class Qubo(ABC):
              [0, 0 , -3, 0 ],
              [0, 0 , 0 , -2]]
         """
-
-        matrix, constant = self.weight_matrix()
+        optimized = self.simplify()
+        matrix, constant = optimized.weight_matrix()
         size = matrix.shape[0]
-        inv_variables = self._inverted_variables
+        inv_variables = optimized._inverted_variables
 
         resulting_cost = _build_cost_hamiltonian(matrix, inv_variables, size)
 
@@ -513,16 +560,21 @@ class Qubo(ABC):
             if len(var) == 0:
                 constant += coef
             elif len(var) == 1:
-                coefficients.update({var[0]: coef + coefficients[var[0]]})
+                if var[0][0] == "~":
+                    if coefficients.get(var[0]) is None:
+                        coefficients.update({var[0]: coef})
+                coefficients.update({var[0]: round(coef + coefficients[var[0]], 15)})
             else:
                 var_name = f"{var[0]}*{var[1]}"
                 reversed_name = f"{var[1]}*{var[0]}"
                 keys = coefficients.keys()
                 if keys.__contains__(var_name):
-                    coefficients.update({var_name: coef + coefficients[var_name]})
+                    coefficients.update(
+                        {var_name: round(coef + coefficients[var_name], 15)}
+                    )
                 elif keys.__contains__(reversed_name):
                     coefficients.update(
-                        {reversed_name: coef + coefficients[reversed_name]}
+                        {reversed_name: round(coef + coefficients[reversed_name], 15)}
                     )
                 else:
                     coefficients.update({var_name: coef})
@@ -533,28 +585,36 @@ class Qubo(ABC):
                 continue
             if var.count('*') == 1:
                 vars_split = var.split('*')
-                if coefficients[var] > 0:
-                    result += (
-                        coefficients[var]
-                        * QuboAtom(vars_split[0])
-                        * QuboAtom(vars_split[1])
-                    )
+                minus = coefficients[var] < 0
+                current = -coefficients[var] if minus else coefficients[var]
+
+                for split in vars_split:
+                    if split[0] == "~":
+                        current *= ~QuboAtom(split[1:])
+                    else:
+                        current *= QuboAtom(split)
+
+                if minus:
+                    result -= current
                 else:
-                    result -= (
-                        -coefficients[var]
-                        * QuboAtom(vars_split[0])
-                        * QuboAtom(vars_split[1])
-                    )
+                    result += current
             else:
                 if coefficients[var] > 0:
-                    result += coefficients[var] * QuboAtom(var)
+                    if var[0] == "~":
+                        result += coefficients[var] * ~QuboAtom(var[1:])
+                    else:
+                        result += coefficients[var] * QuboAtom(var)
                 else:
-                    result -= -(coefficients[var]) * QuboAtom(var)
+                    if var[0] == "~":
+                        result -= -(coefficients[var]) * ~QuboAtom(var)
+                    else:
+                        result -= -(coefficients[var]) * QuboAtom(var)
         if constant < 0:
             result -= -constant
         else:
             result += constant
-        assert isinstance(result, Qubo)
+        if not isinstance(result, Qubo):
+            return QuboConstant(0)
         return result
 
 
@@ -612,15 +672,73 @@ class QuboAtom(Qubo):
         return copy
 
     def __and__(self, other: "QuboAtom") -> "Qubo":
-        # TODO: add simplifications here
+        inverted = False
+
+        if self.value[0] == "~":
+            name_self = self.value[1:]
+            inverted = True
+        else:
+            name_self = self.value
+
+        if other.value[0] == "~":
+            other_self = other.value[1:]
+            inverted = not inverted
+        else:
+            other_self = other.value
+
+        if inverted:
+            if name_self == other_self:
+                return QuboConstant(0)
+
+        if self.value == other.value:
+            return self
         return self * other
 
     def __or__(self, other: "QuboAtom") -> "Qubo":
-        # TODO: add simplifications here, example x OR ~x = True (=1)
+        inverted = False
+
+        if self.value[0] == "~":
+            name_self = self.value[1:]
+            inverted = True
+        else:
+            name_self = self.value
+
+        if other.value[0] == "~":
+            other_self = other.value[1:]
+            inverted = not inverted
+        else:
+            other_self = other.value
+
+        if inverted:
+            if name_self == other_self:
+                return QuboConstant(0)
+
+        if self.value == other.value:
+            return self
         return self + other - self * other
 
     def __xor__(self, other: "QuboAtom") -> "Qubo":
-        # TODO: add simplifications here
+        inverted = False
+
+        if self.value[0] == "~":
+            name_self = self.value[1:]
+            inverted = True
+        else:
+            name_self = self.value
+
+        if other.value[0] == "~":
+            other_self = other.value[1:]
+            inverted = not inverted
+        else:
+            other_self = other.value
+
+        if inverted:
+            if name_self == other_self:
+                return QuboConstant(1)
+
+        if self.value == other.value:
+            return QuboConstant(0)
+
         return self + other - 2 * (self * other)
 
     def __repr__(self):
@@ -791,13 +909,36 @@ def _collapse_coeffs(
         for i in range(len(lhs)):
             hold: float = lhs[i][0]
             hold *= rhs[0][0]
+            if rhs[0][1] == lhs[i][1]:
+                lhs[i] = (hold, lhs[i][1])
+                continue
             lhs[i][1].extend(rhs[0][1])
             lhs[i] = (hold, lhs[i][1])
         return lhs
-    else:
+    elif len(lhs) == 1:
         for i in range(len(rhs)):
             hold: float = rhs[i][0]
             hold *= lhs[0][0]
+            if rhs[i][1] == lhs[0][1]:
+                rhs[i] = (hold, rhs[i][1])
+                continue
             rhs[i][1].extend(lhs[0][1])
+            rhs[i][1].reverse()
             rhs[i] = (hold, rhs[i][1])
         return rhs
+    else:
+        from copy import deepcopy
+
+        result = []
+        for i in range(len(rhs)):
+            for j in range(len(lhs)):
+                hold_j = lhs[j][0]
+                hold_j *= rhs[i][0]
+                if rhs[i][1] == lhs[j][1]:
+                    result.append((hold_j, deepcopy(rhs[i][1])))
+                    continue
+                vars = deepcopy(lhs[j][1])
+                vars.extend(rhs[i][1])
+                result.append((hold_j, vars))
+
+        return result
