@@ -192,6 +192,12 @@ def test_Qubo_cost_hamiltonian(expression: Qubo, matrix: npt.NDArray[np.complex6
         (x0 + x1, -x1, x0),
         (x0 * x1, x0 * x2, x0 * (x1 + x2)),
         (x0 + 2, 3, x0 + 5),
+        (x0, ~x0, QuboConstant(1)),
+        (~x0, x0, QuboConstant(1)),
+        (x0, -x0, QuboConstant(0)),
+        (-x0, x0, QuboConstant(0)),
+        (2*x0*x1, -2*x1*x0, QuboConstant(0)),
+        (x0 + x1, -(x0+x1), QuboConstant(0)),
     ],
 )
 def test_Qubo_addition(operand1: Qubo, operand2: Qubo, expected: Qubo):
@@ -244,11 +250,12 @@ def test_Qubo_subtraction(operand1: Qubo, operand2: Qubo, expected: Qubo):
         (x0, 1, x0),
         (-1, x0, -x0),
         (x0, -1, -x0),
-        (x0, 0, 0),
-        (0, x0, 0),
+        (x0, 0, QuboConstant(0)),
+        (0, x0, QuboConstant(0)),
         (x0, x0, x0 * x0),
         (x0, x0, x0),
-        (x0, x0 * x0, x0),
+        (x0 * x0, 1, x0),
+        (x0, ~x0, QuboConstant(0)),
         (x0 + x1, 1, x0 + x1),
         (1, x0 + x1, x0 + x1),
         (x0 + x1, x2, x2 * (x0 + x1)),
@@ -313,8 +320,8 @@ def test_Qubo_multiplication(operand1: Qubo, operand2: Qubo, expected: Qubo):
     [
         (x0, -x0),
         (-x0, x0),
-        (3, -3),
-        (-3, 3),
+        (QuboConstant(3), QuboConstant(-3)),
+        (QuboConstant(-3), QuboConstant(3)),
         (x0 * x1, -x0 * x1),
         (-x0 * x1, x0 * x1),
         (x0 + x1, -(x0 + x1)),
@@ -335,12 +342,21 @@ def test_Qubo_opposite_sign(operand: Qubo, expected: Qubo):
     )
     if isinstance(operand, QuboAtom):
         assert str(operand) == str(-opposite)
-        assert str(opposite) == str(-1 * operand)
+        assert str(opposite) == str(-operand)
 
 
-def test_QuboAtom_AND():
-    # TODO
-    pass
+@pytest.mark.parametrize(
+    "operand1, operand2, expected",
+    [
+        (x0, x1, x0 * x1),
+        (x0, x1, x1 & x0),
+        (x0, ~x0, QuboConstant(0)),
+        (~x0, x0, QuboConstant(0)),
+    ],
+)
+def test_QuboAtom_AND(operand1: QuboAtom, operand2: QuboAtom, expected: Qubo):
+    logical_and = operand1 & operand2
+
 
 
 def test_QuboAtom_OR():
