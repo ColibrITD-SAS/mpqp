@@ -78,7 +78,7 @@ class Qubo(ABC):
         >>> print((qubo1 + qubo2).simplify())
         1.7*x0-1.7*x1+3*x0*x1-0.02
         >>> print((qubo2 * x0).simplify())
-        -(0.02*x0)+0.7*x0*x0+0.3*x1*x0
+        0.68*x0+0.3*x1*x0
         >>> print((qubo1 - x0).simplify())
         -(2*x1)+3*x0*x1
         >>> print(qubo1.to_cost_hamiltonian().pauli_string)
@@ -639,7 +639,7 @@ class QuboAtom(Qubo):
         >>> print(~y)
         ~y
         >>> ~(~y)
-        y
+        QuboAtom("y")
         >>> print(x | y)
         x+y-x*y
         >>> print(x & y)
