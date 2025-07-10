@@ -196,8 +196,8 @@ def test_Qubo_cost_hamiltonian(expression: Qubo, matrix: npt.NDArray[np.complex6
         (~x0, x0, QuboConstant(1)),
         (x0, -x0, QuboConstant(0)),
         (-x0, x0, QuboConstant(0)),
-        (2*x0*x1, -2*x1*x0, QuboConstant(0)),
-        (x0 + x1, -(x0+x1), QuboConstant(0)),
+        (2 * x0 * x1, -2 * x1 * x0, QuboConstant(0)),
+        (x0 + x1, -(x0 + x1), QuboConstant(0)),
     ],
 )
 def test_Qubo_addition(operand1: Qubo, operand2: Qubo, expected: Qubo):
@@ -356,7 +356,6 @@ def test_Qubo_opposite_sign(operand: Qubo, expected: Qubo):
 )
 def test_QuboAtom_AND(operand1: QuboAtom, operand2: QuboAtom, expected: Qubo):
     logical_and = operand1 & operand2
-
 
 
 def test_QuboAtom_OR():
