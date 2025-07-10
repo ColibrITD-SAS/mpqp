@@ -252,7 +252,7 @@ def test_Qubo_subtraction(operand1: Qubo, operand2: Qubo, expected: Qubo):
         (x0, -1, -x0),
         (x0, 0, QuboConstant(0)),
         (0, x0, QuboConstant(0)),
-        (x0 + 2*x1 + x0*x1, 0, QuboConstant(0)),
+        (x0 + 2 * x1 + x0 * x1, 0, QuboConstant(0)),
         (x0, x0, x0 * x0),
         (x0, x0, x0),
         (x0 * x0, 1, x0),
