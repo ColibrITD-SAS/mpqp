@@ -368,7 +368,7 @@ def test_QuboAtom_AND(operand1: QuboAtom, operand2: QuboAtom, expected: Qubo):
 @pytest.mark.parametrize(
     "operand1, operand2, expected",
     [
-        (x0, x1, x0 + x1 - x0*x1),
+        (x0, x1, x0 + x1 - x0 * x1),
         (x0, x0, x0),
         (~x0, ~x0, ~x0),
         (x0, ~x0, QuboConstant(1)),
