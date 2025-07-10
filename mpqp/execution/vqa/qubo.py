@@ -534,9 +534,17 @@ class Qubo(ABC):
             if var.count('*') == 1:
                 vars_split = var.split('*')
                 if coefficients[var] > 0:
-                    result += coefficients[var] * QuboAtom(vars_split[0]) * QuboAtom(vars_split[1])
+                    result += (
+                        coefficients[var]
+                        * QuboAtom(vars_split[0])
+                        * QuboAtom(vars_split[1])
+                    )
                 else:
-                    result -= -coefficients[var] * QuboAtom(vars_split[0]) * QuboAtom(vars_split[1])
+                    result -= (
+                        -coefficients[var]
+                        * QuboAtom(vars_split[0])
+                        * QuboAtom(vars_split[1])
+                    )
             else:
                 if coefficients[var] > 0:
                     result += coefficients[var] * QuboAtom(var)
