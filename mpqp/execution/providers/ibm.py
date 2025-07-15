@@ -446,6 +446,7 @@ def run_aer(job: Job):
 
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
+    job_circuit = job.circuit
     if isinstance(job.device, IBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
             warnings.warn(
@@ -457,17 +458,24 @@ def run_aer(job: Job):
             # to it directly)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
-        if job.circuit.transpiled_noise_model is None:
-            raise InstructionParsingError("transpiled_noise_model is not initialized")
-        backend_sim = AerSimulator(
-            method=job.device.value, noise_model=job.circuit.transpiled_noise_model
-        )
+        noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
+        job_circuit = modified_circuit
+        if job.circuit.transpiled_circuit is not None:
+            if job.circuit.transpiled_noise_model is None:
+                raise InstructionParsingError(
+                    "transpiled_noise_model is not initialized"
+                )
+            backend_sim = AerSimulator(
+                method=job.device.value, noise_model=job.circuit.transpiled_noise_model
+            )
+        else:
+            backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
     else:
         backend_sim = AerSimulator(method=job.device.value)
 
     if job.circuit.transpiled_circuit is None:
-        qiskit_circuit = job.circuit.to_other_device(
-            job.device, backend_sim=backend_sim
+        qiskit_circuit = job_circuit.to_other_device(
+            job.device, backend_sim=backend_sim, translation_warning=False
         )
     else:
         qiskit_circuit = job.circuit.transpiled_circuit

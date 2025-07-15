@@ -73,7 +73,9 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
     if job.circuit.transpiled_circuit is None:
-        job_CirqCircuit = job.circuit.to_other_device(job.device, translation_warning)
+        job_CirqCircuit = job.circuit.to_other_device(
+            job.device, translation_warning=translation_warning
+        )
     else:
         job_CirqCircuit = job.circuit.transpiled_circuit
 
@@ -142,10 +144,14 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
             # 3M-TODO: careful, if we ever support several measurements, the
             # line bellow will have to changer
             circuit = job.circuit.without_measurements() + job.circuit.pre_measure()
-            cirq_circuit = circuit.to_other_device(job.device, translation_warning)
+            cirq_circuit = circuit.to_other_device(
+                job.device, translation_warning=translation_warning
+            )
             job.circuit.gphase = circuit.gphase
         else:
-            cirq_circuit = job.circuit.to_other_device(job.device, translation_warning)
+            cirq_circuit = job.circuit.to_other_device(
+                job.device, translation_warning=translation_warning
+            )
     else:
         cirq_circuit = job.circuit.transpiled_circuit
 

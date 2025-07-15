@@ -678,12 +678,13 @@ class QCircuit:
             return 0
 
         nb_qubits = self.nb_qubits
-        instructions = self.without_measurements().instructions
         layers = np.zeros((nb_qubits, self.count_gates()), dtype=bool)
 
         current_layer = 0
         last_barrier = 0
-        for instr in instructions:
+        for instr in self.instructions:
+            if isinstance(instr, Measure):
+                continue
             if isinstance(instr, Barrier):
                 last_barrier = current_layer
                 current_layer += 1
@@ -1491,6 +1492,8 @@ class QCircuit:
                                     # to it directly)
                                 backend_sim = device.to_noisy_simulator()
                             elif len(circuit.noises) != 0:
+                                from qiskit_aer import AerSimulator
+
                                 if circuit.transpiled_noise_model is None:
                                     raise InstructionParsingError(
                                         "transpiled_noise_model is not initialized"
@@ -1500,6 +1503,8 @@ class QCircuit:
                                     noise_model=circuit.transpiled_noise_model,
                                 )
                             else:
+                                from qiskit_aer import AerSimulator
+
                                 backend_sim = AerSimulator(method=device.value)
 
                         from qiskit import transpile
