@@ -864,7 +864,7 @@ class PauliStringMonomial(PauliString):
     """
 
     def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
-        self.coef: Coef = coef
+        self.coef = coef
         """Coefficient of the monomial."""
         self._atoms = [] if atoms is None else atoms
 
