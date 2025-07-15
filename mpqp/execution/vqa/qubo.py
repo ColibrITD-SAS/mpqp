@@ -627,7 +627,7 @@ class QuboAtom(Qubo):
     Arg:
         value: String holding the name of the variable.
 
-    Example:
+    Examples:
         >>> x = QuboAtom("x")
         >>> expr = 2 * x + 2
         >>> print(expr.get_variables())
@@ -760,6 +760,17 @@ class BinaryOperation(Qubo):
     Available binary operations: ``+``, ``-``, ``*``.
     (Technically boolean operations: ``|``, ``&``, ``^`` are available but they are
     decomposed into the previously mentioned operations.)
+
+    Args:
+        value: Operator corresponding to the modeled operation by this class.
+        left: Left part of the equation, in term of a binary tree it's the left child.
+        right: Right part of the equation, in term of a binary tree it's the right child.
+
+    Examples:
+        >>> BinaryOperation(Multiplication(), QuboConstant(3), QuboAtom("x"))
+        (3 * QuboAtom("x"))
+        >>> BinaryOperation(Subtraction(), QuboAtom("y"), QuboAtom("x"))
+        (QuboAtom("y") - QuboAtom("x"))
     """
 
     def __init__(self, value: BinaryOperator, left: Qubo, right: Qubo):
@@ -776,9 +787,14 @@ class UnaryOperation(Qubo):
     This class should be exclusively used by other classes and not by the user.
 
     Unary operations supported: ``-``, ``~``.
+
     Args:
         value: The unary operator.
         right: The Qubo representing the rest of the operation.
+
+    Examples:
+        >>> UnaryOperation(Minus(), QuboAtom("x"))
+        -QuboAtom("x")
     """
 
     def __init__(self, value: UnaryOperator, right: Qubo):
@@ -791,13 +807,19 @@ class UnaryOperation(Qubo):
 
 
 class QuboConstant(Qubo):
-    """Class defining constant terms in a Qubo expression.
+    """Class defining constant terms (real numbers) in a Qubo expression.
     In the context of the tree this node is always a leaf.
 
     This class should be exclusively used by other classes and not by the user.
 
     Args:
         value: The value of the constant in the expression.
+
+    Examples:
+        >>> QuboConstant(0)
+        0
+        >>> QuboConstant(3.2)
+        3.2
     """
 
     def __init__(self, value: float):

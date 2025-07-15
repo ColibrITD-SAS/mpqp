@@ -31,7 +31,7 @@ from mpqp.execution.connection.env_manager import (
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
 from mpqp.execution.vqa.qaoa import QaoaMixer, QaoaMixerType
-from mpqp.execution.vqa.qubo import QuboAtom
+from mpqp.execution.vqa.qubo import *
 from mpqp.local_storage.delete import (
     clear_local_storage,
     remove_all_with_job_id,
@@ -127,6 +127,7 @@ from mpqp.tools.maths import (
     rand_unitary_2x2_matrix,
 )
 from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
+from mpqp.tools.operators import *
 
 sys.path.insert(0, os.path.abspath("."))
 
