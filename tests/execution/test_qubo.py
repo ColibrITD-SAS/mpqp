@@ -388,9 +388,28 @@ def test_QuboAtom_OR(operand1: QuboAtom, operand2: QuboAtom, expected: Qubo):
     )
 
 
-def test_QuboAtom_XOR():
-    # TODO
-    pass
+@pytest.mark.parametrize(
+    "operand1, operand2, expected",
+    [
+        (x0, x0, QuboConstant(0)),
+        (~x0, ~x0, QuboConstant(0)),
+        (x0, x1, x0 + x1 - 2 * x0 * x1),
+        (x0, ~x1, x0 + ~x1 - 2 * x0 * (~x1)),
+        (~x0, x1, x0 + ~x1 - 2 * (~x0) * x1),
+        (~x0, x0, QuboConstant(1)),
+        (x0, ~x0, QuboConstant(1)),
+    ],
+)
+def test_QuboAtom_XOR(operand1: QuboAtom, operand2: QuboAtom, expected: Qubo):
+    logical_xor = operand1 ^ operand2
+    assert matrix_eq(
+        logical_xor.to_cost_hamiltonian().matrix,
+        expected.to_cost_hamiltonian().matrix,
+    )
+    assert matrix_eq(
+        logical_xor.simplify().to_cost_hamiltonian().matrix,
+        expected.simplify().to_cost_hamiltonian().matrix,
+    )
 
 
 @pytest.mark.parametrize(
