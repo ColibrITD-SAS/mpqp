@@ -156,7 +156,14 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
     braket_circuit6 = BraketCircuit().x(0).y(1).cnot(0, 2).x(1).z(2)
     braket_circuit6.apply_gate_noise(noise, target_gates=Gate.X)
 
-    return [braket_circuit1, braket_circuit2, braket_circuit3, braket_circuit4, braket_circuit5, braket_circuit6]
+    return [
+        braket_circuit1,
+        braket_circuit2,
+        braket_circuit3,
+        braket_circuit4,
+        braket_circuit5,
+        braket_circuit6,
+    ]
 
 
 @pytest.mark.parametrize(
@@ -660,12 +667,16 @@ def test_from_other_language(
         assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
 
 
-def test_from_other_language_qiskit_circuits(list_qiskit_funky_circuits: list[QiskitCircuit]):
+def test_from_other_language_qiskit_circuits(
+    list_qiskit_funky_circuits: list[QiskitCircuit],
+):
     for qiskit_circuit in list_qiskit_funky_circuits:
         QCircuit.from_other_language(qiskit_circuit)
 
 
-def test_from_other_language_braket_circuits(list_braket_funky_circuits: list[BraketCircuit]):
+def test_from_other_language_braket_circuits(
+    list_braket_funky_circuits: list[BraketCircuit],
+):
     for braket_circuit in list_braket_funky_circuits:
         QCircuit.from_other_language(braket_circuit)
 
