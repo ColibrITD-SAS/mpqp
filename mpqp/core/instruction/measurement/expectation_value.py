@@ -47,10 +47,10 @@ class Observable:
     combination of operators in a specific basis Pauli.
 
     Args:
-        observable : can be either a Hermitian matrix representing the
+        observable: can be either a Hermitian matrix representing the
             observable, or PauliString representing the observable, or a list
             of diagonal elements of the matrix when the observable is diagonal.
-        label : Label used to identify the observable.
+        label: Label used to identify the observable.
 
     Raises:
         ValueError: If the input matrix is not Hermitian or does not have a

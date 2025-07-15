@@ -1266,6 +1266,8 @@ class PauliStringAtom(PauliStringMonomial):
 
         Args:
             other: The single-qubit Pauli operator with which want to check the commutativity
+            method: The type of commutation being checked, Only full commutativity is implemented
+                for PauliStringAtom.
 
         Returns:
             True if the atoms commute, False otherwise.
@@ -1286,6 +1288,10 @@ class PauliStringAtom(PauliStringMonomial):
         if not isinstance(other, PauliStringAtom):
             raise ValueError(
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
+            )
+        if not method == CommutingTypes.FULL:
+            raise ValueError(
+                f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
             )
         return other == I or self == I or self == other
 
