@@ -6,6 +6,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 from braket.circuits import Circuit as BraketCircuit, Noise as BraketNoise
+from braket.circuits.gate import Gate as BraketGate
 from qiskit import QuantumCircuit as QiskitCircuit, QuantumRegister, ClassicalRegister
 from typeguard import TypeCheckError
 from typing import TYPE_CHECKING
@@ -125,7 +126,6 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
     braket_circuit2.h(range(3))
     braket_circuit2.i([0, 1, 2])
     braket_circuit2.iswap(0, 1)
-    braket_circuit2.pswap(0, 1, 0.15)
     braket_circuit2.x([1, 2])
     braket_circuit2.y([1, 2])
     braket_circuit2.z([1, 2])
@@ -154,7 +154,9 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
 
     noise = BraketNoise.PhaseDamping(gamma=0.1)
     braket_circuit6 = BraketCircuit().x(0).y(1).cnot(0, 2).x(1).z(2)
-    braket_circuit6.apply_gate_noise(noise, target_gates=Gate.X)
+    braket_circuit6.apply_gate_noise(noise, target_gates=BraketGate.X)
+
+    braket_circuit7 = BraketCircuit().pswap(0, 1, 0.15)
 
     return [
         braket_circuit1,
@@ -163,6 +165,7 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
         braket_circuit4,
         braket_circuit5,
         braket_circuit6,
+        braket_circuit7,
     ]
 
 
@@ -677,8 +680,21 @@ def test_from_other_language_qiskit_circuits(
 def test_from_other_language_braket_circuits(
     list_braket_funky_circuits: list[BraketCircuit],
 ):
-    for braket_circuit in list_braket_funky_circuits:
-        QCircuit.from_other_language(braket_circuit)
+    for i in range(len(list_braket_funky_circuits)):
+        if i == 0:
+            with pytest.raises(
+                ValueError,
+                match="Gates not defined/handled at the time of usage: ccry, ccry",
+            ):
+                QCircuit.from_other_language(list_braket_funky_circuits[i])
+        elif i == 6:
+            with pytest.raises(
+                ValueError,
+                match="Gates not defined/handled at the time of usage: pswap, pswap",
+            ):
+                QCircuit.from_other_language(list_braket_funky_circuits[i])
+        else:
+            QCircuit.from_other_language(list_braket_funky_circuits[i])
 
 
 @pytest.mark.parametrize(

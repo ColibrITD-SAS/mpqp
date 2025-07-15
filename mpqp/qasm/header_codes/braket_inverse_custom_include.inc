@@ -7,6 +7,25 @@ gate phaseshift(a) b { p(a) b; }
 
 gate cphaseshift(a) b, c { cp(a) b, c; }
 
+gate cphaseshift00(a) b, c { 
+    x b;
+    x c;
+    cp(a) b, c;
+    x b;
+    x c; 
+}
+
+gate cphaseshift01(a) b, c {
+    x b; 
+    cp(a) b, c; 
+    x b; 
+}
+
+gate cphaseshift10(a) b, c {
+    x c; 
+    cp(a) b, c; 
+    x c; 
+}
 gate cswap a, b, c 
 { 
     ccx a, b, c;
