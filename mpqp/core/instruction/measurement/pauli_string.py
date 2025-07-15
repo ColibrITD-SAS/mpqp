@@ -550,7 +550,7 @@ class PauliString:
         for pauli_str, coef in pauli.to_list():
             monomial = PauliStringMonomial()
             for atom in pauli_str:
-                monomial = _pauli_atom_dict[atom] @ monomial
+                monomial = monomial @ _pauli_atom_dict[atom]
             monomial *= coef.real
             pauli_string += monomial
         return pauli_string
@@ -655,7 +655,7 @@ class PauliString:
             >>> from qiskit.quantum_info import SparsePauliOp
             >>> qiskit_ps = SparsePauliOp(["IYZ", "XII"], coeffs=[0.25 + 0.0j, 2.0 + 0.0j])
             >>> PauliString.from_other_language(qiskit_ps)
-            0.25*Z@Y@I + 2*I@I@X
+            0.25*I@Y@Z + 2*X@I@I
 
             >>> from qat.core.wrappers.observable import Term
             >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
@@ -740,7 +740,7 @@ class PauliString:
             Y [1]
             Z [2]
             >>> print(ps.to_other_language(Language.QISKIT))
-            SparsePauliOp(['IXX', 'IYI', 'ZII'],
+            SparsePauliOp(['XXI', 'IYI', 'IIZ'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
             >>> for tensor in ps.to_other_language(Language.BRAKET).summands:
             ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors))
@@ -756,9 +756,7 @@ class PauliString:
             pauli_string = []
             pauli_string_coef = []
             for mono in self.monomials:
-                pauli_string.append(
-                    "".join(atom.label for atom in reversed(mono.atoms))
-                )
+                pauli_string.append("".join(atom.label for atom in mono.atoms))
                 pauli_string_coef.append(mono.coef)
             return SparsePauliOp(pauli_string, np.array(pauli_string_coef))
         elif language == Language.MY_QLM:
@@ -1048,7 +1046,9 @@ class PauliStringMonomial(PauliString):
             3.1415926536*I@X
 
         """
-        from mpqp.tools.display import _unpack_expr # pyright: ignore[reportPrivateUsage]
+        from mpqp.tools.display import (
+            _unpack_expr,  # pyright: ignore[reportPrivateUsage]
+        )
 
         new_monomial = deepcopy(self)
         caster = lambda v: _unpack_expr(v) if remove_symbolic else v
@@ -1063,7 +1063,7 @@ class PauliStringMonomial(PauliString):
         if language == Language.QISKIT:
             from qiskit.quantum_info import SparsePauliOp
 
-            pauli_mono_str = "".join(atom.label for atom in reversed(self.atoms))
+            pauli_mono_str = "".join(atom.label for atom in self.atoms)
             return SparsePauliOp(pauli_mono_str, np.array(self.coef))
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Term

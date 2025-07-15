@@ -53,8 +53,12 @@ from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
-from mpqp.tools import DeviceJobIncompatibleError
-from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
+from mpqp.tools.errors import (
+    NonReversibleWarning,
+    NumberQubitsError,
+    DeviceJobIncompatibleError,
+    InstructionParsingError,
+)
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -63,6 +67,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
+    from qiskit_aer import AerSimulator
     from sympy import Basic, Expr
 
     from mpqp.execution.devices import AvailableDevice
@@ -957,6 +962,15 @@ class QCircuit:
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
 
+    def clone_without(self, exclude_attrs: Optional[list[str] | str] = None):
+        if exclude_attrs is None:
+            exclude_attrs = []
+        new_obj = QCircuit.__new__(QCircuit)
+        for attr, val in self.__dict__.items():
+            if attr not in exclude_attrs:
+                setattr(new_obj, attr, deepcopy(val))
+        return new_obj
+
     def without_measurements(self) -> QCircuit:
         """Provides a copy of this circuit with all the measurements removed.
 
@@ -981,7 +995,7 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = deepcopy(self)
+        new_circuit = self.clone_without("instructions")
         new_circuit._nb_cbits = 0
         new_circuit.instructions = [
             inst for inst in self.instructions if not isinstance(inst, Measure)
@@ -995,7 +1009,7 @@ class QCircuit:
         Returns:
             A copy of this circuit with all the breakpoints removed.
         """
-        new_circuit = deepcopy(self)
+        new_circuit = self.clone_without("instructions")
         new_circuit.instructions = [
             inst for inst in self.instructions if not isinstance(inst, Breakpoint)
         ]
@@ -1348,6 +1362,7 @@ class QCircuit:
     def to_other_device(
         self,
         device: AvailableDevice,
+        backend_sim: Optional["AerSimulator"] = None,
         translation_warning: bool = True,
         skip_pre_measure: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
@@ -1408,31 +1423,34 @@ class QCircuit:
         from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
         if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
-            from mpqp.execution.providers.ibm import generate_qiskit_noise_model
+            from mpqp.execution.job import JobType
 
-            circuit = deepcopy(self)
-            backend_sim = None
+            nb_meas = len(self.measurements)
 
-            if not device.is_remote():
-                from qiskit_aer import AerSimulator
+            job_type = JobType.SAMPLE
 
-                if isinstance(device, IBMSimulatedDevice):
-                    if len(circuit.noises) != 0:
-                        warn(
-                            "NoiseModel are ignored when running the circuit on a "
-                            "SimulatedDevice"
-                        )
-                        backend_sim = device.to_noisy_simulator()
-                elif len(circuit.noises) != 0:
-                    noise_model, circuit = generate_qiskit_noise_model(
-                        circuit, translation_warning
+            if nb_meas == 0:
+                job_type = (JobType.STATE_VECTOR,)
+            elif nb_meas == 1:
+                measurement = self.measurements[0]
+                if isinstance(measurement, BasisMeasure):
+                    if measurement.shots <= 0:
+                        job_type = JobType.STATE_VECTOR
+                    else:
+                        job_type = JobType.SAMPLE
+                elif isinstance(measurement, ExpectationMeasure):
+                    job_type = JobType.OBSERVABLE
+
+            if job_type == JobType.STATE_VECTOR:
+                if translation_warning is True:
+                    warn(
+                        "Measurements are removed from the circuit and pre_measure is added. If you need the measurements, use circuit.measurement.to_other_device()."
                     )
-                    self.transpiled_noise_model = noise_model
-                    backend_sim = AerSimulator(
-                        method=device.value, noise_model=noise_model
-                    )
-                else:
-                    backend_sim = AerSimulator(method=device.value)
+                # 3M-TODO: careful, if we ever support several measurements, the
+                # line bellow will have to changer
+                circuit = self.without_measurements() + self.pre_measure()
+            else:
+                circuit = self
 
             if any(
                 isinstance(i, tuple(device.incompatible_gate()))
@@ -1459,16 +1477,35 @@ class QCircuit:
 
             if not device.is_remote():
                 if len(self.measurements) == 1:
-                    if (
-                        isinstance(self.measurements[0], BasisMeasure)
-                        and self.measurements[0].shots <= 0
-                    ):  # JobType.SAMPLE
+                    if job_type == JobType.SAMPLE:
+
+                        if backend_sim is None:
+                            if isinstance(device, IBMSimulatedDevice):
+                                if len(circuit.noises) != 0:
+                                    warn(
+                                        "NoiseModel are ignored when running the circuit on a "
+                                        "SimulatedDevice"
+                                    )
+                                    # 3M-TODO: handle case when we put NoiseModel + IBMSimulatedDevice
+                                    # (grab qiskit NoiseModel from AerSimulator generated below, and add
+                                    # to it directly)
+                                backend_sim = device.to_noisy_simulator()
+                            elif len(circuit.noises) != 0:
+                                if circuit.transpiled_noise_model is None:
+                                    raise InstructionParsingError(
+                                        "transpiled_noise_model is not initialized"
+                                    )
+                                backend_sim = AerSimulator(
+                                    method=device.value,
+                                    noise_model=circuit.transpiled_noise_model,
+                                )
+                            else:
+                                backend_sim = AerSimulator(method=device.value)
+
                         from qiskit import transpile
 
                         qiskit_circuit = transpile(qiskit_circuit, backend_sim)
-                    elif isinstance(
-                        self.measurements[0], ExpectationMeasure
-                    ):  # JobType.OBSERVABLE
+                    elif job_type == JobType.OBSERVABLE:
                         if isinstance(device, IBMSimulatedDevice):
                             from qiskit.transpiler.preset_passmanagers import (
                                 generate_preset_pass_manager,

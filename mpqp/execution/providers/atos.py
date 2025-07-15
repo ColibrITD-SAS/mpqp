@@ -255,7 +255,10 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     # TODO: [multi-obs] update this to take into account the case when we have list of Observables
     if TYPE_CHECKING:
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-    qlm_obs = job.measure.observables[0].to_other_language(Language.MY_QLM)
+    if job.measure.observables[0].transpile is None:
+        qlm_obs = job.measure.observables[0].to_other_language(Language.MY_QLM)
+    else:
+        qlm_obs = job.measure.observables[0].transpile
     myqlm_job = myqlm_circuit.to_job(
         job_type="OBS",
         observable=qlm_obs,
@@ -508,7 +511,7 @@ def extract_state_vector_result(
             if device.is_remote()
             else sum(len(qreg.qbits) for qreg in myqlm_result.data.qregs)
         )
-        job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device, None)
+        job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device)
     else:
         nb_qubits = job.circuit.nb_qubits
 
@@ -554,9 +557,11 @@ def extract_sample_result(
         nb_shots = int(myqlm_result.meta_data["nbshots"])
         job = Job(
             JobType.SAMPLE,
-            QCircuit(nb_qubits),
+            QCircuit(
+                [BasisMeasure(targets=list(range(nb_qubits)), shots=nb_shots)],
+                nb_qubits=nb_qubits,
+            ),
             device,
-            BasisMeasure(targets=list(range(nb_qubits)), shots=nb_shots),
         )
     else:
         nb_qubits = job.circuit.nb_qubits
@@ -607,15 +612,19 @@ def extract_observable_result(
         nb_shots = int(myqlm_result.meta_data["nbshots"])
         job = Job(
             JobType.OBSERVABLE,
-            QCircuit(nb_qubits),
-            device,
-            ExpectationMeasure(
-                targets=list(range(nb_qubits)),
-                observable=Observable(
-                    np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex128)
-                ),
-                shots=nb_shots,
+            QCircuit(
+                [
+                    ExpectationMeasure(
+                        targets=list(range(nb_qubits)),
+                        observable=Observable(
+                            np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex128)
+                        ),
+                        shots=nb_shots,
+                    )
+                ],
+                nb_qubits=nb_qubits,
             ),
+            device,
         )
     else:
         if job.measure is None:

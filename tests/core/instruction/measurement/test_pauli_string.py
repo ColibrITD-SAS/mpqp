@@ -36,7 +36,17 @@ from cirq.ops.pauli_gates import Y as Cirq_Y
 from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
 
-from mpqp.core.instruction.measurement.pauli_string import I, Coef, PauliString, X, Y, Z, PauliStringAtom, pauli_string_from_str, pauli_string_with_atom
+from mpqp.core.instruction.measurement.pauli_string import (
+    I,
+    Coef,
+    PauliString,
+    X,
+    Y,
+    Z,
+    PauliStringAtom,
+    pauli_string_from_str,
+    pauli_string_with_atom,
+)
 from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
 
@@ -176,14 +186,14 @@ def pauli_strings_in_all_languages():
             Braket_X() @ Braket_I() @ Braket_I()
             + Braket_I() @ Braket_Y() @ Braket_I()
             + Braket_I() @ Braket_I() @ Braket_Z(),
-            SparsePauliOp(["IIX", "IYI", "ZII"]),
+            SparsePauliOp(["XII", "IYI", "IIZ"]),
             [Term(1, "X", [0]), Term(1, "Y", [1]), Term(1, "Z", [2])],
             X @ I @ I + I @ Y @ I + I @ I @ Z,
         ),
         (
             Cirq_X(a) * Cirq_Y(b) * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
             Braket_X() @ Braket_Y() @ Braket_Z(),
-            SparsePauliOp(["ZYX"]),
+            SparsePauliOp(["XYZ"]),
             Term(1, "XYZ", [0, 1, 2]),
             X @ Y @ Z,
         ),
@@ -192,35 +202,35 @@ def pauli_strings_in_all_languages():
             Braket_I() @ Braket_I() @ Braket_I()
             + Braket_I() @ Braket_Z() @ Braket_I()
             + Braket_I() @ Braket_I() @ Braket_X(),
-            SparsePauliOp(["III", "IZI", "XII"]),
+            SparsePauliOp(["III", "IZI", "IIX"]),
             [Term(1, "I", [0]), Term(1, "Z", [1]), Term(1, "X", [2])],
             I @ I @ I + I @ Z @ I + I @ I @ X,
         ),
         (
             Cirq_Y(a) * Cirq_Z(b) * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
             Braket_Y() @ Braket_Z() @ Braket_X(),
-            SparsePauliOp(["XZY"]),
+            SparsePauliOp(["YZX"]),
             Term(1, "YZX", [0, 1, 2]),
             Y @ Z @ X,
         ),
         (
             Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
             Braket_Z() @ Braket_Y() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_X(),
-            SparsePauliOp(["IYZ", "XII"]),
+            SparsePauliOp(["ZYI", "IIX"]),
             [Term(1, "ZY", [0, 1]), Term(1, "X", [2])],
             Z @ Y @ I + I @ I @ X,
         ),
         (
             Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
             Braket_X() @ Braket_I() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
-            SparsePauliOp(["IIX", "YII"]),
+            SparsePauliOp(["XII", "IIY"]),
             [Term(1, "X", [0]), Term(1, "Y", [2])],
             X @ I @ I + I @ I @ Y,
         ),
         (
             Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
             Braket_I() @ Braket_X() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
-            SparsePauliOp(["IXI", "YII"]),
+            SparsePauliOp(["IXI", "IIY"]),
             [Term(1, "X", [1]), Term(1, "Y", [2])],
             I @ X @ I + I @ I @ Y,
         ),
@@ -240,7 +250,7 @@ def pauli_strings_in_all_languages():
             * Braket_I()  # pyright: ignore[reportOperatorIssue]
             @ Braket_I()
             @ Braket_Z(),
-            SparsePauliOp(["IIX", "IYI", "ZII"], coeffs=np.array([2, 3, 4])),
+            SparsePauliOp(["XII", "IYI", "IIZ"], coeffs=np.array([2, 3, 4])),
             [Term(2, "X", [0]), Term(3, "Y", [1]), Term(4, "Z", [2])],
             2 * X @ I @ I + 3 * I @ Y @ I + 4 * I @ I @ Z,
         ),
@@ -251,7 +261,7 @@ def pauli_strings_in_all_languages():
             (-1 * Braket_X())  # pyright: ignore[reportOperatorIssue]
             @ (1.5 * Braket_Y())  # pyright: ignore[reportOperatorIssue]
             @ (0.5 * Braket_Z()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["ZYX"], coeffs=np.array([-1 * 1.5 * 0.5])),
+            SparsePauliOp(["XYZ"], coeffs=np.array([-1 * 1.5 * 0.5])),
             Term(-0.75, "XYZ", [0, 1, 2]),
             -X @ (1.5 * Y) @ (0.5 * Z),
         ),
@@ -264,7 +274,7 @@ def pauli_strings_in_all_languages():
             + Braket_I()
             @ Braket_I()
             @ (2 * Braket_X()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["IYZ", "XII"], coeffs=np.array([0.5 * 0.5, 2])),
+            SparsePauliOp(["ZYI", "IIX"], coeffs=np.array([0.5 * 0.5, 2])),
             [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])],
             ((0.5 * Z) @ (0.5 * Y) @ I) + (2 * I @ I @ X),
         ),
@@ -278,7 +288,7 @@ def pauli_strings_in_all_languages():
             + Braket_I()
             @ Braket_I()
             @ (-2.5 * Braket_Y()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["IIX", "YII"], coeffs=np.array([1.5, -2.5])),
+            SparsePauliOp(["XII", "IIY"], coeffs=np.array([1.5, -2.5])),
             [Term(1.5, "X", [0]), Term(-2.5, "Y", [2])],
             (1.5 * X @ I @ I) + (I @ I @ (-2.5 * Y)),
         ),
@@ -291,7 +301,7 @@ def pauli_strings_in_all_languages():
             + Braket_I()
             @ Braket_I()
             @ (3 * Braket_Y()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["IXI", "YII"], coeffs=np.array([0.25 * 4, 3])),
+            SparsePauliOp(["IXI", "IIY"], coeffs=np.array([0.25 * 4, 3])),
             [Term(4 * 0.25, "X", [1]), Term(3, "Y", [2])],
             ((0.25 * I) @ (4 * X) @ I) + (I @ I @ (3 * Y)),
         ),
@@ -333,21 +343,21 @@ def pauli_strings_in_all_languages():
         (
             1 * Cirq_X(b),  # pyright: ignore[reportOperatorIssue]
             Braket_I() @ Braket_X(),
-            SparsePauliOp(["XI"]),
+            SparsePauliOp(["IX"]),
             Term(1, "X", [1]),
             I @ X,
         ),
         (
             1 * Cirq_Z(b),  # pyright: ignore[reportOperatorIssue]
             Braket_I() @ Braket_Z(),
-            SparsePauliOp(["ZI"]),
+            SparsePauliOp(["IZ"]),
             Term(1, "Z", [1]),
             I @ Z,
         ),
         (
             1 * Cirq_Y(b),  # pyright: ignore[reportOperatorIssue]
             Braket_I() @ Braket_Y(),
-            SparsePauliOp(["YI"]),
+            SparsePauliOp(["IY"]),
             Term(1, "Y", [1]),
             I @ Y,
         ),
@@ -452,19 +462,26 @@ def test_to_from_other_language(
 @pytest.mark.parametrize(
     "input_str, subs_dict, expected_str",
     [
-        ("2*XZ", None, 2*X@Z),
-        ("theta*IX", {}, symbols("theta")*I@X),
-        ("theta*IX", {"theta": 2}, 2*I@X),
-        ("k*XY", {"k": 2}, 2*X@Y),
-        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7*I@X + Z@Y),
-        ("-a*YZ", {"a": -1}, Y@Z),
-        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6*X@Z + Y@I - 3*Z@Z),
-        ("o*2*XZ + YI - 3o*ZZ", None, symbols("o")*2*X@Z + Y@I - 3*symbols("o")*Z@Z),
+        ("2*XZ", None, 2 * X @ Z),
+        ("theta*IX", {}, symbols("theta") * I @ X),
+        ("theta*IX", {"theta": 2}, 2 * I @ X),
+        ("k*XY", {"k": 2}, 2 * X @ Y),
+        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7 * I @ X + Z @ Y),
+        ("-a*YZ", {"a": -1}, Y @ Z),
+        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6 * X @ Z + Y @ I - 3 * Z @ Z),
+        (
+            "o*2*XZ + YI - 3o*ZZ",
+            None,
+            symbols("o") * 2 * X @ Z + Y @ I - 3 * symbols("o") * Z @ Z,
+        ),
     ],
 )
-def test_pauli_string_from_str(input_str: str, subs_dict: Optional[dict[str, Coef]], expected_str: PauliString):
+def test_pauli_string_from_str(
+    input_str: str, subs_dict: Optional[dict[str, Coef]], expected_str: PauliString
+):
     ps = pauli_string_from_str(input_str, subs_dict)
     assert ps == expected_str
+
 
 @pytest.mark.parametrize(
     "n, atom, qubit_index, expected_ps",
@@ -476,6 +493,8 @@ def test_pauli_string_from_str(input_str: str, subs_dict: Optional[dict[str, Coe
         (1, X, 0, X),
     ],
 )
-def test_pauli_string_with_atom(n: int, atom: PauliStringAtom, qubit_index: Optional[int], expected_ps: PauliString):
+def test_pauli_string_with_atom(
+    n: int, atom: PauliStringAtom, qubit_index: Optional[int], expected_ps: PauliString
+):
     result = pauli_string_with_atom(n, atom, qubit_index)
     assert result == expected_ps

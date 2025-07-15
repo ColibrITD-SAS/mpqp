@@ -111,7 +111,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 
 @typechecked
 def generate_job(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -128,7 +130,8 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    circuit = circuit.subs(values, True)
+    if values is not None:
+        circuit = circuit.subs(values, True)
 
     m_list = circuit.measurements
     nb_meas = len(m_list)
@@ -139,15 +142,15 @@ def generate_job(
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device, measurement)
+                job = Job(JobType.STATE_VECTOR, circuit, device)
             else:
-                job = Job(JobType.SAMPLE, circuit, device, measurement)
+                job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
+            measurement = adjust_measure(measurement, circuit)
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
                 device,
-                adjust_measure(measurement, circuit),
             )
         else:
             raise NotImplementedError(
@@ -168,7 +171,7 @@ def _run_diagonal_observables(
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: dict[Expr | str, Complex],
+    values: Optional[dict[Expr | str, Complex]],
     translation_warning: bool = True,
 ) -> Result:
 
@@ -209,7 +212,7 @@ def _run_diagonal_observables(
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: dict[Expr | str, Complex],
+    values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
     translation_warning: bool = True,
 ) -> Result:
@@ -367,8 +370,6 @@ def run(
               Error: None
 
     """
-    if values is None:
-        values = {}
 
     def namer(circ: QCircuit, i: int):
         circ.label = f"circuit {i}" if circ.label is None else circ.label
@@ -487,7 +488,7 @@ def display_kth_breakpoint(
             nb_cbits=circuit.nb_cbits,
             label=circuit.label,
         )
-        res = _run_single(copy, device, {}, False)
+        res = _run_single(copy, device, None, False)
         if TYPE_CHECKING:
             assert isinstance(res, Result)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")

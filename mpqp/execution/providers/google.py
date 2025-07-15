@@ -263,9 +263,12 @@ def run_local_processor(job: Job) -> Result:
             assert isinstance(job.measure, ExpectationMeasure)
 
         # TODO: update this to take into account the case when we have list of Observables
-        cirq_obs = job.measure.observables[0].to_other_language(
-            language=Language.CIRQ, circuit=cirq_circuit
-        )
+        if job.measure.observables[0].transpile is None:
+            cirq_obs = job.measure.observables[0].to_other_language(
+                language=Language.CIRQ, circuit=cirq_circuit
+            )
+        else:
+            cirq_obs = job.measure.observables[0].transpile
         if TYPE_CHECKING:
             assert type(cirq_obs) in (Cirq_PauliSum, Cirq_PauliString)
 

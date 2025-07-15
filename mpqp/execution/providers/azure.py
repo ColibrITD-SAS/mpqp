@@ -190,7 +190,6 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
             [BasisMeasure(list(range(nb_qubits)), shots=shots)], nb_qubits=nb_qubits
         ),
         device,
-        BasisMeasure(list(range(nb_qubits)), shots=shots),
     )
     return Result(job_, data, None, shots)
 

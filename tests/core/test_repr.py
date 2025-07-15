@@ -1,7 +1,7 @@
 from copy import deepcopy
 import itertools
 import sys
-from numpy import array, complex64  # pyright: ignore[reportUnusedImport]
+from numpy import array, complex128  # pyright: ignore[reportUnusedImport]
 import pytest
 from sympy import Expr, cos  # pyright: ignore[reportUnusedImport]
 

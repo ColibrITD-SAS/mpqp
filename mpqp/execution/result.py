@@ -266,7 +266,6 @@ class Result:
         ...     JobType.SAMPLE,
         ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
         ...     ATOSDevice.MYQLM_CLINALG,
-        ...     BasisMeasure([0, 1], shots=1000),
         ... )
         >>> print(Result(job, [
         ...     Sample(2, index=0, count=250),
@@ -601,11 +600,11 @@ class Result:
         Example:
             >>> for result in Result.load_all(): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
@@ -625,7 +624,7 @@ class Result:
 
         Example:
             >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
 
         """
         from mpqp.local_storage.load import get_results_with_id
@@ -644,8 +643,8 @@ class Result:
         Example:
             >>> for result in Result.load_by_local_job_id(1): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
 
         """
         from mpqp.local_storage.load import get_results_with_job_id
@@ -689,20 +688,20 @@ class Result:
         Example:
             >>> for result in Result.load_all(): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
             >>> Result.delete_by_local_id(1)
             >>> for result in Result.load_all(): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
             Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
 
@@ -732,7 +731,6 @@ class BatchResult:
         ...         JobType.SAMPLE,
         ...         QCircuit([BasisMeasure([0,1],shots=500)], label="Sample circuit"),
         ...         ATOSDevice.MYQLM_PYLINALG,
-        ...         BasisMeasure([0,1],shots=500)
         ...     ),
         ...     [Sample(2, index=0, count=250), Sample(2, index=3, count=250)],
         ...     0.034,
@@ -827,7 +825,7 @@ class BatchResult:
 
         Example:
             >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
 
         """
         from mpqp.local_storage.load import get_results_with_id

@@ -167,17 +167,24 @@ class EnvRunner:
 class DBRunner:
     original_local_storage_location: str
 
+    def __init__(self, filename: str):
+        self.filename = filename
+
     def __enter__(self):
         import shutil
 
         db_original = Path("tests/local_storage/test_local_storage.db").absolute()
-        db_temp = Path("tests/local_storage/test_local_storage_tmp.db").absolute()
+        db_temp = Path(
+            f"tests/local_storage/test_local_storage_{self.filename}.db"
+        ).absolute()
 
         with open(db_original, "rb") as src, open(db_temp, "wb") as dst:
             shutil.copyfileobj(src, dst)
 
         self.original_local_storage_location = get_env_variable("DB_PATH")
-        setup_local_storage("tests/local_storage/test_local_storage_tmp.db")
+        setup_local_storage(
+            f"tests/local_storage/test_local_storage_{self.filename}.db"
+        )
 
     def __exit__(
         self,
@@ -187,7 +194,10 @@ class DBRunner:
     ):
 
         os.remove(
-            os.path.join(os.getcwd(), "tests/local_storage/test_local_storage_tmp.db")
+            os.path.join(
+                os.getcwd(),
+                f"tests/local_storage/test_local_storage_{self.filename}.db",
+            )
         )
         setup_local_storage(self.original_local_storage_location or None)
 
@@ -235,7 +245,7 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
             if safe_needed:
                 with EnvRunner():
                     if any(name in root + filename for name in files_needing_db):
-                        with DBRunner():
+                        with DBRunner(test.name):
                             assert runner.run(test).failed == 0
                     else:
                         assert runner.run(test).failed == 0

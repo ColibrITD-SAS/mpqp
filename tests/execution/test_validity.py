@@ -251,6 +251,7 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
+        print(result.device)
         assert isinstance(result, Result)
         assert len(result.samples) == nb_states
 
@@ -326,6 +327,7 @@ def test_observable_ideal_case(
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        print(result.device)
         assert isinstance(result, Result)
         assert abs(result.expectation_values - expected_value) < (
             atol + rtol * abs(expected_value)

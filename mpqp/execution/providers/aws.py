@@ -196,7 +196,10 @@ def submit_job_braket(
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
+        if job.measure.observables[0].transpile is None:
+            herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
+        else:
+            herm_op = job.measure.observables[0].transpile
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
@@ -266,7 +269,7 @@ def extract_result(
             job_type = JobType.STATE_VECTOR
             nb_qubits = int(math.log2(len(braket_result.values[0])))
             measure = BasisMeasure(list(range(nb_qubits)), shots=0)
-        job = Job(job_type, QCircuit(nb_qubits), device, measure)
+        job = Job(job_type, QCircuit([measure], nb_qubits=nb_qubits), device)
     job.status = JobStatus.DONE
 
     if job.job_type in (JobType.SAMPLE, JobType.OBSERVABLE) and job.measure is None:

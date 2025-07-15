@@ -56,8 +56,8 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
     size = 3
     c = QCircuit(size)
     c.add(Rx(pi / 2, 1))
-    measure = BasisMeasure(list(range(size))) if job_type == JobType.SAMPLE else None
-    j = Job(job_type, c, IBMDevice.AER_SIMULATOR, measure)
+    c.add(BasisMeasure(list(range(size)))) if job_type == JobType.SAMPLE else None
+    j = Job(job_type, c, IBMDevice.AER_SIMULATOR)
     if job_type == JobType.SAMPLE:
         assert isinstance(data, list)
         assert all(sample.count is not None for sample in data)
@@ -91,7 +91,6 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                     JobType.SAMPLE,
                     QCircuit([BasisMeasure([0, 1])]),
                     IBMDevice.AER_SIMULATOR,
-                    measure=BasisMeasure([0, 1]),
                 ),
                 [
                     Sample(2, index=0, count=135),

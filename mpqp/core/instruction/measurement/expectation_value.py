@@ -78,6 +78,7 @@ class Observable:
         self._is_diagonal = None
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
+        self.transpile = None
         "See parameter description."
 
         if isinstance(observable, PauliString):
@@ -129,7 +130,7 @@ class Observable:
     def matrix(self) -> Matrix:
         """The matrix representation of the observable."""
         if self._matrix is None:
-            if self.is_diagonal and self._diag_elements is not None:
+            if self.is_diagonal is True and self._diag_elements is not None:
                 if TYPE_CHECKING:
                     assert isinstance(self._diag_elements, np.ndarray)
                 self._matrix = np.diag(self._diag_elements).astype(np.complex128)
@@ -142,7 +143,7 @@ class Observable:
     def pauli_string(self) -> PauliString:
         """The PauliString representation of the observable."""
         if self._pauli_string is None:
-            if self.is_diagonal:
+            if self.is_diagonal is True:
                 self._pauli_string = PauliString.from_diagonal_elements(
                     self.diagonal_elements
                 )
@@ -240,7 +241,7 @@ class Observable:
         return self._is_diagonal
 
     def __repr__(self) -> str:
-        if self._is_diagonal and self._diag_elements is not None:
+        if self._is_diagonal is True and self._diag_elements is not None:
             data = f"{np.array2string(self._diag_elements, separator=', ')}"
         elif self._matrix is not None:
             data = f"{one_lined_repr(self._matrix)}"
@@ -259,8 +260,8 @@ class Observable:
         # TODO : distinguer si on a l'observable ou le pauli string
         # TODO: traitement spécifique si observable diagonal ?
 
-        if self.is_diagonal:
-            if obs.is_diagonal:
+        if self.is_diagonal is True:
+            if obs.is_diagonal is True:
                 return True
             # TODO: check if self is multiple of identity
 
@@ -324,8 +325,8 @@ class Observable:
             return False
 
         if self.nb_qubits == other.nb_qubits and self.label == other.label:
-            if self._is_diagonal:
-                if other.is_diagonal:
+            if self._is_diagonal is True:
+                if other.is_diagonal is True:
                     return matrix_eq(self.diagonal_elements, other.diagonal_elements)
                 return False
             elif self._matrix is not None:
@@ -398,16 +399,17 @@ class ExpectationMeasure(Measure):
         label_counter = 0
         default_label = self.label if self.label is not None else "observable"
         for obs in observable:
+            obs_new = obs
             if obs.label is None:
                 while f"{default_label}_{label_counter}" in label_defined:
                     label_counter += 1
                 if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-                    obs = Observable(
+                    obs_new = Observable(
                         obs._pauli_string,  # pyright: ignore[reportPrivateUsage]
                         f"{default_label}_{label_counter}",
                     )
                 elif obs._matrix is not None:  # pyright: ignore[reportPrivateUsage]
-                    obs = Observable(
+                    obs_new = Observable(
                         obs._matrix,  # pyright: ignore[reportPrivateUsage]
                         f"{default_label}_{label_counter}",
                     )
@@ -416,12 +418,14 @@ class ExpectationMeasure(Measure):
                         obs._diag_elements  # pyright: ignore[reportPrivateUsage]
                         is not None
                     )
-                    obs = Observable(
+                    obs_new = Observable(
                         obs._diag_elements,  # pyright: ignore[reportPrivateUsage]
                         f"{default_label}_{label_counter}",
                     )
+                obs_new.transpile = obs.transpile
+
                 label_counter += 1
-            self.observables.append(obs)
+            self.observables.append(obs_new)
         self._check_targets_order()
 
     @property

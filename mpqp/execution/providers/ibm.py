@@ -103,7 +103,10 @@ def compute_expectation_value(
 
     qiskit_observables: list[SparsePauliOp] = []
     for obs in job.measure.observables:
-        translated = obs.to_other_language(Language.QISKIT)
+        if obs.transpile is None:
+            translated = obs.to_other_language(Language.QISKIT)
+        else:
+            translated = obs.transpile
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
@@ -443,23 +446,6 @@ def run_aer(job: Job):
 
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
-    if job.circuit.transpiled_circuit is None:
-        qiskit_circuit = (
-            (
-                # 3M-TODO: careful, if we ever support several measurements, the
-                # line bellow will have to changer
-                job.circuit.without_measurements()
-                + job.circuit.pre_measure()
-            ).to_other_device(job.device)
-            if (job.job_type == JobType.STATE_VECTOR)
-            else job.circuit.to_other_device(job.device)
-        )
-    else:
-        qiskit_circuit = job.circuit.transpiled_circuit
-
-    if TYPE_CHECKING:
-        assert isinstance(qiskit_circuit, QuantumCircuit)
-
     if isinstance(job.device, IBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
             warnings.warn(
@@ -479,6 +465,16 @@ def run_aer(job: Job):
     else:
         backend_sim = AerSimulator(method=job.device.value)
 
+    if job.circuit.transpiled_circuit is None:
+        qiskit_circuit = job.circuit.to_other_device(
+            job.device, backend_sim=backend_sim
+        )
+    else:
+        qiskit_circuit = job.circuit.transpiled_circuit
+
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
+
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.
@@ -497,13 +493,6 @@ def run_aer(job: Job):
             assert job.measure is not None
 
         job.status = JobStatus.RUNNING
-
-        if isinstance(job.device, IBMSimulatedDevice):
-            from qiskit import transpile
-
-            # TODO I don't know why we need to retranspile here, it is supposed to be done in to_other_device,
-            #  but without it, it doesn't woghk
-            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
@@ -564,7 +553,12 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=session)
         qiskit_observables = [
-            obs.to_other_language(Language.QISKIT) for obs in meas.observables
+            (
+                obs.to_other_language(Language.QISKIT)
+                if obs.transpile is None
+                else obs.transpile
+            )
+            for obs in meas.observables
         ]
         if TYPE_CHECKING:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
@@ -656,7 +650,7 @@ def extract_result(
 
         if hasattr(res_data, "evs"):
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
             exp_values = np.atleast_1d(exp_values)
@@ -702,7 +696,6 @@ def extract_result(
                         nb_qubits=nb_qubits,
                     ),
                     device,
-                    BasisMeasure(list(range(nb_qubits)), shots=shots),
                 )
             if TYPE_CHECKING:
                 assert job.measure is not None
@@ -733,7 +726,7 @@ def extract_result(
         if isinstance(result, EstimatorResult):
 
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
             if len(result.values) == 1:
                 return Result(
@@ -783,9 +776,11 @@ def extract_result(
                     shots = result.results[0].shots
                     job = Job(
                         job_type,
-                        QCircuit(nb_qubits),
+                        QCircuit(
+                            [BasisMeasure(list(range(nb_qubits)), shots=shots)],
+                            nb_qubits=nb_qubits,
+                        ),
                         device,
-                        BasisMeasure(list(range(nb_qubits)), shots=shots),
                     )
                 else:
                     if len(result.data()) == 0:

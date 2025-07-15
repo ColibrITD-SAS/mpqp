@@ -246,9 +246,19 @@ def test_fetch_results_with_result(
         assert isinstance(result, Result)
         fetched_results = fetch_results_with_result(result)
         expected_result = mock_local_storage_results[0]['result_local_storage']
+        assert isinstance(expected_result, dict)
+
+        excluded_keys = {'created_at', 'id'}
 
         for fetched_result in fetched_results:
-            assert fetched_result == expected_result
+            filtered_fetched = {
+                k: v for k, v in fetched_result.items() if k not in excluded_keys
+            }
+            filtered_expected = {
+                k: v for k, v in expected_result.items() if k not in excluded_keys
+            }
+
+            assert filtered_fetched == filtered_expected
 
 
 def test_get_results_with_job_id(
