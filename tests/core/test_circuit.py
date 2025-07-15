@@ -5,8 +5,8 @@ from typing import Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 import pytest
-from braket.circuits import Circuit as BraketCircuit
-from qiskit import QuantumCircuit as QiskitCircuit
+from braket.circuits import Circuit as BraketCircuit, Noise as BraketNoise
+from qiskit import QuantumCircuit as QiskitCircuit, QuantumRegister, ClassicalRegister
 from typeguard import TypeCheckError
 from typing import TYPE_CHECKING
 
@@ -61,7 +61,102 @@ import random
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
 from cirq.circuits.circuit import Circuit as cirq_Circuit
-from braket.circuits.circuit import Circuit as braket_Circuit
+
+
+@pytest.fixture
+def list_qiskit_funky_circuits() -> list[QiskitCircuit]:
+    qreg_q = QuantumRegister(4, 'q')
+    creg_c = ClassicalRegister(4, 'c')
+    qiskit_circuit_1 = QiskitCircuit(qreg_q, creg_c)
+    from qiskit.circuit.library import RC3XGate
+
+    pi = np.pi
+
+    qiskit_circuit_1.sxdg(qreg_q[0])
+    qiskit_circuit_1.sx(qreg_q[1])
+    qiskit_circuit_1.sdg(qreg_q[2])
+    qiskit_circuit_1.s(qreg_q[3])
+    qiskit_circuit_1.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    qiskit_circuit_1.z(qreg_q[0])
+    qiskit_circuit_1.s(qreg_q[1])
+    qiskit_circuit_1.rxx(pi / 2, qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.id(qreg_q[2])
+    qiskit_circuit_1.rx(pi / 2, qreg_q[0])
+    qiskit_circuit_1.rz(pi / 2, qreg_q[1])
+    qiskit_circuit_1.p(pi / 2, qreg_q[0])
+    qiskit_circuit_1.rzz(pi / 2, qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.rzz(pi / 2, qreg_q[1], qreg_q[2])
+    qiskit_circuit_1.rxx(pi / 2, qreg_q[0], qreg_q[1])
+    qiskit_circuit_1.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    qiskit_circuit_1.rccx(qreg_q[1], qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.ccx(qreg_q[0], qreg_q[1], qreg_q[2])
+    qiskit_circuit_1.swap(qreg_q[0], qreg_q[1])
+    qiskit_circuit_1.cx(qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.x(qreg_q[1])
+    qiskit_circuit_1.h(qreg_q[0])
+    qiskit_circuit_1.id(qreg_q[2])
+    qiskit_circuit_1.id(qreg_q[3])
+
+    return [qiskit_circuit_1]
+
+
+@pytest.fixture
+def list_braket_funky_circuits() -> list[BraketCircuit]:
+    braket_circuit1 = BraketCircuit().h(0).x(control=0, target=1)
+    braket_circuit1.ry(angle=0.13, target=2, control=(0, 1))
+    braket_circuit1.x(0, power=1 / 5)
+
+    braket_circuit2 = BraketCircuit()
+    braket_circuit2.ccnot(0, 1, 2)
+    braket_circuit2.cnot(0, 1)
+    braket_circuit2.cphaseshift(0, 1, 0.15)
+    braket_circuit2.cphaseshift00(0, 1, 0.15)
+    braket_circuit2.cphaseshift01(0, 1, 0.15)
+    braket_circuit2.cphaseshift10(0, 1, 0.15)
+    braket_circuit2.cswap(0, 1, 2)
+    braket_circuit2.swap(0, 1)
+    braket_circuit2.phaseshift(0, 0.15)
+    braket_circuit2.cy(0, 1)
+    braket_circuit2.cz(0, 1)
+    braket_circuit2.ecr(0, 1)
+    braket_circuit2.rx(0, 0.15)
+    braket_circuit2.ry(0, 0.15)
+    braket_circuit2.rz(0, 0.15)
+    braket_circuit2.h(range(3))
+    braket_circuit2.i([0, 1, 2])
+    braket_circuit2.iswap(0, 1)
+    braket_circuit2.pswap(0, 1, 0.15)
+    braket_circuit2.x([1, 2])
+    braket_circuit2.y([1, 2])
+    braket_circuit2.z([1, 2])
+    braket_circuit2.s([0, 1, 2])
+    braket_circuit2.si([0, 1])
+    braket_circuit2.t([0, 1])
+    braket_circuit2.ti([0, 1])
+    braket_circuit2.v([0, 1, 2])
+    braket_circuit2.vi([0, 1, 2])
+    braket_circuit2.xx(0, 1, 0.15)
+    braket_circuit2.xy(0, 1, 0.15)
+    braket_circuit2.yy(0, 1, 0.15)
+    braket_circuit2.zz(0, 1, 0.15)
+    braket_circuit2.gpi(0, 0.15)
+    braket_circuit2.gpi2(0, 0.15)
+    braket_circuit2.ms(0, 1, 0.15, 0.15, 0.15)
+
+    my_unitary = np.array([[0, 1], [1, 0]])
+    braket_circuit3 = BraketCircuit()
+    braket_circuit3.unitary(matrix=my_unitary, targets=[0])
+    QCircuit.from_other_language(braket_circuit3)
+
+    braket_circuit4 = BraketCircuit().h(0).cnot(0, 1).measure(0)
+
+    braket_circuit5 = BraketCircuit().x(0).x(1).depolarizing(0, probability=0.1)
+
+    noise = BraketNoise.PhaseDamping(gamma=0.1)
+    braket_circuit6 = BraketCircuit().x(0).y(1).cnot(0, 2).x(1).z(2)
+    braket_circuit6.apply_gate_noise(noise, target_gates=Gate.X)
+
+    return [braket_circuit1, braket_circuit2, braket_circuit3, braket_circuit4, braket_circuit5, braket_circuit6]
 
 
 @pytest.mark.parametrize(
@@ -560,9 +655,19 @@ def test_from_other_language(
     else:
         circ_to_test = circuit.to_other_language(language)
         if TYPE_CHECKING:
-            assert isinstance(circ_to_test, (braket_Circuit, str))
+            assert isinstance(circ_to_test, (BraketCircuit, str))
         qcircuit = QCircuit.from_other_language(circ_to_test)
         assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+
+
+def test_from_other_language_qiskit_circuits(list_qiskit_funky_circuits: list[QiskitCircuit]):
+    for qiskit_circuit in list_qiskit_funky_circuits:
+        QCircuit.from_other_language(qiskit_circuit)
+
+
+def test_from_other_language_braket_circuits(list_braket_funky_circuits: list[BraketCircuit]):
+    for braket_circuit in list_braket_funky_circuits:
+        QCircuit.from_other_language(braket_circuit)
 
 
 @pytest.mark.parametrize(
