@@ -1,10 +1,14 @@
-"""This module is one implementation of a particular type of VQA: Qaoa.
-This algorithm works by generating a circuit of alternating operators: cost
-operators and mixer operators.
-Cost operators are generated with the cost hamiltonian which represents the
-problem we want to optimize.
-Mixer operators are here to "search" for solutions, they can be custom to the
-problem but a generic set does exist."""
+"""This module is an implementation of one particular type of Variational Quantum 
+Algorithms: the Qaoa (Quantum Approximate Optimization Algorithm). Mainly used
+for combinatorial optimization problems, and following the trotterization principle,
+ this algorithm works by generating a circuit of alternated parametrized 
+ operators: the cost operator and the mixer operator.
+Cost operators are generated based on the cost Hamiltonian, which encodes the
+problem we want to optimize (usually expressed initially in Qubo formulation).
+Mixer operators are here to escape from the natural convergence to the "closest"
+eigenstate of the cost Hamiltonian, allowing the algorithm to explore more widely 
+the space of solutions. They can be customized for a specific problem, but we provide
+a generic set of Mixer operators."""
 
 from __future__ import annotations
 
@@ -30,8 +34,8 @@ from mpqp.tools.maths import Matrix
 class QaoaMixer:
     """Class defining the Mixer hamiltonian used in the :func:`qaoa_solver` function.
 
-    This class is used to help generate commonly used mixer hamiltonians,
-    for available hamiltonian see :class:`~mpqp.execution.vqa.qaoa.QaoaMixerType`.
+    This class is used to help generate commonly used mixer Hamiltonians.
+    The available Hamiltonians are regrouped in :class:`~mpqp.execution.vqa.qaoa.QaoaMixerType`.
 
     Args:
         type: Type of the mixer hamiltonian to be generated.
@@ -65,7 +69,7 @@ class QaoaMixer:
             for i in range(qubits):
                 result += _gen_ith_oper(qubits, x_matrix, i)
             return result
-        if self.graph == None:
+        if self.graph is None:
             raise ValueError(
                 f"A graph is needed to generate the type {self.type} of hamiltonian."
             )
@@ -105,7 +109,7 @@ class QaoaMixer:
 
 
 class QaoaMixerType(Enum):
-    r"""Enum class that provide a set of commonly used mixer hamiltonians:
+    r"""Enum class that provides a set of commonly used mixer Hamiltonians.
 
     This mixer was introduced in A Quantum Approximate Optimization Algorithm by
     Edward Farhi, Jeffrey Goldstone, Sam Gutmann in https://arxiv.org/abs/1411.4028.
@@ -133,7 +137,7 @@ class QaoaResult:
     a Qaoa process.
 
     We put at disposition: the minimal cost found, the state associated with
-    this cost and the interpretation of which variable acted on which qubits.
+    this cost and the interpretation in terms of boolean variables of the Qubo problem.
 
     Args:
         cost: The minimum cost that was found.
@@ -141,7 +145,7 @@ class QaoaResult:
         values: The associated variables with the state.
         final_parameters: Values of the parameters of the ansatz for the best found cost.
 
-    Notes: This class should only be instantiated by the program not by the user.
+    Notes: This class is not meant to be instantiated directly by the user.
     """
 
     def __init__(
@@ -184,7 +188,7 @@ def qaoa_solver(
             better results, but other can be more efficient on specific use cases.
 
     Returns:
-        A QaoaResult object holding the minimal cost found and the associated state.
+        A QaoaResult containing the minimal cost found and the associated state.
 
     Examples:
         >>> x0 = QuboAtom('x0')
@@ -277,9 +281,9 @@ def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):
     ansatz.
 
     Args:
-        circuit: Generated Ansatz on which the unitary matrix will me applied.
-        operator: Either the cost hamiltonian or the mixer hamiltonian.
-        parameter: The parameter used to create the unitary matrix.
+        circuit: Generated Ansatz on which the unitary matrix will be applied.
+        operator: Matrix representing either the cost Hamiltonian or the mixer Hamiltonian.
+        parameter: The parameter controlling the application of the (cost/mixer) Hamiltonian, used to create the unitary matrix.
     """
     unitary = scipy.linalg.expm(-1j * parameter * operator)
     unitary_gate = CustomGate(
