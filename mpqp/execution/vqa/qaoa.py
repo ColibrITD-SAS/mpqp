@@ -1,12 +1,12 @@
-"""This module is an implementation of one particular type of Variational Quantum 
+"""This module is an implementation of one particular type of Variational Quantum
 Algorithms: the Qaoa (Quantum Approximate Optimization Algorithm). Mainly used
 for combinatorial optimization problems, and following the trotterization principle,
- this algorithm works by generating a circuit of alternated parametrized 
+ this algorithm works by generating a circuit of alternated parametrized
  operators: the cost operator and the mixer operator.
 Cost operators are generated based on the cost Hamiltonian, which encodes the
 problem we want to optimize (usually expressed initially in Qubo formulation).
 Mixer operators are here to escape from the natural convergence to the "closest"
-eigenstate of the cost Hamiltonian, allowing the algorithm to explore more widely 
+eigenstate of the cost Hamiltonian, allowing the algorithm to explore more widely
 the space of solutions. They can be customized for a specific problem, but we provide
 a generic set of Mixer operators."""
 
