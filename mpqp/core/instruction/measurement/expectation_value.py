@@ -356,7 +356,7 @@ class ExpectationMeasure(Measure):
 
     Warns:
         UserWarning: If the ``targets`` are not sorted and contiguous, some
-            additional swaps will be needed. This will change the performance of
+            additional swaps will be needed. This will change the performance if
             your circuit is run on noisy hardware.
 
     Example:
