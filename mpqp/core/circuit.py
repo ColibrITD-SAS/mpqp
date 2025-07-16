@@ -139,7 +139,10 @@ class QCircuit:
             data = []
         self.label = label
         """See parameter description."""
-        self.instructions: list[Instruction] = []
+        self.gates: list[Gate] = []
+        self.measurements: list[Measure] = []
+        self.other_instructions: list[Barrier | Breakpoint] = []
+        self._index = 0
         """List of instructions of the circuit."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
@@ -149,7 +152,9 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit = None
+        self.transpiled_circuit: Optional[
+            QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit
+        ] = None
         """A pre-transpiled circuit to skip repeated transpilation when running the circuit.  
         Useful when working with a symbolic circuit that needs to be executed with different parameters."""
         self.transpiled_noise_model = None
@@ -266,7 +271,16 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
-            self.instructions.append(components)
+            components.index = self._index
+            self._index += 1
+            if isinstance(components, Measure):
+                self.measurements.append(components)
+            elif isinstance(components, Gate):
+                self.gates.append(components)
+            elif isinstance(components, (Barrier, Breakpoint)):
+                self.other_instructions.append(components)
+            else:
+                raise ValueError(f"{repr(components)} not handle")
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -826,19 +840,26 @@ class QCircuit:
                  └───────────┘└───┘ ░
 
         """
-        dagger = deepcopy(self)
-        dagger.instructions = []
-        for instr in self.instructions:
+        dagger = self._clone_without(
+            ["measurements", "gates", "other_instructions"], deep_copy=True
+        )
+        dagger.measurements = []
+        dagger.gates = []
+        dagger.other_instructions = []
+        dagger._index = 0
+
+        for instr in reversed(self.instructions):
             if isinstance(instr, Gate):
-                dagger.instructions.insert(0, instr.inverse())
-            elif isinstance(instr, Barrier):
-                dagger.instructions.insert(0, instr)
+                dagger.add(instr.inverse())
+            elif not isinstance(instr, Measure):
+                dagger.add(instr)
             else:
                 warn(
                     f"{type(instr).__name__} is not invertible and has been added at the end of the circuit.",
                     NonReversibleWarning,
                 )
-                dagger.instructions.append(instr)
+
+        dagger.add(self.measurements)
         return dagger
 
     def to_gate(self) -> Gate:
@@ -931,45 +952,80 @@ class QCircuit:
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
     @property
-    def gates(self) -> list[Gate]:
-        """Retrieve all the gates from the instructions in the circuit.
+    def instructions(self) -> list[Instruction]:
+        instrs: list[Optional[Instruction]] = [None] * (self._index)
+        index: list[int] = []
+        for g in self.gates:
+            assert g.index is not None
+            instrs[g.index] = g
+            index.append(g.index)
+        for m in self.measurements:
+            assert m.index is not None
+            instrs[m.index] = m
+            index.append(m.index)
+        for o in self.other_instructions:
+            assert o.index is not None
+            instrs[o.index] = o
+            index.append(o.index)
 
-        Returns:
-            The list of all gates present in the circuit.
+        for i, instr in enumerate(instrs):
+            if instr is None:
+                raise ValueError(
+                    f"No instruction at position {i} in {instrs} {self.measurements}"
+                )
 
-        Example:
-            >>> circuit = QCircuit([H(0), Barrier(), CNOT(0, 1), BasisMeasure()])
-            >>> circuit.gates
-            [H(0), CNOT(0, 1)]
+        return instrs  # pyright: ignore[reportReturnType]
 
-        """
-        return [instr for instr in self.instructions if isinstance(instr, Gate)]
+    @instructions.setter
+    def instructions(self, new_instruction: list[Instruction]):
+        self.gates = []
+        self.measurements = []
+        self.other_instructions = []
+        self._index = 0
+
+        self.add(new_instruction)
 
     @property
-    def measurements(self) -> list[Measure]:
-        """Returns all the measurements present in this circuit.
+    def breakpoints(self) -> list[Breakpoint]:
+        """Returns the breakpoints of the circuit in order."""
+        return [
+            inst for inst in self.other_instructions if isinstance(inst, Breakpoint)
+        ]
+
+    def rebind_index(self):
+        all_instrs = self.gates + self.other_instructions + self.measurements
+        all_instrs = sorted(
+            all_instrs,
+            key=lambda inst: inst.index,  # pyright: ignore[reportArgumentType, reportCallIssue]
+        )
+
+        for new_index, instr in enumerate(all_instrs):
+            instr.index = new_index
+        self._index = len(all_instrs)
+
+    def _clone_without(
+        self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = False
+    ):
+        """Creates a clone of the current QCircuit object, excluding specified attributes.
+           //!\\ Object are not deepcopy
+
+        Args:
+            exclude_attrs : Attribute name(s) to exclude from the clone.
 
         Returns:
-            The list of all measurements present in the circuit.
-
-        Example:
-            >>> circuit = QCircuit([
-            ...     BasisMeasure(shots=1000),
-            ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
-            ... ])
-            >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
-            [BasisMeasure(shots=1000), ExpectationMeasure(Observable(array([[1., 0.], [0., 1.]]), 'observable_0'), [1], shots=1000)]
-
+            QCircuit: A new QCircuit instance with all attributes copied except those specified in exclude_attrs.
         """
-        return [inst for inst in self.instructions if isinstance(inst, Measure)]
-
-    def clone_without(self, exclude_attrs: Optional[list[str] | str] = None):
         if exclude_attrs is None:
             exclude_attrs = []
+        if isinstance(exclude_attrs, str):
+            exclude_attrs = [exclude_attrs]
         new_obj = QCircuit.__new__(QCircuit)
         for attr, val in self.__dict__.items():
             if attr not in exclude_attrs:
-                setattr(new_obj, attr, deepcopy(val))
+                if deep_copy is True:
+                    setattr(new_obj, attr, deepcopy(val))
+                else:
+                    setattr(new_obj, attr, val)
         return new_obj
 
     def without_measurements(self) -> QCircuit:
@@ -996,11 +1052,10 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = self.clone_without("instructions")
+        new_circuit = self._clone_without("measurements")
+        new_circuit.measurements = []
         new_circuit._nb_cbits = 0
-        new_circuit.instructions = [
-            inst for inst in self.instructions if not isinstance(inst, Measure)
-        ]
+        new_circuit.rebind_index()
 
         return new_circuit
 
@@ -1010,10 +1065,13 @@ class QCircuit:
         Returns:
             A copy of this circuit with all the breakpoints removed.
         """
-        new_circuit = self.clone_without("instructions")
-        new_circuit.instructions = [
-            inst for inst in self.instructions if not isinstance(inst, Breakpoint)
-        ]
+        new_circuit = self._clone_without("other_instructions")
+        new_circuit.other_instructions = []
+        for other in self.other_instructions:
+            if not isinstance(other, Breakpoint):
+                new_circuit.other_instructions.append(other)
+        new_circuit.rebind_index()
+
         return new_circuit
 
     def without_noises(self) -> QCircuit:
@@ -1044,7 +1102,7 @@ class QCircuit:
                        0  1
 
         """
-        new_circuit = deepcopy(self)
+        new_circuit = self._clone_without("noises")
         new_circuit.noises = []
         return new_circuit
 
@@ -1797,8 +1855,3 @@ class QCircuit:
                     if isinstance(param, Expr):
                         params.update(param.free_symbols)
         return params
-
-    @property
-    def breakpoints(self) -> list[Breakpoint]:
-        """Returns the breakpoints of the circuit in order."""
-        return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]
