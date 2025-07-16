@@ -254,7 +254,7 @@ def test_conversion_2_and_3(qasm_code: str):
             """OPENQASM 3.0;
                qubit[1] q;
                bit[1] c;
-               if(c==1) u1(pi/2) q[0];"""
+               if(c==1) u1(pi/2) q[0];""",
         ),
         (
             """OPENQASM 2.0;
@@ -270,7 +270,7 @@ def test_conversion_2_and_3(qasm_code: str):
                  h q0;
                }
                qubit[1] q;
-               mygate(pi) q[0];"""
+               mygate(pi) q[0];""",
         ),
     ],
 )
