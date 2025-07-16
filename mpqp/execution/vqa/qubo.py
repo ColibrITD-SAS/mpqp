@@ -40,7 +40,7 @@ class Qubo(ABC):
     through the use of :class:`~mpqp.execution.vqa.qubo.QuboAtom`, not directly (see examples below).
 
     A Qubo is defined as a quadratic expression of boolean variables, hence, the available operators are:
-        - ``&`` : the logical XOR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
+        - ``&`` : the logical AND operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
         - ``|`` : the logical OR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
         - ``^`` : the logical XOR operation between two :class:`~mpqp.execution.vqa.qubo.QuboAtom`
         - ``+`` : the artihmetic addition operator between two :class:`~mpqp.execution.vqa.qubo.Qubo` expressions
@@ -55,7 +55,7 @@ class Qubo(ABC):
     Qubo's operators.
 
     Args:
-        value: Information concerning the root node, can be the ``Operator`` type, the name of the boolean variable or
+        value: Information concerning the root node, can be an ``Operator``, the name of the boolean variable or
             the value of the constant.
         left: Left child of this Qubo root node.
         right: Right child of this Qubo root node.
