@@ -169,7 +169,7 @@ class CustomGate(Gate):
 
         The circuit follows the quantum Shannon decomposition which decomposes any unitary matrix into Ry,Rz and CNOT gates.
 
-        Examples:
+        Example:
             >>> U = np.array([[0,1], [1,0]])
             >>> gate = CustomGate(UnitaryMatrix(U), [0])
             >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
