@@ -359,11 +359,16 @@ class ExpectationMeasure(Measure):
             additional swaps will be needed. This will change the performance if
             your circuit is run on noisy hardware.
 
-    Example:
+    Examples:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
+        >>> from mpqp.measures import X as pX, Y as pY
+        >>> obs2 = Observable( pX @ pY - pY @ pY)
+        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([obs, obs2], shots=10000)])
+        >>> run(c, IBMDevice.AER_SIMULATOR).expectation_values # doctest: +SKIP
+        {'observable_0': 0.8514399940967561, 'observable_1': 0.9876}
 
     """
 
