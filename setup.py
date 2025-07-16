@@ -11,9 +11,6 @@ long_description = long_description.replace(
     "https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/resources/mpqp-usage.gif",
 )
 
-with open("LICENSE", "r") as f:
-    license = f.readline()
-
 with open("requirements.txt", "r") as f:
     requirements = f.readlines()
 
@@ -25,9 +22,10 @@ setup(
     description="Facilitate quantum algorithm development and execution, regardless of the hardware, with MPQP",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    license=license,
+    license="GPL-3.0-or-later",
     author="ColibriTD",
     author_email="quantum@colibritd.com",
+    url="https://colibritd.com",
     install_requires=["wheel"] + requirements,
     packages=find_packages(include=["mpqp*"]),
     entry_points={
@@ -39,6 +37,11 @@ setup(
     project_urls={
         "Repository": "https://github.com/ColibrITD-SAS/mpqp",
         "Documentation": "https://mpqpdoc.colibri-quantum.com/",
+        "License": "https://github.com/ColibrITD-SAS/mpqp/blob/main/LICENSE",
+        "Company": "https://colibritd.com",
     },
+    classifiers=[
+        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    ],
     package_data={"mpqp.qasm.header_codes": ["*.qasm", "*.inc"]},
 )
