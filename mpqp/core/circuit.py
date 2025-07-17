@@ -1679,8 +1679,12 @@ class QCircuit:
             return qc
 
         elif isinstance(qcircuit, cirq_Circuit):
-            qasm2_code = qcircuit.to_qasm()
-            return qasm2_parse(qasm2_code)
+            from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+
+            qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = gphase
+            return qc
 
         elif isinstance(qcircuit, braket_Circuit):
             from braket.circuits.serialization import IRType

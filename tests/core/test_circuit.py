@@ -169,6 +169,39 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
     ]
 
 
+@pytest.fixture
+def list_cirq_funky_circuits() -> list[cirq_Circuit]:
+    import cirq
+
+    q0, q1, q2 = cirq.LineQubit.range(3)  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1.append(cirq.X(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.Y(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.Z(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.H(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.S(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.S(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.T(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.T(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1.append(cirq.CX(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CZ(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.SWAP(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
+
+    return [cirq_circuit_1]
+
+
 @pytest.mark.parametrize(
     "init_param, printed_result_filename",
     [
@@ -695,6 +728,13 @@ def test_from_other_language_braket_circuits(
                 QCircuit.from_other_language(list_braket_funky_circuits[i])
         else:
             QCircuit.from_other_language(list_braket_funky_circuits[i])
+
+
+def test_from_other_language_cirq_circuits(
+    list_cirq_funky_circuits: list[cirq_Circuit],
+):
+    for circ in list_cirq_funky_circuits:
+        QCircuit.from_other_language(circ)
 
 
 @pytest.mark.parametrize(
