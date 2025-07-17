@@ -129,10 +129,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
 
         def __repr__(self) -> str:
             return (
-                f'U('
-                f'{str(self.theta)[:5]}, '
-                f'{str(self.phi)[:5]}, '
-                f'{str(self.lmda)[:5]})'
+                f"U(" f"{self.theta:.3f}, " f"{self.theta:.3f}, " f"{self.theta:.3f})"
             )
 
         def _decompose_(self, qubits: tuple[Qid, ...]):
@@ -215,8 +212,8 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     def p_new_reg2(self, p):  # pyright: ignore[reportMissingParameterType]
         """new_reg : QREG ID '[' NATURAL_NUMBER ']' ';'
         | CREG ID '[' NATURAL_NUMBER ']' ';'"""
-        from cirq.ops.named_qubit import NamedQubit
         from cirq.contrib.qasm_import.exception import QasmException
+        from cirq.ops.named_qubit import NamedQubit
 
         name, length = p[2], p[4]
         if name in self.qregs.keys() or name in self.cregs.keys():
