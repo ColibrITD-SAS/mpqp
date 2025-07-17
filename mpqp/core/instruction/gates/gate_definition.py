@@ -158,6 +158,12 @@ class UnitaryMatrix(GateDefinition):
         definition: Matrix defining the unitary gate.
         disable_symbol_warn: Boolean used to enable/disable warning concerning
             unitary checking with symbolic variables.
+
+    Raises:
+        ValueError: Matrices defining gates have to be unitary.
+
+        ValueError: The unitary matrix of a gate acting on qubits must have
+        dimensions that are power of two.
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):

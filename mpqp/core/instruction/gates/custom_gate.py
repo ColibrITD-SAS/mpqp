@@ -26,16 +26,19 @@ class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 
     Args:
-        definition: The GateDefinition describing the gate.
+        matrix: The matrix describing the gate.
         targets: The qubits on which the gate operates.
         label: The label of the gate. Defaults to None.
 
     Raises:
         ValueError: the target qubits must be contiguous and in order, and must
-            match the size of the UnitaryMatrix
+            match the size of the matrix
+
+        ValueError: Target qubits must be ordered and contiguous for a CustomGate.
+
 
     Example:
-        >>> u = UnitaryMatrix(np.array([[0,-1],[1,0]]))
+        >>> u = np.array([[0,-1],[1,0]])
         >>> cg = CustomGate(u, [0])
         >>> print(run(QCircuit([X(0), cg]), IBMDevice.AER_SIMULATOR))
         Result: IBMDevice, AER_SIMULATOR
@@ -43,20 +46,15 @@ class CustomGate(Gate):
           Probabilities: [1, 0]
           Number of qubits: 1
 
-    Note:
-        For the moment, only ordered and contiguous target qubits are allowed
-        when instantiating a CustomGate.
-
     """
 
     def __init__(
         self,
-        definition: Union[UnitaryMatrix, Matrix],
+        matrix: Matrix,
         targets: Union[list[int], int],
         label: Optional[str] = None,
     ):
-        if not isinstance(definition, UnitaryMatrix):
-            definition = UnitaryMatrix(definition)
+        definition = UnitaryMatrix(matrix)
         if isinstance(targets, int):
             targets = [targets]
         self.definition = definition
