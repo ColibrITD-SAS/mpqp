@@ -13,7 +13,6 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
@@ -26,7 +25,7 @@ from mpqp.tools.generics import MessageEnum
 if TYPE_CHECKING:
     from enum import Enum
 
-from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
 
 from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError

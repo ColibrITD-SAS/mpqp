@@ -111,7 +111,7 @@ class PauliString:
             (
                 f" - {-m}"
                 if not isinstance(m.coef, Expr)
-                and m.coef < 0  # pyright: ignore[reportOperatorIssue]
+                and m.coef < 0
                 else f" + {m}"
             )
             for m in self._monomials[1:]
@@ -288,12 +288,12 @@ class PauliString:
         res._initial_nb_qubits = self.nb_qubits
         for mono in self.monomials:
             coef: Coef = format_element(
-                mono.coef  # pyright: ignore[reportAssignmentType, reportArgumentType]
+                mono.coef  # pyright: ignore[reportAssignmentType]
             )
             if isinstance(coef, Expr):
                 res.monomials.append(
                     PauliStringMonomial(
-                        mono.coef, mono.atoms  # pyright: ignore[reportArgumentType]
+                        mono.coef, mono.atoms
                     )
                 )
             else:
@@ -864,7 +864,7 @@ class PauliStringMonomial(PauliString):
     def monomials(self) -> list["PauliStringMonomial"]:
         return [
             PauliStringMonomial(
-                self.coef, self.atoms  # pyright: ignore[reportArgumentType]
+                self.coef, self.atoms
             )
         ]
 
@@ -887,14 +887,14 @@ class PauliStringMonomial(PauliString):
         if id(self) in memo:
             return memo[id(self)]
         copied = type(self)(
-            coef=deepcopy(self.coef, memo),  # pyright: ignore[reportArgumentType]
+            coef=deepcopy(self.coef, memo), 
             atoms=self.atoms.copy(),
         )
         memo[id(self)] = copied
         return copied
 
     def __str__(self):
-        coef = format_element(self.coef)  # pyright: ignore[reportArgumentType]
+        coef = format_element(self.coef)
         if isinstance(coef, Expr):
             coef = f'({str(coef)})*'
         else:
@@ -1198,7 +1198,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportOperatorIssue]
             [self],
         )
 
@@ -1223,7 +1223,7 @@ class PauliStringAtom(PauliStringMonomial):
         else:
             for i, mono in enumerate(res.monomials):
                 res.monomials[i] = PauliStringMonomial(
-                    mono.coef, mono.atoms  # pyright: ignore[reportArgumentType]
+                    mono.coef, mono.atoms 
                 )
                 res.monomials[i].atoms.insert(0, self)
         return res

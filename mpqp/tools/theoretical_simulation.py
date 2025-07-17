@@ -98,7 +98,7 @@ def amplitude(
 @typechecked
 def theoretical_probs(
     circ: QCircuit,
-) -> npt.NDArray[np.float32]:
+) -> npt.NDArray[np.float64]:
     """Computes the theoretical probabilities of a (potentially) noisy circuit
     execution.
 
@@ -147,7 +147,7 @@ def theoretical_probs(
                 start=np.zeros((d, d), dtype=np.complex128),
             )
 
-    return state.diagonal().real
+    return state.diagonal().real.astype(np.float64)
 
 
 @typechecked

@@ -174,7 +174,7 @@ def submit_job_braket(
     device = get_braket_device(job.device, is_noisy=is_noisy)
 
     if job.circuit.transpiled_circuit is None:
-        braket_circuit = job.circuit.to_other_device(job.device, translation_warning)
+        braket_circuit = job.circuit.to_other_device(job.device, translation_warning=translation_warning)
     else:
         braket_circuit = job.circuit.transpiled_circuit
 
