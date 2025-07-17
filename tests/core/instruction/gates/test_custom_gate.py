@@ -21,6 +21,7 @@ from mpqp.tools.errors import (
     UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
+import sys
 
 
 def test_custom_gate_is_unitary():
@@ -145,3 +146,27 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     assert isinstance(result1, Result)
     assert isinstance(result2, Result)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
+
+
+def test_decomposition_short():
+    from mpqp.tools.maths import rand_unitary_matrix
+
+    for i in range(1, 4):
+        u = rand_unitary_matrix(2**i)
+        gate = CustomGate(UnitaryMatrix(u), list(range(i)))
+        cirq = gate.decompose()
+        assert matrix_eq(u, cirq.to_matrix())
+
+
+def decomposition_long():
+    from mpqp.tools.maths import rand_unitary_matrix
+
+    for i in range(4, 9):
+        U = rand_unitary_matrix(2**i)
+        gate = CustomGate(UnitaryMatrix(U), list(range(i)))
+        cirq = gate.decompose()
+        assert matrix_eq(U, cirq.to_matrix())
+
+
+if "--long-local" in sys.argv or "--long" in sys.argv:
+    test_decomposition_long = decomposition_long
