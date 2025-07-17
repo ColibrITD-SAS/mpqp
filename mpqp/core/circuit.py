@@ -140,10 +140,12 @@ class QCircuit:
         self.label = label
         """See parameter description."""
         self.gates: list[Gate] = []
+        """List of gates of the circuit."""
         self.measurements: list[Measure] = []
+        """List of measurements of the circuit."""
         self.other_instructions: list[Barrier | Breakpoint] = []
+        """List of Barrier and Breakpoint of the circuit."""
         self._index = 0
-        """List of instructions of the circuit."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -953,6 +955,16 @@ class QCircuit:
 
     @property
     def instructions(self) -> list[Instruction]:
+        """Returns a list of all instructions in the circuit, ordered by their index.
+        The instructions are collected from gates, measurements, and other instructions.
+
+        Returns:
+            Ordered list of instructions in the circuit.
+
+        Raises:
+            ValueError: If an instruction is missing at any expected index.
+
+        """
         instrs: list[Optional[Instruction]] = [None] * (self._index)
         index: list[int] = []
         for g in self.gates:
@@ -993,6 +1005,9 @@ class QCircuit:
         ]
 
     def rebind_index(self):
+        """Reassigns sequential indices to all instructions in the circuit.
+        sorts them by their current index, and then reassigns indices starting from zero.
+        """
         all_instrs = self.gates + self.other_instructions + self.measurements
         all_instrs = sorted(
             all_instrs,
@@ -1007,13 +1022,14 @@ class QCircuit:
         self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = False
     ):
         """Creates a clone of the current QCircuit object, excluding specified attributes.
-           //!\\ Object are not deepcopy
 
         Args:
             exclude_attrs : Attribute name(s) to exclude from the clone.
+            deep_copy : If True, performs a deep copy of attribute values; otherwise, performs a shallow copy.
 
         Returns:
-            QCircuit: A new QCircuit instance with all attributes copied except those specified in exclude_attrs.
+            A new QCircuit instance with all attributes copied except those specified in exclude_attrs.
+
         """
         if exclude_attrs is None:
             exclude_attrs = []
@@ -1029,10 +1045,10 @@ class QCircuit:
         return new_obj
 
     def without_measurements(self) -> QCircuit:
-        """Provides a copy of this circuit with all the measurements removed.
+        """Provides a shallow copy of this circuit with all the measurements removed.
 
         Returns:
-            A copy of this circuit with all the measurements removed.
+            A shallow copy of this circuit with all the measurements removed.
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure(shots=100)])
@@ -1060,10 +1076,10 @@ class QCircuit:
         return new_circuit
 
     def without_breakpoints(self) -> QCircuit:
-        """Provides a copy of this circuit with all the breakpoints removed.
+        """Provides a shallow copy of this circuit with all the breakpoints removed.
 
         Returns:
-            A copy of this circuit with all the breakpoints removed.
+            A shallow copy of this circuit with all the breakpoints removed.
         """
         new_circuit = self._clone_without("other_instructions")
         new_circuit.other_instructions = []
@@ -1075,10 +1091,10 @@ class QCircuit:
         return new_circuit
 
     def without_noises(self) -> QCircuit:
-        """Provides a copy of this circuit with all the noise models removed.
+        """Provides a shallow copy of this circuit with all the noise models removed.
 
         Returns:
-            A copy of this circuit with all the noise models removed.
+            A shallow copy of this circuit with all the noise models removed.
 
         Example:
             >>> circuit = QCircuit(2)
@@ -1436,6 +1452,7 @@ class QCircuit:
 
         Args:
             device: representing the target device.
+            backend_sim: Simulator backend for Qiskit devices.
             translation_warning: If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
