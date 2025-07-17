@@ -24,7 +24,7 @@ from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
 
 
 def test_custom_gate_is_unitary():
-    definition = UnitaryMatrix(np.array([[1, 0], [0, 1j]]))
+    definition = np.array([[1, 0], [0, 1j]])
     assert is_unitary(CustomGate(definition, [0]).to_matrix())
 
 
@@ -43,13 +43,13 @@ def test_custom_gate_is_unitary():
 def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     gate_size = random.randint(1, circ_size)
     targets_start = random.randint(0, circ_size - gate_size)
-    m = UnitaryMatrix(rand_orthogonal_matrix(2**gate_size))
+    m = rand_orthogonal_matrix(2**gate_size)
     c = QCircuit(
         [CustomGate(m, list(range(targets_start, targets_start + gate_size)))],
         nb_qubits=circ_size,
     )
     # building the expected state vector
-    exp_state_vector = m.matrix[:, 0]
+    exp_state_vector = m[:, 0]
     for _ in range(0, targets_start):
         exp_state_vector = np.kron(np.array([1, 0]), exp_state_vector)
     for _ in range(targets_start + gate_size, circ_size):
@@ -77,12 +77,11 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     ],
 )
 def test_custom_gate_with_native_gates(device: AvailableDevice):
-    x = UnitaryMatrix(np.array([[0, 1], [1, 0]]))
-    h = UnitaryMatrix(np.array([[1, 1], [1, -1]]) / np.sqrt(2))
-    cnot = UnitaryMatrix(
-        np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
-    )
-    z = UnitaryMatrix(np.array([[1, 0], [0, -1]]))
+    x = np.array([[0, 1], [1, 0]])
+    h = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
+    cnot = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
+
+    z = np.array([[1, 0], [0, -1]])
 
     c1 = QCircuit(
         [
@@ -129,9 +128,7 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
 def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
     random_circ = random_circuit(nb_qubits=circ_size)
     matrix = random_circ.to_matrix()
-    custom_gate_circ = QCircuit(
-        [CustomGate(UnitaryMatrix(matrix), list(range(circ_size)))]
-    )
+    custom_gate_circ = QCircuit([CustomGate(matrix, list(range(circ_size)))])
 
     with (
         pytest.warns(UnsupportedBraketFeaturesWarning)

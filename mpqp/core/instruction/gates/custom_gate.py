@@ -164,7 +164,7 @@ class CustomGate(Gate):
 
     def __repr__(self) -> str:
         label = f", \"{self.label}\"" if self.label else ""
-        return f"CustomGate({repr(UnitaryMatrix(self.matrix))}, {self.targets}{label})"
+        return f"CustomGate({repr(self.matrix)}, {self.targets}{label})"
 
     def decompose(self):
         """Returns the circuit made of native gates equivalent to this gate.
