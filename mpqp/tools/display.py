@@ -129,9 +129,8 @@ def format_element(
             return round(float(element), precision)
         elif element.is_number:
             try:
-                return round(
-                    float(element), precision  # pyright: ignore[reportArgumentType]
-                )
+                elt = float(element)  # pyright: ignore[reportArgumentType]
+                return round(elt, precision)
             except Exception:
                 pass
         return element
