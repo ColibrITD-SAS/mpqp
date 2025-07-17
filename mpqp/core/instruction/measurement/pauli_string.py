@@ -108,12 +108,7 @@ class PauliString:
 
     def _non_null_str(self):
         return str(self._monomials[0]) + "".join(
-            (
-                f" - {-m}"
-                if not isinstance(m.coef, Expr)
-                and m.coef < 0
-                else f" + {m}"
-            )
+            (f" - {-m}" if not isinstance(m.coef, Expr) and m.coef < 0 else f" + {m}")
             for m in self._monomials[1:]
         )
 
@@ -291,11 +286,7 @@ class PauliString:
                 mono.coef  # pyright: ignore[reportAssignmentType]
             )
             if isinstance(coef, Expr):
-                res.monomials.append(
-                    PauliStringMonomial(
-                        mono.coef, mono.atoms
-                    )
-                )
+                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
             else:
                 coef = float(np.round(float(coef), max_digits))
                 if coef != 0:
@@ -862,11 +853,7 @@ class PauliStringMonomial(PauliString):
 
     @property
     def monomials(self) -> list["PauliStringMonomial"]:
-        return [
-            PauliStringMonomial(
-                self.coef, self.atoms
-            )
-        ]
+        return [PauliStringMonomial(self.coef, self.atoms)]
 
     @property
     def positive_eigen_values(self) -> npt.NDArray[np.bool_]:
@@ -887,7 +874,7 @@ class PauliStringMonomial(PauliString):
         if id(self) in memo:
             return memo[id(self)]
         copied = type(self)(
-            coef=deepcopy(self.coef, memo), 
+            coef=deepcopy(self.coef, memo),
             atoms=self.atoms.copy(),
         )
         memo[id(self)] = copied
@@ -1222,9 +1209,7 @@ class PauliStringAtom(PauliStringMonomial):
             res.atoms.insert(0, self)
         else:
             for i, mono in enumerate(res.monomials):
-                res.monomials[i] = PauliStringMonomial(
-                    mono.coef, mono.atoms 
-                )
+                res.monomials[i] = PauliStringMonomial(mono.coef, mono.atoms)
                 res.monomials[i].atoms.insert(0, self)
         return res
 
