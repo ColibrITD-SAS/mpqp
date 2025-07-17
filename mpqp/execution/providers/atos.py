@@ -85,7 +85,9 @@ def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
             )
 
     if job.circuit.transpiled_circuit is None:
-        myqlm_circuit = job.circuit.to_other_device(job.device, translation_warning=translation_warning)
+        myqlm_circuit = job.circuit.to_other_device(
+            job.device, translation_warning=translation_warning
+        )
     else:
         myqlm_circuit = job.circuit.transpiled_circuit
 
