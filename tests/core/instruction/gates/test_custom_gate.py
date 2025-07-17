@@ -1,11 +1,13 @@
 import contextlib
 import random
+from functools import reduce
 from itertools import product
 
 import numpy as np
 import pytest
 
 from mpqp import QCircuit
+from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.execution import (
     ATOSDevice,
     AvailableDevice,
@@ -17,11 +19,8 @@ from mpqp.execution import (
 from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
-from mpqp.tools.errors import (
-    UnsupportedBraketFeaturesWarning,
-)
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
-import sys
 
 
 def test_custom_gate_is_unitary():
@@ -148,25 +147,46 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 
 
-def test_decomposition_short():
-    from mpqp.tools.maths import rand_unitary_matrix
+@pytest.mark.parametrize(
+    "gates_n_positions",
+    [
+        ([(H, 0), (X, 1), (Z, 3)]),
+    ],
+)
+def test_non_continuous_targets(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    circuit = QCircuit([gate(position) for gate, position in gates_n_positions])
+    matrix = reduce(
+        np.kron,
+        [gate(0).to_matrix().astype(np.complex64) for gate, _ in gates_n_positions],
+    )
+    targets = [position for _, position in gates_n_positions]
+    assert matrix_eq(
+        QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]).to_matrix(),
+        circuit.to_matrix(),
+    )
 
-    for i in range(1, 4):
-        u = rand_unitary_matrix(2**i)
-        gate = CustomGate(UnitaryMatrix(u), list(range(i)))
-        cirq = gate.decompose()
-        assert matrix_eq(u, cirq.to_matrix())
 
-
-def decomposition_long():
-    from mpqp.tools.maths import rand_unitary_matrix
-
-    for i in range(4, 9):
-        U = rand_unitary_matrix(2**i)
-        gate = CustomGate(UnitaryMatrix(U), list(range(i)))
-        cirq = gate.decompose()
-        assert matrix_eq(U, cirq.to_matrix())
-
-
-if "--long-local" in sys.argv or "--long" in sys.argv:
-    test_decomposition_long = decomposition_long
+@pytest.mark.parametrize(
+    "gates_n_positions",
+    [
+        ([(X, 1), (Y, 0)]),
+        ([(H, 2), (X, 1), (Y, 0)]),
+        ([(H, 0), (X, 2), (Y, 1)]),
+        ([(H, 2), (X, 0), (Y, 1)]),
+    ],
+)
+def test_non_ordered_targets(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    circuit = QCircuit([gate(position) for gate, position in gates_n_positions])
+    matrix = reduce(
+        np.kron,
+        [gate(0).to_matrix().astype(np.complex64) for gate, _ in gates_n_positions],
+    )
+    targets = [position for _, position in gates_n_positions]
+    assert matrix_eq(
+        QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]).to_matrix(),
+        circuit.to_matrix(),
+    )
