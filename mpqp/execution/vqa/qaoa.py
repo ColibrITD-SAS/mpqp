@@ -209,10 +209,6 @@ def qaoa_solver(
     loss_optimize = partial(
         _loss, cost=observable, nb_qubit=problem_size, mixer=mixer_matrix, device=device
     )
-    # optimal_params = scipy.optimize.minimize(
-    #     fun=loss_optimize, method=optimizer.name.lower(), x0=np.zeros(depth * 2)
-    # )
-
     cost, optimal_params = minimize(
         loss_optimize,
         method=optimizer,
