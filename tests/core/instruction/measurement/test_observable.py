@@ -62,7 +62,7 @@ def list_matrix_pauli_string() -> list[tuple[Matrix, PauliString]]:
             3 / 2 * I + 3 * X + 1 / 2 * Z,
         ),
         (
-            np.array([[-1, 1 - 1j], [1 + 1j, 0]], dtype=np.complex128),
+            np.array([[-1, 1 + 1j], [1 - 1j, 0]], dtype=np.complex128),
             -1 / 2 * I + X - Y - 1 / 2 * Z,
         ),
         (np.diag([-2, 4, 5, 3]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I - 2 * Z @ Z),
