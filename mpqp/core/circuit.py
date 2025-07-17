@@ -1072,7 +1072,7 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = self._clone_without("measurements",deep_copy=deep_copy)
+        new_circuit = self._clone_without("measurements", deep_copy=deep_copy)
         new_circuit.measurements = []
         new_circuit._nb_cbits = 0
         new_circuit.rebind_index()
@@ -1088,7 +1088,7 @@ class QCircuit:
         Returns:
             A shallow copy of this circuit with all the breakpoints removed.
         """
-        new_circuit = self._clone_without("other_instructions",deep_copy=deep_copy)
+        new_circuit = self._clone_without("other_instructions", deep_copy=deep_copy)
         new_circuit.other_instructions = []
         for other in self.other_instructions:
             if not isinstance(other, Breakpoint):
@@ -1102,7 +1102,7 @@ class QCircuit:
 
         Args:
             deep_copy : If True, performs a deep copy of attribute values; otherwise, performs a shallow copy.
-            
+
         Returns:
             A shallow copy of this circuit with all the noise models removed.
 
@@ -1128,7 +1128,7 @@ class QCircuit:
                        0  1
 
         """
-        new_circuit = self._clone_without("noises",deep_copy=deep_copy)
+        new_circuit = self._clone_without("noises", deep_copy=deep_copy)
         new_circuit.noises = []
         return new_circuit
 
