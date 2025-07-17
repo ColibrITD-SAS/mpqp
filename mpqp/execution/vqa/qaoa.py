@@ -18,14 +18,12 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-import scipy
-import scipy.linalg
-import scipy.optimize
-from networkx import Graph
 
 from mpqp import QCircuit
 from mpqp.execution import AvailableDevice, Result, run
+from mpqp.execution.vqa import Optimizer, minimize
 from mpqp.execution.vqa.qubo import Qubo
+from mpqp.execution.vqa.vqa import OptimizerInput
 from mpqp.gates import CustomGate, H, UnitaryMatrix
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools.maths import Matrix
@@ -42,6 +40,8 @@ class QaoaMixer:
         graph: Graph needed to generate certain types of hamiltonian.
         bitflip: Value needed to build the bitflip hamiltonian.
     """
+
+    from networkx import Graph
 
     def __init__(
         self,
@@ -90,7 +90,7 @@ class QaoaMixer:
                 )
             result = result / 2
             return result
-        else:
+        elif self.type == QaoaMixerType.MIXER_BITFLIP:
             result = np.zeros((2**qubits, 2**qubits), dtype=np.complex128)
             identity = np.eye(2**qubits)
             x_matrix = np.array([[0, 1], [1, 0]])
@@ -106,6 +106,8 @@ class QaoaMixer:
                     )
                 result += 0.5 ** (degree) * x_vertex @ current
             return result
+        else:
+            raise NotImplementedError
 
 
 class QaoaMixerType(Enum):
@@ -153,12 +155,12 @@ class QaoaResult:
         cost: float,
         final_state: str,
         values: dict[str, int],
-        final_params: list[float],
+        final_params: OptimizerInput,
     ):
         self.cost = cost
         self.values: dict[str, int] = values
         self.final_state: str = final_state
-        self.final_parameters: list[float] = final_params
+        self.final_parameters: OptimizerInput = final_params
 
     def __str__(self) -> str:
         return (
@@ -172,15 +174,15 @@ def qaoa_solver(
     depth: int,
     mixer: Union[QaoaMixer, Matrix],
     device: AvailableDevice,
-    optimizer: str,
+    optimizer: Optimizer,
 ) -> QaoaResult:
     """This function solves decision problems using Qaoa, the problem needs to
     be inputted as a Qubo expression.
 
     Args:
         problem: Qubo expression representing the problem.
-        depth: Number of cost/mixer gates used in the circuit, the total depth
-            of the ansatz being 2*depth.
+        depth: Number of layers in the ansatz, one layer being the application of
+            one cost operator and one mixer operator.
         mixer: Type of the Mixer hamiltonian to be used or directly the mixer
             hamiltonian.
         device: The device that will be used to run the ansatz.
@@ -195,7 +197,7 @@ def qaoa_solver(
         >>> x1 = QuboAtom('x1')
         >>> expr = -3*x0 - 5*x1 + 3*(x0 & x1)
         >>> mixer = QaoaMixer(QaoaMixerType.MIXER_X)
-        >>> qaoa_solver(expr, 4, mixer, IBMDevice.AER_SIMULATOR, 'Powell').final_state
+        >>> qaoa_solver(expr, 4, mixer, IBMDevice.AER_SIMULATOR, Optimizer.POWELL).final_state
         '01'
     """
     observable = problem.to_cost_hamiltonian()
@@ -207,11 +209,17 @@ def qaoa_solver(
     loss_optimize = partial(
         _loss, cost=observable, nb_qubit=problem_size, mixer=mixer_matrix, device=device
     )
-    optimal_params = scipy.optimize.minimize(
-        fun=loss_optimize, method=optimizer, x0=np.zeros(depth * 2)
+    # optimal_params = scipy.optimize.minimize(
+    #     fun=loss_optimize, method=optimizer.name.lower(), x0=np.zeros(depth * 2)
+    # )
+
+    cost, optimal_params = minimize(
+        loss_optimize,
+        method=optimizer,
+        init_params=np.zeros(depth * 2, dtype=np.float32),
     )
 
-    circuit = _generate_ansatz(optimal_params.x, observable, problem_size, mixer_matrix)
+    circuit = _generate_ansatz(optimal_params, observable, problem_size, mixer_matrix)
     circuit.add(BasisMeasure(list(range(circuit.nb_qubits))))
 
     result = run(circuit, device)
@@ -225,7 +233,6 @@ def qaoa_solver(
     variables = problem.get_variables()
     for i in range(len(variables)):
         values.update({variables[i]: int(res[i])})
-    cost = problem.evaluate(values)
     return QaoaResult(cost, res, values, optimal_params)
 
 
@@ -241,7 +248,7 @@ def _loss(
 
     Args:
         parameters: List of floats representing the gamma and beta coefficient
-            in the Qaoa ansatz.
+            in the Qaoa ansatz in this order: [gamma0, beta0, gamma1, beta1, ...].
         cost: The cost hamiltonian of the ansatz.
         nb_qubit: Size of the circuit.
         mixer: Mixer hamiltonian of the ansatz.
@@ -285,6 +292,8 @@ def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):
         operator: Matrix representing either the cost Hamiltonian or the mixer Hamiltonian.
         parameter: The parameter controlling the application of the (cost/mixer) Hamiltonian, used to create the unitary matrix.
     """
+    import scipy.linalg
+
     unitary = scipy.linalg.expm(-1j * parameter * operator)
     unitary_gate = CustomGate(
         UnitaryMatrix(unitary.astype(np.complex128)), list(range(circuit.nb_qubits))
@@ -293,7 +302,7 @@ def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):
 
 
 def _generate_ansatz(
-    parameters: list[float],
+    parameters: OptimizerInput,
     cost_hamiltonian: Observable,
     qubits: int,
     mixer: Matrix,

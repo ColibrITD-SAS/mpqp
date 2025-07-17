@@ -6,6 +6,7 @@ from networkx import Graph
 from mpqp.execution import AvailableDevice, IBMDevice
 from mpqp.execution.vqa.qaoa import QaoaMixer, QaoaMixerType, qaoa_solver
 from mpqp.execution.vqa.qubo import Qubo, QuboAtom
+from mpqp.execution.vqa import Optimizer
 
 x = QuboAtom('x')
 y = QuboAtom('y')
@@ -28,14 +29,14 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
 @pytest.mark.parametrize(
     "expr, depth, mixer, device, optimizer, state",
     [
-        (2 * x, 2, mixer_x, IBMDevice.AER_SIMULATOR, "Powell", "0"),
-        (x * 2 + 2, 2, mixer_x, IBMDevice.AER_SIMULATOR, "Powell", "0"),
+        (2 * x, 2, mixer_x, IBMDevice.AER_SIMULATOR, Optimizer.POWELL, "0"),
+        (x * 2 + 2, 2, mixer_x, IBMDevice.AER_SIMULATOR, Optimizer.POWELL, "0"),
         (
             x * 2 + 3 * y,
             1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "00",
         ),
         (
@@ -43,7 +44,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             2,
             mixer_xy_3,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "101",
         ),
         (
@@ -51,7 +52,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             2,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "01",
         ),
         (
@@ -59,7 +60,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             2,
             mixer_bitflip_3,
             IBMDevice.AER_SIMULATOR,
-            "powell",
+            Optimizer.POWELL,
             "101",
         ),
         (
@@ -67,7 +68,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             2,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "10",
         ),
         (
@@ -75,7 +76,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             2,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "101",
         ),
         (
@@ -83,7 +84,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "000",
         ),
         (
@@ -91,7 +92,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             3,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "01",
         ),
         (
@@ -99,7 +100,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "11",
         ),
         (
@@ -107,7 +108,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             2,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "00",
         ),
         (
@@ -115,7 +116,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             3,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "010",
         ),
         (
@@ -123,7 +124,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             1,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Powell",
+            Optimizer.POWELL,
             "010",
         ),
         (
@@ -135,10 +136,10 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             + x2_1
             - 10 * ((x0_1 ^ x2_1) + (x1_0 ^ x2_0) + (x1_2 ^ x0_2))
             - 10 * ((x0_1 ^ x0_2) + (x1_0 ^ x1_2) + (x2_0 ^ x2_1)),
-            3,
+            4,
             mixer_x,
             IBMDevice.AER_SIMULATOR,
-            "Nelder-Mead",
+            Optimizer.POWELL,
             "011001",
         ),
     ],
@@ -148,7 +149,7 @@ def qaoa(
     depth: int,
     mixer: QaoaMixer,
     device: AvailableDevice,
-    optimizer: str,
+    optimizer: Optimizer,
     state: str,
 ):
     assert qaoa_solver(expr, depth, mixer, device, optimizer).final_state == state

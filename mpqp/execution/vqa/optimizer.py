@@ -11,3 +11,5 @@ class Optimizer(Enum):
     BFGS = auto()
     COBYLA = auto()
     CMAES = auto()
+    POWELL = auto()
+    # NELDER-MEAD = auto()
