@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from numbers import Complex
 from textwrap import indent
-from typing import TYPE_CHECKING, Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 from sympy import Expr
@@ -269,6 +269,46 @@ def _run_single(
         return run_azure(job, translation_warning)
     else:
         raise NotImplementedError(f"Device {device} not handled")
+
+
+@overload
+def run(
+    circuit: Sequence[QCircuit],
+    device: AvailableDevice,
+    values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
+    translation_warning: bool = True,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: Sequence[QCircuit],
+    device: Sequence[AvailableDevice],
+    values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
+    translation_warning: bool = True,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
+    device: Sequence[AvailableDevice],
+    values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
+    translation_warning: bool = True,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
+    translation_warning: bool = True,
+) -> Result: ...
 
 
 @typechecked
