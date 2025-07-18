@@ -32,13 +32,14 @@ def apply_noise_to_cirq_circuit(
 ) -> "Circuit":
     """Apply noise models to a Cirq circuit.
 
-    This function applies noise models to a given Cirq circuit based on the specified noise models and
-    the number of qubits in the circuit. It modifies the original circuit by adding noise operations
-    after the original gates and returns a new circuit with the noise applied.
+    This function applies noise models to a given Cirq circuit based on the
+    specified noise models and the number of qubits in the circuit. It modifies
+    the original circuit by adding noise operations after the original gates and
+    returns a new circuit with the noise applied.
 
     Args:
-        cirq_circuit: The Cirq circuit to apply noise to.
-        noises: A list of noise models to apply to the circuit.
+        cirq_circuit: The Cirq circuit to apply noise to. noises: A list of
+            noise models to apply to the circuit.
         nb_qubits: The number of qubits in the circuit.
 
     Returns:
@@ -51,33 +52,31 @@ def apply_noise_to_cirq_circuit(
     qubits = sorted(cirq_circuit.all_qubits())
     noisy_moments = []
 
+    allowed_gates: dict[NoiseModel, set[type[NativeGate]]] = {}
+    for noise in noises:
+        gates: set[type[NativeGate]] = set()
+        for gate in noise.gates:
+            gate_obj = gate.cirq_gate if hasattr(gate, "cirq_gate") else gate
+            gate_cls = type(gate_obj) if not isinstance(gate_obj, type) else gate_obj
+            gates.add(gate_cls)
+        allowed_gates[noise] = gates
+    converted_noises: dict[NoiseModel, Gate] = (
+        {  # pyright: ignore[reportAssignmentType]
+            noise: noise.to_other_language(Language.CIRQ) for noise in noises
+        }
+    )
+
     for moment in cirq_circuit:
         moment_ops = list(moment.operations)
         noisy_moments.append(Moment(moment_ops))
 
         qubit_noise_op: list[list[Operation]] = [[] for _ in range(nb_qubits)]
-        reversed_noises = reversed(noises)
-        allowed_gates: dict[NoiseModel, set[type[NativeGate]]] = {}
-        for noise in noises:
-            gates: set[type[NativeGate]] = set()
-            for gate in noise.gates:
-                gate_obj = gate.cirq_gate if hasattr(gate, "cirq_gate") else gate
-                gate_cls = (
-                    type(gate_obj) if not isinstance(gate_obj, type) else gate_obj
-                )
-                gates.add(gate_cls)
-            allowed_gates[noise] = gates
-        converted_noises: dict[NoiseModel, Gate] = (
-            {  # pyright: ignore[reportAssignmentType]
-                noise: noise.to_other_language(Language.CIRQ) for noise in noises
-            }
-        )
 
         for op in moment_ops:
             if isinstance(op.gate, (MeasurementGate, IdentityGate)):
                 continue
 
-            for noise in reversed_noises:
+            for noise in reversed(noises):
                 noise_dimension = getattr(noise, "dimension", 1)
 
                 if len(noise.targets) == 0 or len(noise.targets) == nb_qubits:
@@ -90,7 +89,7 @@ def apply_noise_to_cirq_circuit(
                     and len(op.qubits) == 2
                     and all(q in target_qubits for q in op.qubits)
                     and (
-                        not len(allowed_gates) != 0
+                        len(allowed_gates[noise]) == 0
                         or isinstance(op.gate, tuple(allowed_gates[noise]))
                     )
                 ):
@@ -100,7 +99,7 @@ def apply_noise_to_cirq_circuit(
                 elif noise_dimension == 1:
                     for q in op.qubits:
                         if q in target_qubits and (
-                            not len(allowed_gates) != 0
+                            len(allowed_gates[noise]) == 0
                             or isinstance(op.gate, tuple(allowed_gates[noise]))
                         ):
                             qubit_index = qubits.index(q)
@@ -109,7 +108,9 @@ def apply_noise_to_cirq_circuit(
                             )
 
         noisy_moments += [
-            [ops[moment_index] for ops in qubit_noise_op if len(ops) > moment_index]
+            Moment(
+                [ops[moment_index] for ops in qubit_noise_op if len(ops) > moment_index]
+            )
             for moment_index in range(max(len(ops) for ops in qubit_noise_op))
         ]
 
