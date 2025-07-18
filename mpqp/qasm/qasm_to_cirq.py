@@ -128,9 +128,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             self.phi = phi
 
         def __repr__(self) -> str:
-            return (
-                f"U({self.theta:.3f}, {self.theta:.3f}, {self.theta:.3f})"
-            )
+            return f"U({self.theta:.3f}, {self.theta:.3f}, {self.theta:.3f})"
 
         def _decompose_(self, qubits: tuple[Qid, ...]):
             q = qubits[0]
