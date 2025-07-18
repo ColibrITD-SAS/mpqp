@@ -107,6 +107,9 @@ class NoiseModel(ABC):
         self.gates = gates if gates is not None else []
         """See parameter description."""
 
+    def __hash__(self):
+        return hash(repr(self))
+
     def connections(self) -> set[int]:
         """Qubits to which this is connected (applied to)."""
         return set(self.targets)
