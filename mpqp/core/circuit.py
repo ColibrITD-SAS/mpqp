@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
 from warnings import warn
 
 import numpy as np
@@ -52,6 +52,8 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
+from mpqp.execution.simulated_devices import IBMSimulatedDevice
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
@@ -1050,6 +1052,59 @@ class QCircuit:
                     circuit = circuit + measure.pre_measure
         return circuit
 
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QASM2, Language.QASM3],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> str: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.CIRQ],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.BRAKET],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> braket_Circuit: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.MY_QLM],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QISKIT],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Language,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
+
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
@@ -1347,6 +1402,46 @@ class QCircuit:
             return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
+
+    @overload
+    def to_other_device(
+        self,
+        device: ATOSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AWSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> braket_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: GOOGLEDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: Union[IBMDevice, IBMSimulatedDevice],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AvailableDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
 
     def to_other_device(
         self,
