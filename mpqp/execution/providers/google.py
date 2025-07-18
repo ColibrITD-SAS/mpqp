@@ -12,7 +12,6 @@ if TYPE_CHECKING:
     from cirq.work.observable_measurement_data import ObservableMeasuredResult
 
 from cirq.circuits.circuit import Circuit
-from cirq.circuits.moment import Moment
 from typeguard import typechecked
 
 from mpqp import Language
@@ -45,6 +44,7 @@ def apply_noise_to_cirq_circuit(
     Returns:
         A new circuit with the noise operations applied.
     """
+    from cirq.circuits.moment import Moment
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
     from cirq.ops.raw_types import Gate, Operation
@@ -56,8 +56,8 @@ def apply_noise_to_cirq_circuit(
     for noise in noises:
         gates: set[type[NativeGate]] = set()
         for gate in noise.gates:
-            gate_obj = gate.cirq_gate if hasattr(gate, "cirq_gate") else gate
-            gate_cls = type(gate_obj) if not isinstance(gate_obj, type) else gate_obj
+            cirq_gate = gate.cirq_gate
+            gate_cls = type(cirq_gate) if not isinstance(cirq_gate, type) else cirq_gate
             gates.add(gate_cls)
         allowed_gates[noise] = gates
     converted_noises: dict[NoiseModel, Gate] = (
