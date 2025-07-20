@@ -28,11 +28,10 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
-
 from mpqp.measures import Observable
 from mpqp.tools.generics import Matrix
 from mpqp.tools.operators import *
+from typeguard import typechecked
 
 
 class Qubo(ABC):
@@ -105,9 +104,6 @@ class Qubo(ABC):
         left: Optional["Qubo"] = None,
         right: Optional["Qubo"] = None,
     ):
-
-        # if isinstance(left, QuboConstant) and isinstance(right, QuboConstant):
-        # raise ValueError("Qubo is not meant to model constant functions")
 
         self.left = left
         self.right = right
@@ -790,11 +786,13 @@ class UnaryOperation(Qubo):
 
     Args:
         value: The unary operator.
-        right: The Qubo representing the rest of the operation.
+        right: The Qubo representing the operand.
 
     Examples:
         >>> UnaryOperation(Minus(), QuboAtom("x"))
         -QuboAtom("x")
+        >>> UnaryOperation(Not(), QuboAtom("x"))
+        ~QuboAtom("x")~QuboAtom("x")
     """
 
     def __init__(self, value: UnaryOperator, right: Qubo):

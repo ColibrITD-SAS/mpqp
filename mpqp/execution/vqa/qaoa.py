@@ -1,14 +1,14 @@
-"""This module is an implementation of one particular type of Variational Quantum
-Algorithms: the Qaoa (Quantum Approximate Optimization Algorithm). Mainly used
-for combinatorial optimization problems, and following the trotterization principle,
- this algorithm works by generating a circuit of alternated parametrized
- operators: the cost operator and the mixer operator.
-Cost operators are generated based on the cost Hamiltonian, which encodes the
-problem we want to optimize (usually expressed initially in Qubo formulation).
-Mixer operators are here to escape from the natural convergence to the "closest"
-eigenstate of the cost Hamiltonian, allowing the algorithm to explore more widely
-the space of solutions. They can be customized for a specific problem, but we provide
-a generic set of Mixer operators."""
+"""This module is an implementation of one particular type of Variational Quantum Algorithms: the Qaoa
+(Quantum Approximate Optimization Algorithm). Mainly used for combinatorial optimization problems,
+and following the trotterization principle, this algorithm works by generating a circuit of alternated parametrized
+operators: the cost operator and the mixer operator.
+
+Cost operators are generated based on the cost Hamiltonian, which encodes the problem we want to optimize
+(usually expressed initially in Qubo formulation).
+
+Mixer operators are here to escape from the natural convergence to the "closest" eigenstate of the cost Hamiltonian,
+allowing the algorithm to explore more widely the space of solutions. They can be customized for a specific problem,
+but we provide a generic set of Mixer operators."""
 
 from __future__ import annotations
 
@@ -18,7 +18,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-
 from mpqp import QCircuit
 from mpqp.execution import AvailableDevice, Result, run
 from mpqp.execution.vqa import Optimizer, minimize
@@ -27,6 +26,9 @@ from mpqp.execution.vqa.vqa import OptimizerInput
 from mpqp.gates import CustomGate, H, UnitaryMatrix
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools.maths import Matrix
+
+if TYPE_CHECKING:
+    from networkx import Graph
 
 
 class QaoaMixer:
@@ -41,12 +43,10 @@ class QaoaMixer:
         bitflip: Value needed to build the bitflip hamiltonian.
     """
 
-    from networkx import Graph
-
     def __init__(
         self,
         type: QaoaMixerType,
-        graph: Optional[Graph] = None,  # pyright: ignore[reportMissingTypeArgument]
+        graph: Optional["Graph"] = None,  # pyright: ignore[reportMissingTypeArgument]
         bitflip: int = 0,
     ):
         self.type = type
