@@ -792,7 +792,7 @@ class UnaryOperation(Qubo):
         >>> UnaryOperation(Minus(), QuboAtom("x"))
         -QuboAtom("x")
         >>> UnaryOperation(Not(), QuboAtom("x"))
-        ~QuboAtom("x")~QuboAtom("x")
+        ~QuboAtom("x")
     """
 
     def __init__(self, value: UnaryOperator, right: Qubo):
