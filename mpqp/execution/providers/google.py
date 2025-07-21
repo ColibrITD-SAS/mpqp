@@ -27,7 +27,6 @@ from mpqp.noise import NoiseModel
 def apply_noise_to_cirq_circuit(
     cirq_circuit: "Circuit",
     noises: list[NoiseModel],
-    nb_qubits: int,
 ) -> "Circuit":
     """Apply noise models to a Cirq circuit.
 
@@ -39,7 +38,6 @@ def apply_noise_to_cirq_circuit(
     Args:
         cirq_circuit: The Cirq circuit to apply noise to.
         noises: The noise models to apply to the circuit.
-        nb_qubits: The number of qubits in the circuit.
 
     Returns:
         A new circuit with the noise operations applied.
@@ -48,6 +46,8 @@ def apply_noise_to_cirq_circuit(
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
     from cirq.ops.raw_types import Gate, Operation
+
+    from mpqp.noise import DimensionalNoiseModel
 
     qubits = sorted(cirq_circuit.all_qubits())
     noisy_moments = []
@@ -70,16 +70,19 @@ def apply_noise_to_cirq_circuit(
         moment_ops = list(moment.operations)
         noisy_moments.append(Moment(moment_ops))
 
-        qubit_noise_op: list[list[Operation]] = [[] for _ in range(nb_qubits)]
+        qubit_noise_op: list[list[Operation]] = [[] for _ in range(len(qubits))]
 
         for op in moment_ops:
             if isinstance(op.gate, (MeasurementGate, IdentityGate)):
                 continue
 
             for noise in reversed(noises):
-                noise_dimension = getattr(noise, "dimension", 1)
+                if isinstance(noise, DimensionalNoiseModel):
+                    noise_dimension = noise.dimension
+                else:
+                    noise_dimension = 1
 
-                if len(noise.targets) == 0 or len(noise.targets) == nb_qubits:
+                if len(noise.targets) == 0 or len(noise.targets) == len(qubits):
                     target_qubits = qubits
                 else:
                     target_qubits = [qubits[i] for i in noise.targets]
