@@ -32,7 +32,7 @@ from scipy.spatial.distance import jensenshannon
 from typeguard import typechecked
 
 from mpqp import QCircuit
-from mpqp.execution import AvailableDevice, AWSDevice, Result
+from mpqp.execution import AvailableDevice, AWSDevice, Result, run
 from mpqp.measures import BasisMeasure
 
 
