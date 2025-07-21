@@ -1287,11 +1287,11 @@ class PauliStringAtom(PauliStringMonomial):
             raise ValueError(
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
             )
-        if not method == CommutingTypes.FULL:
-            raise ValueError(
-                f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
-            )
-        return other == I or self == I or self == other
+        if method == CommutingTypes.FULL:
+            return other == I or self == I or self == other
+        raise ValueError(
+            f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
+        )
 
     def to_other_language(
         self,
