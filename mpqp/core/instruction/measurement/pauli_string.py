@@ -48,9 +48,7 @@ class CommutingTypes(Enum):
 
 
 class GroupingMethods(Enum):
-    """Enum regrouping the different algorithm used to organize all of
-    the groups of Pauli monomials.
-    """
+    """Enum regrouping the different Pauli grouping algorithms."""
 
     GREEDY = auto()
     COLORING_GREEDY = auto()
