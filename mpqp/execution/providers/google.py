@@ -32,13 +32,13 @@ def apply_noise_to_cirq_circuit(
     """Apply noise models to a Cirq circuit.
 
     This function applies noise models to a given Cirq circuit based on the
-    specified noise models and the number of qubits in the circuit. It modifies
-    the original circuit by adding noise operations after the original gates and
-    returns a new circuit with the noise applied.
+    specified noise models and the number of qubits in the circuit. It constructs
+    a new circuit by adding noise operations after the original gates and
+    returns the circuit with the noise applied.
 
     Args:
-        cirq_circuit: The Cirq circuit to apply noise to. noises: A list of
-            noise models to apply to the circuit.
+        cirq_circuit: The Cirq circuit to apply noise to.
+        noises: The noise models to apply to the circuit.
         nb_qubits: The number of qubits in the circuit.
 
     Returns:

@@ -836,7 +836,7 @@ class BatchResult:
 
     def save(self):
         """Save a batch of results to the local storage and returns the
-        corresponding local ``id``'s to be used when the results needs to be
+        corresponding local ``id`` to be used when the results needs to be
         retrieved.
 
         Uses :func:`~mpqp.local_storage.save.insert_results`."""
