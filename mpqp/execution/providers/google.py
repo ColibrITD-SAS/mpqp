@@ -316,7 +316,7 @@ def extract_result_SAMPLE(
 
     data = [
         Sample(
-            bin_str="".join(map(lambda s: format(s, f'0{nb_qubits}b'), state)),
+            bin_str="".join(map(lambda s: f'{s:0{nb_qubits}b}', state)),
             count=count,
             nb_qubits=nb_qubits,
         )
