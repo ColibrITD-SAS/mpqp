@@ -1,7 +1,6 @@
 import contextlib
 import random
 from functools import reduce
-import sys
 from itertools import product
 
 import numpy as np
@@ -225,10 +224,10 @@ def test_non_ordered_targets_execution(
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
-        result_custom_gate = _run_single(
-            QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]), device, {}
+        result_custom_gate = run(
+            QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]), device
         )
-        result_circuit = _run_single(circuit, device, {})
+        result_circuit = run(circuit, device)
     assert matrix_eq(
         result_custom_gate.amplitudes, result_circuit.amplitudes, 1e-4, 1e-4
     )
