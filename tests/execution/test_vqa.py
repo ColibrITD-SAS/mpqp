@@ -13,10 +13,10 @@ from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
     AWSDevice,
-    IBMDevice,
     GOOGLEDevice,
+    IBMDevice,
 )
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution.runner import run
 from mpqp.execution.vqa import Optimizer, minimize
 from mpqp.execution.vqa.vqa import OptimizableFunc
 from mpqp.gates import *
@@ -72,7 +72,7 @@ def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevi
         (
             lambda params: (
                 1
-                - _run_single(
+                - run(
                     QCircuit(
                         [
                             P(theta, 0),

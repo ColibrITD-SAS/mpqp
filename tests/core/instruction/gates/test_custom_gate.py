@@ -1,5 +1,6 @@
 import contextlib
 import random
+import sys
 from itertools import product
 
 import numpy as np
@@ -14,14 +15,11 @@ from mpqp.execution import (
     IBMDevice,
     Result,
 )
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution.runner import run
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
-from mpqp.tools.errors import (
-    UnsupportedBraketFeaturesWarning,
-)
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
-import sys
 
 
 def test_custom_gate_is_unitary():
@@ -61,7 +59,7 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
-        result = _run_single(c, device, {})
+        result = run(c, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
     assert isinstance(result, Result)
@@ -100,14 +98,14 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
-        result1 = _run_single(c1, device, {})
+        result1 = run(c1, device)
 
     with (
         pytest.warns(UnsupportedBraketFeaturesWarning)
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
-        result2 = _run_single(c2, device, {})
+        result2 = run(c2, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
     assert isinstance(result1, Result)
@@ -139,8 +137,8 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
-        result1 = _run_single(random_circ, device, {})
-        result2 = _run_single(custom_gate_circ, device, {})
+        result1 = run(random_circ, device)
+        result2 = run(custom_gate_circ, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
     assert isinstance(result1, Result)
