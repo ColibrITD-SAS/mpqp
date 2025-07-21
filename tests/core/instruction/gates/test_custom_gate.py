@@ -141,9 +141,9 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
         result1 = _run_single(random_circ, device, {})
         result2 = _run_single(custom_gate_circ, device, {})
 
-    # we reduce the precision because of approximation errors coming from CustomGate usage
     assert isinstance(result1, Result)
     assert isinstance(result2, Result)
+    # precision reduced from approximation errors (CustomGate usage)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 
 
@@ -189,4 +189,40 @@ def test_non_ordered_targets(
     assert matrix_eq(
         QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]).to_matrix(),
         circuit.to_matrix(),
+    )
+
+
+@pytest.mark.parametrize(
+    "gates_n_positions, device",
+    product(
+        [
+            ([(X, 1), (Y, 0)]),
+            ([(H, 2), (X, 1), (Y, 0)]),
+            ([(H, 0), (X, 2), (Y, 1)]),
+            ([(H, 2), (X, 0), (Y, 1)]),
+        ],
+        [
+            IBMDevice.AER_SIMULATOR,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    ),
+)
+def test_non_ordered_targets_execution(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]], device: AvailableDevice
+):
+    circuit = QCircuit([gate(position) for gate, position in gates_n_positions])
+    matrix = reduce(
+        np.kron,
+        [gate(0).to_matrix().astype(np.complex64) for gate, _ in gates_n_positions],
+    )
+    targets = [position for _, position in gates_n_positions]
+
+    result_custom_gate = _run_single(
+        QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]), device, {}
+    )
+    result_circuit = _run_single(circuit, device, {})
+    assert matrix_eq(
+        result_custom_gate.amplitudes, result_circuit.amplitudes, 1e-4, 1e-4
     )
