@@ -219,10 +219,15 @@ def test_non_ordered_targets_execution(
     )
     targets = [position for _, position in gates_n_positions]
 
-    result_custom_gate = _run_single(
-        QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]), device, {}
-    )
-    result_circuit = _run_single(circuit, device, {})
+    with (
+        pytest.warns(UnsupportedBraketFeaturesWarning)
+        if isinstance(device, AWSDevice)
+        else contextlib.suppress()
+    ):
+        result_custom_gate = _run_single(
+            QCircuit([CustomGate(UnitaryMatrix(matrix), targets)]), device, {}
+        )
+        result_circuit = _run_single(circuit, device, {})
     assert matrix_eq(
         result_custom_gate.amplitudes, result_circuit.amplitudes, 1e-4, 1e-4
     )
