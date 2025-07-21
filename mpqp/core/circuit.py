@@ -52,8 +52,6 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
-from mpqp.execution.simulated_devices import IBMSimulatedDevice
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
@@ -66,8 +64,14 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
-
-    from mpqp.execution.devices import AvailableDevice
+    from mpqp.execution.devices import (
+        ATOSDevice,
+        AWSDevice,
+        GOOGLEDevice,
+        IBMDevice,
+        AvailableDevice,
+    )
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 
 @typechecked
