@@ -1,13 +1,15 @@
-"""This module is an implementation of one particular type of Variational Quantum Algorithms: the Qaoa
-(Quantum Approximate Optimization Algorithm). Mainly used for combinatorial optimization problems,
-and following the trotterization principle, this algorithm works by generating a circuit of alternated parametrized
-operators: the cost operator and the mixer operator.
+"""This module is an implementation of one particular type of Variational
+Quantum Algorithms: the Qaoa (Quantum Approximate Optimization Algorithm).
+Mainly used for combinatorial optimization problems, and following the
+trotterization principle, this algorithm works by generating a circuit of
+alternated parametrized operators: the cost operator and the mixer operator.
 
-Cost operators are generated based on the cost Hamiltonian, which encodes the problem we want to optimize
-(usually expressed initially in Qubo formulation).
+Cost operators are generated based on the cost Hamiltonian, which encodes the
+problem we want to optimize (usually expressed initially in Qubo formulation).
 
-Mixer operators are here to escape from the natural convergence to the "closest" eigenstate of the cost Hamiltonian,
-allowing the algorithm to explore more widely the space of solutions. They can be customized for a specific problem,
+Mixer operators are here to escape from the natural convergence to the "closest"
+eigenstate of the cost Hamiltonian, allowing the algorithm to explore more
+widely the space of solutions. They can be customized for a specific problem,
 but we provide a generic set of Mixer operators."""
 
 from __future__ import annotations
@@ -18,6 +20,7 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
+
 from mpqp import QCircuit
 from mpqp.execution import AvailableDevice, Result, run
 from mpqp.execution.vqa import Optimizer, minimize
@@ -174,7 +177,7 @@ def qaoa_solver(
     depth: int,
     mixer: Union[QaoaMixer, Matrix],
     device: AvailableDevice,
-    optimizer: Optimizer,
+    optimizer: Optimizer = Optimizer.POWELL,
 ) -> QaoaResult:
     """This function solves decision problems using Qaoa, the problem needs to
     be inputted as a Qubo expression.
@@ -186,8 +189,8 @@ def qaoa_solver(
         mixer: Type of the Mixer hamiltonian to be used or directly the mixer
             hamiltonian.
         device: The device that will be used to run the ansatz.
-        optimizer: The optimizer used to minimize. 'Powell' is recommended for
-            better results, but other can be more efficient on specific use cases.
+        optimizer: The optimizer used. Note: from our experience, not all of the
+            available optimizers work well to solve Qaoa problems.
 
     Returns:
         A QaoaResult containing the minimal cost found and the associated state.
