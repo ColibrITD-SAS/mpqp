@@ -23,9 +23,6 @@ from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional
 
 import numpy as np
-from sympy import Expr
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -52,6 +49,8 @@ from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
+from sympy import Expr
+from typeguard import typechecked
 
 
 @typechecked
@@ -358,8 +357,6 @@ def run(
     def namer(circ: QCircuit, i: int):
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
-
-    # TODO: here detect that we have a full diag observable job
 
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
