@@ -160,9 +160,8 @@ class UnitaryMatrix(GateDefinition):
 
     Raises:
         ValueError: Matrices defining gates have to be unitary.
-
         ValueError: The unitary matrix of a gate acting on qubits must have
-        dimensions that are power of two.
+            dimensions that are power of two.
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
