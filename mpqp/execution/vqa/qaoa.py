@@ -218,6 +218,7 @@ def qaoa_solver(
         init_params=np.zeros(depth * 2, dtype=np.float32),
     )
 
+    # TODO: use .pretranspiled_circuit to avoid transpilation every time
     circuit = _generate_ansatz(optimal_params, observable, problem_size, mixer_matrix)
     circuit.add(BasisMeasure(list(range(circuit.nb_qubits))))
 
