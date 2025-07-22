@@ -3,15 +3,18 @@ import pytest
 from mpqp import QCircuit
 from mpqp.core.instruction import ExpectationMeasure, Observable
 from mpqp.execution import AvailableDevice, IBMDevice
-from mpqp.execution.devices import AWSDevice, GOOGLEDevice
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice
+from mpqp.execution.runner import (
+    _run_single,  # pyright: ignore[reportPrivateUsage]
+    run,
+)
 from mpqp.gates import *
 
 
 def list_circuits():
     return [
         QCircuit([H(0), CNOT(0, 1)]),
-        QCircuit([H(0), X(1)]),  # type: ignore
+        QCircuit([H(0), X(1)]),  # pyright: ignore[reportCallIssue]
         QCircuit([Rx(np.pi / 2, 0), Ry(np.pi / 5, 1), CNOT(0, 1)]),
         # TODO add random circuit
     ]
@@ -102,8 +105,6 @@ def optimized_devices():
 def test_pauli_grouping_optimization(
     observable: list[Observable], device: AvailableDevice
 ):
-    print(observable)
-    print(device)
     from mpqp.execution import run, Result
 
     circuit = QCircuit(
@@ -130,8 +131,6 @@ def test_pauli_grouping_optimization(
         )
         assert isinstance(non_optimized, Result)
         assert isinstance(optimized, Result)
-        print(non_optimized)
-        print(optimized)
         if isinstance(non_optimized.expectation_values, float) and isinstance(
             optimized.expectation_values, float
         ):
@@ -142,3 +141,41 @@ def test_pauli_grouping_optimization(
             assert all(round(non_optimized.expectation_values[f"observable_{i}"], 5) == round(optimized.expectation_values[f"observable_{i}"], 5) for i in range(len(non_optimized.expectation_values)))  # type: ignore
     else:
         assert True
+
+
+@pytest.mark.parametrize(
+    "expectation_value,circuit,observable",
+    [
+        [
+            -0.2279775,
+            QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
+            Observable(X @ Y + Z @ X),
+        ],
+        [
+            0,
+            QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
+            Observable(I @ X + Y @ Z),
+        ],
+    ],
+)
+def test_expectation_value_all_devices(
+    expectation_value: float, circuit: QCircuit, observable: Observable
+):
+    devices = [
+        IBMDevice.AER_SIMULATOR,
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        ATOSDevice.MYQLM_PYLINALG,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    ]
+    circuit.add(ExpectationMeasure(observable, shots=0, optimize_measurement=True))
+
+    assert all(
+        round(  # pyright: ignore[reportCallIssue]
+            run(
+                circuit, device, translation_warning=False
+            ).expectation_values,  # pyright: ignore[reportArgumentType,reportAttributeAccessIssue]
+            7,
+        )
+        == expectation_value
+        for device in devices
+    )

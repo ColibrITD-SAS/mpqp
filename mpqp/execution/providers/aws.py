@@ -152,7 +152,10 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
     else:
         transpiled_circuit = job.circuit.transpiled_circuit
     assert isinstance(transpiled_circuit, Circuit)
-    device = get_braket_device(job.device, is_noisy=bool(job.circuit.noises))  # type: ignore
+    device = get_braket_device(
+        job.device,  # pyright: ignore[reportArgumentType]
+        is_noisy=bool(job.circuit.noises),
+    )
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     assert isinstance(job.measure, ExpectationMeasure)
@@ -175,7 +178,7 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
                 from copy import deepcopy
 
                 cirq = deepcopy(transpiled_circuit + transpiled_pre_measure)
-                cirq.state_vector()  # type: ignore
+                cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
                 local_result = device.run(cirq, shots=0, inputs=None).result()
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)

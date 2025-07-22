@@ -19,7 +19,7 @@ from sympy import Expr
 from typeguard import typechecked
 
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.gates.native_gates import H, S
+from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
@@ -1029,13 +1029,17 @@ class PauliStringMonomial(PauliString):
                 self.atoms[i].commutes_with(other.atoms[i])
                 for i in range(self.nb_qubits)
             )
-        else:
+        elif method == CommutingTypes.FULL:
             return (
                 sum(
                     1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b)
                 )
                 % 2
                 == 0
+            )
+        else:
+            raise NotImplementedError(
+                f"This type of commutingType {method} is not implemented yet."
             )
 
     def subs(
@@ -1066,9 +1070,7 @@ class PauliStringMonomial(PauliString):
         new_monomial = deepcopy(self)
         caster = lambda v: format_element(v) if remove_symbolic else v
         if isinstance(new_monomial.coef, Expr):
-            new_monomial.coef = caster(
-                new_monomial.coef.subs(values)
-            )  # pyright: ignore[reportAttributeAccessIssue]
+            new_monomial.coef = caster(new_monomial.coef.subs(values))
 
         return new_monomial
 
@@ -1179,7 +1181,7 @@ class PauliStringAtom(PauliStringMonomial):
         return [self]
 
     @property
-    def coef(self) -> Coef:  # type: ignore
+    def coef(self) -> Coef:
         """Coefficient of the monomial."""
         return 1
 
@@ -1366,7 +1368,7 @@ Y = PauliStringAtom(
     np.fliplr(np.diag([-1j, 1j])),
     [1, -1],
     (1 / np.sqrt(2)) * np.array([[1, 1j], [1, -1j]]),
-    [S, H],
+    [S_dagger, H],
 )
 r"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
 Matrix representation:
