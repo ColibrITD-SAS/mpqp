@@ -1363,7 +1363,7 @@ Matrix representation:
 """
 Y = PauliStringAtom(
     "Y",
-    np.fliplr(np.diag([1j, -1j])),
+    np.fliplr(np.diag([-1j, 1j])),
     [1, -1],
     (1 / np.sqrt(2)) * np.array([[1, 1j], [1, -1j]]),
     [S, H],
