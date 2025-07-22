@@ -62,6 +62,7 @@ import random
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
 from cirq.circuits.circuit import Circuit as cirq_Circuit
+from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 
 
 @pytest.fixture
@@ -200,6 +201,46 @@ def list_cirq_funky_circuits() -> list[cirq_Circuit]:
     cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
 
     return [cirq_circuit_1]
+
+
+@pytest.fixture
+def list_myqlm_funky_circuits() -> list[myQLM_Circuit]:
+    from qat.lang.AQASM import Program, H, X, Y, Z, S, T, RX, RY, RZ, CNOT, SWAP, CCNOT, I, PH  # type: ignore[reportAttributeAccessIssue]
+
+    prog = Program()
+    qbits = prog.qalloc(3)
+
+    prog.apply(I, qbits[0])
+    prog.apply(X, qbits[0])
+    prog.apply(Y, qbits[0])
+    prog.apply(Z, qbits[0])
+    prog.apply(H, qbits[0])
+    prog.apply(S, qbits[0])
+    prog.apply(S.dag(), qbits[0])
+    prog.apply(T, qbits[0])
+    prog.apply(T.dag(), qbits[0])
+    prog.apply(RX(np.pi / 4), qbits[0])
+    prog.apply(RY(np.pi / 4), qbits[0])
+    prog.apply(RZ(np.pi / 4), qbits[0])
+    prog.apply(PH(np.pi / 3), qbits[0])
+    prog.apply(CNOT, qbits[0], qbits[1])
+    prog.apply(SWAP, qbits[0], qbits[1])
+    prog.apply(CCNOT, qbits[0], qbits[1], qbits[2])
+    myqlm_circuit_1 = prog.to_circ()
+
+    # prog = Program()
+    # qbits = prog.qalloc(3)
+    # prog.apply(Y.ctrl(), qbits[0], qbits[1])
+    # prog.apply(Z.ctrl(), qbits[0], qbits[1])
+    # prog.apply(H.ctrl(), qbits[0], qbits[1])
+    # prog.apply(RZ(np.pi/4).ctrl(), qbits[0], qbits[1])
+    # prog.apply(PH(np.pi/4).ctrl(), qbits[0], qbits[1])
+    # myqlm_circuit_2 = prog.to_circ()
+
+    return [
+        myqlm_circuit_1,
+        # myqlm_circuit_2
+    ]
 
 
 @pytest.mark.parametrize(
@@ -734,6 +775,13 @@ def test_from_other_language_cirq_circuits(
     list_cirq_funky_circuits: list[cirq_Circuit],
 ):
     for circ in list_cirq_funky_circuits:
+        QCircuit.from_other_language(circ)
+
+
+def test_from_other_language_myqlm_circuits(
+    list_myqlm_funky_circuits: list[myQLM_Circuit],
+):
+    for circ in list_myqlm_funky_circuits:
         QCircuit.from_other_language(circ)
 
 

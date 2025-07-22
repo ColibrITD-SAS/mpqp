@@ -99,7 +99,9 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
         'Z': Z,
         'I': Id,
         'S': S,
+        'D-S': S_dagger,
         'T': T,
+        'D-T': None,
         'RX': Rx,
         'RY': Ry,
         'RZ': Rz,
@@ -118,6 +120,10 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     for gate in circuit.iterate_simple():
 
         theta, phi, gamma, target, control_1, control_2 = _define_parameters(gate)
+
+        if gate[0] not in gates:
+            # TODO: handle MyQLM controlled gates with Custom Controlled Gate.
+            raise ValueError(f"{gate[0]} not handled yet.")
 
         mpqp_gate = gates[gate[0]]
 
@@ -145,6 +151,8 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
                 )
             elif gate[0] == 'CCNOT':
                 qc.add(TOF([control_2, control_1], target))
+            elif gate[0] == 'D-T':
+                qc.add(P(-np.pi / 4, target))
             elif gate[0] == 'MEASURE':
                 break
 
