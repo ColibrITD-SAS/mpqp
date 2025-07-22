@@ -79,6 +79,7 @@ def run_cirq_observable(
         raise NotImplementedError("job.measure is None")
     assert isinstance(job.measure, ExpectationMeasure)
 
+     # TODO: optimize
     if job.measure.optimize_measurement:
         monomials = []
         for obs in job.measure.observables:
