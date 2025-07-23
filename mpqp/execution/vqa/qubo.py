@@ -96,6 +96,8 @@ class Qubo(ABC):
         >>> qubo2.weight_matrix()
         (array([[0.7, 0. ],
                [0. , 0.3]]), -0.02)
+        >>> -(x0 - x1)
+        -(QuboAtom("x0") - QuboAtom("x1"))
     """
 
     def __init__(
@@ -818,6 +820,8 @@ class QuboConstant(Qubo):
         0
         >>> QuboConstant(3.2)
         3.2
+        >>> (QuboConstant(3) - QuboConstant(4.0)).simplify()
+        -1.0
     """
 
     def __init__(self, value: float):
