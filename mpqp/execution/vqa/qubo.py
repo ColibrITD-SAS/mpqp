@@ -554,7 +554,6 @@ class Qubo(ABC):
         for coeff in coeffs:
             coef, var = coeff
             if len(var) == 0:
-                print("ICI PAAADADDADADAADD")
                 constant += coef
             elif len(var) == 1:
                 if var[0][0] == "~":
@@ -575,7 +574,6 @@ class Qubo(ABC):
                     )
                 else:
                     coefficients.update({var_name: coef})
-        print(constant)
         variables = coefficients.keys()
         result = 0
         for var in variables:
@@ -608,7 +606,6 @@ class Qubo(ABC):
                     else:
                         result -= -(coefficients[var]) * QuboAtom(var)
         if constant < 0:
-            print('ICICICICICICICICICI')
             result -= -constant
         else:
             result += constant
