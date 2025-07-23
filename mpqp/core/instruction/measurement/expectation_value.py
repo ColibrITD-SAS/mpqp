@@ -57,7 +57,7 @@ class Observable:
 
     Examples:
         >>> Observable(np.array([[1, 0], [0, -1]]))
-        Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]], dtype=complex64))
+        Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]]))
 
         >>> from mpqp.measures import I, X, Y, Z
         >>> Observable(3 * I @ Z + 4 * X @ Y)
@@ -135,7 +135,7 @@ class Observable:
                 self._matrix = np.diag(self._diag_elements)
             else:
                 self._matrix = self.pauli_string.to_matrix()
-        matrix = copy.deepcopy(self._matrix).astype(np.complex64)
+        matrix = copy.deepcopy(self._matrix).astype(np.complex128)
         return matrix
 
     @property
@@ -286,8 +286,7 @@ class Observable:
             >>> obs = Observable([0.7, -1, 1, 1])
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> obs_qiskit.to_list()  # doctest: +NORMALIZE_WHITESPACE
-            [('II', (0.42499999701976776+0j)), ('IZ', (0.42499999701976776+0j)),
-             ('ZI', (-0.5750000029802322+0j)), ('ZZ', (0.42499999701976776+0j))]
+            [('II', (0.425+0j)), ('IZ', (0.425+0j)), ('ZI', (-0.575+0j)), ('ZZ', (0.425+0j))]
 
         """
         if language == Language.QISKIT:

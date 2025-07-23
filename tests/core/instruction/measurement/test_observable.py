@@ -120,7 +120,7 @@ def test_diagonal_elements_to_pauli(
 
 
 def test_pauli_to_matrix(
-    list_matrix_pauli_string: list[tuple[npt.NDArray[np.complex64], PauliString]],
+    list_matrix_pauli_string: list[tuple[npt.NDArray[np.complex128], PauliString]],
 ):
     for matrix, ps in list_matrix_pauli_string:
         assert matrix_eq(ps.to_matrix(), matrix)
@@ -157,7 +157,7 @@ def test_diagonal_observable_attributes(
         assert o.pauli_string.is_diagonal()
         assert matrix_eq(
             np.diag(o.diagonal_elements) - o.matrix,
-            np.zeros((2**o.nb_qubits, 2**o.nb_qubits)).astype(np.complex64),
+            np.zeros((2**o.nb_qubits, 2**o.nb_qubits))
         )
 
 

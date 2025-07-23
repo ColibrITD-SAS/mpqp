@@ -277,11 +277,11 @@ def test_basis_implementations(
     ],
 )
 def test_run_with_custom_basis_probas(
-    circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex64]
+    circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex128]
 ):
     res = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(res, Result)
-    assert matrix_eq(expected_probabilities, res.probabilities.astype(np.complex64))
+    assert matrix_eq(expected_probabilities, res.probabilities)
 
 
 @pytest.mark.parametrize(

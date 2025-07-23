@@ -24,7 +24,7 @@ atol = 1e-08
 
 
 @typechecked
-def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
+def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex64]:
     """Normalizes an array representing the amplitudes of the state.
 
     Args:
@@ -126,7 +126,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
     """
     return matrix_eq(
-        np.eye(len(matrix), dtype=np.complex64),
+        np.eye(len(matrix), dtype=np.complex128),
         matrix.transpose().conjugate().dot(matrix),
         atol=1e-5,
     )
@@ -453,7 +453,7 @@ def rand_hermitian_matrix(
     """
     rng = np.random.default_rng(seed)
 
-    m = rng.random((size, size)).astype(np.complex64)
+    m = rng.random((size, size))
     return m + m.conjugate().transpose()
 
 

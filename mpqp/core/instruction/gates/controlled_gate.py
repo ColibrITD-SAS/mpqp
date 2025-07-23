@@ -91,10 +91,10 @@ class ControlledGate(Gate, ABC):
             target -= min_qubit
             desired_gate_size = abs(control - target) + 1
 
-        zero = np.diag([1, 0]).astype(np.complex64)
-        one = np.diag([0, 1]).astype(np.complex64)
+        zero = np.diag([1, 0])
+        one = np.diag([0, 1])
         non_controlled_gate = self.non_controlled_gate.to_matrix()
-        I2 = np.eye(2, dtype=np.complex64)
+        I2 = np.eye(2, dtype=np.complex128)
 
         control_matrix = zero if control == 0 else I2
         target_matrix = (

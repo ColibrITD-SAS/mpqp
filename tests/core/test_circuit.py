@@ -175,7 +175,7 @@ def test_tensor(
         (np.array([1, 1j]) / np.sqrt(2)),
     ],
 )
-def test_initializer(state: npt.NDArray[np.complex64]):
+def test_initializer(state: npt.NDArray[np.complex128]):
     qc = QCircuit.initializer(state)
     res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
@@ -215,12 +215,12 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                 [
                     BasisMeasure([0, 1], shots=1000),
                     ExpectationMeasure(
-                        Observable(np.identity(2, dtype=np.complex64)), [1], shots=1000
+                        Observable(np.identity(2, dtype=np.complex128)), [1], shots=1000
                     ),
                 ]
             ),
             "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure("
-            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'), [1], shots=1000)]",
+            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'), [1], shots=1000)]",
         )
     ],
 )

@@ -59,7 +59,7 @@ class StateVector:
 
     def __init__(
         self,
-        vector: list[Complex] | npt.NDArray[np.complex64],
+        vector: list[Complex] | npt.NDArray[np.complex128],
         nb_qubits: Optional[int] = None,
         probabilities: Optional[list[float] | npt.NDArray[np.float32]] = None,
     ):
