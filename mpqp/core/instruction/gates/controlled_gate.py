@@ -66,7 +66,9 @@ class ControlledGate(Gate, ABC):
                 controls = [x - min_qubit for x in controls]
                 targets = [x - min_qubit for x in targets]
             elif desired_gate_size < max_qubit + 1:
-                raise ValueError(f"nb_qubits must be at least {max_qubit + 1}")
+                raise ValueError(
+                    f"Total number of qubits must be at least {max_qubit + 1}"
+                )
 
             canonical_matrix = np.kron(
                 self.to_canonical_matrix(),

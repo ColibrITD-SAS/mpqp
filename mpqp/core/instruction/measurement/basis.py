@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from mpqp import QCircuit
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.tools.display import clean_1D_array, one_lined_repr
 from mpqp.tools.maths import is_unitary
 
@@ -165,13 +164,7 @@ class Basis:
         from mpqp.core.circuit import QCircuit
 
         basis_change = np.array(self.basis_vectors).T.conjugate()
-        return QCircuit(
-            [
-                CustomGate(
-                    UnitaryMatrix(basis_change), targets=list(range(self.nb_qubits))
-                )
-            ]
-        )
+        return QCircuit([CustomGate(basis_change, targets=list(range(self.nb_qubits)))])
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Basis):

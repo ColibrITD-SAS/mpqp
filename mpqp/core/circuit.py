@@ -48,7 +48,6 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -730,8 +729,6 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
-        3M-TODO: do we want to approximate ? Also take into account Noise
-         in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
@@ -849,7 +846,7 @@ class QCircuit:
         # 3M-TODO check implementation, example and test, this will only work
            when circuit.to_matrix() will be implemented
         """
-        gate_def = UnitaryMatrix(self.to_matrix())
+        gate_def = self.to_matrix()
         return CustomGate(gate_def, list(range(self.nb_qubits)), label=self.label)
 
     @classmethod
