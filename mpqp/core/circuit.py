@@ -1492,6 +1492,7 @@ class QCircuit:
                 backend = get_backend(device)
                 pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
                 qiskit_circuit = pm.run(qiskit_circuit)
+            # TODO: removed with PR - Circuit Handling and PauliString Utilities #154
             if any(
                 isinstance(gate, CustomControlledGate) for gate in self.instructions
             ):

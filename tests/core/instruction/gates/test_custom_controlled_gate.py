@@ -40,3 +40,18 @@ def test_controlled_gate_repr(gate: CustomControlledGate) -> None:
 def test_negative_indices(gate: Type[Gate], args: tuple[Any]):
     with pytest.raises(ValueError):
         gate(*args)
+
+
+@pytest.mark.parametrize(
+    "gate, expected",
+    [
+        (CustomControlledGate(0, Y(1)), CustomControlledGate(0, Y(1))),
+        (CustomControlledGate(1, Ry(np.pi, 0)), CustomControlledGate(1, Ry(-np.pi, 0))),
+        (
+            CustomControlledGate(2, CustomGate(S(0).to_matrix(), [0])),
+            CustomControlledGate(2, CustomGate(S_dagger(0).to_matrix(), [0])),
+        ),
+    ],
+)
+def test_inverse(gate: CustomControlledGate, expected: CustomControlledGate):
+    assert gate.inverse() == expected
