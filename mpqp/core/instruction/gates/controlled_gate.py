@@ -36,6 +36,7 @@ class ControlledGate(Gate, ABC):
             targets = [targets]
         if len(set(controls)) != len(controls):
             raise ValueError(f"Duplicate registers in controls: {controls}")
+
         if len(set(controls).intersection(set(targets))):
             raise ValueError(
                 f"Common registers between targets {targets} and controls {controls}"

@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
 from warnings import warn
 
 import numpy as np
@@ -64,8 +64,14 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
-
-    from mpqp.execution.devices import AvailableDevice
+    from mpqp.execution.devices import (
+        ATOSDevice,
+        AWSDevice,
+        GOOGLEDevice,
+        IBMDevice,
+        AvailableDevice,
+    )
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 
 @typechecked
@@ -782,7 +788,8 @@ class QCircuit:
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
-
+        if self.gphase != 0:
+            matrix *= np.exp(1j * self.gphase)
         return matrix
 
     def inverse(self) -> QCircuit:
@@ -966,9 +973,7 @@ class QCircuit:
             ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
-            [BasisMeasure(shots=1000),
-            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'),
-            [1], shots=1000)]
+            [BasisMeasure(shots=1000), ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'), [1], shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
@@ -1062,6 +1067,59 @@ class QCircuit:
                     circuit.add(Barrier())
                     circuit = circuit + measure.pre_measure
         return circuit
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QASM2, Language.QASM3],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> str: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.CIRQ],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.BRAKET],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> braket_Circuit: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.MY_QLM],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QISKIT],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Language,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
 
     def to_other_language(
         self,
@@ -1360,6 +1418,46 @@ class QCircuit:
             return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
+
+    @overload
+    def to_other_device(
+        self,
+        device: ATOSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AWSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> braket_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: GOOGLEDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: Union[IBMDevice, IBMSimulatedDevice],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AvailableDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
 
     def to_other_device(
         self,

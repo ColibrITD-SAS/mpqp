@@ -4,17 +4,17 @@ cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate`
 to add your custom unitary operation to the circuit, which will be decomposed
 and executed transparently."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional, Union
 
 from typeguard import typechecked
 
-from mpqp.core.instruction.gates.native_gates import (
-    _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
-)
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+    from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -64,10 +64,6 @@ class CustomGate(Gate):
                 f"Size of the targets ({len(targets)}) must match the number of qubits of the "
                 f"UnitaryMatrix ({definition.nb_qubits})"
             )
-        if not all([targets[i] + 1 == targets[i + 1] for i in range(len(targets) - 1)]):
-            raise ValueError(
-                "Target qubits must be ordered and contiguous for a CustomGate."
-            )
 
         # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate,
         #  use the to_matrix() method inherited from Gate, maybe
@@ -104,6 +100,10 @@ class CustomGate(Gate):
                     if isinstance(elt, Expr)
                 )
             )
+            from mpqp.core.instruction.gates.native_gates import (
+                _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
+            )
+
             for symbol in gate_symbols:
                 if TYPE_CHECKING:
                     assert isinstance(symbol, Expr)
@@ -166,9 +166,20 @@ class CustomGate(Gate):
         label = f", \"{self.label}\"" if self.label else ""
         return f"CustomGate({repr(self.matrix)}, {self.targets}{label})"
 
-    def decompose(self):
+    def decompose(self) -> "QCircuit":
         """Returns the circuit made of native gates equivalent to this gate.
 
-        3M-TODO refine this doc and implement
+        The circuit follows the quantum Shannon decomposition which decomposes any unitary matrix into Ry,Rz and CNOT gates.
+
+        Example:
+            >>> U = np.array([[0,1], [1,0]])
+            >>> gate = CustomGate(U, [0])
+            >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+               ┌─────────┐┌───────┐┌──────────┐
+            q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
+               └─────────┘└───────┘└──────────┘
+
         """
-        raise NotImplementedError()
+        from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
+
+        return quantum_shannon_decomposition(self.matrix)

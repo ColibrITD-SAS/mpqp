@@ -487,6 +487,7 @@ class Result:
                 f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
                 for sample, probability in zip(self.samples, probabilities)
             )
+
             return f"""{header}
   Counts: {self._counts}
   Probabilities: {clean_1D_array(self.probabilities)}
@@ -836,7 +837,7 @@ class BatchResult:
 
     def save(self):
         """Save a batch of results to the local storage and returns the
-        corresponding local ``id``s to be used when the results needs to be
+        corresponding local ``id`` to be used when the results needs to be
         retrieved.
 
         Uses :func:`~mpqp.local_storage.save.insert_results`."""

@@ -207,6 +207,8 @@ def submit_job_braket(
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
+    job.id = task.id
+
     return (
         task.id,
         task,

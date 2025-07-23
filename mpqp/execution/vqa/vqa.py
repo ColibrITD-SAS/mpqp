@@ -1,23 +1,25 @@
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
-from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction import ExpectationMeasure
-from mpqp.execution.devices import AvailableDevice
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
-from mpqp.execution.vqa.optimizer import Optimizer
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
 from sympy import Basic
 from typeguard import typechecked
 
+from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction import ExpectationMeasure
+from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.runner import run
+from mpqp.execution.vqa.optimizer import Optimizer
+
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
 OptimizerInput = Union[list[float], npt.NDArray[np.float32]]
-OptimizableFunc = Callable[[OptimizerInput], float]
+OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
     [OptimizableFunc, Optional[OptimizerInput], Optional[OptimizerOptions]],
@@ -295,11 +297,14 @@ def _minimize_local_circ(
     def eval_circ(params: OptimizerInput):
         # pyright is bad with abstract numeric types:
         # "float" is incompatible with "Complex"
-        result = _run_single(
-            circ,
-            device,
-            _maps(variables, params),  # pyright: ignore[reportArgumentType]
+        from numbers import Complex
+
+        from sympy import Expr
+
+        values: dict[Expr | str, Complex] = _maps(
+            variables, params  # pyright: ignore[reportArgumentType]
         )
+        result = run(circ, device, values)
         if TYPE_CHECKING:
             assert isinstance(result.expectation_values, float)
         return result.expectation_values
@@ -363,6 +368,6 @@ def _minimize_local_func(
             options=optimizer_options,
             callback=callback,
         )
-        return res.fun, res.x
+        return float(res.fun), res.x
     else:
         return method(eval_func, init_params, optimizer_options)
