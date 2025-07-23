@@ -35,7 +35,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
 from warnings import warn
 
 import numpy as np
@@ -44,8 +44,8 @@ from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
+from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -63,8 +63,14 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
-
-    from mpqp.execution.devices import AvailableDevice
+    from mpqp.execution.devices import (
+        ATOSDevice,
+        AWSDevice,
+        GOOGLEDevice,
+        IBMDevice,
+        AvailableDevice,
+    )
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 
 @typechecked
@@ -729,7 +735,7 @@ class QCircuit:
             True
 
         3M-TODO: do we want to approximate ? Also take into account Noise
-         in the equivalence verification
+            in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
@@ -843,12 +849,26 @@ class QCircuit:
 
         Examples:
             >>> c = QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), CNOT(2, 3)])
-            >>> c.to_gate().definition.matrix
+            >>> pprint(c.to_gate().definition.matrix) # doctest: +NORMALIZE_WHITESPACE
+                [[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]]
 
-        # 3M-TODO check implementation, example and test, this will only work
-           when circuit.to_matrix() will be implemented
         """
-        gate_def = UnitaryMatrix(self.to_matrix())
+        gate_def = self.to_matrix()
         return CustomGate(gate_def, list(range(self.nb_qubits)), label=self.label)
 
     @classmethod
@@ -950,9 +970,7 @@ class QCircuit:
             ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
-            [BasisMeasure(shots=1000),
-            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'),
-            [1], shots=1000)]
+            [BasisMeasure(shots=1000), ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'), [1], shots=1000)]
 
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
@@ -1046,6 +1064,59 @@ class QCircuit:
                     circuit.add(Barrier())
                     circuit = circuit + measure.pre_measure
         return circuit
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QASM2, Language.QASM3],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> str: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.CIRQ],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.BRAKET],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> braket_Circuit: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.MY_QLM],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QISKIT],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Language,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
 
     def to_other_language(
         self,
@@ -1290,7 +1361,7 @@ class QCircuit:
             for instruction in self.instructions:
                 if isinstance(instruction, (ExpectationMeasure, Barrier, Breakpoint)):
                     continue
-                elif isinstance(instruction, CustomGate):
+                elif isinstance(instruction, (CustomGate, CustomControlledGate)):
                     custom_circuit = QCircuit(self.nb_qubits)
                     custom_circuit.add(instruction)
                     qasm2_code = custom_circuit.to_other_language(
@@ -1344,6 +1415,46 @@ class QCircuit:
             return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
+
+    @overload
+    def to_other_device(
+        self,
+        device: ATOSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AWSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> braket_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: GOOGLEDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: Union[IBMDevice, IBMSimulatedDevice],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AvailableDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
 
     def to_other_device(
         self,
@@ -1492,6 +1603,15 @@ class QCircuit:
                 backend = get_backend(device)
                 pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
                 qiskit_circuit = pm.run(qiskit_circuit)
+            # TODO: removed with PR - Circuit Handling and PauliString Utilities #154
+            if any(
+                isinstance(gate, CustomControlledGate) for gate in self.instructions
+            ):
+                from qiskit import transpile
+
+                if TYPE_CHECKING:
+                    assert isinstance(qiskit_circuit, QuantumCircuit)
+                qiskit_circuit = transpile(qiskit_circuit, backend_sim)
             return qiskit_circuit
         elif isinstance(device, GOOGLEDevice):
             from cirq.circuits.circuit import Circuit as CirqCircuit

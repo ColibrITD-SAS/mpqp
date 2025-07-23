@@ -37,3 +37,19 @@ Detailed example for those two options can be found in our example notebooks.
 .. automodule:: mpqp.execution.vqa.vqa
 
 .. automodule:: mpqp.execution.vqa.optimizer
+
+Quantum Approximate Optimization Algorithm
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+See full example of this module in this :doc:`dedicated notebook <notebooks/8_TSP_QAOA>`.
+
+
+QUBO
+++++
+
+.. automodule:: mpqp.execution.vqa.qubo
+
+QAOA
+++++
+
+.. automodule:: mpqp.execution.vqa.qaoa
