@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 
 if TYPE_CHECKING:
@@ -12,12 +11,10 @@ if TYPE_CHECKING:
 
 
 class CustomControlledGate(ControlledGate):
-    """
-    Class used to define a custom controlled gate.
-    It can be either a native gate with any numbers of control qubits or a custom gate with control qubits.
+    """Class used to define a custom controlled gate.
 
     Args:
-        controls: List of indices referring to the qubits used to control the gate.
+        controls: Indices referring to the qubits used to control the gate.
         gate: The original, non controlled, instance of the gate.
         label: Label used to identify the gate.
 

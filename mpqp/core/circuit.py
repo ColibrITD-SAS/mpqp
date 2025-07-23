@@ -729,6 +729,8 @@ class QCircuit:
             >>> c1.is_equivalent(c2)
             True
 
+        3M-TODO: do we want to approximate ? Also take into account Noise
+            in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
@@ -843,8 +845,6 @@ class QCircuit:
             >>> c = QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), CNOT(2, 3)])
             >>> c.to_gate().definition.matrix
 
-        # 3M-TODO check implementation, example and test, this will only work
-           when circuit.to_matrix() will be implemented
         """
         gate_def = self.to_matrix()
         return CustomGate(gate_def, list(range(self.nb_qubits)), label=self.label)
@@ -1483,6 +1483,7 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
+
                 from mpqp.execution.connection.ibm_connection import get_backend
 
                 if TYPE_CHECKING:
