@@ -220,7 +220,7 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                 ]
             ),
             "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure("
-            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'), [1], shots=1000)]",
+            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'), [1], shots=1000)]",
         )
     ],
 )

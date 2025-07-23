@@ -14,3 +14,4 @@ On this page, you will find a few notebooks we provide as examples for various
    notebooks/4_Quantum_Fourier_Transform
    notebooks/5_Variational_Quantum_Algorithms
    notebooks/6_Noise_Simulation
+   notebooks/8_TSP_QAOA

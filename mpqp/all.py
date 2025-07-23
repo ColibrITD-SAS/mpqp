@@ -20,15 +20,18 @@ from .execution import (
 from .execution.devices import (
     ATOSDevice,
     AWSDevice,
+    AZUREDevice,
     GOOGLEDevice,
     IBMDevice,
-    AZUREDevice,
 )
-from .execution.simulated_devices import IBMSimulatedDevice
 from .execution.remote_handler import get_all_remote_job_ids
+from .execution.simulated_devices import IBMSimulatedDevice
 from .execution.vqa import Optimizer, minimize
+from .execution.vqa.qaoa import QaoaMixerType, qaoa_solver
+from .execution.vqa.qubo import Qubo
 from .gates import (
     CNOT,
+    CP,
     CZ,
     SWAP,
     TOF,
@@ -41,7 +44,6 @@ from .gates import (
     H,
     Id,
     P,
-    CP,
     ParametrizedGate,
     Rk,
     Rk_dagger,

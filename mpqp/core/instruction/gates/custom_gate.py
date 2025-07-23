@@ -4,6 +4,8 @@ cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate`
 to add your custom unitary operation to the circuit, which will be decomposed
 and executed transparently."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Optional
 
 from typeguard import typechecked
