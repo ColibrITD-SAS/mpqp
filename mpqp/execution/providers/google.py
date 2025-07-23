@@ -77,7 +77,9 @@ def apply_noise_to_cirq_circuit(
                 continue
 
             for noise in reversed(noises):
-                noise_dimension = noise.dimension if isinstance(noise, DimensionalNoiseModel) else 1
+                noise_dimension = (
+                    noise.dimension if isinstance(noise, DimensionalNoiseModel) else 1
+                )
 
                 if len(noise.targets) == 0 or len(noise.targets) == len(qubits):
                     target_qubits = qubits
