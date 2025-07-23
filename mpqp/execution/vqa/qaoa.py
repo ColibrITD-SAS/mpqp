@@ -175,9 +175,10 @@ class QaoaResult:
 def qaoa_solver(
     problem: Qubo,
     depth: int,
-    mixer: Union[QaoaMixer, Matrix],
+    mixer: Union[QaoaMixer, Observable],
     device: AvailableDevice,
     optimizer: Optimizer = Optimizer.POWELL,
+    init_params: list[float] = [],
 ) -> QaoaResult:
     """This function solves decision problems using Qaoa, the problem needs to
     be inputted as a Qubo expression.
@@ -191,6 +192,8 @@ def qaoa_solver(
         device: The device that will be used to run the ansatz.
         optimizer: The optimizer used. Note: from our experience, not all of the
             available optimizers work well to solve Qaoa problems.
+        init_params: List of parameters (float) used as the starting point for
+            the optimization process, if empty initialize all parameters at 0.
 
     Returns:
         A QaoaResult containing the minimal cost found and the associated state.
@@ -198,7 +201,7 @@ def qaoa_solver(
     Examples:
         >>> x0 = QuboAtom('x0')
         >>> x1 = QuboAtom('x1')
-        >>> expr = -3*x0 - 5*x1 + 3*(x0 & x1)
+        >>> expr = -3*x0 - 5*x1 + 4*(x0 & x1)
         >>> mixer = QaoaMixer(QaoaMixerType.MIXER_X)
         >>> qaoa_solver(expr, 4, mixer, IBMDevice.AER_SIMULATOR, Optimizer.POWELL).final_state
         '01'
@@ -208,14 +211,20 @@ def qaoa_solver(
     if isinstance(mixer, QaoaMixer):
         mixer_matrix = mixer.generate_mixer_hamiltonian(problem_size)
     else:
-        mixer_matrix = mixer
+        mixer_matrix = mixer.matrix
     loss_optimize = partial(
         _loss, cost=observable, nb_qubit=problem_size, mixer=mixer_matrix, device=device
     )
-    cost, optimal_params = minimize(
+    if init_params == []:
+        init_params = [0.0] * (depth * 2)
+    elif len(init_params) != depth * 2:
+        raise ValueError(
+            f"Length of initial parameters must be the same as the number of gates in the ansatz, expected: {depth * 2} but got {len(init_params)}"
+        )
+    _, optimal_params = minimize(
         loss_optimize,
         method=optimizer,
-        init_params=np.zeros(depth * 2, dtype=np.float32),
+        init_params=init_params,
     )
 
     # TODO: use .pretranspiled_circuit to avoid transpilation every time
@@ -233,7 +242,7 @@ def qaoa_solver(
     variables = problem.get_variables()
     for i in range(len(variables)):
         values.update({variables[i]: int(res[i])})
-    return QaoaResult(cost, res, values, optimal_params)
+    return QaoaResult(problem.evaluate(values), res, values, optimal_params)
 
 
 def _loss(
