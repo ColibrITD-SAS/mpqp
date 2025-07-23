@@ -707,7 +707,7 @@ class QuboAtom(Qubo):
 
         if inverted:
             if name_self == other_self:
-                return QuboConstant(0)
+                return QuboConstant(1)
 
         if self.value == other.value:
             return self

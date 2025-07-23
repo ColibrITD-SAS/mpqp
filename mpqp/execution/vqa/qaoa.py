@@ -178,7 +178,7 @@ def qaoa_solver(
     mixer: Union[QaoaMixer, Observable],
     device: AvailableDevice,
     optimizer: Optimizer = Optimizer.POWELL,
-    init_params: list[float] = [],
+    init_params: Optional[list[float]] = None,
 ) -> QaoaResult:
     """This function solves decision problems using Qaoa, the problem needs to
     be inputted as a Qubo expression.
@@ -215,7 +215,7 @@ def qaoa_solver(
     loss_optimize = partial(
         _loss, cost=observable, nb_qubit=problem_size, mixer=mixer_matrix, device=device
     )
-    if init_params == []:
+    if init_params is None:
         init_params = [0.0] * (depth * 2)
     elif len(init_params) != depth * 2:
         raise ValueError(

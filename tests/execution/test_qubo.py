@@ -327,7 +327,7 @@ def test_Qubo_multiplication(operand1: Qubo, operand2: Qubo, expected: Qubo):
         (-x0 * x1, x0 * x1),
         (x0 + x1, -(x0 + x1)),
         (x0 + x1, -x0 - x1),
-        (x0 - x1, -(x0 - x1)),  # ASK IF SHOULD WORK THAT WAY
+        (x0 - x1, -(x0 - x1)),
         (x0 * x0 + 3 * x1 - 2 * x1 * x2, -x0 - 3 * x1 + 2 * x1 * x2),
     ],
 )
