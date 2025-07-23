@@ -1,13 +1,6 @@
-from typing import Optional, TYPE_CHECKING
-
 import numpy as np
 import pytest
 
-if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
-
-from mpqp.core.instruction.gates.controlled_gate import ControlledGate
-from mpqp.core.languages import Language
 from mpqp.gates import *
 
 
@@ -36,16 +29,3 @@ from mpqp.gates import *
 )
 def test_gate_repr(gate: Gate, expected_repr: str) -> None:
     assert repr(gate) == expected_repr
-
-
-class CustomControlledGate(ControlledGate):
-    def to_other_language(
-        self,
-        language: Language = Language.QISKIT,
-        qiskit_parameters: Optional[set["Parameter"]] = None,
-    ):
-        assert self.non_controlled_gate is not None
-        return self.non_controlled_gate.to_other_language(language, qiskit_parameters)
-
-    def to_matrix(self, desired_gate_size: int = 0):
-        return np.array([[1, 0], [0, 1]], dtype=np.complex64)

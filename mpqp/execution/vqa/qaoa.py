@@ -26,12 +26,13 @@ from mpqp.execution import AvailableDevice, Result, run
 from mpqp.execution.vqa import Optimizer, minimize
 from mpqp.execution.vqa.qubo import Qubo
 from mpqp.execution.vqa.vqa import OptimizerInput
-from mpqp.gates import CustomGate, H, UnitaryMatrix
+from mpqp.gates import CustomGate, H
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.tools.maths import Matrix
+
 
 if TYPE_CHECKING:
     from networkx import Graph
+    from mpqp.tools.maths import Matrix
 
 
 class QaoaMixer:
@@ -305,7 +306,7 @@ def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):
 
     unitary = scipy.linalg.expm(-1j * parameter * operator)
     unitary_gate = CustomGate(
-        UnitaryMatrix(unitary.astype(np.complex128)), list(range(circuit.nb_qubits))
+        unitary.astype(np.complex128), list(range(circuit.nb_qubits))
     )
     circuit.add(unitary_gate)
 
