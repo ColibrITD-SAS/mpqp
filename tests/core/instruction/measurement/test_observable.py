@@ -157,7 +157,7 @@ def test_diagonal_observable_attributes(
         assert o.pauli_string.is_diagonal()
         assert matrix_eq(
             np.diag(o.diagonal_elements) - o.matrix,
-            np.zeros((2**o.nb_qubits, 2**o.nb_qubits))
+            np.zeros((2**o.nb_qubits, 2**o.nb_qubits)),
         )
 
 
