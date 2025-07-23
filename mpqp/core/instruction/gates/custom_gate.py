@@ -61,10 +61,6 @@ class CustomGate(Gate):
                 f"Size of the targets ({len(targets)}) must match the number of qubits of the "
                 f"UnitaryMatrix ({definition.nb_qubits})"
             )
-        if not all([targets[i] + 1 == targets[i + 1] for i in range(len(targets) - 1)]):
-            raise ValueError(
-                "Target qubits must be ordered and contiguous for a CustomGate."
-            )
 
         # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate,
         #  use the to_matrix() method inherited from Gate, maybe
