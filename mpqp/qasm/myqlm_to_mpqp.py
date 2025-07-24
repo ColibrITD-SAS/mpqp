@@ -72,6 +72,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
         OneQubitNoParamGate,
         RotationGate,
     )
+    from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 
     qc = QCircuit(circuit.nbqbits)
 
@@ -104,11 +105,17 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
 
         theta, phi, gamma, target, control_1, control_2 = _define_parameters(gate)
 
+        controlled_gate = False
         if gate[0] not in gates:
-            # TODO: handle MyQLM controlled gates with Custom Controlled Gate.
-            raise ValueError(f"{gate[0]} not handled yet.")
+            if gate[0].startswith("C-"):
+                controlled_gate = True
+            else:
+                raise ValueError(f"{gate[0]} not handled yet.")
 
-        mpqp_gate = gates[gate[0]]
+        if controlled_gate:
+            mpqp_gate = gates[gate[0].split("-")[1]]
+        else:
+            mpqp_gate = gates[gate[0]]
 
         if mpqp_gate is None:
             if gate[0] == 'ISWAP':
@@ -140,12 +147,24 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
                 break
 
         elif issubclass(mpqp_gate, OneQubitNoParamGate):
-            qc.add(mpqp_gate(target))
+            if controlled_gate:
+                qc.add(CustomControlledGate(control_1, mpqp_gate(target)))
+            else:
+                qc.add(mpqp_gate(target))
         elif issubclass(mpqp_gate, RotationGate):
-            qc.add(mpqp_gate(theta, target))
+            if controlled_gate:
+                qc.add(CustomControlledGate(control_1, mpqp_gate(theta, target)))
+            else:
+                qc.add(mpqp_gate(theta, target))
         elif issubclass(mpqp_gate, NoParameterGate):
-            qc.add(mpqp_gate(control_1, target))
+            if controlled_gate:
+                qc.add(CustomControlledGate(control_2, mpqp_gate(control_1, target)))
+            else:
+                qc.add(mpqp_gate(control_1, target))
         else:
-            qc.add(U(theta, phi, gamma, target))
+            if controlled_gate:
+                qc.add(CustomControlledGate(control_1, mpqp_gate(theta, phi, gamma, target)))
+            else:
+                qc.add(U(theta, phi, gamma, target))
 
     return qc

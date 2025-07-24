@@ -228,18 +228,18 @@ def list_myqlm_funky_circuits() -> list[myQLM_Circuit]:
     prog.apply(CCNOT, qbits[0], qbits[1], qbits[2])
     myqlm_circuit_1 = prog.to_circ()
 
-    # prog = Program()
-    # qbits = prog.qalloc(3)
-    # prog.apply(Y.ctrl(), qbits[0], qbits[1])
-    # prog.apply(Z.ctrl(), qbits[0], qbits[1])
-    # prog.apply(H.ctrl(), qbits[0], qbits[1])
-    # prog.apply(RZ(np.pi/4).ctrl(), qbits[0], qbits[1])
-    # prog.apply(PH(np.pi/4).ctrl(), qbits[0], qbits[1])
-    # myqlm_circuit_2 = prog.to_circ()
+    prog = Program()
+    qbits = prog.qalloc(3)
+    prog.apply(Y.ctrl(), qbits[0], qbits[1])
+    prog.apply(Z.ctrl(), qbits[0], qbits[1])
+    prog.apply(H.ctrl(), qbits[0], qbits[1])
+    prog.apply(RZ(np.pi/4).ctrl(), qbits[0], qbits[1])
+    prog.apply(PH(np.pi/4).ctrl(), qbits[0], qbits[1])
+    myqlm_circuit_2 = prog.to_circ()
 
     return [
         myqlm_circuit_1,
-        # myqlm_circuit_2
+        myqlm_circuit_2
     ]
 
 

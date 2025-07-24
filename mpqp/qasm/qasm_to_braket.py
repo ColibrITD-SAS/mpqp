@@ -221,17 +221,16 @@ def braket_custom_gates_to_mpqp(qasm3_code: str) -> list[CustomGate]:
         ... b[0] = measure q[0];
         ... '''
         >>> print(braket_custom_gates_to_mpqp(qasm_code)) # doctest: +NORMALIZE_WHITESPACE
-        [CustomGate(UnitaryMatrix(array([[0., 1.], [1., 0.]])), [0])]
+        [CustomGate(array([[0., 1.], [1., 0.]]), [0])]
     """
     import numpy as np
     import ast
     import re
-    from mpqp.gates import UnitaryMatrix
 
     custom_gates = []
     for line in qasm3_code.split("\n"):
         if "braket unitary" in line:
             matrix = np.array(ast.literal_eval(line[line.find('[') : line.rfind(')')]))
             indices = [int(i) for i in re.findall(r"q\[(\d+)\]", line)]
-            custom_gates.append(CustomGate(UnitaryMatrix(matrix), indices))
+            custom_gates.append(CustomGate(matrix, indices))
     return custom_gates
