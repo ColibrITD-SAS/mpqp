@@ -29,7 +29,6 @@ from mpqp.execution.vqa.vqa import OptimizerInput
 from mpqp.gates import CustomGate, H
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 
-
 if TYPE_CHECKING:
     from networkx import Graph
     from mpqp.tools.maths import Matrix
