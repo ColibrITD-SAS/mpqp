@@ -31,7 +31,7 @@ def test_expectation_values_devices(device: AvailableDevice):
     obs = [Observable(string), Observable(str2), Observable(str3)]
     true_result = run(
         circuit + QCircuit([ExpectationMeasure(obs)]), device, translation_warning=False
-    ).expectation_values  # pyright: ignore[reportAttributeAccessIssue]
+    ).expectation_values
     single_exp_values = []
     for observable in obs:
         single_exp_values.append(
@@ -39,7 +39,7 @@ def test_expectation_values_devices(device: AvailableDevice):
                 circuit + QCircuit([ExpectationMeasure(observable)]),
                 device,
                 translation_warning=False,
-            ).expectation_values  # pyright: ignore[reportAttributeAccessIssue]
+            ).expectation_values
         )
     assert isinstance(true_result, dict)
     assert all(

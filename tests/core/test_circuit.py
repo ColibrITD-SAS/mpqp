@@ -31,6 +31,7 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
+import random
 
 
 @pytest.mark.parametrize(
@@ -219,7 +220,7 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                 ]
             ),
             "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure("
-            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'), [1], shots=1000)]",
+            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'), [1], shots=1000)]",
         )
     ],
 )
@@ -420,7 +421,7 @@ def test_measure_no_target(measure: Measure):
     circuit.add(measure)
 
     if isinstance(measure, ExpectationMeasure):
-        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_values, float)  # type: ignore[AttributeAccessIssue]
+        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_values, float)
     else:
         assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
 
@@ -497,6 +498,19 @@ def test_to_matrix_random():
         qcircuit = random_circuit(gates, nb_qubits=4)
         expected_matrix = compute_expected_matrix(qcircuit)
         matrix_eq(qcircuit.to_matrix(), expected_matrix)
+
+
+def test_to_matrix_gphase():
+    gates = [
+        gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
+    ]
+    for _ in range(10):
+        qcircuit = random_circuit(gates, nb_qubits=4)
+        qcircuit.gphase = random.random()
+        expected_matrix = compute_expected_matrix(qcircuit)
+        assert matrix_eq(
+            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.gphase)
+        )
 
 
 @pytest.mark.parametrize(

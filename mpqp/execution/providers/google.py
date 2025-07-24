@@ -502,13 +502,12 @@ def extract_result_SAMPLE(
 
     data = [
         Sample(
-            bin_str="".join(map(bin, state)),
+            bin_str="".join(map(lambda s: f'{s:0{nb_qubits}b}', state)),
             count=count,
             nb_qubits=nb_qubits,
         )
         for (state, count) in counts.items()
     ]
-
     shot = job.measure.shots if job.measure is not None else 0
     return Result(job, data, None, shot)
 

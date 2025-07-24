@@ -1,13 +1,12 @@
 import numpy as np
 import pytest
+
 from mpqp import QCircuit
 from mpqp.core.instruction import ExpectationMeasure, Observable
 from mpqp.execution import AvailableDevice, IBMDevice
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice
-from mpqp.execution.runner import (
-    _run_single,  # pyright: ignore[reportPrivateUsage]
-    run,
-)
+from mpqp.execution.runner import run
+
 from mpqp.gates import *
 
 
@@ -47,22 +46,20 @@ def test_sequential_versus_multi(
     circuit: QCircuit, observables: list[Observable], device: AvailableDevice
 ):
     seq_results = [
-        _run_single(
+        run(
             circuit
             + QCircuit([ExpectationMeasure(obs, shots=0)], nb_qubits=circuit.nb_qubits),
             device,
-            {},
         )
         for obs in observables
     ]
 
-    multi_result = _run_single(
+    multi_result = run(
         circuit
         + QCircuit(
             [ExpectationMeasure(observables, shots=0)], nb_qubits=circuit.nb_qubits
         ),
         device,
-        {},
     )
     assert isinstance(multi_result.expectation_values, dict)
     assert len(seq_results) == len(multi_result.expectation_values)
@@ -173,7 +170,7 @@ def test_expectation_value_all_devices(
         round(  # pyright: ignore[reportCallIssue]
             run(
                 circuit, device, translation_warning=False
-            ).expectation_values,  # pyright: ignore[reportArgumentType,reportAttributeAccessIssue]
+            ).expectation_values,  # pyright: ignore[reportArgumentType]
             7,
         )
         == expectation_value
