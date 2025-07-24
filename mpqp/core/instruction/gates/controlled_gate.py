@@ -3,7 +3,7 @@ from __future__ import annotations
 from abc import ABC
 from functools import reduce
 
-from typing import Optional, cast
+from typing import Optional, cast, Union
 
 from typeguard import typechecked
 
