@@ -431,7 +431,7 @@ def rand_unitary_matrix(size: int) -> Matrix:
 @typechecked
 def rand_hermitian_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random Hermitian matrix.
 
     Args:

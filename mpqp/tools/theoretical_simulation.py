@@ -115,7 +115,7 @@ def theoretical_probs(
 
     for gate in gates:
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
-        assert g.dtype == np.complex128 or g.dtype == np.float64
+        assert g.dtype == np.complex64 or g.dtype == np.float32
         state = g @ state @ g.T.conj()
         for noise in circ.noises:
             if (

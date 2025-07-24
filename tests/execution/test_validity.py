@@ -123,7 +123,7 @@ def hae_3_qubit_circuit(
     ],
 )
 def test_state_vector_result_HEA_ansatz(
-    parameters: list[float], expected_vector: npt.NDArray[np.complex64]
+    parameters: list[float], expected_vector: npt.NDArray[np.complex128]
 ):
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
@@ -315,7 +315,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     ],
 )
 def test_observable_ideal_case(
-    gates: list[Gate], observable: npt.NDArray[np.complex64], expected_vector: Matrix
+    gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
 ):
     c = QCircuit(gates)
     c.add(ExpectationMeasure(Observable(observable), list(range(c.nb_qubits))))
@@ -327,9 +327,7 @@ def test_observable_ideal_case(
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
-        assert abs(result.expectation_values - expected_value) < (
-            atol + rtol * abs(expected_value)
-        )
+        assert abs(result.expectation_values - expected_value) < (atol + rtol* abs(expected_value)) # type: ignore[reportOperatorIssue]
 
 
 @pytest.fixture
