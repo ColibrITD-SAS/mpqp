@@ -9,7 +9,7 @@ To run your choice tree, just run :func:`run_choice_tree` on your root question.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Optional, TypeVar, TYPE_CHECKING
+from typing import Any, Callable, Iterable, Optional, TypeVar
 
 from pick import pick
 from typeguard import typechecked
@@ -52,25 +52,37 @@ class QuestionNode:
         answers: List of possible answers to this question.
         leaf_loop_to_here: If ``True`` answers without followup questions will
             loop back to here.
+        prevent_leaves: If ``True`` all leaves will either go back to the
+            highest (meaning that only a single loopback is effectively
+            possible) question, or to the previous question. Note that if
+            ``leaf_loop_to_here``, this option is ignored.
     """
 
     label: str
     answers: list[AnswerNode]
     leaf_loop_to_here: bool = False
+    prevent_leaves: bool = False
 
     def __post_init__(self):
-        to_visit: list[QuestionNode] = [self]
-        visited: list[QuestionNode] = []
-        while len(to_visit) != 0:
-            for q_index, ques in enumerate(to_visit):
-                if ques not in visited:
-                    for ans in ques.answers:
-                        if ans.next_question is None:
-                            ans.next_question = self
-                        else:
-                            visited.append(ans.next_question)
-                    visited.append(ques)
-                    del to_visit[q_index]
+        if self.prevent_leaves or self.leaf_loop_to_here:
+            to_visit: list[QuestionNode] = [self]
+            visited: list[QuestionNode] = []
+            loopback = self if self.leaf_loop_to_here else None
+            while len(to_visit) != 0:
+                for q_index, ques in enumerate(to_visit):
+                    if loopback is None and ques.leaf_loop_to_here:
+                        loopback = ques
+                    if ques not in visited:
+                        for ans in ques.answers:
+                            if ans.next_question is None:
+                                ans.next_question = (
+                                    self if loopback is None else loopback
+                                )
+                            elif ans.next_question not in visited:
+                                to_visit.append(ans.next_question)
+                            print(f"{ans.label=} -> {ans.next_question.label=}")
+                        visited.append(ques)
+                        del to_visit[q_index]
 
 
 @typechecked
@@ -84,10 +96,9 @@ def run_choice_tree(question: QuestionNode):
     prev_message = ""
     next_question = question
 
-    # TODO: add the following to pick once my PR is merged
-    # KEY_CTRL_C = 3
-    # KEY_ESCAPE = 27
-    # KEYS_QUIT = (KEY_CTRL_C, KEY_ESCAPE, ord("q"))
+    KEY_CTRL_C = 3
+    KEY_ESCAPE = 27
+    KEYS_QUIT = (KEY_CTRL_C, KEY_ESCAPE, ord("q"))
 
     try:
         while True:
@@ -95,8 +106,9 @@ def run_choice_tree(question: QuestionNode):
                 list(map(lambda a: a.label, next_question.answers)) + ["Exit"],
                 prev_message + "\n\n" + next_question.label,
                 indicator="=>",
+                quit_keys=KEYS_QUIT,
             )
-            if option == "Exit":
+            if option == "Exit" or option is None:
                 return
             selected_answer = find(next_question.answers, lambda a: a.label == option)
             prev_message, prev_args = selected_answer.action(*prev_args)
@@ -117,39 +129,30 @@ if __name__ == "__main__":
         name = input("What's your name?\n\t")
         return f"Then it's a date {name}!", [name]
 
+    day_selection = QuestionNode(
+        "Do you have a preference for the day?",
+        [
+            AnswerNode("Not at all", lambda n: (f"Tomorrow then {n} :D", [])),
+            AnswerNode("Tomorrow", lambda n: (f"Tomorrow then {n} :D", [])),
+        ],
+    )
+
     choice_tree = QuestionNode(
         "Are you free?",
         [
-            AnswerNode(
-                "Yes",
-                date_name_picker,
-                QuestionNode(
-                    "Do you have a preference for the day?",
-                    [
-                        AnswerNode(
-                            "Not at all", lambda n: (f"Tomorrow then {n} :D", [])
-                        ),
-                        AnswerNode("Tomorrow", lambda n: (f"Tomorrow then {n} :D", [])),
-                    ],
-                ),
-            ),
+            AnswerNode("Yes", date_name_picker, day_selection),
             AnswerNode(
                 "No",
                 lambda: ("What a shame :(", []),
                 QuestionNode(
                     "Would you be willing to reconsider ?",
                     [
-                        AnswerNode("Yes", lambda: ("Cool!", [])),
+                        AnswerNode("Yes", lambda: ("Cool!", []), day_selection),
                         AnswerNode("No", lambda: ("Sad :'(", [])),
                     ],
                 ),
             ),
         ],
     )
-
-    if TYPE_CHECKING:
-        assert choice_tree.answers[-1].next_question is not None
-
-    choice_tree.answers[-1].next_question.answers[0].next_question = choice_tree
 
     run_choice_tree(choice_tree)
