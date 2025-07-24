@@ -27,8 +27,8 @@ from .execution.devices import (
 from .execution.remote_handler import get_all_remote_job_ids
 from .execution.simulated_devices import IBMSimulatedDevice
 from .execution.vqa import Optimizer, minimize
-from .execution.vqa.qaoa import QaoaMixerType, qaoa_solver
-from .execution.vqa.qubo import Qubo
+from .execution.vqa.qaoa import qaoa_solver
+from .execution.vqa.qubo import QuboAtom
 from .gates import (
     CNOT,
     CP,
@@ -39,6 +39,7 @@ from .gates import (
     CRk,
     CRk_dagger,
     CustomGate,
+    CustomControlledGate,
     Gate,
     GateDefinition,
     H,
@@ -59,6 +60,7 @@ from .gates import (
     Y,
     Z,
 )
+
 from .measures import (
     Basis,
     BasisMeasure,

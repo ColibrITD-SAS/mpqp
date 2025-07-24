@@ -362,7 +362,9 @@ phase can become non-global.""",
         if new_instr is not None and new_instr not in included_instr:
             included_instr.add(new_instr)
     elif instr_name == "gate":
-        defined_gates.add(instr.split()[1])
+        g_name = instr.split()[1]
+        g_name = g_name.split('(')[0]
+        defined_gates.add(g_name)
         g_string = instr.split("{")[0] + "{\n"
         g_instructions = filter(
             lambda i: not re.fullmatch(r"\s*", i),
@@ -400,8 +402,12 @@ phase can become non-global.""",
         gate = instr.split()[0]
         if gate == "ctrl":
             gate = instr.split()[2]
-        if gate not in defined_gates:
-            raise ValueError(f"Gates undefined at the time of usage: {gate}")
+        if gate.count('(') != 0:
+            if gate.split('(')[0] not in defined_gates:
+                raise ValueError(f"Gates undefined at the time of usage: {gate}")
+        else:
+            if gate not in defined_gates:
+                raise ValueError(f"Gates undefined at the time of usage: {gate}")
         if len(instr) != 0:
             instructions_code += instr + ";\n"
 
