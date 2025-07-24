@@ -96,7 +96,7 @@ def random_circuit(
 def statevector_from_random_circuit(
     nb_qubits: int = 5,
     seed: Optional[int] = None,
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """
     This function creates a statevector with a specified number of qubits,
     generated from a random circuit executed on IBM AER Simulator.
