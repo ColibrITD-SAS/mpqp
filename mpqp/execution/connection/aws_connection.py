@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from termcolor import colored
 from typeguard import typechecked
 
+from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
+
 if TYPE_CHECKING:
     from braket.devices.device import Device as BraketDevice
 
@@ -27,7 +29,7 @@ def validate_aws_credentials() -> bool:
         return False
 
 
-def setup_aws_braket_account() -> tuple[str, list[Any]]:
+def setup_aws_braket_account(rootQuestion: QuestionNode) -> tuple[str, list[Any]]:
     """Set-up the connection to an Amazon Braket account using user input.
 
     This function checks whether an Amazon Braket account is already configured
@@ -54,8 +56,6 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
 
     from braket.aws import AwsSession
 
-    from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
-
     if get_env_variable("BRAKET_CONFIGURED") == "True":
         decision = input(
             "An Amazon Braket account is already configured. Do you want to update it? [y/N] "
@@ -66,8 +66,12 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     braket_auth_choices = QuestionNode(
         "Choose your Amazon Braket authentication method: ",
         [
-            AnswerNode("IAM (Identity and Access Management)", configure_account_iam),
-            AnswerNode("SSO (Single Sign-On)", configure_account_sso),
+            AnswerNode(
+                "IAM (Identity and Access Management)",
+                configure_account_iam,
+                rootQuestion,
+            ),
+            AnswerNode("SSO (Single Sign-On)", configure_account_sso, rootQuestion),
         ],
     )
     run_choice_tree(braket_auth_choices)

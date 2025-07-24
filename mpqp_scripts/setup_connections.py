@@ -71,16 +71,18 @@ def main_setup():
 
     setup_tree = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
-        [
-            AnswerNode("IBM", setup_ibm_account),
-            AnswerNode("QLM", setup_qlm_account),
-            AnswerNode("Amazon Braket", setup_aws_braket_account),
-            AnswerNode("IonQ", config_ionq_key),
-            AnswerNode("Azure", config_azure_account),
-            AnswerNode("Recap", print_config_info),
-        ],
+        [],
         leaf_loop_to_here=True,
     )
+
+    setup_tree.answers = [
+        AnswerNode("IBM", setup_ibm_account),
+        AnswerNode("QLM", setup_qlm_account),
+        AnswerNode("Amazon Braket", lambda: setup_aws_braket_account(setup_tree)),
+        AnswerNode("IonQ", config_ionq_key),
+        AnswerNode("Azure", config_azure_account),
+        AnswerNode("Recap", print_config_info),
+    ]
 
     run_choice_tree(setup_tree)
 
