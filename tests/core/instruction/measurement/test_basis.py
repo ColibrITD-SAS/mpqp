@@ -27,7 +27,7 @@ from mpqp.tools.maths import matrix_eq
         ([np.array([1, 0]), np.array([0, -1])], 1),
     ],
 )
-def test_right_init_basis(init_vectors: list[npt.NDArray[np.complex64]], size: int):
+def test_right_init_basis(init_vectors: list[npt.NDArray[np.complex128]], size: int):
     b = Basis(init_vectors)
     assert b.nb_qubits == size
     assert (b.basis_vectors[i] == init_vectors[i] for i in range(len(init_vectors)))
@@ -44,7 +44,7 @@ def test_right_init_basis(init_vectors: list[npt.NDArray[np.complex64]], size: i
     ],
 )
 def test_wrong_init_basis(
-    init_vectors: list[npt.NDArray[np.complex64]], part_of_error: str
+    init_vectors: list[npt.NDArray[np.complex128]], part_of_error: str
 ):
     with pytest.raises(ValueError) as error:
         Basis(init_vectors)
@@ -114,7 +114,7 @@ def test_wrong_init_basis(
     ],
 )
 def test_variable_size_basis(
-    basis_vectors: list[npt.NDArray[np.complex64]],
+    basis_vectors: list[npt.NDArray[np.complex128]],
     size: int,
     result_pp: str,
     capsys: pytest.CaptureFixture[str],
@@ -163,7 +163,7 @@ def test_variable_size_basis(
     ],
 )
 def test_value_error_variable_size_basis(
-    basis_vectors: list[npt.NDArray[np.complex64]],
+    basis_vectors: list[npt.NDArray[np.complex128]],
     size: int,
 ):
     b = VariableSizeBasis(basis_vectors)

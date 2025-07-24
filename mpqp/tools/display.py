@@ -16,7 +16,7 @@ from .generics import Matrix
 
 
 @typechecked
-def state_vector_ket_shape(sv: npt.NDArray[np.complex64]) -> str:
+def state_vector_ket_shape(sv: npt.NDArray[np.complex128]) -> str:
     """Formats a state vector into its ket format."""
     if len(sv.shape) != 1:
         raise ValueError(f"Input state {sv} should be a vector (1 dimensional matrix).")
@@ -201,7 +201,7 @@ def format_element_str(
 
 @typechecked
 def clean_1D_array(
-    array: list[Complex] | npt.NDArray[np.complex128 | np.float32 | np.int32],
+    array: list[Complex] | npt.NDArray[np.complex128 | np.float64 | np.int32],
     round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function

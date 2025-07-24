@@ -59,7 +59,7 @@ class Basis:
 
     def __init__(
         self,
-        basis_vectors: list[npt.NDArray[np.complex64]],
+        basis_vectors: list[npt.NDArray[np.complex128]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
         basis_vectors_labels: Optional[list[str]] = None,
@@ -217,7 +217,7 @@ class VariableSizeBasis(Basis):
 
     def __init__(
         self,
-        basis_vectors: list[npt.NDArray[np.complex64]],
+        basis_vectors: list[npt.NDArray[np.complex128]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
     ):

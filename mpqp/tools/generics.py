@@ -60,6 +60,7 @@ Examples:
 
 """
 Matrix = Union[
+    npt.NDArray[np.complex64],
     npt.NDArray[np.float64],
     npt.NDArray[np.object_],
     npt.NDArray[np.complex128],

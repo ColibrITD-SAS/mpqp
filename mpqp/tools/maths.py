@@ -24,7 +24,7 @@ atol = 1e-08
 
 
 @typechecked
-def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex64]:
+def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex128]:
     """Normalizes an array representing the amplitudes of the state.
 
     Args:
@@ -267,7 +267,7 @@ def exp(angle: Expr | complex) -> Expr | complex:
 @typechecked
 def rand_orthogonal_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random orthogonal matrix optionally with a given seed.
 
     Args:
@@ -454,7 +454,7 @@ def rand_hermitian_matrix(
     rng = np.random.default_rng(seed)
 
     m = rng.random((size, size))
-    return m + m.conjugate().transpose()
+    return (m + m.conjugate().transpose()).astype(np.complex128)
 
 
 @typechecked

@@ -513,8 +513,8 @@ def extract_state_vector_result(
         nb_qubits = job.circuit.nb_qubits
 
     nb_states = 2**nb_qubits
-    amplitudes = np.zeros(nb_states, np.complex64)
-    probas = np.zeros(nb_states, np.float32)
+    amplitudes = np.zeros(nb_states, np.complex128)
+    probas = np.zeros(nb_states, np.float64)
     for sample in myqlm_result:
         state = sample.state.int
         amplitudes[state] = sample.amplitude
@@ -612,7 +612,7 @@ def extract_observable_result(
             ExpectationMeasure(
                 targets=list(range(nb_qubits)),
                 observable=Observable(
-                    np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex64)
+                    np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex128)
                 ),
                 shots=nb_shots,
             ),

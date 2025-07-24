@@ -108,7 +108,7 @@ class PauliString:
 
     def _non_null_str(self):
         return str(self._monomials[0]) + "".join(
-            (f" - {-m}" if not isinstance(m.coef, Expr) and m.coef < 0 else f" + {m}")
+            (f" - {-m}" if not isinstance(m.coef, Expr) and m.coef < 0 else f" + {m}")  # type: ignore[reportArgumentType]
             for m in self._monomials[1:]
         )
 
@@ -283,10 +283,10 @@ class PauliString:
         res._initial_nb_qubits = self.nb_qubits
         for mono in self.monomials:
             coef: Coef = format_element(
-                mono.coef
+                mono.coef  # type: ignore[reportArgumentType]
             )  # pyright: ignore[reportAssignmentType]
             if isinstance(coef, Expr):
-                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
+                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))  # type: ignore[reportArgumentType]
             else:
                 coef = float(np.round(float(coef), max_digits))
                 if coef != 0:
@@ -327,7 +327,7 @@ class PauliString:
         size = 2**self.nb_qubits
         return sum(
             map(lambda m: m.to_matrix(), self.monomials),
-            start=np.zeros((size, size), dtype=np.complex64),
+            start=np.zeros((size, size), dtype=np.complex128),
         )
 
     def commutes_with(self, other: PauliString) -> bool:
@@ -855,7 +855,7 @@ class PauliStringMonomial(PauliString):
 
     @property
     def monomials(self) -> list["PauliStringMonomial"]:
-        return [PauliStringMonomial(self.coef, self.atoms)]
+        return [PauliStringMonomial(self.coef, self.atoms)]  # type: ignore[reportArgumentType]
 
     @property
     def positive_eigen_values(self) -> npt.NDArray[np.bool_]:
@@ -871,7 +871,7 @@ class PauliStringMonomial(PauliString):
         return eigvals > 0
 
     def __str__(self):
-        coef = format_element(self.coef)
+        coef = format_element(self.coef)  # type: ignore[reportArgumentType]
         if isinstance(coef, Expr):
             coef = f'({str(self.coef)})*'
         else:
@@ -1108,7 +1108,7 @@ class PauliStringAtom(PauliStringMonomial):
     def __init__(
         self,
         label: str,
-        matrix: npt.NDArray[np.complex64],
+        matrix: npt.NDArray[np.complex128],
         eig_values: list[int],
         eig_vectors: npt.NDArray[np.complex64],
         basis_change: list[type[NativeGate]],
@@ -1166,7 +1166,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
             [self],
         )
 
@@ -1190,7 +1190,7 @@ class PauliStringAtom(PauliStringMonomial):
             res.atoms.insert(0, self)
         else:
             for i, mono in enumerate(res.monomials):
-                res.monomials[i] = PauliStringMonomial(mono.coef, mono.atoms)
+                res.monomials[i] = PauliStringMonomial(mono.coef, mono.atoms)  # type: ignore[reportArgumentType]
                 res.monomials[i].atoms.insert(0, self)
         return res
 
@@ -1208,7 +1208,7 @@ class PauliStringAtom(PauliStringMonomial):
     def __hash__(self):
         return hash(self.label)
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
+    def to_matrix(self) -> npt.NDArray[np.complex128]:
         return self.matrix
 
     def commutes_with(self, other: PauliString) -> bool:
@@ -1290,7 +1290,7 @@ class PauliStringAtom(PauliStringMonomial):
 _allow_atom_creation = True
 
 I = PauliStringAtom(
-    "I", np.eye(2, dtype=np.complex64), [1, 1], np.array([[1, 0], [0, 1]]), []
+    "I", np.eye(2, dtype=np.complex128), [1, 1], np.array([[1, 0], [0, 1]]), []
 )
 r"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
 Matrix representation:

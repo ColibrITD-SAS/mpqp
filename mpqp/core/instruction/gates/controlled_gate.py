@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import reduce
-from typing import Optional
+from typing import Optional, cast
 
 from typeguard import typechecked
 
@@ -94,7 +94,7 @@ class ControlledGate(Gate, ABC):
         zero = np.diag([1, 0])
         one = np.diag([0, 1])
         non_controlled_gate = self.non_controlled_gate.to_matrix()
-        I2 = np.eye(2, dtype=np.complex128)
+        I2 = np.eye(2, dtype=np.complex64)
 
         control_matrix = zero if control == 0 else I2
         target_matrix = (
@@ -112,7 +112,7 @@ class ControlledGate(Gate, ABC):
                 target_matrix = np.kron(target_matrix, I2)
                 control_matrix = np.kron(control_matrix, I2)
 
-        return control_matrix + target_matrix
+        return cast(Matrix, control_matrix + target_matrix)
 
     def __repr__(self) -> str:
         c = self.controls if len(self.controls) > 1 else self.controls[0]
