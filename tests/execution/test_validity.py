@@ -327,7 +327,7 @@ def test_observable_ideal_case(
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
-        assert abs(result.expectation_values - expected_value) < (atol + rtol* abs(expected_value)) # type: ignore[reportOperatorIssue]
+        assert abs(result.expectation_values - expected_value) < (atol + rtol * abs(expected_value))  # type: ignore[reportOperatorIssue]
 
 
 @pytest.fixture
