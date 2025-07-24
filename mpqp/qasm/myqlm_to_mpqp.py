@@ -163,7 +163,11 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
                 qc.add(mpqp_gate(control_1, target))
         else:
             if controlled_gate:
-                qc.add(CustomControlledGate(control_1, mpqp_gate(theta, phi, gamma, target)))
+                qc.add(
+                    CustomControlledGate(
+                        control_1, mpqp_gate(theta, phi, gamma, target)
+                    )
+                )
             else:
                 qc.add(U(theta, phi, gamma, target))
 

@@ -38,7 +38,7 @@ mixer_bitflip_3 = QaoaMixer(QaoaMixerType.MIXER_BITFLIP, graph_3, 0)
             mixer_x,
             IBMDevice.AER_SIMULATOR,
             Optimizer.POWELL,
-            [1.] * 4,
+            [1.0] * 4,
             "00",
         ),
         (
