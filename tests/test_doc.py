@@ -128,7 +128,10 @@ from mpqp.tools.maths import (
     rand_unitary_2x2_matrix,
 )
 from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
-from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
+from mpqp.tools.pauli_grouping import (
+    CommutingTypes,
+    pauli_grouping_greedy,
+)
 from mpqp.tools.operators import *
 
 sys.path.insert(0, os.path.abspath("."))
