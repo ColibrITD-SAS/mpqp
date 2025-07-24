@@ -7,14 +7,18 @@ from __future__ import annotations
 
 import copy
 from numbers import Real
-from typing import TYPE_CHECKING, Literal, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import typechecked
+
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
+    CommutingTypes,
+    GroupingMethods,
     PauliString,
     PauliStringMonomial,
 )
@@ -23,7 +27,6 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Hermitian
@@ -44,10 +47,10 @@ class Observable:
     combination of operators in a specific basis Pauli.
 
     Args:
-        observable : can be either a Hermitian matrix representing the
+        observable: can be either a Hermitian matrix representing the
             observable, or PauliString representing the observable, or a list
             of diagonal elements of the matrix when the observable is diagonal.
-        label : Label used to identify the observable.
+        label: Label used to identify the observable.
 
     Raises:
         ValueError: If the input matrix is not Hermitian or does not have a
@@ -287,7 +290,6 @@ class Observable:
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> obs_qiskit.to_list()  # doctest: +NORMALIZE_WHITESPACE
             [('II', (0.425+0j)), ('IZ', (0.425+0j)), ('ZI', (-0.575+0j)), ('ZZ', (0.425+0j))]
-
         """
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator, SparsePauliOp
@@ -342,20 +344,29 @@ class ExpectationMeasure(Measure):
             will be applied.
         observable: Observable used for the measure.
         shots: Number of shots to be performed.
+        commuting_type: Type of commutation (grouped in an Enum) used for Pauli grouping when optimizing the observables measurement.
+        grouping_method: Enum describing the method used for Pauli grouping.
         label: Label used to identify the measure.
+        optimize_measurement: Indicates if the Pauli grouping must be done to
+            optimize the number of measurements. Default to True.
         optim_diagonal: Indicates if the computation of expectation value for
             diagonal observables is optimized. Default to False.
 
     Warns:
         UserWarning: If the ``targets`` are not sorted and contiguous, some
-            additional swaps will be needed. This will change the performance of
+            additional swaps will be needed. This will change the performance if
             your circuit is run on noisy hardware.
 
-    Example:
+    Examples:
         >>> obs = Observable(np.diag([0.7, -1, 1, 1]))
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
+        >>> from mpqp.measures import X as pX, Y as pY
+        >>> obs2 = Observable( pX @ pY - pY @ pY)
+        >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([obs, obs2], shots=10000)])
+        >>> run(c, IBMDevice.AER_SIMULATOR).expectation_values # doctest: +SKIP
+        {'observable_0': 0.8514399940967561, 'observable_1': 0.9876}
 
     """
 
@@ -364,7 +375,10 @@ class ExpectationMeasure(Measure):
         observable: Union[Observable, list[Observable]],
         targets: Optional[list[int]] = None,
         shots: int = 0,
+        commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
+        grouping_method: GroupingMethods = GroupingMethods.GREEDY,
         label: Optional[str] = None,
+        optimize_measurement: Optional[bool] = True,
         optim_diagonal: Optional[bool] = False,
     ):
 
@@ -373,7 +387,12 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optim_diagonal = optim_diagonal
         """See parameter description."""
-
+        self.commuting_type = commuting_type
+        """See parameter description."""
+        self.grouping_method = grouping_method
+        """See parameter description."""
+        self.optimize_measurement = optimize_measurement
+        """See parameter description."""
         if isinstance(observable, Observable):
             self.observables = [observable]
         else:
@@ -409,7 +428,8 @@ class ExpectationMeasure(Measure):
         return [o.label for o in self.observables if o.label is not None]
 
     def _check_targets_order(self):
-        """Ensures target qubits are ordered and contiguous, rearranging them if necessary (private)."""
+        """Ensures target qubits are ordered and contiguous, rearranging them if
+        necessary (private)."""
         from mpqp.core.circuit import QCircuit
 
         if len(self.targets) == 0:
@@ -454,28 +474,25 @@ class ExpectationMeasure(Measure):
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
 
-    def get_pauli_grouping(
-        self,
-        method: Literal[
-            "full_greedy"
-        ] = "full_greedy",  # , "full_clique", "qubit_wise_clique"
-    ) -> list[list[PauliStringMonomial]]:
-        """Decompose the observables and regroup the pauli measurements
-        by commutativity relation using different strategies.
+    def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
+        """Return the grouped monomials of the Pauli string of the observable.
+        The grouping is done according to the grouping method of the expectation
+        measure and the chosen commutativity type."""
+        unique_monos = list(
+            {
+                mono / mono.coef
+                for obs in self.observables
+                for mono in obs.pauli_string.monomials
+            }
+        )
+        if self.grouping_method == GroupingMethods.GREEDY:
+            from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
-        Args:
-            method: The grouping method to use.
-                - "full_clique": Finds the largest possible commuting groups (cliques).
-                - "full_greedy": Uses a greedy algorithm to iteratively build commuting groups.
-                - "qubit_wise_clique": Groups Pauli strings based on qubit-wise commutativity.
+            return pauli_grouping_greedy(unique_monos, self.commuting_type)
+        else:
+            raise NotImplementedError(f"{self.grouping_method} is not yet supported.")
 
-        Returns:
-            A list of list, where each list contains Pauli strings that can be measured simultaneously.
-        3M-TODO
-        """
-        ...
-
-    def are_all_diagonal(self) -> bool:
+    def only_diagonal_observables(self) -> bool:
         """Returns True if all the observables in the ExpectationMeasure are diagonal."""
         return all([o.is_diagonal for o in self.observables])
 

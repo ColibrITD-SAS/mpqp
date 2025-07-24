@@ -1,13 +1,6 @@
-from typing import Optional, TYPE_CHECKING
-
 import numpy as np
 import pytest
 
-if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
-
-from mpqp.core.instruction.gates.controlled_gate import ControlledGate
-from mpqp.core.languages import Language
 from mpqp.gates import *
 
 
@@ -36,7 +29,6 @@ from mpqp.gates import *
 )
 def test_gate_repr(gate: Gate, expected_repr: str) -> None:
     assert repr(gate) == expected_repr
-
 
 class CustomControlledGate(ControlledGate):
     def to_other_language(

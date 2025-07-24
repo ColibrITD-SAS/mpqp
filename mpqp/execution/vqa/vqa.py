@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
 
 import numpy as np
@@ -18,7 +19,7 @@ from mpqp.execution.vqa.optimizer import Optimizer
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
 OptimizerInput = Union[list[float], npt.NDArray[np.float32]]
-OptimizableFunc = Callable[[OptimizerInput], float]
+OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
     [OptimizableFunc, Optional[OptimizerInput], Optional[OptimizerOptions]],
@@ -367,6 +368,6 @@ def _minimize_local_func(
             options=optimizer_options,
             callback=callback,
         )
-        return res.fun, res.x
+        return float(res.fun), res.x
     else:
         return method(eval_func, init_params, optimizer_options)

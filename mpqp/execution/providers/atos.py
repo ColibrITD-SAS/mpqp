@@ -242,7 +242,7 @@ def generate_sample_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
 
 
 @typechecked
-def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
+def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"]:
     """Generates a myQLM job from the myQLM circuit and observable.
 
     Args:
@@ -255,14 +255,18 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     # TODO: [multi-obs] update this to take into account the case when we have list of Observables
     if TYPE_CHECKING:
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
-    qlm_obs = job.measure.observables[0].to_other_language(Language.MY_QLM)
-    myqlm_job = myqlm_circuit.to_job(
-        job_type="OBS",
-        observable=qlm_obs,
-        nbshots=job.measure.shots,
-    )
+    result = []
+    for obs in job.measure.observables:
+        qlm_obs = obs.to_other_language(Language.MY_QLM)
+        result.append(
+            myqlm_circuit.to_job(
+                job_type="OBS",
+                observable=qlm_obs,
+                nbshots=job.measure.shots,
+            )
+        )
 
-    return myqlm_job
+    return result
 
 
 @typechecked
@@ -581,7 +585,7 @@ def extract_sample_result(
 
 @typechecked
 def extract_observable_result(
-    myqlm_result: "QLM_Result",
+    myqlm_result: list["QLM_Result"],
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
@@ -601,10 +605,10 @@ def extract_observable_result(
     """
     if job is None:
         if device.is_remote():
-            nb_qubits = myqlm_result.data.qregs[0].length
+            nb_qubits = myqlm_result[0].data.qregs[0].length
         else:
-            nb_qubits = sum(len(qreg.qbits) for qreg in myqlm_result.data.qregs)
-        nb_shots = int(myqlm_result.meta_data["nbshots"])
+            nb_qubits = sum(len(qreg.qbits) for qreg in myqlm_result[0].data.qregs)
+        nb_shots = int(myqlm_result[0].meta_data["nbshots"])
         job = Job(
             JobType.OBSERVABLE,
             QCircuit(nb_qubits),
@@ -622,13 +626,27 @@ def extract_observable_result(
             raise NotImplementedError("We cannot handle job without measure for now")
         nb_shots = job.measure.shots
 
-    error = None if myqlm_result.error is None else abs(myqlm_result.error)
-    return Result(job, myqlm_result.value, error, nb_shots)
+    if len(myqlm_result) == 1:
+        error = None if myqlm_result[0].error is None else abs(myqlm_result[0].error)
+        return Result(job, myqlm_result[0].value, error, nb_shots)
+    else:
+        expectation_values = {}
+        errors = {}
+        for i in range(len(myqlm_result)):
+            expectation_values.update({f"observable_{i}": myqlm_result[i].value})
+            errors.update(
+                {
+                    f"observable_{i}": (
+                        0 if myqlm_result[i].error is None else myqlm_result[i].error
+                    )
+                }
+            )
+        return Result(job, expectation_values, errors, nb_shots)
 
 
 @typechecked
 def extract_result(
-    myqlm_result: "QLM_Result",
+    myqlm_result: list["QLM_Result"],
     job: Optional[Job] = None,
     device: ATOSDevice = ATOSDevice.MYQLM_PYLINALG,
 ) -> Result:
@@ -645,7 +663,7 @@ def extract_result(
         A Result containing the result info extracted from the myQLM/QLM result.
     """
     if (job is None) or job.device.is_remote():
-        if myqlm_result.value is None:
+        if myqlm_result[0].value is None:
             if list(myqlm_result)[0].amplitude is None:
                 job_type = JobType.SAMPLE
             else:
@@ -656,9 +674,9 @@ def extract_result(
         job_type = job.job_type
 
     if job_type == JobType.STATE_VECTOR:
-        return extract_state_vector_result(myqlm_result, job, device)
+        return extract_state_vector_result(myqlm_result[0], job, device)
     elif job_type == JobType.SAMPLE:
-        return extract_sample_result(myqlm_result, job, device)
+        return extract_sample_result(myqlm_result[0], job, device)
     else:
         return extract_observable_result(myqlm_result, job, device)
 
@@ -723,28 +741,30 @@ def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
         myqlm_job = generate_sample_job(myqlm_circuit, job)
 
     elif job.job_type == JobType.OBSERVABLE:
-        # TODO: update this to take into account the case when we have list of Observables
         myqlm_job = generate_observable_job(myqlm_circuit, job)
 
     else:
         raise ValueError(f"Job type {job.job_type} not handled")
 
     job.status = JobStatus.RUNNING
-    myqlm_result = qpu.submit(
-        myqlm_job
-    )  # TODO: update this to take into account the case when we have list of Observables
+    myqlm_result = []
+    if not isinstance(myqlm_job, list):
+        myqlm_job = [myqlm_job]
+    for qlm_job in myqlm_job:
+        myqlm_result.append(qpu.submit(qlm_job))
 
     # retrieving the results
-    result = extract_result(
-        myqlm_result, job, job.device
-    )  # TODO: update this to take into account the case when we have list of Observables
+
+    result = extract_result(myqlm_result, job, job.device)
 
     job.status = JobStatus.DONE
-    return result  # TODO: update this to take into account the case when we have list of Observables
+    return result
 
 
 @typechecked
-def submit_QLM(job: Job, translation_warning: bool = True) -> tuple[str, "AsyncResult"]:
+def submit_QLM(
+    job: Job, translation_warning: bool = True
+) -> tuple[str, list["AsyncResult"]]:
     """Submits the job on the remote QLM machine.
 
     Args:
@@ -787,11 +807,19 @@ def submit_QLM(job: Job, translation_warning: bool = True) -> tuple[str, "AsyncR
 
     # TODO: update this to take into account the case when we have list of Observables
     job.status = JobStatus.RUNNING
-    async_result = qpu.submit(myqlm_job)
-    job_id = async_result.get_info().id
+    if isinstance(myqlm_job, list):
+        result = []
+        job_id = ""
+        for job in myqlm_job:
+            async_result = qpu.submit(job)
+            job_id = async_result.get_info().id
+            job.id = job_id
+            result.append(async_result)
+        return job_id, result
+    async_result: "AsyncResult" = qpu.submit(myqlm_job)
+    job_id: str = async_result.get_info().id
     job.id = job_id
-
-    return job_id, async_result
+    return (job_id, [async_result])
 
 
 @typechecked
@@ -820,10 +848,13 @@ def run_QLM(job: Job, translation_warning: bool = True) -> Result:
         )
 
     # TODO: update this to take into account the case when we have list of Observables
-    _, async_result = submit_QLM(job, translation_warning)
-    qlm_result = async_result.join()
+    _, results = submit_QLM(job, translation_warning)
+    qlm_results = []
+    for result in results:
+        async_result = result
+        qlm_results.append(async_result.join())
 
-    return extract_result(qlm_result, job, job.device)
+    return extract_result(qlm_results, job, job.device)
 
 
 @typechecked

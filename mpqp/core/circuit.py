@@ -46,8 +46,8 @@ from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
+from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -150,18 +150,22 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit = None
-        """A pre-transpiled circuit to skip repeated transpilation when running the circuit.  
-        Useful when working with a symbolic circuit that needs to be executed with different parameters."""
+        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit]]" = (None)
+        """A pre-transpiled circuit to skip repeated transpilation when running 
+        the circuit. Useful when working with a symbolic circuit that needs to
+        be executed with different parameters."""
         self.transpiled_noise_model = None
-        """A pre-transpiled noise model that skips repeated transpilation when running the circuit. 
-        Currently, it is only useful in Qiskit when working with a symbolic circuit that needs 
-        to be executed with different parameters."""
+        """A pre-transpiled noise model that skips repeated transpilation when
+        running the circuit. Currently, it is only useful in Qiskit when working
+        with a symbolic circuit that needs to be executed with different
+        parameters."""
 
         self.gphase: float = 0
-        """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
-        to OpenQASM2. It is used to correct the global phase when the job type
-        is STATE_VECTOR, and when this circuit contains CustomGate."""
+        """Stores the global phase (angle) arising from the Qiskit conversion of
+        :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates` to 
+        OpenQASM2. It is used to correct the global phase when the job type is 
+        `STATE_VECTOR`, and when this circuit contains 
+        :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates`."""
 
         if nb_cbits is None:
             self._nb_cbits = 0
@@ -736,7 +740,7 @@ class QCircuit:
             True
 
         3M-TODO: do we want to approximate ? Also take into account Noise
-         in the equivalence verification
+            in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
@@ -850,12 +854,26 @@ class QCircuit:
 
         Examples:
             >>> c = QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), CNOT(2, 3)])
-            >>> c.to_gate().definition.matrix
+            >>> pprint(c.to_gate().definition.matrix) # doctest: +NORMALIZE_WHITESPACE
+                [[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]]
 
-        # 3M-TODO check implementation, example and test, this will only work
-           when circuit.to_matrix() will be implemented
         """
-        gate_def = UnitaryMatrix(self.to_matrix())
+        gate_def = self.to_matrix()
         return CustomGate(gate_def, list(range(self.nb_qubits)), label=self.label)
 
     @classmethod
@@ -962,7 +980,6 @@ class QCircuit:
             [BasisMeasure(shots=1000),
             ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'),
             [1], shots=1000)]
-
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
 
@@ -1352,7 +1369,7 @@ class QCircuit:
             for instruction in self.instructions:
                 if isinstance(instruction, (ExpectationMeasure, Barrier, Breakpoint)):
                     continue
-                elif isinstance(instruction, CustomGate):
+                elif isinstance(instruction, (CustomGate, CustomControlledGate)):
                     custom_circuit = QCircuit(self.nb_qubits)
                     custom_circuit.add(instruction)
                     qasm2_code = custom_circuit.to_other_language(
@@ -1585,6 +1602,7 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
+
                 from mpqp.execution.connection.ibm_connection import get_backend
 
                 if TYPE_CHECKING:
@@ -1593,6 +1611,15 @@ class QCircuit:
                 backend = get_backend(device)
                 pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
                 qiskit_circuit = pm.run(qiskit_circuit)
+            # TODO: removed with PR - Circuit Handling and PauliString Utilities #154
+            if any(
+                isinstance(gate, CustomControlledGate) for gate in self.instructions
+            ):
+                from qiskit import transpile
+
+                if TYPE_CHECKING:
+                    assert isinstance(qiskit_circuit, QuantumCircuit)
+                qiskit_circuit = transpile(qiskit_circuit, backend_sim)
             return qiskit_circuit
         elif isinstance(device, GOOGLEDevice):
             from cirq.circuits.circuit import Circuit as CirqCircuit
