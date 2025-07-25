@@ -40,8 +40,6 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import TypeCheckError, typechecked
-
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -57,6 +55,7 @@ from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
+from typeguard import TypeCheckError, typechecked
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -898,8 +897,6 @@ class QCircuit:
                  └────────────────┘└───┘└──────────────────────┘
             >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).amplitudes)
             [0.70711, 0, 0, 0.70711]
-
-        # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
         from qiskit import QuantumCircuit
         from qiskit.circuit.library import StatePreparation
@@ -1694,20 +1691,26 @@ class QCircuit:
             raise NotImplementedError(f"Error: {device} is not supported")
 
     @classmethod
-    def from_other_language(cls, qcircuit: QuantumCircuit | str) -> QCircuit:
-        """Transforms a quantum circuit from an external representation (Qiskit or QASM2) into
-        the corresponding internal `QCircuit` format.
+    def from_other_language(
+        cls,
+        qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str,
+    ) -> QCircuit:
+        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM, QASM2 or QASM3) into
+        the corresponding internal ``QCircuit`` format.
 
         Args:
             qcircuit: The input quantum circuit which can be one of the following types:
-                - `QuantumCircuit`: A Qiskit QuantumCircuit object.
-                - `str`: A string representing an OpenQASM 2.0 circuit.
+                - ``QuantumCircuit`` : A Qiskit QuantumCircuit object.
+                - ``cirq_Circuit`` : A Cirq Circuit object.
+                - ``braket_Circuit``: A Braket Circuit object.
+                - ``myQLM_Circuit``: A MyQLM Circuit object.
+                - ``str``: A string representing an OpenQASM 2.0 or OpenQASM3 circuit.
 
         Returns:
-            QCircuit: The circuit in the internal `QCircuit` representation.
+            The mpqp ``QCircuit`` corresponding to the external circuit in parameter.
 
         Raises:
-            NotImplementedError: If the input circuit is a string but not in OpenQASM 2.0 format.
+            NotImplementedError: If the input circuit is from an other provider or a string but not in OpenQASM 2.0 or 3.0 format.
 
         Examples:
             >>> from qiskit.circuit import QuantumCircuit
@@ -1722,38 +1725,165 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
 
-            >>> qasm2_code = '''
-            ... OPENQASM 2.0;
-            ... qreg q[2];
-            ... h q[0];
-            ... cx q[0], q[1];
-            ... '''
-            >>> qcircuit2 = QCircuit.from_other_language(qasm2_code)
+            >>> import cirq
+            >>> q0, q1 = cirq.LineQubit.range(2)
+            >>> cirq_circuit = cirq.Circuit()
+            >>> cirq_circuit.append(cirq.H(q0))
+            >>> cirq_circuit.append(cirq.CNOT(q0, q1))
+            >>> qcircuit2 = QCircuit.from_other_language(cirq_circuit)
             >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
+
+            >>> from braket.circuits import Circuit
+            >>> braket_circuit = Circuit().h(0).cnot(0, 1)
+            >>> qcircuit3 = QCircuit.from_other_language(braket_circuit)
+            >>> print(qcircuit3) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+            c: 2/══════════
+
+            >>> from qat.lang.AQASM import Program, H, CNOT
+            >>> prog = Program()
+            >>> qbits = prog.qalloc(2)
+            >>> _ = H(qbits[0])
+            >>> _ = CNOT(qbits[0], qbits[1])
+            >>> myqlm_circuit = prog.to_circ()
+            >>> qcircuit4 = QCircuit.from_other_language(myqlm_circuit)
+            >>> print(qcircuit4) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+
+            >>> qasm2_code = '''
+            ... OPENQASM 2.0;
+            ... qreg q[2];
+            ... h q[0];
+            ... cx q[0], q[1];
+            ... '''
+            >>> qcircuit5 = QCircuit.from_other_language(qasm2_code)
+            >>> print(qcircuit5) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+            >>> qasm3_code = '''
+            ... OPENQASM 3.0;
+            ... qubit[2] q;
+            ... h q[0];
+            ... cx q[0], q[1];
+            ... '''
+            >>> qcircuit6 = QCircuit.from_other_language(qasm3_code)
+            >>> print(qcircuit6) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
         """
+        from braket.circuits import Circuit as braket_Circuit
+        from cirq.circuits.circuit import Circuit as cirq_Circuit
+        from cirq.circuits.moment import Moment
+        from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
         from qiskit import QuantumCircuit
 
         from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
         if isinstance(qcircuit, QuantumCircuit):
-            from qiskit import qasm2
+            from qiskit import qasm3
 
-            qasm2_code = qasm2.dumps(qcircuit)
-            return qasm2_parse(qasm2_code)
+            from mpqp.qasm import open_qasm_3_to_2
 
-        elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-            lines = qcircuit.split('\n')
-            for line in lines:
+            qasm3_code = qasm3.dumps(qcircuit)
+            qasm2_code, phase = open_qasm_3_to_2(
+                str(qasm3_code), language=Language.QISKIT
+            )
+
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = phase
+            return qc
+
+        elif isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
+            from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+
+            if isinstance(qcircuit, Moment):
+                qcircuit = cirq_Circuit([qcircuit])
+
+            qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = gphase
+            return qc
+
+        elif isinstance(qcircuit, braket_Circuit):
+            from braket.circuits.serialization import IRType
+            from braket.ir.openqasm.program_v1 import Program
+
+            from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
+            from mpqp.qasm.qasm_to_braket import (
+                braket_noise_to_mpqp,
+                braket_custom_gates_to_mpqp,
+            )
+
+            qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
+            if TYPE_CHECKING:
+                assert isinstance(qasm3_code, Program)
+
+            custom_gates = braket_custom_gates_to_mpqp(qasm3_code.source)
+            noises = braket_noise_to_mpqp(qasm3_code.source)
+
+            qasm2_code, phase = open_qasm_3_to_2(
+                str(qasm3_code.source), language=Language.BRAKET
+            )
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = phase
+            qc = qc.without_measurements()
+            if len(custom_gates) != 0:
+                qc.add(custom_gates)
+            if len(noises) != 0:
+                qc.add(noises)
+            return qc
+
+        elif isinstance(qcircuit, myQLM_Circuit):
+            from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
+
+            return from_myqlm_to_mpqp(qcircuit)
+
+        elif isinstance(qcircuit, str):
+            for line in qcircuit.split('\n'):
                 if not line.startswith("//") and line != '':
-                    if not line.startswith("OPENQASM 2.0"):
+                    OPENQASM_VERSIONS = ("OPENQASM 2.0", "OPENQASM 3.0")
+                    if not any(
+                        line.startswith(version) for version in OPENQASM_VERSIONS
+                    ):
                         raise NotImplementedError(
-                            f"Error: only OpenQASM2 is supported for qasm external description of the circuit"
+                            f"Error: only OpenQASM2 and OpenQASM3 are supported for qasm external description of the circuit"
                         )
+                    elif line.startswith("OPENQASM 2.0"):
+                        from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+
+                        qasm2_code, gphase = parse_qasm2_gates(qcircuit)
+                        qc = qasm2_parse(qasm2_code)
+                        qc.gphase = gphase
+
+                        return qc
+
+                    elif line.startswith("OPENQASM 3.0"):
+                        from mpqp.qasm import open_qasm_3_to_2
+
+                        qasm2_code, phase = open_qasm_3_to_2(qcircuit)
+                        qc = qasm2_parse(qasm2_code)
+                        qc.gphase = phase
+
+                        return qc
                     break
             return qasm2_parse(qcircuit)
         else:

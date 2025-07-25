@@ -91,8 +91,13 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     remove_include_and_comment,
     remove_user_gates,
 )
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.qasm.qasm_to_braket import (
+    qasm3_to_braket_Circuit,
+    braket_noise_to_mpqp,
+    braket_custom_gates_to_mpqp,
+)
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 from mpqp.tools.circuit import (
     random_circuit,
     random_gate,
