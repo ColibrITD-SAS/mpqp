@@ -260,7 +260,7 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     "instructions",
     [
         [H(0), CNOT(0, 1), CNOT(1, 2)],
-        [CustomGate(UnitaryMatrix(np.array([[0, 1], [1, 0]])), [1])],
+        [CustomGate(np.array([[0, 1], [1, 0]]), [1])],
         [U(0.215, 0.5588, 8, 1)],
     ],
 )
@@ -319,7 +319,11 @@ def test_observable_ideal_case(
     gates: list[Gate], observable: npt.NDArray[np.complex64], expected_vector: Matrix
 ):
     c = QCircuit(gates)
-    c.add(ExpectationMeasure(Observable(observable), list(range(c.nb_qubits))))
+    c.add(
+        ExpectationMeasure(
+            Observable(observable), list(range(c.nb_qubits)), optimize_measurement=False
+        )
+    )
     expected_value = (
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
@@ -562,8 +566,12 @@ def test_validity_other_instr_to_other_language(
 def test_validity_optim_ideal_single_diag_obs_and_regular_run(
     circuit: QCircuit, observable: Observable
 ):
-    e1 = ExpectationMeasure(observable, shots=0, optim_diagonal=False)
-    e2 = ExpectationMeasure(observable, shots=0, optim_diagonal=True)
+    e1 = ExpectationMeasure(
+        observable, shots=0, optim_diagonal=False, optimize_measurement=False
+    )
+    e2 = ExpectationMeasure(
+        observable, shots=0, optim_diagonal=True, optimize_measurement=False
+    )
     c1 = circuit + QCircuit([e1], nb_qubits=2)
     c2 = circuit + QCircuit([e2], nb_qubits=2)
     br1 = run(
