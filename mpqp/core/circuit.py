@@ -1783,6 +1783,7 @@ class QCircuit:
         """
         from braket.circuits import Circuit as braket_Circuit
         from cirq.circuits.circuit import Circuit as cirq_Circuit
+        from cirq.circuits.moment import Moment
         from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
         from qiskit import QuantumCircuit
 
@@ -1802,8 +1803,11 @@ class QCircuit:
             qc.gphase = phase
             return qc
 
-        elif isinstance(qcircuit, cirq_Circuit):
+        elif isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
             from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+
+            if isinstance(qcircuit, Moment):
+                qcircuit = cirq_Circuit([qcircuit])
 
             qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
             qc = qasm2_parse(qasm2_code)

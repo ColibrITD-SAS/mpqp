@@ -62,6 +62,7 @@ import random
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
 from cirq.circuits.circuit import Circuit as cirq_Circuit
+from cirq.circuits.moment import Moment
 from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 
 
@@ -171,7 +172,7 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
 
 
 @pytest.fixture
-def list_cirq_funky_circuits() -> list[cirq_Circuit]:
+def list_cirq_funky_circuits() -> list[cirq_Circuit | Moment]:
     import cirq
 
     q0, q1, q2 = cirq.LineQubit.range(3)  # type: ignore[reportPrivateImportUsage]
@@ -205,7 +206,10 @@ def list_cirq_funky_circuits() -> list[cirq_Circuit]:
     cirq_circuit_2.append(cirq.H(qubit))  # type: ignore[reportPrivateImportUsage]
     cirq_circuit_2.append(cirq.measure(qubit))  # type: ignore[reportPrivateImportUsage]
 
-    return [cirq_circuit_1, cirq_circuit_2]
+    q0, q1 = cirq.LineQubit.range(2)  # type: ignore[reportPrivateImportUsage]
+    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])  # type: ignore[reportPrivateImportUsage]
+
+    return [cirq_circuit_1, cirq_circuit_2, moment]
 
 
 @pytest.fixture
