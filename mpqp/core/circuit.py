@@ -1399,7 +1399,16 @@ class QCircuit:
                     cirq_instruction = instruction.to_other_language(Language.CIRQ)
                     cirq_circuit.append(cirq_instruction.on(*targets))
 
+            if self.noises:
+                from mpqp.execution.providers.google import apply_noise_to_cirq_circuit
+
+                return apply_noise_to_cirq_circuit(
+                    cirq_circuit,
+                    self.noises,
+                )
+
             return cirq_circuit
+
         elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 
@@ -1470,7 +1479,7 @@ class QCircuit:
         skip_pre_measure: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
         """Transforms this circuit into the corresponding device specified
-        in the ``device` arg.
+        in the ``device`` arg.
 
         Some measurements require some adaptation between the user defined
         circuit and the measure. For instance if the targets are not given in a

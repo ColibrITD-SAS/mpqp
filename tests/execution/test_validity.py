@@ -4,6 +4,7 @@ from copy import deepcopy
 import numpy as np
 import numpy.typing as npt
 import pytest
+
 from mpqp import QCircuit
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -512,14 +513,16 @@ def test_validity_noise_to_other_language(language: Language):
     for noise in NOISE_MODELS:
         noise_build = random_noise([noise])
 
-        if language in [Language.CIRQ, Language.QASM3, Language.QASM2]:
+        if language in [Language.QASM3, Language.QASM2]:
             with pytest.raises(NotImplementedError):
                 noise_build.to_other_language(language)
+
         elif language in [Language.MY_QLM] and not isinstance(
             noise_build, (Depolarizing, PhaseDamping)
         ):
             with pytest.raises(NotImplementedError):
                 noise_build.to_other_language(language)
+
         else:
             assert noise_build.to_other_language(language) is not None
 

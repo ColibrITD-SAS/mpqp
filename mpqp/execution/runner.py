@@ -255,7 +255,7 @@ def _run_single(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
         elif not isinstance(
-            device, (ATOSDevice, AWSDevice, IBMDevice, SimulatedDevice)
+            device, (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice)
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
