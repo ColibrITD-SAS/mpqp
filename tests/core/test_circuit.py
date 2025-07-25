@@ -200,7 +200,12 @@ def list_cirq_funky_circuits() -> list[cirq_Circuit]:
     cirq_circuit_1.append(cirq.CCX(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
     cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
 
-    return [cirq_circuit_1]
+    qubit = cirq.LineQubit(0)  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_2 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_2.append(cirq.H(qubit))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_2.append(cirq.measure(qubit))  # type: ignore[reportPrivateImportUsage]
+
+    return [cirq_circuit_1, cirq_circuit_2]
 
 
 @pytest.fixture
@@ -237,7 +242,18 @@ def list_myqlm_funky_circuits() -> list[myQLM_Circuit]:
     prog.apply(PH(np.pi / 4).ctrl(), qbits[0], qbits[1])
     myqlm_circuit_2 = prog.to_circ()
 
-    return [myqlm_circuit_1, myqlm_circuit_2]
+    prog = Program()
+    qbits = prog.qalloc(3)
+
+    prog.apply(I, qbits[0])
+    prog.apply(X, qbits[0])
+    prog.apply(Y, qbits[0])
+    prog.apply(Z, qbits[0])
+    results = prog.calloc(2)
+    prog.measure(qbits[0], results[0])
+    myqlm_circuit_3 = prog.to_circ()
+
+    return [myqlm_circuit_1, myqlm_circuit_2, myqlm_circuit_3]
 
 
 @pytest.mark.parametrize(

@@ -48,16 +48,6 @@ gate cy a, b {
     s b; 
 }
 
-gate cz a, b {
-    h b; 
-    cx a,b; 
-    h b;
-}
-
-gate sdg a {
-    p(- pi*0.5) a;
-}
-
 gate tdg a {
     p(- pi*0.25) a;
 }
