@@ -67,22 +67,25 @@ def main_setup():
     from mpqp.execution.connection.ibm_connection import setup_ibm_account
     from mpqp.execution.connection.ionq_connection import config_ionq_key
     from mpqp.execution.connection.qlm_connection import setup_qlm_account
-    from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
+    from mpqp.tools.choice_tree import AnswerNode, ChoiceTree, QuestionNode
 
-    setup_tree = QuestionNode(
+    root_question = QuestionNode(
         "~~~~~ MPQP REMOTE CONFIGURATION ~~~~~",
-        [
-            AnswerNode("IBM", setup_ibm_account),
-            AnswerNode("QLM", setup_qlm_account),
-            AnswerNode("Amazon Braket", setup_aws_braket_account),
-            AnswerNode("IonQ", config_ionq_key),
-            AnswerNode("Azure", config_azure_account),
-            AnswerNode("Recap", print_config_info),
-        ],
+        [],
         leaf_loop_to_here=True,
     )
+    choice_tree = ChoiceTree(root_question)
+    root_question.answers = [
+        AnswerNode("IBM", setup_ibm_account),
+        AnswerNode("QLM", setup_qlm_account),
+        AnswerNode("Amazon Braket", lambda: setup_aws_braket_account(choice_tree)),
+        AnswerNode("IonQ", config_ionq_key),
+        AnswerNode("Azure", config_azure_account),
+        AnswerNode("Recap", print_config_info),
+    ]
+    root_question.__post_init__()
 
-    run_choice_tree(setup_tree)
+    choice_tree.run()
 
 
 if __name__ == "__main__":

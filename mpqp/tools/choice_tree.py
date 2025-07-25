@@ -5,11 +5,12 @@ You can define a :class:`QuestionNode`, containing your question and options.
 Each option (:class:`AnswerNode`) contains the description of the option
 together with optional actions and follow up question.
 
-To run your choice tree, just run :func:`run_choice_tree` on your root question.
+To run your choice tree, instantiate with your root question and run it with
+:meth:`ChoiceTree.run`.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Optional, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, TypeVar
 
 from pick import pick
 from typeguard import typechecked
@@ -74,40 +75,49 @@ class QuestionNode:
 
 
 @typechecked
-def run_choice_tree(question: QuestionNode):
-    """Execute the choice tree by starting with the question node in parameter.
+class ChoiceTree:
+    def __init__(self, question: QuestionNode):
+        self.next_question = question
+        self.root_question = question
 
-    Args:
-        question: Root question from which the choice tree will start
-    """
-    prev_args = []
-    prev_message = ""
-    next_question = question
+    def run(self):
+        """Execute the choice tree by starting with the question node in parameter.
 
-    # TODO: add the following to pick once my PR is merged
-    # KEY_CTRL_C = 3
-    # KEY_ESCAPE = 27
-    # KEYS_QUIT = (KEY_CTRL_C, KEY_ESCAPE, ord("q"))
+        Args:
+            question: Root question from which the choice tree will start
+        """
+        prev_args = []
+        prev_message = ""
 
-    try:
-        while True:
-            option, _ = pick(
-                list(map(lambda a: a.label, next_question.answers)) + ["Exit"],
-                prev_message + "\n\n" + next_question.label,
-                indicator="=>",
-            )
-            if option == "Exit":
-                return
-            selected_answer = find(next_question.answers, lambda a: a.label == option)
-            prev_message, prev_args = selected_answer.action(*prev_args)
-            next_question = selected_answer.next_question
-            if next_question is None:
-                pick(["Press 'Enter' to continue"], prev_message, indicator="")
-                return
+        KEY_CTRL_C = 3
+        KEY_ESCAPE = 27
+        KEYS_QUIT = (KEY_CTRL_C, KEY_ESCAPE, ord("q"))
 
-    except KeyboardInterrupt:
-        print()
-        pass
+        try:
+            while True:
+                print("in choice tree")
+                print(id(self))
+                print(self.next_question.label)
+                option, _ = pick(
+                    list(map(lambda a: a.label, self.next_question.answers)) + ["Exit"],
+                    prev_message + "\n\n" + self.next_question.label,
+                    indicator="=>",
+                    quit_keys=KEYS_QUIT,
+                )
+                if option == "Exit" or option == None:
+                    return
+                selected_answer = find(
+                    self.next_question.answers, lambda a: a.label == option
+                )
+                prev_message, prev_args = selected_answer.action(*prev_args)
+                self.next_question = selected_answer.next_question
+                if self.next_question is None:
+                    pick(["Press 'Enter' to continue"], prev_message, indicator="")
+                    return
+
+        except KeyboardInterrupt:
+            print()
+            pass
 
 
 # Example:
@@ -122,7 +132,7 @@ if __name__ == "__main__":
         [
             AnswerNode(
                 "Yes",
-                date_name_picker,
+                lambda q: date_name_picker(),
                 QuestionNode(
                     "Do you have a preference for the day?",
                     [
@@ -135,12 +145,12 @@ if __name__ == "__main__":
             ),
             AnswerNode(
                 "No",
-                lambda: ("What a shame :(", []),
+                lambda q: ("What a shame :(", []),
                 QuestionNode(
                     "Would you be willing to reconsider ?",
                     [
-                        AnswerNode("Yes", lambda: ("Cool!", [])),
-                        AnswerNode("No", lambda: ("Sad :'(", [])),
+                        AnswerNode("Yes", lambda q: ("Cool!", [])),
+                        AnswerNode("No", lambda q: ("Sad :'(", [])),
                     ],
                 ),
             ),
@@ -152,4 +162,4 @@ if __name__ == "__main__":
 
     choice_tree.answers[-1].next_question.answers[0].next_question = choice_tree
 
-    run_choice_tree(choice_tree)
+    ChoiceTree(choice_tree).run()

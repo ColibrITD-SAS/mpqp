@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from termcolor import colored
 from typeguard import typechecked
 
-from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
+from mpqp.tools.choice_tree import AnswerNode, ChoiceTree, QuestionNode
 
 if TYPE_CHECKING:
     from braket.devices.device import Device as BraketDevice
@@ -28,7 +28,7 @@ def validate_aws_credentials() -> bool:
         return False
 
 
-def setup_aws_braket_account(root_question: QuestionNode) -> tuple[str, list[Any]]:
+def setup_aws_braket_account(choice_tree: ChoiceTree) -> tuple[str, list[Any]]:
     """Set-up the connection to an Amazon Braket account using user input.
 
     This function checks whether an Amazon Braket account is already configured
@@ -54,39 +54,45 @@ def setup_aws_braket_account(root_question: QuestionNode) -> tuple[str, list[Any
     """
     was_configured = get_env_variable("BRAKET_CONFIGURED") == "True"
 
-    if was_configured:
-        decision = input(
-            "An Amazon Braket account is already configured. Do you want to update it? [y/N] "
-        )
-        if decision.lower().strip() != "y":
-            return "Canceled.", []
-
     braket_auth_choices = QuestionNode(
-        "Choose your Amazon Braket authentication method: ",
-        [
-            AnswerNode(
-                "IAM (Identity and Access Management)", configure_and_test_account_iam
-            ),
-            AnswerNode("SSO (Single Sign-On)", configure_and_test_account_sso),
-        ],
+        "Choose your Amazon Braket authentication method: ", []
     )
+    braket_auth_choices.answers = [
+        AnswerNode(
+            "IAM (Identity and Access Management)",
+            lambda: configure_and_test_account_iam(choice_tree, braket_auth_choices),
+            choice_tree.root_question,
+        ),
+        AnswerNode(
+            "SSO (Single Sign-On)",
+            lambda: configure_and_test_account_sso(choice_tree, braket_auth_choices),
+            choice_tree.root_question,
+        ),
+    ]
 
-    choice_tree = QuestionNode(
+    override = QuestionNode(
         "An Amazon Braket account is already configured. Do you want to update it?",
         [
             AnswerNode(
                 "Yes", lambda: ("Updating credentials", []), braket_auth_choices
             ),
             AnswerNode(
-                "No", lambda: ("Keeping original AWS credentials", []), root_question
+                "No",
+                lambda: ("Keeping original AWS credentials", []),
+                choice_tree.root_question,
             ),
         ],
     )
 
-    run_choice_tree(choice_tree)
+    choice_tree.next_question = override if was_configured else braket_auth_choices
+    print(id(choice_tree))
+    print(choice_tree.next_question.label)
+    input("press enter to continue")
+
+    return ("", [])
 
 
-def test_aws_braket_account() -> tuple[str, list[Any]]:
+def test_aws_braket_account() -> bool:
     if get_env_variable("BRAKET_CONFIGURED") == "True":
         from braket.aws import AwsSession
 
@@ -96,15 +102,15 @@ def test_aws_braket_account() -> tuple[str, list[Any]]:
             boto3.setup_default_session()
             session = AwsSession()
             save_env_variable("AWS_DEFAULT_REGION", session.region)
-            return "Amazon Braket account correctly configured.", []
+            return True
         except Exception as e:
             print(colored("Error configuring Amazon Braket account", "red"))
             print(colored(str(e), "red"))
             input("Press 'Enter' to continue")
-            return "Amazon Braket authentication failed.", []
+            return False
 
     print(colored("Amazon Braket configuration failed.", "red"))
-    return ("Amazon Braket configuration failed.", [])
+    return False
 
 
 def update_aws_credentials_file(
@@ -147,7 +153,10 @@ def update_aws_credentials_file(
         config.write(f)
 
 
-def configure_and_test_account_iam() -> tuple[str, list[Any]]:
+def configure_and_test_account_iam(
+    choice_tree: ChoiceTree,
+    braket_auth_choices: QuestionNode,
+) -> tuple[str, list[Any]]:
     """Configure IAM authentication for Amazon Braket."""
     from getpass import getpass
 
@@ -184,7 +193,11 @@ def configure_and_test_account_iam() -> tuple[str, list[Any]]:
     save_env_variable("BRAKET_AUTH_METHOD", "IAM")
     save_env_variable("BRAKET_CONFIGURED", "True")
 
-    return test_aws_braket_account()
+    if not test_aws_braket_account():
+        choice_tree.next_question = braket_auth_choices
+        return "Amazon Braket setup failed", []
+
+    return "Amazon Braket setup successful", []
 
 
 def get_user_sso_credentials() -> Union[dict[str, str], None]:
@@ -211,7 +224,10 @@ def get_user_sso_credentials() -> Union[dict[str, str], None]:
         return None
 
 
-def configure_and_test_account_sso() -> tuple[str, list[Any]]:
+def configure_and_test_account_sso(
+    choice_tree: ChoiceTree,
+    braket_auth_choices: QuestionNode,
+) -> tuple[str, list[Any]]:
     """Configure SSO authentication for Amazon Braket."""
 
     sso_credentials = get_user_sso_credentials()
@@ -247,7 +263,11 @@ def configure_and_test_account_sso() -> tuple[str, list[Any]]:
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
 
-    return test_aws_braket_account()
+    if not test_aws_braket_account():
+        choice_tree.next_question = braket_auth_choices
+        return "Amazon Braket setup failed", []
+
+    return "Amazon Braket setup successful", []
 
 
 def get_aws_braket_account_info() -> str:

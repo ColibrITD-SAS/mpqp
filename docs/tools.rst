@@ -118,7 +118,7 @@ Example
 
     choice_tree.answers[-1].next_question.answers[0].next_question = choice_tree
 
-    run_choice_tree(choice_tree)
+    ChoiceTree(choice_tree).run()
 
 Theoretical simulations
 -----------------------
