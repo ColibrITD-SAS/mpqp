@@ -5,8 +5,9 @@ from typing import Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 import pytest
-from braket.circuits import Circuit as BraketCircuit
-from qiskit import QuantumCircuit as QiskitCircuit
+from braket.circuits import Circuit as BraketCircuit, Noise as BraketNoise
+from braket.circuits.gate import Gate as BraketGate
+from qiskit import QuantumCircuit as QiskitCircuit, QuantumRegister, ClassicalRegister
 from typeguard import TypeCheckError
 from typing import TYPE_CHECKING
 
@@ -18,9 +19,34 @@ from mpqp.core.instruction.measurement.pauli_string import I
 from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
 from mpqp.execution.devices import ATOSDevice, IBMDevice
 from mpqp.execution.runner import run, Result
-from mpqp.gates import CNOT, CZ, SWAP, TOF, CRk, Gate, H, Id, Rx, Ry, Rz, S, T, X, Y, Z
+from mpqp.gates import (
+    CNOT,
+    CZ,
+    SWAP,
+    TOF,
+    CRk,
+    Gate,
+    H,
+    Id,
+    Rx,
+    Ry,
+    Rz,
+    S,
+    T,
+    X,
+    Y,
+    Z,
+    U,
+    P,
+)
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.noise.noise_model import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel
+from mpqp.noise.noise_model import (
+    AmplitudeDamping,
+    BitFlip,
+    Depolarizing,
+    PhaseDamping,
+    NoiseModel,
+)
 from mpqp.tools import NumberQubitsError
 from mpqp.tools.circuit import (
     compute_expected_matrix,
@@ -31,6 +57,207 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
+import random
+
+from qiskit.circuit.random import random_circuit as random_qiskit_circuit
+from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
+from cirq.circuits.circuit import Circuit as cirq_Circuit
+from cirq.circuits.moment import Moment
+from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+
+
+@pytest.fixture
+def list_qiskit_funky_circuits() -> list[QiskitCircuit]:
+    qreg_q = QuantumRegister(4, 'q')
+    creg_c = ClassicalRegister(4, 'c')
+    qiskit_circuit_1 = QiskitCircuit(qreg_q, creg_c)
+    from qiskit.circuit.library import RC3XGate
+
+    pi = np.pi
+
+    qiskit_circuit_1.sxdg(qreg_q[0])
+    qiskit_circuit_1.sx(qreg_q[1])
+    qiskit_circuit_1.sdg(qreg_q[2])
+    qiskit_circuit_1.s(qreg_q[3])
+    qiskit_circuit_1.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    qiskit_circuit_1.z(qreg_q[0])
+    qiskit_circuit_1.s(qreg_q[1])
+    qiskit_circuit_1.rxx(pi / 2, qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.id(qreg_q[2])
+    qiskit_circuit_1.rx(pi / 2, qreg_q[0])
+    qiskit_circuit_1.rz(pi / 2, qreg_q[1])
+    qiskit_circuit_1.p(pi / 2, qreg_q[0])
+    qiskit_circuit_1.rzz(pi / 2, qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.rzz(pi / 2, qreg_q[1], qreg_q[2])
+    qiskit_circuit_1.rxx(pi / 2, qreg_q[0], qreg_q[1])
+    qiskit_circuit_1.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    qiskit_circuit_1.rccx(qreg_q[1], qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.ccx(qreg_q[0], qreg_q[1], qreg_q[2])
+    qiskit_circuit_1.swap(qreg_q[0], qreg_q[1])
+    qiskit_circuit_1.cx(qreg_q[2], qreg_q[3])
+    qiskit_circuit_1.x(qreg_q[1])
+    qiskit_circuit_1.h(qreg_q[0])
+    qiskit_circuit_1.id(qreg_q[2])
+    qiskit_circuit_1.id(qreg_q[3])
+
+    return [qiskit_circuit_1]
+
+
+@pytest.fixture
+def list_braket_funky_circuits() -> list[BraketCircuit]:
+    braket_circuit1 = BraketCircuit().h(0).x(control=0, target=1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit1.ry(angle=0.13, target=2, control=(0, 1))
+    braket_circuit1.x(0, power=1 / 5)
+
+    braket_circuit2 = BraketCircuit()
+    braket_circuit2.ccnot(0, 1, 2)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cnot(0, 1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cphaseshift(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cphaseshift00(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cphaseshift01(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cphaseshift10(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cswap(0, 1, 2)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.swap(0, 1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.phaseshift(0, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cy(0, 1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.cz(0, 1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.ecr(0, 1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.rx(0, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.ry(0, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.rz(0, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.h(range(3))  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.i([0, 1, 2])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.iswap(0, 1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.x([1, 2])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.y([1, 2])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.z([1, 2])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.s([0, 1, 2])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.si([0, 1])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.t([0, 1])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.ti([0, 1])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.v([0, 1, 2])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.vi([0, 1, 2])  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.xx(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.xy(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.yy(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.zz(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.gpi(0, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.gpi2(0, 0.15)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit2.ms(0, 1, 0.15, 0.15, 0.15)  # type: ignore[reportAttributeAccessIssue]
+
+    my_unitary = np.array([[0, 1], [1, 0]])
+    braket_circuit3 = BraketCircuit()
+    braket_circuit3.unitary(matrix=my_unitary, targets=[0])  # type: ignore[reportAttributeAccessIssue]
+    QCircuit.from_other_language(braket_circuit3)
+
+    braket_circuit4 = BraketCircuit().h(0).cnot(0, 1).measure(0)  # type: ignore[reportAttributeAccessIssue]
+
+    braket_circuit5 = BraketCircuit().x(0).x(1).depolarizing(0, probability=0.1)  # type: ignore[reportAttributeAccessIssue]
+
+    noise = BraketNoise.PhaseDamping(gamma=0.1)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit6 = BraketCircuit().x(0).y(1).cnot(0, 2).x(1).z(2)  # type: ignore[reportAttributeAccessIssue]
+    braket_circuit6.apply_gate_noise(noise, target_gates=BraketGate.X)  # type: ignore[reportAttributeAccessIssue]
+
+    braket_circuit7 = BraketCircuit().pswap(0, 1, 0.15)  # type: ignore[reportAttributeAccessIssue]
+
+    return [
+        braket_circuit1,
+        braket_circuit2,
+        braket_circuit3,
+        braket_circuit4,
+        braket_circuit5,
+        braket_circuit6,
+        braket_circuit7,
+    ]
+
+
+@pytest.fixture
+def list_cirq_funky_circuits() -> list[cirq_Circuit | Moment]:
+    import cirq
+
+    q0, q1, q2 = cirq.LineQubit.range(3)  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1.append(cirq.X(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.Y(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.Z(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.H(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.S(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.S(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.T(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.T(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1.append(cirq.CX(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CZ(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.SWAP(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+
+    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
+
+    qubit = cirq.LineQubit(0)  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_2 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_2.append(cirq.H(qubit))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_2.append(cirq.measure(qubit))  # type: ignore[reportPrivateImportUsage]
+
+    q0, q1 = cirq.LineQubit.range(2)  # type: ignore[reportPrivateImportUsage]
+    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])  # type: ignore[reportPrivateImportUsage]
+
+    return [cirq_circuit_1, cirq_circuit_2, moment]
+
+
+@pytest.fixture
+def list_myqlm_funky_circuits() -> list[myQLM_Circuit]:
+    from qat.lang.AQASM import Program, H, X, Y, Z, S, T, RX, RY, RZ, CNOT, SWAP, CCNOT, I, PH  # type: ignore[reportAttributeAccessIssue]
+
+    prog = Program()
+    qbits = prog.qalloc(3)
+
+    prog.apply(I, qbits[0])
+    prog.apply(X, qbits[0])
+    prog.apply(Y, qbits[0])
+    prog.apply(Z, qbits[0])
+    prog.apply(H, qbits[0])
+    prog.apply(S, qbits[0])
+    prog.apply(S.dag(), qbits[0])
+    prog.apply(T, qbits[0])
+    prog.apply(T.dag(), qbits[0])
+    prog.apply(RX(np.pi / 4), qbits[0])
+    prog.apply(RY(np.pi / 4), qbits[0])
+    prog.apply(RZ(np.pi / 4), qbits[0])
+    prog.apply(PH(np.pi / 3), qbits[0])
+    prog.apply(CNOT, qbits[0], qbits[1])
+    prog.apply(SWAP, qbits[0], qbits[1])
+    prog.apply(CCNOT, qbits[0], qbits[1], qbits[2])
+    myqlm_circuit_1 = prog.to_circ()
+
+    prog = Program()
+    qbits = prog.qalloc(3)
+    prog.apply(Y.ctrl(), qbits[0], qbits[1])
+    prog.apply(Z.ctrl(), qbits[0], qbits[1])
+    prog.apply(H.ctrl(), qbits[0], qbits[1])
+    prog.apply(RZ(np.pi / 4).ctrl(), qbits[0], qbits[1])
+    prog.apply(PH(np.pi / 4).ctrl(), qbits[0], qbits[1])
+    myqlm_circuit_2 = prog.to_circ()
+
+    prog = Program()
+    qbits = prog.qalloc(3)
+
+    prog.apply(I, qbits[0])
+    prog.apply(X, qbits[0])
+    prog.apply(Y, qbits[0])
+    prog.apply(Z, qbits[0])
+    results = prog.calloc(2)
+    prog.measure(qbits[0], results[0])
+    myqlm_circuit_3 = prog.to_circ()
+
+    return [myqlm_circuit_1, myqlm_circuit_2, myqlm_circuit_3]
 
 
 @pytest.mark.parametrize(
@@ -174,7 +401,7 @@ def test_tensor(
         (np.array([1, 1j]) / np.sqrt(2)),
     ],
 )
-def test_initializer(state: npt.NDArray[np.complex64]):
+def test_initializer(state: npt.NDArray[np.complex128]):
     qc = QCircuit.initializer(state)
     res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
@@ -214,12 +441,12 @@ def test_count(circuit: QCircuit, filter: tuple[type[Gate]], count: int):
                 [
                     BasisMeasure([0, 1], shots=1000),
                     ExpectationMeasure(
-                        Observable(np.identity(2, dtype=np.complex64)), [1], shots=1000
+                        Observable(np.identity(2, dtype=np.complex128)), [1], shots=1000
                     ),
                 ]
             ),
             "[BasisMeasure([0, 1], shots=1000), ExpectationMeasure("
-            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'), [1], shots=1000)]",
+            "Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'), [1], shots=1000)]",
         )
     ],
 )
@@ -339,19 +566,261 @@ def test_to_other_language(
         assert str(converted_circuit) == result_repr
 
 
+def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
+    from qiskit import QuantumRegister, ClassicalRegister
+    from qiskit.circuit.library import RC3XGate
+
+    qreg_q = QuantumRegister(4, 'q')
+    creg_c = ClassicalRegister(4, 'c')
+    circuit = QiskitCircuit(qreg_q, creg_c)
+
+    circuit.sxdg(qreg_q[0])
+    circuit.sx(qreg_q[1])
+    circuit.sdg(qreg_q[2])
+    circuit.s(qreg_q[3])
+    circuit.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    circuit.z(qreg_q[0])
+    circuit.s(qreg_q[1])
+    circuit.rxx(np.pi / 2, qreg_q[2], qreg_q[3])
+    circuit.id(qreg_q[2])
+    circuit.rx(np.pi / 2, qreg_q[0])
+    circuit.rz(np.pi / 2, qreg_q[1])
+    circuit.p(np.pi / 2, qreg_q[0])
+    circuit.rzz(np.pi / 2, qreg_q[2], qreg_q[3])
+    circuit.rzz(np.pi / 2, qreg_q[1], qreg_q[2])
+    circuit.rxx(np.pi / 2, qreg_q[0], qreg_q[1])
+    circuit.append(RC3XGate(), [qreg_q[0], qreg_q[1], qreg_q[2], qreg_q[3]])
+    circuit.rccx(qreg_q[1], qreg_q[2], qreg_q[3])
+    circuit.ccx(qreg_q[0], qreg_q[1], qreg_q[2])
+    circuit.swap(qreg_q[0], qreg_q[1])
+    circuit.cx(qreg_q[2], qreg_q[3])
+    circuit.x(qreg_q[1])
+    circuit.h(qreg_q[0])
+    circuit.id(qreg_q[2])
+    circuit.id(qreg_q[3])
+
+    circuit_2 = QiskitCircuit(qreg_q, creg_c)
+    circuit_2.rzz(np.pi / 2, qreg_q[1], qreg_q[2]).c_if(creg_c, 0)
+
+    return circuit, circuit_2
+
+
 @pytest.mark.parametrize(
-    "circuit, language",
+    "circuit, language, expected_output",
     [
-        (random_circuit(None, 10), Language.QISKIT),
-        (random_circuit(None, 10), Language.QASM2),
+        (random_qiskit_circuit(2, 5), Language.QISKIT, None),
+        (random_qiskit_circuit(5, 5), Language.QISKIT, None),
+        (random_qiskit_circuit(10, 5), Language.QISKIT, None),
+        (
+            _create_large_circuits_for_tests()[0],
+            Language.QISKIT,
+            None,
+        ),
+        (
+            _create_large_circuits_for_tests()[1],
+            Language.QISKIT,
+            "\"If\" instructions aren't handled",
+        ),
+        (QCircuit([H(0), CNOT(0, 1)]), Language.QASM2, None),
+        (random_circuit(None, 2), Language.QASM2, None),
+        (random_circuit(None, 10), Language.QASM2, None),
+        (
+            "OPENQASM 2.0;\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
+            Language.QASM2,
+            QCircuit([H(0), CNOT(0, 1)]),
+        ),
+        (
+            "// Generated from Cirq v1.3.0\n\nOPENQASM 2.0;\n\n// Qubits: [q0, q1]\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
+            Language.QASM2,
+            QCircuit([H(0), CNOT(0, 1)]),
+        ),
+        (
+            """OPENQASM 2.0;
+            include "qelib1.inc";
+            qreg q[4];
+            creg c[4];
+            z q[0];
+            s q[1];
+            id q[2];
+            rxx(pi/2) q[2], q[3];
+            rzz(pi/2) q[0], q[1];
+            rx(pi/2) q[0];
+            rccx q[1], q[2], q[3];
+            p(pi/2) q[0];
+            rz(pi/2) q[1];
+            tdg q[2];
+            ccx q[0], q[1], q[2];
+            swap q[0], q[1];
+            cx q[2], q[3];
+            x q[1];
+            h q[0];
+            id q[2];
+            id q[3];""",
+            Language.QASM2,
+            QCircuit(
+                [
+                    Z(0),
+                    S(1),
+                    Id(2),
+                    H(2),
+                    H(3),
+                    CNOT(2, 3),
+                    Rz(np.pi / 2, 3),
+                    CNOT(2, 3),
+                    H(3),
+                    H(2),
+                    CNOT(0, 1),
+                    Rz(np.pi / 2, 1),
+                    CNOT(0, 1),
+                    Rx(np.pi / 2, 0),
+                    U(np.pi / 2, 0, np.pi, 3),
+                    U(0, 0, np.pi / 4, 3),
+                    CNOT(2, 3),
+                    U(0, 0, -np.pi / 4, 3),
+                    CNOT(1, 3),
+                    U(0, 0, np.pi / 4, 3),
+                    CNOT(2, 3),
+                    U(0, 0, -np.pi / 4, 3),
+                    U(np.pi / 2, 0, np.pi, 3),
+                    P(np.pi / 2, 0),
+                    Rz(np.pi / 2, 1),
+                    P(-np.pi / 4, 2),
+                    TOF([0, 1], 2),
+                    SWAP(0, 1),
+                    CNOT(2, 3),
+                    X(1),
+                    H(0),
+                    Id(2),
+                    Id(3),
+                ]
+            ),
+        ),
+        (random_cirq_circuit(2, 5, 0.5), Language.CIRQ, None),
+        (random_cirq_circuit(10, 5, 0.5), Language.CIRQ, None),
+        (QCircuit([H(0), CNOT(0, 1)]), Language.BRAKET, None),
+        (random_circuit(None, 2), Language.BRAKET, None),
+        (random_circuit(None, 10), Language.BRAKET, None),
+        (QCircuit([H(0), CNOT(0, 1)]), Language.MY_QLM, None),
+        (random_circuit(None, 2), Language.MY_QLM, None),
+        (random_circuit(None, 10), Language.MY_QLM, None),
+        (
+            "OPENQASM 3.0;include \"stdgates.inc\";qubit[2] q;h q[0];cx q[0], q[1];",
+            Language.QASM3,
+            QCircuit([H(0), CNOT(0, 1)]),
+        ),
+        (
+            "//Generated with Qiskit\n\nOPENQASM 3.0;include \"stdgates.inc\";\n//Qubits\nqubit[2] q;h q[0];cx q[0], q[1];",
+            Language.QASM3,
+            QCircuit([H(0), CNOT(0, 1)]),
+        ),
     ],
 )
-def test_from_other_language(circuit: QCircuit, language: Language):
-    circ_to_test = circuit.to_other_language(language)
-    if TYPE_CHECKING:
-        assert isinstance(circ_to_test, (QiskitCircuit, str))
-    qcircuit = QCircuit.from_other_language(circ_to_test)
-    assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+def test_from_other_language(
+    circuit: QiskitCircuit | QCircuit | cirq_Circuit | str,
+    language: Language,
+    expected_output: Optional[str | QCircuit],
+):
+    if isinstance(circuit, QiskitCircuit):
+        from qiskit.quantum_info import Operator
+
+        if not isinstance(expected_output, str):
+            qcircuit = QCircuit.from_other_language(circuit)
+            circuit = circuit.reverse_bits()
+            matrix = Operator(circuit).data
+            if TYPE_CHECKING:
+                assert isinstance(matrix, np.ndarray)
+            assert matrix_eq(matrix, qcircuit.to_matrix())
+        else:
+            with pytest.raises(ValueError, match=expected_output):
+                QCircuit.from_other_language(circuit)
+
+    elif isinstance(circuit, cirq_Circuit):
+        from cirq.protocols.unitary_protocol import unitary
+
+        qcircuit = QCircuit.from_other_language(circuit)
+        cirq_circuit = qcircuit.to_other_language(language)
+        assert matrix_eq(unitary(cirq_circuit), unitary(circuit))
+
+    elif language == Language.QASM3:
+        qcircuit = QCircuit.from_other_language(circuit)
+        if TYPE_CHECKING:
+            assert isinstance(expected_output, QCircuit)
+        assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
+
+    elif isinstance(circuit, str):
+        qcircuit = QCircuit.from_other_language(circuit)
+        if TYPE_CHECKING:
+            assert isinstance(expected_output, QCircuit)
+        assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
+
+    else:
+        circ_to_test = circuit.to_other_language(language)
+        if TYPE_CHECKING:
+            assert isinstance(circ_to_test, (BraketCircuit, str))
+        qcircuit = QCircuit.from_other_language(circ_to_test)
+        assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+
+
+def test_from_other_language_qiskit_circuits(
+    list_qiskit_funky_circuits: list[QiskitCircuit],
+):
+    for qiskit_circuit in list_qiskit_funky_circuits:
+        QCircuit.from_other_language(qiskit_circuit)
+
+
+def test_from_other_language_braket_circuits(
+    list_braket_funky_circuits: list[BraketCircuit],
+):
+    for i in range(len(list_braket_funky_circuits)):
+        if i == 0:
+            with pytest.raises(
+                ValueError,
+                match="Gates not defined/handled at the time of usage: ccry, ccry",
+            ):
+                QCircuit.from_other_language(list_braket_funky_circuits[i])
+        elif i == 6:
+            with pytest.raises(
+                ValueError,
+                match="Gates not defined/handled at the time of usage: pswap, pswap",
+            ):
+                QCircuit.from_other_language(list_braket_funky_circuits[i])
+        else:
+            QCircuit.from_other_language(list_braket_funky_circuits[i])
+
+
+def test_from_other_language_cirq_circuits(
+    list_cirq_funky_circuits: list[cirq_Circuit],
+):
+    for circ in list_cirq_funky_circuits:
+        QCircuit.from_other_language(circ)
+
+
+def test_from_other_language_myqlm_circuits(
+    list_myqlm_funky_circuits: list[myQLM_Circuit],
+):
+    for circ in list_myqlm_funky_circuits:
+        QCircuit.from_other_language(circ)
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_str",
+    [
+        (
+            QCircuit(
+                [H(i) for i in range(3)]
+                + [
+                    PhaseDamping(0.32, list(range(3))),
+                    PhaseDamping(0.45, [0, 1]),
+                ]
+            ),
+            "[PhaseDamping(0.45, [0]), PhaseDamping(0.32, [0]), PhaseDamping(0.45, [1]), PhaseDamping(0.32, [1]), PhaseDamping(0.32, [2])]",
+        )
+    ],
+)
+def test_from_other_language_noise(circuit: QCircuit, expected_str: str):
+    braket_circuit = circuit.to_other_language(Language.BRAKET)
+    qc = QCircuit.from_other_language(braket_circuit)
+    assert str(qc.noises) == expected_str
 
 
 @pytest.mark.parametrize(
@@ -420,7 +889,7 @@ def test_measure_no_target(measure: Measure):
     circuit.add(measure)
 
     if isinstance(measure, ExpectationMeasure):
-        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_values, float)  # type: ignore[AttributeAccessIssue]
+        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_values, float)
     else:
         assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
 
@@ -497,6 +966,19 @@ def test_to_matrix_random():
         qcircuit = random_circuit(gates, nb_qubits=4)
         expected_matrix = compute_expected_matrix(qcircuit)
         matrix_eq(qcircuit.to_matrix(), expected_matrix)
+
+
+def test_to_matrix_gphase():
+    gates = [
+        gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
+    ]
+    for _ in range(10):
+        qcircuit = random_circuit(gates, nb_qubits=4)
+        qcircuit.gphase = random.random()
+        expected_matrix = compute_expected_matrix(qcircuit)
+        assert matrix_eq(
+            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.gphase)
+        )
 
 
 @pytest.mark.parametrize(

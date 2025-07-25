@@ -39,6 +39,7 @@ def run_azure(job: Job, warnings: bool = True) -> Result:
     result_sim = job_sim.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, AZUREDevice)
+        assert isinstance(result_sim, QiskitResult)
     return extract_result(result_sim, job, job.device)
 
 

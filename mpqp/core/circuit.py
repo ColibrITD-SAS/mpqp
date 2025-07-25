@@ -35,19 +35,17 @@ from __future__ import annotations
 
 from copy import deepcopy
 from numbers import Complex
-from typing import TYPE_CHECKING, Optional, Sequence, Type
+from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
 from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import TypeCheckError, typechecked
-
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
+from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -57,6 +55,7 @@ from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
+from typeguard import TypeCheckError, typechecked
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -64,8 +63,14 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
-
-    from mpqp.execution.devices import AvailableDevice
+    from mpqp.execution.devices import (
+        ATOSDevice,
+        AWSDevice,
+        GOOGLEDevice,
+        IBMDevice,
+        AvailableDevice,
+    )
+    from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
 
 @typechecked
@@ -144,18 +149,22 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit = None
-        """A pre-transpiled circuit to skip repeated transpilation when running the circuit.  
-        Useful when working with a symbolic circuit that needs to be executed with different parameters."""
+        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit]]" = (None)
+        """A pre-transpiled circuit to skip repeated transpilation when running 
+        the circuit. Useful when working with a symbolic circuit that needs to
+        be executed with different parameters."""
         self.transpiled_noise_model = None
-        """A pre-transpiled noise model that skips repeated transpilation when running the circuit. 
-        Currently, it is only useful in Qiskit when working with a symbolic circuit that needs 
-        to be executed with different parameters."""
+        """A pre-transpiled noise model that skips repeated transpilation when
+        running the circuit. Currently, it is only useful in Qiskit when working
+        with a symbolic circuit that needs to be executed with different
+        parameters."""
 
         self.gphase: float = 0
-        """Stores the global phase (angle) arising from the Qiskit conversion of CustomGates 
-        to OpenQASM2. It is used to correct the global phase when the job type
-        is STATE_VECTOR, and when this circuit contains CustomGate."""
+        """Stores the global phase (angle) arising from the Qiskit conversion of
+        :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates` to 
+        OpenQASM2. It is used to correct the global phase when the job type is 
+        `STATE_VECTOR`, and when this circuit contains 
+        :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates`."""
 
         if nb_cbits is None:
             self._nb_cbits = 0
@@ -730,7 +739,7 @@ class QCircuit:
             True
 
         3M-TODO: do we want to approximate ? Also take into account Noise
-         in the equivalence verification
+            in the equivalence verification
         """
         return matrix_eq(self.to_matrix(), circuit.to_matrix())
 
@@ -758,7 +767,7 @@ class QCircuit:
         # - to avoid multi-qubit gates
         ...
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
+    def to_matrix(self) -> npt.NDArray[np.complex128]:
         """Compute the unitary matrix associated to this circuit.
 
         Returns:
@@ -782,7 +791,8 @@ class QCircuit:
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
-
+        if self.gphase != 0:
+            matrix *= np.exp(1j * self.gphase)
         return matrix
 
     def inverse(self) -> QCircuit:
@@ -843,16 +853,30 @@ class QCircuit:
 
         Examples:
             >>> c = QCircuit([CNOT(0, 1), CNOT(1, 2), CNOT(0, 1), CNOT(2, 3)])
-            >>> c.to_gate().definition.matrix
+            >>> pprint(c.to_gate().definition.matrix) # doctest: +NORMALIZE_WHITESPACE
+                [[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+                [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0]]
 
-        # 3M-TODO check implementation, example and test, this will only work
-           when circuit.to_matrix() will be implemented
         """
-        gate_def = UnitaryMatrix(self.to_matrix())
+        gate_def = self.to_matrix()
         return CustomGate(gate_def, list(range(self.nb_qubits)), label=self.label)
 
     @classmethod
-    def initializer(cls, state: npt.NDArray[np.complex64]) -> QCircuit:
+    def initializer(cls, state: npt.NDArray[np.complex128]) -> QCircuit:
         """Initialize this circuit at a given state, given in parameter.
         This will imply adding gates at the beginning of the circuit.
 
@@ -873,8 +897,6 @@ class QCircuit:
                  └────────────────┘└───┘└──────────────────────┘
             >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).amplitudes)
             [0.70711, 0, 0, 0.70711]
-
-        # 6-M: TODO: Give only U-gates, find a better decomposition method
         """
         from qiskit import QuantumCircuit
         from qiskit.circuit.library import StatePreparation
@@ -953,9 +975,8 @@ class QCircuit:
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
             [BasisMeasure(shots=1000),
-            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]], dtype=complex64), 'observable_0'),
+            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'),
             [1], shots=1000)]
-
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
 
@@ -1048,6 +1069,59 @@ class QCircuit:
                     circuit.add(Barrier())
                     circuit = circuit + measure.pre_measure
         return circuit
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QASM2, Language.QASM3],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> str: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.CIRQ],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.BRAKET],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> braket_Circuit: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.MY_QLM],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QISKIT],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_language(
+        self,
+        language: Language,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+        printing: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
 
     def to_other_language(
         self,
@@ -1292,7 +1366,7 @@ class QCircuit:
             for instruction in self.instructions:
                 if isinstance(instruction, (ExpectationMeasure, Barrier, Breakpoint)):
                     continue
-                elif isinstance(instruction, CustomGate):
+                elif isinstance(instruction, (CustomGate, CustomControlledGate)):
                     custom_circuit = QCircuit(self.nb_qubits)
                     custom_circuit.add(instruction)
                     qasm2_code = custom_circuit.to_other_language(
@@ -1323,7 +1397,16 @@ class QCircuit:
                     cirq_instruction = instruction.to_other_language(Language.CIRQ)
                     cirq_circuit.append(cirq_instruction.on(*targets))
 
+            if self.noises:
+                from mpqp.execution.providers.google import apply_noise_to_cirq_circuit
+
+                return apply_noise_to_cirq_circuit(
+                    cirq_circuit,
+                    self.noises,
+                )
+
             return cirq_circuit
+
         elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 
@@ -1347,6 +1430,46 @@ class QCircuit:
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
+    @overload
+    def to_other_device(
+        self,
+        device: ATOSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> myQLM_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AWSDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> braket_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: GOOGLEDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> cirq_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: Union[IBMDevice, IBMSimulatedDevice],
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit: ...
+
+    @overload
+    def to_other_device(
+        self,
+        device: AvailableDevice,
+        translation_warning: bool = True,
+        skip_pre_measure: bool = False,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
+
     def to_other_device(
         self,
         device: AvailableDevice,
@@ -1354,7 +1477,7 @@ class QCircuit:
         skip_pre_measure: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
         """Transforms this circuit into the corresponding device specified
-        in the ``device` arg.
+        in the ``device`` arg.
 
         Some measurements require some adaptation between the user defined
         circuit and the measure. For instance if the targets are not given in a
@@ -1485,6 +1608,7 @@ class QCircuit:
                 from qiskit.transpiler.preset_passmanagers import (
                     generate_preset_pass_manager,
                 )
+
                 from mpqp.execution.connection.ibm_connection import get_backend
 
                 if TYPE_CHECKING:
@@ -1493,6 +1617,15 @@ class QCircuit:
                 backend = get_backend(device)
                 pm = generate_preset_pass_manager(backend=backend, optimization_level=1)
                 qiskit_circuit = pm.run(qiskit_circuit)
+            # TODO: removed with PR - Circuit Handling and PauliString Utilities #154
+            if any(
+                isinstance(gate, CustomControlledGate) for gate in self.instructions
+            ):
+                from qiskit import transpile
+
+                if TYPE_CHECKING:
+                    assert isinstance(qiskit_circuit, QuantumCircuit)
+                qiskit_circuit = transpile(qiskit_circuit, backend_sim)
             return qiskit_circuit
         elif isinstance(device, GOOGLEDevice):
             from cirq.circuits.circuit import Circuit as CirqCircuit
@@ -1559,20 +1692,26 @@ class QCircuit:
             raise NotImplementedError(f"Error: {device} is not supported")
 
     @classmethod
-    def from_other_language(cls, qcircuit: QuantumCircuit | str) -> QCircuit:
-        """Transforms a quantum circuit from an external representation (Qiskit or QASM2) into
-        the corresponding internal `QCircuit` format.
+    def from_other_language(
+        cls,
+        qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str,
+    ) -> QCircuit:
+        """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM, QASM2 or QASM3) into
+        the corresponding internal ``QCircuit`` format.
 
         Args:
             qcircuit: The input quantum circuit which can be one of the following types:
-                - `QuantumCircuit`: A Qiskit QuantumCircuit object.
-                - `str`: A string representing an OpenQASM 2.0 circuit.
+                - ``QuantumCircuit`` : A Qiskit QuantumCircuit object.
+                - ``cirq_Circuit`` : A Cirq Circuit object.
+                - ``braket_Circuit``: A Braket Circuit object.
+                - ``myQLM_Circuit``: A MyQLM Circuit object.
+                - ``str``: A string representing an OpenQASM 2.0 or OpenQASM3 circuit.
 
         Returns:
-            QCircuit: The circuit in the internal `QCircuit` representation.
+            The mpqp ``QCircuit`` corresponding to the external circuit in parameter.
 
         Raises:
-            NotImplementedError: If the input circuit is a string but not in OpenQASM 2.0 format.
+            NotImplementedError: If the input circuit is from an other provider or a string but not in OpenQASM 2.0 or 3.0 format.
 
         Examples:
             >>> from qiskit.circuit import QuantumCircuit
@@ -1587,38 +1726,165 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
 
-            >>> qasm2_code = '''
-            ... OPENQASM 2.0;
-            ... qreg q[2];
-            ... h q[0];
-            ... cx q[0], q[1];
-            ... '''
-            >>> qcircuit2 = QCircuit.from_other_language(qasm2_code)
+            >>> import cirq
+            >>> q0, q1 = cirq.LineQubit.range(2)
+            >>> cirq_circuit = cirq.Circuit()
+            >>> cirq_circuit.append(cirq.H(q0))
+            >>> cirq_circuit.append(cirq.CNOT(q0, q1))
+            >>> qcircuit2 = QCircuit.from_other_language(cirq_circuit)
             >>> print(qcircuit2) # doctest: +NORMALIZE_WHITESPACE
                  ┌───┐
             q_0: ┤ H ├──■──
                  └───┘┌─┴─┐
             q_1: ─────┤ X ├
                       └───┘
+
+            >>> from braket.circuits import Circuit
+            >>> braket_circuit = Circuit().h(0).cnot(0, 1)
+            >>> qcircuit3 = QCircuit.from_other_language(braket_circuit)
+            >>> print(qcircuit3) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+            c: 2/══════════
+
+            >>> from qat.lang.AQASM import Program, H, CNOT
+            >>> prog = Program()
+            >>> qbits = prog.qalloc(2)
+            >>> _ = H(qbits[0])
+            >>> _ = CNOT(qbits[0], qbits[1])
+            >>> myqlm_circuit = prog.to_circ()
+            >>> qcircuit4 = QCircuit.from_other_language(myqlm_circuit)
+            >>> print(qcircuit4) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+
+            >>> qasm2_code = '''
+            ... OPENQASM 2.0;
+            ... qreg q[2];
+            ... h q[0];
+            ... cx q[0], q[1];
+            ... '''
+            >>> qcircuit5 = QCircuit.from_other_language(qasm2_code)
+            >>> print(qcircuit5) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
+            >>> qasm3_code = '''
+            ... OPENQASM 3.0;
+            ... qubit[2] q;
+            ... h q[0];
+            ... cx q[0], q[1];
+            ... '''
+            >>> qcircuit6 = QCircuit.from_other_language(qasm3_code)
+            >>> print(qcircuit6) # doctest: +NORMALIZE_WHITESPACE
+                 ┌───┐
+            q_0: ┤ H ├──■──
+                 └───┘┌─┴─┐
+            q_1: ─────┤ X ├
+                      └───┘
         """
+        from braket.circuits import Circuit as braket_Circuit
+        from cirq.circuits.circuit import Circuit as cirq_Circuit
+        from cirq.circuits.moment import Moment
+        from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
         from qiskit import QuantumCircuit
 
         from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
         if isinstance(qcircuit, QuantumCircuit):
-            from qiskit import qasm2
+            from qiskit import qasm3
 
-            qasm2_code = qasm2.dumps(qcircuit)
-            return qasm2_parse(qasm2_code)
+            from mpqp.qasm import open_qasm_3_to_2
 
-        elif isinstance(qcircuit, str):  # pyright: ignore[reportUnnecessaryIsInstance]
-            lines = qcircuit.split('\n')
-            for line in lines:
+            qasm3_code = qasm3.dumps(qcircuit)
+            qasm2_code, phase = open_qasm_3_to_2(
+                str(qasm3_code), language=Language.QISKIT
+            )
+
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = phase
+            return qc
+
+        elif isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
+            from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+
+            if isinstance(qcircuit, Moment):
+                qcircuit = cirq_Circuit([qcircuit])
+
+            qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = gphase
+            return qc
+
+        elif isinstance(qcircuit, braket_Circuit):
+            from braket.circuits.serialization import IRType
+            from braket.ir.openqasm.program_v1 import Program
+
+            from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
+            from mpqp.qasm.qasm_to_braket import (
+                braket_noise_to_mpqp,
+                braket_custom_gates_to_mpqp,
+            )
+
+            qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
+            if TYPE_CHECKING:
+                assert isinstance(qasm3_code, Program)
+
+            custom_gates = braket_custom_gates_to_mpqp(qasm3_code.source)
+            noises = braket_noise_to_mpqp(qasm3_code.source)
+
+            qasm2_code, phase = open_qasm_3_to_2(
+                str(qasm3_code.source), language=Language.BRAKET
+            )
+            qc = qasm2_parse(qasm2_code)
+            qc.gphase = phase
+            qc = qc.without_measurements()
+            if len(custom_gates) != 0:
+                qc.add(custom_gates)
+            if len(noises) != 0:
+                qc.add(noises)
+            return qc
+
+        elif isinstance(qcircuit, myQLM_Circuit):
+            from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
+
+            return from_myqlm_to_mpqp(qcircuit)
+
+        elif isinstance(qcircuit, str):
+            for line in qcircuit.split('\n'):
                 if not line.startswith("//") and line != '':
-                    if not line.startswith("OPENQASM 2.0"):
+                    OPENQASM_VERSIONS = ("OPENQASM 2.0", "OPENQASM 3.0")
+                    if not any(
+                        line.startswith(version) for version in OPENQASM_VERSIONS
+                    ):
                         raise NotImplementedError(
-                            f"Error: only OpenQASM2 is supported for qasm external description of the circuit"
+                            f"Error: only OpenQASM2 and OpenQASM3 are supported for qasm external description of the circuit"
                         )
+                    elif line.startswith("OPENQASM 2.0"):
+                        from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+
+                        qasm2_code, gphase = parse_qasm2_gates(qcircuit)
+                        qc = qasm2_parse(qasm2_code)
+                        qc.gphase = gphase
+
+                        return qc
+
+                    elif line.startswith("OPENQASM 3.0"):
+                        from mpqp.qasm import open_qasm_3_to_2
+
+                        qasm2_code, phase = open_qasm_3_to_2(qcircuit)
+                        qc = qasm2_parse(qasm2_code)
+                        qc.gphase = phase
+
+                        return qc
                     break
             return qasm2_parse(qcircuit)
         else:

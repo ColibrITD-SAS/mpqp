@@ -16,5 +16,5 @@ def test_inverse_gate(gate: type):
     # G†G = I
     assert matrix_eq(
         np.matmul(gate_build_dagger.to_matrix(), gate_build_matrix),
-        np.eye(gate_build_matrix.shape[0], dtype=np.complex64),
+        np.eye(gate_build_matrix.shape[0], dtype=np.complex128),
     )

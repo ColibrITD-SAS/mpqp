@@ -15,12 +15,12 @@ def list_matrix_pauli_string() -> list[tuple[Matrix, PauliString]]:
         (
             np.array(
                 [[2, 0, 0, 0], [0, 0, 0, 0], [0, 0, 2, 0], [0, 0, 0, 0]],
-                dtype=np.complex64,
+                dtype=np.complex128,
             ),
             I @ Z + I @ I,
         ),
         (
-            np.zeros((4, 4), dtype=np.complex64),
+            np.zeros((4, 4), dtype=np.complex128),
             I @ I - I @ I,
         ),
         (
@@ -57,15 +57,18 @@ def list_matrix_pauli_string() -> list[tuple[Matrix, PauliString]]:
             np.kron(Y.matrix, X.matrix) - np.kron(X.matrix, Y.matrix),
             Y @ X - X @ Y,
         ),
-        (np.array([[2, 3], [3, 1]], dtype=np.complex64), 3 / 2 * I + 3 * X + 1 / 2 * Z),
         (
-            np.array([[-1, 1 - 1j], [1 + 1j, 0]], dtype=np.complex64),
+            np.array([[2, 3], [3, 1]], dtype=np.complex128),
+            3 / 2 * I + 3 * X + 1 / 2 * Z,
+        ),
+        (
+            np.array([[-1, 1 + 1j], [1 - 1j, 0]], dtype=np.complex128),
             -1 / 2 * I + X - Y - 1 / 2 * Z,
         ),
         (np.diag([-2, 4, 5, 3]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I - 2 * Z @ Z),
         (np.diag([2, 0, 1, 7]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I + 2 * Z @ Z),
         (np.diag([-2, -3, 2, 1]), -1 / 2 * I @ I + 1 / 2 * I @ Z - 2 * Z @ I),
-        (np.zeros((4, 4), dtype=np.complex64), 1 * I @ I - 1 * I @ I),
+        (np.zeros((4, 4), dtype=np.complex128), 1 * I @ I - 1 * I @ I),
     ]
 
 
@@ -120,7 +123,7 @@ def test_diagonal_elements_to_pauli(
 
 
 def test_pauli_to_matrix(
-    list_matrix_pauli_string: list[tuple[npt.NDArray[np.complex64], PauliString]],
+    list_matrix_pauli_string: list[tuple[npt.NDArray[np.complex128], PauliString]],
 ):
     for matrix, ps in list_matrix_pauli_string:
         assert matrix_eq(ps.to_matrix(), matrix)
@@ -157,7 +160,7 @@ def test_diagonal_observable_attributes(
         assert o.pauli_string.is_diagonal()
         assert matrix_eq(
             np.diag(o.diagonal_elements) - o.matrix,
-            np.zeros((2**o.nb_qubits, 2**o.nb_qubits)).astype(np.complex64),
+            np.zeros((2**o.nb_qubits, 2**o.nb_qubits)),
         )
 
 

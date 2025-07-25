@@ -423,6 +423,12 @@ class GOOGLEDevice(AvailableDevice):
         """
         return self.name.startswith("PROCESSOR")
 
+    def is_noisy_simulator(self) -> bool:
+        return self in [
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            GOOGLEDevice.IONQ_SIMULATOR,
+        ]
+
     def has_reduced_gate_set(self) -> bool:
         return self in {
             GOOGLEDevice.PROCESSOR_RAINBOW,

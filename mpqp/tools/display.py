@@ -16,7 +16,7 @@ from .generics import Matrix
 
 
 @typechecked
-def state_vector_ket_shape(sv: npt.NDArray[np.complex64]) -> str:
+def state_vector_ket_shape(sv: npt.NDArray[np.complex128]) -> str:
     """Formats a state vector into its ket format."""
     if len(sv.shape) != 1:
         raise ValueError(f"Input state {sv} should be a vector (1 dimensional matrix).")
@@ -201,7 +201,7 @@ def format_element_str(
 
 @typechecked
 def clean_1D_array(
-    array: list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
+    array: list[Complex] | npt.NDArray[np.complex128 | np.float64 | np.int32],
     round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function
@@ -237,14 +237,14 @@ def clean_1D_array(
         ... 2.91896816e-09-2.15963155e-09j, -4.17753839e-09-5.64638430e-09j,
         ... 9.44235988e-08-8.58300965e-01j, -5.42123454e-08+2.07957438e-07j,
         ... 5.13144658e-01+2.91786504e-08j, -0000000.175980538-1.44108434e-07j], round=7)
-        '[0.9828112j, 0.1901127, 0, 0, 1e-07-0.858301j, -1e-07+2e-07j, 0.5131446, -0.1759805-1e-07j]'
+        '[0.9828112j, 0.1901127, 0, 0, 1e-07-0.858301j, -1e-07+2e-07j, 0.5131447, -0.1759805-1e-07j]'
 
     """
     return (
         "["
         + ", ".join(
             clean_number_repr(element, round)
-            for element in np.array(array, dtype=np.complex64)
+            for element in np.array(array, dtype=np.complex128)
         )
         + "]"
     )

@@ -20,9 +20,12 @@ from __future__ import annotations
 
 from numbers import Complex
 from textwrap import indent
-from typing import TYPE_CHECKING, Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
+from sympy import Expr
+from typeguard import typechecked
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -49,8 +52,6 @@ from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
-from sympy import Expr
-from typeguard import typechecked
 
 
 @typechecked
@@ -87,6 +88,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         tweaked_observables,
         list(range(circuit.nb_qubits)),
         measure.shots,
+        measure.commuting_type,
+        measure.grouping_method,
+        optimize_measurement=measure.optimize_measurement,
     )
     return tweaked_measure
 
@@ -237,11 +241,10 @@ def _run_single(
     circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
-
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
-            if measure.optim_diagonal and measure.are_all_diagonal():
+            if measure.optim_diagonal and measure.only_diagonal_observables():
                 return _run_diagonal_observables(
                     circuit, measure, device, job, values, translation_warning
                 )
@@ -252,7 +255,7 @@ def _run_single(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
         elif not isinstance(
-            device, (ATOSDevice, AWSDevice, IBMDevice, SimulatedDevice)
+            device, (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice)
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
@@ -268,6 +271,36 @@ def _run_single(
         return run_azure(job, translation_warning)
     else:
         raise NotImplementedError(f"Device {device} not handled")
+
+
+@overload
+def run(
+    circuit: OneOrMany[QCircuit],
+    device: Sequence[AvailableDevice],
+    values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
+    translation_warning: bool = True,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: Sequence[QCircuit],
+    device: OneOrMany[AvailableDevice],
+    values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
+    translation_warning: bool = True,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: Optional[dict[Expr | str, Complex]] = None,
+    display_breakpoints: bool = True,
+    translation_warning: bool = True,
+) -> Result: ...
 
 
 @typechecked
@@ -355,8 +388,6 @@ def run(
     def namer(circ: QCircuit, i: int):
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
-
-    # TODO: here detect that we have a full diag observable job
 
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(

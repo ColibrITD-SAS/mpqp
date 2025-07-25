@@ -36,11 +36,13 @@ MyQLM
 ^^^^^
 
 .. automodule:: mpqp.qasm.qasm_to_myqlm
+.. automodule:: mpqp.qasm.myqlm_to_mpqp
 
 Braket
 ^^^^^^
 
 .. automodule:: mpqp.qasm.qasm_to_braket
+.. automodule:: mpqp.qasm.braket_noise_to_mpqp
 
 Cirq
 ^^^^

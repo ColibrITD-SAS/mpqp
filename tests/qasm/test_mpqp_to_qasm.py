@@ -256,9 +256,7 @@ def test_mpqp_to_qasm_gate(instructions: list[Instruction], qasm_expectation: st
     [
         [
             CustomGate(
-                UnitaryMatrix(
-                    np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0], [0, 0, 1, 0]])
-                ),
+                np.array([[0, 1, 0, 0], [0, 0, 0, 1], [1, 0, 0, 0], [0, 0, 1, 0]]),
                 [1, 2],
             )
         ]

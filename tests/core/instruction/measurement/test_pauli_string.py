@@ -84,7 +84,7 @@ def pauli_string_combinations():
 
 
 @pytest.mark.parametrize("ps, matrix", pauli_string_combinations())
-def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex64]):
+def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex128]):
     assert matrix_eq(ps.to_matrix(), matrix)
 
 
