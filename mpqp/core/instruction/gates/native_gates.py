@@ -339,7 +339,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         pass
 
     """Corresponding ``qiskit``'s gate class."""
-    matrix: npt.NDArray[np.complex64]
+    matrix: npt.NDArray[np.complex128]
     """Matricial semantics of the gate."""
 
     def to_other_language(
@@ -423,7 +423,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
     def __init__(self, target: int, label: Optional[str] = None):
         super().__init__(target)
         self.label = label
-        self.matrix = np.eye(2, dtype=np.complex64)
+        self.matrix = np.eye(2, dtype=np.complex128)
 
     def to_other_language(
         self,
@@ -919,7 +919,7 @@ class SWAP(InvolutionGate, NoParameterGate):
     )
     """Size of the gate."""
 
-    def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex64]:
+    def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex128]:
         """Constructs the matrix representation of a SWAP gate for two qubits.
 
         Args:
@@ -940,7 +940,7 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         nb_qubits_swap = abs(control - target) + 1
         min_nb_qubits = min(control, target)
-        swap_matrix = np.eye(2**nb_qubits_swap, dtype=np.complex64)
+        swap_matrix = np.eye(2**nb_qubits_swap, dtype=np.complex128)
 
         for i in range(2**nb_qubits_swap):
             binary_state = list(format(i, f"0{nb_qubits_swap}b"))

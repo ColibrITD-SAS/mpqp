@@ -22,7 +22,7 @@ def list_circuits():
 def list_observables():
     return [
         [
-            Observable(np.ones((4, 4)).astype(np.complex64)),
+            Observable(np.ones((4, 4), dtype=np.complex128)),
             Observable(np.diag([1, 2, -3, 4])),
             # TODO add random observable ?
         ]

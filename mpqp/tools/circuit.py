@@ -96,7 +96,7 @@ def random_circuit(
 def statevector_from_random_circuit(
     nb_qubits: int = 5,
     seed: Optional[int] = None,
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """
     This function creates a statevector with a specified number of qubits,
     generated from a random circuit executed on IBM AER Simulator.
@@ -301,7 +301,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
 @typechecked
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int
+    custom_unitary: "CircuitInstruction", nb_qubits: int  # type: ignore[reportInvalidTypeForm]
 ) -> tuple["QuantumCircuit", float]:
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.

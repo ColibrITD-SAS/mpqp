@@ -59,14 +59,14 @@ class StateVector:
 
     def __init__(
         self,
-        vector: list[Complex] | npt.NDArray[np.complex64],
+        vector: list[Complex] | npt.NDArray[np.complex128],
         nb_qubits: Optional[int] = None,
-        probabilities: Optional[list[float] | npt.NDArray[np.float32]] = None,
+        probabilities: Optional[list[float] | npt.NDArray[np.float64]] = None,
     ):
         if len(np.asarray(vector)) == 0:
             raise ValueError("vector should not be empty")
 
-        self.vector: npt.NDArray[np.complex64] = np.array(vector, dtype=complex)
+        self.vector: npt.NDArray[np.complex128] = np.array(vector, dtype=complex)
 
         self.nb_qubits = (
             int(math.log(len(vector), 2)) if nb_qubits is None else nb_qubits
@@ -399,7 +399,7 @@ class Result:
         return self._expectation_values
 
     @property
-    def amplitudes(self) -> npt.NDArray[np.complex64]:
+    def amplitudes(self) -> npt.NDArray[np.complex128]:
         """Get the amplitudes of the state of this result"""
         if self.job.job_type != JobType.STATE_VECTOR:
             raise ResultAttributeError(
@@ -432,7 +432,7 @@ class Result:
         return self._samples
 
     @property
-    def probabilities(self) -> npt.NDArray[np.float32]:
+    def probabilities(self) -> npt.NDArray[np.float64]:
         """Get the list of probabilities associated with this result"""
         if self.job.job_type not in (JobType.SAMPLE, JobType.STATE_VECTOR):
             raise ResultAttributeError(
@@ -441,7 +441,7 @@ class Result:
             )
         if TYPE_CHECKING:
             assert self._probabilities is not None
-        return self._probabilities
+        return self._probabilities.astype(np.float64)
 
     @property
     def counts(self) -> list[int]:

@@ -24,7 +24,7 @@ atol = 1e-08
 
 
 @typechecked
-def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
+def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex128]:
     """Normalizes an array representing the amplitudes of the state.
 
     Args:
@@ -126,7 +126,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
     """
     return matrix_eq(
-        np.eye(len(matrix), dtype=np.complex64),
+        np.eye(len(matrix), dtype=np.complex128),
         matrix.transpose().conjugate().dot(matrix),
         atol=1e-5,
     )
@@ -267,7 +267,7 @@ def exp(angle: Expr | complex) -> Expr | complex:
 @typechecked
 def rand_orthogonal_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random orthogonal matrix optionally with a given seed.
 
     Args:
@@ -431,7 +431,7 @@ def rand_unitary_matrix(size: int) -> Matrix:
 @typechecked
 def rand_hermitian_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random Hermitian matrix.
 
     Args:
@@ -453,8 +453,8 @@ def rand_hermitian_matrix(
     """
     rng = np.random.default_rng(seed)
 
-    m = rng.random((size, size)).astype(np.complex64)
-    return m + m.conjugate().transpose()
+    m = rng.random((size, size))
+    return (m + m.conjugate().transpose()).astype(np.complex128)
 
 
 @typechecked

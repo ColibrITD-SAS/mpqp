@@ -767,7 +767,7 @@ class QCircuit:
         # - to avoid multi-qubit gates
         ...
 
-    def to_matrix(self) -> npt.NDArray[np.complex64]:
+    def to_matrix(self) -> npt.NDArray[np.complex128]:
         """Compute the unitary matrix associated to this circuit.
 
         Returns:
@@ -876,7 +876,7 @@ class QCircuit:
         return CustomGate(gate_def, list(range(self.nb_qubits)), label=self.label)
 
     @classmethod
-    def initializer(cls, state: npt.NDArray[np.complex64]) -> QCircuit:
+    def initializer(cls, state: npt.NDArray[np.complex128]) -> QCircuit:
         """Initialize this circuit at a given state, given in parameter.
         This will imply adding gates at the beginning of the circuit.
 
@@ -974,8 +974,9 @@ class QCircuit:
             ...     ExpectationMeasure(Observable(np.identity(2)), [1], shots=1000)
             ... ])
             >>> circuit.measurements  # doctest: +NORMALIZE_WHITESPACE
-            [BasisMeasure(shots=1000), ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'), [1], shots=1000)]
-
+            [BasisMeasure(shots=1000),
+            ExpectationMeasure(Observable(array([[1.+0.j, 0.+0.j], [0.+0.j, 1.+0.j]]), 'observable_0'),
+            [1], shots=1000)]
         """
         return [inst for inst in self.instructions if isinstance(inst, Measure)]
 

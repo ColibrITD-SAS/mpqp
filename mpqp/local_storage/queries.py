@@ -193,7 +193,6 @@ def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
         ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
         result_id: 1 , job_id: 1
         result_id: 2 , job_id: 1
-
     """
     from sqlite3 import Row, connect
 
