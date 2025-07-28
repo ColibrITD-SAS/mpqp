@@ -453,8 +453,8 @@ def rand_hermitian_matrix(
     """
     rng = np.random.default_rng(seed)
 
-    m = rng.random((size, size)).astype(np.complex128)
-    return m + m.conjugate().transpose()
+    m = rng.random((size, size))
+    return (m + m.conjugate().transpose()).astype(np.complex128)
 
 
 @typechecked

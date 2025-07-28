@@ -1,12 +1,13 @@
-"""Observables can be defined using (real valued) linear combinations of Pauli
-operators, these are called "Pauli strings". In ``mpqp``, a :class:`PauliString`
-is a linear combination of :class:`PauliStringMonomial` which are themselves
+"""Observables can be defined using linear combinations of Pauli operators,
+these are called "Pauli strings". In ``mpqp``, a :class:`PauliString` is a
+linear combination of :class:`PauliStringMonomial` which are themselves
 combinations (tensor products) of :class:`PauliStringAtom`. :class:`PauliString`
 can be added, subtracted and tensored together, as well as multiplied by scalars."""
 
 from __future__ import annotations
 
 from copy import deepcopy
+from enum import Enum, auto
 from functools import reduce
 from numbers import Real
 from operator import matmul, mul
@@ -17,7 +18,8 @@ import numpy.typing as npt
 from sympy import Expr, sympify
 from typeguard import typechecked
 
-from mpqp.core.instruction.gates.native_gates import H, NativeGate, S_dagger
+from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
@@ -36,6 +38,26 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
 
 Coef = Union[Real, float, Expr]
+
+
+class CommutingTypes(Enum):
+    """Enum regrouping the types of commutation supported by the PauliStrings."""
+
+    FULL = auto()
+    QUBITWISE = auto()
+
+
+class GroupingMethods(Enum):
+    """Enum regrouping the different Pauli grouping algorithms."""
+
+    GREEDY = auto()
+    COLORING_GREEDY = auto()
+    COLORING_SF = auto()
+    COLORING_LF = auto()
+    COLORING_RECURSIVE_LF = auto()
+    COLORING_DB = auto()
+    COLORING_DSATUR = auto()
+    CLIQUE_REMOVING = auto()
 
 
 @typechecked
@@ -108,7 +130,7 @@ class PauliString:
 
     def _non_null_str(self):
         return str(self._monomials[0]) + "".join(
-            (f" - {-m}" if not isinstance(m.coef, Expr) and m.coef < 0 else f" + {m}")
+            (f" - {-m}" if not isinstance(m.coef, Expr) and m.coef < 0 else f" + {m}")  # type: ignore[reportArgumentType]
             for m in self._monomials[1:]
         )
 
@@ -286,7 +308,7 @@ class PauliString:
                 mono.coef  # pyright: ignore[reportAssignmentType]
             )
             if isinstance(coef, Expr):
-                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
+                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms)) 
             else:
                 coef = float(np.round(float(coef), max_digits))
                 if coef != 0:
@@ -853,7 +875,7 @@ class PauliStringMonomial(PauliString):
 
     @property
     def monomials(self) -> list["PauliStringMonomial"]:
-        return [PauliStringMonomial(self.coef, self.atoms)]
+        return [PauliStringMonomial(self.coef, self.atoms)]  # type: ignore[reportArgumentType]
 
     @property
     def positive_eigen_values(self) -> npt.NDArray[np.bool_]:
@@ -879,9 +901,13 @@ class PauliStringMonomial(PauliString):
         )
         memo[id(self)] = copied
         return copied
+    
+    @property
+    def name(self) -> str:
+        return f"{'@'.join(map(str, self.atoms))}"
 
     def __str__(self):
-        coef = format_element(self.coef)
+        coef = format_element(self.coef)  # type: ignore[reportArgumentType]
         if isinstance(coef, Expr):
             coef = f'({str(coef)})*'
         else:
@@ -972,12 +998,15 @@ class PauliStringMonomial(PauliString):
         atoms_as_tuples = tuple((atom.label for atom in self.atoms))
         return hash(atoms_as_tuples)
 
-    def commutes_with(self, other: PauliString) -> bool:
+    def commutes_with(
+        self, other: PauliString, method: CommutingTypes = CommutingTypes.FULL
+    ) -> bool:
         """Checks wether this Pauli monomial commutes (full commutativity) with the Pauli monomial in parameter. This
         is done by checking that the number of anti-commuting atoms is even.
 
         Args:
             other: The Pauli monomial for which we want to check commutativity with this monomial.
+            method: The type of commutation to be verified.
 
         Returns:
             True if this Pauli monomial commutes with the one in parameter.
@@ -990,6 +1019,10 @@ class PauliStringMonomial(PauliString):
             False
             >>> (X @ Z @ Z).commutes_with(X @ Z @ Z)
             True
+            >>> (X @ X).commutes_with(Y @ Y, CommutingTypes.FULL)
+            True
+            >>> (X @ X).commutes_with(Y @ Y, CommutingTypes.QUBITWISE)
+            False
 
         """
         if not isinstance(other, PauliStringMonomial):
@@ -1001,12 +1034,23 @@ class PauliStringMonomial(PauliString):
             raise NumberQubitsError(
                 f"Mismatch between {self.nb_qubits=} and {other.nb_qubits=}."
             )
-
-        return (
-            sum(1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b))
-            % 2
-            == 0
-        )
+        if method == CommutingTypes.QUBITWISE:
+            return all(
+                self.atoms[i].commutes_with(other.atoms[i])
+                for i in range(self.nb_qubits)
+            )
+        elif method == CommutingTypes.FULL:
+            return (
+                sum(
+                    1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b)
+                )
+                % 2
+                == 0
+            )
+        else:
+            raise NotImplementedError(
+                f"This type of commutingType {method} is not implemented yet."
+            )
 
     def subs(
         self, values: dict[Expr | str, Real], remove_symbolic: bool = True
@@ -1125,7 +1169,7 @@ class PauliStringAtom(PauliStringMonomial):
         matrix: npt.NDArray[np.complex128],
         eig_values: list[int],
         eig_vectors: npt.NDArray[np.complex128],
-        basis_change: list[type[NativeGate]],
+        basis_change: list[type[SingleQubitGate]],
     ):
         if _allow_atom_creation:
             self.label = label
@@ -1151,7 +1195,7 @@ class PauliStringAtom(PauliStringMonomial):
         return [self]
 
     @property
-    def coef(self):
+    def coef(self) -> Coef:
         """Coefficient of the monomial."""
         return 1
 
@@ -1185,7 +1229,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: Coef) -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
             [self],
         )
 
@@ -1209,7 +1253,7 @@ class PauliStringAtom(PauliStringMonomial):
             res.atoms.insert(0, self)
         else:
             for i, mono in enumerate(res.monomials):
-                res.monomials[i] = PauliStringMonomial(mono.coef, mono.atoms)
+                res.monomials[i] = PauliStringMonomial(mono.coef, mono.atoms)  # type: ignore[reportArgumentType]
                 res.monomials[i].atoms.insert(0, self)
         return res
 
@@ -1230,12 +1274,19 @@ class PauliStringAtom(PauliStringMonomial):
     def to_matrix(self) -> npt.NDArray[np.complex128]:
         return self.matrix
 
-    def commutes_with(self, other: PauliString) -> bool:
+    def get_basis_change(self) -> list[type[SingleQubitGate]]:
+        return self._basis_change
+
+    def commutes_with(
+        self, other: PauliString, method: CommutingTypes = CommutingTypes.FULL
+    ) -> bool:
         """Determines whether this single-qubit Pauli operator commutes with the one in parameter. In this case, this
         can be done by simply checking if one of the atoms are identity, or if they are the same.
 
         Args:
             other: The single-qubit Pauli operator with which want to check the commutativity
+            method: The type of commutation being checked, Only full commutativity is implemented
+                for PauliStringAtom.
 
         Returns:
             True if the atoms commute, False otherwise.
@@ -1257,7 +1308,11 @@ class PauliStringAtom(PauliStringMonomial):
             raise ValueError(
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
             )
-        return other == I or self == I or self == other
+        if method == CommutingTypes.FULL:
+            return other == I or self == I or self == other
+        raise ValueError(
+            f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
+        )
 
     def to_other_language(
         self,

@@ -12,13 +12,17 @@ from typing import Any, Optional, Type
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
+from numpy.random import default_rng
+
 from mpqp.all import *
 from mpqp.core.instruction.measurement import pauli_string
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.execution import BatchResult
 from mpqp.execution.connection.env_manager import (
-    MPQP_ENV,
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.execution.connection.env_manager import (
+    MPQP_ENV,
     get_env_variable,
     get_existing_config_str,
     load_env_variables,
@@ -26,6 +30,8 @@ from mpqp.execution.connection.env_manager import (
 )
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
+from mpqp.execution.vqa.qaoa import QaoaMixer, QaoaMixerType
+from mpqp.execution.vqa.qubo import *
 from mpqp.local_storage.delete import (
     clear_local_storage,
     remove_all_with_job_id,
@@ -85,8 +91,13 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     remove_include_and_comment,
     remove_user_gates,
 )
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.qasm.qasm_to_braket import (
+    qasm3_to_braket_Circuit,
+    braket_noise_to_mpqp,
+    braket_custom_gates_to_mpqp,
+)
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 from mpqp.tools.circuit import (
     random_circuit,
     random_gate,
@@ -122,9 +133,13 @@ from mpqp.tools.maths import (
     rand_unitary_2x2_matrix,
 )
 from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
-from mpqp.tools.pauli_grouping import full_commutation_pauli_grouping_greedy
 from numpy.random import default_rng
 from mpqp.measures import pauli_string_with_atom, pauli_string_from_str
+from mpqp.tools.pauli_grouping import (
+    CommutingTypes,
+    pauli_grouping_greedy,
+)
+from mpqp.tools.operators import *
 
 sys.path.insert(0, os.path.abspath("."))
 

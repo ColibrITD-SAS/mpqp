@@ -32,8 +32,7 @@ from scipy.spatial.distance import jensenshannon
 from typeguard import typechecked
 
 from mpqp import QCircuit
-from mpqp.execution import AvailableDevice, AWSDevice, Result
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.execution import AvailableDevice, AWSDevice, Result, run
 from mpqp.measures import BasisMeasure
 
 
@@ -58,7 +57,7 @@ def amplitude(
     print(state)
 
     for gate in gates:
-        g = gate.to_matrix(circ.nb_qubits).astype(np.complex128)
+        g = gate.to_matrix(circ.nb_qubits)
         print(g)
         state = g @ state
         print(state)
@@ -115,7 +114,8 @@ def theoretical_probs(
     gates = circ.gates
 
     for gate in gates:
-        g = gate.to_matrix(circ.nb_qubits).astype(np.complex128)
+        g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
+        assert g.dtype == np.complex64 or g.dtype == np.float32
         state = g @ state @ g.T.conj()
         for noise in circ.noises:
             if (
@@ -211,7 +211,7 @@ def exp_id_dist(
 
     noisy_circuit = circuit.without_measurements()
     noisy_circuit.add(BasisMeasure(shots=shots))
-    result = _run_single(noisy_circuit, device, {})
+    result = run(noisy_circuit, device)
     assert isinstance(result, Result)
     mpqp_counts = result.counts
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))

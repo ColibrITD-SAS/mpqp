@@ -61,7 +61,7 @@ class StateVector:
         self,
         vector: list[Complex] | npt.NDArray[np.complex128],
         nb_qubits: Optional[int] = None,
-        probabilities: Optional[list[float] | npt.NDArray[np.float32]] = None,
+        probabilities: Optional[list[float] | npt.NDArray[np.float64]] = None,
     ):
         if len(np.asarray(vector)) == 0:
             raise ValueError("vector should not be empty")
@@ -431,7 +431,7 @@ class Result:
         return self._samples
 
     @property
-    def probabilities(self) -> npt.NDArray[np.float32]:
+    def probabilities(self) -> npt.NDArray[np.float64]:
         """Get the list of probabilities associated with this result"""
         if self.job.job_type not in (JobType.SAMPLE, JobType.STATE_VECTOR):
             raise ResultAttributeError(
@@ -440,7 +440,7 @@ class Result:
             )
         if TYPE_CHECKING:
             assert self._probabilities is not None
-        return self._probabilities
+        return self._probabilities.astype(np.float64)
 
     @property
     def counts(self) -> list[int]:
@@ -486,6 +486,7 @@ class Result:
                 f"Index: {sample.index}, Count: {sample.count}, Probability: {clean_number_repr(probability)}"
                 for sample, probability in zip(self.samples, probabilities)
             )
+
             return f"""{header}
   Counts: {self._counts}
   Probabilities: {clean_1D_array(self.probabilities)}
@@ -834,7 +835,7 @@ class BatchResult:
 
     def save(self):
         """Save a batch of results to the local storage and returns the
-        corresponding local ``id``s to be used when the results needs to be
+        corresponding local ``id`` to be used when the results needs to be
         retrieved.
 
         Uses :func:`~mpqp.local_storage.save.insert_results`."""

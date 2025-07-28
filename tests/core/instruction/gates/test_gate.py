@@ -4,7 +4,7 @@ import pytest
 from mpqp.tools import matrix_eq
 
 from mpqp.core.circuit import QCircuit
-from mpqp.gates import SWAP, CustomGate, Gate, H, UnitaryMatrix, X, Z
+from mpqp.gates import SWAP, CustomGate, Gate, H, X, Z
 from mpqp.tools.errors import NumberQubitsWarning
 
 
@@ -13,8 +13,8 @@ from mpqp.tools.errors import NumberQubitsWarning
     [
         (Z(0), Z(0)),
         (
-            CustomGate(UnitaryMatrix(np.diag([1, 1j])), [0]),
-            CustomGate(UnitaryMatrix(np.diag([1, -1j])), [0]),
+            CustomGate(np.diag([1, 1j]), [0]),
+            CustomGate(np.diag([1, -1j]), [0]),
         ),
     ],
 )
@@ -27,11 +27,11 @@ def test_inverse(gate: Gate, inverse: Gate):
     [
         (Z(0), Z(0)),
         (
-            CustomGate(UnitaryMatrix(np.diag([1, -1])), [0]),
+            CustomGate(np.diag([1, -1]), [0]),
             Z(0),
         ),
         (
-            CustomGate(UnitaryMatrix(np.diag([1.00000001, -1])), [0]),
+            CustomGate(np.diag([1.00000001, -1]), [0]),
             Z(0),
         ),
     ],
@@ -45,7 +45,7 @@ def test_is_equivalent(g1: Gate, g2: Gate):
     [
         (Z(0), X(0)),
         (
-            CustomGate(UnitaryMatrix(np.diag([1, -1j])), [0]),
+            CustomGate(np.diag([1, -1j]), [0]),
             Z(0),
         ),
     ],
