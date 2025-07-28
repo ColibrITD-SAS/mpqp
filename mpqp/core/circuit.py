@@ -282,7 +282,7 @@ class QCircuit:
             elif isinstance(components, (Barrier, Breakpoint)):
                 self.other_instructions.append(components)
             else:
-                raise ValueError(f"{repr(components)} not handle")
+                raise ValueError(f"{repr(components)} not handled.")
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
