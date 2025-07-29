@@ -308,7 +308,7 @@ class PauliString:
                 mono.coef  # pyright: ignore[reportAssignmentType]
             )
             if isinstance(coef, Expr):
-                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms)) 
+                res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
             else:
                 coef = float(np.round(float(coef), max_digits))
                 if coef != 0:
@@ -901,7 +901,7 @@ class PauliStringMonomial(PauliString):
         )
         memo[id(self)] = copied
         return copied
-    
+
     @property
     def name(self) -> str:
         return f"{'@'.join(map(str, self.atoms))}"
