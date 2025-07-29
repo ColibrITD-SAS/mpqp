@@ -37,6 +37,7 @@ if TYPE_CHECKING:
     from qiskit.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
+    from mpqp.core.instruction.gates.custom_controlled_gate import Gate
 
 
 @typechecked
@@ -459,10 +460,9 @@ class ExpectationMeasure(Measure):
     def _check_targets_order(self):
         """Ensures target qubits are ordered and contiguous, rearranging them if
         necessary (private)."""
-        from mpqp.core.circuit import QCircuit
 
         if len(self.targets) == 0:
-            self.pre_measure = QCircuit(0)
+            self._pre_measure = []
             return
 
         if self.nb_qubits != self.observables[0].nb_qubits:
@@ -471,7 +471,7 @@ class ExpectationMeasure(Measure):
                 f"{self.observables[0].nb_qubits}."
             )
 
-        self.pre_measure = QCircuit(max(self.targets) + 1)
+        self._pre_measure = []
         """Circuit added before the expectation measurement to correctly swap
         target qubits when their are note ordered or contiguous."""
         targets_is_ordered = all(
@@ -490,18 +490,24 @@ class ExpectationMeasure(Measure):
             for t_index, target in enumerate(tweaked_tgt):  # sort the targets
                 min_index = tweaked_tgt.index(min(tweaked_tgt[t_index:]))
                 if t_index != min_index:
-                    self.pre_measure.add(SWAP(target, tweaked_tgt[min_index]))
+                    self._pre_measure.append(SWAP(target, tweaked_tgt[min_index]))
                     tweaked_tgt[t_index] = tweaked_tgt[min_index]
                     tweaked_tgt[min_index] = target
             for t_index, target in enumerate(tweaked_tgt):  # compact the targets
                 if t_index == 0:
                     continue
                 if target != tweaked_tgt[t_index - 1] + 1:
-                    self.pre_measure.add(SWAP(target, tweaked_tgt[t_index - 1] + 1))
+                    self._pre_measure.append(SWAP(target, tweaked_tgt[t_index - 1] + 1))
                     tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
         self.rearranged_targets = tweaked_tgt
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
+
+    @property
+    def pre_measure(self) -> list[Gate]:
+        """List of gates added before the measure to correctly swap target
+        qubits when needed."""
+        return self._pre_measure
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
         """Return the grouped monomials of the Pauli string of the observable.

@@ -11,7 +11,7 @@ from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledG
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
-from mpqp.core.instruction import Instruction
+from mpqp.core.instruction import Instruction, Measure
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import *
 from mpqp.core.instruction.gates.gate import SingleQubitGate
@@ -85,7 +85,12 @@ def _instruction_to_qasm2(instruction: Instruction) -> tuple[str, float]:
 
 
 @typechecked
-def mpqp_to_qasm2(qcircuit: QCircuit, simplify: bool = False) -> tuple[str, float]:
+def mpqp_to_qasm2(
+    qcircuit: QCircuit,
+    simplify: bool = False,
+    skip_pre_measure: bool = False,
+    skip_measurements: bool = False,
+) -> tuple[str, float]:
     """Converts a :class:`~mpqp.core.circuit.QCircuit` object into a string in
     QASM 2.0 format. It handles various quantum instructions like gates,
     measurements, and barriers and can optionally simplify the circuit by
@@ -95,6 +100,10 @@ def mpqp_to_qasm2(qcircuit: QCircuit, simplify: bool = False) -> tuple[str, floa
         circuit: The circuit to be converted.
         simplify: If `True`, the function will attempt to simplify the circuit
             by merging consecutive single-qubit gates of the same type.
+        skip_pre_measure: If true, the ``pre_measure`` will not be
+            added to the output.
+        skip_measurements: If true, the ``measurements`` will not be
+            added to the output.
 
     Returns:
         A tuple containing, QASM 2.0 string representation of the provided circuit, and
@@ -137,6 +146,16 @@ def mpqp_to_qasm2(qcircuit: QCircuit, simplify: bool = False) -> tuple[str, floa
     gphase = 0
 
     for instruction in qcircuit.instructions:
+        if not skip_pre_measure:
+            if isinstance(instruction, Measure):
+                for pre_measure in instruction.pre_measure:
+                    qasm, phase = _instruction_to_qasm2(pre_measure)
+                    targets = {i: 0 for i in range(qcircuit.nb_qubits)}
+                    c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
+                    qasm_str += qasm
+                    gphase += phase
+        if skip_measurements and isinstance(instruction, Measure):
+            continue
         if simplify:
             if isinstance(instruction, (SingleQubitGate, BasisMeasure)):
                 if previous is None:

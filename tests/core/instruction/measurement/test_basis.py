@@ -281,7 +281,8 @@ def test_run_with_custom_basis_probas(
 ):
     res = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(res, Result)
-    assert matrix_eq(expected_probabilities, res.probabilities)
+    probabilities = res.probabilities
+    assert matrix_eq(expected_probabilities, probabilities)
 
 
 @pytest.mark.parametrize(

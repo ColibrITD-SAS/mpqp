@@ -447,6 +447,8 @@ def run_aer(job: Job):
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
     job_circuit = job.circuit
+    if TYPE_CHECKING:
+        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
     if isinstance(job.device, IBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
             warnings.warn(
@@ -479,10 +481,8 @@ def run_aer(job: Job):
         )
     else:
         qiskit_circuit = job.circuit.transpiled_circuit
-
-    if TYPE_CHECKING:
-        assert isinstance(qiskit_circuit, QuantumCircuit)
-
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.

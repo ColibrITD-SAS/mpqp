@@ -147,7 +147,7 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
 
     if job.circuit.transpiled_circuit is None:
         transpiled_circuit = job.circuit.to_other_device(
-            job.device, translation_warning
+            job.device, translation_warning=translation_warning
         )
     else:
         transpiled_circuit = job.circuit.transpiled_circuit

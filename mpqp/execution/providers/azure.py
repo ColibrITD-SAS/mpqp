@@ -10,13 +10,12 @@ from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.languages import Language
 from mpqp.execution.connection.azure_connection import (
     get_azure_provider,
     get_jobs_by_id,
 )
 from mpqp.execution.devices import AZUREDevice
-from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.job import IBMDevice, Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample
 
 
@@ -63,19 +62,8 @@ def submit_job_azure(
     from qiskit import QuantumCircuit
 
     if job.circuit.transpiled_circuit is None:
-        qiskit_circuit = (
-            (
-                # 3M-TODO: careful, if we ever support several measurements, the
-                # line bellow will have to changer
-                job.circuit.without_measurements()
-                + job.circuit.pre_measure()
-            ).to_other_language(
-                Language.QISKIT, translation_warning=translation_warning
-            )
-            if (job.job_type == JobType.STATE_VECTOR)
-            else job.circuit.to_other_language(
-                Language.QISKIT, translation_warning=translation_warning
-            )
+        qiskit_circuit = job.circuit.to_other_device(
+            IBMDevice.AER_SIMULATOR, translation_warning=translation_warning
         )
     else:
         qiskit_circuit = job.circuit.transpiled_circuit

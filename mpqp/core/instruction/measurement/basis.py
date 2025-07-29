@@ -166,6 +166,27 @@ class Basis:
         basis_change = np.array(self.basis_vectors).T.conjugate()
         return QCircuit([CustomGate(basis_change, targets=list(range(self.nb_qubits)))])
 
+    def to_instruction(self) -> CustomGate:
+        """Converts the custom basis to the custom gate.
+
+        This method creates a custom gate represented by a unitary
+        transformation and applies it to all qubits before measurement.
+
+        Returns:
+            A custom gate representing the basis change circuit.
+
+        Example:
+            >>> basis = Basis([np.array([1, 0]), np.array([0, -1])])
+            >>> gate = basis.to_instruction()
+            >>> print(repr(gate))
+            CustomGate(array([[ 1,  0],
+                   [ 0, -1]]), [0])
+
+        """
+
+        basis_change = np.array(self.basis_vectors).T.conjugate()
+        return CustomGate(basis_change, targets=list(range(self.nb_qubits)))
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Basis):
             return False

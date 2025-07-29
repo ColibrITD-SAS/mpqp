@@ -15,7 +15,7 @@ from typing import Optional
 
 from typeguard import TypeCheckError, typechecked
 
-from mpqp.core.instruction import Instruction
+from mpqp.core.instruction import Gate, Instruction
 
 
 @typechecked
@@ -60,3 +60,8 @@ class Measure(Instruction, ABC):
         self._dynamic = False
         if len(targets) == 0:
             self._dynamic = True
+
+    @property
+    def pre_measure(self) -> list[Gate]:
+        """list of gate added before the measure to correctly swap target qubits when needed."""
+        return []
