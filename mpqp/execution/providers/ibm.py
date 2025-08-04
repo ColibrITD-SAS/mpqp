@@ -6,6 +6,8 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+from typeguard import typechecked
+
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
@@ -26,7 +28,6 @@ from mpqp.tools.errors import (
     IBMRemoteExecutionError,
     InstructionParsingError,
 )
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -224,9 +225,10 @@ def generate_qiskit_noise_model(
         The qubit order in the returned noise model is reversed to match
         ``qiskit``'s qubit ordering conventions.
     """
-    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     import io
     import logging
+
+    from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
 
     noise_model = Qiskit_NoiseModel()
 
@@ -419,6 +421,30 @@ def generate_qiskit_noise_model(
         logger.removeHandler(log_handler)
 
     return noise_model, modified_circuit
+
+
+def str_ordered(noise_model: "Qiskit_NoiseModel"):
+    if noise_model.is_ideal():
+        print("NoiseModel: Ideal")
+        return
+
+    basis_gates = sorted(noise_model.basis_gates)
+    noise_instructions = sorted(noise_model.noise_instructions)
+    noise_qubits = sorted(noise_model.noise_qubits)
+
+    noise_model_str = str(noise_model)
+    specific_errors = []
+
+    for line in noise_model_str.splitlines():
+        if line.strip().startswith("Specific qubit errors:"):
+            items = line.partition(":")[2].strip()
+            specific_errors = sorted(eval(items))
+
+    return f"""NoiseModel:
+    Basis gates: {basis_gates}
+    Instructions with noise: {noise_instructions}
+    Qubits with noise: {noise_qubits}
+    Specific qubit errors: {specific_errors}"""
 
 
 @typechecked
