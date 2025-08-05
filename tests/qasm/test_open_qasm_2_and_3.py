@@ -275,7 +275,7 @@ def test_conversion_2_and_3(qasm_code: str):
     ],
 )
 def test_conversion_2_to_3(qasm_code: str, expected_output: str):
-    convert = open_qasm_2_to_3(qasm_code, translation_warning=False)
+    convert = open_qasm_2_to_3(qasm_code)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 

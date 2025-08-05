@@ -5,7 +5,7 @@ from mpqp.core.instruction.barrier import Language
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.core.instruction import *
 from mpqp.tools.circuit import random_circuit
-from mpqp import Language
+from mpqp.core import Language
 
 
 @pytest.mark.parametrize(

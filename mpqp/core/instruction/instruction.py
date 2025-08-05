@@ -8,17 +8,16 @@ from numbers import Complex
 from pickle import dumps
 from typing import TYPE_CHECKING, Any, Optional
 
-from typeguard import typechecked
-
 if TYPE_CHECKING:
     from sympy import Expr
     from qiskit.circuit import Parameter
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
+from mpqp.environment.typechecked import conditional_typechecked
 
 
-@typechecked
+@conditional_typechecked
 class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 

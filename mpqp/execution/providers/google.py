@@ -15,10 +15,9 @@ if TYPE_CHECKING:
     from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
     from cirq_ionq import Service
 
-from cirq.circuits.circuit import Circuit
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
-from mpqp import Language
+from mpqp.core.languages import Language
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.execution.devices import GOOGLEDevice
@@ -27,11 +26,11 @@ from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import NoiseModel
 
 
-@typechecked
+@conditional_typechecked
 def apply_noise_to_cirq_circuit(
-    cirq_circuit: "Circuit",
+    cirq_circuit: "CirqCircuit",
     noises: list[NoiseModel],
-) -> "Circuit":
+) -> "CirqCircuit":
     """Apply noise models to a Cirq circuit.
 
     This function applies noise models to a given Cirq circuit based on the
@@ -50,6 +49,7 @@ def apply_noise_to_cirq_circuit(
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
     from cirq.ops.raw_types import Gate, Operation
+    from cirq.circuits.circuit import Circuit as CirqCircuit
 
     from mpqp.noise import DimensionalNoiseModel
 
@@ -120,17 +120,16 @@ def apply_noise_to_cirq_circuit(
             for moment_index in range(max(len(ops) for ops in qubit_noise_op))
         ]
 
-    return Circuit(noisy_moments)
+    return CirqCircuit(noisy_moments)
 
 
-@typechecked
-def run_google(job: Job, translation_warning: bool = True) -> Result:
+@conditional_typechecked
+def run_google(job: Job) -> Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -140,14 +139,10 @@ def run_google(job: Job, translation_warning: bool = True) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return (
-        run_local(job, translation_warning)
-        if not job.device.is_remote()
-        else run_google_remote(job, translation_warning)
-    )
+    return run_local(job) if not job.device.is_remote() else run_google_remote(job)
 
 
-@typechecked
+@conditional_typechecked
 def run_cirq_observable(
     job: Job,
     circuit: "CirqCircuit",
@@ -190,7 +185,9 @@ def run_cirq_observable(
                         found = True
                         break
                 if not found:
-                    monomials.append(monom / monom.coef)
+                    monomials.append(
+                        monom / monom.coef  # pyright: ignore[reportOperatorIssue]
+                    )
         expectation_values: dict[str, float] = {}
         result: dict[str, float] = {}
 
@@ -336,7 +333,7 @@ def run_cirq_observable(
     )
 
 
-@typechecked
+@conditional_typechecked
 def run_cirq_observable_remote(
     job: Job, circuit: "CirqCircuit", service: "Service"
 ) -> Result:
@@ -393,15 +390,14 @@ def run_cirq_observable_remote(
     return Result(job, result)
 
 
-@typechecked
-def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
+@conditional_typechecked
+def run_google_remote(job: Job) -> Result:
     """Executes the job remotely on a Google quantum device. At present, only
     IonQ devices are supported.
 
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -422,9 +418,7 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
     if job.circuit.transpiled_circuit is None:
-        job_CirqCircuit = job.circuit.to_other_device(
-            job.device, translation_warning=translation_warning
-        )
+        job_CirqCircuit = job.circuit.to_other_device(job.device)
     else:
         job_CirqCircuit = job.circuit.transpiled_circuit
 
@@ -432,7 +426,7 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
         assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.device.is_ionq():
-        from mpqp.execution.connection.env_manager import load_env_variables
+        from mpqp.environment.env_manager import load_env_variables
 
         load_env_variables()
         service = ionq.Service(default_target=job.device.value)
@@ -456,15 +450,13 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
         )
 
 
-@typechecked
-def run_local(job: Job, translation_warning: bool = True) -> Result:
+@conditional_typechecked
+def run_local(job: Job) -> Result:
     """Executes the job locally.
 
     Args:
         job : Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
-        translation_warning: If `True`, a warning will be raised.
-        If `True`, a warning will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -485,9 +477,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
         return run_local_processor(job)
 
     if job.circuit.transpiled_circuit is None:
-        cirq_circuit = job.circuit.to_other_device(
-            job.device, translation_warning=translation_warning
-        )
+        cirq_circuit = job.circuit.to_other_device(job.device)
     else:
         cirq_circuit = job.circuit.transpiled_circuit
 
@@ -510,7 +500,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
         raise ValueError(f"Job type {job.job_type} not handled")
 
 
-@typechecked
+@conditional_typechecked
 def run_local_processor(job: Job) -> Result:
     """Executes the job locally on processor.
 

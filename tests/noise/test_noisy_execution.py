@@ -8,7 +8,7 @@ from typing import Any, Callable, Iterable
 import numpy as np
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
     ExpectationMeasure,

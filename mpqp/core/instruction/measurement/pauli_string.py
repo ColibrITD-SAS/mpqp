@@ -16,13 +16,14 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 import numpy as np
 import numpy.typing as npt
 from sympy import Expr, sympify
-from typeguard import typechecked
+
 
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import atol, is_power_of_two, rtol
 
 if TYPE_CHECKING:
@@ -60,7 +61,7 @@ class GroupingMethods(Enum):
     CLIQUE_REMOVING = auto()
 
 
-@typechecked
+@conditional_typechecked
 class PauliString:
     """Represents a Pauli string, a linear combination of Pauli monomials.
 
@@ -849,7 +850,7 @@ class PauliString:
         return all([all([a == I or a == Z for a in m.atoms]) for m in self.monomials])
 
 
-@typechecked
+@conditional_typechecked
 class PauliStringMonomial(PauliString):
     """Represents a monomial in a Pauli string, consisting of a coefficient and
     a list of PauliStringAtom objects.
@@ -1141,7 +1142,7 @@ class PauliStringMonomial(PauliString):
             raise NotImplementedError(f"Unsupported language: {language}")
 
 
-@typechecked
+@conditional_typechecked
 class PauliStringAtom(PauliStringMonomial):
     """Represents a single Pauli operator acting on a qubit in a Pauli string.
 

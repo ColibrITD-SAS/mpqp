@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
@@ -582,7 +582,6 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
-        translation_warning=False,
     )
     br2 = run(
         c2,
@@ -592,7 +591,6 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
-        translation_warning=False,
     )
     assert isinstance(br1, BatchResult)
     assert isinstance(br2, BatchResult)

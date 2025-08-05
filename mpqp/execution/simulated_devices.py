@@ -5,9 +5,9 @@ mother class of all noisy devices reproducing real hardware for several provider
 For the moment, only IBM simulated devices are available (so called `FakeBackend`), but the structure is ready to allow
 other simulated devices (QLM has this feature for instance."""
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.execution import AvailableDevice
 
@@ -35,7 +35,7 @@ class SimulatedDevice(AvailableDevice):
         return False
 
 
-@typechecked
+@conditional_typechecked
 class StaticIBMSimulatedDevice(SimulatedDevice):
     """A class regrouping methods specific to an ``IBMSimulatedDevice``."""
 
@@ -80,9 +80,37 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
         ]
 
 
-IBMSimulatedDevice = StaticIBMSimulatedDevice(
-    'IBMSimulatedDevice', StaticIBMSimulatedDevice.get_ibm_fake_providers()
-)
+class _LazyIBMSimulatedDevice:
+    _instance: Optional[type[StaticIBMSimulatedDevice]] = None
+
+    @classmethod
+    def _init(cls) -> None:
+        if cls._instance is None:
+            cls._instance = StaticIBMSimulatedDevice(
+                'IBMSimulatedDevice', StaticIBMSimulatedDevice.get_ibm_fake_providers()
+            )
+
+    def __getattr__(self, name: str) -> Any:
+        self._init()
+        return getattr(self._instance, name)
+
+    def __iter__(self) -> Iterator[Any]:
+        self._init()
+        assert self._instance is not None, "Instance not initialized"
+        return iter(self._instance)
+
+    def __getitem__(self, key: Any) -> Any:
+        self._init()
+        assert self._instance is not None, "Instance not initialized"
+        return self._instance[key]
+
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        self._init()
+        assert self._instance is not None, "Instance not initialized"
+        return self._instance(*args, **kwargs)
+
+
+IBMSimulatedDevice = _LazyIBMSimulatedDevice()
 """Enum regrouping all so called IBM "fake devices" used to simulate noise of real hardware.
 
 The members of this Enum are generated dynamically from ``qiskit_ibm_runtime.fake_provider``."""

@@ -5,19 +5,19 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
     from mpqp.core.instruction.gates import Gate
 
 from mpqp.core.languages import Language
+from mpqp.environment.typechecked import conditional_typechecked
 
 from .basis import Basis, ComputationalBasis, VariableSizeBasis
 from .measure import Measure
 
 
-@typechecked
+@conditional_typechecked
 class BasisMeasure(Measure):
     """Class representing a measure of one or several qubits in a specific
     basis.

@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from mpqp import Language, QCircuit
+from mpqp.core import Language, QCircuit
 from mpqp.execution import *
 from mpqp.gates import *
 

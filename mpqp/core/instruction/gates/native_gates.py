@@ -26,22 +26,19 @@ if TYPE_CHECKING:
 import numpy as np
 import numpy.typing as npt
 
-# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
-# this file :/
-from typeguard import typechecked
-
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import cos, exp, sin
 
 # from sympy import Expr, pi
 
 
-@typechecked
+@conditional_typechecked
 def _qiskit_parameter_adder(
     param: Expr | float, qiskit_parameters: set["Parameter"]
 ) -> "Parameter | float | int":
@@ -85,7 +82,7 @@ def _qiskit_parameter_adder(
     return qiskit_param
 
 
-@typechecked
+@conditional_typechecked
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
@@ -192,7 +189,7 @@ class NativeGate(Gate, SimpleClassReprABC):
         pass
 
 
-@typechecked
+@conditional_typechecked
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
@@ -270,7 +267,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.__class__(-self.parameters[0], self.targets[0])
 
 
-@typechecked
+@conditional_typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
     """Abstract class describing native gates that do not depend on parameters.
 
@@ -369,7 +366,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         return self.matrix
 
 
-@typechecked
+@conditional_typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
     """Abstract Class describing one-qubit native gates that do not depend on
     parameters.
@@ -1033,6 +1030,11 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     qlm_aqasm_keyword = "U"
     qiskit_string = "u"
+
+    @classproperty
+    def qasm2_gate(cls) -> str:
+        """Keyword(s) corresponding to the gate in ``QASM2``."""
+        return "u3"
 
     def __init__(
         self,

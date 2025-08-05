@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Optional, Union
 import numpy as np
 import numpy.typing as npt
 
-from mpqp import QCircuit
+from mpqp.core.circuit import QCircuit
 from mpqp.execution import AvailableDevice, Result, run
 from mpqp.execution.vqa import Optimizer, minimize
 from mpqp.execution.vqa.qubo import Qubo

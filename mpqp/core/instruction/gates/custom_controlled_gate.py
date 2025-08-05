@@ -99,11 +99,10 @@ class CustomControlledGate(ControlledGate):
 
                 return gate.to_other_language(Language.QASM2)
 
-            else:
-                qiskit_circ.append(
-                    self.to_other_language(Language.QISKIT),
-                    self.controls + self.targets,
-                )
+            qiskit_circ.append(
+                self.to_other_language(Language.QISKIT),
+                self.controls + self.targets,
+            )
             qasm_str = qasm2.dumps(qiskit_circ)
             qasm_lines = qasm_str.splitlines()
             if isinstance(self.non_controlled_gate, CustomGate):

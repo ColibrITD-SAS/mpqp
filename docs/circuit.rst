@@ -4,6 +4,6 @@ The Quantum Circuit
 .. code-block:: python
     :class: import
 
-    from mpqp import QCircuit 
+    from mpqp.core import QCircuit 
 
 .. automodule:: mpqp.core.circuit

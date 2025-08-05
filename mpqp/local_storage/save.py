@@ -8,7 +8,7 @@
 from __future__ import annotations
 
 from mpqp.execution import BatchResult, Job, Result
-from mpqp.execution.connection.env_manager import get_env_variable
+from mpqp.environment.env_manager import get_env_variable
 from mpqp.local_storage.queries import fetch_jobs_with_job
 
 

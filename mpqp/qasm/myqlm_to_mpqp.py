@@ -5,7 +5,7 @@ from typing import List, Tuple
 import numpy as np
 from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.gates import *
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]

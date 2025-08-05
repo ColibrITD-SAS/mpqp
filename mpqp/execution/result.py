@@ -28,7 +28,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.execution import Job, JobType
@@ -37,7 +37,7 @@ from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
 
 
-@typechecked
+@conditional_typechecked
 class StateVector:
     """Class representing the state vector of a multi-qubit quantum system.
 
@@ -122,7 +122,7 @@ class StateVector:
         return True
 
 
-@typechecked
+@conditional_typechecked
 class Sample:
     """A sample is a partial result of job job with type ``SAMPLE``. It contains
     the count (and potentially the associated probability) for a given basis
@@ -230,7 +230,7 @@ class Sample:
             return False
 
 
-@typechecked
+@conditional_typechecked
 class Result:
     """Result associated to a submitted job.
 
@@ -326,9 +326,13 @@ class Result:
                 )
             else:
                 self._state_vector = data
-                if job.circuit.gphase != 0:
+                gphase = (
+                    job.circuit.gphase
+                    + job.circuit._gphase  # pyright: ignore[reportPrivateUsage]
+                )
+                if gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
-                    self._state_vector.vector *= np.exp(1j * job.circuit.gphase)
+                    self._state_vector.vector *= np.exp(1j * gphase)
                 self._probabilities = data.probabilities
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):
@@ -712,7 +716,7 @@ class Result:
         remove_results_with_id(result_id)
 
 
-@typechecked
+@conditional_typechecked
 class BatchResult:
     """Class used to handle several Result instances.
 

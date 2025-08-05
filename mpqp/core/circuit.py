@@ -50,6 +50,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     NonReversibleWarning,
@@ -59,7 +60,8 @@ from mpqp.tools.errors import (
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
-from typeguard import TypeCheckError, typechecked
+from typeguard import TypeCheckError
+from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -75,10 +77,10 @@ if TYPE_CHECKING:
         IBMDevice,
         AvailableDevice,
     )
-    from mpqp.execution.simulated_devices import IBMSimulatedDevice
+    from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
-@typechecked
+@conditional_typechecked
 class QCircuit:
     """This class models a quantum circuit.
 
@@ -175,6 +177,7 @@ class QCircuit:
         OpenQASM2. It is used to correct the global phase when the job type is 
         `STATE_VECTOR`, and when this circuit contains 
         :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates`."""
+        self._gphase: float = 0
 
         if nb_cbits is None:
             self._nb_cbits = 0
@@ -811,8 +814,9 @@ class QCircuit:
         matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
-        if self.gphase != 0:
-            matrix *= np.exp(1j * self.gphase)
+        gphase = self.gphase + self._gphase
+        if gphase != 0:
+            matrix *= np.exp(1j * gphase)
         return matrix
 
     def inverse(self) -> QCircuit:
@@ -1155,7 +1159,6 @@ class QCircuit:
     def to_other_language(
         self,
         language: Literal[Language.QASM2, Language.QASM3],
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
@@ -1165,7 +1168,6 @@ class QCircuit:
     def to_other_language(
         self,
         language: Literal[Language.CIRQ],
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
@@ -1175,7 +1177,6 @@ class QCircuit:
     def to_other_language(
         self,
         language: Literal[Language.BRAKET],
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
@@ -1184,7 +1185,6 @@ class QCircuit:
     def to_other_language(
         self,
         language: Literal[Language.MY_QLM],
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
@@ -1194,7 +1194,6 @@ class QCircuit:
     def to_other_language(
         self,
         language: Literal[Language.QISKIT],
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
@@ -1204,7 +1203,6 @@ class QCircuit:
     def to_other_language(
         self,
         language: Language,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
@@ -1213,7 +1211,6 @@ class QCircuit:
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
@@ -1237,7 +1234,6 @@ class QCircuit:
 
         Args:
             language: Enum representing the target language.
-            translation_warning: If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` will not be
                 added to the output.
             skip_measurements: If true, the ``measurements`` will not be
@@ -1273,7 +1269,7 @@ class QCircuit:
             cz q[0],q[1];
             measure q[0] -> c[0];
             measure q[1] -> c[1];
-            >>> print(circuit2.to_other_language(Language.QASM3, translation_warning=False))  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(circuit2.to_other_language(Language.QASM3))  # doctest: +NORMALIZE_WHITESPACE
             OPENQASM 3.0;
             include "stdgates.inc";
             qubit[2] q;
@@ -1290,6 +1286,7 @@ class QCircuit:
             circuits.
 
         """
+        self._gphase = 0
         if language == Language.QISKIT:
             from qiskit.circuit import Operation, QuantumCircuit
             from qiskit.circuit.quantumcircuit import CircuitInstruction
@@ -1390,7 +1387,6 @@ class QCircuit:
         elif language == Language.MY_QLM:
             qasm2_code = self.to_other_language(
                 Language.QASM2,
-                translation_warning=translation_warning,
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=True,
             )
@@ -1428,15 +1424,24 @@ class QCircuit:
 
             qasm3_code = circuit.to_other_language(
                 Language.QASM3,
-                translation_warning=translation_warning,
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=skip_measurements,
             )
-            self.gphase = circuit.gphase
+
             from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
+            braket_circuit = qasm3_to_braket_Circuit(qasm3_code)
+            if circuit._gphase != 0:
+                braket_circuit.gphase(  # pyright: ignore[reportAttributeAccessIssue]
+                    circuit._gphase
+                )
+                circuit._gphase = 0
+
+            if len(self.noises) == 0:
+                return braket_circuit
+
             return apply_noise_to_braket_circuit(
-                qasm3_to_braket_Circuit(qasm3_code, translation_warning),
+                braket_circuit,
                 self.noises,
                 self.nb_qubits,
             )
@@ -1473,7 +1478,7 @@ class QCircuit:
                                 )
                                 custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
                                 cirq_circuit += custom_cirq_circuit
-                                self.gphase += gphase
+                                self._gphase += gphase
                             else:
                                 cirq_pre_measure = pre_measure.to_other_language(
                                     Language.CIRQ
@@ -1501,7 +1506,7 @@ class QCircuit:
                     )
                     custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
                     cirq_circuit += custom_cirq_circuit
-                    self.gphase += gphase
+                    self._gphase += gphase
                 elif isinstance(instruction, ControlledGate):
                     targets = []
                     for target in instruction.targets:
@@ -1538,22 +1543,18 @@ class QCircuit:
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=skip_measurements,
             )
-            self.gphase = gphase
+            self._gphase = gphase
             return qasm_str
         elif language == Language.QASM3:
             qasm2_code = self.to_other_language(
                 Language.QASM2,
-                translation_warning=translation_warning,
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=skip_measurements,
             )
-            if TYPE_CHECKING:
-                assert isinstance(qasm2_code, str)
             from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 
-            qasm3_code = open_qasm_2_to_3(
-                qasm2_code, translation_warning=translation_warning
-            )
+            qasm3_code = open_qasm_2_to_3(qasm2_code, self._gphase)
+            self._gphase = 0
             return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
@@ -1563,7 +1564,6 @@ class QCircuit:
         self,
         device: ATOSDevice,
         backend_sim: Optional["AerSimulator"] = None,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
     ) -> myQLM_Circuit: ...
 
@@ -1572,7 +1572,6 @@ class QCircuit:
         self,
         device: AWSDevice,
         backend_sim: Optional["AerSimulator"] = None,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
     ) -> braket_Circuit: ...
 
@@ -1581,16 +1580,14 @@ class QCircuit:
         self,
         device: GOOGLEDevice,
         backend_sim: Optional["AerSimulator"] = None,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
     ) -> cirq_Circuit: ...
 
     @overload
     def to_other_device(
         self,
-        device: Union[IBMDevice, IBMSimulatedDevice],
+        device: Union[IBMDevice, StaticIBMSimulatedDevice],
         backend_sim: Optional["AerSimulator"] = None,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
     ) -> QuantumCircuit: ...
 
@@ -1599,7 +1596,6 @@ class QCircuit:
         self,
         device: AvailableDevice,
         backend_sim: Optional["AerSimulator"] = None,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
 
@@ -1607,7 +1603,6 @@ class QCircuit:
         self,
         device: AvailableDevice,
         backend_sim: Optional["AerSimulator"] = None,
-        translation_warning: bool = True,
         skip_pre_measure: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
         """Transforms this circuit into the corresponding device specified
@@ -1622,7 +1617,6 @@ class QCircuit:
         Args:
             device: representing the target device.
             backend_sim: Simulator backend for Qiskit devices.
-            translation_warning: If `True`, a warning will be raised.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
 
@@ -1665,7 +1659,7 @@ class QCircuit:
             GOOGLEDevice,
             IBMDevice,
         )
-        from mpqp.execution.simulated_devices import IBMSimulatedDevice
+        from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
         from mpqp.execution.providers.ibm import JobType
 
         nb_meas = len(self.measurements)
@@ -1684,16 +1678,11 @@ class QCircuit:
             elif isinstance(measurement, ExpectationMeasure):
                 job_type = JobType.OBSERVABLE
 
-        if job_type == JobType.STATE_VECTOR:
-            if translation_warning is True:
-                warn(
-                    "Measurements are removed from the circuit and pre_measure is added. If you need the measurements, use circuit.measurement.to_other_device()."
-                )
-            skip_measurements = True
-        else:
-            skip_measurements = False
+        skip_measurements = False
 
-        if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
+        if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+            if job_type == JobType.STATE_VECTOR:
+                skip_measurements = True
 
             if any(
                 isinstance(i, tuple(device.incompatible_gate()))
@@ -1703,7 +1692,7 @@ class QCircuit:
                     f"Gate(s) {', '.join(map(str, device.incompatible_gate()))} cannot be simulated on {device}."
                 )
             if (
-                isinstance(device, IBMSimulatedDevice)
+                isinstance(device, StaticIBMSimulatedDevice)
                 and device.value().num_qubits < self.nb_qubits
             ):
                 raise DeviceJobIncompatibleError(
@@ -1712,7 +1701,6 @@ class QCircuit:
                 )
             qiskit_circuit = self.to_other_language(
                 Language.QISKIT,
-                translation_warning,
                 skip_pre_measure,
                 skip_measurements,
             )
@@ -1725,7 +1713,7 @@ class QCircuit:
                     if job_type == JobType.SAMPLE:
 
                         if backend_sim is None:
-                            if isinstance(device, IBMSimulatedDevice):
+                            if isinstance(device, StaticIBMSimulatedDevice):
                                 if len(self.noises) != 0:
                                     warn(
                                         "NoiseModel are ignored when running the circuit on a "
@@ -1755,7 +1743,7 @@ class QCircuit:
 
                         qiskit_circuit = transpile(qiskit_circuit, backend_sim)
                     elif job_type == JobType.OBSERVABLE:
-                        if isinstance(device, IBMSimulatedDevice):
+                        if isinstance(device, StaticIBMSimulatedDevice):
                             from qiskit.transpiler.preset_passmanagers import (
                                 generate_preset_pass_manager,
                             )
@@ -1791,8 +1779,11 @@ class QCircuit:
         elif isinstance(device, GOOGLEDevice):
             from cirq.circuits.circuit import Circuit as CirqCircuit
 
+            if job_type == JobType.STATE_VECTOR:
+                skip_measurements = True
+
             cirq_circuit = self.to_other_language(
-                Language.CIRQ, translation_warning, skip_pre_measure, skip_measurements
+                Language.CIRQ, skip_pre_measure, skip_measurements
             )
 
             if TYPE_CHECKING:
@@ -1840,9 +1831,11 @@ class QCircuit:
                 cirq_device.validate_circuit(cirq_circuit)
             return cirq_circuit
         elif isinstance(device, AWSDevice):
+            if job_type == JobType.STATE_VECTOR:
+                skip_measurements = True
+
             aws_circuit = self.to_other_language(
                 Language.BRAKET,
-                translation_warning,
                 skip_pre_measure,
                 skip_measurements,
             )
@@ -1850,7 +1843,6 @@ class QCircuit:
         elif isinstance(device, ATOSDevice):
             circuit = self.to_other_language(
                 Language.MY_QLM,
-                translation_warning,
                 skip_pre_measure,
                 skip_measurements,
             )
@@ -1978,6 +1970,7 @@ class QCircuit:
 
             qc = qasm2_parse(qasm2_code)
             qc.gphase = phase
+
             return qc
 
         elif isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
@@ -1989,6 +1982,7 @@ class QCircuit:
             qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
             qc = qasm2_parse(qasm2_code)
             qc.gphase = gphase
+
             return qc
 
         elif isinstance(qcircuit, braket_Circuit):

@@ -11,12 +11,17 @@ from qiskit import QuantumCircuit as QiskitCircuit, QuantumRegister, ClassicalRe
 from typeguard import TypeCheckError
 from typing import TYPE_CHECKING
 
-from mpqp import Barrier, Instruction, Language, QCircuit
+from mpqp.core import Barrier, Instruction, Language, QCircuit
 from mpqp.core.instruction.gates import native_gates
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import I
 from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
+from mpqp.environment.var_cache import is_typecheck_enabled
+from mpqp.execution.connection.azure_connection import (
+    get_env_variable,
+    save_env_variable,
+)
 from mpqp.execution.devices import ATOSDevice, IBMDevice
 from mpqp.execution.runner import run, Result
 from mpqp.gates import (
@@ -286,8 +291,12 @@ def test_init_right(
     [1.0, X(0), -1],
 )
 def test_init_wrong(init_param: int | Sequence[Instruction]):
+    old = get_env_variable("MPQP_TYPECHECK")
+    if not is_typecheck_enabled():
+        save_env_variable("MPQP_TYPECHECK", "True")
     with pytest.raises(TypeCheckError):
         QCircuit(init_param)
+    save_env_variable("MPQP_TYPECHECK", old)
 
 
 @pytest.mark.parametrize(
@@ -873,7 +882,7 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        qasm3 = circuit.to_other_language(Language.QASM3, translation_warning=False)
+        qasm3 = circuit.to_other_language(Language.QASM3)
         assert isinstance(qasm3, str)
         assert qasm3.strip() == f.read().strip()
 

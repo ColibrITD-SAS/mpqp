@@ -5,9 +5,9 @@ from getpass import getpass
 from typing import Any
 
 from termcolor import colored
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
-from mpqp.execution.connection.env_manager import (
+from mpqp.environment.env_manager import (
     MPQP_ENV,
     get_env_variable,
     load_env_variables,
@@ -18,7 +18,7 @@ from mpqp.tools.errors import QLMRemoteExecutionError
 QLM_connection = None
 
 
-@typechecked
+@conditional_typechecked
 def config_qlm_account(username: str, password: str, global_config: bool) -> bool:
     """Configures and saves locally QLM account's information.
 

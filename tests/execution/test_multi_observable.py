@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction import ExpectationMeasure, Observable
 from mpqp.execution import AvailableDevice, IBMDevice
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice
@@ -121,13 +121,11 @@ def test_pauli_grouping_optimization(
             circuit
             + QCircuit([ExpectationMeasure(observable, optimize_measurement=False)]),
             device,
-            translation_warning=False,
         )
         optimized = run(
             circuit
             + QCircuit([ExpectationMeasure(observable, optimize_measurement=True)]),
             device,
-            translation_warning=False,
         )
         assert isinstance(non_optimized, Result)
         assert isinstance(optimized, Result)
@@ -172,7 +170,7 @@ def test_expectation_value_all_devices(
     assert all(
         round(  # pyright: ignore[reportCallIssue]
             run(
-                circuit, device, translation_warning=False
+                circuit, device
             ).expectation_values,  # pyright: ignore[reportArgumentType]
             7,
         )

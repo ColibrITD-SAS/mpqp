@@ -30,7 +30,7 @@ def test_expectation_values_devices(device: AvailableDevice):
     str3 = X @ X @ X + X @ I @ X + I @ X @ X
     obs = [Observable(string), Observable(str2), Observable(str3)]
     true_result = run(
-        circuit + QCircuit([ExpectationMeasure(obs)]), device, translation_warning=False
+        circuit + QCircuit([ExpectationMeasure(obs)]), device
     ).expectation_values
     single_exp_values = []
     for observable in obs:
@@ -38,7 +38,6 @@ def test_expectation_values_devices(device: AvailableDevice):
             run(
                 circuit + QCircuit([ExpectationMeasure(observable)]),
                 device,
-                translation_warning=False,
             ).expectation_values
         )
     assert isinstance(true_result, dict)

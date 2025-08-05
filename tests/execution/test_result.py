@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from numpy import pi
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction import Observable
 from mpqp.execution import (
     ATOSDevice,
@@ -141,7 +141,7 @@ sampling_devices = [
 
 def test_sample_nb_shot_handle():
     circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
-    batch = run(circuit, sampling_devices, translation_warning=False)
+    batch = run(circuit, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert result.error != 0.0
@@ -168,7 +168,7 @@ def test_state_vector_nb_shot_handle():
             ),
         ]
     )
-    batch = run(circuit, sampling_devices, translation_warning=False)
+    batch = run(circuit, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert result.error != 0.0

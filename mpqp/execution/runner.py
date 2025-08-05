@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 from sympy import Expr
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -49,13 +49,13 @@ from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
-from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
+from mpqp.execution.simulated_devices import SimulatedDevice, StaticIBMSimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 
-@typechecked
+@conditional_typechecked
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
@@ -113,7 +113,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     return tweaked_measure
 
 
-@typechecked
+@conditional_typechecked
 def generate_job(
     circuit: QCircuit,
     device: AvailableDevice,
@@ -169,22 +169,19 @@ def generate_job(
     return job
 
 
-@typechecked
+@conditional_typechecked
 def _run_diagonal_observables(
     circuit: QCircuit,
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
     values: Optional[dict[Expr | str, Complex]],
-    translation_warning: bool = True,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(
-        adapted_circuit, device, values, False, translation_warning=translation_warning
-    )
+    result = _run_single(adapted_circuit, device, values, False)
     probas = result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
@@ -212,13 +209,12 @@ def _run_diagonal_observables(
     )
 
 
-@typechecked
+@conditional_typechecked
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -230,7 +226,6 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -266,9 +261,7 @@ def _run_single(
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
-                return _run_diagonal_observables(
-                    circuit, measure, device, job, values, translation_warning
-                )
+                return _run_diagonal_observables(circuit, measure, device, job, values)
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -280,16 +273,16 @@ def _run_single(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
-        return run_ibm(job, translation_warning)
+    if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+        return run_ibm(job)
     elif isinstance(device, ATOSDevice):
-        return run_atos(job, translation_warning)
+        return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job, translation_warning)
+        return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
-        return run_google(job, translation_warning)
+        return run_google(job)
     elif isinstance(device, AZUREDevice):
-        return run_azure(job, translation_warning)
+        return run_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -300,7 +293,6 @@ def run(
     device: Sequence[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> BatchResult: ...
 
 
@@ -310,7 +302,6 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> BatchResult: ...
 
 
@@ -320,17 +311,15 @@ def run(
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> Result: ...
 
 
-@typechecked
+@conditional_typechecked
 def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -346,7 +335,6 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -416,19 +404,16 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
-                    translation_warning,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(
-            circuit, device, values, display_breakpoints, translation_warning
-        )
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
-@typechecked
+@conditional_typechecked
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,

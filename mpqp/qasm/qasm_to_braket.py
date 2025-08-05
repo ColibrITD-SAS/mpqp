@@ -32,7 +32,7 @@ import warnings
 from logging import StreamHandler, getLogger
 from typing import TYPE_CHECKING
 
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from braket.ir.openqasm import Program
@@ -44,7 +44,7 @@ from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
-@typechecked
+@conditional_typechecked
 def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
     r"""Converting a OpenQASM 3.0 code into a Braket Program.
 
@@ -77,15 +77,12 @@ def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
     return program
 
 
-@typechecked
-def qasm3_to_braket_Circuit(
-    qasm3_str: str, translation_warning: bool = True
-) -> "Circuit":
+@conditional_typechecked
+def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     """Converting a OpenQASM 3.0 code into a Braket Circuit.
 
     Args:
         qasm3_str: A string representing the OpenQASM 3.0 code.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Circuit equivalent to the QASM code in parameter.
@@ -135,7 +132,9 @@ def qasm3_to_braket_Circuit(
     log_lines = logger_output_stream.getvalue().split("\n")
     for message in log_lines:
         if message == braket_warning_message:
-            if translation_warning:
+            from mpqp.environment.var_cache import is_translation_warning
+
+            if is_translation_warning() is True:
                 warnings.warn(
                     "\n" + braket_warning_message, UnsupportedBraketFeaturesWarning
                 )
@@ -146,7 +145,7 @@ def qasm3_to_braket_Circuit(
     return circuit
 
 
-@typechecked
+@conditional_typechecked
 def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
     """
     Parse braket's qasm3 pragmas into mpqp's Noise Models.
@@ -202,7 +201,7 @@ def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
     return noises
 
 
-@typechecked
+@conditional_typechecked
 def braket_custom_gates_to_mpqp(qasm3_code: str) -> list[CustomGate]:
     """
     Parse braket's qasm3 pragmas into mpqp's Custom Gate.

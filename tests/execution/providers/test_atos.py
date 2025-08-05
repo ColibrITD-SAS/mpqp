@@ -7,7 +7,7 @@ import sys
 import numpy as np
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice
