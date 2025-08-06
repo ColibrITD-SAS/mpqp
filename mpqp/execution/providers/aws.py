@@ -299,8 +299,21 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
-
     if job.job_type == JobType.STATE_VECTOR:
+        # rebind safe_retrieve_samples from braket to Normalize the probability
+        # because the bracket does not do so and this causes a crash.
+        from braket.default_simulator.state_vector_simulation import (
+            StateVectorSimulation,
+        )
+
+        def safe_retrieve_samples(self):  # pyright: ignore[reportMissingParameterType]
+            probs = self.probabilities
+            probs = probs / np.sum(probs)
+            return np.random.choice(len(self._state_vector), p=probs, size=self._shots)
+
+        StateVectorSimulation.retrieve_samples = safe_retrieve_samples
+        # ----
+
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=0, inputs=None)

@@ -59,7 +59,7 @@ from mpqp.tools.circuit import (
     statevector_from_random_circuit,
 )
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning, NonReversibleWarning
+from mpqp.tools.errors import NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 import random
@@ -560,14 +560,7 @@ T  : │         0         │"""
 def test_to_other_language(
     circuit: QCircuit, args: tuple[Language], result_type: type, result_repr: str
 ):
-    language = Language.QISKIT if len(args) == 0 else args[0]
-    # TODO: test other languages
-    if language == Language.BRAKET:
-        with pytest.warns(UnsupportedBraketFeaturesWarning) as record:
-            converted_circuit = circuit.to_other_language(*args)
-        assert len(record) == 1
-    else:
-        converted_circuit = circuit.to_other_language(*args)
+    converted_circuit = circuit.to_other_language(*args)
     assert type(converted_circuit) == result_type
     if isinstance(converted_circuit, QiskitCircuit):
         assert repr(converted_circuit.data) == result_repr

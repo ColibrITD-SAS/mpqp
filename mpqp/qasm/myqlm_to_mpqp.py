@@ -94,6 +94,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
         'CSIGN': CZ,
         'SWAP': SWAP,
         'U': U,
+        'U3': U,
         'U1': P,
         'ISWAP': None,
         'SQRTSWAP': None,

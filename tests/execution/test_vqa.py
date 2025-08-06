@@ -20,7 +20,6 @@ from mpqp.execution.runner import run
 from mpqp.execution.vqa import Optimizer, minimize
 from mpqp.execution.vqa.vqa import OptimizableFunc
 from mpqp.gates import *
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 # the symbols function is a bit wacky, so some manual type definition is needed here
 theta: Expr = symbols("θ")
@@ -56,11 +55,7 @@ def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevi
         assert minimize(circ, Optimizer.BFGS, device)[0] - minimum < 0.05
 
     try:
-        if isinstance(device, AWSDevice):
-            with pytest.warns(UnsupportedBraketFeaturesWarning):
-                run()
-        else:
-            run()
+        run()
     except (ValueError, NotImplementedError) as err:
         if "not handled" not in str(err):
             raise

@@ -1421,21 +1421,33 @@ class QCircuit:
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
+            from braket.circuits import Circuit as BracketCircuit
 
-            qasm3_code = circuit.to_other_language(
-                Language.QASM3,
-                skip_pre_measure=skip_pre_measure,
-                skip_measurements=skip_measurements,
-            )
-
-            from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-
-            braket_circuit = qasm3_to_braket_Circuit(qasm3_code)
-            if circuit._gphase != 0:
-                braket_circuit.gphase(  # pyright: ignore[reportAttributeAccessIssue]
-                    circuit._gphase
-                )
-                circuit._gphase = 0
+            braket_circuit = BracketCircuit()
+            for instruction in circuit.instructions:
+                if isinstance(instruction, (Barrier, Breakpoint)):
+                    continue
+                if isinstance(instruction, Measure):
+                    if not skip_pre_measure:
+                        for pre_measure in instruction.pre_measure:
+                            bracket_pre_measure = pre_measure.to_other_language(
+                                Language.BRAKET
+                            )
+                            braket_circuit.add(bracket_pre_measure, instruction.targets)
+                    if not skip_measurements:
+                        if isinstance(instruction, BasisMeasure):
+                            braket_circuit.measure(instruction.targets)
+                    continue
+                braket_instr = instruction.to_other_language(Language.BRAKET)
+                try:
+                    target = instruction.targets
+                    if isinstance(instruction, ControlledGate):
+                        target = instruction.controls + target
+                    braket_circuit.add_instruction(braket_instr, target=target)
+                except:
+                    print(braket_instr)
+                    print(type(braket_instr))
+                    raise
 
             if len(self.noises) == 0:
                 return braket_circuit
