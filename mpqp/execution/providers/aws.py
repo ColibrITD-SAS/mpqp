@@ -168,22 +168,27 @@ def run_braket_observable(job: Job):
 
         if job.measure.pre_transpile is None:
             grouping = job.measure.get_pauli_grouping()
-            transpiled_groupings = [
+            transpiled_pre_measures = [
                 QCircuit(find_qubitwise_rotations(group)).to_other_language(
                     Language.BRAKET
                 )
                 for group in grouping
             ]
+            eigenvalues = [
+                {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
+                for group in grouping
+            ]
+
         else:
-            grouping, transpiled_groupings = job.measure.pre_transpile
+            eigenvalues, transpiled_pre_measures = job.measure.pre_transpile
 
         expectation_values = {}
-        for group, transpile_group in zip(grouping, transpiled_groupings):
+        for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
                 from copy import deepcopy
 
-                cirq = deepcopy(transpiled_circuit + transpile_group)
+                cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
                 local_result = device.run(cirq, shots=0, inputs=None).result()
 
@@ -194,7 +199,7 @@ def run_braket_observable(job: Job):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
                 local_result = device.run(
-                    transpiled_circuit + transpile_group,
+                    transpiled_circuit + pre_measure,
                     shots=job.measure.shots,
                     inputs=None,
                 )
@@ -210,17 +215,18 @@ def run_braket_observable(job: Job):
                         )
                     else:
                         sorted_values.append(0)
-            for monom in group:
+            for name, eigenvalue in eigenvalues.items():
                 expectation_value: float = np.dot(
-                    pauli_monomial_eigenvalues(monom),
+                    eigenvalue,
                     np.array(sorted_values, dtype=np.float64),
                 )
-                expectation_values.update({monom.name: expectation_value})
+                expectation_values[name] = expectation_value
         for i, obs in enumerate(job.measure.observables):
             string = obs.pauli_string
             local: float = 0
             for monoms in string.monomials:
-                assert isinstance(monoms.coef, (int, float))
+                if TYPE_CHECKING:
+                    assert isinstance(monoms.coef, (int, float))
                 local += expectation_values[monoms.name] * monoms.coef
             results.update({f"observable_{i}": local})
             errors.update({f"observable_{len(errors)}": None})
