@@ -164,7 +164,7 @@ class Observable:
             self._diag_elements = (
                 np.diagonal(self.matrix).real.flatten().astype(np.float64)
             )
-        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float64))
+        return copy.deepcopy(self._diag_elements)
 
     @matrix.setter
     def matrix(self, matrix: Matrix):

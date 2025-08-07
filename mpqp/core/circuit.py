@@ -153,6 +153,7 @@ class QCircuit:
         self.other_instructions: list[Barrier | Breakpoint] = []
         """List of Barrier and Breakpoint of the circuit."""
         self._index = 0
+        """Index of the last instruction"""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
