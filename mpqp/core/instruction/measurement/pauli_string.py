@@ -59,6 +59,7 @@ class GroupingMethods(Enum):
     COLORING_DB = auto()
     COLORING_DSATUR = auto()
     CLIQUE_REMOVING = auto()
+    QISKIT = auto()
 
 
 @conditional_typechecked
@@ -1042,10 +1043,7 @@ class PauliStringMonomial(PauliString):
             )
         elif method == CommutingTypes.FULL:
             return (
-                sum(
-                    1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b)
-                )
-                % 2
+                sum(not a.commutes_with(b) for a, b in zip(self.atoms, other.atoms)) % 2
                 == 0
             )
         else:
@@ -1310,7 +1308,7 @@ class PauliStringAtom(PauliStringMonomial):
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
             )
         if method == CommutingTypes.FULL:
-            return other == I or self == I or self == other
+            return other.label == "I" or self.label == "I" or self.label == other.label
         raise ValueError(
             f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
         )
@@ -1406,7 +1404,7 @@ _allow_atom_creation = False
 
 def pauli_string_from_str(
     compact_str: str, dict_value: Optional[dict[str, Coef]] = None
-) -> PauliString:
+) -> PauliString | PauliStringMonomial:
     """
     Construct a `PauliString` from a string representation.
 
@@ -1452,6 +1450,8 @@ def pauli_string_from_str(
         atoms = [globals()[ch] for ch in atoms_str]
         monomials.append(PauliStringMonomial(coef, atoms))
 
+    if len(monomials) == 1:
+        return monomials[0]
     return PauliString(monomials)
 
 

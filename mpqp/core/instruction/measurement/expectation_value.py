@@ -83,8 +83,8 @@ class Observable:
         self._is_diagonal = None
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
-        self.transpile = None
         "See parameter description."
+        self.pre_transpile = None
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -312,12 +312,15 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            from braket.circuits.observables import Hermitian
+            if self._pauli_string:
+                return self.pauli_string.to_other_language(Language.BRAKET)
+            else:
+                from braket.circuits.observables import Hermitian
 
-            return Hermitian(
-                self.matrix,
-                display_name=self.label if self.label is not None else "Hermitian",
-            )
+                return Hermitian(
+                    self.matrix,
+                    display_name=self.label if self.label is not None else "Hermitian",
+                )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
@@ -388,7 +391,7 @@ class ExpectationMeasure(Measure):
         targets: Optional[list[int]] = None,
         shots: int = 0,
         commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
-        grouping_method: GroupingMethods = GroupingMethods.GREEDY,
+        grouping_method: GroupingMethods = GroupingMethods.QISKIT,
         label: Optional[str] = None,
         optimize_measurement: Optional[bool] = True,
         optim_diagonal: Optional[bool] = False,
@@ -405,6 +408,7 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
+        self.pre_transpile = None
         if isinstance(observable, Observable):
             observable = [observable]
         else:
@@ -444,7 +448,7 @@ class ExpectationMeasure(Measure):
                         obs._diag_elements,  # pyright: ignore[reportPrivateUsage]
                         f"{default_label}_{label_counter}",
                     )
-                obs_new.transpile = obs.transpile
+                obs_new.pre_transpile = obs.pre_transpile
 
                 label_counter += 1
             self.observables.append(obs_new)
@@ -525,6 +529,27 @@ class ExpectationMeasure(Measure):
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
             return pauli_grouping_greedy(unique_monos, self.commuting_type)
+        elif self.grouping_method == GroupingMethods.QISKIT:
+            from qiskit.quantum_info import PauliList
+            from mpqp.core.instruction.measurement.pauli_string import (
+                pauli_string_from_str,
+            )
+
+            pauli_labels = [mono.name.replace("@", "") for mono in unique_monos]
+            pauli_list = PauliList(pauli_labels)
+
+            # Choose grouping based on commutativity type
+            if self.commuting_type == CommutingTypes.QUBITWISE:
+                grouped = pauli_list.group_qubit_wise_commuting()
+            else:
+                grouped = pauli_list.group_commuting()
+
+            grouped_monomials = [
+                [pauli_string_from_str(mono.to_label()) for mono in pauli]
+                for pauli in grouped
+            ]
+
+            return grouped_monomials  # pyright: ignore[reportReturnType]
         else:
             raise NotImplementedError(f"{self.grouping_method} is not yet supported.")
 

@@ -161,22 +161,29 @@ def run_braket_observable(job: Job):
     results = {}
     errors = {}
     if job.measure.optimize_measurement:
-        grouping = job.measure.get_pauli_grouping()
         from mpqp.tools.pauli_grouping import (
             find_qubitwise_rotations,
             pauli_monomial_eigenvalues,
         )
 
+        if job.measure.pre_transpile is None:
+            grouping = job.measure.get_pauli_grouping()
+            transpiled_groupings = [
+                QCircuit(find_qubitwise_rotations(group)).to_other_language(
+                    Language.BRAKET
+                )
+                for group in grouping
+            ]
+        else:
+            grouping, transpiled_groupings = job.measure.pre_transpile
+
         expectation_values = {}
-        for group in grouping:
-            transpiled_pre_measure = QCircuit(
-                find_qubitwise_rotations(group)
-            ).to_other_language(Language.BRAKET)
+        for group, transpile_group in zip(grouping, transpiled_groupings):
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
                 from copy import deepcopy
 
-                cirq = deepcopy(transpiled_circuit + transpiled_pre_measure)
+                cirq = deepcopy(transpiled_circuit + transpile_group)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
                 local_result = device.run(cirq, shots=0, inputs=None).result()
 
@@ -187,7 +194,7 @@ def run_braket_observable(job: Job):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
                 local_result = device.run(
-                    transpiled_circuit + transpiled_pre_measure,
+                    transpiled_circuit + transpile_group,
                     shots=job.measure.shots,
                     inputs=None,
                 )
@@ -328,10 +335,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        if job.measure.observables[0].transpile is None:
+        if job.measure.observables[0].pre_transpile is None:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
-            herm_op = job.measure.observables[0].transpile
+            herm_op = job.measure.observables[0].pre_transpile
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
