@@ -4,7 +4,6 @@ from sympy import Expr, I, pi, symbols
 
 from mpqp.gates import *
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import cos, exp, matrix_eq, sin
 
 theta: Expr
