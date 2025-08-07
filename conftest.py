@@ -3,6 +3,11 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from numpy.random import default_rng, randint
 
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.var_cache import is_typecheck_enabled
+
+_old_mpqp_typecheck = "False"
+
 
 def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--long", action="store_false", help="If set, long tests will run")
@@ -31,6 +36,12 @@ def pytest_configure(config: Any):
     This hook is called for every plugin and initial conftest
     file after command line options have been parsed.
     """
+    global _old_mpqp_typecheck
+    _old_mpqp_typecheck = get_env_variable("MPQP_TYPECHECK")
+    if not is_typecheck_enabled():
+        print("Enabling MPQP_TYPECHECK temporarily")
+        save_env_variable("MPQP_TYPECHECK", "True")
+
     from tests.local_storage.test_local_storage import create_test_local_storage
 
     print("Creating local storage for tests")
@@ -51,3 +62,8 @@ def mock_random(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest)
         return default_rng(user_seed or seed)
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
+
+
+def pytest_unconfigure(config: pytest.Config):
+    print("Restoring MPQP_TYPECHECK")
+    save_env_variable("MPQP_TYPECHECK", _old_mpqp_typecheck)
