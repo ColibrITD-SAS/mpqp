@@ -294,6 +294,8 @@ def test_init_wrong(init_param: int | Sequence[Instruction]):
     old = get_env_variable("MPQP_TYPECHECK")
     if not is_typecheck_enabled():
         save_env_variable("MPQP_TYPECHECK", "True")
+    if not is_typecheck_enabled():
+        raise
     with pytest.raises(TypeCheckError):
         QCircuit(init_param)
     save_env_variable("MPQP_TYPECHECK", old)
