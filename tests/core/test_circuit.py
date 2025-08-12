@@ -17,11 +17,6 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import I
 from mpqp.core.instruction.measurement.pauli_string import Z as Pauli_Z
-from mpqp.environment.var_cache import is_typecheck_enabled
-from mpqp.execution.connection.azure_connection import (
-    get_env_variable,
-    save_env_variable,
-)
 from mpqp.execution.devices import ATOSDevice, IBMDevice
 from mpqp.execution.runner import run, Result
 from mpqp.gates import (

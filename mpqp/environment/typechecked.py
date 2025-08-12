@@ -6,14 +6,21 @@ to enable type checking, set the environment variable to "true".
 
 .. code-block:: python
 
-    >>> from mpqp.environment import save_env_variable
-    >>> save_env_variable("MPQP_TYPECHECK", "True") # doctest: +SKIP
+    >>> from mpqp.environment import enable_typecheck
+    >>> enable_typecheck(True) # doctest: +SKIP
 
 """
 
 from typeguard import typechecked
 
 from mpqp.environment.var_cache import is_typecheck_enabled
+
+
+def enable_typecheck(enable: bool):
+    from mpqp.environment.env_manager import save_env_variable
+
+    save_env_variable("MPQP_TYPECHECK", "True" if enable else "False")
+    is_typecheck_enabled.cache_clear()
 
 
 def conditional_typechecked(func):  # pyright: ignore[reportMissingParameterType]
