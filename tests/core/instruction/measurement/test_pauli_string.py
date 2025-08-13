@@ -37,12 +37,12 @@ from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
 
 from mpqp.core.instruction.measurement.pauli_string import (
-    I,
+    PI,
     Coef,
     PauliString,
-    X,
-    Y,
-    Z,
+    PX,
+    PY,
+    PZ,
     PauliStringAtom,
     pauli_string_from_str,
     pauli_string_with_atom,
@@ -57,14 +57,14 @@ def pauli_string_combinations():
     bin_operation = [matmul, imatmul]
     un_operation = [pos, neg]
     pauli = [
-        (I, np.eye(2)),
-        ((I @ I), np.eye(4)),
-        ((I + I), (2 * np.eye(2))),
-        ((I + I) @ I, (2 * np.eye(4))),
-        ((X + X), np.array([[0, 2.0], [2.0, 0]])),
-        ((X + Z), np.array([[1.0, 1.0], [1.0, -1.0]])),
-        ((2 * I), (2 * np.eye(2))),
-        ((symbols("a") * I), (symbols("a") * np.eye(2))),
+        (PI, np.eye(2)),
+        ((PI @ PI), np.eye(4)),
+        ((PI + PI), (2 * np.eye(2))),
+        ((PI + PI) @ PI, (2 * np.eye(4))),
+        ((PX + PX), np.array([[0, 2.0], [2.0, 0]])),
+        ((PX + PZ), np.array([[1.0, 1.0], [1.0, -1.0]])),
+        ((2 * PI), (2 * np.eye(2))),
+        ((symbols("a") * PI), (symbols("a") * np.eye(2))),
     ]
     result = []
 
@@ -102,37 +102,43 @@ def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex128]):
     "init_ps, simplified_ps",
     [
         # Test cases with single terms
-        (I @ I, I @ I),
-        (2 * I @ I, 2 * I @ I),
-        (-I @ I, -I @ I),
-        (0 * I @ I, 0 * I @ I),
+        (PI @ PI, PI @ PI),
+        (2 * PI @ PI, 2 * PI @ PI),
+        (-PI @ PI, -PI @ PI),
+        (0 * PI @ PI, 0 * PI @ PI),
         # Test cases with multiple terms
-        (I @ I + I @ I + I @ I, 3 * I @ I),
-        (2 * I @ I + 3 * I @ I - 2 * I @ I, 3 * I @ I),
-        (2 * I @ I - 3 * I @ I + I @ I, 0),
-        (-I @ I + I @ I - I @ I, 0),
-        (I @ I - 2 * I @ I + I @ I, I @ I),
-        (2 * I @ I + I @ I - I @ I, 2 * I @ I),
-        (I @ I + I @ I + I @ I, 3 * I @ I),
-        (2 * I @ I + 3 * I @ I, 5 * I @ I),
-        (I @ I - I @ I + I @ I, I @ I),
+        (PI @ PI + PI @ PI + PI @ PI, 3 * PI @ PI),
+        (2 * PI @ PI + 3 * PI @ PI - 2 * PI @ PI, 3 * PI @ PI),
+        (2 * PI @ PI - 3 * PI @ PI + PI @ PI, 0),
+        (-PI @ PI + PI @ PI - PI @ PI, 0),
+        (PI @ PI - 2 * PI @ PI + PI @ PI, PI @ PI),
+        (2 * PI @ PI + PI @ PI - PI @ PI, 2 * PI @ PI),
+        (PI @ PI + PI @ PI + PI @ PI, 3 * PI @ PI),
+        (2 * PI @ PI + 3 * PI @ PI, 5 * PI @ PI),
+        (PI @ PI - PI @ PI + PI @ PI, PI @ PI),
         # Test cases with cancellation
-        (I @ I - I @ I, 0 * I @ I),
-        (2 * I @ I - 2 * I @ I, 0 * I @ I),
-        (-2 * I @ I + 2 * I @ I, 0 * I @ I),
-        (I @ I + I @ I - 2 * I @ I, 0 * I @ I),
+        (PI @ PI - PI @ PI, 0 * PI @ PI),
+        (2 * PI @ PI - 2 * PI @ PI, 0 * PI @ PI),
+        (-2 * PI @ PI + 2 * PI @ PI, 0 * PI @ PI),
+        (PI @ PI + PI @ PI - 2 * PI @ PI, 0 * PI @ PI),
         # Test cases with mixed terms
-        (I @ I - 2 * I @ I + 3 * I @ I, 2 * I @ I),
-        (2 * I @ I + I @ I - I @ I, 2 * I @ I),
-        (I @ I + I @ I + I @ I - 3 * I @ I, I @ I),
+        (PI @ PI - 2 * PI @ PI + 3 * PI @ PI, 2 * PI @ PI),
+        (2 * PI @ PI + PI @ PI - PI @ PI, 2 * PI @ PI),
+        (PI @ PI + PI @ PI + PI @ PI - 3 * PI @ PI, PI @ PI),
         # Test cases with combinations of different gates
-        (I @ X + X @ X - X @ I, 2 * X @ X),
-        (Y @ Z + Z @ Y - Z @ Z, Y @ Z + Z @ Y),
-        (I @ X + X @ Y - Y @ X - X @ I, 0 * I @ I),
-        (I @ X + X @ X - X @ Y - Y @ X + Y @ Y, I @ X - X @ Y - Y @ X + Y @ Y),
-        (2 * X @ X - X @ Y + Y @ X - X @ X, X @ X - X @ Y + Y @ X),
-        (X @ X + X @ Y + Y @ X - X @ X - X @ Y - Y @ X, 0 * I @ I),
-        (2 * X @ X - 3 * X @ Y + 2 * Y @ X - X @ X, X @ X - 3 * X @ Y + 2 * Y @ X),
+        (PI @ PX + PX @ PX - PX @ PI, 2 * PX @ PX),
+        (PY @ PZ + PZ @ PY - PZ @ PZ, PY @ PZ + PZ @ PY),
+        (PI @ PX + PX @ PY - PY @ PX - PX @ PI, 0 * PI @ PI),
+        (
+            PI @ PX + PX @ PX - PX @ PY - PY @ PX + PY @ PY,
+            PI @ PX - PX @ PY - PY @ PX + PY @ PY,
+        ),
+        (2 * PX @ PX - PX @ PY + PY @ PX - PX @ PX, PX @ PX - PX @ PY + PY @ PX),
+        (PX @ PX + PX @ PY + PY @ PX - PX @ PX - PX @ PY - PY @ PX, 0 * PI @ PI),
+        (
+            2 * PX @ PX - 3 * PX @ PY + 2 * PY @ PX - PX @ PX,
+            PX @ PX - 3 * PX @ PY + 2 * PY @ PX,
+        ),
     ],
 )
 def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
@@ -144,25 +150,29 @@ def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
     "init_ps, subs_dict, expected_ps",
     [
         # Basic substitution with numeric values
-        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
-        (symbols("k") * X @ Y, {"k": 2}, 2 * X @ Y),
-        (symbols("a") * Y @ Z, {"a": -1}, -Y @ Z),
+        (symbols("theta") * PI @ PX, {"theta": np.pi}, np.pi * PI @ PX),
+        (symbols("k") * PX @ PY, {"k": 2}, 2 * PX @ PY),
+        (symbols("a") * PY @ PZ, {"a": -1}, -PY @ PZ),
         # Multiple variable substitutions
         (
-            symbols("theta") * I @ X + symbols("k") * Z @ Y,
+            symbols("theta") * PI @ PX + symbols("k") * PZ @ PY,
             {"theta": np.pi, "k": 1},
-            np.pi * I @ X + Z @ Y,
+            np.pi * PI @ PX + PZ @ PY,
         ),
-        (symbols("a") * X @ X + symbols("b") * Y @ Y, {"a": 0, "b": 3}, 3 * Y @ Y),
-        # Removing symbolic values
-        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
         (
-            symbols("theta") * X @ Y + symbols("phi") * Y @ Z,
+            symbols("a") * PX @ PX + symbols("b") * PY @ PY,
+            {"a": 0, "b": 3},
+            3 * PY @ PY,
+        ),
+        # Removing symbolic values
+        (symbols("theta") * PI @ PX, {"theta": np.pi}, np.pi * PI @ PX),
+        (
+            symbols("theta") * PX @ PY + symbols("phi") * PY @ PZ,
             {"theta": 1, "phi": 2},
-            X @ Y + 2 * Y @ Z,
+            PX @ PY + 2 * PY @ PZ,
         ),
         # No substitutions (should remain the same)
-        (symbols("theta") * I @ X, {}, symbols("theta") * I @ X),
+        (symbols("theta") * PI @ PX, {}, symbols("theta") * PI @ PX),
     ],
 )
 def test_subs(
@@ -188,14 +198,14 @@ def pauli_strings_in_all_languages():
             + Braket_I() @ Braket_I() @ Braket_Z(),
             SparsePauliOp(["XII", "IYI", "IIZ"]),
             [Term(1, "X", [0]), Term(1, "Y", [1]), Term(1, "Z", [2])],
-            X @ I @ I + I @ Y @ I + I @ I @ Z,
+            PX @ PI @ PI + PI @ PY @ PI + PI @ PI @ PZ,
         ),
         (
             Cirq_X(a) * Cirq_Y(b) * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
             Braket_X() @ Braket_Y() @ Braket_Z(),
             SparsePauliOp(["XYZ"]),
             Term(1, "XYZ", [0, 1, 2]),
-            X @ Y @ Z,
+            PX @ PY @ PZ,
         ),
         (
             Cirq_I(a) + Cirq_Z(b) + Cirq_X(c),
@@ -204,35 +214,35 @@ def pauli_strings_in_all_languages():
             + Braket_I() @ Braket_I() @ Braket_X(),
             SparsePauliOp(["III", "IZI", "IIX"]),
             [Term(1, "I", [0]), Term(1, "Z", [1]), Term(1, "X", [2])],
-            I @ I @ I + I @ Z @ I + I @ I @ X,
+            PI @ PI @ PI + PI @ PZ @ PI + PI @ PI @ PX,
         ),
         (
             Cirq_Y(a) * Cirq_Z(b) * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
             Braket_Y() @ Braket_Z() @ Braket_X(),
             SparsePauliOp(["YZX"]),
             Term(1, "YZX", [0, 1, 2]),
-            Y @ Z @ X,
+            PY @ PZ @ PX,
         ),
         (
             Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
             Braket_Z() @ Braket_Y() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_X(),
             SparsePauliOp(["ZYI", "IIX"]),
             [Term(1, "ZY", [0, 1]), Term(1, "X", [2])],
-            Z @ Y @ I + I @ I @ X,
+            PZ @ PY @ PI + PI @ PI @ PX,
         ),
         (
             Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
             Braket_X() @ Braket_I() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
             SparsePauliOp(["XII", "IIY"]),
             [Term(1, "X", [0]), Term(1, "Y", [2])],
-            X @ I @ I + I @ I @ Y,
+            PX @ PI @ PI + PI @ PI @ PY,
         ),
         (
             Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
             Braket_I() @ Braket_X() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
             SparsePauliOp(["IXI", "IIY"]),
             [Term(1, "X", [1]), Term(1, "Y", [2])],
-            I @ X @ I + I @ I @ Y,
+            PI @ PX @ PI + PI @ PI @ PY,
         ),
         (
             2 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
@@ -252,7 +262,7 @@ def pauli_strings_in_all_languages():
             @ Braket_Z(),
             SparsePauliOp(["XII", "IYI", "IIZ"], coeffs=np.array([2, 3, 4])),
             [Term(2, "X", [0]), Term(3, "Y", [1]), Term(4, "Z", [2])],
-            2 * X @ I @ I + 3 * I @ Y @ I + 4 * I @ I @ Z,
+            2 * PX @ PI @ PI + 3 * PI @ PY @ PI + 4 * PI @ PI @ PZ,
         ),
         (
             -Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
@@ -263,7 +273,7 @@ def pauli_strings_in_all_languages():
             @ (0.5 * Braket_Z()),  # pyright: ignore[reportOperatorIssue]
             SparsePauliOp(["XYZ"], coeffs=np.array([-1 * 1.5 * 0.5])),
             Term(-0.75, "XYZ", [0, 1, 2]),
-            -X @ (1.5 * Y) @ (0.5 * Z),
+            -PX @ (1.5 * PY) @ (0.5 * PZ),
         ),
         (
             0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
@@ -276,7 +286,7 @@ def pauli_strings_in_all_languages():
             @ (2 * Braket_X()),  # pyright: ignore[reportOperatorIssue]
             SparsePauliOp(["ZYI", "IIX"], coeffs=np.array([0.5 * 0.5, 2])),
             [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])],
-            ((0.5 * Z) @ (0.5 * Y) @ I) + (2 * I @ I @ X),
+            ((0.5 * PZ) @ (0.5 * PY) @ PI) + (2 * PI @ PI @ PX),
         ),
         (
             1.5 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
@@ -290,7 +300,7 @@ def pauli_strings_in_all_languages():
             @ (-2.5 * Braket_Y()),  # pyright: ignore[reportOperatorIssue]
             SparsePauliOp(["XII", "IIY"], coeffs=np.array([1.5, -2.5])),
             [Term(1.5, "X", [0]), Term(-2.5, "Y", [2])],
-            (1.5 * X @ I @ I) + (I @ I @ (-2.5 * Y)),
+            (1.5 * PX @ PI @ PI) + (PI @ PI @ (-2.5 * PY)),
         ),
         (
             0.25 * Cirq_I(a) * 4 * Cirq_X(b)
@@ -303,98 +313,98 @@ def pauli_strings_in_all_languages():
             @ (3 * Braket_Y()),  # pyright: ignore[reportOperatorIssue]
             SparsePauliOp(["IXI", "IIY"], coeffs=np.array([0.25 * 4, 3])),
             [Term(4 * 0.25, "X", [1]), Term(3, "Y", [2])],
-            ((0.25 * I) @ (4 * X) @ I) + (I @ I @ (3 * Y)),
+            ((0.25 * PI) @ (4 * PX) @ PI) + (PI @ PI @ (3 * PY)),
         ),
         (
             Cirq_I(a),
             Braket_I(),
             SparsePauliOp(["I"]),
             Term(1, "I", [0]),
-            I,
+            PI,
         ),
         (
             Cirq_X(a),
             Braket_X(),
             SparsePauliOp(["X"]),
             Term(1, "X", [0]),
-            X,
+            PX,
         ),
         (
             Cirq_Z(a),
             Braket_Z(),
             SparsePauliOp(["Z"]),
             Term(1, "Z", [0]),
-            Z,
+            PZ,
         ),
         (
             Cirq_Y(a),
             Braket_Y(),
             SparsePauliOp(["Y"]),
             Term(1, "Y", [0]),
-            Y,
+            PY,
         ),
         (
             1 * Cirq_I(b),
             Braket_I() @ Braket_I(),
             SparsePauliOp(["II"]),
             Term(1, "II", [0, 1]),
-            I @ I,
+            PI @ PI,
         ),
         (
             1 * Cirq_X(b),  # pyright: ignore[reportOperatorIssue]
             Braket_I() @ Braket_X(),
             SparsePauliOp(["IX"]),
             Term(1, "X", [1]),
-            I @ X,
+            PI @ PX,
         ),
         (
             1 * Cirq_Z(b),  # pyright: ignore[reportOperatorIssue]
             Braket_I() @ Braket_Z(),
             SparsePauliOp(["IZ"]),
             Term(1, "Z", [1]),
-            I @ Z,
+            PI @ PZ,
         ),
         (
             1 * Cirq_Y(b),  # pyright: ignore[reportOperatorIssue]
             Braket_I() @ Braket_Y(),
             SparsePauliOp(["IY"]),
             Term(1, "Y", [1]),
-            I @ Y,
+            PI @ PY,
         ),
         (
             1 * Cirq_I(a) + 1 * Cirq_I(a),
             Braket_I() + Braket_I(),
             SparsePauliOp(["I", "I"]),
             [Term(1, "I", [0]), Term(1, "I", [0])],
-            I + I,
+            PI + PI,
         ),
         (
             1 * Cirq_I(a) + 1 * Cirq_X(a),  # pyright: ignore[reportOperatorIssue]
             Braket_I() + Braket_X(),
             SparsePauliOp(["I", "X"]),
             [Term(1, "I", [0]), Term(1, "X", [0])],
-            I + X,
+            PI + PX,
         ),
         (
             1 * Cirq_X(a) + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
             Braket_Z() + Braket_X(),
             SparsePauliOp(["Z", "X"]),
             [Term(1, "Z", [0]), Term(1, "X", [0])],
-            Z + X,
+            PZ + PX,
         ),
         (
             1 * Cirq_Y(a) + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
             Braket_Y() + Braket_Z(),
             SparsePauliOp(["Y", "Z"]),
             [Term(1, "Y", [0]), Term(1, "Z", [0])],
-            Y + Z,
+            PY + PZ,
         ),
         (
             1 * Cirq_X(a) + 1 * Cirq_Y(a),  # pyright: ignore[reportOperatorIssue]
             Braket_X() + Braket_Y(),
             SparsePauliOp(["X", "Y"]),
             [Term(1, "X", [0]), Term(1, "Y", [0])],
-            X + Y,
+            PX + PY,
         ),
     ]
 
@@ -462,17 +472,17 @@ def test_to_from_other_language(
 @pytest.mark.parametrize(
     "input_str, subs_dict, expected_str",
     [
-        ("2*XZ", None, 2 * X @ Z),
-        ("theta*IX", {}, symbols("theta") * I @ X),
-        ("theta*IX", {"theta": 2}, 2 * I @ X),
-        ("k*XY", {"k": 2}, 2 * X @ Y),
-        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7 * I @ X + Z @ Y),
-        ("-a*YZ", {"a": -1}, Y @ Z),
-        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6 * X @ Z + Y @ I - 3 * Z @ Z),
+        ("2*XZ", None, 2 * PX @ PZ),
+        ("theta*IX", {}, symbols("theta") * PI @ PX),
+        ("theta*IX", {"theta": 2}, 2 * PI @ PX),
+        ("k*XY", {"k": 2}, 2 * PX @ PY),
+        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7 * PI @ PX + PZ @ PY),
+        ("-a*YZ", {"a": -1}, PY @ PZ),
+        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6 * PX @ PZ + PY @ PI - 3 * PZ @ PZ),
         (
             "o*2*XZ + YI - 3o*ZZ",
             None,
-            symbols("o") * 2 * X @ Z + Y @ I - 3 * symbols("o") * Z @ Z,
+            symbols("o") * 2 * PX @ PZ + PY @ PI - 3 * symbols("o") * PZ @ PZ,
         ),
     ],
 )
@@ -486,11 +496,11 @@ def test_pauli_string_from_str(
 @pytest.mark.parametrize(
     "n, atom, qubit_index, expected_ps",
     [
-        (3, X, None, I @ I @ X),
-        (3, Y, 0, Y @ I @ I),
-        (4, Z, 2, I @ I @ Z @ I),
-        (2, I, 1, I @ I),
-        (1, X, 0, X),
+        (3, PX, None, PI @ PI @ PX),
+        (3, PY, 0, PY @ PI @ PI),
+        (4, PZ, 2, PI @ PI @ PZ @ PI),
+        (2, PI, 1, PI @ PI),
+        (1, PX, 0, PX),
     ],
 )
 def test_pauli_string_with_atom(

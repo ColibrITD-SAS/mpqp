@@ -16,7 +16,7 @@ from numpy.random import default_rng
 
 from mpqp.all import *
 from mpqp.core.instruction.measurement import pauli_string
-from mpqp.core.instruction.measurement.pauli_string import PauliString
+from mpqp.core.instruction.measurement.pauli_string import PauliString, PI, PX, PY, PZ
 from mpqp.execution import BatchResult
 from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
@@ -111,6 +111,7 @@ from mpqp.tools.display import (
     format_element,
     format_element_str,
     pprint,
+    print_list,
 )
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,

@@ -6,7 +6,7 @@ from mpqp.core import QCircuit
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
 from mpqp.gates import CNOT, H, Rx
-from mpqp.measures import ExpectationMeasure, I, Observable, Z
+from mpqp.measures import ExpectationMeasure, PI, Observable, PZ
 
 obs = Observable(
     np.array(
@@ -20,7 +20,7 @@ obs = Observable(
     )
 )
 
-obs2 = Observable(1 * I @ Z + 1 * I @ I)
+obs2 = Observable(1 * PI @ PZ + 1 * PI @ PI)
 
 # Observable can be constructed from a Pauli string or a matrix
 print("Observable2:")

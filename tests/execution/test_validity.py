@@ -11,11 +11,8 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import I as Ip
 from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.core.instruction.measurement.pauli_string import X as Xp
-from mpqp.core.instruction.measurement.pauli_string import Y as Yp
-from mpqp.core.instruction.measurement.pauli_string import Z as Zp
+from mpqp.core.instruction.measurement.pauli_string import PI, PX, PY, PZ
 from mpqp.core.languages import Language
 from mpqp.execution import (
     ATOSDevice,
@@ -492,7 +489,7 @@ def test_validity_measure_to_other_language(
 
 @pytest.fixture
 def pauli_strings():
-    return [Ip @ Xp @ Yp @ Zp, Xp + Zp, Yp]
+    return [PI @ PX @ PY @ PZ, PX + PZ, PY]
 
 
 @pytest.mark.parametrize("language", list(Language))
