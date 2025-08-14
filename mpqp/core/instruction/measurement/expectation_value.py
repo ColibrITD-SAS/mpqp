@@ -310,15 +310,17 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            if self._pauli_string:
-                return self.pauli_string.to_other_language(Language.BRAKET)
-            else:
-                from braket.circuits.observables import Hermitian
+            # TODO: Braket do not handle pauli with coef because it use QASM2
+            #       We need to pass without coef and compute yourself
+            # if self._pauli_string:
+            #     return self.pauli_string.to_other_language(Language.BRAKET)
+            # else:
+            from braket.circuits.observables import Hermitian
 
-                return Hermitian(
-                    self.matrix,
-                    display_name=self.label if self.label is not None else "Hermitian",
-                )
+            return Hermitian(
+                self.matrix,
+                display_name=self.label if self.label is not None else "Hermitian",
+            )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:

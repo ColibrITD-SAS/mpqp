@@ -755,15 +755,15 @@ class PauliString:
         elif language == Language.MY_QLM:
             return [mono.to_other_language(language) for mono in self.monomials]
         elif language == Language.BRAKET:
-            pauli_string = None
+            from braket.circuits.observables import Sum
+
+            pauli_string = []
+
             for mono in self.monomials:
                 braket_mono = mono.to_other_language(Language.BRAKET)
-                pauli_string = (
-                    pauli_string + braket_mono
-                    if pauli_string is not None
-                    else braket_mono
-                )
-            return pauli_string
+                pauli_string.append(braket_mono)
+
+            return Sum(pauli_string)
         elif language == Language.CIRQ:
             cirq_pauli_string = None
             for monomial in self.monomials:
@@ -1083,8 +1083,9 @@ class PauliStringMonomial(PauliString):
                 atom.to_other_language(Language.BRAKET)
                 for atom in self.atoms  # pyright: ignore[reportAssignmentType]
             ]
+            from braket.circuits.observables import TensorProduct
 
-            return self.coef * reduce(matmul, braket_atoms)
+            return self.coef * TensorProduct(braket_atoms)
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
 

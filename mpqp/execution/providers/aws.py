@@ -238,11 +238,16 @@ def run_braket_observable(job: Job):
 
         for obs in job.measure.observables:
             from copy import deepcopy
+            from braket.circuits.observables import Sum
 
             copy = deepcopy(transpiled_circuit)
             braket_obs = obs.to_other_language(Language.BRAKET)
+            if isinstance(braket_obs, Sum):
+                targets = [job.measure.targets] * len(braket_obs.summands)
+            else:
+                targets = job.measure.targets
             copy.expectation(  # pyright: ignore[reportAttributeAccessIssue]
-                observable=braket_obs, target=job.measure.targets
+                observable=braket_obs, target=targets
             )
             job.status = JobStatus.RUNNING
             local_result = device.run(
