@@ -1479,6 +1479,7 @@ class QCircuit:
                                 )
                                 custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
                                 cirq_circuit += custom_cirq_circuit
+                                # TODO: handle gphase in the circuit
                                 self._gphase += gphase
                             else:
                                 cirq_pre_measure = pre_measure.to_other_language(
@@ -1507,6 +1508,7 @@ class QCircuit:
                     )
                     custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
                     cirq_circuit += custom_cirq_circuit
+                    # TODO: handle gphase in the circuit
                     self._gphase += gphase
                 elif isinstance(instruction, ControlledGate):
                     targets = []

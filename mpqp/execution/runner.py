@@ -87,7 +87,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             from mpqp.core.instruction.measurement.pauli_string import (
                 pauli_string_with_atom,
             )
-
+            print("ok")
             pauli = (
                 pauli_string_with_atom(n_before)
                 @ obs.pauli_string
@@ -149,10 +149,13 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            measurement = adjust_measure(measurement, circuit)
+            m = adjust_measure(measurement, circuit)
+            c = circuit._clone_without("measurements")
+            c.measurements = [m]
+            c.rebind_index()
             job = Job(
                 JobType.OBSERVABLE,
-                circuit,
+                c,
                 device,
             )
         else:
@@ -174,7 +177,7 @@ def _run_diagonal_observables(
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: Optional[dict[Expr | str, Complex]],
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()

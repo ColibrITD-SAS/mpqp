@@ -481,7 +481,7 @@ def open_qasm_2_to_3(
         included_tree_current_node: Current Node in the file inclusion tree.
         path_to_file: Path to the location of the file from which the code is
             coming (useful for locating imports).
-                defined_gates: Set of custom gates already defined.
+        defined_gates: Set of custom gates already defined.
 
     Returns:
         Converted OpenQASM code in the 3.0 version.
