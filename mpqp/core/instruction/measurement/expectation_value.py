@@ -64,8 +64,7 @@ class Observable:
         >>> Observable(np.array([[1, 0], [0, -1]]))
         Observable(array([[ 1, 0], [ 0, -1]]))
 
-        >>> from mpqp.measures import I, X, Y, Z
-        >>> Observable(3 * I @ Z + 4 * X @ Y)
+        >>> Observable(3 * PI @ PZ + 4 * PX @ PY)
         Observable(3*I@Z + 4*X@Y)
 
         >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
@@ -138,10 +137,10 @@ class Observable:
             if self.is_diagonal is True and self._diag_elements is not None:
                 if TYPE_CHECKING:
                     assert isinstance(self._diag_elements, np.ndarray)
-                self._matrix = np.diag(self._diag_elements).astype(np.complex128)
+                self._matrix = np.diag(self._diag_elements.astype(np.complex128))
             else:
                 self._matrix = self.pauli_string.to_matrix()
-        matrix = copy.deepcopy(self._matrix).astype(np.complex128)
+        matrix = copy.deepcopy(self._matrix.astype(np.complex128))
         return matrix
 
     @property
@@ -164,7 +163,7 @@ class Observable:
             self._diag_elements = (
                 np.diagonal(self.matrix).real.flatten().astype(np.float64)
             )
-        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float64))
+        return copy.deepcopy(self._diag_elements)
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
@@ -222,10 +221,9 @@ class Observable:
             True
             >>> Observable(np.array([7, 4, 3, 6])).is_diagonal
             True
-            >>> from mpqp.measures import I, X, Y, Z
-            >>> Observable(I @ Z - 3 * Z @ Z + 2* Z @ I).is_diagonal
+            >>> Observable(PI @ PZ - 3 * PZ @ PZ + 2* PZ @ PI).is_diagonal
             True
-            >>> Observable(I @ X - 3* Z @ Z + 2 * Y @ I).is_diagonal
+            >>> Observable(PI @ PX - 3* PZ @ PZ + 2 * PY @ PI).is_diagonal
             False
 
         """
@@ -377,8 +375,7 @@ class ExpectationMeasure(Measure):
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
-        >>> from mpqp.measures import X as pX, Y as pY
-        >>> obs2 = Observable( pX @ pY - pY @ pY)
+        >>> obs2 = Observable( PX @ PY - PY @ PY)
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([obs, obs2], shots=10000)])
         >>> run(c, IBMDevice.AER_SIMULATOR).expectation_values # doctest: +SKIP
         {'observable_0': 0.8514399940967561, 'observable_1': 0.9876}

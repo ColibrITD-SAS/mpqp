@@ -49,7 +49,6 @@ from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
-from mpqp.execution.simulated_devices import SimulatedDevice, StaticIBMSimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
@@ -88,7 +87,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             from mpqp.core.instruction.measurement.pauli_string import (
                 pauli_string_with_atom,
             )
-
+            print("ok")
             pauli = (
                 pauli_string_with_atom(n_before)
                 @ obs.pauli_string
@@ -150,10 +149,13 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            measurement = adjust_measure(measurement, circuit)
+            m = adjust_measure(measurement, circuit)
+            c = circuit._clone_without("measurements")
+            c.measurements = [m]
+            c.rebind_index()
             job = Job(
                 JobType.OBSERVABLE,
-                circuit,
+                c,
                 device,
             )
         else:
@@ -175,7 +177,7 @@ def _run_diagonal_observables(
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: Optional[dict[Expr | str, Complex]],
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()
@@ -249,6 +251,10 @@ def _run_single(
          Error: None
 
     """
+    from mpqp.execution.simulated_devices import (
+        SimulatedDevice,
+        StaticIBMSimulatedDevice,
+    )
 
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):

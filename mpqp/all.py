@@ -68,11 +68,7 @@ from .measures import (
     ExpectationMeasure,
     HadamardBasis,
 )
-from .measures import I as Iop
-from .measures import Measure, Observable, VariableSizeBasis
-from .measures import X as Xop
-from .measures import Y as Yop
-from .measures import Z as Zop
+from .measures import Measure, Observable, VariableSizeBasis, PI, PX, PY, PZ
 from .noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from .qasm import open_qasm_file_conversion_2_to_3, open_qasm_hard_includes
 from .tools.circuit import random_circuit

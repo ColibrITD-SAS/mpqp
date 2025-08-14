@@ -4,7 +4,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.core.instruction.measurement.pauli_string import I, X, Y, Z
+from mpqp.core.instruction.measurement.pauli_string import PI, PX, PY, PZ
 from mpqp.execution.devices import (
     AWSDevice,
     AvailableDevice,
@@ -25,9 +25,9 @@ from mpqp.tools.circuit import random_circuit
 )
 def test_expectation_values_devices(device: AvailableDevice):
     circuit = random_circuit(nb_qubits=3)
-    string = X @ I @ Z + X @ Z @ Z + I @ Z @ Z
-    str2 = I @ Z @ Z - 2 * Y @ Z @ Z + 3 * X @ Y @ Z
-    str3 = X @ X @ X + X @ I @ X + I @ X @ X
+    string = PX @ PI @ PZ + PX @ PZ @ PZ + PI @ PZ @ PZ
+    str2 = PI @ PZ @ PZ - 2 * PY @ PZ @ PZ + 3 * PX @ PY @ PZ
+    str3 = PX @ PX @ PX + PX @ PI @ PX + PI @ PX @ PX
     obs = [Observable(string), Observable(str2), Observable(str3)]
     true_result = run(
         circuit + QCircuit([ExpectationMeasure(obs)]), device

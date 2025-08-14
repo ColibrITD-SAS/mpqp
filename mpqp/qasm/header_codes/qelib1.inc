@@ -98,7 +98,7 @@ gate cu(theta,phi,lambda,gamma) c, t
   p((lambda+phi)/2) c;
   p((lambda-phi)/2) t;
   cx c,t;
-  u(-theta/2,0,-(phi+lambda)/2) t;
+  u3(-theta/2,0,-(phi+lambda)/2) t;
   cx c,t;
-  u(theta/2,phi,0) t;
+  u3(theta/2,phi,0) t;
 }

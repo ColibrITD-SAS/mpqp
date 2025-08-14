@@ -1064,7 +1064,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         return CirqUGate
 
     qlm_aqasm_keyword = "U"
-    qiskit_string = "u"
+    qiskit_string = "u3"
 
     @classproperty
     def qasm2_gate(cls) -> str:

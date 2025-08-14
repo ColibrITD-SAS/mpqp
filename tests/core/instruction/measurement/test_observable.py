@@ -4,9 +4,8 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 from mpqp.core.instruction import Observable
-from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
+from mpqp.core.instruction.measurement.pauli_string import PI, PauliString, PX, PY, PZ
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import matrix_eq
 
 
@@ -18,58 +17,64 @@ def list_matrix_pauli_string() -> list[tuple[Matrix, PauliString]]:
                 [[2, 0, 0, 0], [0, 0, 0, 0], [0, 0, 2, 0], [0, 0, 0, 0]],
                 dtype=np.complex128,
             ),
-            I @ Z + I @ I,
+            PI @ PZ + PI @ PI,
         ),
         (
             np.zeros((4, 4), dtype=np.complex128),
-            I @ I - I @ I,
+            PI @ PI - PI @ PI,
         ),
         (
-            np.kron(I.matrix, Y.matrix) - np.kron(I.matrix, Z.matrix),
-            I @ Y - I @ Z,
+            np.kron(PI.matrix, PY.matrix) - np.kron(PI.matrix, PZ.matrix),
+            PI @ PY - PI @ PZ,
         ),
         (
-            np.kron(I.matrix, Y.matrix)
-            + 4 * np.kron(I.matrix, Z.matrix)
-            + 5 * np.kron(Y.matrix, Z.matrix),
-            I @ Y + 4 * I @ Z + 5 * Y @ Z,
+            np.kron(PI.matrix, PY.matrix)
+            + 4 * np.kron(PI.matrix, PZ.matrix)
+            + 5 * np.kron(PY.matrix, PZ.matrix),
+            PI @ PY + 4 * PI @ PZ + 5 * PY @ PZ,
         ),
         (
-            I.matrix - I.matrix,
-            I - I,
+            PI.matrix - PI.matrix,
+            PI - PI,
         ),
         (
-            I.matrix + I.matrix,
-            I + I,
+            PI.matrix + PI.matrix,
+            PI + PI,
         ),
         (
-            np.kron(X.matrix, Y.matrix)
-            + np.kron(Y.matrix, Z.matrix)
-            - np.kron(Z.matrix, X.matrix),
-            X @ Y + Y @ Z - Z @ X,
+            np.kron(PX.matrix, PY.matrix)
+            + np.kron(PY.matrix, PZ.matrix)
+            - np.kron(PZ.matrix, PX.matrix),
+            PX @ PY + PY @ PZ - PZ @ PX,
         ),
         (
-            np.kron(Z.matrix, X.matrix)
-            + np.kron(Y.matrix, Y.matrix)
-            - np.kron(X.matrix, Z.matrix),
-            Z @ X + Y @ Y - X @ Z,
+            np.kron(PZ.matrix, PX.matrix)
+            + np.kron(PY.matrix, PY.matrix)
+            - np.kron(PX.matrix, PZ.matrix),
+            PZ @ PX + PY @ PY - PX @ PZ,
         ),
         (
-            np.kron(Y.matrix, X.matrix) - np.kron(X.matrix, Y.matrix),
-            Y @ X - X @ Y,
+            np.kron(PY.matrix, PX.matrix) - np.kron(PX.matrix, PY.matrix),
+            PY @ PX - PX @ PY,
         ),
         (
             np.array([[2, 3], [3, 1]], dtype=np.complex128),
-            3 / 2 * I + 3 * X + 1 / 2 * Z,
+            3 / 2 * PI + 3 * PX + 1 / 2 * PZ,
         ),
         (
             np.array([[-1, 1 + 1j], [1 - 1j, 0]], dtype=np.complex128),
-            -1 / 2 * I + X - Y - 1 / 2 * Z,
+            -1 / 2 * PI + PX - PY - 1 / 2 * PZ,
         ),
-        (np.diag([-2, 4, 5, 3]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I - 2 * Z @ Z),
-        (np.diag([2, 0, 1, 7]), 5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I + 2 * Z @ Z),
-        (np.diag([-2, -3, 2, 1]), -1 / 2 * I @ I + 1 / 2 * I @ Z - 2 * Z @ I),
-        (np.zeros((4, 4), dtype=np.complex128), 1 * I @ I - 1 * I @ I),
+        (
+            np.diag([-2, 4, 5, 3]),
+            5 / 2 * PI @ PI - PI @ PZ - 3 / 2 * PZ @ PI - 2 * PZ @ PZ,
+        ),
+        (
+            np.diag([2, 0, 1, 7]),
+            5 / 2 * PI @ PI - PI @ PZ - 3 / 2 * PZ @ PI + 2 * PZ @ PZ,
+        ),
+        (np.diag([-2, -3, 2, 1]), -1 / 2 * PI @ PI + 1 / 2 * PI @ PZ - 2 * PZ @ PI),
+        (np.zeros((4, 4), dtype=np.complex128), 1 * PI @ PI - 1 * PI @ PI),
     ]
 
 
@@ -78,17 +83,17 @@ def list_diagonal_elements_pauli_string() -> list[tuple[list[float], PauliString
     return [
         (
             [-2, 4, 5, 3],
-            5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I - 2 * Z @ Z,
+            5 / 2 * PI @ PI - PI @ PZ - 3 / 2 * PZ @ PI - 2 * PZ @ PZ,
         ),
         (
             [2, 0, 1, 7],
-            5 / 2 * I @ I - I @ Z - 3 / 2 * Z @ I + 2 * Z @ Z,
+            5 / 2 * PI @ PI - PI @ PZ - 3 / 2 * PZ @ PI + 2 * PZ @ PZ,
         ),
         (
             [-2, -3, 2, 1],
-            -1 / 2 * I @ I + 1 / 2 * I @ Z - 2 * Z @ I,
+            -1 / 2 * PI @ PI + 1 / 2 * PI @ PZ - 2 * PZ @ PI,
         ),
-        ([0, 0, 0, 0], 1 * I @ I - 1 * I @ I),
+        ([0, 0, 0, 0], 1 * PI @ PI - 1 * PI @ PI),
     ]
 
 
@@ -99,9 +104,9 @@ def list_diagonal_observable_inputs() -> list[Union[Matrix, PauliString, list[fl
         [-2, -3, 2, 1],
         [0, 0, 0, 0],
         [1, 1, 1, 1],
-        5 * I @ I - I @ Z - 3 * Z @ I - 2 * Z @ Z,
-        -1 * I @ I + 3 / 2 * I @ Z - 7 * Z @ I,
-        Z @ Z + Z @ I - I @ Z,
+        5 * PI @ PI - PI @ PZ - 3 * PZ @ PI - 2 * PZ @ PZ,
+        -1 * PI @ PI + 3 / 2 * PI @ PZ - 7 * PZ @ PI,
+        PZ @ PZ + PZ @ PI - PI @ PZ,
         np.array([[1, 0], [0, -6]]),
         np.array([[1, 0, 0, 0], [0, 3, 0, 0], [0, 0, 6, 0], [0, 0, 0, -6]]),
         np.diag([3, 2, 5, 4, 2, 5, 4, 3]),

@@ -13,7 +13,7 @@ from mpqp.gates import *
 def list_circuits():
     return [
         QCircuit([H(0), CNOT(0, 1)]),
-        QCircuit([H(0), X(1)]),  # pyright: ignore[reportCallIssue]
+        QCircuit([H(0), X(1)]),
         QCircuit([Rx(np.pi / 2, 0), Ry(np.pi / 5, 1), CNOT(0, 1)]),
         # TODO add random circuit
     ]
@@ -72,20 +72,20 @@ def test_sequential_versus_multi(
         assert r1.expectation_values == e2
 
 
-from mpqp.measures import X, Y, Z, I
+from mpqp.measures import PX, PY, PZ, PI
 
 
 def pauliObservables():
     return [
-        [Observable(X @ X @ X + I @ X @ I + X @ I @ X - 2 * Z @ Z @ Z)],
+        [Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ)],
         [
-            Observable(X @ X @ X + I @ X @ I + X @ I @ X - 2 * Z @ Z @ Z),
-            Observable(Y @ Y @ Y + X @ X @ X),
+            Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ),
+            Observable(PY @ PY @ PY + PX @ PX @ PX),
         ],
         [
-            Observable(X @ X @ X + I @ X @ I + X @ I @ X - 2 * Z @ Z @ Z),
-            Observable(Y @ Y @ Y + X @ X @ X),
-            Observable(Z @ I @ Z - 5 * X @ X @ X),
+            Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ),
+            Observable(PY @ PY @ PY + PX @ PX @ PX),
+            Observable(PZ @ PI @ PZ - 5 * PX @ PX @ PX),
         ],
     ]
 
@@ -147,12 +147,12 @@ def test_pauli_grouping_optimization(
         [
             -0.2279775,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
-            Observable(X @ Y + Z @ X),
+            Observable(PX @ PY + PZ @ PX),
         ],
         [
             0,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
-            Observable(I @ X + Y @ Z),
+            Observable(PI @ PX + PY @ PZ),
         ],
     ],
 )

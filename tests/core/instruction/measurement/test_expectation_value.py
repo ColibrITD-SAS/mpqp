@@ -17,7 +17,7 @@ from cirq.ops.pauli_string import PauliString as CirqPauliString
 from qat.core.wrappers.observable import Observable as QLMObservable
 
 
-from mpqp.core.instruction.measurement.pauli_string import I, X
+from mpqp.core.instruction.measurement.pauli_string import PI, PX
 from mpqp.core.languages import Language
 from mpqp.measures import ExpectationMeasure, Observable
 
@@ -58,7 +58,7 @@ a, b, c = LineQubit.range(3)
     "obs, translation",
     [
         (
-            Observable(I @ I + I @ X),
+            Observable(PI @ PI + PI @ PX),
             sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
         ),
     ],

@@ -505,13 +505,16 @@ def normalize_string(string: str):
     def simplify_expression(match: Match[str]):
         from numpy import pi, e
 
-        components = match.group(1).split(',')
+        gate = match.group(1)
+        if gate == 'u':
+            gate = 'u3'
+        components = match.group(2).split(',')
         simplified = [
             format_element_str(eval(comp, {"pi": pi, "e": e}), 4) for comp in components
         ]
-        return f"({','.join(simplified)})"
+        return f"{gate}({','.join(simplified)})"
 
-    pattern = r'\(([^()]+)\)'
+    pattern = r'([a-zA-Z]*)\(([^()]+)\)'
     return re.sub(pattern, simplify_expression, string)
 
 

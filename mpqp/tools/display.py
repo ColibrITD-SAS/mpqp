@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -398,6 +398,23 @@ def pprint(
             raise ValueError(
                 f"Input matrix {matrix} should be a 1D or 2D array (1 or 2 dimensional matrix)."
             )
+
+
+def print_list(obj: list[Any]):
+    """
+    Recursively converts all elements of a list to their string representations and prints the resulting structure.
+
+    Args:
+        obj : The list to be printed, which may contain nested lists or any type of elements.
+
+    """
+
+    def deep_str(o: Any) -> str:
+        if isinstance(o, list):
+            return "[" + ", ".join(deep_str(x) for x in o) + "]"
+        return str(o)
+
+    print(deep_str(obj))
 
 
 @conditional_typechecked

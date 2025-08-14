@@ -3,7 +3,6 @@ import pytest
 from sympy import symbols
 
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import is_hermitian, rand_hermitian_matrix
 
 x = symbols("x", real=True)

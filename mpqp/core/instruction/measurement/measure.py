@@ -64,5 +64,8 @@ class Measure(Instruction, ABC):
 
     @property
     def pre_measure(self) -> list[Gate]:
-        """list of gate added before the measure to correctly swap target qubits when needed."""
+        """
+        List of gates added before the measurement to correctly swap target qubits 
+        when needed, or to change the basis for a ``BasisMeasure``.
+        """
         return []

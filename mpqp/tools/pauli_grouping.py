@@ -33,7 +33,9 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
     return result
 
 
-def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingTypes):
+def pauli_grouping_greedy(
+    monomials: list[PauliStringMonomial], type: CommutingTypes
+) -> list[list[PauliStringMonomial]]:
     """Regroups the Pauli operators in parameters into groups of
     mutual commuting Pauli operators using a greedy approach.
 
@@ -46,8 +48,7 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
 
 
     Examples:
-        >>> from mpqp.measures import I, X, Y, Z
-        >>> pauli_grouping_greedy([I@X@X, Y@Y@Z, I@I@I, -3*Z@Y@X, Y@X@Y, -Z@Z@Y, 2*X@X@Y], CommutingTypes.FULL )
+        >>> print_list(pauli_grouping_greedy([PI@PX@PX, PY@PY@PZ, PI@PI@PI, -3*PZ@PY@PX, PY@PX@PY, -PZ@PZ@PY, 2*PX@PX@PY], CommutingTypes.FULL ))
         [[I@X@X, Y@Y@Z, I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [Y@X@Y], [2*X@X@Y]]
     """
     groups: list[list[PauliStringMonomial]] = []

@@ -163,8 +163,7 @@ class Basis:
 
         from mpqp.core.circuit import QCircuit
 
-        basis_change = np.array(self.basis_vectors).T.conjugate()
-        return QCircuit([CustomGate(basis_change, targets=list(range(self.nb_qubits)))])
+        return QCircuit([self.to_instruction()])
 
     def to_instruction(self) -> CustomGate:
         """Converts the custom basis to the custom gate.

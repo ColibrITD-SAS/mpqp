@@ -102,8 +102,8 @@ class ControlledGate(Gate, ABC):
             target -= min_qubit
             desired_gate_size = abs(control - target) + 1
 
-        zero = np.diag([1, 0]).astype(np.complex128)
-        one = np.diag([0, 1]).astype(np.complex128)
+        zero = np.diag(np.array([1, 0], dtype=np.complex128))
+        one = np.diag(np.array([0, 1], dtype=np.complex128))
         non_controlled_gate = self.non_controlled_gate.to_matrix()
         I2 = np.eye(2, dtype=np.complex128)
 
