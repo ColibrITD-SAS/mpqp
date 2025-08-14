@@ -87,6 +87,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             from mpqp.core.instruction.measurement.pauli_string import (
                 pauli_string_with_atom,
             )
+
             print("ok")
             pauli = (
                 pauli_string_with_atom(n_before)
