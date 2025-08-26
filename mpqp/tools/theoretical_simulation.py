@@ -254,7 +254,7 @@ def exp_id_dist_excess(circuit: QCircuit, shots: int = 1024) -> float:
 
 
 if __name__ == "__main__":
-    from mpqp.all import *
+    from mpqp import *
 
     gates = [
         H(0),

@@ -332,15 +332,16 @@ def test_observable_ideal_case(
             Observable(observable), list(range(c.nb_qubits)), optimize_measurement=False
         )
     )
-    expected_value = (
+    expected_value = float(
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
-        assert isinstance(result, Result)
-        assert abs(result.expectation_values - expected_value) < (atol + rtol * abs(expected_value))  # type: ignore[reportOperatorIssue]
+        evs = result.expectation_values
+        assert isinstance(evs, float)
+        assert abs(evs - expected_value) < (atol + rtol * abs(expected_value))
 
 
 @pytest.fixture
