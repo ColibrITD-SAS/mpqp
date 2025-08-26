@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from mpqp.all import *
+from mpqp import *
 from mpqp.local_storage.queries import *
 from mpqp.local_storage.setup import DictDB
 

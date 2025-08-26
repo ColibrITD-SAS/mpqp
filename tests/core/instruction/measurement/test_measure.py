@@ -1,12 +1,11 @@
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import pytest
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
 
-from mpqp.core.instruction.measurement import Measure
-from mpqp.core.languages import Language
+from mpqp import Language, Measure
 from mpqp.tools.generics import flatten
 
 

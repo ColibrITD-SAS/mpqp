@@ -3,8 +3,8 @@ import numpy.typing as npt
 import pytest
 from sympy import symbols
 
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
-from mpqp.core.instruction.gates.native_gates import *
+from mpqp.gates import *
+from mpqp.gates import UnitaryMatrix
 
 
 @pytest.mark.parametrize(

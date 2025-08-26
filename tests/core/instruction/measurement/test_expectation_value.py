@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import warnings
-from typing import Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from qiskit.quantum_info import Operator
@@ -16,10 +16,7 @@ from cirq.ops.pauli_gates import X as Cirq_X
 from cirq.ops.pauli_string import PauliString as CirqPauliString
 from qat.core.wrappers.observable import Observable as QLMObservable
 
-
-from mpqp.core.instruction.measurement.pauli_string import I, X
-from mpqp.core.languages import Language
-from mpqp.measures import ExpectationMeasure, Observable
+from mpqp import ExpectationMeasure, I, Language, Observable, Xop
 
 
 @pytest.mark.parametrize(
@@ -60,7 +57,7 @@ a, b, c = LineQubit.range(3)
     "obs, translation",
     [
         (
-            Observable(I @ I + I @ X),
+            Observable(I @ I + I @ Xop),
             sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
         ),
     ],

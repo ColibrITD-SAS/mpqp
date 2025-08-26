@@ -2,11 +2,15 @@ import sys
 
 import pytest
 
-from mpqp import QCircuit
-from mpqp.execution import run
-from mpqp.execution.simulated_devices import IBMSimulatedDevice
+from mpqp import (
+    BasisMeasure,
+    ExpectationMeasure,
+    IBMSimulatedDevice,
+    Observable,
+    QCircuit,
+    run,
+)
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.maths import rand_hermitian_matrix
 

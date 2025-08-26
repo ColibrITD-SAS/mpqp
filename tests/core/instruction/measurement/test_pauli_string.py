@@ -15,6 +15,7 @@ from operator import (
 )
 from random import randint
 from typing import TYPE_CHECKING, Union
+
 from sympy import symbols
 
 if TYPE_CHECKING:
@@ -36,8 +37,8 @@ from cirq.ops.pauli_gates import Y as Cirq_Y
 from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
 
-from mpqp.core.instruction.measurement.pauli_string import I, PauliString, X, Y, Z
-from mpqp.core.languages import Language
+from mpqp import Language
+from mpqp.measures import I, PauliString, X, Y, Z
 from mpqp.tools.maths import matrix_eq
 
 

@@ -8,22 +8,23 @@ from typing import Any, Callable, Iterable
 import numpy as np
 import pytest
 
-from mpqp import QCircuit
-from mpqp.core.instruction.measurement import (
-    BasisMeasure,
-    ExpectationMeasure,
-    Observable,
-)
-from mpqp.execution import (
+from mpqp import (
+    AmplitudeDamping,
     ATOSDevice,
-    AvailableDevice,
     AWSDevice,
+    BasisMeasure,
+    BitFlip,
+    Depolarizing,
+    ExpectationMeasure,
     GOOGLEDevice,
     IBMDevice,
+    Observable,
+    PhaseDamping,
+    QCircuit,
     run,
 )
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 

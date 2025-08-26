@@ -6,17 +6,10 @@ from itertools import product
 import numpy as np
 import pytest
 from numpy import array  # pyright: ignore[reportUnusedImport]
-from mpqp import QCircuit
+
+from mpqp import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, QCircuit, Result, run
 from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.execution import (
-    ATOSDevice,
-    AvailableDevice,
-    AWSDevice,
-    GOOGLEDevice,
-    IBMDevice,
-    Result,
-)
-from mpqp.execution.runner import run
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning

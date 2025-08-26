@@ -5,38 +5,39 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp import QCircuit
-from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
-from mpqp.core.instruction.instruction import Instruction
-from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import I as Ip
-from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.core.instruction.measurement.pauli_string import X as Xp
-from mpqp.core.instruction.measurement.pauli_string import Y as Yp
-from mpqp.core.instruction.measurement.pauli_string import Z as Zp
-from mpqp.core.languages import Language
-from mpqp.execution import (
+from mpqp import (
     ATOSDevice,
-    AvailableDevice,
     AWSDevice,
     AZUREDevice,
+    Barrier,
+    BasisMeasure,
+    BatchResult,
+    Breakpoint,
+    ComputationalBasis,
+    Depolarizing,
+    ExpectationMeasure,
     GOOGLEDevice,
+    HadamardBasis,
+    I,
     IBMDevice,
+    Instruction,
+    Language,
+    Measure,
+    Observable,
+    PhaseDamping,
+    QCircuit,
+    Result,
+    VariableSizeBasis,
+    Xop,
+    Yop,
+    Zop,
     run,
 )
-from mpqp.execution.result import BatchResult, Result
+from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.measures import (
-    BasisMeasure,
-    ComputationalBasis,
-    ExpectationMeasure,
-    HadamardBasis,
-    Observable,
-    VariableSizeBasis,
-)
-from mpqp.noise.noise_model import NOISE_MODELS, Depolarizing, PhaseDamping
+from mpqp.measures import PauliString
+from mpqp.noise.noise_model import NOISE_MODELS
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
@@ -48,6 +49,13 @@ from mpqp.tools.maths import matrix_eq
 pi = np.pi
 s = np.sqrt
 e = np.exp
+
+all_devices = [
+    device
+    for device_family in [IBMDevice, GOOGLEDevice, AWSDevice, ATOSDevice, AZUREDevice]
+    for device in device_family
+]
+# TODO: build the lists bellow from the list above + filtering
 
 state_vector_devices = [
     IBMDevice.AER_SIMULATOR_STATEVECTOR,
@@ -490,7 +498,7 @@ def test_validity_measure_to_other_language(
 
 @pytest.fixture
 def pauli_strings():
-    return [Ip @ Xp @ Yp @ Zp, Xp + Zp, Yp]
+    return [I @ Xop @ Yop @ Zop, Xop + Zop, Yop]
 
 
 @pytest.mark.parametrize("language", list(Language))

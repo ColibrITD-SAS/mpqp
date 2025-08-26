@@ -1,14 +1,35 @@
-from copy import deepcopy
 import itertools
 import sys
-from numpy import array, complex64  # pyright: ignore[reportUnusedImport]
-import pytest
-from sympy import Expr, cos  # pyright: ignore[reportUnusedImport]
+from copy import deepcopy
 
-from mpqp import QCircuit
-from mpqp.measures import I as pauli_I, X as pauli_X, Y as pauli_Y, Z as pauli_Z
-from mpqp.tools.circuit import random_gate, random_noise
-from mpqp.all import *
+import numpy as np
+import pytest
+from numpy import array, complex64  # pyright: ignore[reportUnusedImport]
+from sympy import Expr, cos, symbols  # pyright: ignore[reportUnusedImport]
+
+from mpqp import (
+    AmplitudeDamping,
+    Barrier,
+    Basis,
+    BasisMeasure,
+    BitFlip,
+    Breakpoint,
+    ComputationalBasis,
+    Depolarizing,
+    ExpectationMeasure,
+    HadamardBasis,
+    I,
+    Measure,
+    Observable,
+    PhaseDamping,
+    QCircuit,
+    VariableSizeBasis,
+    Xop,
+    Yop,
+    Zop,
+)
+from mpqp.gates import *
+from mpqp.tools.circuit import random_circuit, random_gate, random_noise
 
 
 def generate_qcircuits():
@@ -135,10 +156,10 @@ def generate_expectation_measures():
         [None, 1, 0],  # shots
         [
             Observable(np.diag([0.7, -1, 1, 1])),
-            Observable(pauli_I @ pauli_X),
-            Observable(pauli_I @ pauli_X + pauli_Y @ pauli_Z),
-            Observable(number * pauli_I @ pauli_X),
-            Observable(-5.5 * pauli_I @ pauli_X + -6 * pauli_Y @ pauli_Z),
+            Observable(I @ Xop),
+            Observable(I @ Xop + Yop @ Zop),
+            Observable(number * I @ Xop),
+            Observable(-5.5 * I @ Xop + -6 * Yop @ Zop),
         ],  # observables
         [None, "test"],  # label
     ):
@@ -160,7 +181,7 @@ def repr_expectation_measures(measure: Measure):
     measure_repr = (
         repr(measure)
         .replace("I", "pauli_I")
-        .replace("X", "pauli_X")
+        .replace("X", "Xop")
         .replace("Y", "pauli_Y")
         .replace("Z", "pauli_Z")
     )
