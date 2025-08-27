@@ -5,8 +5,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from typeguard import typechecked
-
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
     from mpqp import QCircuit
@@ -17,7 +15,6 @@ from .basis import Basis, ComputationalBasis, VariableSizeBasis
 from .measure import Measure
 
 
-@typechecked
 class BasisMeasure(Measure):
     """Class representing a measure of one or several qubits in a specific
     basis.

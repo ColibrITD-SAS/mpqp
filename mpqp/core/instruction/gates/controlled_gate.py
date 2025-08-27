@@ -2,17 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import reduce
-
-from typing import Optional, cast, Union
-
-from typeguard import typechecked
+from typing import Optional, Union, cast
 
 from mpqp.tools.generics import Matrix
 
 from .gate import Gate
 
 
-@typechecked
 class ControlledGate(Gate, ABC):
     """Abstract class representing a controlled gate, that can be controlled by
     one or several qubits.

@@ -7,8 +7,9 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
-from sympy import Basic
-from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from sympy import Basic
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
@@ -46,7 +47,6 @@ def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
     return {e1: e2 for e1, e2 in zip(l1, l2)}
 
 
-@typechecked
 def minimize(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -148,7 +148,6 @@ def minimize(
         )
 
 
-@typechecked
 def _minimize_remote(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -192,7 +191,6 @@ def _minimize_remote(
     raise NotImplementedError()
 
 
-@typechecked
 def _minimize_local(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -243,7 +241,6 @@ def _minimize_local(
         )
 
 
-@typechecked
 def _minimize_local_circ(
     circ: QCircuit,
     device: AvailableDevice,
@@ -281,7 +278,7 @@ def _minimize_local_circ(
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
     # TODO: bellow might be a bug, check why we need this type ignore
-    variables: set[Basic] = circ.variables()
+    variables: set["Basic"] = circ.variables()
 
     if len(circ.measurements) != 1:
         raise ValueError("Cannot optimize a circuit containing several measurements.")
@@ -314,7 +311,6 @@ def _minimize_local_circ(
     )
 
 
-@typechecked
 def _minimize_local_func(
     eval_func: OptimizableFunc,
     method: Optimizer | OptimizerCallable,

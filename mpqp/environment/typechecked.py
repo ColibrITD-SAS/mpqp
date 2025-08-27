@@ -11,8 +11,6 @@ to enable type checking, set the environment variable to "True".
 
 """
 
-from typeguard import typechecked
-
 from mpqp.environment.var_cache import is_typecheck_enabled
 
 

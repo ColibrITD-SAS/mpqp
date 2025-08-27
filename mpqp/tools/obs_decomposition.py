@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
+
 from mpqp.core.instruction.measurement.pauli_string import (
     I,
     PauliString,
@@ -16,12 +17,10 @@ from mpqp.core.instruction.measurement.pauli_string import (
     Z,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
-from typeguard import typechecked
 
 paulis: list[PauliStringAtom] = [I, X, Y, Z]
 
 
-@typechecked
 class PauliNode:
     """A class represents a node in the Pauli tree used for decomposing a
     Hermitian matrix into a PauliString.
@@ -85,7 +84,6 @@ class PauliNode:
         return PauliStringMonomial(self.coefficient, atoms)
 
 
-@typechecked
 def compute_coefficients(
     k: list[int],
     m: list[bool],
@@ -121,7 +119,6 @@ def compute_coefficients(
         monomial_list.append(current_node.get_monomial())
 
 
-@typechecked
 def update_tree(current_node: PauliNode, k: list[int], m: list[bool]):
     """Updates k (indices) and m (values) based on the Pauli type of the current
     node, and computing coefficients.
@@ -156,7 +153,6 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[bool]):
             k[i] -= t_l
 
 
-@typechecked
 def generate_and_explore_node(
     k: list[int],
     m: list[bool],
@@ -207,7 +203,6 @@ def generate_and_explore_node(
             progression[0] += 1
 
 
-@typechecked
 def decompose_hermitian_matrix_ptdr(
     matrix: Matrix, print_progression: bool = False
 ) -> PauliString:
@@ -252,7 +247,6 @@ def decompose_hermitian_matrix_ptdr(
     return PauliString(monomials)
 
 
-@typechecked
 class DiagPauliNode:
     """A class represents a node in the Pauli tree used for decomposing a
     diagonal observable into a PauliString.
@@ -301,7 +295,6 @@ class DiagPauliNode:
         return PauliStringMonomial(self.coefficient, atoms)
 
 
-@typechecked
 def compute_coefficients_diagonal_case(
     m: list[bool],
     current_node: DiagPauliNode,
@@ -330,7 +323,6 @@ def compute_coefficients_diagonal_case(
     monomial_list.append(current_node.get_monomial())
 
 
-@typechecked
 def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
     """Updates ``m`` based on the Pauli type of the current node.
 
@@ -350,7 +342,6 @@ def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
             m[i + t_l] = not m[i + t_l]
 
 
-@typechecked
 def generate_and_explore_node_diagonal_case(
     m: list[bool],
     current_node: DiagPauliNode,
@@ -400,7 +391,6 @@ def generate_and_explore_node_diagonal_case(
             progression[0] += 1
 
 
-@typechecked
 def decompose_diagonal_observable_ptdr(
     diag_elements: list[float] | npt.NDArray[np.float64],
     print_progression: bool = False,
@@ -502,7 +492,6 @@ def compute_coefficients_walsh(
     return coefs
 
 
-@typechecked
 def decompose_diagonal_observable_walsh_hadamard(
     diag_elements: list[float] | npt.NDArray[np.float64],
 ) -> PauliString:

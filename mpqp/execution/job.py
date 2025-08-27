@@ -17,7 +17,6 @@ from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
-from typeguard import typechecked
 
 from mpqp.tools.generics import MessageEnum
 
@@ -72,7 +71,6 @@ class JobType(Enum):
     retrieve the expectation value in an optimal manner."""
 
 
-@typechecked
 class Job:
     """Representation of a job, an object regrouping all the information about
     the submission of a computation/measure of a quantum circuit on a
@@ -295,7 +293,6 @@ class Job:
         remove_results_with_job(self)
 
 
-@typechecked
 def get_qlm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a QLM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -331,7 +328,6 @@ def get_qlm_job_status(job_id: str) -> JobStatus:
         return JobStatus.DONE
 
 
-@typechecked
 def get_ibm_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of an IBM job from the id in parameter, and returns
     the corresponding JobStatus of this library.
@@ -363,7 +359,6 @@ def get_ibm_job_status(job_id: str) -> JobStatus:
         raise ValueError(f"Unexpected IBM job status: {status}")
 
 
-@typechecked
 def get_aws_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a AWS Braket from the id in parameter, and
     returns the corresponding JobStatus of this library.
@@ -389,7 +384,6 @@ def get_aws_job_status(job_id: str) -> JobStatus:
         return JobStatus.DONE
 
 
-@typechecked
 def get_azure_job_status(job_id: str) -> JobStatus:
     """Retrieves the status of a azure from the id in parameter, and
     returns the corresponding JobStatus of this library.

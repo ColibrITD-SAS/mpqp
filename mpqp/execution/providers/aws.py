@@ -2,7 +2,6 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-from typeguard import typechecked
 
 from mpqp import Language, QCircuit
 from mpqp.core.instruction.gates import CRk
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
 
-@typechecked
 def apply_noise_to_braket_circuit(
     braket_circuit: "Circuit",
     noises: list[NoiseModel],
@@ -86,7 +84,6 @@ def apply_noise_to_braket_circuit(
     return noisy_circuit
 
 
-@typechecked
 def run_braket(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
@@ -124,7 +121,6 @@ def run_braket(job: Job, translation_warning: bool = True) -> Result:
     return extract_result(res, job, job.device)
 
 
-@typechecked
 def run_braket_observable(job: Job, translation_warning: bool = True):
     """Returns the result of an ``OBSERVABLE`` job.
 
@@ -244,7 +240,6 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
     return Result(job, results, errors, job.measure.shots)
 
 
-@typechecked
 def submit_job_braket(
     job: Job, translation_warning: bool = True
 ) -> tuple[str, "QuantumTask"]:
@@ -337,7 +332,6 @@ def submit_job_braket(
     )  # TODO : [multi-obs] update this to take into account the case when we have list of Observables
 
 
-@typechecked
 def extract_result(
     braket_result: "GateModelQuantumTaskResult",
     job: Optional[Job] = None,
@@ -424,7 +418,6 @@ def extract_result(
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
 
-@typechecked
 def get_result_from_aws_task_arn(task_arn: str) -> Result:
     """Retrieves the result, described by the job_id in parameter, from the
     remote QLM and converts it into an mpqp result.
@@ -462,7 +455,6 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     return extract_result(result, None, device)
 
 
-@typechecked
 def estimate_cost_single_job(
     job: Job, hybrid_iterations: int = 1, estimated_time_seconds: int = 3
 ) -> float:

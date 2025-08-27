@@ -56,7 +56,6 @@ from typing import Optional
 from warnings import warn
 
 from anytree import Node, PreOrderIter
-from typeguard import typechecked
 
 from mpqp.core.languages import Language
 from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
@@ -217,7 +216,6 @@ std_braket_gates = [
 ]
 
 
-@typechecked
 def qasm_code(instr: Instr) -> str:
     """Return the string corresponding of the declaration of the instruction in
     parameter. It is also used to return the whole standard library string when
@@ -250,7 +248,6 @@ def qasm_code(instr: Instr) -> str:
         return f.read()
 
 
-@typechecked
 def parse_openqasm_2_file(code: str) -> list[str]:
     """Splits a complete OpenQASM2 program into individual instructions.
 
@@ -296,7 +293,6 @@ def parse_openqasm_2_file(code: str) -> list[str]:
     return list(filter(lambda i: i != "", instructions))
 
 
-@typechecked
 def convert_instruction_2_to_3(
     instr: str,
     included_instr: set[Instr],
@@ -462,7 +458,6 @@ phase can become non-global.""",
     return instructions_code, header_code
 
 
-@typechecked
 def open_qasm_2_to_3(
     code: str,
     included_tree_current_node: Optional[Node] = None,
@@ -542,7 +537,6 @@ def open_qasm_2_to_3(
     return target_code
 
 
-@typechecked
 def open_qasm_file_conversion_2_to_3(
     path: str, translation_warning: bool = True
 ) -> str:
@@ -615,7 +609,6 @@ def open_qasm_file_conversion_2_to_3(
         )
 
 
-@typechecked
 def open_qasm_hard_includes(
     code: str,
     included_files: set[str],
@@ -973,7 +966,6 @@ def parse_gphase_instruction(
     return gphase
 
 
-@typechecked
 def convert_instruction_3_to_2(
     instr: str,
     included_instr: set[Instr],
@@ -1193,7 +1185,6 @@ def _replace_header(code: str) -> str:
     return ';'.join(code_with_right_instructions)
 
 
-@typechecked
 def open_qasm_3_to_2(
     code: str,
     included_tree_current_node: Optional[Node] = None,
@@ -1296,7 +1287,6 @@ def open_qasm_3_to_2(
     return target_code, gphase
 
 
-@typechecked
 def parse_openqasm_3_file(code: str) -> list[str]:
     """Splits a complete OpenQASM 3 program into individual instructions.
 
@@ -1340,7 +1330,6 @@ def parse_openqasm_3_file(code: str) -> list[str]:
     return list(filter(lambda i: i.strip() != "", instructions))
 
 
-@typechecked
 def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
     """Converts an OpenQASM code in a file from version 3.0 and 2.0.
 

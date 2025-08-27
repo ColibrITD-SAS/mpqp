@@ -16,8 +16,6 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from sympy import Expr
 
-from typeguard import typechecked
-
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import GateDefinition
 
@@ -29,7 +27,6 @@ from mpqp.core.instruction.gates.gate_definition import GateDefinition
 #  definition but this solution looks like a conception problem...
 
 
-@typechecked
 class ParametrizedGate(Gate, ABC):
     """Abstract class to factorize behavior of parametrized gate.
 

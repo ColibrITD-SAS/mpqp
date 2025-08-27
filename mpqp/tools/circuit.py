@@ -7,7 +7,6 @@ import numpy.typing as npt
 from numpy.random import Generator
 from qiskit import QuantumCircuit
 from qiskit.circuit.quantumcircuitdata import CircuitInstruction
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
@@ -40,7 +39,6 @@ if TYPE_CHECKING:
     from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 
-@typechecked
 def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -113,7 +111,7 @@ def statevector_from_random_circuit(
         >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
         [0.70710678+0.j  0. -0.j  0.26893257-0.65396886j  0. -0.j ]
     """
-    from mpqp.execution import run, IBMDevice, Result
+    from mpqp.execution import IBMDevice, Result, run
 
     mpqp_circ = random_circuit(None, nb_qubits, None, seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
@@ -122,7 +120,6 @@ def statevector_from_random_circuit(
     return res.state_vector.vector
 
 
-@typechecked
 def random_gate(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -253,7 +250,6 @@ def random_noise(
         raise NotImplementedError(f"{noise} model not implemented")
 
 
-@typechecked
 def compute_expected_matrix(qcircuit: QCircuit):
     """
     Computes the expected matrix resulting from applying single-qubit gates
@@ -299,7 +295,6 @@ def compute_expected_matrix(qcircuit: QCircuit):
     return np.vectorize(N)(result_matrix).astype(complex)
 
 
-@typechecked
 def replace_custom_gate(
     custom_unitary: "CircuitInstruction", nb_qubits: int  # type: ignore[reportInvalidTypeForm]
 ) -> tuple["QuantumCircuit", float]:

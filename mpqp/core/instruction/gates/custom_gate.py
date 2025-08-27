@@ -8,8 +8,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Union
 
-from typeguard import typechecked
-
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
@@ -21,7 +19,6 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 
 
-@typechecked
 class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 

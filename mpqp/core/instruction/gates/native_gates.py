@@ -26,10 +26,6 @@ if TYPE_CHECKING:
 import numpy as np
 import numpy.typing as npt
 
-# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
-# this file :/
-from typeguard import typechecked
-
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -38,10 +34,13 @@ from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
 from mpqp.tools.maths import cos, exp, sin
 
+# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
+# this file :/
+
+
 # from sympy import Expr, pi
 
 
-@typechecked
 def _qiskit_parameter_adder(
     param: Expr | float, qiskit_parameters: set["Parameter"]
 ) -> "Parameter | float | int":
@@ -85,7 +84,6 @@ def _qiskit_parameter_adder(
     return qiskit_param
 
 
-@typechecked
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
@@ -115,6 +113,7 @@ class NativeGate(Gate, SimpleClassReprABC):
 
     if TYPE_CHECKING:
         from braket.circuits import gates
+        from cirq.ops.raw_types import Gate
         from qiskit.circuit.library import (
             CCXGate,
             CPhaseGate,
@@ -133,7 +132,6 @@ class NativeGate(Gate, SimpleClassReprABC):
             YGate,
             ZGate,
         )
-        from cirq.ops.raw_types import Gate
 
     @classproperty
     @abstractmethod
@@ -192,7 +190,6 @@ class NativeGate(Gate, SimpleClassReprABC):
         pass
 
 
-@typechecked
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
@@ -270,7 +267,6 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.__class__(-self.parameters[0], self.targets[0])
 
 
-@typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
     """Abstract class describing native gates that do not depend on parameters.
 
@@ -369,7 +365,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         return self.matrix
 
 
-@typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
     """Abstract Class describing one-qubit native gates that do not depend on
     parameters.
@@ -651,7 +646,7 @@ class P(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self) -> Matrix:
-        return np.array(  # pyright: ignore[reportCallIssue]
+        return np.array(
             [
                 [1, 0],
                 [
@@ -999,7 +994,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
     @classproperty
     def cirq_gate(cls):
         from cirq.circuits.qasm_output import QasmUGate
-        from cirq.ops.common_gates import ry as cirq_ry, rz as cirq_rz
+        from cirq.ops.common_gates import ry as cirq_ry
+        from cirq.ops.common_gates import rz as cirq_rz
         from cirq.ops.global_phase_op import GlobalPhaseGate
         from cirq.ops.raw_types import Qid
 
@@ -1116,7 +1112,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             exp(self.gamma * 1j),  # pyright: ignore[reportOperatorIssue]
             exp(self.phi * 1j),  # pyright: ignore[reportOperatorIssue]
         )
-        return np.array(  # pyright: ignore[reportCallIssue]
+        return np.array(
             [
                 [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
                 [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
@@ -1170,7 +1166,7 @@ class Rx(RotationGate, SingleQubitGate):
     def to_canonical_matrix(self):
         c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array(  # pyright: ignore[reportCallIssue]
+        return np.array(
             [[c, -1j * s], [-1j * s, c]]  # pyright: ignore[reportOperatorIssue]
         )
 
@@ -1263,9 +1259,7 @@ class Rz(RotationGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array(  # pyright: ignore[reportCallIssue]
-            [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
-        )
+        return np.array([[e, 0], [0, 1 / e]])  # pyright: ignore[reportOperatorIssue]
 
 
 class Rk(RotationGate, SingleQubitGate):
@@ -1594,8 +1588,8 @@ class CRk(RotationGate, ControlledGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
         from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
         return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
@@ -1694,8 +1688,8 @@ class CRk_dagger(RotationGate, ControlledGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
         from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
         return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 

@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from mpqp import QCircuit
@@ -26,7 +25,6 @@ from mpqp.tools.display import clean_1D_array, one_lined_repr
 from mpqp.tools.maths import is_unitary
 
 
-@typechecked
 class Basis:
     """Represents a basis of the Hilbert space used for measuring a qubit.
 
@@ -178,7 +176,6 @@ class Basis:
         )
 
 
-@typechecked
 class VariableSizeBasis(Basis):
     """A variable-size basis with a dynamically adjustable size to different qubit numbers
     during circuit execution.

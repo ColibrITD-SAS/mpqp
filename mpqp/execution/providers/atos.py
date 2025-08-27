@@ -6,7 +6,6 @@ from statistics import mean
 from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
-from typeguard import typechecked
 
 from mpqp import Language
 from mpqp.core.circuit import QCircuit
@@ -37,7 +36,6 @@ if TYPE_CHECKING:
     from qat.qlmaas.result import AsyncResult
 
 
-@typechecked
 def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
     """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
     are coherent.
@@ -92,7 +90,6 @@ def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
     return myqlm_circuit
 
 
-@typechecked
 def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
     """Returns the myQLM local QPU associated with the ATOSDevice given in
     parameter.
@@ -113,7 +110,6 @@ def get_local_qpu(device: ATOSDevice) -> "QPUHandler":
     return CLinalg()
 
 
-@typechecked
 def get_remote_qpu(device: ATOSDevice, job: Job):
     """Returns the QLM remote QPU associated with the ATOSDevice given in parameter.
 
@@ -203,7 +199,6 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
             )
 
 
-@typechecked
 def generate_state_vector_job(myqlm_circuit: "Circuit") -> "JobQLM":
     """Generates a myQLM job from the myQLM circuit.
 
@@ -217,7 +212,6 @@ def generate_state_vector_job(myqlm_circuit: "Circuit") -> "JobQLM":
     return myqlm_circuit.to_job(job_type="SAMPLE")
 
 
-@typechecked
 def generate_sample_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     """Generates a myQLM job from the myQLM circuit and job sample info (target, shots, ...).
 
@@ -241,7 +235,6 @@ def generate_sample_job(myqlm_circuit: "Circuit", job: Job) -> "JobQLM":
     return myqlm_job
 
 
-@typechecked
 def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"]:
     """Generates a myQLM job from the myQLM circuit and observable.
 
@@ -269,7 +262,6 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"
     return result
 
 
-@typechecked
 def generate_hardware_model(
     noises: list[NoiseModel], nb_qubits: int
 ) -> "HardwareModel":
@@ -486,7 +478,6 @@ def generate_hardware_model(
         )
 
 
-@typechecked
 def extract_state_vector_result(
     myqlm_result: "QLM_Result",
     job: Optional[Job] = None,
@@ -527,7 +518,6 @@ def extract_state_vector_result(
     return Result(job, StateVector(amplitudes, nb_qubits, probas), 0, 0)
 
 
-@typechecked
 def extract_sample_result(
     myqlm_result: "QLM_Result",
     job: Optional[Job] = None,
@@ -583,7 +573,6 @@ def extract_sample_result(
     return Result(job, samples, error, nb_shots)
 
 
-@typechecked
 def extract_observable_result(
     myqlm_result: list["QLM_Result"],
     job: Optional[Job] = None,
@@ -644,7 +633,6 @@ def extract_observable_result(
         return Result(job, expectation_values, errors, nb_shots)
 
 
-@typechecked
 def extract_result(
     myqlm_result: list["QLM_Result"],
     job: Optional[Job] = None,
@@ -681,7 +669,6 @@ def extract_result(
         return extract_observable_result(myqlm_result, job, device)
 
 
-@typechecked
 def run_atos(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
@@ -704,7 +691,6 @@ def run_atos(job: Job, translation_warning: bool = True) -> Result:
     )
 
 
-@typechecked
 def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the local myQLM simulator.
 
@@ -761,7 +747,6 @@ def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
     return result
 
 
-@typechecked
 def submit_QLM(
     job: Job, translation_warning: bool = True
 ) -> tuple[str, list["AsyncResult"]]:
@@ -822,7 +807,6 @@ def submit_QLM(
     return (job_id, [async_result])
 
 
-@typechecked
 def run_QLM(job: Job, translation_warning: bool = True) -> Result:
     """Submits the job on the remote QLM machine and waits for it to be done.
 
@@ -857,7 +841,6 @@ def run_QLM(job: Job, translation_warning: bool = True) -> Result:
     return extract_result(qlm_results, job, job.device)
 
 
-@typechecked
 def get_result_from_qlm_job_id(job_id: str) -> Result:
     """Retrieves the ``QLM`` result, described by the job_id in parameter, from
     the remote ``QLM`` and converts it in a ``MPQP``

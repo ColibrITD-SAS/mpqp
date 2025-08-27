@@ -15,8 +15,6 @@ from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from sympy import Expr
-from typeguard import typechecked
 
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
@@ -36,8 +34,9 @@ if TYPE_CHECKING:
     from cirq.ops.raw_types import Qid
     from qat.core.wrappers.observable import Term
     from qiskit.quantum_info import SparsePauliOp
+    from sympy import Expr
 
-Coef = Union[Real, float, Expr]
+    Coef = Union[Real, float, Expr]
 
 
 class CommutingTypes(Enum):
@@ -60,7 +59,6 @@ class GroupingMethods(Enum):
     CLIQUE_REMOVING = auto()
 
 
-@typechecked
 class PauliString:
     """Represents a Pauli string, a linear combination of Pauli monomials.
 
@@ -170,26 +168,26 @@ class PauliString:
     def __sub__(self, other: "PauliString") -> "PauliString":
         return self + (-1) * other
 
-    def __imul__(self, other: Coef) -> "PauliString":
+    def __imul__(self, other: "Coef") -> "PauliString":
         for i, mono in enumerate(self._monomials):
             if isinstance(mono, PauliStringAtom):
                 self.monomials[i] = PauliStringMonomial(atoms=[mono])
             self.monomials[i] *= other
         return self
 
-    def __mul__(self, other: Coef) -> "PauliString":
+    def __mul__(self, other: "Coef") -> "PauliString":
         res = deepcopy(self)
         res *= other
         return res
 
-    def __rmul__(self, other: Coef) -> "PauliString":
+    def __rmul__(self, other: "Coef") -> "PauliString":
         return self * other
 
-    def __itruediv__(self, other: Coef) -> "PauliString":
+    def __itruediv__(self, other: "Coef") -> "PauliString":
         self *= 1 / other  # pyright: ignore[reportOperatorIssue]
         return self
 
-    def __truediv__(self, other: Coef) -> "PauliString":
+    def __truediv__(self, other: "Coef") -> "PauliString":
         return self * (1 / other)  # pyright: ignore[reportOperatorIssue]
 
     def __imatmul__(self, other: "PauliString") -> "PauliString":
@@ -265,7 +263,7 @@ class PauliString:
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for unique_mono_atoms in {tuple(mono.atoms) for mono in self.monomials}:
-            coef: Coef = format_element(
+            coef: "Coef" = format_element(
                 sum(  # pyright: ignore[reportCallIssue, reportAssignmentType]
                     [
                         mono.coef
@@ -304,7 +302,7 @@ class PauliString:
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for mono in self.monomials:
-            coef: Coef = format_element(
+            coef: "Coef" = format_element(
                 mono.coef  # type: ignore[reportArgumentType]
             )  # pyright: ignore[reportAssignmentType]
             if isinstance(coef, Expr):
@@ -851,7 +849,6 @@ class PauliString:
         return all([all([a == I or a == Z for a in m.atoms]) for m in self.monomials])
 
 
-@typechecked
 class PauliStringMonomial(PauliString):
     """Represents a monomial in a Pauli string, consisting of a coefficient and
     a list of PauliStringAtom objects.
@@ -861,7 +858,9 @@ class PauliStringMonomial(PauliString):
         atoms: The list of PauliStringAtom objects forming the monomial.
     """
 
-    def __init__(self, coef: Coef = 1, atoms: Optional[list["PauliStringAtom"]] = None):
+    def __init__(
+        self, coef: "Coef" = 1, atoms: Optional[list["PauliStringAtom"]] = None
+    ):
         self.coef = coef
         """Coefficient of the monomial."""
         self._atoms = [] if atoms is None else atoms
@@ -935,20 +934,20 @@ class PauliStringMonomial(PauliString):
         res += other
         return res
 
-    def __imul__(self, other: Coef) -> PauliStringMonomial:
+    def __imul__(self, other: "Coef") -> PauliStringMonomial:
         self.coef *= other  # pyright: ignore[reportOperatorIssue]
         return self
 
-    def __mul__(self, other: Coef) -> PauliStringMonomial:
+    def __mul__(self, other: "Coef") -> PauliStringMonomial:
         res = deepcopy(self)
         res *= other
         return res
 
-    def __itruediv__(self, other: Coef) -> PauliStringMonomial:
+    def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         self.coef /= other  # pyright: ignore[reportOperatorIssue]
         return self
 
-    def __truediv__(self, other: Coef) -> PauliStringMonomial:
+    def __truediv__(self, other: "Coef") -> PauliStringMonomial:
         res = deepcopy(self)
         res /= other
         return res
@@ -1127,7 +1126,6 @@ class PauliStringMonomial(PauliString):
             raise NotImplementedError(f"Unsupported language: {language}")
 
 
-@typechecked
 class PauliStringAtom(PauliStringMonomial):
     """Represents a single Pauli operator acting on a qubit in a Pauli string.
 
@@ -1181,7 +1179,7 @@ class PauliStringAtom(PauliStringMonomial):
         return [self]
 
     @property
-    def coef(self) -> Coef:
+    def coef(self) -> "Coef":
         """Coefficient of the monomial."""
         return 1
 
@@ -1204,24 +1202,24 @@ class PauliStringAtom(PauliStringMonomial):
     def __repr__(self):
         return str(self)
 
-    def __itruediv__(self, other: Coef) -> PauliStringMonomial:
+    def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         self = self / other
         return self
 
-    def __truediv__(self, other: Coef) -> PauliStringMonomial:
+    def __truediv__(self, other: "Coef") -> PauliStringMonomial:
         return PauliStringMonomial(
             1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
             [self],
         )
 
-    def __imul__(self, other: Coef) -> PauliStringMonomial:
+    def __imul__(self, other: "Coef") -> PauliStringMonomial:
         self = self * other
         return self
 
-    def __mul__(self, other: Coef) -> PauliStringMonomial:
+    def __mul__(self, other: "Coef") -> PauliStringMonomial:
         return PauliStringMonomial(other, [self])
 
-    def __rmul__(self, other: Coef) -> PauliStringMonomial:
+    def __rmul__(self, other: "Coef") -> PauliStringMonomial:
         return PauliStringMonomial(other, [self])
 
     def __imatmul__(self, other: PauliString) -> PauliString:

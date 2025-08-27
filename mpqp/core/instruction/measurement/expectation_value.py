@@ -12,7 +12,6 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
 
 from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
@@ -39,7 +38,6 @@ if TYPE_CHECKING:
     from sympy import Expr
 
 
-@typechecked
 class Observable:
     """Class defining an observable, used for evaluating expectation values.
 
@@ -329,7 +327,6 @@ class Observable:
         return False
 
 
-@typechecked
 class ExpectationMeasure(Measure):
     """This measure evaluates the expectation value of the output of the circuit
     measured by the observable(s) given as input.

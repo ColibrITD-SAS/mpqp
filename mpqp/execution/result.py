@@ -28,7 +28,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.execution import Job, JobType
@@ -37,7 +36,6 @@ from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
 
 
-@typechecked
 class StateVector:
     """Class representing the state vector of a multi-qubit quantum system.
 
@@ -122,7 +120,6 @@ class StateVector:
         return True
 
 
-@typechecked
 class Sample:
     """A sample is a partial result of job job with type ``SAMPLE``. It contains
     the count (and potentially the associated probability) for a given basis
@@ -230,7 +227,6 @@ class Sample:
             return False
 
 
-@typechecked
 class Result:
     """Result associated to a submitted job.
 
@@ -713,7 +709,6 @@ class Result:
         remove_results_with_id(result_id)
 
 
-@typechecked
 class BatchResult:
     """Class used to handle several Result instances.
 

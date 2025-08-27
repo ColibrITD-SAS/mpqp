@@ -23,8 +23,6 @@ from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
-from sympy import Expr
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -53,8 +51,10 @@ from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
 
+if TYPE_CHECKING:
+    from sympy import Expr
 
-@typechecked
+
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
@@ -95,9 +95,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     return tweaked_measure
 
 
-@typechecked
 def generate_job(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
+    circuit: QCircuit, device: AvailableDevice, values: "dict[Expr | str, Complex]" = {}
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -148,13 +147,12 @@ def generate_job(
     return job
 
 
-@typechecked
 def _run_diagonal_observables(
     circuit: QCircuit,
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: dict[Expr | str, Complex],
+    values: "dict[Expr | str, Complex]",
     translation_warning: bool = True,
 ) -> Result:
 
@@ -191,11 +189,10 @@ def _run_diagonal_observables(
     )
 
 
-@typechecked
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: dict[Expr | str, Complex],
+    values: "dict[Expr | str, Complex]",
     display_breakpoints: bool = True,
     translation_warning: bool = True,
 ) -> Result:
@@ -277,7 +274,7 @@ def _run_single(
 def run(
     circuit: OneOrMany[QCircuit],
     device: Sequence[AvailableDevice],
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     translation_warning: bool = True,
 ) -> BatchResult: ...
@@ -287,7 +284,7 @@ def run(
 def run(
     circuit: Sequence[QCircuit],
     device: OneOrMany[AvailableDevice],
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     translation_warning: bool = True,
 ) -> BatchResult: ...
@@ -297,17 +294,16 @@ def run(
 def run(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     translation_warning: bool = True,
 ) -> Result: ...
 
 
-@typechecked
 def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     translation_warning: bool = True,
 ) -> Result | BatchResult:
@@ -409,11 +405,10 @@ def run(
         )
 
 
-@typechecked
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve

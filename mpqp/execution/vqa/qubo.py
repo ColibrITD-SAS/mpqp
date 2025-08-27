@@ -28,10 +28,10 @@ from typing import TYPE_CHECKING, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
+
 from mpqp.measures import Observable
 from mpqp.tools.generics import Matrix
 from mpqp.tools.operators import *
-from typeguard import typechecked
 
 
 class Qubo(ABC):
@@ -616,7 +616,6 @@ class Qubo(ABC):
         return result
 
 
-@typechecked
 class QuboAtom(Qubo):
     """Class defining a boolean variable for a Qubo problem.
 

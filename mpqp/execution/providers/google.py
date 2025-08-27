@@ -15,9 +15,6 @@ if TYPE_CHECKING:
     from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
     from cirq_ionq import Service
 
-from cirq.circuits.circuit import Circuit
-from typeguard import typechecked
-
 from mpqp import Language
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -27,11 +24,10 @@ from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import NoiseModel
 
 
-@typechecked
 def apply_noise_to_cirq_circuit(
-    cirq_circuit: "Circuit",
+    cirq_circuit: "CirqCircuit",
     noises: list[NoiseModel],
-) -> "Circuit":
+) -> "CirqCircuit":
     """Apply noise models to a Cirq circuit.
 
     This function applies noise models to a given Cirq circuit based on the
@@ -46,6 +42,7 @@ def apply_noise_to_cirq_circuit(
     Returns:
         A new circuit with the noise operations applied.
     """
+    from cirq.circuits.circuit import Circuit
     from cirq.circuits.moment import Moment
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
@@ -123,7 +120,6 @@ def apply_noise_to_cirq_circuit(
     return Circuit(noisy_moments)
 
 
-@typechecked
 def run_google(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
@@ -147,7 +143,6 @@ def run_google(job: Job, translation_warning: bool = True) -> Result:
     )
 
 
-@typechecked
 def run_cirq_observable(
     job: Job,
     circuit: "CirqCircuit",
@@ -190,7 +185,9 @@ def run_cirq_observable(
                         found = True
                         break
                 if not found:
-                    monomials.append(monom / monom.coef)
+                    monomials.append(
+                        monom / monom.coef  # pyright: ignore[reportOperatorIssue]
+                    )
         expectation_values: dict[str, float] = {}
         result: dict[str, float] = {}
 
@@ -328,7 +325,6 @@ def run_cirq_observable(
     )
 
 
-@typechecked
 def run_cirq_observable_remote(
     job: Job, circuit: "CirqCircuit", service: "Service"
 ) -> Result:
@@ -385,7 +381,6 @@ def run_cirq_observable_remote(
     return Result(job, result)
 
 
-@typechecked
 def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job remotely on a Google quantum device. At present, only
     IonQ devices are supported.
@@ -446,7 +441,6 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
         )
 
 
-@typechecked
 def run_local(job: Job, translation_warning: bool = True) -> Result:
     """Executes the job locally.
 
@@ -505,7 +499,6 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
         raise ValueError(f"Job type {job.job_type} not handled")
 
 
-@typechecked
 def run_local_processor(job: Job) -> Result:
     """Executes the job locally on processor.
 
