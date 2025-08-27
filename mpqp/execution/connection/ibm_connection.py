@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING
 from termcolor import colored
 from typeguard import typechecked
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import IBMDevice
 from mpqp.tools.errors import IBMRemoteExecutionError
 

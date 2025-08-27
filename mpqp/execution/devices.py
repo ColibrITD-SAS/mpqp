@@ -26,7 +26,7 @@ from abc import abstractmethod
 from enum import Enum, auto
 
 from mpqp.core.instruction.gates import Gate
-from mpqp.execution.connection.env_manager import get_env_variable
+from mpqp.environment.env_manager import get_env_variable
 
 
 class AvailableDevice(Enum):

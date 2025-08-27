@@ -7,7 +7,7 @@ from typing import Any
 from termcolor import colored
 from typeguard import typechecked
 
-from mpqp.execution.connection.env_manager import (
+from mpqp.environment.env_manager import (
     MPQP_ENV,
     get_env_variable,
     load_env_variables,

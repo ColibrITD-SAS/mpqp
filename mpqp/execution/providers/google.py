@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Union
 
-from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement.pauli_string import PauliString
 from mpqp.tools.errors import DeviceJobIncompatibleError
 
@@ -171,6 +171,7 @@ def run_cirq_observable(
         RepetitionsStoppingCriteria,
         measure_observables,
     )
+
     from mpqp.execution.job import JobStatus
 
     variances = {}
@@ -421,7 +422,7 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
         assert isinstance(job_CirqCircuit, CirqCircuit)
 
     if job.device.is_ionq():
-        from mpqp.execution.connection.env_manager import load_env_variables
+        from mpqp.environment.env_manager import load_env_variables
 
         load_env_variables()
         service = ionq.Service(default_target=job.device.value)

@@ -6,7 +6,7 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from braket.devices.device import Device as BraketDevice
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
 

@@ -17,10 +17,10 @@ from sympy import symbols
 
 from mpqp import *
 from mpqp.core.instruction.measurement import PauliString, pauli_string
-from mpqp.execution.connection.env_manager import (
+from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
 )
-from mpqp.execution.connection.env_manager import (
+from mpqp.environment.env_manager import (
     MPQP_ENV,
     get_env_variable,
     get_existing_config_str,
