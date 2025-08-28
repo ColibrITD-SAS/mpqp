@@ -14,7 +14,7 @@ from operator import (
     truediv,
 )
 from random import randint
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
 from sympy import symbols
 
@@ -42,12 +42,8 @@ from mpqp.measures import I, PauliString, X, Y, Z
 from mpqp.tools.maths import matrix_eq
 
 
-def pauli_string_combinations():
-    scalar_bin_operation = [mul, truediv, imul, itruediv]
-    homogeneous_bin_operation = [add, sub, iadd]
-    bin_operation = [matmul, imatmul]
-    un_operation = [pos, neg]
-    pauli = [
+def pauli_matrix_mapping():
+    return [
         (I, np.eye(2)),
         ((I @ I), np.eye(4)),
         ((I + I), (2 * np.eye(2))),
@@ -57,36 +53,88 @@ def pauli_string_combinations():
         ((2 * I), (2 * np.eye(2))),
         ((symbols("a") * I), (symbols("a") * np.eye(2))),
     ]
-    result = []
-
-    for ps in pauli:
-        for op in scalar_bin_operation:
-            a = randint(1, 9)
-            ps_ = deepcopy(ps[0])
-            ps_matrix = deepcopy(ps[1])
-            result.append((op(ps_, a), op(ps_matrix, a)))
-        for op in un_operation:
-            result.append((op(ps[0]), op(ps[1])))
-    for ps_1, ps_2 in product(pauli, repeat=2):
-        for op in bin_operation:
-            converted_op = op if (op != matmul and op != imatmul) else np.kron
-            ps1 = deepcopy(ps_1[0])
-            ps1_matrix = deepcopy(ps_1[1])
-            result.append((op(ps1, ps_2[0]), converted_op(ps1_matrix, ps_2[1])))
-        if ps_1[0].nb_qubits == ps_2[0].nb_qubits:
-            for op in homogeneous_bin_operation:
-                ps1 = deepcopy(ps_1[0])
-                ps1_matrix = deepcopy(ps_1[1])
-                if ps_2[1].dtype == object:
-                    ps1_matrix = np.array(ps1_matrix, dtype=object)
-                result.append((op(ps1, ps_2[0]), op(ps1_matrix, ps_2[1])))
-
-    return result
 
 
-@pytest.mark.parametrize("ps, matrix", pauli_string_combinations())
-def test_operations(ps: PauliString, matrix: npt.NDArray[np.complex128]):
-    assert matrix_eq(ps.to_matrix(), matrix)
+@pytest.mark.parametrize(
+    "ps, matrix, op",
+    (
+        (ps, matrix, op)
+        for (ps, matrix), op in product(
+            pauli_matrix_mapping(), [mul, truediv, imul, itruediv]
+        )
+    ),
+)
+def test_scalar_bin_operation(
+    ps: PauliString, matrix: npt.NDArray[np.complex128], op: Callable[[Any, Any], Any]
+):
+    a = randint(1, 9)
+    ps_clean = deepcopy(ps)
+    matrix_clean = deepcopy(matrix)
+    assert matrix_eq(op(ps_clean, a).to_matrix(), op(matrix_clean, a))
+
+
+@pytest.mark.parametrize(
+    "ps, matrix, op",
+    (
+        (ps, matrix, op)
+        for (ps, matrix), op in product(pauli_matrix_mapping(), [pos, neg])
+    ),
+)
+def test_un_operation(
+    ps: PauliString, matrix: npt.NDArray[np.complex128], op: Callable[[Any], Any]
+):
+    assert matrix_eq(op(ps).to_matrix(), op(matrix))
+
+
+@pytest.mark.parametrize(
+    "ps1, ps2, matrix1, matrix2, op",
+    (
+        (ps1, ps2, matrix1, matrix2, op)
+        for (ps1, matrix1), (ps2, matrix2), op in product(
+            pauli_matrix_mapping(), pauli_matrix_mapping(), [matmul, imatmul]
+        )
+    ),
+)
+def test_bin_operation(
+    ps1: PauliString,
+    ps2: PauliString,
+    matrix1: npt.NDArray[np.complex128],
+    matrix2: npt.NDArray[np.complex128],
+    op: Callable[[Any, Any], Any],
+):
+    clean_ps1 = deepcopy(ps1)
+    clean_matrix1 = deepcopy(matrix1)
+    print(ps1)
+    print(ps2)
+    ps1 @= ps1
+    print(ps1)
+    assert False
+    # assert matrix_eq(op(clean_ps1, ps2).to_matrix(), np.kron(clean_matrix1, matrix2))
+
+
+@pytest.mark.parametrize(
+    "ps1, ps2, matrix1, matrix2, op",
+    (
+        (ps1, ps2, matrix1, matrix2, op)
+        for (ps1, matrix1), (ps2, matrix2), op in product(
+            pauli_matrix_mapping(), pauli_matrix_mapping(), [add, sub, iadd]
+        )
+    ),
+)
+def test_homogeneous_bin_operation(
+    ps1: PauliString,
+    ps2: PauliString,
+    matrix1: npt.NDArray[np.complex128],
+    matrix2: npt.NDArray[np.complex128],
+    op: Callable[[Any, Any], Any],
+):
+    clean_ps1 = deepcopy(ps1)
+    clean_matrix1 = deepcopy(matrix1)
+    if clean_ps1.nb_qubits != ps2.nb_qubits:
+        return
+    if matrix2.dtype == object:
+        clean_matrix1 = np.array(clean_matrix1, dtype=object)
+    assert matrix_eq(op(clean_ps1, ps2).to_matrix(), np.kron(clean_matrix1, matrix2))
 
 
 @pytest.mark.parametrize(
@@ -168,68 +216,83 @@ def test_subs(
 a, b, c = LineQubit.range(3)
 
 
-def pauli_strings_in_all_languages():
+def pauli_strings_in_all_languages() -> list[
+    dict[
+        Optional[Language],
+        Union[PauliSum, BraketSum, "SparsePauliOp", Term, PauliString],
+    ]
+]:
     from qiskit.quantum_info import SparsePauliOp
 
     return [
-        (
-            Cirq_X(a) + Cirq_Y(b) + Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
-            Braket_X() @ Braket_I() @ Braket_I()
+        {
+            Language.CIRQ: Cirq_X(a)
+            + Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
+            + Cirq_Z(c),
+            Language.BRAKET: Braket_X() @ Braket_I() @ Braket_I()
             + Braket_I() @ Braket_Y() @ Braket_I()
             + Braket_I() @ Braket_I() @ Braket_Z(),
-            SparsePauliOp(["IIX", "IYI", "ZII"]),
-            [Term(1, "X", [0]), Term(1, "Y", [1]), Term(1, "Z", [2])],
-            X @ I @ I + I @ Y @ I + I @ I @ Z,
-        ),
-        (
-            Cirq_X(a) * Cirq_Y(b) * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
-            Braket_X() @ Braket_Y() @ Braket_Z(),
-            SparsePauliOp(["ZYX"]),
-            Term(1, "XYZ", [0, 1, 2]),
-            X @ Y @ Z,
-        ),
-        (
-            Cirq_I(a) + Cirq_Z(b) + Cirq_X(c),
-            Braket_I() @ Braket_I() @ Braket_I()
+            Language.QISKIT: SparsePauliOp(["IIX", "IYI", "ZII"]),
+            Language.MY_QLM: [Term(1, "X", [0]), Term(1, "Y", [1]), Term(1, "Z", [2])],
+            None: X @ I @ I + I @ Y @ I + I @ I @ Z,
+        },
+        {
+            Language.CIRQ: Cirq_X(a)
+            * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
+            * Cirq_Z(c),
+            Language.BRAKET: Braket_X() @ Braket_Y() @ Braket_Z(),
+            Language.QISKIT: SparsePauliOp(["ZYX"]),
+            Language.MY_QLM: Term(1, "XYZ", [0, 1, 2]),
+            None: X @ Y @ Z,
+        },
+        {
+            Language.CIRQ: Cirq_I(a) + Cirq_Z(b) + Cirq_X(c),
+            Language.BRAKET: Braket_I() @ Braket_I() @ Braket_I()
             + Braket_I() @ Braket_Z() @ Braket_I()
             + Braket_I() @ Braket_I() @ Braket_X(),
-            SparsePauliOp(["III", "IZI", "XII"]),
-            [Term(1, "I", [0]), Term(1, "Z", [1]), Term(1, "X", [2])],
-            I @ I @ I + I @ Z @ I + I @ I @ X,
-        ),
-        (
-            Cirq_Y(a) * Cirq_Z(b) * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
-            Braket_Y() @ Braket_Z() @ Braket_X(),
-            SparsePauliOp(["XZY"]),
-            Term(1, "YZX", [0, 1, 2]),
-            Y @ Z @ X,
-        ),
-        (
-            Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
-            Braket_Z() @ Braket_Y() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_X(),
-            SparsePauliOp(["IYZ", "XII"]),
-            [Term(1, "ZY", [0, 1]), Term(1, "X", [2])],
-            Z @ Y @ I + I @ I @ X,
-        ),
-        (
-            Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
-            Braket_X() @ Braket_I() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
-            SparsePauliOp(["IIX", "YII"]),
-            [Term(1, "X", [0]), Term(1, "Y", [2])],
-            X @ I @ I + I @ I @ Y,
-        ),
-        (
-            Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
-            Braket_I() @ Braket_X() @ Braket_I() + Braket_I() @ Braket_I() @ Braket_Y(),
-            SparsePauliOp(["IXI", "YII"]),
-            [Term(1, "X", [1]), Term(1, "Y", [2])],
-            I @ X @ I + I @ I @ Y,
-        ),
-        (
-            2 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            Language.QISKIT: SparsePauliOp(["III", "IZI", "XII"]),
+            Language.MY_QLM: [Term(1, "I", [0]), Term(1, "Z", [1]), Term(1, "X", [2])],
+            None: I @ I @ I + I @ Z @ I + I @ I @ X,
+        },
+        {
+            Language.CIRQ: Cirq_Y(a)
+            * Cirq_Z(b)  # pyright: ignore[reportOperatorIssue]
+            * Cirq_X(c),
+            Language.BRAKET: Braket_Y() @ Braket_Z() @ Braket_X(),
+            Language.QISKIT: SparsePauliOp(["XZY"]),
+            Language.MY_QLM: Term(1, "YZX", [0, 1, 2]),
+            None: Y @ Z @ X,
+        },
+        {
+            Language.CIRQ: Cirq_Z(a) * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
+            + Cirq_X(c),
+            Language.BRAKET: Braket_Z() @ Braket_Y() @ Braket_I()
+            + Braket_I() @ Braket_I() @ Braket_X(),
+            Language.QISKIT: SparsePauliOp(["IYZ", "XII"]),
+            Language.MY_QLM: [Term(1, "ZY", [0, 1]), Term(1, "X", [2])],
+            None: Z @ Y @ I + I @ I @ X,
+        },
+        {
+            Language.CIRQ: Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
+            Language.BRAKET: Braket_X() @ Braket_I() @ Braket_I()
+            + Braket_I() @ Braket_I() @ Braket_Y(),
+            Language.QISKIT: SparsePauliOp(["IIX", "YII"]),
+            Language.MY_QLM: [Term(1, "X", [0]), Term(1, "Y", [2])],
+            None: X @ I @ I + I @ I @ Y,
+        },
+        {
+            Language.CIRQ: Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
+            Language.BRAKET: Braket_I() @ Braket_X() @ Braket_I()
+            + Braket_I() @ Braket_I() @ Braket_Y(),
+            Language.QISKIT: SparsePauliOp(["IXI", "YII"]),
+            Language.MY_QLM: [Term(1, "X", [1]), Term(1, "Y", [2])],
+            None: I @ X @ I + I @ I @ Y,
+        },
+        {
+            Language.CIRQ: 2 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
             + 3 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
             + 4 * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
-            2
+            Language.BRAKET: 2
             * Braket_X()  # pyright: ignore[reportOperatorIssue]
             @ Braket_I()
             @ Braket_I()
@@ -241,210 +304,238 @@ def pauli_strings_in_all_languages():
             * Braket_I()  # pyright: ignore[reportOperatorIssue]
             @ Braket_I()
             @ Braket_Z(),
-            SparsePauliOp(["IIX", "IYI", "ZII"], coeffs=np.array([2, 3, 4])),
-            [Term(2, "X", [0]), Term(3, "Y", [1]), Term(4, "Z", [2])],
-            2 * X @ I @ I + 3 * I @ Y @ I + 4 * I @ I @ Z,
-        ),
-        (
-            -Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            Language.QISKIT: SparsePauliOp(
+                ["IIX", "IYI", "ZII"], coeffs=np.array([2, 3, 4])
+            ),
+            Language.MY_QLM: [Term(2, "X", [0]), Term(3, "Y", [1]), Term(4, "Z", [2])],
+            None: 2 * X @ I @ I + 3 * I @ Y @ I + 4 * I @ I @ Z,
+        },
+        {
+            Language.CIRQ: -Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
             * (1.5 * Cirq_Y(b))  # pyright: ignore[reportOperatorIssue]
             * (0.5 * Cirq_Z(c)),  # pyright: ignore[reportOperatorIssue]
-            (-1 * Braket_X())  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: (-1 * Braket_X())  # pyright: ignore[reportOperatorIssue]
             @ (1.5 * Braket_Y())  # pyright: ignore[reportOperatorIssue]
             @ (0.5 * Braket_Z()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["ZYX"], coeffs=np.array([-1 * 1.5 * 0.5])),
-            Term(-0.75, "XYZ", [0, 1, 2]),
-            -X @ (1.5 * Y) @ (0.5 * Z),
-        ),
-        (
-            0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
+            Language.QISKIT: SparsePauliOp(["ZYX"], coeffs=np.array([-1 * 1.5 * 0.5])),
+            Language.MY_QLM: Term(-0.75, "XYZ", [0, 1, 2]),
+            None: -X @ (1.5 * Y) @ (0.5 * Z),
+        },
+        {
+            Language.CIRQ: 0.5
+            * Cirq_Z(a)  # pyright: ignore[reportOperatorIssue]
+            * 0.5
+            * Cirq_Y(b)
             + 2 * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
-            (0.5 * Braket_Z())  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: (0.5 * Braket_Z())  # pyright: ignore[reportOperatorIssue]
             @ (0.5 * Braket_Y())  # pyright: ignore[reportOperatorIssue]
             @ Braket_I()
             + Braket_I()
             @ Braket_I()
             @ (2 * Braket_X()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["IYZ", "XII"], coeffs=np.array([0.5 * 0.5, 2])),
-            [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])],
-            ((0.5 * Z) @ (0.5 * Y) @ I) + (2 * I @ I @ X),
-        ),
-        (
-            1.5 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            Language.QISKIT: SparsePauliOp(
+                ["IYZ", "XII"], coeffs=np.array([0.5 * 0.5, 2])
+            ),
+            Language.MY_QLM: [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])],
+            None: ((0.5 * Z) @ (0.5 * Y) @ I) + (2 * I @ I @ X),
+        },
+        {
+            Language.CIRQ: 1.5 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
             + Cirq_I(b) * -2.5 * Cirq_Y(c),
-            1.5
+            Language.BRAKET: 1.5
             * Braket_X()  # pyright: ignore[reportOperatorIssue]
             @ Braket_I()
             @ Braket_I()
             + Braket_I()
             @ Braket_I()
             @ (-2.5 * Braket_Y()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["IIX", "YII"], coeffs=np.array([1.5, -2.5])),
-            [Term(1.5, "X", [0]), Term(-2.5, "Y", [2])],
-            (1.5 * X @ I @ I) + (I @ I @ (-2.5 * Y)),
-        ),
-        (
-            0.25 * Cirq_I(a) * 4 * Cirq_X(b)
+            Language.QISKIT: SparsePauliOp(
+                ["IIX", "YII"], coeffs=np.array([1.5, -2.5])
+            ),
+            Language.MY_QLM: [Term(1.5, "X", [0]), Term(-2.5, "Y", [2])],
+            None: (1.5 * X @ I @ I) + (I @ I @ (-2.5 * Y)),
+        },
+        {
+            Language.CIRQ: 0.25 * Cirq_I(a) * 4 * Cirq_X(b)
             + 3 * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
-            (0.25 * Braket_I())  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: (0.25 * Braket_I())  # pyright: ignore[reportOperatorIssue]
             @ (4 * Braket_X())  # pyright: ignore[reportOperatorIssue]
             @ Braket_I()
             + Braket_I()
             @ Braket_I()
             @ (3 * Braket_Y()),  # pyright: ignore[reportOperatorIssue]
-            SparsePauliOp(["IXI", "YII"], coeffs=np.array([0.25 * 4, 3])),
-            [Term(4 * 0.25, "X", [1]), Term(3, "Y", [2])],
-            ((0.25 * I) @ (4 * X) @ I) + (I @ I @ (3 * Y)),
-        ),
-        (
-            Cirq_I(a),
-            Braket_I(),
-            SparsePauliOp(["I"]),
-            Term(1, "I", [0]),
-            I,
-        ),
-        (
-            Cirq_X(a),
-            Braket_X(),
-            SparsePauliOp(["X"]),
-            Term(1, "X", [0]),
-            X,
-        ),
-        (
-            Cirq_Z(a),
-            Braket_Z(),
-            SparsePauliOp(["Z"]),
-            Term(1, "Z", [0]),
-            Z,
-        ),
-        (
-            Cirq_Y(a),
-            Braket_Y(),
-            SparsePauliOp(["Y"]),
-            Term(1, "Y", [0]),
-            Y,
-        ),
-        (
-            1 * Cirq_I(b),
-            Braket_I() @ Braket_I(),
-            SparsePauliOp(["II"]),
-            Term(1, "II", [0, 1]),
-            I @ I,
-        ),
-        (
-            1 * Cirq_X(b),  # pyright: ignore[reportOperatorIssue]
-            Braket_I() @ Braket_X(),
-            SparsePauliOp(["XI"]),
-            Term(1, "X", [1]),
-            I @ X,
-        ),
-        (
-            1 * Cirq_Z(b),  # pyright: ignore[reportOperatorIssue]
-            Braket_I() @ Braket_Z(),
-            SparsePauliOp(["ZI"]),
-            Term(1, "Z", [1]),
-            I @ Z,
-        ),
-        (
-            1 * Cirq_Y(b),  # pyright: ignore[reportOperatorIssue]
-            Braket_I() @ Braket_Y(),
-            SparsePauliOp(["YI"]),
-            Term(1, "Y", [1]),
-            I @ Y,
-        ),
-        (
-            1 * Cirq_I(a) + 1 * Cirq_I(a),
-            Braket_I() + Braket_I(),
-            SparsePauliOp(["I", "I"]),
-            [Term(1, "I", [0]), Term(1, "I", [0])],
-            I + I,
-        ),
-        (
-            1 * Cirq_I(a) + 1 * Cirq_X(a),  # pyright: ignore[reportOperatorIssue]
-            Braket_I() + Braket_X(),
-            SparsePauliOp(["I", "X"]),
-            [Term(1, "I", [0]), Term(1, "X", [0])],
-            I + X,
-        ),
-        (
-            1 * Cirq_X(a) + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
-            Braket_Z() + Braket_X(),
-            SparsePauliOp(["Z", "X"]),
-            [Term(1, "Z", [0]), Term(1, "X", [0])],
-            Z + X,
-        ),
-        (
-            1 * Cirq_Y(a) + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
-            Braket_Y() + Braket_Z(),
-            SparsePauliOp(["Y", "Z"]),
-            [Term(1, "Y", [0]), Term(1, "Z", [0])],
-            Y + Z,
-        ),
-        (
-            1 * Cirq_X(a) + 1 * Cirq_Y(a),  # pyright: ignore[reportOperatorIssue]
-            Braket_X() + Braket_Y(),
-            SparsePauliOp(["X", "Y"]),
-            [Term(1, "X", [0]), Term(1, "Y", [0])],
-            X + Y,
-        ),
+            Language.QISKIT: SparsePauliOp(
+                ["IXI", "YII"], coeffs=np.array([0.25 * 4, 3])
+            ),
+            Language.MY_QLM: [Term(4 * 0.25, "X", [1]), Term(3, "Y", [2])],
+            None: ((0.25 * I) @ (4 * X) @ I) + (I @ I @ (3 * Y)),
+        },
+        {
+            Language.CIRQ: Cirq_I(a),
+            Language.BRAKET: Braket_I(),
+            Language.QISKIT: SparsePauliOp(["I"]),
+            Language.MY_QLM: Term(1, "I", [0]),
+            None: I,
+        },
+        {
+            Language.CIRQ: Cirq_X(a),
+            Language.BRAKET: Braket_X(),
+            Language.QISKIT: SparsePauliOp(["X"]),
+            Language.MY_QLM: Term(1, "X", [0]),
+            None: X,
+        },
+        {
+            Language.CIRQ: Cirq_Z(a),
+            Language.BRAKET: Braket_Z(),
+            Language.QISKIT: SparsePauliOp(["Z"]),
+            Language.MY_QLM: Term(1, "Z", [0]),
+            None: Z,
+        },
+        {
+            Language.CIRQ: Cirq_Y(a),
+            Language.BRAKET: Braket_Y(),
+            Language.QISKIT: SparsePauliOp(["Y"]),
+            Language.MY_QLM: Term(1, "Y", [0]),
+            None: Y,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_I(b),
+            Language.BRAKET: Braket_I() @ Braket_I(),
+            Language.QISKIT: SparsePauliOp(["II"]),
+            Language.MY_QLM: Term(1, "II", [0, 1]),
+            None: I @ I,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_X(b),  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: Braket_I() @ Braket_X(),
+            Language.QISKIT: SparsePauliOp(["XI"]),
+            Language.MY_QLM: Term(1, "X", [1]),
+            None: I @ X,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_Z(b),  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: Braket_I() @ Braket_Z(),
+            Language.QISKIT: SparsePauliOp(["ZI"]),
+            Language.MY_QLM: Term(1, "Z", [1]),
+            None: I @ Z,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_Y(b),  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: Braket_I() @ Braket_Y(),
+            Language.QISKIT: SparsePauliOp(["YI"]),
+            Language.MY_QLM: Term(1, "Y", [1]),
+            None: I @ Y,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_I(a) + 1 * Cirq_I(a),
+            Language.BRAKET: Braket_I() + Braket_I(),
+            Language.QISKIT: SparsePauliOp(["I", "I"]),
+            Language.MY_QLM: [Term(1, "I", [0]), Term(1, "I", [0])],
+            None: I + I,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_I(a)
+            + 1 * Cirq_X(a),  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: Braket_I() + Braket_X(),
+            Language.QISKIT: SparsePauliOp(["I", "X"]),
+            Language.MY_QLM: [Term(1, "I", [0]), Term(1, "X", [0])],
+            None: I + X,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: Braket_Z() + Braket_X(),
+            Language.QISKIT: SparsePauliOp(["Z", "X"]),
+            Language.MY_QLM: [Term(1, "Z", [0]), Term(1, "X", [0])],
+            None: Z + X,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_Y(a)  # pyright: ignore[reportOperatorIssue]
+            + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: Braket_Y() + Braket_Z(),
+            Language.QISKIT: SparsePauliOp(["Y", "Z"]),
+            Language.MY_QLM: [Term(1, "Y", [0]), Term(1, "Z", [0])],
+            None: Y + Z,
+        },
+        {
+            Language.CIRQ: 1 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+            + 1 * Cirq_Y(a),  # pyright: ignore[reportOperatorIssue]
+            Language.BRAKET: Braket_X() + Braket_Y(),
+            Language.QISKIT: SparsePauliOp(["X", "Y"]),
+            Language.MY_QLM: [Term(1, "X", [0]), Term(1, "Y", [0])],
+            None: X + Y,
+        },
     ]
 
 
 @pytest.mark.parametrize(
-    "cirq_ps, braket_ps, qiskit_ps, my_qml_ps, mpqp_ps",
+    "pauli_strings",
     pauli_strings_in_all_languages(),
 )
 def test_from_other_language(
-    cirq_ps: PauliSum,
-    braket_ps: BraketSum,
-    qiskit_ps: "SparsePauliOp",
-    my_qml_ps: Term,
-    mpqp_ps: PauliString,
+    pauli_strings: dict[
+        Optional[Language],
+        Union[PauliSum, BraketSum, "SparsePauliOp", Term, PauliString],
+    ],
 ):
-    assert PauliString.from_other_language(cirq_ps, mpqp_ps.nb_qubits) == mpqp_ps
-    assert PauliString.from_other_language(braket_ps) == mpqp_ps
-    assert PauliString.from_other_language(qiskit_ps) == mpqp_ps
-    assert PauliString.from_other_language(my_qml_ps) == mpqp_ps
+    mpqp_ps = pauli_strings[None]
+    assert isinstance(mpqp_ps, PauliString)
+    for language, ps in pauli_strings.items():
+        assert (
+            PauliString.from_other_language(
+                ps, mpqp_ps.nb_qubits if language == Language.CIRQ else 1
+            )
+            == mpqp_ps
+        )
 
 
 @pytest.mark.parametrize(
-    "cirq_ps, braket_ps, qiskit_ps, my_qml_ps, mpqp_ps",
+    "pauli_strings",
     pauli_strings_in_all_languages(),
 )
 def test_to_other_language(
-    cirq_ps: PauliSum,
-    braket_ps: BraketSum,
-    qiskit_ps: "SparsePauliOp",
-    my_qml_ps: Term,
-    mpqp_ps: PauliString,
+    pauli_strings: dict[
+        Optional[Language],
+        Union[PauliSum, BraketSum, "SparsePauliOp", Term, PauliString],
+    ],
 ):
-    assert mpqp_ps.to_other_language(Language.CIRQ) == cirq_ps
-    assert repr(mpqp_ps.to_other_language(Language.BRAKET)) == repr(braket_ps)
-    assert mpqp_ps.to_other_language(Language.QISKIT) == qiskit_ps
-    assert mpqp_ps.to_other_language(Language.MY_QLM) == my_qml_ps
+    mpqp_ps = pauli_strings[None]
+    assert isinstance(mpqp_ps, PauliString)
+    for language, ps in pauli_strings.items():
+        if language is not None:
+            if language == Language.BRAKET:
+                assert repr(mpqp_ps.to_other_language(language)) == repr(ps)
+            else:
+                assert mpqp_ps.to_other_language(language) == ps
 
 
 @pytest.mark.parametrize(
-    "mpqp_ps", [all_ps[-1] for all_ps in pauli_strings_in_all_languages()]
+    "mpqp_ps, language",
+    product(
+        [all_ps[None] for all_ps in pauli_strings_in_all_languages()],
+        [Language.BRAKET, Language.CIRQ, Language.MY_QLM, Language.QISKIT],
+    ),
 )
-def test_to_from_other_language(
-    mpqp_ps: PauliString,
-):
+def test_to_from_other_language(mpqp_ps: PauliString, language: Language):
+    print(
+        PauliString.from_other_language(
+            mpqp_ps.to_other_language(language),
+            mpqp_ps.nb_qubits if language == Language.CIRQ else 1,
+        ).to_dict()  # type: ignore
+    )
+    print(
+        PauliString.from_other_language(
+            mpqp_ps.to_other_language(language),
+            mpqp_ps.nb_qubits if language == Language.CIRQ else 1,
+        )
+        .monomials[0]  # type: ignore
+        .coef
+    )
+    print(mpqp_ps.to_dict())
     assert (
         PauliString.from_other_language(
-            mpqp_ps.to_other_language(Language.CIRQ), mpqp_ps.nb_qubits
+            mpqp_ps.to_other_language(language),
+            mpqp_ps.nb_qubits if language == Language.CIRQ else 1,
         )
-        == mpqp_ps
-    )
-    assert (
-        PauliString.from_other_language(mpqp_ps.to_other_language(Language.BRAKET))
-        == mpqp_ps
-    )
-    assert (
-        PauliString.from_other_language(mpqp_ps.to_other_language(Language.QISKIT))
-        == mpqp_ps
-    )
-    assert (
-        PauliString.from_other_language(mpqp_ps.to_other_language(Language.MY_QLM))
         == mpqp_ps
     )
