@@ -973,7 +973,7 @@ class PauliStringMonomial(PauliString):
             return self
         elif isinstance(other, PauliStringMonomial):
             new_coef: "Coef" = (
-                self.coef / other.coef
+                self.coef * other.coef
             )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
             self.coef = new_coef
             self.atoms.extend(other.atoms)

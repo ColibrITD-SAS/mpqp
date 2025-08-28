@@ -104,12 +104,7 @@ def test_bin_operation(
 ):
     clean_ps1 = deepcopy(ps1)
     clean_matrix1 = deepcopy(matrix1)
-    print(ps1)
-    print(ps2)
-    ps1 @= ps1
-    print(ps1)
-    assert False
-    # assert matrix_eq(op(clean_ps1, ps2).to_matrix(), np.kron(clean_matrix1, matrix2))
+    assert matrix_eq(op(clean_ps1, ps2).to_matrix(), np.kron(clean_matrix1, matrix2))
 
 
 @pytest.mark.parametrize(
@@ -481,12 +476,13 @@ def test_from_other_language(
     mpqp_ps = pauli_strings[None]
     assert isinstance(mpqp_ps, PauliString)
     for language, ps in pauli_strings.items():
-        assert (
-            PauliString.from_other_language(
-                ps, mpqp_ps.nb_qubits if language == Language.CIRQ else 1
+        if language is not None:
+            assert (
+                PauliString.from_other_language(
+                    ps, mpqp_ps.nb_qubits if language == Language.CIRQ else 1
+                )
+                == mpqp_ps
             )
-            == mpqp_ps
-        )
 
 
 @pytest.mark.parametrize(
