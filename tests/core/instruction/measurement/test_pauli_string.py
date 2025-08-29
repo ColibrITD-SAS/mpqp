@@ -129,7 +129,7 @@ def test_homogeneous_bin_operation(
         return
     if matrix2.dtype == object:
         clean_matrix1 = np.array(clean_matrix1, dtype=object)
-    assert matrix_eq(op(clean_ps1, ps2).to_matrix(), np.kron(clean_matrix1, matrix2))
+    assert matrix_eq(op(clean_ps1, ps2).to_matrix(), op(clean_matrix1, matrix2))
 
 
 @pytest.mark.parametrize(
