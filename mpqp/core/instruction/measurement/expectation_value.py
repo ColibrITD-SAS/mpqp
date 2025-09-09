@@ -65,7 +65,7 @@ class Observable:
         Observable(array([[ 1, 0], [ 0, -1]]))
 
         >>> Observable(3 * PI @ PZ + 4 * PX @ PY)
-        Observable(3*I@Z + 4*X@Y)
+        Observable(3*PI@PZ + 4*PX@PY)
 
         >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
         Observable([ 1., -2., 3., -4.])
@@ -134,7 +134,7 @@ class Observable:
     def matrix(self) -> Matrix:
         """The matrix representation of the observable."""
         if self._matrix is None:
-            if self.is_diagonal is True and self._diag_elements is not None:
+            if self.is_diagonal and self._diag_elements is not None:
                 if TYPE_CHECKING:
                     assert isinstance(self._diag_elements, np.ndarray)
                 self._matrix = np.diag(self._diag_elements.astype(np.complex128))
@@ -147,7 +147,7 @@ class Observable:
     def pauli_string(self) -> PauliString:
         """The PauliString representation of the observable."""
         if self._pauli_string is None:
-            if self.is_diagonal is True:
+            if self.is_diagonal:
                 self._pauli_string = PauliString.from_diagonal_elements(
                     self.diagonal_elements
                 )
@@ -160,9 +160,7 @@ class Observable:
     def diagonal_elements(self) -> npt.NDArray[np.float64]:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
-            self._diag_elements = (
-                np.diagonal(self.matrix).real.flatten().astype(np.float64)
-            )
+            self._diag_elements = np.diagonal(self.matrix).real.astype(np.float64)
         return copy.deepcopy(self._diag_elements)
 
     @matrix.setter
@@ -244,7 +242,7 @@ class Observable:
         return self._is_diagonal
 
     def __repr__(self) -> str:
-        if self._is_diagonal is True and self._diag_elements is not None:
+        if self._is_diagonal and self._diag_elements is not None:
             data = f"{np.array2string(self._diag_elements, separator=', ')}"
         elif self._matrix is not None:
             data = f"{one_lined_repr(self._matrix)}"
@@ -263,8 +261,8 @@ class Observable:
         # TODO : distinguer si on a l'observable ou le pauli string
         # TODO: traitement spécifique si observable diagonal ?
 
-        if self.is_diagonal is True:
-            if obs.is_diagonal is True:
+        if self.is_diagonal:
+            if obs.is_diagonal:
                 return True
             # TODO: check if self is multiple of identity
 
@@ -328,8 +326,8 @@ class Observable:
             return False
 
         if self.nb_qubits == other.nb_qubits and self.label == other.label:
-            if self._is_diagonal is True:
-                if other.is_diagonal is True:
+            if self._is_diagonal:
+                if other.is_diagonal:
                     return matrix_eq(self.diagonal_elements, other.diagonal_elements)
                 return False
             elif self._matrix is not None:

@@ -74,7 +74,7 @@ class PauliString:
 
     Example:
         >>> print(PI @ PZ + 2 * PY @ PI + PX @ PZ)
-        I@Z + X@Z + 2*Y@I
+        PI@PZ + PX@PZ + 2*PY@PI
 
     """
 
@@ -122,6 +122,9 @@ class PauliString:
         return "0" if len(sorted_ps._monomials) == 0 else sorted_ps._non_null_str()
 
     def __repr__(self):
+        return "PauliString()" if len(self._monomials) == 0 else self._non_null_str()
+
+    def build_repr(self):
         return (
             "PauliString()"
             if len(self._monomials) == 0
@@ -218,9 +221,9 @@ class PauliString:
             >>> theta, k = symbols("θ k")
             >>> ps = theta * PI @ PX + k * PZ @ PY
             >>> print(ps)
-            (θ)*I@X + (k)*Z@Y
+            (θ)*PI@PX + (k)*PZ@PY
             >>> print(ps.subs({theta: np.pi, k: 1}))
-            3.1416*I@X + Z@Y
+            3.1416*PI@PX + PZ@PY
 
         """
         new_pauli_string = PauliString()
@@ -244,7 +247,7 @@ class PauliString:
 
         Example:
             >>> print((PI @ PI - 2 *PI @ PI + PZ @ PI - PZ @ PI).simplify())
-            -1*I@I
+            -1*PI@PI
 
         """
         res = PauliString()
@@ -280,7 +283,7 @@ class PauliString:
         Example:
             >>> ps = 0.6875 * PI @ PI + 0.1275 * PI @ PZ
             >>> print(ps.round(1))
-            0.7*I@I + 0.1*I@Z
+            0.7*PI@PI + 0.1*PI@PZ
 
         """
         from sympy import Expr
@@ -309,7 +312,7 @@ class PauliString:
 
         Example:
             >>> print((2*PI@PZ + .5*PI@PX + PX@PY).sorted_monomials())
-            0.5*I@X + 2*I@Z + X@Y
+            0.5*PI@PX + 2*PI@PZ + PX@PY
         """
         return PauliString(
             sorted(self.monomials, key=lambda m: tuple(str(atom) for atom in m.atoms))
@@ -370,7 +373,7 @@ class PauliString:
 
         Example:
             >>> print(PauliString.from_matrix(np.array([[0, 1], [1, 2]])))
-            I + X - Z
+            PI + PX - PZ
 
         """
 
@@ -435,7 +438,7 @@ class PauliString:
 
         Example:
             >>> print(PauliString.from_diagonal_elements([1, -1, 4, 2]))
-            1.5*I@I + I@Z - 1.5*Z@I
+            1.5*PI@PI + PI@PZ - 1.5*PZ@PI
         """
 
         if not is_power_of_two(len(diagonal_elements)):
@@ -632,7 +635,7 @@ class PauliString:
             >>> a, b, c = LineQubit.range(3)
             >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c)
             >>> print(PauliString.from_other_language(cirq_ps))
-            2*I@I@X + 0.25*Z@Y@I
+            2*PI@PI@PX + 0.25*PZ@PY@PI
 
             >>> from braket.circuits.observables import (
             ...     Sum as BraketSum,
@@ -643,17 +646,17 @@ class PauliString:
             ... )
             >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X()
             >>> print(PauliString.from_other_language(braket_ps))
-            2*I@I@X + 0.25*Z@Y@I
+            2*PI@PI@PX + 0.25*PZ@PY@PI
 
             >>> from qiskit.quantum_info import SparsePauliOp
             >>> qiskit_ps = SparsePauliOp(["IIX", "ZYI"], coeffs=[2.0 + 0.0j, 0.25 + 0.0j])
             >>> print(PauliString.from_other_language(qiskit_ps))
-            2*I@I@X + 0.25*Z@Y@I
+            2*PI@PI@PX + 0.25*PZ@PY@PI
 
             >>> from qat.core.wrappers.observable import Term
             >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
             >>> print(PauliString.from_other_language(my_qml_ps))
-            2*I@I@X + 0.25*Z@Y@I
+            2*PI@PI@PX + 0.25*PZ@PY@PI
 
         """
         if isinstance(pauli, list) and any(
@@ -787,7 +790,7 @@ class PauliString:
 
         Example:
             >>> (1 * PI @ PZ + 2 * PI @ PI).to_dict()
-            {'II': '2', 'IZ': '1'}
+            {'PIPI': '2', 'PIPZ': '1'}
 
         """
         from sympy import simplify
@@ -891,6 +894,9 @@ class PauliStringMonomial(PauliString):
         return f"{coef}{'@'.join(map(str,self.atoms))}"
 
     def __repr__(self):
+        return str(self)
+
+    def build_repr(self):
         coef = "" if self.coef == 1 else f"{self.coef}, "
         if coef == "":
             atoms = f"{repr(self._atoms)}"
@@ -1053,7 +1059,7 @@ class PauliStringMonomial(PauliString):
         Example:
             >>> theta = symbols("θ")
             >>> print((theta * PI @ PX).subs({theta: np.pi}))
-            3.1415926536*I@X
+            3.1415926536*PI@PX
 
         """
         from mpqp.tools.display import (
@@ -1197,10 +1203,10 @@ class PauliStringAtom(PauliStringMonomial):
         super().__setattr__(name, value)
 
     def __str__(self):
-        return self.label
+        return f"P{self.label}"
 
     def __repr__(self):
-        return f"P{self.label}"
+        return str(self)
 
     def __itruediv__(self, other: Coef) -> PauliStringMonomial:
         self = self / other
@@ -1397,13 +1403,13 @@ def pauli_string_from_str(
 
     Examples:
         >>> print(pauli_string_from_str("X"))
-        X
+        PX
         >>> print(pauli_string_from_str("-YZ"))
-        -1*Y@Z
+        -1*PY@PZ
         >>> print(pauli_string_from_str("a*X", dict_value={"a": 0.5}))
-        0.5*X
+        0.5*PX
         >>> print(pauli_string_from_str("2*PX + 3*Y"))
-        (2*P)*X + 3*Y
+        (2*P)*PX + 3*PY
 
     """
     import re
@@ -1453,11 +1459,11 @@ def pauli_string_with_atom(
 
     Examples:
         >>> print(pauli_string_with_atom(1))
-        I
+        PI
         >>> print(pauli_string_with_atom(4, PZ))
-        I@I@I@Z
+        PI@PI@PI@PZ
         >>> print(pauli_string_with_atom(3, PX, 0))
-        X@I@I
+        PX@PI@PI
 
     """
     if qubit_index is None:

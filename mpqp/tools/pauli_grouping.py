@@ -19,10 +19,10 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
     """
     result = []
     for i, atoms in enumerate(group[0].atoms):
-        if atoms.name == "I":
+        if atoms.label == "I":
             all_identity = True
             for monomial in group:
-                all_identity &= monomial.atoms[i].name == "I"
+                all_identity &= monomial.atoms[i].label == "I"
                 if not all_identity:
                     for base in monomial.atoms[i].get_basis_change():
                         result.append(base(i))
@@ -49,7 +49,7 @@ def pauli_grouping_greedy(
 
     Examples:
         >>> print_list(pauli_grouping_greedy([PI@PX@PX, PY@PY@PZ, PI@PI@PI, -3*PZ@PY@PX, PY@PX@PY, -PZ@PZ@PY, 2*PX@PX@PY], CommutingTypes.FULL ))
-        [[I@X@X, Y@Y@Z, I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [Y@X@Y], [2*X@X@Y]]
+        [[PI@PX@PX, PY@PY@PZ, PI@PI@PI], [-3*PZ@PY@PX, -1*PZ@PZ@PY], [PY@PX@PY], [2*PX@PX@PY]]
     """
     groups: list[list[PauliStringMonomial]] = []
     for monomial in monomials:

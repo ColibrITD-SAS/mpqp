@@ -80,6 +80,33 @@ if TYPE_CHECKING:
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
+class _PositionedGate:
+    def __init__(self, gate: Gate, index: int):
+        self.gate = gate
+        self.index = index
+
+    def __repr__(self):
+        return f"_PositionedGate({self.gate}, {self.index})"
+
+
+class _PositionedMeasure:
+    def __init__(self, measurement: Measure, index: int):
+        self.measurement = measurement
+        self.index = index
+
+    def __repr__(self):
+        return f"_PositionedMeasure({self.measurement}, {self.index})"
+
+
+class _PositionedOtherInstruction:
+    def __init__(self, instruction: Barrier | Breakpoint, index: int):
+        self.instruction = instruction
+        self.index = index
+
+    def __repr__(self):
+        return f"_PositionedOtherInstruction({self.instruction}, {self.index})"
+
+
 @conditional_typechecked
 class QCircuit:
     """This class models a quantum circuit.
@@ -146,12 +173,12 @@ class QCircuit:
             data = []
         self.label = label
         """See parameter description."""
-        self.gates: list[Gate] = []
-        """List of gates of the circuit."""
-        self.measurements: list[Measure] = []
-        """List of measurements of the circuit."""
-        self.other_instructions: list[Barrier | Breakpoint] = []
-        """List of Barrier and Breakpoint of the circuit."""
+        self._positioned_gates: list[_PositionedGate] = []
+        """List of gates with positions in the circuit."""
+        self._positioned_measurements: list[_PositionedMeasure] = []
+        """List of measurements with positions in the circuit."""
+        self._positioned_other_instructions: list[_PositionedOtherInstruction] = []
+        """List of Barrier and Breakpoint with positions in the circuit."""
         self._index = 0
         """Index of the last instruction"""
         self.noises: list[NoiseModel] = []
@@ -202,7 +229,7 @@ class QCircuit:
                     self._nb_qubits = max(connections, default=-1) + 1
             else:
                 self._user_nb_qubits = nb_qubits
-            self.add(deepcopy(data))
+            self.add(data)
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
@@ -284,16 +311,19 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
-            components.index = self._index
-            self._index += 1
             if isinstance(components, Measure):
-                self.measurements.append(components)
+                self._positioned_measurements.append(
+                    _PositionedMeasure(components, self._index)
+                )
             elif isinstance(components, Gate):
-                self.gates.append(components)
+                self._positioned_gates.append(_PositionedGate(components, self._index))
             elif isinstance(components, (Barrier, Breakpoint)):
-                self.other_instructions.append(components)
+                self._positioned_other_instructions.append(
+                    _PositionedOtherInstruction(components, self._index)
+                )
             else:
                 raise ValueError(f"{repr(components)} not handled.")
+            self._index += 1
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -539,7 +569,16 @@ class QCircuit:
         return {
             attr_name: getattr(self, attr_name)
             for attr_name in dir(self)
-            if attr_name not in {'_nb_qubits', 'gates', 'measurements', 'breakpoints'}
+            if attr_name
+            not in {
+                '_nb_qubits',
+                'gates',
+                'measurements',
+                'other_instructions',
+                '_positioned_gates',
+                '_positioned_measurements',
+                '_positioned_other_instructions',
+            }
             and not attr_name.startswith("__")
             and not callable(getattr(self, attr_name))
         }
@@ -856,11 +895,11 @@ class QCircuit:
 
         """
         dagger = self._clone_without(
-            ["measurements", "gates", "other_instructions"], deep_copy=True
+            ["_positioned_measurements", "_positioned_gates", "_positioned_other_instructions"], deep_copy=True
         )
-        dagger.measurements = []
-        dagger.gates = []
-        dagger.other_instructions = []
+        dagger._positioned_measurements = []
+        dagger._positioned_gates = []
+        dagger._positioned_other_instructions = []
         dagger._index = 0
 
         for instr in reversed(self.instructions):
@@ -979,6 +1018,78 @@ class QCircuit:
         return len([inst for inst in self.instructions if isinstance(inst, filter2)])
 
     @property
+    def gates(self) -> list[Gate]:
+        """Returns a list of all gates in the circuit, ordered by their index.
+
+        Returns:
+            Ordered list of gates in the circuit.
+
+        Raises:
+            ValueError: If an gate is missing at any expected index.
+
+        """
+        gates: list[Gate] = []
+        for g in self._positioned_gates:
+            gates.append(g.gate)
+
+        return gates
+
+    @gates.setter
+    def gates(self, new_gates: list[Gate]):
+        self._positioned_gates = []
+        self.rebind_index()
+
+        self.add(new_gates)
+
+    @property
+    def measurements(self) -> list[Measure]:
+        """Returns a list of all measurements in the circuit, ordered by their index.
+
+        Returns:
+            Ordered list of measurements in the circuit.
+
+        Raises:
+            ValueError: If a measurement is missing at any expected index.
+
+        """
+        measurements: list[Measure] = []
+        for m in self._positioned_measurements:
+            measurements.append(m.measurement)
+
+        return measurements
+
+    @measurements.setter
+    def measurements(self, new_measurements: list[Measure]):
+        self._positioned_measurements = []
+        self.rebind_index()
+
+        self.add(new_measurements)
+
+    @property
+    def other_instructions(self) -> list[Breakpoint | Barrier]:
+        """Returns a list of all Breakpoint and Barrier in the circuit, ordered by their index.
+
+        Returns:
+            Ordered list of Breakpoint and Barrier in the circuit.
+
+        Raises:
+            ValueError: If an Breakpoint and Barrier is missing at any expected index.
+
+        """
+        instrs: list[Breakpoint | Barrier] = []
+        for o in self._positioned_other_instructions:
+            instrs.append(o.instruction)
+
+        return instrs
+
+    @other_instructions.setter
+    def other_instructions(self, new_instruction: list[Breakpoint | Barrier]):
+        self._positioned_other_instructions = []
+        self.rebind_index()
+
+        self.add(new_instruction)
+
+    @property
     def instructions(self) -> list[Instruction]:
         """Returns a list of all instructions in the circuit, ordered by their index.
         The instructions are collected from gates, measurements, and other instructions.
@@ -990,34 +1101,32 @@ class QCircuit:
             ValueError: If an instruction is missing at any expected index.
 
         """
-        instrs: list[Optional[Instruction]] = [None] * (self._index)
-        index: list[int] = []
-        for g in self.gates:
+        instrs: list[Optional[Instruction]] = [None] * (
+            len(self._positioned_gates)
+            + len(self._positioned_measurements)
+            + len(self._positioned_other_instructions)
+        )
+        for g in self._positioned_gates:
             assert g.index is not None
-            instrs[g.index] = g
-            index.append(g.index)
-        for m in self.measurements:
+            instrs[g.index] = g.gate
+        for m in self._positioned_measurements:
             assert m.index is not None
-            instrs[m.index] = m
-            index.append(m.index)
-        for o in self.other_instructions:
+            instrs[m.index] = m.measurement
+        for o in self._positioned_other_instructions:
             assert o.index is not None
-            instrs[o.index] = o
-            index.append(o.index)
+            instrs[o.index] = o.instruction
 
         for i, instr in enumerate(instrs):
             if instr is None:
-                raise ValueError(
-                    f"No instruction at position {i} in {instrs} {self.measurements}"
-                )
+                raise ValueError(f"No instruction at position {i} in {instrs}")
 
         return instrs  # pyright: ignore[reportReturnType]
 
     @instructions.setter
     def instructions(self, new_instruction: list[Instruction]):
-        self.gates = []
-        self.measurements = []
-        self.other_instructions = []
+        self._positioned_gates = []
+        self._positioned_measurements = []
+        self._positioned_other_instructions = []
         self._index = 0
 
         self.add(new_instruction)
@@ -1033,11 +1142,12 @@ class QCircuit:
         """Reassigns sequential indices to all instructions in the circuit.
         sorts them by their current index, and then reassigns indices starting from zero.
         """
-        all_instrs = self.gates + self.other_instructions + self.measurements
-        all_instrs = sorted(
-            all_instrs,
-            key=lambda inst: inst.index,  # pyright: ignore[reportArgumentType, reportCallIssue]
+        all_instrs = (
+            self._positioned_gates
+            + self._positioned_other_instructions
+            + self._positioned_measurements
         )
+        all_instrs = sorted(all_instrs, key=lambda inst: inst.index)
 
         for new_index, instr in enumerate(all_instrs):
             instr.index = new_index
@@ -1096,8 +1206,8 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = self._clone_without("measurements", deep_copy=deep_copy)
-        new_circuit.measurements = []
+        new_circuit = self._clone_without("_positioned_measurements", deep_copy=deep_copy)
+        new_circuit._positioned_measurements = []
         new_circuit._nb_cbits = 0
         new_circuit.rebind_index()
 
@@ -1112,11 +1222,11 @@ class QCircuit:
         Returns:
             A shallow copy of this circuit with all the breakpoints removed.
         """
-        new_circuit = self._clone_without("other_instructions", deep_copy=deep_copy)
-        new_circuit.other_instructions = []
-        for other in self.other_instructions:
+        new_circuit = self._clone_without("_positioned_other_instructions", deep_copy=deep_copy)
+        new_circuit._positioned_other_instructions = []
+        for other in self._positioned_other_instructions:
             if not isinstance(other, Breakpoint):
-                new_circuit.other_instructions.append(other)
+                new_circuit._positioned_other_instructions.append(other)
         new_circuit.rebind_index()
 
         return new_circuit

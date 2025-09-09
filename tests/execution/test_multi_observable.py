@@ -129,14 +129,18 @@ def test_pauli_grouping_optimization(
         )
         assert isinstance(non_optimized, Result)
         assert isinstance(optimized, Result)
+        optimized_expectation_values = optimized.expectation_values
         if isinstance(non_optimized.expectation_values, float) and isinstance(
-            optimized.expectation_values, float
+            optimized_expectation_values, float
         ):
             assert round(non_optimized.expectation_values, 10) == round(
-                optimized.expectation_values, 10
+                optimized_expectation_values, 10
             )
         else:
-            assert all(round(non_optimized.expectation_values[f"observable_{i}"], 5) == round(optimized.expectation_values[f"observable_{i}"], 5) for i in range(len(non_optimized.expectation_values)))  # type: ignore
+            for i in range(len(non_optimized.expectation_values)):
+                assert round(
+                    non_optimized.expectation_values[f"observable_{i}"], 5
+                ) == round(optimized_expectation_values[f"observable_{i}"], 5)
     else:
         assert True
 

@@ -52,8 +52,6 @@ class Instruction(SimpleClassReprABC):
         self.label = label
         """See parameter description."""
         self._dynamic = False
-        self.index: Optional[int] = None
-        """Index of this instruction in a circuit."""
 
     @property
     def nb_qubits(self) -> int:
