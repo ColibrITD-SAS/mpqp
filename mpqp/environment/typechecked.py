@@ -2,7 +2,7 @@
 This module provides a decorator for conditionally applying runtime type checking
 to functions based on the value of the ``MPQP_TYPECHECK`` environment variable.
 By default, type checking is disabled to avoid performance overhead in production environments.
-to enable type checking, set the environment variable to "True".
+To enable type checking, set the environment variable to "True".
 
 .. code-block:: python
 
