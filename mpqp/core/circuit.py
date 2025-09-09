@@ -895,7 +895,12 @@ class QCircuit:
 
         """
         dagger = self._clone_without(
-            ["_positioned_measurements", "_positioned_gates", "_positioned_other_instructions"], deep_copy=True
+            [
+                "_positioned_measurements",
+                "_positioned_gates",
+                "_positioned_other_instructions",
+            ],
+            deep_copy=True,
         )
         dagger._positioned_measurements = []
         dagger._positioned_gates = []
@@ -1206,7 +1211,9 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = self._clone_without("_positioned_measurements", deep_copy=deep_copy)
+        new_circuit = self._clone_without(
+            "_positioned_measurements", deep_copy=deep_copy
+        )
         new_circuit._positioned_measurements = []
         new_circuit._nb_cbits = 0
         new_circuit.rebind_index()
@@ -1222,7 +1229,9 @@ class QCircuit:
         Returns:
             A shallow copy of this circuit with all the breakpoints removed.
         """
-        new_circuit = self._clone_without("_positioned_other_instructions", deep_copy=deep_copy)
+        new_circuit = self._clone_without(
+            "_positioned_other_instructions", deep_copy=deep_copy
+        )
         new_circuit._positioned_other_instructions = []
         for other in self._positioned_other_instructions:
             if not isinstance(other, Breakpoint):
