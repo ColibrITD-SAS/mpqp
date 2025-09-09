@@ -179,8 +179,8 @@ class QCircuit:
         """List of measurements with positions in the circuit."""
         self._positioned_other_instructions: list[_PositionedOtherInstruction] = []
         """List of Barrier and Breakpoint with positions in the circuit."""
-        self._index = 0
-        """Index of the last instruction"""
+        self._nb_instructions = 0
+        """Number of instruction in the circuit"""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -313,17 +313,19 @@ class QCircuit:
         else:
             if isinstance(components, Measure):
                 self._positioned_measurements.append(
-                    _PositionedMeasure(components, self._index)
+                    _PositionedMeasure(components, self._nb_instructions)
                 )
             elif isinstance(components, Gate):
-                self._positioned_gates.append(_PositionedGate(components, self._index))
+                self._positioned_gates.append(
+                    _PositionedGate(components, self._nb_instructions)
+                )
             elif isinstance(components, (Barrier, Breakpoint)):
                 self._positioned_other_instructions.append(
-                    _PositionedOtherInstruction(components, self._index)
+                    _PositionedOtherInstruction(components, self._nb_instructions)
                 )
             else:
                 raise ValueError(f"{repr(components)} not handled.")
-            self._index += 1
+            self._nb_instructions += 1
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -895,12 +897,14 @@ class QCircuit:
 
         """
         dagger = self._clone_without(
-            ["_positioned_measurements", "_positioned_gates", "_positioned_other_instructions"], deep_copy=True
+            [
+                "_positioned_measurements",
+                "_positioned_gates",
+                "_positioned_other_instructions",
+                "_nb_instructions",
+            ],
+            deep_copy=True,
         )
-        dagger._positioned_measurements = []
-        dagger._positioned_gates = []
-        dagger._positioned_other_instructions = []
-        dagger._index = 0
 
         for instr in reversed(self.instructions):
             if isinstance(instr, Gate):
@@ -1127,7 +1131,7 @@ class QCircuit:
         self._positioned_gates = []
         self._positioned_measurements = []
         self._positioned_other_instructions = []
-        self._index = 0
+        self._nb_instructions = 0
 
         self.add(new_instruction)
 
@@ -1151,7 +1155,7 @@ class QCircuit:
 
         for new_index, instr in enumerate(all_instrs):
             instr.index = new_index
-        self._index = len(all_instrs)
+        self._nb_instructions = len(all_instrs)
 
     def _clone_without(
         self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = False
@@ -1170,7 +1174,7 @@ class QCircuit:
             exclude_attrs = []
         if isinstance(exclude_attrs, str):
             exclude_attrs = [exclude_attrs]
-        new_obj = QCircuit.__new__(QCircuit)
+        new_obj = QCircuit()
         for attr, val in self.__dict__.items():
             if attr not in exclude_attrs:
                 if deep_copy is True:
@@ -1186,7 +1190,7 @@ class QCircuit:
             deep_copy : If True, performs a deep copy of attribute values; otherwise, performs a shallow copy.
 
         Returns:
-            A shallow copy of this circuit with all the measurements removed.
+            A QCircuit with all the measurements removed.
 
         Example:
             >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure(shots=100)])
@@ -1206,9 +1210,9 @@ class QCircuit:
                       └───┘
 
         """
-        new_circuit = self._clone_without("_positioned_measurements", deep_copy=deep_copy)
-        new_circuit._positioned_measurements = []
-        new_circuit._nb_cbits = 0
+        new_circuit = self._clone_without(
+            ["_positioned_measurements", "_nb_cbits"], deep_copy=deep_copy
+        )
         new_circuit.rebind_index()
 
         return new_circuit
@@ -1220,10 +1224,11 @@ class QCircuit:
             deep_copy : If True, performs a deep copy of attribute values; otherwise, performs a shallow copy.
 
         Returns:
-            A shallow copy of this circuit with all the breakpoints removed.
+            A QCircuit with all the breakpoints removed.
         """
-        new_circuit = self._clone_without("_positioned_other_instructions", deep_copy=deep_copy)
-        new_circuit._positioned_other_instructions = []
+        new_circuit = self._clone_without(
+            "_positioned_other_instructions", deep_copy=deep_copy
+        )
         for other in self._positioned_other_instructions:
             if not isinstance(other, Breakpoint):
                 new_circuit._positioned_other_instructions.append(other)
@@ -1238,7 +1243,7 @@ class QCircuit:
             deep_copy : If True, performs a deep copy of attribute values; otherwise, performs a shallow copy.
 
         Returns:
-            A shallow copy of this circuit with all the noise models removed.
+            A QCircuit with all the noise models removed.
 
         Example:
             >>> circuit = QCircuit(2)
@@ -1263,7 +1268,6 @@ class QCircuit:
 
         """
         new_circuit = self._clone_without("noises", deep_copy=deep_copy)
-        new_circuit.noises = []
         return new_circuit
 
     @overload

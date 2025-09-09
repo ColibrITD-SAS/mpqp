@@ -151,8 +151,9 @@ def generate_job(
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
             m = adjust_measure(measurement, circuit)
-            c = circuit._clone_without("_positioned_measurements") # pyright: ignore[reportPrivateUsage]
-            c._positioned_measurements = [] # pyright: ignore[reportPrivateUsage]
+            c = circuit._clone_without(  # pyright: ignore[reportPrivateUsage]
+                "_positioned_measurements"
+            )
             c.rebind_index()
             c.add(m)
             job = Job(
