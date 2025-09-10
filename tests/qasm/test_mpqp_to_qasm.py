@@ -523,7 +523,7 @@ def test_random_mpqp_to_qasm():
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
         from qiskit import QuantumCircuit, qasm2
 
-        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
+        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT).reverse_bits()
         assert isinstance(qiskit_circuit, QuantumCircuit)
         qiskit_qasm = normalize_string(qasm2.dumps(qiskit_circuit))
         mpqp_qasm = qcircuit.to_other_language(Language.QASM2)

@@ -853,7 +853,7 @@ class QCircuit:
         qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:
             assert isinstance(qiskit_circuit, QuantumCircuit)
-        matrix = Operator.from_circuit(qiskit_circuit).reverse_qargs().to_matrix()
+        matrix = Operator.from_circuit(qiskit_circuit).to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
         gphase = self.gphase + self._gphase
@@ -989,8 +989,7 @@ class QCircuit:
             StatePreparation(Statevector(normalize(state))), range(size)
         )
         circ, phase = replace_custom_gate(qiskit_circuit[0], size)
-        circ = circ.reverse_bits()
-        cls = QCircuit.from_other_language(circ)
+        cls = QCircuit.from_other_language(circ.reverse_bits())
         cls.gphase = phase
         return cls
 
@@ -1439,14 +1438,15 @@ class QCircuit:
                 if isinstance(instruction, CustomGate):
                     if TYPE_CHECKING:
                         assert isinstance(qiskit_inst, Operator)
+                    qargs = [self.nb_qubits - 1 - q for q in instruction.targets]
                     new_circ.unitary(
                         qiskit_inst,
-                        list(reversed(instruction.targets)),  # dang qiskit qubits order
+                        list(reversed(qargs)),
                         instruction.label,
                     )
                 else:
                     if isinstance(instruction, ControlledGate):
-                        qargs = instruction.controls + instruction.targets
+                        qargs = instruction.targets + instruction.controls
                     elif isinstance(instruction, Gate):
                         qargs = instruction.targets
                     elif isinstance(instruction, Barrier):
@@ -1456,9 +1456,10 @@ class QCircuit:
 
                     if TYPE_CHECKING:
                         assert not isinstance(qiskit_inst, Operator)
+                    qargs = [self.nb_qubits - 1 - q for q in qargs]
                     new_circ.append(
                         qiskit_inst,
-                        qargs,
+                        list(reversed(qargs)),
                         cargs,
                     )
 
@@ -1472,7 +1473,7 @@ class QCircuit:
                         )
                         new_circ.append(
                             qiskit_pre_measure,
-                            list(reversed(pre_measure.targets)),
+                            pre_measure.targets,
                             cargs=cargs,
                         )
                 if not skip_measurements:
@@ -1484,8 +1485,10 @@ class QCircuit:
                     if isinstance(measurement, BasisMeasure):
                         if TYPE_CHECKING:
                             assert measurement.c_targets is not None
-                        qargs = [measurement.targets]
-                        cargs = [measurement.c_targets]
+                        qargs = [[self.nb_qubits - 1 - q for q in measurement.targets]]
+                        cargs = [
+                            [self.nb_qubits - 1 - q for q in measurement.c_targets]
+                        ]
                     else:
                         raise ValueError(f"measurement not handled: {measurement}")
 
@@ -1493,7 +1496,7 @@ class QCircuit:
                         assert not isinstance(qiskit_inst, Operator)
                     new_circ.append(
                         qiskit_inst,
-                        qargs,
+                        list(reversed(qargs)),
                         cargs,
                     )
 
@@ -1823,7 +1826,6 @@ class QCircuit:
             )
             if TYPE_CHECKING:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
-            qiskit_circuit = qiskit_circuit.reverse_bits()
 
             if not device.is_remote():
                 if len(self.measurements) == 1:
@@ -2242,13 +2244,15 @@ class QCircuit:
         for noise in self.noises:
             print(noise.info())
 
-        qiskit_circuit = self.to_other_language(Language.QISKIT)
+        qiskit_circuit = self.to_other_language(Language.QISKIT).reverse_bits()
         if TYPE_CHECKING:
             assert isinstance(qiskit_circuit, QuantumCircuit)
         print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
-        qiskit_circ = self.to_other_language(Language.QISKIT, printing=True)
+        qiskit_circ = self.to_other_language(
+            Language.QISKIT, printing=True
+        ).reverse_bits()
         if TYPE_CHECKING:
             from qiskit import QuantumCircuit
 

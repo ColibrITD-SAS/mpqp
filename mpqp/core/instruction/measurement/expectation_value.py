@@ -458,7 +458,7 @@ class ExpectationMeasure(Measure):
         necessary (private)."""
 
         if len(self.targets) == 0:
-            self._pre_measure = []
+            self._pre_measure: list[Gate] = []
             return
 
         if self.nb_qubits != self.observables[0].nb_qubits:
@@ -467,9 +467,9 @@ class ExpectationMeasure(Measure):
                 f"{self.observables[0].nb_qubits}."
             )
 
-        self._pre_measure = []
-        """Circuit added before the expectation measurement to correctly swap
-        target qubits when their are note ordered or contiguous."""
+        self._pre_measure: list[Gate] = []
+        """List of Gates added before the expectation measurement to correctly swap
+        target qubits when their are not ordered or contiguous."""
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )

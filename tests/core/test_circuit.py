@@ -477,10 +477,10 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 0),),"
+                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 1),),"
                 " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
                 " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
-                " 'q'), 0), Qubit(QuantumRegister(2, 'q'), 1)), clbits=())]"
+                " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
             ),
         ),
         (
@@ -489,10 +489,10 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 0),),"
+                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 1),),"
                 " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
                 " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
-                " 'q'), 0), Qubit(QuantumRegister(2, 'q'), 1)), clbits=())]"
+                " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
             ),
         ),
         (
@@ -724,8 +724,7 @@ def test_from_other_language(
 
         if not isinstance(expected_output, str):
             qcircuit = QCircuit.from_other_language(circuit)
-            circuit = circuit.reverse_bits()
-            matrix = Operator(circuit).data
+            matrix = Operator(circuit.reverse_bits()).data
             if TYPE_CHECKING:
                 assert isinstance(matrix, np.ndarray)
             assert matrix_eq(matrix, qcircuit.to_matrix())
