@@ -355,8 +355,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
 
             qubits = ""
             if isinstance(self, ControlledGate):
-                qubits = ",".join([f"q[{j}]" for j in sorted(self.controls)]) + ","
-            qubits += ",".join([f"q[{j}]" for j in sorted(self.targets)])
+                qubits = ",".join([f"q[{j}]" for j in reversed(self.controls)]) + ","
+            qubits += ",".join([f"q[{j}]" for j in reversed(self.targets)])
 
             return instruction_str + " " + qubits + ";"
         else:
