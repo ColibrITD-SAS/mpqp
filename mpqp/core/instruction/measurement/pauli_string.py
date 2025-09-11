@@ -870,6 +870,17 @@ class PauliStringMonomial(PauliString):
         return eigvals > 0
 
     def __deepcopy__(self, memo: Optional[dict[int, Any]] = None):
+        """Create a deep copy of the object.
+
+        Args:
+            memo : A dictionary used by the deepcopy machinery to track
+                already-copied objects and preserve object identity.
+                Defaults to an empty dictionary if not provided.
+
+        Returns:
+            A new instance of the same type with recursively copied attributes.
+            Specifically coef is deep-copied and atoms is shallow-copied.
+        """
         if memo is None:
             memo = {}
         if id(self) in memo:
@@ -1439,13 +1450,13 @@ def pauli_string_from_str(
 
 
 def pauli_string_with_atom(
-    n: int, atom: PauliStringAtom = PI, qubit_index: int | None = None
+    nb_qubits: int, atom: PauliStringAtom = PI, qubit_index: int | None = None
 ) -> PauliStringMonomial:
     """
     Construct a PauliStringMonomial of length n with a single specified atom at a target qubit.
 
     Args:
-        n: Total number of qubits (length of the Pauli string).
+        nb_qubits: Total number of qubits (length of the Pauli string).
         atom: The `PauliStringAtom` to insert (``PX``, ``PY``, ``PZ``, ``PI``). Defaults to ``PI``.
         qubit_index: Index of the qubit where the `atom` should be placed.
             If Non, places it at the last qubit.
@@ -1467,12 +1478,14 @@ def pauli_string_with_atom(
 
     """
     if qubit_index is None:
-        qubit_index = n - 1
-    if not (qubit_index < n):
-        raise IndexError(f"qubit_index {qubit_index} is out of range for {n} qubits")
+        qubit_index = nb_qubits - 1
+    if not (qubit_index < nb_qubits):
+        raise IndexError(
+            f"qubit_index {qubit_index} is out of range for {nb_qubits} qubits"
+        )
 
-    atoms = [PI] * n
-    if n != 0:
+    atoms = [PI] * nb_qubits
+    if nb_qubits != 0:
         atoms[qubit_index] = atom
 
     return PauliStringMonomial(1, atoms)

@@ -48,7 +48,7 @@ def pauli_grouping_greedy(
 
 
     Examples:
-        >>> print_list(pauli_grouping_greedy([PI@PX@PX, PY@PY@PZ, PI@PI@PI, -3*PZ@PY@PX, PY@PX@PY, -PZ@PZ@PY, 2*PX@PX@PY], CommutingTypes.FULL ))
+        >>> pauli_grouping_greedy([PI@PX@PX, PY@PY@PZ, PI@PI@PI, -3*PZ@PY@PX, PY@PX@PY, -PZ@PZ@PY, 2*PX@PX@PY], CommutingTypes.FULL )
         [[PI@PX@PX, PY@PY@PZ, PI@PI@PI], [-3*PZ@PY@PX, -1*PZ@PZ@PY], [PY@PX@PY], [2*PX@PX@PY]]
     """
     groups: list[list[PauliStringMonomial]] = []

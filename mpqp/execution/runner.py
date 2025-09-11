@@ -88,7 +88,6 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
                 pauli_string_with_atom,
             )
 
-            print("ok")
             pauli = (
                 pauli_string_with_atom(n_before)
                 @ obs.pauli_string

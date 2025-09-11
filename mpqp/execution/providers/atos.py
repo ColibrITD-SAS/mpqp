@@ -6,6 +6,7 @@ from statistics import mean
 from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
+from mpqp.core.instruction.measurement.pauli_string import pauli_string_with_atom
 from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.core.languages import Language
@@ -619,9 +620,7 @@ def extract_observable_result(
                 [
                     ExpectationMeasure(
                         targets=list(range(nb_qubits)),
-                        observable=Observable(
-                            np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex128)
-                        ),
+                        observable=Observable(pauli_string_with_atom(nb_qubits)),
                         shots=nb_shots,
                     )
                 ],

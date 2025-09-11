@@ -416,33 +416,18 @@ class ExpectationMeasure(Measure):
         label_counter = 0
         default_label = self.label if self.label is not None else "observable"
         for obs in observable:
-            obs_new = obs
+            new_obs = obs
             if obs.label is None:
                 while f"{default_label}_{label_counter}" in label_defined:
                     label_counter += 1
-                if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-                    obs_new = Observable(
-                        obs._pauli_string,  # pyright: ignore[reportPrivateUsage]
-                        f"{default_label}_{label_counter}",
-                    )
-                elif obs._matrix is not None:  # pyright: ignore[reportPrivateUsage]
-                    obs_new = Observable(
-                        obs._matrix,  # pyright: ignore[reportPrivateUsage]
-                        f"{default_label}_{label_counter}",
-                    )
-                else:
-                    assert (
-                        obs._diag_elements  # pyright: ignore[reportPrivateUsage]
-                        is not None
-                    )
-                    obs_new = Observable(
-                        obs._diag_elements,  # pyright: ignore[reportPrivateUsage]
-                        f"{default_label}_{label_counter}",
-                    )
-                obs_new.transpile = obs.transpile
+                # Create a new instance of Observable with the new label
+                new_obs = Observable.__new__(Observable)
+                for attr, val in obs.__dict__.items():
+                    setattr(new_obs, attr, val)
+                new_obs.label = f"{default_label}_{label_counter}"
 
                 label_counter += 1
-            self.observables.append(obs_new)
+            self.observables.append(new_obs)
         self._check_targets_order()
 
     @property

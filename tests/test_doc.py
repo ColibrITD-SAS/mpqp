@@ -111,7 +111,6 @@ from mpqp.tools.display import (
     format_element,
     format_element_str,
     pprint,
-    print_list,
 )
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,

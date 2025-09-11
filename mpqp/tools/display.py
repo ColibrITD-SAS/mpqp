@@ -59,8 +59,8 @@ def with_sign(val: np.complex128) -> str:
 
 @conditional_typechecked
 def _remove_null_imag(
-    val: np.complex128 | np.complex128,
-) -> np.complex128 | np.complex128 | np.float32 | int:
+    val: np.complex128,
+) -> np.complex128 | np.float64 | int:
     val = np.round(val, 3)
     if val.imag != 0:
         return val
@@ -69,9 +69,9 @@ def _remove_null_imag(
 
 @conditional_typechecked
 def _remove_unnecessary_decimals(
-    val: np.float32 | np.float64 | int,
-) -> np.float32 | int:
-    val = np.float32(val)
+    val: np.float64 | int,
+) -> np.float64 | int:
+    val = np.float64(val)
     if val.is_integer():
         return int(val)
     return val
@@ -398,23 +398,6 @@ def pprint(
             raise ValueError(
                 f"Input matrix {matrix} should be a 1D or 2D array (1 or 2 dimensional matrix)."
             )
-
-
-def print_list(obj: list[Any]):
-    """
-    Recursively converts all elements of a list to their string representations and prints the resulting structure.
-
-    Args:
-        obj : The list to be printed, which may contain nested lists or any type of elements.
-
-    """
-
-    def deep_str(o: Any) -> str:
-        if isinstance(o, list):
-            return "[" + ", ".join(deep_str(x) for x in o) + "]"
-        return str(o)
-
-    print(deep_str(obj))
 
 
 @conditional_typechecked

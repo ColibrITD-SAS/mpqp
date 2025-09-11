@@ -26,9 +26,7 @@ def enable_typecheck(enable: bool):
     the new type checking setting.
 
     Args:
-        enable:
-            If True, type checking is enabled by setting `MPQP_TYPECHECK` to "True".
-            If False, type checking is disabled by setting it to "False".
+        enable: Whether to enable or disable type checking in MPQP
 
     """
     from mpqp.environment.env_manager import save_env_variable
