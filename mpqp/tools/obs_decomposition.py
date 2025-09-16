@@ -7,18 +7,18 @@ from typing import TYPE_CHECKING, Optional
 import numpy as np
 import numpy.typing as npt
 from mpqp.core.instruction.measurement.pauli_string import (
-    PI,
+    pI,
     PauliString,
     PauliStringAtom,
     PauliStringMonomial,
-    PX,
-    PY,
-    PZ,
+    pX,
+    pY,
+    pZ,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
 from mpqp.environment.typechecked import conditional_typechecked
 
-paulis: list[PauliStringAtom] = [PI, PX, PY, PZ]
+paulis: list[PauliStringAtom] = [pI, pX, pY, pZ]
 
 
 @conditional_typechecked
@@ -381,8 +381,8 @@ def generate_and_explore_node_diagonal_case(
 
     if current_node.depth < n:
 
-        current_node.children.append(DiagPauliNode(atom=PI, parent=current_node))
-        current_node.children.append(DiagPauliNode(atom=PZ, parent=current_node))
+        current_node.children.append(DiagPauliNode(atom=pI, parent=current_node))
+        current_node.children.append(DiagPauliNode(atom=pZ, parent=current_node))
 
         generate_and_explore_node_diagonal_case(
             m, current_node.childI, diag_elements, n, monomials, progression
@@ -518,7 +518,7 @@ def decompose_diagonal_observable_walsh_hadamard(
         The corresponding Pauli string representation.
 
     """
-    pauli_1q = [1 * PI, 1 * PZ]
+    pauli_1q = [1 * pI, 1 * pZ]
     basis: list[PauliStringMonomial] = pauli_1q
     diags = np.array(diag_elements)
 

@@ -6,7 +6,7 @@ import pytest
 from sympy import Expr, cos  # pyright: ignore[reportUnusedImport]
 
 from mpqp.core import QCircuit
-from mpqp.measures import PZ, PI, PX, PY
+from mpqp.measures import pZ, pI, pX, pY
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.all import *
 
@@ -135,10 +135,10 @@ def generate_expectation_measures():
         [None, 1, 0],  # shots
         [
             Observable(np.diag([0.7, -1, 1, 1])),
-            Observable(PI @ PX),
-            Observable(PI @ PX + PY @ PZ),
-            Observable(number * PI @ PX),
-            Observable(-5.5 * PI @ PX + -6 * PY @ PZ),
+            Observable(pI @ pX),
+            Observable(pI @ pX + pY @ pZ),
+            Observable(number * pI @ pX),
+            Observable(-5.5 * pI @ pX + -6 * pY @ pZ),
         ],  # observables
         [None, "test"],  # label
     ):

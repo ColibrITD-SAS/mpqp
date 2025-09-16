@@ -72,20 +72,20 @@ def test_sequential_versus_multi(
         assert r1.expectation_values == e2
 
 
-from mpqp.measures import PX, PY, PZ, PI
+from mpqp.measures import pX, pY, pZ, pI
 
 
 def pauliObservables():
     return [
-        [Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ)],
+        [Observable(pX @ pX @ pX + pI @ pX @ pI + pX @ pI @ pX - 2 * pZ @ pZ @ pZ)],
         [
-            Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ),
-            Observable(PY @ PY @ PY + PX @ PX @ PX),
+            Observable(pX @ pX @ pX + pI @ pX @ pI + pX @ pI @ pX - 2 * pZ @ pZ @ pZ),
+            Observable(pY @ pY @ pY + pX @ pX @ pX),
         ],
         [
-            Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ),
-            Observable(PY @ PY @ PY + PX @ PX @ PX),
-            Observable(PZ @ PI @ PZ - 5 * PX @ PX @ PX),
+            Observable(pX @ pX @ pX + pI @ pX @ pI + pX @ pI @ pX - 2 * pZ @ pZ @ pZ),
+            Observable(pY @ pY @ pY + pX @ pX @ pX),
+            Observable(pZ @ pI @ pZ - 5 * pX @ pX @ pX),
         ],
     ]
 
@@ -153,12 +153,12 @@ def test_pauli_grouping_optimization(
         [
             -0.2279775,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
-            Observable(PX @ PY + PZ @ PX),
+            Observable(pX @ pY + pZ @ pX),
         ],
         [
             0,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
-            Observable(PI @ PX + PY @ PZ),
+            Observable(pI @ pX + pY @ pZ),
         ],
     ],
 )

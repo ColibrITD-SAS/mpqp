@@ -15,7 +15,7 @@ from mpqp.core import Barrier, Instruction, Language, QCircuit
 from mpqp.core.instruction.gates import native_gates
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import PI, PZ
+from mpqp.core.instruction.measurement.pauli_string import pI, pZ
 from mpqp.execution.devices import ATOSDevice, IBMDevice
 from mpqp.execution.runner import run, Result
 from mpqp.gates import (
@@ -878,7 +878,7 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
 
 @pytest.mark.parametrize(
     "measure",
-    [BasisMeasure(), ExpectationMeasure(Observable(1 * PI @ PZ + 1 * PI @ PI))],
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * pI @ pZ + 1 * pI @ pI))],
 )
 def test_measure_no_target(measure: Measure):
     circuit = QCircuit(2)

@@ -73,8 +73,8 @@ class PauliString:
         monomials : List of Pauli monomials defining the PauliString.
 
     Example:
-        >>> print(PI @ PZ + 2 * PY @ PI + PX @ PZ)
-        PI@PZ + PX@PZ + 2*PY@PI
+        >>> print(pI @ pZ+ 2 * pY@ pI + pX@ pZ)
+        pI@pZ + pX@pZ + 2*pY@pI
 
     """
 
@@ -219,11 +219,11 @@ class PauliString:
 
         Examples:
             >>> theta, k = symbols("θ k")
-            >>> ps = theta * PI @ PX + k * PZ @ PY
+            >>> ps = theta * pI @ pX+ k * pZ@ pY
             >>> print(ps)
-            (θ)*PI@PX + (k)*PZ@PY
+            (θ)*pI@pX + (k)*pZ@pY
             >>> print(ps.subs({theta: np.pi, k: 1}))
-            3.1416*PI@PX + PZ@PY
+            3.1416*pI@pX + pZ@pY
 
         """
         new_pauli_string = PauliString()
@@ -246,8 +246,8 @@ class PauliString:
             The simplified version of the Pauli string.
 
         Example:
-            >>> print((PI @ PI - 2 *PI @ PI + PZ @ PI - PZ @ PI).simplify())
-            -1*PI@PI
+            >>> print((pI @ pI - 2 *pI @ pI + pZ@ pI - pZ@ pI).simplify())
+            -1*pI@pI
 
         """
         res = PauliString()
@@ -281,9 +281,9 @@ class PauliString:
             decimals.
 
         Example:
-            >>> ps = 0.6875 * PI @ PI + 0.1275 * PI @ PZ
+            >>> ps = 0.6875 * pI @ pI + 0.1275 * pI @ pZ
             >>> print(ps.round(1))
-            0.7*PI@PI + 0.1*PI@PZ
+            0.7*pI@pI + 0.1*pI@pZ
 
         """
         from sympy import Expr
@@ -311,8 +311,8 @@ class PauliString:
             The Pauli string with its monomials sorted.
 
         Example:
-            >>> print((2*PI@PZ + .5*PI@PX + PX@PY).sorted_monomials())
-            0.5*PI@PX + 2*PI@PZ + PX@PY
+            >>> print((2*pI@pZ + .5*pI@pX + pX@pY).sorted_monomials())
+            0.5*pI@pX + 2*pI@pZ + pX@pY
         """
         return PauliString(
             sorted(self.monomials, key=lambda m: tuple(str(atom) for atom in m.atoms))
@@ -325,7 +325,7 @@ class PauliString:
             Matrix representation of the Pauli string.
 
         Example:
-            >>> pprint((PI + PZ).to_matrix())
+            >>> pprint((pI + pZ).to_matrix())
             [[2, 0],
              [0, 0]]
 
@@ -373,7 +373,7 @@ class PauliString:
 
         Example:
             >>> print(PauliString.from_matrix(np.array([[0, 1], [1, 2]])))
-            PI + PX - PZ
+            pI + pX - pZ
 
         """
 
@@ -391,7 +391,7 @@ class PauliString:
             num_qubits = int(np.log2(matrix.shape[0]))
 
             # Return the ordered Pauli basis for the n-qubit Pauli basis.
-            pauli_1q = [PauliStringMonomial(1, [atom]) for atom in [PI, PX, PY, PZ]]
+            pauli_1q = [PauliStringMonomial(1, [atom]) for atom in [pI, pX, pY, pZ]]
             basis = pauli_1q
             for _ in range(num_qubits - 1):
                 basis = [p1 @ p2 for p1 in basis for p2 in pauli_1q]
@@ -405,7 +405,7 @@ class PauliString:
 
             if len(pauli_list.monomials) == 0:
                 pauli_list.monomials.append(
-                    PauliStringMonomial(0, [PI for _ in range(num_qubits)])
+                    PauliStringMonomial(0, [pI for _ in range(num_qubits)])
                 )
             return pauli_list
         else:
@@ -438,7 +438,7 @@ class PauliString:
 
         Example:
             >>> print(PauliString.from_diagonal_elements([1, -1, 4, 2]))
-            1.5*PI@PI + PI@PZ - 1.5*PZ@PI
+            1.5*pI@pI + pI@pZ - 1.5*pZ@pI
         """
 
         if not is_power_of_two(len(diagonal_elements)):
@@ -507,14 +507,14 @@ class PauliString:
         from cirq.ops.pauli_gates import Z as Cirq_Z
         from cirq.ops.pauli_string import PauliString as CirqPauliString
 
-        ps_mapping = {Cirq_X: PX, Cirq_Y: PY, Cirq_Z: PZ, Cirq_I: PI}
+        ps_mapping = {Cirq_X: pX, Cirq_Y: pY, Cirq_Z: pZ, Cirq_I: pI}
 
         num_qubits = max(PauliString._get_dimension_cirq_pauli(pauli), min_dimension)
         pauli_string = PauliString()
 
         def process_term(term: CirqPauliString, pauli_string: PauliString):
             coef = term.coefficient.real
-            monomial = [PI] * num_qubits
+            monomial = [pI] * num_qubits
             for qubit, op in term.items():
                 index = (
                     int(qubit.x)
@@ -530,7 +530,7 @@ class PauliString:
         elif isinstance(pauli, CirqPauliString):
             process_term(pauli, pauli_string)
         elif isinstance(pauli, CirqGateOperation):
-            monomial = [PI] * num_qubits
+            monomial = [pI] * num_qubits
             for line_qubit in pauli._qubits:
                 index = int(line_qubit.x)
                 monomial[index] = ps_mapping[pauli._gate]
@@ -600,7 +600,7 @@ class PauliString:
             if len(pauli.qbits) > 0
             else min_dimension
         )
-        monomial = [PI] * min_dimension
+        monomial = [pI] * min_dimension
         for index, atom in enumerate(pauli.op):
             monomial[pauli.qbits[index]] = _pauli_atom_dict[atom]
         return PauliStringMonomial(pauli.coeff, monomial)
@@ -635,7 +635,7 @@ class PauliString:
             >>> a, b, c = LineQubit.range(3)
             >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c)
             >>> print(PauliString.from_other_language(cirq_ps))
-            2*PI@PI@PX + 0.25*PZ@PY@PI
+            2*pI@pI@pX + 0.25*pZ@pY@pI
 
             >>> from braket.circuits.observables import (
             ...     Sum as BraketSum,
@@ -646,17 +646,17 @@ class PauliString:
             ... )
             >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X()
             >>> print(PauliString.from_other_language(braket_ps))
-            2*PI@PI@PX + 0.25*PZ@PY@PI
+            2*pI@pI@pX + 0.25*pZ@pY@pI
 
             >>> from qiskit.quantum_info import SparsePauliOp
             >>> qiskit_ps = SparsePauliOp(["IIX", "ZYI"], coeffs=[2.0 + 0.0j, 0.25 + 0.0j])
             >>> print(PauliString.from_other_language(qiskit_ps))
-            2*PI@PI@PX + 0.25*PZ@PY@PI
+            2*pI@pI@pX + 0.25*pZ@pY@pI
 
             >>> from qat.core.wrappers.observable import Term
             >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
             >>> print(PauliString.from_other_language(my_qml_ps))
-            2*PI@PI@PX + 0.25*PZ@PY@PI
+            2*pI@pI@pX + 0.25*pZ@pY@pI
 
         """
         if isinstance(pauli, list) and any(
@@ -726,7 +726,7 @@ class PauliString:
             Depends on the target language.
 
         Example:
-            >>> ps = PX @ PX @ PI + PI @ PY @ PI + PI @ PI @ PZ
+            >>> ps = pX@ pX@ pI + pI @ pY@ pI + pI @ pI @ pZ
             >>> print(ps.to_other_language(Language.CIRQ))
             1.000*X(q(0))*X(q(1))+1.000*Y(q(1))+1.000*Z(q(2))
             >>> for term in ps.to_other_language(Language.MY_QLM):
@@ -789,8 +789,8 @@ class PauliString:
             Mapping representing the Pauli string.
 
         Example:
-            >>> (1 * PI @ PZ + 2 * PI @ PI).to_dict()
-            {'PIPI': '2', 'PIPZ': '1'}
+            >>> (1 * pI @ pZ+ 2 * pI @ pI).to_dict()
+            {'pIpI': '2', 'pIpZ': '1'}
 
         """
         from sympy import simplify
@@ -819,14 +819,14 @@ class PauliString:
             True if the observable represented by pauli string is diagonal.
 
         Examples:
-            >>> (PI @ PX + PZ @ PY - PY @ PX).is_diagonal()
+            >>> (pI @ pX+ pZ@ pY- pY@ pX).is_diagonal()
             False
-            >>> (PI @ PZ @ PI - 2* PZ @ PZ @ PZ + PI @ PI @ PI).is_diagonal()
+            >>> (pI @ pZ@ pI - 2* pZ@ pZ@ pZ+ pI @ pI @ pI).is_diagonal()
             True
 
         """
 
-        return all([all([a == PI or a == PZ for a in m.atoms]) for m in self.monomials])
+        return all([all([a == pI or a == pZ for a in m.atoms]) for m in self.monomials])
 
 
 @conditional_typechecked
@@ -863,7 +863,7 @@ class PauliStringMonomial(PauliString):
         stored as booleans for efficiency. True refers to +1 and False to -1.
 
         Example:
-            >>> (PX @ PY @ PI).positive_eigen_values  # doctest: +NORMALIZE_WHITESPACE
+            >>> (pX@ pY@ pI).positive_eigen_values  # doctest: +NORMALIZE_WHITESPACE
             array([ True, True, False, False, False, False, True, True])
         """
         eigvals = reduce(np.kron, [a.eigen_values for a in self.atoms])
@@ -1010,15 +1010,15 @@ class PauliStringMonomial(PauliString):
             True if this Pauli monomial commutes with the one in parameter.
 
         Examples:
-            >>> (PI @ PX @ PY).commutes_with(PZ @ PY @ PX)
+            >>> (pI @ pX@ pY).commutes_with(pZ@ pY@ pX)
             True
-            >>> (PX @ PZ @ PZ).commutes_with(PY @ PZ @ PI)
+            >>> (pX@ pZ@ pZ).commutes_with(pY@ pZ@ pI)
             False
-            >>> (PX @ PZ @ PZ).commutes_with(PX @ PZ @ PZ)
+            >>> (pX@ pZ@ pZ).commutes_with(pX@ pZ@ pZ)
             True
-            >>> (PX @ PX).commutes_with(PY @ PY, CommutingTypes.FULL)
+            >>> (pX@ pX).commutes_with(pY@ pY, CommutingTypes.FULL)
             True
-            >>> (PX @ PX).commutes_with(PY @ PY, CommutingTypes.QUBITWISE)
+            >>> (pX@ pX).commutes_with(pY@ pY, CommutingTypes.QUBITWISE)
             False
 
         """
@@ -1069,8 +1069,8 @@ class PauliStringMonomial(PauliString):
 
         Example:
             >>> theta = symbols("θ")
-            >>> print((theta * PI @ PX).subs({theta: np.pi}))
-            3.1415926536*PI@PX
+            >>> print((theta * pI @ pX).subs({theta: np.pi}))
+            3.1415926536*pI@pX
 
         """
         from mpqp.tools.display import (
@@ -1214,7 +1214,7 @@ class PauliStringAtom(PauliStringMonomial):
         super().__setattr__(name, value)
 
     def __str__(self):
-        return f"P{self.label}"
+        return f"p{self.label}"
 
     def __repr__(self):
         return str(self)
@@ -1288,15 +1288,15 @@ class PauliStringAtom(PauliStringMonomial):
             True if the atoms commute, False otherwise.
 
         Examples:
-            >>> PX.commutes_with(PX)
+            >>> pX.commutes_with(pX)
             True
-            >>> PX.commutes_with(PY)
+            >>> pX.commutes_with(pY)
             False
-            >>> PX.commutes_with(PI)
+            >>> pX.commutes_with(pI)
             True
-            >>> PY.commutes_with(PZ)
+            >>> pY.commutes_with(pZ)
             False
-            >>> PI.commutes_with(PZ)
+            >>> pI.commutes_with(pZ)
             True
         """
         if not isinstance(other, PauliStringAtom):
@@ -1304,7 +1304,7 @@ class PauliStringAtom(PauliStringMonomial):
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
             )
         if method == CommutingTypes.FULL:
-            return other == PI or self == PI or self == other
+            return other == pI or self == pI or self == other
         raise ValueError(
             f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
         )
@@ -1358,14 +1358,14 @@ class PauliStringAtom(PauliStringMonomial):
 
 _allow_atom_creation = True
 
-PI = PauliStringAtom(
+pI = PauliStringAtom(
     "I", np.eye(2, dtype=np.complex128), [1, 1], np.array([[1, 0], [0, 1]]), []
 )
 r"""Pauli-I atom representing the identity operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}1&0\\0&1\end{pmatrix}`
 """
-PX = PauliStringAtom(
+pX = PauliStringAtom(
     "X",
     1 - np.eye(2, dtype=np.complex128),
     [1, -1],
@@ -1377,7 +1377,7 @@ Matrix representation:
 `\begin{pmatrix}0&1\\1&0\end{pmatrix}`
 
 """
-PY = PauliStringAtom(
+pY = PauliStringAtom(
     "Y",
     np.fliplr(np.diag([-1j, 1j])),
     [1, -1],
@@ -1388,13 +1388,13 @@ r"""Pauli-Y atom representing the Y operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}0&-i\\i&0\end{pmatrix}`
 """
-PZ = PauliStringAtom("Z", np.diag([1, -1]), [1, -1], np.array([[1, 0], [0, 1]]), [])
+pZ = PauliStringAtom("Z", np.diag([1, -1]), [1, -1], np.array([[1, 0], [0, 1]]), [])
 r"""Pauli-Z atom representing the Z operator in a Pauli monomial or string.
 Matrix representation:
 `\begin{pmatrix}1&0\\0&-1\end{pmatrix}`
 """
 
-_pauli_atom_dict = {"I": PI, "X": PX, "Y": PY, "Z": PZ}
+_pauli_atom_dict = {"I": pI, "X": pX, "Y": pY, "Z": pZ}
 _allow_atom_creation = False
 
 
@@ -1414,13 +1414,13 @@ def pauli_string_from_str(
 
     Examples:
         >>> print(pauli_string_from_str("X"))
-        PX
+        pX
         >>> print(pauli_string_from_str("-YZ"))
-        -1*PY@PZ
+        -1*pY@pZ
         >>> print(pauli_string_from_str("a*X", dict_value={"a": 0.5}))
-        0.5*PX
-        >>> print(pauli_string_from_str("2*PX + 3*Y"))
-        (2*P)*PX + 3*PY
+        0.5*pX
+        >>> print(pauli_string_from_str("2*pX + 3*Y"))
+        (2*p)*pX + 3*pY
 
     """
     import re
@@ -1443,14 +1443,14 @@ def pauli_string_from_str(
             if dict_value:
                 coef = coef.subs(dict_value)
 
-        atoms = [globals()["P" + ch] for ch in atoms_str]
+        atoms = [globals()["p" + ch] for ch in atoms_str]
         monomials.append(PauliStringMonomial(coef, atoms))
 
     return PauliString(monomials)
 
 
 def pauli_string_with_atom(
-    nb_qubits: int, atom: PauliStringAtom = PI, qubit_index: int | None = None
+    nb_qubits: int, atom: PauliStringAtom = pI, qubit_index: int | None = None
 ) -> PauliStringMonomial:
     """
     Construct a PauliStringMonomial of length n with a single specified atom at a target qubit.
@@ -1470,11 +1470,11 @@ def pauli_string_with_atom(
 
     Examples:
         >>> print(pauli_string_with_atom(1))
-        PI
-        >>> print(pauli_string_with_atom(4, PZ))
-        PI@PI@PI@PZ
-        >>> print(pauli_string_with_atom(3, PX, 0))
-        PX@PI@PI
+        pI
+        >>> print(pauli_string_with_atom(4, pZ))
+        pI@pI@pI@pZ
+        >>> print(pauli_string_with_atom(3, pX, 0))
+        pX@pI@pI
 
     """
     if qubit_index is None:
@@ -1484,7 +1484,7 @@ def pauli_string_with_atom(
             f"qubit_index {qubit_index} is out of range for {nb_qubits} qubits"
         )
 
-    atoms = [PI] * nb_qubits
+    atoms = [pI] * nb_qubits
     if nb_qubits != 0:
         atoms[qubit_index] = atom
 

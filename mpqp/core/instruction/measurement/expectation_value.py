@@ -64,8 +64,8 @@ class Observable:
         >>> Observable(np.array([[1, 0], [0, -1]]))
         Observable(array([[ 1, 0], [ 0, -1]]))
 
-        >>> Observable(3 * PI @ PZ + 4 * PX @ PY)
-        Observable(3*PI@PZ + 4*PX@PY)
+        >>> Observable(3 * pI @ pZ+ 4 * pX@ pY)
+        Observable(3*pI@pZ + 4*pX@pY)
 
         >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
         Observable([ 1., -2., 3., -4.])
@@ -219,9 +219,9 @@ class Observable:
             True
             >>> Observable(np.array([7, 4, 3, 6])).is_diagonal
             True
-            >>> Observable(PI @ PZ - 3 * PZ @ PZ + 2* PZ @ PI).is_diagonal
+            >>> Observable(pI @ pZ - 3 * pZ @ pZ+ 2* pZ @ pI).is_diagonal
             True
-            >>> Observable(PI @ PX - 3* PZ @ PZ + 2 * PY @ PI).is_diagonal
+            >>> Observable(pI @ pX - 3* pZ @ pZ+ 2 * pY @ pI).is_diagonal
             False
 
         """
@@ -370,7 +370,7 @@ class ExpectationMeasure(Measure):
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
-        >>> obs2 = Observable( PX @ PY - PY @ PY)
+        >>> obs2 = Observable( pX@ pY- pY@ pY)
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([obs, obs2], shots=10000)])
         >>> run(c, IBMDevice.AER_SIMULATOR).expectation_values # doctest: +SKIP
         {'observable_0': 0.8514399940967561, 'observable_1': 0.9876}
