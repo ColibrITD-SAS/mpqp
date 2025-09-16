@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Any, Union
+from typing import TYPE_CHECKING, Union
 
 import numpy as np
 import numpy.typing as npt

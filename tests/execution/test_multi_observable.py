@@ -137,6 +137,8 @@ def test_pauli_grouping_optimization(
                 optimized_expectation_values, 10
             )
         else:
+            assert isinstance(non_optimized.expectation_values, dict)
+            assert isinstance(optimized_expectation_values, dict)
             for i in range(len(non_optimized.expectation_values)):
                 assert round(
                     non_optimized.expectation_values[f"observable_{i}"], 5
