@@ -6,17 +6,17 @@ from statistics import mean
 from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
-from mpqp.core.instruction.measurement.pauli_string import pauli_string_with_atom
-from mpqp.environment.typechecked import conditional_typechecked
 
-from mpqp.core.languages import Language
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
     ExpectationMeasure,
     Observable,
 )
+from mpqp.core.languages import Language
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.gates import CNOT, CRk, Rk
+from mpqp.measures import pI
 from mpqp.noise.noise_model import Depolarizing, NoiseModel
 
 from ...tools.errors import (
@@ -620,7 +620,7 @@ def extract_observable_result(
                 [
                     ExpectationMeasure(
                         targets=list(range(nb_qubits)),
-                        observable=Observable(pauli_string_with_atom(nb_qubits)),
+                        observable=Observable(pI(nb_qubits - 1)),
                         shots=nb_shots,
                     )
                 ],

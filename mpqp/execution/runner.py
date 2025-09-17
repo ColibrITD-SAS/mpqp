@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 from sympy import Expr
-from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -33,7 +32,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -84,15 +83,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
     for obs in measure.observables:
         if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-            from mpqp.core.instruction.measurement.pauli_string import (
-                pauli_string_with_atom,
-            )
+            from mpqp.measures import pI
 
-            pauli = (
-                pauli_string_with_atom(n_before)
-                @ obs.pauli_string
-                @ pauli_string_with_atom(n_after)
-            )
+            pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
             tweaked_observables.append(Observable(pauli))
         else:
             Id_before = np.eye(2**n_before)
