@@ -15,6 +15,7 @@ from operator import (
 )
 from random import randint
 from typing import TYPE_CHECKING, Optional, Union
+
 from sympy import symbols
 
 if TYPE_CHECKING:
@@ -37,15 +38,13 @@ from cirq.ops.pauli_gates import Z as Cirq_Z
 from qat.core.wrappers.observable import Term
 
 from mpqp.core.instruction.measurement.pauli_string import (
-    pI,
     Coef,
     PauliString,
+    PauliStringAtom,
+    pI,
     pX,
     pY,
     pZ,
-    PauliStringAtom,
-    pauli_string_from_str,
-    pauli_string_with_atom,
 )
 from mpqp.core.languages import Language
 from mpqp.tools.maths import matrix_eq
@@ -489,22 +488,21 @@ def test_to_from_other_language(
 def test_pauli_string_from_str(
     input_str: str, subs_dict: Optional[dict[str, Coef]], expected_str: PauliString
 ):
-    ps = pauli_string_from_str(input_str, subs_dict)
-    assert ps == expected_str
+    assert PauliString.from_str(input_str, subs_dict) == expected_str
 
 
 @pytest.mark.parametrize(
-    "n, atom, qubit_index, expected_ps",
+    "prefix, atom, postfix, expected_ps",
     [
-        (3, pX, None, pI @ pI @ pX),
-        (3, pY, 0, pY @ pI @ pI),
-        (4, pZ, 2, pI @ pI @ pZ @ pI),
-        (2, pI, 1, pI @ pI),
-        (1, pX, 0, pX),
+        (3, pX, None, pI @ pI @ pI @ pX),
+        (0, pY, 2, pY @ pI @ pI),
+        (2, pZ, 1, pI @ pI @ pZ @ pI),
+        (0, pI, 1, pI @ pI),
+        (0, pX, 0, pX),
     ],
 )
-def test_pauli_string_with_atom(
-    n: int, atom: PauliStringAtom, qubit_index: Optional[int], expected_ps: PauliString
+def test_pauli_monomial_from_atom(
+    prefix: int, atom: PauliStringAtom, postfix: Optional[int], expected_ps: PauliString
 ):
-    result = pauli_string_with_atom(n, atom, qubit_index)
+    result = atom(prefix) if postfix is None else atom(prefix, postfix)
     assert result == expected_ps

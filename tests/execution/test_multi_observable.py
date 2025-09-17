@@ -6,7 +6,6 @@ from mpqp.core.instruction import ExpectationMeasure, Observable
 from mpqp.execution import AvailableDevice, IBMDevice
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice
 from mpqp.execution.runner import run
-
 from mpqp.gates import *
 
 
@@ -63,8 +62,6 @@ def test_sequential_versus_multi(
     )
     expectation_values = multi_result.expectation_values
     assert isinstance(expectation_values, dict)
-    print(multi_result)
-    print(observables)
     assert len(seq_results) == len(expectation_values)
 
     # TODO modify here to match the logic of dict and observable.label etc
@@ -72,7 +69,7 @@ def test_sequential_versus_multi(
         assert r1.expectation_values == e2
 
 
-from mpqp.measures import pX, pY, pZ, pI
+from mpqp.measures import pI, pX, pY, pZ
 
 
 def pauliObservables():
@@ -105,7 +102,7 @@ def optimized_devices():
 def test_pauli_grouping_optimization(
     observable: list[Observable], device: AvailableDevice
 ):
-    from mpqp.execution import run, Result
+    from mpqp.execution import Result, run
 
     circuit = QCircuit(
         [
