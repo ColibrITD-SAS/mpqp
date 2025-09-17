@@ -152,8 +152,15 @@ class PauliString:
                 if dict_value:
                     coef = coef.subs(dict_value)
 
-            atoms = [globals()["p" + ch] for ch in atoms_str]
-            monomials.append(PauliStringMonomial(coef, atoms))
+            atoms_dict = {
+                "I": pI,
+                "X": pX,
+                "Y": pY,
+                "Z": pZ,
+            }
+            monomials.append(
+                PauliStringMonomial(coef, [atoms_dict[atom] for atom in atoms_str])
+            )
 
         return PauliString(monomials)
 

@@ -8,7 +8,6 @@ other simulated devices (QLM has this feature for instance."""
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from mpqp.environment.typechecked import conditional_typechecked
-
 from mpqp.execution import AvailableDevice
 
 if TYPE_CHECKING:
@@ -86,9 +85,10 @@ class _LazyIBMSimulatedDevice:
     @classmethod
     def _init(cls) -> None:
         if cls._instance is None:
-            cls._instance = StaticIBMSimulatedDevice(
-                'IBMSimulatedDevice', StaticIBMSimulatedDevice.get_ibm_fake_providers()
-            )
+            providers = StaticIBMSimulatedDevice.get_ibm_fake_providers()
+            cls._instance = StaticIBMSimulatedDevice("IBMSimulatedDevice", providers)
+            for name, _ in providers:
+                setattr(cls, name, cls._instance[name])
 
     def __getattr__(self, name: str) -> Any:
         self._init()
