@@ -486,8 +486,6 @@ class ExpectationMeasure(Measure):
 
     @property
     def pre_measure(self) -> list[Gate]:
-        """List of gates added before the measure to correctly swap target
-        qubits when needed."""
         return self._pre_measure
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
