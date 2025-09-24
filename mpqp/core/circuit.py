@@ -40,6 +40,8 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import TypeCheckError
+
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -50,18 +52,16 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
-    NonReversibleWarning,
-    NumberQubitsError,
     DeviceJobIncompatibleError,
     InstructionParsingError,
+    NonReversibleWarning,
+    NumberQubitsError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
-from typeguard import TypeCheckError
-from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -70,12 +70,13 @@ if TYPE_CHECKING:
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
     from sympy import Basic, Expr
+
     from mpqp.execution.devices import (
         ATOSDevice,
+        AvailableDevice,
         AWSDevice,
         GOOGLEDevice,
         IBMDevice,
-        AvailableDevice,
     )
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
@@ -1683,7 +1684,6 @@ class QCircuit:
     def to_other_device(
         self,
         device: ATOSDevice,
-        backend_sim: Optional["AerSimulator"] = None,
         skip_pre_measure: bool = False,
     ) -> myQLM_Circuit: ...
 
@@ -1691,7 +1691,6 @@ class QCircuit:
     def to_other_device(
         self,
         device: AWSDevice,
-        backend_sim: Optional["AerSimulator"] = None,
         skip_pre_measure: bool = False,
     ) -> braket_Circuit: ...
 
@@ -1699,7 +1698,6 @@ class QCircuit:
     def to_other_device(
         self,
         device: GOOGLEDevice,
-        backend_sim: Optional["AerSimulator"] = None,
         skip_pre_measure: bool = False,
     ) -> cirq_Circuit: ...
 
@@ -1707,23 +1705,15 @@ class QCircuit:
     def to_other_device(
         self,
         device: Union[IBMDevice, StaticIBMSimulatedDevice],
-        backend_sim: Optional["AerSimulator"] = None,
         skip_pre_measure: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
     ) -> QuantumCircuit: ...
 
-    @overload
     def to_other_device(
         self,
         device: AvailableDevice,
-        backend_sim: Optional["AerSimulator"] = None,
         skip_pre_measure: bool = False,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
-
-    def to_other_device(
-        self,
-        device: AvailableDevice,
         backend_sim: Optional["AerSimulator"] = None,
-        skip_pre_measure: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
         """Transforms this circuit into the corresponding device specified
         in the ``device`` arg.
@@ -1736,9 +1726,9 @@ class QCircuit:
 
         Args:
             device: representing the target device.
-            backend_sim: Simulator backend for Qiskit devices.
             skip_pre_measure: If true, the ``pre_measure`` circuit will not be
                 added to the output.
+            backend_sim: Simulator backend for Qiskit devices.
 
         Returns:
             The corresponding circuit in the target device.
@@ -1779,8 +1769,8 @@ class QCircuit:
             GOOGLEDevice,
             IBMDevice,
         )
-        from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
         from mpqp.execution.providers.ibm import JobType
+        from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
         nb_meas = len(self.measurements)
 
@@ -2110,8 +2100,8 @@ class QCircuit:
 
             from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
             from mpqp.qasm.qasm_to_braket import (
-                braket_noise_to_mpqp,
                 braket_custom_gates_to_mpqp,
+                braket_noise_to_mpqp,
             )
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
