@@ -85,6 +85,8 @@ def job_pre_processing(job: Job) -> "Circuit":
             )
 
     if job.circuit.transpiled_circuit is None:
+        if TYPE_CHECKING:
+            assert isinstance(job.device, ATOSDevice)
         myqlm_circuit = job.circuit.to_other_device(job.device)
     else:
         myqlm_circuit = job.circuit.transpiled_circuit
