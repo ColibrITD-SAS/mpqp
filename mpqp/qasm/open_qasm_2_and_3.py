@@ -383,9 +383,9 @@ def convert_instruction_2_to_3(
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
     elif instr_name.lower() == "u":
-        from mpqp.environment.var_cache import is_translation_warning
+        from mpqp.environment.var_cache import translation_warning_enabled
 
-        if is_translation_warning() is True:
+        if translation_warning_enabled() is True:
             warn(
                 """
 There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.

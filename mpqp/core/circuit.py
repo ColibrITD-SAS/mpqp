@@ -200,13 +200,13 @@ class QCircuit:
         with a symbolic circuit that needs to be executed with different
         parameters."""
 
-        self.gphase: float = 0
+        self.input_g_phase: float = 0
         """Stores the global phase (angle) arising from the Qiskit conversion of
         :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates` to 
         OpenQASM2. It is used to correct the global phase when the job type is 
         `STATE_VECTOR`, and when this circuit contains 
         :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates`."""
-        self._gphase: float = 0
+        self._generated_g_phase: float = 0
 
         if nb_cbits is None:
             self._nb_cbits = 0
@@ -857,7 +857,7 @@ class QCircuit:
         matrix = Operator.from_circuit(qiskit_circuit).to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
-        gphase = self.gphase + self._gphase
+        gphase = self.input_g_phase + self._generated_g_phase
         if gphase != 0:
             matrix *= np.exp(1j * gphase)
         return matrix
@@ -991,7 +991,7 @@ class QCircuit:
         )
         circ, phase = replace_custom_gate(qiskit_circuit[0], size)
         cls = QCircuit.from_other_language(circ.reverse_bits())
-        cls.gphase = phase
+        cls.input_g_phase = phase
         return cls
 
     def count_gates(self, gate: Optional[Type[Gate]] = None) -> int:
@@ -1401,7 +1401,7 @@ class QCircuit:
             circuits.
 
         """
-        self._gphase = 0
+        self._generated_g_phase = 0
         if language == Language.QISKIT:
             from qiskit.circuit import Operation, QuantumCircuit
             from qiskit.circuit.quantumcircuit import CircuitInstruction
@@ -1550,11 +1550,11 @@ class QCircuit:
             from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
             braket_circuit = qasm3_to_braket_Circuit(qasm3_code)
-            if circuit._gphase != 0:
-                braket_circuit.gphase(  # pyright: ignore[reportAttributeAccessIssue]
-                    circuit._gphase
+            if circuit._generated_g_phase != 0:
+                braket_circuit.input_g_phase(  # pyright: ignore[reportAttributeAccessIssue]
+                    circuit._generated_g_phase
                 )
-                circuit._gphase = 0
+                circuit._generated_g_phase = 0
 
             if len(self.noises) == 0:
                 return braket_circuit
@@ -1598,7 +1598,7 @@ class QCircuit:
                                 custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
                                 cirq_circuit += custom_cirq_circuit
                                 # TODO: handle gphase in the circuit
-                                self._gphase += gphase
+                                self._generated_g_phase += gphase
                             else:
                                 cirq_pre_measure = pre_measure.to_other_language(
                                     Language.CIRQ
@@ -1627,7 +1627,7 @@ class QCircuit:
                     custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
                     cirq_circuit += custom_cirq_circuit
                     # TODO: handle gphase in the circuit
-                    self._gphase += gphase
+                    self._generated_g_phase += gphase
                 elif isinstance(instruction, ControlledGate):
                     targets = []
                     for target in instruction.targets:
@@ -1664,7 +1664,7 @@ class QCircuit:
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=skip_measurements,
             )
-            self._gphase = gphase
+            self._generated_g_phase = gphase
             return qasm_str
         elif language == Language.QASM3:
             qasm2_code = self.to_other_language(
@@ -1674,8 +1674,8 @@ class QCircuit:
             )
             from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 
-            qasm3_code = open_qasm_2_to_3(qasm2_code, self._gphase)
-            self._gphase = 0
+            qasm3_code = open_qasm_2_to_3(qasm2_code, self._generated_g_phase)
+            self._generated_g_phase = 0
             return qasm3_code
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
@@ -2078,7 +2078,7 @@ class QCircuit:
             )
 
             qc = qasm2_parse(qasm2_code)
-            qc.gphase = phase
+            qc.input_g_phase = phase
 
             return qc
 
@@ -2090,7 +2090,7 @@ class QCircuit:
 
             qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
             qc = qasm2_parse(qasm2_code)
-            qc.gphase = gphase
+            qc.input_g_phase = gphase
 
             return qc
 
@@ -2115,7 +2115,7 @@ class QCircuit:
                 str(qasm3_code.source), language=Language.BRAKET
             )
             qc = qasm2_parse(qasm2_code)
-            qc.gphase = phase
+            qc.input_g_phase = phase
             qc = qc.without_measurements()
             if len(custom_gates) != 0:
                 qc.add(custom_gates)
@@ -2143,7 +2143,7 @@ class QCircuit:
 
                         qasm2_code, gphase = parse_qasm2_gates(qcircuit)
                         qc = qasm2_parse(qasm2_code)
-                        qc.gphase = gphase
+                        qc.input_g_phase = gphase
 
                         return qc
 
@@ -2152,7 +2152,7 @@ class QCircuit:
 
                         qasm2_code, phase = open_qasm_3_to_2(qcircuit)
                         qc = qasm2_parse(qasm2_code)
-                        qc.gphase = phase
+                        qc.input_g_phase = phase
 
                         return qc
                     break

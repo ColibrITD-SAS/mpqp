@@ -45,7 +45,7 @@ class ParametrizedGate(Gate, ABC):
 
     def __init__(
         self,
-        definition: GateDefinition | UnitaryMatrix,
+        definition: GateDefinition,
         targets: list[int],
         parameters: list[Expr | float],
         label: Optional[str] = None,

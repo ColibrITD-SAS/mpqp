@@ -25,7 +25,7 @@ from mpqp.tools.generics import MessageEnum
 if TYPE_CHECKING:
     from enum import Enum
 
-from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
 from ..core.circuit import QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
@@ -129,7 +129,7 @@ class Job:
         attributing an id to the job)."""
 
     @property
-    def measure(self):
+    def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
 
         return (
@@ -139,7 +139,7 @@ class Job:
         )
 
     @property
-    def status(self):
+    def status(self) -> JobStatus:
         """Update and return the current job status. Mainly relevant for remote jobs."""
         if self._status not in [
             JobStatus.DONE,

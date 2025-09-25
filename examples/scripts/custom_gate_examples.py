@@ -26,4 +26,4 @@ print(
 print(circuit.to_other_language(Language.QISKIT))
 print(circuit.to_other_language(Language.QASM2))
 print(circuit.to_other_language(Language.QASM3))
-print(circuit.gphase)
+print(circuit.input_g_phase)

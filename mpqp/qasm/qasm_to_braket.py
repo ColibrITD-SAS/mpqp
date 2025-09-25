@@ -132,9 +132,9 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     log_lines = logger_output_stream.getvalue().split("\n")
     for message in log_lines:
         if message == braket_warning_message:
-            from mpqp.environment.var_cache import is_translation_warning
+            from mpqp.environment.var_cache import translation_warning_enabled
 
-            if is_translation_warning() is True:
+            if translation_warning_enabled() is True:
                 warnings.warn(
                     "\n" + braket_warning_message, UnsupportedBraketFeaturesWarning
                 )

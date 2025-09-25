@@ -972,10 +972,10 @@ def test_to_matrix_gphase():
     ]
     for _ in range(10):
         qcircuit = random_circuit(gates, nb_qubits=4)
-        qcircuit.gphase = random.random()
+        qcircuit.input_g_phase = random.random()
         expected_matrix = compute_expected_matrix(qcircuit)
         assert matrix_eq(
-            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.gphase)
+            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.input_g_phase)
         )
 
 
