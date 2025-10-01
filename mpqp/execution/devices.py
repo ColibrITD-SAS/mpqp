@@ -281,9 +281,11 @@ class AWSDevice(AvailableDevice):
     IONQ_ARIA_1 = "qpu/ionq/Aria-1"
     IONQ_ARIA_2 = "qpu/ionq/Aria-2"
     IONQ_FORTE_1 = "qpu/ionq/Forte-1"
+    IONQ_FORTE_ENTERPRISE_1 = "qpu/ionq/Forte-Enterprise-1"
     QUERA_AQUILA = "qpu/quera/Aquila"
-    RIGETTI_ANKAA_2 = "qpu/rigetti/Ankaa-2"
+    RIGETTI_ANKAA_3 = "qpu/rigetti/Ankaa-3"
     IQM_GARNET = "qpu/iqm/Garnet"
+    IQM_EMERALD = "qpu/iqm/Emerald"
 
     def is_remote(self):
         return self != AWSDevice.BRAKET_LOCAL_SIMULATOR
@@ -311,8 +313,8 @@ class AWSDevice(AvailableDevice):
             'arn:aws:braket:us-east-1::device/qpu/ionq/Aria-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_arn()
             'arn:aws:braket:::device/quantum-simulator/amazon/sv1'
-            >>> AWSDevice.RIGETTI_ANKAA_2.get_arn()
-            'arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-2'
+            >>> AWSDevice.RIGETTI_ANKAA_3.get_arn()
+            'arn:aws:braket:us-west-1::device/qpu/rigetti/Ankaa-3'
 
         """
         region = self.get_region()
@@ -331,21 +333,22 @@ class AWSDevice(AvailableDevice):
             'us-east-1'
             >>> AWSDevice.BRAKET_SV1_SIMULATOR.get_region() == get_env_variable("AWS_DEFAULT_REGION")
             True
-            >>> AWSDevice.RIGETTI_ANKAA_2.get_region()
+            >>> AWSDevice.RIGETTI_ANKAA_3.get_region()
             'us-west-1'
 
         """
         if not self.is_remote():
             raise ValueError("No arn for a local simulator")
-        elif self == AWSDevice.RIGETTI_ANKAA_2:
+        elif self == AWSDevice.RIGETTI_ANKAA_3:
             return "us-west-1"
 
-        elif self == AWSDevice.IQM_GARNET:
+        elif self in [AWSDevice.IQM_GARNET, AWSDevice.IQM_EMERALD]:
             return "eu-north-1"
         elif self in [
             AWSDevice.IONQ_ARIA_1,
             AWSDevice.IONQ_ARIA_2,
             AWSDevice.IONQ_FORTE_1,
+            AWSDevice.IONQ_FORTE_ENTERPRISE_1,
             AWSDevice.QUERA_AQUILA,
         ]:
             return "us-east-1"
