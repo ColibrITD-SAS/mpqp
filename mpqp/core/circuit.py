@@ -174,6 +174,9 @@ class QCircuit:
         `STATE_VECTOR`, and when this circuit contains 
         :class:`~mpqp.core.instruction.gates.custom_gate.CustomGates`."""
         self._generated_g_phase: float = 0
+        """Store the temporary global phase (angle) that cannot be preserved 
+        when converting from MPQP to Cirq or QASM2. This value is reset to 0 
+        each time the circuit is transpiled."""
 
         if nb_cbits is None:
             self._nb_cbits = 0
@@ -1376,11 +1379,6 @@ class QCircuit:
             from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 
             braket_circuit = qasm3_to_braket_Circuit(qasm3_code)
-            if circuit._generated_g_phase != 0:
-                braket_circuit.input_g_phase(  # pyright: ignore[reportAttributeAccessIssue]
-                    circuit._generated_g_phase
-                )
-                circuit._generated_g_phase = 0
 
             if len(self.noises) == 0:
                 return braket_circuit
