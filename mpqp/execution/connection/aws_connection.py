@@ -233,7 +233,20 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         save_env_variable("BRAKET_CONFIGURED", "False")
         return "Failed to retrieve SSO credentials.", []
 
+    import os
+
     import boto3
+
+    configured_region = os.environ.get("AWS_DEFAULT_REGION")
+    other_region = sso_credentials["region"]
+
+    if configured_region and configured_region != other_region:
+        save_env_variable("BRAKET_CONFIGURED", "False")
+        return (
+            f"Failed: SSO token is region-based.\n"
+            "Once a token is configured for a specific region, it cannot be used for any other region. ",
+            [],
+        )
 
     session = boto3.Session(
         aws_access_key_id=sso_credentials["access_key_id"],
@@ -257,6 +270,8 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         session_token=sso_credentials["session_token"],
         region=sso_credentials["region"],
     )
+
+    os.environ["AWS_DEFAULT_REGION"] = sso_credentials["region"]
 
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
