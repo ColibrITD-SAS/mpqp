@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, Result
 from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.runner import run
@@ -280,7 +280,6 @@ def test_run_with_custom_basis_probas(
     circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex128]
 ):
     res = run(circuit, IBMDevice.AER_SIMULATOR)
-    assert isinstance(res, Result)
     assert matrix_eq(expected_probabilities, res.probabilities)
 
 

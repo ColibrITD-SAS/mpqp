@@ -8,9 +8,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional, Union
 
-from typeguard import typechecked
-
 from mpqp.tools import Matrix
+from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
@@ -21,7 +20,7 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 
 
-@typechecked
+@conditional_typechecked
 class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 
@@ -88,7 +87,7 @@ class CustomGate(Gate):
         printing: bool = False,
     ):
         if language == Language.QISKIT:
-            from qiskit.quantum_info.operators import Operator as QiskitOperator
+            from qiskit.circuit.library import UnitaryGate
             from sympy import Expr
 
             if qiskit_parameters is None:
@@ -123,7 +122,7 @@ class CustomGate(Gate):
                     # list of inputs
                     dummy_circuit.rx(param, 0)
                 return dummy_circuit.to_gate(label="CustomGate")
-            return QiskitOperator(self.matrix)
+            return UnitaryGate(self.matrix)
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 

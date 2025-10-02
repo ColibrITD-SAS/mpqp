@@ -1,12 +1,12 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from termcolor import colored
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from braket.devices.device import Device as BraketDevice
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import AWSDevice
 from mpqp.tools.errors import AWSBraketRemoteExecutionError
 
@@ -339,7 +339,7 @@ def get_aws_braket_account_info() -> str:
     return result
 
 
-@typechecked
+@conditional_typechecked
 def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 

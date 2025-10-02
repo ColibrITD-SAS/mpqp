@@ -14,7 +14,7 @@ gate cry(theta) a, b { ctrl @ ry(theta) a, b; }
 gate crz(theta) a, b { ctrl @ rz(theta) a, b; }
 gate ch a, b { ctrl @ h a, b; }
 gate ccx a, b, c { ccnot a, b, c; }
-gate cu(theta, phi, lambda, gamma) a, b { p(gamma-theta/2) a; ctrl @ U(theta, phi, lambda) a, b; }
+gate cu(theta, phi, lambda, gamma) a, b { gphase(gamma); ctrl @ U(theta, phi, lambda) a, b; }
 gate CX a, b { cx a, b; }
 gate cphase(lambda) a, b { cphaseshift a, b; }
 gate id a { i a; }

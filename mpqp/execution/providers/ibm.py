@@ -26,7 +26,7 @@ from mpqp.tools.errors import (
     IBMRemoteExecutionError,
     InstructionParsingError,
 )
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
@@ -42,17 +42,16 @@ if TYPE_CHECKING:
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
     from qiskit_ibm_runtime import RuntimeJobV2
 
-    from mpqp.execution.simulated_devices import IBMSimulatedDevice
+    from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
-@typechecked
-def run_ibm(job: Job, warnings: bool = True) -> Result:
+@conditional_typechecked
+def run_ibm(job: Job) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
-        warnings:
 
     Returns:
         The result of the job.
@@ -64,7 +63,7 @@ def run_ibm(job: Job, warnings: bool = True) -> Result:
     return run_aer(job) if not job.device.is_remote() else run_remote_ibm(job)
 
 
-@typechecked
+@conditional_typechecked
 def compute_expectation_value(
     ibm_circuit: QuantumCircuit, job: Job, simulator: Optional["AerSimulator"]
 ) -> Result:
@@ -91,7 +90,7 @@ def compute_expectation_value(
     """
     from qiskit.quantum_info import SparsePauliOp
 
-    from mpqp.execution.simulated_devices import IBMSimulatedDevice
+    from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     if not isinstance(job.measure, ExpectationMeasure):
         raise ValueError(
@@ -103,17 +102,20 @@ def compute_expectation_value(
 
     qiskit_observables: list[SparsePauliOp] = []
     for obs in job.measure.observables:
-        translated = obs.to_other_language(Language.QISKIT)
+        if obs.transpile is None:
+            translated = obs.to_other_language(Language.QISKIT)
+        else:
+            translated = obs.transpile
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
 
-    if isinstance(job.device, IBMSimulatedDevice) or nb_shots != 0:
+    if isinstance(job.device, StaticIBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
         backend = (
             job.device.value()
-            if isinstance(job.device, IBMSimulatedDevice)
+            if isinstance(job.device, StaticIBMSimulatedDevice)
             else simulator
         )
 
@@ -143,12 +145,12 @@ def compute_expectation_value(
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
-        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+        assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
 
     return extract_result(estimator_result, job, job.device)
 
 
-@typechecked
+@conditional_typechecked
 def check_job_compatibility(job: Job):
     """Checks whether the job in parameter has coherent and compatible
     attributes.
@@ -161,10 +163,10 @@ def check_job_compatibility(job: Job):
             contained in the job (measure and job_type, device and job_type,
             etc...).
     """
-    from mpqp.execution.simulated_devices import IBMSimulatedDevice
+    from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     if TYPE_CHECKING:
-        assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+        assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
 
     if not type(job.measure) in job.job_type.value:
         raise DeviceJobIncompatibleError(
@@ -199,7 +201,7 @@ def check_job_compatibility(job: Job):
         )
 
 
-@typechecked
+@conditional_typechecked
 def generate_qiskit_noise_model(
     circuit: QCircuit,
     multiple_noise_warning: bool = True,
@@ -421,7 +423,7 @@ def generate_qiskit_noise_model(
     return noise_model, modified_circuit
 
 
-@typechecked
+@conditional_typechecked
 def run_aer(job: Job):
     """Executes the job on the right AER local simulator precised in the job in
     parameter.
@@ -441,26 +443,12 @@ def run_aer(job: Job):
     from qiskit import QuantumCircuit
     from qiskit_aer import AerSimulator
 
-    from mpqp.execution.simulated_devices import IBMSimulatedDevice
+    from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
-    if job.circuit.transpiled_circuit is None:
-        qiskit_circuit = (
-            (
-                # 3M-TODO: careful, if we ever support several measurements, the
-                # line bellow will have to changer
-                job.circuit.without_measurements()
-                + job.circuit.pre_measure()
-            ).to_other_device(job.device)
-            if (job.job_type == JobType.STATE_VECTOR)
-            else job.circuit.to_other_device(job.device)
-        )
-    else:
-        qiskit_circuit = job.circuit.transpiled_circuit
-
+    job_circuit = job.circuit
     if TYPE_CHECKING:
-        assert isinstance(qiskit_circuit, QuantumCircuit)
-
-    if isinstance(job.device, IBMSimulatedDevice):
+        assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
+    if isinstance(job.device, StaticIBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
             warnings.warn(
                 "NoiseModel are ignored when running the circuit on a "
@@ -471,14 +459,29 @@ def run_aer(job: Job):
             # to it directly)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
-        if job.circuit.transpiled_noise_model is None:
-            raise InstructionParsingError("transpiled_noise_model is not initialized")
-        backend_sim = AerSimulator(
-            method=job.device.value, noise_model=job.circuit.transpiled_noise_model
-        )
+        if job.circuit.transpiled_circuit is not None:
+            if job.circuit.transpiled_noise_model is None:
+                raise InstructionParsingError(
+                    "transpiled_noise_model is not initialized"
+                )
+            backend_sim = AerSimulator(
+                method=job.device.value, noise_model=job.circuit.transpiled_noise_model
+            )
+        else:
+            noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
+            job_circuit = modified_circuit
+            backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
     else:
         backend_sim = AerSimulator(method=job.device.value)
 
+    if job.circuit.transpiled_circuit is None:
+        qiskit_circuit = job_circuit.to_other_device(
+            job.device, backend_sim=backend_sim
+        )
+    else:
+        qiskit_circuit = job.circuit.transpiled_circuit
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.
@@ -498,17 +501,10 @@ def run_aer(job: Job):
 
         job.status = JobStatus.RUNNING
 
-        if isinstance(job.device, IBMSimulatedDevice):
-            from qiskit import transpile
-
-            # TODO I don't know why we need to retranspile here, it is supposed to be done in to_other_device,
-            #  but without it, it doesn't woghk
-            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
-
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
         if TYPE_CHECKING:
-            assert isinstance(job.device, (IBMDevice, IBMSimulatedDevice))
+            assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
         result = extract_result(result_sim, job, job.device)
 
     elif job.job_type == JobType.OBSERVABLE:
@@ -521,7 +517,7 @@ def run_aer(job: Job):
     return result
 
 
-@typechecked
+@conditional_typechecked
 def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
@@ -564,7 +560,12 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=session)
         qiskit_observables = [
-            obs.to_other_language(Language.QISKIT) for obs in meas.observables
+            (
+                obs.to_other_language(Language.QISKIT)
+                if obs.transpile is None
+                else obs.transpile
+            )
+            for obs in meas.observables
         ]
         if TYPE_CHECKING:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
@@ -603,7 +604,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     return job.id, ibm_job
 
 
-@typechecked
+@conditional_typechecked
 def run_remote_ibm(job: Job) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
@@ -626,11 +627,11 @@ def run_remote_ibm(job: Job) -> Result:
     return extract_result(ibm_result, job, job.device)
 
 
-@typechecked
+@conditional_typechecked
 def extract_result(
     result: "QiskitResult | EstimatorResult | PrimitiveResult[PubResult | SamplerPubResult]",
     job: Optional[Job],
-    device: "IBMDevice | IBMSimulatedDevice | AZUREDevice",
+    device: "IBMDevice | StaticIBMSimulatedDevice | AZUREDevice",
 ) -> Result:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
@@ -656,7 +657,7 @@ def extract_result(
 
         if hasattr(res_data, "evs"):
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
             exp_values = res_data.evs  # pyright: ignore[reportAttributeAccessIssue]
             exp_values = np.atleast_1d(exp_values)
@@ -702,7 +703,6 @@ def extract_result(
                         nb_qubits=nb_qubits,
                     ),
                     device,
-                    BasisMeasure(list(range(nb_qubits)), shots=shots),
                 )
             if TYPE_CHECKING:
                 assert job.measure is not None
@@ -733,7 +733,7 @@ def extract_result(
         if isinstance(result, EstimatorResult):
 
             if job is None:
-                job = Job(JobType.OBSERVABLE, QCircuit(0), device, None)
+                job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
             if len(result.values) == 1:
                 return Result(
@@ -783,9 +783,11 @@ def extract_result(
                     shots = result.results[0].shots
                     job = Job(
                         job_type,
-                        QCircuit(nb_qubits),
+                        QCircuit(
+                            [BasisMeasure(list(range(nb_qubits)), shots=shots)],
+                            nb_qubits=nb_qubits,
+                        ),
                         device,
-                        BasisMeasure(list(range(nb_qubits)), shots=shots),
                     )
                 else:
                     if len(result.data()) == 0:
@@ -824,7 +826,7 @@ def extract_result(
             raise NotImplementedError(f"Result type {type(result)} not handled")
 
 
-@typechecked
+@conditional_typechecked
 def get_result_from_ibm_job_id(job_id: str) -> Result:
     """Retrieves from IBM remote platform and parse the result of the job_id
     given in parameter. If the job is still running, we wait (blocking) until it

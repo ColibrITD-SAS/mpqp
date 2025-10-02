@@ -16,7 +16,7 @@ def print_config_info():
     """Displays the information stored for each provider."""
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.azure_connection as azuc
-    import mpqp.execution.connection.env_manager as env_m
+    import mpqp.environment.env_manager as env_m
     import mpqp.execution.connection.ibm_connection as ibmqc
     import mpqp.execution.connection.ionq_connection as ionqc
     from mpqp.tools.errors import IBMRemoteExecutionError

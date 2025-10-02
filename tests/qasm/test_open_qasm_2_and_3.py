@@ -275,7 +275,7 @@ def test_conversion_2_and_3(qasm_code: str):
     ],
 )
 def test_conversion_2_to_3(qasm_code: str, expected_output: str):
-    convert = open_qasm_2_to_3(qasm_code, translation_warning=False)
+    convert = open_qasm_2_to_3(qasm_code)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 
@@ -707,9 +707,9 @@ def test_conversion_3_to_2(expected_output: str, qasm_code: str):
                         'p((lambda+phi)/2) c;',
                         'p((lambda-phi)/2) t;',
                         'cx c,t;',
-                        'u(-theta/2,0,-(phi+lambda)/2) t;',
+                        'u3(-theta/2,0,-(phi+lambda)/2) t;',
                         'cx c,t;',
-                        'u(theta/2,phi,0) t;',
+                        'u3(theta/2,phi,0) t;',
                     ],
                 },
             ],
@@ -911,9 +911,9 @@ def test_sample_counts_in_trust_interval(
 
     expected_amplitudes = amplitude(expected_circuit) * exp(expected_gphase * 1j)
 
-    print(circuit.gphase)
-    circuit.gphase = gphase
-    print(circuit.gphase)
+    print(circuit.input_g_phase)
+    circuit.input_g_phase = gphase
+    print(circuit.input_g_phase)
     result = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(result, Result)
     print("result_amplitudes: " + str(result.amplitudes))

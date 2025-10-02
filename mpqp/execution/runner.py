@@ -24,7 +24,6 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 from sympy import Expr
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -33,6 +32,7 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -48,13 +48,12 @@ from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
-from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 
-@typechecked
+@conditional_typechecked
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
@@ -74,15 +73,26 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Returns:
         The measure padded with identities before and after.
     """
-    Id_before = np.eye(2 ** measure.rearranged_targets[0])
-    Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
+    # TODO: use this only for specific provider
 
-    tweaked_observables = [
-        Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
-        # TODO: avoid to force using matrix representation to add identities if the observable is defined by
-        #  pauli string (use I @ obs @ I) or diagonal coefficients (perform kron product with [1,1] instead of I matrix)
-        for obs in measure.observables
-    ]
+    if measure.targets == list(range(circuit.nb_qubits)):
+        return measure
+
+    tweaked_observables = []
+    n_before = measure.rearranged_targets[0]
+    n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
+    for obs in measure.observables:
+        if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
+            from mpqp.measures import pI
+
+            pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
+            tweaked_observables.append(Observable(pauli))
+        else:
+            Id_before = np.eye(2**n_before)
+            Id_after = np.eye(2**n_after)
+            tweaked_observables.append(
+                Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+            )
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
@@ -95,9 +105,11 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     return tweaked_measure
 
 
-@typechecked
+@conditional_typechecked
 def generate_job(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -114,7 +126,8 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    circuit = circuit.subs(values, True)
+    if values is not None:
+        circuit = circuit.subs(values, True)
 
     m_list = circuit.measurements
     nb_meas = len(m_list)
@@ -125,15 +138,17 @@ def generate_job(
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device, measurement)
+                job = Job(JobType.STATE_VECTOR, circuit, device)
             else:
-                job = Job(JobType.SAMPLE, circuit, device, measurement)
+                job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
+            m = adjust_measure(measurement, circuit)
+            c = circuit.without_measurements()
+            c.add(m)
             job = Job(
                 JobType.OBSERVABLE,
-                circuit,
+                c,
                 device,
-                adjust_measure(measurement, circuit),
             )
         else:
             raise NotImplementedError(
@@ -148,22 +163,19 @@ def generate_job(
     return job
 
 
-@typechecked
+@conditional_typechecked
 def _run_diagonal_observables(
     circuit: QCircuit,
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: dict[Expr | str, Complex],
-    translation_warning: bool = True,
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(
-        adapted_circuit, device, values, False, translation_warning=translation_warning
-    )
+    result = _run_single(adapted_circuit, device, values, False)
     probas = result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
@@ -191,13 +203,12 @@ def _run_diagonal_observables(
     )
 
 
-@typechecked
+@conditional_typechecked
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: dict[Expr | str, Complex],
+    values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -209,7 +220,6 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -233,21 +243,22 @@ def _run_single(
          Error: None
 
     """
+    from mpqp.execution.simulated_devices import (
+        SimulatedDevice,
+        StaticIBMSimulatedDevice,
+    )
 
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
-    circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
-                return _run_diagonal_observables(
-                    circuit, measure, device, job, values, translation_warning
-                )
+                return _run_diagonal_observables(circuit, measure, device, job, values)
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -259,16 +270,16 @@ def _run_single(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
-        return run_ibm(job, translation_warning)
+    if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+        return run_ibm(job)
     elif isinstance(device, ATOSDevice):
-        return run_atos(job, translation_warning)
+        return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job, translation_warning)
+        return run_braket(job)
     elif isinstance(device, GOOGLEDevice):
-        return run_google(job, translation_warning)
+        return run_google(job)
     elif isinstance(device, AZUREDevice):
-        return run_azure(job, translation_warning)
+        return run_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -279,7 +290,6 @@ def run(
     device: Sequence[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> BatchResult: ...
 
 
@@ -289,7 +299,6 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> BatchResult: ...
 
 
@@ -299,17 +308,15 @@ def run(
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> Result: ...
 
 
-@typechecked
+@conditional_typechecked
 def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
-    translation_warning: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -325,7 +332,6 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The Result containing information about the measurement required.
@@ -382,8 +388,6 @@ def run(
               Error: None
 
     """
-    if values is None:
-        values = {}
 
     def namer(circ: QCircuit, i: int):
         circ.label = f"circuit {i}" if circ.label is None else circ.label
@@ -397,19 +401,16 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
-                    translation_warning,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(
-            circuit, device, values, display_breakpoints, translation_warning
-        )
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
-@typechecked
+@conditional_typechecked
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
@@ -500,7 +501,7 @@ def display_kth_breakpoint(
             nb_cbits=circuit.nb_cbits,
             label=circuit.label,
         )
-        res = _run_single(copy, device, {}, False)
+        res = _run_single(copy, device, None, False)
         if TYPE_CHECKING:
             assert isinstance(res, Result)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")

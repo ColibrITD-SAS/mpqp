@@ -9,15 +9,15 @@ from warnings import warn
 import numpy as np
 import numpy.typing as npt
 from scipy.linalg import fractional_matrix_power
-from typeguard import typechecked
 
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
 from mpqp.tools.generics import Matrix
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import matrix_eq
 
 
-@typechecked
+@conditional_typechecked
 class Gate(Instruction, ABC):
     """Represent a unitary operator acting on qubit(s).
 
@@ -251,7 +251,7 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex64] = fractional_matrix_power(
+        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
             self.to_matrix(), exponent
         )
 
@@ -461,7 +461,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         return self.minus(other)
 
 
-@typechecked
+@conditional_typechecked
 class InvolutionGate(Gate, ABC):
     """Gate who's inverse is itself.
 
@@ -474,7 +474,7 @@ class InvolutionGate(Gate, ABC):
         return deepcopy(self)
 
 
-@typechecked
+@conditional_typechecked
 class SingleQubitGate(Gate, ABC):
     """Abstract class for gates operating on a single qubit.
 

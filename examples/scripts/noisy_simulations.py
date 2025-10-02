@@ -1,4 +1,4 @@
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.measures import BasisMeasure
 from mpqp.gates import *
 from mpqp.noise import *

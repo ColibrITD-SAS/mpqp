@@ -5,17 +5,14 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import I as Ip
 from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.core.instruction.measurement.pauli_string import X as Xp
-from mpqp.core.instruction.measurement.pauli_string import Y as Yp
-from mpqp.core.instruction.measurement.pauli_string import Z as Zp
+from mpqp.core.instruction.measurement.pauli_string import pI, pX, pY, pZ
 from mpqp.core.languages import Language
 from mpqp.execution import (
     ATOSDevice,
@@ -252,6 +249,7 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
+        print(result.device)
         assert isinstance(result, Result)
         assert len(result.samples) == nb_states
 
@@ -331,6 +329,7 @@ def test_observable_ideal_case(
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        print(result.device)
         assert isinstance(result, Result)
         assert abs(result.expectation_values - expected_value) < (atol + rtol * abs(expected_value))  # type: ignore[reportOperatorIssue]
 
@@ -490,7 +489,7 @@ def test_validity_measure_to_other_language(
 
 @pytest.fixture
 def pauli_strings():
-    return [Ip @ Xp @ Yp @ Zp, Xp + Zp, Yp]
+    return [pI @ pX @ pY @ pZ, pX + pZ, pY]
 
 
 @pytest.mark.parametrize("language", list(Language))
@@ -580,7 +579,6 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
-        translation_warning=False,
     )
     br2 = run(
         c2,
@@ -590,7 +588,6 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
-        translation_warning=False,
     )
     assert isinstance(br1, BatchResult)
     assert isinstance(br2, BatchResult)
