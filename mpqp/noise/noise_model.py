@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.measures import PI, PX, PY, PZ
+from mpqp.measures import pI, pX, pY, pZ
 from mpqp.tools.generics import T
 
 if TYPE_CHECKING:
@@ -157,7 +157,7 @@ class NoiseModel(ABC):
         return [
             reduce(np.kron, ops)
             for ops in product(
-                *[K if t in targets else [PI.matrix] for t in range(size)]
+                *[K if t in targets else [pI.matrix] for t in range(size)]
             )
         ]
 
@@ -386,10 +386,10 @@ class Depolarizing(DimensionalNoiseModel):
 
     def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
-            np.sqrt(1 - 3 * self.prob / 4) * PI.matrix,
-            np.sqrt(self.prob / 4) * PX.matrix,
-            np.sqrt(self.prob / 4) * PY.matrix,
-            np.sqrt(self.prob / 4) * PZ.matrix,
+            np.sqrt(1 - 3 * self.prob / 4) * pI.matrix,
+            np.sqrt(self.prob / 4) * pX.matrix,
+            np.sqrt(self.prob / 4) * pY.matrix,
+            np.sqrt(self.prob / 4) * pZ.matrix,
         ]
 
     def __repr__(self):
@@ -562,7 +562,7 @@ class BitFlip(NoiseModel):
         """See parameter description."""
 
     def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
-        return [np.sqrt(1 - self.prob) * PI.matrix, np.sqrt(self.prob) * PX.matrix]
+        return [np.sqrt(1 - self.prob) * pI.matrix, np.sqrt(self.prob) * pX.matrix]
 
     def __repr__(self):
         targets = f", {self.targets}" if not self._dynamic else ""
@@ -867,7 +867,7 @@ class PhaseDamping(NoiseModel):
 
     def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
-            np.sqrt(1 - self.gamma) * PI.matrix,
+            np.sqrt(1 - self.gamma) * pI.matrix,
             np.diag([np.sqrt(self.gamma), 0]),
             np.diag([0, np.sqrt(self.gamma)]),
         ]

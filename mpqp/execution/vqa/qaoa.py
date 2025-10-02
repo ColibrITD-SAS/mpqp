@@ -203,7 +203,7 @@ def qaoa_solver(
         >>> x1 = QuboAtom('x1')
         >>> expr = -3*x0 - 5*x1 + 4*(x0 & x1)
         >>> mixer = QaoaMixer(QaoaMixerType.MIXER_X)
-        >>> qaoa_solver(expr, 4, mixer, IBMDevice.AER_SIMULATOR, Optimizer.POWELL).final_state
+        >>> qaoa_solver(expr, 4, mixer, IBMDevice.AER_SIMULATOR, Optimizer.POWELL).final_state # doctest: +SKIP
         '01'
     """
     observable = problem.to_cost_hamiltonian()

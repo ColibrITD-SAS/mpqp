@@ -15,9 +15,6 @@ from dotenv import dotenv_values, set_key, unset_key
 from numpy.random import default_rng
 
 from mpqp.all import *
-from mpqp.core.instruction.measurement import pauli_string
-from mpqp.core.instruction.measurement.pauli_string import PauliString, PI, PX, PY, PZ
-from mpqp.execution import BatchResult
 from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
 )
@@ -28,6 +25,7 @@ from mpqp.environment.env_manager import (
     load_env_variables,
     save_env_variable,
 )
+from mpqp.execution import BatchResult
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
 from mpqp.execution.vqa.qaoa import QaoaMixer, QaoaMixerType
@@ -74,6 +72,7 @@ from mpqp.local_storage.queries import (
 )
 from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import setup_local_storage
+from mpqp.measures import PauliString, pI, pX, pY, pZ
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import (
     qasm2_to_cirq_Circuit,
@@ -82,6 +81,7 @@ from mpqp.qasm import (
     qasm3_to_braket_Program,
 )
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 from mpqp.qasm.open_qasm_2_and_3 import (
     convert_instruction_3_to_2,
     open_qasm_2_to_3,
@@ -92,12 +92,11 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     remove_user_gates,
 )
 from mpqp.qasm.qasm_to_braket import (
-    qasm3_to_braket_Circuit,
-    braket_noise_to_mpqp,
     braket_custom_gates_to_mpqp,
+    braket_noise_to_mpqp,
+    qasm3_to_braket_Circuit,
 )
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 from mpqp.tools.circuit import (
     random_circuit,
     random_gate,
@@ -111,7 +110,6 @@ from mpqp.tools.display import (
     format_element,
     format_element_str,
     pprint,
-    print_list,
 )
 from mpqp.tools.errors import (
     OpenQASMTranslationWarning,
@@ -128,19 +126,14 @@ from mpqp.tools.maths import (
     normalize,
     rand_clifford_matrix,
     rand_hermitian_matrix,
-    rand_unitary_matrix,
     rand_orthogonal_matrix,
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
-)
-from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
-from numpy.random import default_rng
-from mpqp.measures import pauli_string_with_atom, pauli_string_from_str
-from mpqp.tools.pauli_grouping import (
-    CommutingTypes,
-    pauli_grouping_greedy,
+    rand_unitary_matrix,
 )
 from mpqp.tools.operators import *
+from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
+from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
 sys.path.insert(0, os.path.abspath("."))
 

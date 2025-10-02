@@ -65,7 +65,11 @@ class Measure(Instruction, ABC):
     @property
     def pre_measure(self) -> list[Gate]:
         """
-        List of gates added before the measurement to correctly swap target qubits
-        when needed, or to change the basis for a ``BasisMeasure``.
+        List of gates inserted before the measurement, either to correctly 
+        swap target qubits when required or to adjust the basis for a BasisMeasure.
+        These operations ensure that the only measurement performed at the end 
+        of the circuit is a standard measurement in the computational basis, 
+        with qubits arranged in ascending order. This list may, for example, 
+        include SWAP gates and U3 gates.
         """
         return []

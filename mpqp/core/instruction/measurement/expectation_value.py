@@ -64,8 +64,8 @@ class Observable:
         >>> Observable(np.array([[1, 0], [0, -1]]))
         Observable(array([[ 1, 0], [ 0, -1]]))
 
-        >>> Observable(3 * PI @ PZ + 4 * PX @ PY)
-        Observable(3*I@Z + 4*X@Y)
+        >>> Observable(3 * pI @ pZ+ 4 * pX@ pY)
+        Observable(3*pI@pZ + 4*pX@pY)
 
         >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
         Observable([ 1., -2., 3., -4.])
@@ -134,7 +134,7 @@ class Observable:
     def matrix(self) -> Matrix:
         """The matrix representation of the observable."""
         if self._matrix is None:
-            if self.is_diagonal is True and self._diag_elements is not None:
+            if self.is_diagonal and self._diag_elements is not None:
                 if TYPE_CHECKING:
                     assert isinstance(self._diag_elements, np.ndarray)
                 self._matrix = np.diag(self._diag_elements.astype(np.complex128))
@@ -147,7 +147,7 @@ class Observable:
     def pauli_string(self) -> PauliString:
         """The PauliString representation of the observable."""
         if self._pauli_string is None:
-            if self.is_diagonal is True:
+            if self.is_diagonal:
                 self._pauli_string = PauliString.from_diagonal_elements(
                     self.diagonal_elements
                 )
@@ -160,9 +160,7 @@ class Observable:
     def diagonal_elements(self) -> npt.NDArray[np.float64]:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
-            self._diag_elements = (
-                np.diagonal(self.matrix).real.flatten().astype(np.float64)
-            )
+            self._diag_elements = np.diagonal(self.matrix).real.astype(np.float64)
         return copy.deepcopy(self._diag_elements)
 
     @matrix.setter
@@ -221,9 +219,9 @@ class Observable:
             True
             >>> Observable(np.array([7, 4, 3, 6])).is_diagonal
             True
-            >>> Observable(PI @ PZ - 3 * PZ @ PZ + 2* PZ @ PI).is_diagonal
+            >>> Observable(pI @ pZ - 3 * pZ @ pZ+ 2* pZ @ pI).is_diagonal
             True
-            >>> Observable(PI @ PX - 3* PZ @ PZ + 2 * PY @ PI).is_diagonal
+            >>> Observable(pI @ pX - 3* pZ @ pZ+ 2 * pY @ pI).is_diagonal
             False
 
         """
@@ -244,7 +242,7 @@ class Observable:
         return self._is_diagonal
 
     def __repr__(self) -> str:
-        if self._is_diagonal is True and self._diag_elements is not None:
+        if self._is_diagonal and self._diag_elements is not None:
             data = f"{np.array2string(self._diag_elements, separator=', ')}"
         elif self._matrix is not None:
             data = f"{one_lined_repr(self._matrix)}"
@@ -263,8 +261,8 @@ class Observable:
         # TODO : distinguer si on a l'observable ou le pauli string
         # TODO: traitement spécifique si observable diagonal ?
 
-        if self.is_diagonal is True:
-            if obs.is_diagonal is True:
+        if self.is_diagonal:
+            if obs.is_diagonal:
                 return True
             # TODO: check if self is multiple of identity
 
@@ -333,8 +331,8 @@ class Observable:
             return False
 
         if self.nb_qubits == other.nb_qubits and self.label == other.label:
-            if self._is_diagonal is True:
-                if other.is_diagonal is True:
+            if self._is_diagonal:
+                if other.is_diagonal:
                     return matrix_eq(self.diagonal_elements, other.diagonal_elements)
                 return False
             elif self._matrix is not None:
@@ -377,7 +375,7 @@ class ExpectationMeasure(Measure):
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
-        >>> obs2 = Observable( PX @ PY - PY @ PY)
+        >>> obs2 = Observable( pX@ pY- pY@ pY)
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([obs, obs2], shots=10000)])
         >>> run(c, IBMDevice.AER_SIMULATOR).expectation_values # doctest: +SKIP
         {'observable_0': 0.8514399940967561, 'observable_1': 0.9876}
@@ -424,33 +422,19 @@ class ExpectationMeasure(Measure):
         label_counter = 0
         default_label = self.label if self.label is not None else "observable"
         for obs in observable:
-            obs_new = obs
+            new_obs = obs
             if obs.label is None:
                 while f"{default_label}_{label_counter}" in label_defined:
                     label_counter += 1
-                if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-                    obs_new = Observable(
-                        obs._pauli_string,  # pyright: ignore[reportPrivateUsage]
-                        f"{default_label}_{label_counter}",
-                    )
-                elif obs._matrix is not None:  # pyright: ignore[reportPrivateUsage]
-                    obs_new = Observable(
-                        obs._matrix,  # pyright: ignore[reportPrivateUsage]
-                        f"{default_label}_{label_counter}",
-                    )
-                else:
-                    assert (
-                        obs._diag_elements  # pyright: ignore[reportPrivateUsage]
-                        is not None
-                    )
-                    obs_new = Observable(
-                        obs._diag_elements,  # pyright: ignore[reportPrivateUsage]
-                        f"{default_label}_{label_counter}",
-                    )
-                obs_new.pre_transpile = obs.pre_transpile
+
+                # Create a new instance of Observable with the new label
+                new_obs = Observable.__new__(Observable)
+                for attr, val in obs.__dict__.items():
+                    setattr(new_obs, attr, val)
+                new_obs.label = f"{default_label}_{label_counter}"
 
                 label_counter += 1
-            self.observables.append(obs_new)
+            self.observables.append(new_obs)
         self._check_targets_order()
 
     @property
@@ -466,7 +450,7 @@ class ExpectationMeasure(Measure):
         necessary (private)."""
 
         if len(self.targets) == 0:
-            self._pre_measure = []
+            self._pre_measure: list[Gate] = []
             return
 
         if self.nb_qubits != self.observables[0].nb_qubits:
@@ -475,9 +459,9 @@ class ExpectationMeasure(Measure):
                 f"{self.observables[0].nb_qubits}."
             )
 
-        self._pre_measure = []
-        """Circuit added before the expectation measurement to correctly swap
-        target qubits when their are note ordered or contiguous."""
+        self._pre_measure: list[Gate] = []
+        """List of Gates added before the expectation measurement to correctly swap
+        target qubits when their are not ordered or contiguous."""
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )
@@ -509,8 +493,6 @@ class ExpectationMeasure(Measure):
 
     @property
     def pre_measure(self) -> list[Gate]:
-        """List of gates added before the measure to correctly swap target
-        qubits when needed."""
         return self._pre_measure
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:

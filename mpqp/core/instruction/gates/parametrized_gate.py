@@ -18,7 +18,7 @@ if TYPE_CHECKING:
     from sympy import Expr
 
 from mpqp.core.instruction.gates.gate import Gate
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
+from mpqp.core.instruction.gates.gate_definition import GateDefinition
 from mpqp.environment.typechecked import conditional_typechecked
 
 # 3M-TODO: there might be a conception problem: to initialize a gate we need a gate
@@ -45,7 +45,7 @@ class ParametrizedGate(Gate, ABC):
 
     def __init__(
         self,
-        definition: UnitaryMatrix,
+        definition: GateDefinition,
         targets: list[int],
         parameters: list[Expr | float],
         label: Optional[str] = None,

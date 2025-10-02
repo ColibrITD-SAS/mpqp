@@ -911,9 +911,9 @@ def test_sample_counts_in_trust_interval(
 
     expected_amplitudes = amplitude(expected_circuit) * exp(expected_gphase * 1j)
 
-    print(circuit.gphase)
-    circuit.gphase = gphase
-    print(circuit.gphase)
+    print(circuit.input_g_phase)
+    circuit.input_g_phase = gphase
+    print(circuit.input_g_phase)
     result = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(result, Result)
     print("result_amplitudes: " + str(result.amplitudes))

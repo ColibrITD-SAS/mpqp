@@ -166,10 +166,11 @@ class Basis:
         return QCircuit([self.to_instruction()])
 
     def to_instruction(self) -> CustomGate:
-        """Converts the custom basis to the custom gate.
-
-        This method creates a custom gate represented by a unitary
-        transformation and applies it to all qubits before measurement.
+        """Converts the custom basis to the corresponding change-of-basis gate.
+        The returned unitary is the conjugate transpose (P^†) of the matrix whose
+        columns are the custom basis vectors. This operator maps states from the
+        custom basis back to the computational basis, so that a computational
+        measurement corresponds to measurement in the custom basis.
 
         Returns:
             A custom gate representing the basis change circuit.

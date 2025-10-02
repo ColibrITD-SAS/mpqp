@@ -327,8 +327,8 @@ class Result:
             else:
                 self._state_vector = data
                 gphase = (
-                    job.circuit.gphase
-                    + job.circuit._gphase  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.input_g_phase
+                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage]
                 )
                 if gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2

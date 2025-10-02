@@ -65,8 +65,6 @@ def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
-    qiskit_circuit = qiskit_circuit.reverse_bits()
-
     backend_sim = get_azure_provider().get_backend(job.device.value)
 
     if TYPE_CHECKING:

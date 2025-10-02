@@ -6,7 +6,6 @@ from mpqp.core.instruction import ExpectationMeasure, Observable
 from mpqp.execution import AvailableDevice, IBMDevice
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice
 from mpqp.execution.runner import run
-
 from mpqp.gates import *
 
 
@@ -63,8 +62,6 @@ def test_sequential_versus_multi(
     )
     expectation_values = multi_result.expectation_values
     assert isinstance(expectation_values, dict)
-    print(multi_result)
-    print(observables)
     assert len(seq_results) == len(expectation_values)
 
     # TODO modify here to match the logic of dict and observable.label etc
@@ -72,20 +69,20 @@ def test_sequential_versus_multi(
         assert r1.expectation_values == e2
 
 
-from mpqp.measures import PX, PY, PZ, PI
+from mpqp.measures import pI, pX, pY, pZ
 
 
 def pauliObservables():
     return [
-        [Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ)],
+        [Observable(pX @ pX @ pX + pI @ pX @ pI + pX @ pI @ pX - 2 * pZ @ pZ @ pZ)],
         [
-            Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ),
-            Observable(PY @ PY @ PY + PX @ PX @ PX),
+            Observable(pX @ pX @ pX + pI @ pX @ pI + pX @ pI @ pX - 2 * pZ @ pZ @ pZ),
+            Observable(pY @ pY @ pY + pX @ pX @ pX),
         ],
         [
-            Observable(PX @ PX @ PX + PI @ PX @ PI + PX @ PI @ PX - 2 * PZ @ PZ @ PZ),
-            Observable(PY @ PY @ PY + PX @ PX @ PX),
-            Observable(PZ @ PI @ PZ - 5 * PX @ PX @ PX),
+            Observable(pX @ pX @ pX + pI @ pX @ pI + pX @ pI @ pX - 2 * pZ @ pZ @ pZ),
+            Observable(pY @ pY @ pY + pX @ pX @ pX),
+            Observable(pZ @ pI @ pZ - 5 * pX @ pX @ pX),
         ],
     ]
 
@@ -105,7 +102,7 @@ def optimized_devices():
 def test_pauli_grouping_optimization(
     observable: list[Observable], device: AvailableDevice
 ):
-    from mpqp.execution import run, Result
+    from mpqp.execution import Result, run
 
     circuit = QCircuit(
         [
@@ -129,14 +126,20 @@ def test_pauli_grouping_optimization(
         )
         assert isinstance(non_optimized, Result)
         assert isinstance(optimized, Result)
+        optimized_expectation_values = optimized.expectation_values
         if isinstance(non_optimized.expectation_values, float) and isinstance(
-            optimized.expectation_values, float
+            optimized_expectation_values, float
         ):
             assert round(non_optimized.expectation_values, 10) == round(
-                optimized.expectation_values, 10
+                optimized_expectation_values, 10
             )
         else:
-            assert all(round(non_optimized.expectation_values[f"observable_{i}"], 5) == round(optimized.expectation_values[f"observable_{i}"], 5) for i in range(len(non_optimized.expectation_values)))  # type: ignore
+            assert isinstance(non_optimized.expectation_values, dict)
+            assert isinstance(optimized_expectation_values, dict)
+            for i in range(len(non_optimized.expectation_values)):
+                assert round(
+                    non_optimized.expectation_values[f"observable_{i}"], 5
+                ) == round(optimized_expectation_values[f"observable_{i}"], 5)
     else:
         assert True
 
@@ -147,12 +150,12 @@ def test_pauli_grouping_optimization(
         [
             -0.2279775,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
-            Observable(PX @ PY + PZ @ PX),
+            Observable(pX @ pY + pZ @ pX),
         ],
         [
             0,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
-            Observable(PI @ PX + PY @ PZ),
+            Observable(pI @ pX + pY @ pZ),
         ],
     ],
 )

@@ -132,8 +132,8 @@ from mpqp.core import Language
 
             gate MyMixedGate a, b {
                 h a;
-                measure b -> c[0];
                 cx a, b;
+                measure b -> c[0];
             }
 
             qreg q[2];
@@ -141,7 +141,7 @@ from mpqp.core import Language
 
             MyMixedGate q[0], q[1];
             measure q[1] -> c[1];""",
-            [H(0), BasisMeasure([1], [0]), CNOT(0, 1), BasisMeasure([1], [1])],
+            [H(0), CNOT(0, 1), BasisMeasure([1], [0]), BasisMeasure([1], [1])],
         ),
         (
             """OPENQASM 2.0;

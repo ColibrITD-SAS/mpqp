@@ -459,8 +459,6 @@ def run_aer(job: Job):
             # to it directly)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
-        noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
-        job_circuit = modified_circuit
         if job.circuit.transpiled_circuit is not None:
             if job.circuit.transpiled_noise_model is None:
                 raise InstructionParsingError(
@@ -470,6 +468,8 @@ def run_aer(job: Job):
                 method=job.device.value, noise_model=job.circuit.transpiled_noise_model
             )
         else:
+            noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
+            job_circuit = modified_circuit
             backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
     else:
         backend_sim = AerSimulator(method=job.device.value)
