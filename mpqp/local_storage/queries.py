@@ -24,10 +24,10 @@ def fetch_all_jobs() -> list[DictDB]:
         >>> jobs = fetch_all_jobs()
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
         job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
         job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 

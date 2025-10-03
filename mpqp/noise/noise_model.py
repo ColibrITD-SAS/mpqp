@@ -10,7 +10,7 @@ from typing import TYPE_CHECKING, Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.measures import I, X, Y, Z
+from mpqp.measures import pI, pX, pY, pZ
 from mpqp.tools.generics import T
 
 if TYPE_CHECKING:
@@ -112,7 +112,7 @@ class NoiseModel(ABC):
         return set(self.targets)
 
     @abstractmethod
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         r"""Noise models can be represented by Kraus operators. They represent how the
         state is affected by the noise following the formula
 
@@ -129,7 +129,7 @@ class NoiseModel(ABC):
 
     def to_adjusted_kraus_operators(
         self, targets: set[int], size: int
-    ) -> list[npt.NDArray[np.complex64]]:
+    ) -> list[npt.NDArray[np.complex128]]:
         r"""In some cases, you may prefer the Kraus operators to match the size
         of your circuit, and the targets involved. In particular, the targets of
         the noise application may not match the noise targets, because the noise
@@ -154,7 +154,7 @@ class NoiseModel(ABC):
         return [
             reduce(np.kron, ops)
             for ops in product(
-                *[K if t in targets else [I.matrix] for t in range(size)]
+                *[K if t in targets else [pI.matrix] for t in range(size)]
             )
         ]
 
@@ -379,12 +379,12 @@ class Depolarizing(DimensionalNoiseModel):
                 f"and {prob_upper_bound}."
             )
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
-            np.sqrt(1 - 3 * self.prob / 4) * I.matrix,
-            np.sqrt(self.prob / 4) * X.matrix,
-            np.sqrt(self.prob / 4) * Y.matrix,
-            np.sqrt(self.prob / 4) * Z.matrix,
+            np.sqrt(1 - 3 * self.prob / 4) * pI.matrix,
+            np.sqrt(self.prob / 4) * pX.matrix,
+            np.sqrt(self.prob / 4) * pY.matrix,
+            np.sqrt(self.prob / 4) * pZ.matrix,
         ]
 
     def __repr__(self):
@@ -555,8 +555,8 @@ class BitFlip(NoiseModel):
         self.prob = prob
         """See parameter description."""
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
-        return [np.sqrt(1 - self.prob) * I.matrix, np.sqrt(self.prob) * X.matrix]
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
+        return [np.sqrt(1 - self.prob) * pI.matrix, np.sqrt(self.prob) * pX.matrix]
 
     def __repr__(self):
         targets = f", {self.targets}" if not self._dynamic else ""
@@ -705,7 +705,7 @@ class AmplitudeDamping(NoiseModel):
         self.prob = prob
         """See parameter description."""
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
             np.diag(1, np.sqrt(1 - self.prob)),
             np.array([[0, np.sqrt(self.prob)], [0, 0]]),
@@ -857,9 +857,9 @@ class PhaseDamping(NoiseModel):
         self.gamma = gamma
         """Probability of phase damping."""
 
-    def to_kraus_operators(self) -> list[npt.NDArray[np.complex64]]:
+    def to_kraus_operators(self) -> list[npt.NDArray[np.complex128]]:
         return [
-            np.sqrt(1 - self.gamma) * I.matrix,
+            np.sqrt(1 - self.gamma) * pI.matrix,
             np.diag([np.sqrt(self.gamma), 0]),
             np.diag([0, np.sqrt(self.gamma)]),
         ]

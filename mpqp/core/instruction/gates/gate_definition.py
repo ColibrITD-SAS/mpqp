@@ -12,6 +12,7 @@ import numpy as np
 
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.generics import Matrix
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
 
 

@@ -8,17 +8,17 @@ import numpy as np
 import numpy.typing as npt
 
 from mpqp.core.instruction.measurement.pauli_string import (
-    I,
+    pI,
     PauliString,
     PauliStringAtom,
     PauliStringMonomial,
-    X,
-    Y,
-    Z,
+    pX,
+    pY,
+    pZ,
 )
 from mpqp.tools import Matrix, is_hermitian, is_power_of_two
 
-paulis: list[PauliStringAtom] = [I, X, Y, Z]
+paulis: list[PauliStringAtom] = [pI, pX, pY, pZ]
 
 
 class PauliNode:
@@ -46,7 +46,7 @@ class PauliNode:
         if parent is None:
             self.nY = 0
         else:
-            self.nY = parent.nY + 1 if atom is Y else parent.nY
+            self.nY = parent.nY + 1 if atom != None and atom.label == "Y" else parent.nY
 
     @property
     def childI(self) -> "PauliNode":
@@ -133,21 +133,22 @@ def update_tree(current_node: PauliNode, k: list[int], m: list[bool]):
     """
     l = current_node.depth - 1
     t_l = 2**l
-    if current_node.pauli is I:
+    assert current_node.pauli != None
+    if current_node.pauli.label == "I":
         for i in range(t_l):
             k[i + t_l] = k[i] + t_l
             m[i + t_l] = m[i]
 
-    elif current_node.pauli is X:
+    elif current_node.pauli.label == "X":
         for i in range(t_l):
             k[i + t_l] -= t_l
             k[i] += t_l
 
-    elif current_node.pauli is Y:
+    elif current_node.pauli.label == "Y":
         for i in range(t_l, 2 * t_l):
             m[i] = not m[i]
 
-    elif current_node.pauli is Z:
+    elif current_node.pauli.label == "Z":
         for i in range(t_l):
             k[i + t_l] += t_l
             k[i] -= t_l
@@ -334,10 +335,11 @@ def update_tree_diagonal_case(current_node: DiagPauliNode, m: list[bool]):
     """
     l = current_node.depth - 1
     t_l = 2**l
-    if current_node.pauli is I:
+    assert current_node.pauli != None
+    if current_node.pauli.label == "I":
         m[t_l : 2 * t_l] = m[0:t_l]
 
-    elif current_node.pauli is Z:
+    elif current_node.pauli.label == "Z":
         for i in range(t_l):
             m[i + t_l] = not m[i + t_l]
 
@@ -370,8 +372,8 @@ def generate_and_explore_node_diagonal_case(
 
     if current_node.depth < n:
 
-        current_node.children.append(DiagPauliNode(atom=I, parent=current_node))
-        current_node.children.append(DiagPauliNode(atom=Z, parent=current_node))
+        current_node.children.append(DiagPauliNode(atom=pI, parent=current_node))
+        current_node.children.append(DiagPauliNode(atom=pZ, parent=current_node))
 
         generate_and_explore_node_diagonal_case(
             m, current_node.childI, diag_elements, n, monomials, progression
@@ -505,7 +507,7 @@ def decompose_diagonal_observable_walsh_hadamard(
         The corresponding Pauli string representation.
 
     """
-    pauli_1q = [1 * I, 1 * Z]
+    pauli_1q = [1 * pI, 1 * pZ]
     basis: list[PauliStringMonomial] = pauli_1q
     diags = np.array(diag_elements)
 

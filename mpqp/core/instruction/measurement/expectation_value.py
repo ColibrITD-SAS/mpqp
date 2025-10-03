@@ -25,6 +25,7 @@ from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
@@ -36,6 +37,7 @@ if TYPE_CHECKING:
     from qiskit.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
+    from mpqp.core.instruction.gates.custom_controlled_gate import Gate
 
 
 class Observable:
@@ -58,11 +60,10 @@ class Observable:
 
     Examples:
         >>> Observable(np.array([[1, 0], [0, -1]]))
-        Observable(array([[ 1.+0.j, 0.+0.j], [ 0.+0.j, -1.+0.j]]))
+        Observable(array([[ 1, 0], [ 0, -1]]))
 
-        >>> from mpqp.measures import I, X, Y, Z
-        >>> Observable(3 * I @ Z + 4 * X @ Y)
-        Observable(3*I@Z + 4*X@Y)
+        >>> Observable(3 * pI @ pZ+ 4 * pX@ pY)
+        Observable(3*pI@pZ + 4*pX@pY)
 
         >>> Observable([1, -2, 3, -4])  # doctest: +NORMALIZE_WHITESPACE
         Observable([ 1., -2., 3., -4.])
@@ -77,8 +78,9 @@ class Observable:
         self._matrix = None
         self._pauli_string = None
         self._is_diagonal = None
-        self._diag_elements = None
+        self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
+        self.transpile = None
         "See parameter description."
 
         if isinstance(observable, PauliString):
@@ -115,16 +117,16 @@ class Observable:
                             "The matrix in parameter is not hermitian (cannot define an observable)."
                         )
 
-                    self._matrix = np.array(observable)
+                    self._matrix = observable
 
                 else:
                     self._is_diagonal = True
-                    self._diag_elements = observable.real
+                    self._diag_elements = observable.real.flatten().astype(np.float64)
 
             # correspond to isinstance(observable, list)
             else:
                 self._is_diagonal = True
-                self._diag_elements = np.array(observable)
+                self._diag_elements = np.array(observable, dtype=np.float64)
 
     @property
     def matrix(self) -> Matrix:
@@ -133,10 +135,10 @@ class Observable:
             if self.is_diagonal and self._diag_elements is not None:
                 if TYPE_CHECKING:
                     assert isinstance(self._diag_elements, np.ndarray)
-                self._matrix = np.diag(self._diag_elements)
+                self._matrix = np.diag(self._diag_elements.astype(np.complex128))
             else:
                 self._matrix = self.pauli_string.to_matrix()
-        matrix = copy.deepcopy(self._matrix).astype(np.complex128)
+        matrix = copy.deepcopy(self._matrix.astype(np.complex128))
         return matrix
 
     @property
@@ -156,8 +158,8 @@ class Observable:
     def diagonal_elements(self) -> npt.NDArray[np.float64]:
         """The diagonal elements of the matrix representing the observable (diagonal or not)."""
         if self._diag_elements is None:
-            self._diag_elements = np.diagonal(self.matrix).real
-        return copy.deepcopy(np.array(self._diag_elements, dtype=np.float64))
+            self._diag_elements = np.diagonal(self.matrix).real.astype(np.float64)
+        return copy.deepcopy(self._diag_elements)
 
     @matrix.setter
     def matrix(self, matrix: Matrix):
@@ -192,8 +194,10 @@ class Observable:
             raise ValueError(
                 "The size of the diagonal elements of the matrix is not a power of two."
             )
-
-        self._diag_elements = diag_elements
+        if isinstance(diag_elements, list):
+            self._diag_elements = np.array(diag_elements, dtype=np.float64)
+        else:
+            self._diag_elements = diag_elements
         self._is_diagonal = True
         self._pauli_string = None
         self._matrix = None
@@ -213,10 +217,9 @@ class Observable:
             True
             >>> Observable(np.array([7, 4, 3, 6])).is_diagonal
             True
-            >>> from mpqp.measures import I, X, Y, Z
-            >>> Observable(I @ Z - 3 * Z @ Z + 2* Z @ I).is_diagonal
+            >>> Observable(pI @ pZ - 3 * pZ @ pZ+ 2* pZ @ pI).is_diagonal
             True
-            >>> Observable(I @ X - 3* Z @ Z + 2 * Y @ I).is_diagonal
+            >>> Observable(pI @ pX - 3* pZ @ pZ+ 2 * pY @ pI).is_diagonal
             False
 
         """
@@ -238,11 +241,11 @@ class Observable:
 
     def __repr__(self) -> str:
         if self._is_diagonal and self._diag_elements is not None:
-            data = f"{np.array2string(self.diagonal_elements, separator=', ')}"
+            data = f"{np.array2string(self._diag_elements, separator=', ')}"
         elif self._matrix is not None:
-            data = f"{one_lined_repr(self.matrix)}"
+            data = f"{one_lined_repr(self._matrix)}"
         else:
-            data = f"{self.pauli_string}"
+            data = f"{self._pauli_string}"
         label_str = f", '{self.label}'" if self.label is not None else ""
         return f"{type(self).__name__}({data}{label_str})"
 
@@ -288,11 +291,16 @@ class Observable:
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> obs_qiskit.to_list()  # doctest: +NORMALIZE_WHITESPACE
             [('II', (0.425+0j)), ('IZ', (0.425+0j)), ('ZI', (-0.575+0j)), ('ZZ', (0.425+0j))]
+
         """
+        # TODO: use PauliString instead of matrix
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator, SparsePauliOp
 
-            return SparsePauliOp.from_operator(Operator(self.matrix))
+            if self._pauli_string:
+                return self.pauli_string.to_other_language(Language.QISKIT)
+            else:
+                return SparsePauliOp.from_operator(Operator(self.matrix))
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Observable as QLMObservable
 
@@ -359,8 +367,7 @@ class ExpectationMeasure(Measure):
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure(obs, shots=10000)])
         >>> run(c, ATOSDevice.MYQLM_PYLINALG).expectation_values # doctest: +SKIP
         0.85918
-        >>> from mpqp.measures import X as pX, Y as pY
-        >>> obs2 = Observable( pX @ pY - pY @ pY)
+        >>> obs2 = Observable( pX@ pY- pY@ pY)
         >>> c = QCircuit([H(0), CNOT(0,1), ExpectationMeasure([obs, obs2], shots=10000)])
         >>> run(c, IBMDevice.AER_SIMULATOR).expectation_values # doctest: +SKIP
         {'observable_0': 0.8514399940967561, 'observable_1': 0.9876}
@@ -380,7 +387,7 @@ class ExpectationMeasure(Measure):
     ):
 
         super().__init__(targets, shots, label)
-        self.observables: list[Observable]
+        self.observables: list[Observable] = []
         """See parameter description."""
         self.optim_diagonal = optim_diagonal
         """See parameter description."""
@@ -391,7 +398,7 @@ class ExpectationMeasure(Measure):
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
         if isinstance(observable, Observable):
-            self.observables = [observable]
+            observable = [observable]
         else:
             if not all(
                 observable[0].nb_qubits == obs.nb_qubits for obs in observable[1:]
@@ -400,20 +407,24 @@ class ExpectationMeasure(Measure):
                     "All observables in ExpectationMeasure must have the same size. Sizes: "
                     + str([o.nb_qubits for o in observable])
                 )
-            self.observables = observable
 
         # Fill observables labels if not set
-        label_defined = set()
+        label_defined = set([obs.label for obs in observable])
         label_counter = 0
         default_label = self.label if self.label is not None else "observable"
-        for obs in self.observables:
+        for obs in observable:
+            new_obs = obs
             if obs.label is None:
                 while f"{default_label}_{label_counter}" in label_defined:
                     label_counter += 1
-                obs.label = f"{default_label}_{label_counter}"
+                # Create a new instance of Observable with the new label
+                new_obs = Observable.__new__(Observable)
+                for attr, val in obs.__dict__.items():
+                    setattr(new_obs, attr, val)
+                new_obs.label = f"{default_label}_{label_counter}"
+
                 label_counter += 1
-            else:
-                label_defined.add(obs.label)
+            self.observables.append(new_obs)
         self._check_targets_order()
 
     @property
@@ -427,10 +438,9 @@ class ExpectationMeasure(Measure):
     def _check_targets_order(self):
         """Ensures target qubits are ordered and contiguous, rearranging them if
         necessary (private)."""
-        from mpqp.core.circuit import QCircuit
 
         if len(self.targets) == 0:
-            self.pre_measure = QCircuit(0)
+            self._pre_measure: list[Gate] = []
             return
 
         if self.nb_qubits != self.observables[0].nb_qubits:
@@ -439,9 +449,9 @@ class ExpectationMeasure(Measure):
                 f"{self.observables[0].nb_qubits}."
             )
 
-        self.pre_measure = QCircuit(max(self.targets) + 1)
-        """Circuit added before the expectation measurement to correctly swap
-        target qubits when their are note ordered or contiguous."""
+        self._pre_measure: list[Gate] = []
+        """List of Gates added before the expectation measurement to correctly swap
+        target qubits when their are not ordered or contiguous."""
         targets_is_ordered = all(
             [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
         )
@@ -458,18 +468,22 @@ class ExpectationMeasure(Measure):
             for t_index, target in enumerate(tweaked_tgt):  # sort the targets
                 min_index = tweaked_tgt.index(min(tweaked_tgt[t_index:]))
                 if t_index != min_index:
-                    self.pre_measure.add(SWAP(target, tweaked_tgt[min_index]))
+                    self._pre_measure.append(SWAP(target, tweaked_tgt[min_index]))
                     tweaked_tgt[t_index] = tweaked_tgt[min_index]
                     tweaked_tgt[min_index] = target
             for t_index, target in enumerate(tweaked_tgt):  # compact the targets
                 if t_index == 0:
                     continue
                 if target != tweaked_tgt[t_index - 1] + 1:
-                    self.pre_measure.add(SWAP(target, tweaked_tgt[t_index - 1] + 1))
+                    self._pre_measure.append(SWAP(target, tweaked_tgt[t_index - 1] + 1))
                     tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
         self.rearranged_targets = tweaked_tgt
         """Adjusted list of target qubits when they are not initially sorted and
         contiguous."""
+
+    @property
+    def pre_measure(self) -> list[Gate]:
+        return self._pre_measure
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
         """Return the grouped monomials of the Pauli string of the observable.

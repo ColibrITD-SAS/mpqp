@@ -260,6 +260,7 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
+        print(result.device)
         assert isinstance(result, Result)
         assert len(result.samples) == nb_states
 
@@ -499,7 +500,7 @@ def test_validity_measure_to_other_language(
 
 @pytest.fixture
 def pauli_strings():
-    return [I @ Xop @ Yop @ Zop, Xop + Zop, Yop]
+    return [pI @ pX @ pY @ pZ, pX + pZ, pY]
 
 
 @pytest.mark.parametrize("language", list(Language))
@@ -589,7 +590,6 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
-        translation_warning=False,
     )
     br2 = run(
         c2,
@@ -599,7 +599,6 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
             GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         ],
-        translation_warning=False,
     )
     assert isinstance(br1, BatchResult)
     assert isinstance(br2, BatchResult)

@@ -13,6 +13,7 @@ from scipy.linalg import fractional_matrix_power
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
 from mpqp.tools.generics import Matrix
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import matrix_eq
 
 
@@ -249,7 +250,7 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex64] = fractional_matrix_power(
+        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
             self.to_matrix(), exponent
         )
 

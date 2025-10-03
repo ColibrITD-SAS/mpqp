@@ -32,6 +32,7 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import cos, exp, sin
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
@@ -354,8 +355,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
 
             qubits = ""
             if isinstance(self, ControlledGate):
-                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
-            qubits += ",".join([f"q[{j}]" for j in self.targets])
+                qubits = ",".join([f"q[{j}]" for j in reversed(self.controls)]) + ","
+            qubits += ",".join([f"q[{j}]" for j in reversed(self.targets)])
 
             return instruction_str + " " + qubits + ";"
         else:
@@ -1028,7 +1029,12 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         return CirqUGate
 
     qlm_aqasm_keyword = "U"
-    qiskit_string = "u"
+    qiskit_string = "u3"
+
+    @classproperty
+    def qasm2_gate(cls) -> str:
+        """Keyword(s) corresponding to the gate in ``QASM2``."""
+        return "u3"
 
     def __init__(
         self,

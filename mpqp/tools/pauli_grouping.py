@@ -19,10 +19,10 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
     """
     result = []
     for i, atoms in enumerate(group[0].atoms):
-        if atoms.name == "I":
+        if atoms.label == "I":
             all_identity = True
             for monomial in group:
-                all_identity &= monomial.atoms[i].name == "I"
+                all_identity &= monomial.atoms[i].label == "I"
                 if not all_identity:
                     for base in monomial.atoms[i].get_basis_change():
                         result.append(base(i))
@@ -33,7 +33,9 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
     return result
 
 
-def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingTypes):
+def pauli_grouping_greedy(
+    monomials: list[PauliStringMonomial], type: CommutingTypes
+) -> list[list[PauliStringMonomial]]:
     """Regroups the Pauli operators in parameters into groups of
     mutual commuting Pauli operators using a greedy approach.
 
@@ -46,9 +48,11 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
 
 
     Examples:
-        >>> from mpqp.measures import I, X, Y, Z
-        >>> pauli_grouping_greedy([I@X@X, Y@Y@Z, I@I@I, -3*Z@Y@X, Y@X@Y, -Z@Z@Y, 2*X@X@Y], CommutingTypes.FULL )
-        [[I@X@X, Y@Y@Z, I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [Y@X@Y], [2*X@X@Y]]
+        >>> pauli_grouping_greedy(
+        ...     [pI@pX@pX, pY@pY@pZ, pI@pI@pI, -3*pZ@pY@pX, pY@pX@pY, -pZ@pZ@pY, 2*pX@pX@pY],
+        ...     CommutingTypes.FULL,
+        ... )
+        [[pI@pX@pX, pY@pY@pZ, pI@pI@pI], [-3*pZ@pY@pX, -1*pZ@pZ@pY], [pY@pX@pY], [2*pX@pX@pY]]
     """
     groups: list[list[PauliStringMonomial]] = []
     for monomial in monomials:

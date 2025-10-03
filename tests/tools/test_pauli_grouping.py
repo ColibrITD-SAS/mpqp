@@ -27,12 +27,12 @@ from mpqp.tools.circuit import random_circuit
 )
 def test_expectation_values_devices(device: AvailableDevice):
     circuit = random_circuit(nb_qubits=3)
-    string = Xop @ I @ Zop + Xop @ Zop @ Zop + I @ Zop @ Zop
-    str2 = I @ Zop @ Zop - 2 * Yop @ Zop @ Zop + 3 * Xop @ Yop @ Zop
-    str3 = Xop @ Xop @ Xop + Xop @ I @ Xop + I @ Xop @ Xop
+    string = pX @ pI @ pZ + pX @ pZ @ pZ + pI @ pZ @ pZ
+    str2 = pI @ pZ @ pZ - 2 * pY @ pZ @ pZ + 3 * pX @ pY @ pZ
+    str3 = pX @ pX @ pX + pX @ pI @ pX + pI @ pX @ pX
     obs = [Observable(string), Observable(str2), Observable(str3)]
     true_result = run(
-        circuit + QCircuit([ExpectationMeasure(obs)]), device, translation_warning=False
+        circuit + QCircuit([ExpectationMeasure(obs)]), device
     ).expectation_values
     single_exp_values = []
     for observable in obs:
@@ -40,7 +40,6 @@ def test_expectation_values_devices(device: AvailableDevice):
             run(
                 circuit + QCircuit([ExpectationMeasure(observable)]),
                 device,
-                translation_warning=False,
             ).expectation_values
         )
     assert isinstance(true_result, dict)

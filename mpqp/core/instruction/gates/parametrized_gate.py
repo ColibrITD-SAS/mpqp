@@ -13,11 +13,13 @@ from copy import deepcopy
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional
 
+
 if TYPE_CHECKING:
     from sympy import Expr
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import GateDefinition
+from mpqp.environment.typechecked import conditional_typechecked
 
 # 3M-TODO: there might be a conception problem: to initialize a gate we need a gate
 #  definition, the easiest for a definition is to compute the matrix, the

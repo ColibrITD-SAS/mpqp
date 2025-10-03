@@ -325,7 +325,7 @@ def test_all_native_gates():
     circuit.add(TOF([0, 1], 2))
 
     circuit.to_other_language(Language.QASM2)
-    circuit.to_other_language(Language.QASM3, translation_warning=False)
+    circuit.to_other_language(Language.QASM3)
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(
             circuit,

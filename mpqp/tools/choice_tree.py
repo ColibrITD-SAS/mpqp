@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, TypeVar
 from pick import pick
 
 from mpqp.tools.generics import find
+from mpqp.environment.typechecked import conditional_typechecked
 
 T = TypeVar("T")
 

@@ -57,3 +57,11 @@ class Measure(Instruction, ABC):
         self._dynamic = False
         if len(targets) == 0:
             self._dynamic = True
+
+    @property
+    def pre_measure(self) -> list[Gate]:
+        """Operations needed so that the only measurement needed at the end of
+        the circuit is a standard measement in the computational basis with the qubits
+        in ascending order. This list of operations can for instance include swap gates
+        and U3 gates."""
+        return []

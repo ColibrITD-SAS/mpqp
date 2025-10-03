@@ -31,6 +31,7 @@ import numpy.typing as npt
 
 from mpqp.measures import Observable
 from mpqp.tools.generics import Matrix
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.operators import *
 
 
@@ -81,7 +82,7 @@ class Qubo(ABC):
         >>> print((qubo1 - x0).simplify())
         -(2*x1)+3*x0*x1
         >>> print(qubo1.to_cost_hamiltonian().pauli_string)
-        0.25*I@I + 0.25*I@Z - 1.25*Z@I + 0.75*Z@Z
+        0.25*pI@pI + 0.25*pI@pZ - 1.25*pZ@pI + 0.75*pZ@pZ
         >>> pprint(qubo1.to_cost_hamiltonian().matrix)
         [[0, 0 , 0, 0],
          [0, -2, 0, 0],

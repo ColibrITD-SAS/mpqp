@@ -16,3 +16,4 @@ mpqp
     qasm
     tools
     local_storage
+    environment

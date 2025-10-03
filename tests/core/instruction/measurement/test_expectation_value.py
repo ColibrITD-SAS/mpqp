@@ -44,9 +44,7 @@ def test_expectation_measure_wrong_targets(
     obs = Observable(np.diag([1] * 2 ** len(targets)))
     with pytest.warns(UserWarning):
         measure = ExpectationMeasure(obs, targets)
-    assert [
-        set(swap.targets) for swap in measure.pre_measure.instructions
-    ] == expected_swaps
+    assert [set(swap.targets) for swap in measure.pre_measure] == expected_swaps
 
 
 a, b, c = LineQubit.range(3)
@@ -57,7 +55,7 @@ a, b, c = LineQubit.range(3)
     "obs, translation",
     [
         (
-            Observable(I @ I + I @ Xop),
+            Observable(pI @ pI + pI @ pX),
             sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
         ),
     ],

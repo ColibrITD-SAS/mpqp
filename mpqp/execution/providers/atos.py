@@ -7,14 +7,16 @@ from typing import TYPE_CHECKING, Callable, Optional, Union
 
 import numpy as np
 
-from mpqp import Language
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
     ExpectationMeasure,
     Observable,
 )
+from mpqp.core.languages import Language
+from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.gates import CNOT, CRk, Rk
+from mpqp.measures import pI
 from mpqp.noise.noise_model import Depolarizing, NoiseModel
 
 from ...tools.errors import (
@@ -36,13 +38,12 @@ if TYPE_CHECKING:
     from qat.qlmaas.result import AsyncResult
 
 
-def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
+def job_pre_processing(job: Job) -> "Circuit":
     """Extracts the myQLM circuit and check if ``job.type`` and ``job.measure``
     are coherent.
 
     Args:
         job: Mpqp job used to instantiate the myQLM circuit.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
@@ -83,7 +84,9 @@ def job_pre_processing(job: Job, translation_warning: bool = True) -> "Circuit":
             )
 
     if job.circuit.transpiled_circuit is None:
-        myqlm_circuit = job.circuit.to_other_device(job.device, translation_warning)
+        if TYPE_CHECKING:
+            assert isinstance(job.device, ATOSDevice)
+        myqlm_circuit = job.circuit.to_other_device(job.device)
     else:
         myqlm_circuit = job.circuit.transpiled_circuit
 
@@ -250,7 +253,10 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
     result = []
     for obs in job.measure.observables:
-        qlm_obs = obs.to_other_language(Language.MY_QLM)
+        if obs.transpile is None:
+            qlm_obs = obs.to_other_language(Language.MY_QLM)
+        else:
+            qlm_obs = obs.transpile
         result.append(
             myqlm_circuit.to_job(
                 job_type="OBS",
@@ -503,7 +509,7 @@ def extract_state_vector_result(
             if device.is_remote()
             else sum(len(qreg.qbits) for qreg in myqlm_result.data.qregs)
         )
-        job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device, None)
+        job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device)
     else:
         nb_qubits = job.circuit.nb_qubits
 
@@ -548,9 +554,11 @@ def extract_sample_result(
         nb_shots = int(myqlm_result.meta_data["nbshots"])
         job = Job(
             JobType.SAMPLE,
-            QCircuit(nb_qubits),
+            QCircuit(
+                [BasisMeasure(targets=list(range(nb_qubits)), shots=nb_shots)],
+                nb_qubits=nb_qubits,
+            ),
             device,
-            BasisMeasure(targets=list(range(nb_qubits)), shots=nb_shots),
         )
     else:
         nb_qubits = job.circuit.nb_qubits
@@ -600,15 +608,17 @@ def extract_observable_result(
         nb_shots = int(myqlm_result[0].meta_data["nbshots"])
         job = Job(
             JobType.OBSERVABLE,
-            QCircuit(nb_qubits),
-            device,
-            ExpectationMeasure(
-                targets=list(range(nb_qubits)),
-                observable=Observable(
-                    np.zeros((2**nb_qubits, 2**nb_qubits), dtype=np.complex128)
-                ),
-                shots=nb_shots,
+            QCircuit(
+                [
+                    ExpectationMeasure(
+                        targets=list(range(nb_qubits)),
+                        observable=Observable(pI(nb_qubits - 1)),
+                        shots=nb_shots,
+                    )
+                ],
+                nb_qubits=nb_qubits,
             ),
+            device,
         )
     else:
         if job.measure is None:
@@ -669,13 +679,12 @@ def extract_result(
         return extract_observable_result(myqlm_result, job, device)
 
 
-def run_atos(job: Job, translation_warning: bool = True) -> Result:
+def run_atos(job: Job) -> Result:
     """Executes the job on the right ATOS device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -684,14 +693,10 @@ def run_atos(job: Job, translation_warning: bool = True) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return (
-        run_myQLM(job, translation_warning)
-        if not job.device.is_remote()
-        else run_QLM(job, translation_warning)
-    )
+    return run_myQLM(job) if not job.device.is_remote() else run_QLM(job)
 
 
-def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
+def run_myQLM(job: Job) -> Result:
     """Executes the job on the local myQLM simulator.
 
     Args:
@@ -710,7 +715,7 @@ def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
     myqlm_result = None
     qpu = None
 
-    myqlm_circuit = job_pre_processing(job, translation_warning)
+    myqlm_circuit = job_pre_processing(job)
 
     if TYPE_CHECKING:
         assert isinstance(job.device, ATOSDevice)
@@ -747,14 +752,11 @@ def run_myQLM(job: Job, translation_warning: bool = True) -> Result:
     return result
 
 
-def submit_QLM(
-    job: Job, translation_warning: bool = True
-) -> tuple[str, list["AsyncResult"]]:
+def submit_QLM(job: Job) -> tuple[str, list["AsyncResult"]]:
     """Submits the job on the remote QLM machine.
 
     Args:
         job: Job to be executed.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The job_id and the AsyncResult of the submitted job.
@@ -771,7 +773,7 @@ def submit_QLM(
     myqlm_job = None
     qpu = None
 
-    myqlm_circuit = job_pre_processing(job, translation_warning)
+    myqlm_circuit = job_pre_processing(job)
 
     if TYPE_CHECKING:
         assert isinstance(job.device, ATOSDevice)
@@ -807,12 +809,11 @@ def submit_QLM(
     return (job_id, [async_result])
 
 
-def run_QLM(job: Job, translation_warning: bool = True) -> Result:
+def run_QLM(job: Job) -> Result:
     """Submits the job on the remote QLM machine and waits for it to be done.
 
     Args:
         job: Job to be executed.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -832,7 +833,7 @@ def run_QLM(job: Job, translation_warning: bool = True) -> Result:
         )
 
     # TODO: update this to take into account the case when we have list of Observables
-    _, results = submit_QLM(job, translation_warning)
+    _, results = submit_QLM(job)
     qlm_results = []
     for result in results:
         async_result = result

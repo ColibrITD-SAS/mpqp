@@ -30,7 +30,7 @@ from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.distance import jensenshannon
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.execution import AvailableDevice, AWSDevice, Result, run
 from mpqp.measures import BasisMeasure
 
@@ -94,7 +94,7 @@ def amplitude(
 
 def theoretical_probs(
     circ: QCircuit,
-) -> npt.NDArray[np.float32]:
+) -> npt.NDArray[np.float64]:
     """Computes the theoretical probabilities of a (potentially) noisy circuit
     execution.
 
@@ -106,7 +106,7 @@ def theoretical_probs(
     """
     d: int = 2**circ.nb_qubits
 
-    state = np.zeros((d, d), dtype=np.complex64)
+    state = np.zeros((d, d), dtype=np.complex128)
     state[0, 0] = 1
     gates = circ.gates
 
@@ -127,7 +127,7 @@ def theoretical_probs(
                             gate.connections(), circ.nb_qubits
                         )
                     ),
-                    start=np.zeros((d, d), dtype=np.complex64),
+                    start=np.zeros((d, d), dtype=np.complex128),
                 )
 
     connected_qubits = set().union(*[gate.connections() for gate in gates])
@@ -141,10 +141,10 @@ def theoretical_probs(
                         unconnected_qubits, circ.nb_qubits
                     )
                 ),
-                start=np.zeros((d, d), dtype=np.complex64),
+                start=np.zeros((d, d), dtype=np.complex128),
             )
 
-    return state.diagonal().real
+    return state.diagonal().real.astype(np.float64)
 
 
 def dist_alpha_matching(alpha: float):

@@ -284,7 +284,6 @@ def test_run_with_custom_basis_probas(
     circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex128]
 ):
     res = run(circuit, IBMDevice.AER_SIMULATOR)
-    assert isinstance(res, Result)
     assert matrix_eq(expected_probabilities, res.probabilities)
 
 

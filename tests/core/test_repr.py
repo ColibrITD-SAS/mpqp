@@ -156,10 +156,10 @@ def generate_expectation_measures():
         [None, 1, 0],  # shots
         [
             Observable(np.diag([0.7, -1, 1, 1])),
-            Observable(I @ Xop),
-            Observable(I @ Xop + Yop @ Zop),
-            Observable(number * I @ Xop),
-            Observable(-5.5 * I @ Xop + -6 * Yop @ Zop),
+            Observable(pI @ pX),
+            Observable(pI @ pX + pY @ pZ),
+            Observable(number * pI @ pX),
+            Observable(-5.5 * pI @ pX + -6 * pY @ pZ),
         ],  # observables
         [None, "test"],  # label
     ):

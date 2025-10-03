@@ -115,8 +115,5 @@ Connection setup script
 The details on how to get these information can be found in the section 
 :ref:`Remote setup`.
 
-On disk configuration manager
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. automodule:: mpqp.execution.connection.env_manager
 

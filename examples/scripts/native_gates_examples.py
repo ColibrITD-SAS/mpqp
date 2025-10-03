@@ -1,6 +1,6 @@
 """Example 3: Using native gates"""
 
-from mpqp import QCircuit, Language
+from mpqp.core import QCircuit, Language
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice

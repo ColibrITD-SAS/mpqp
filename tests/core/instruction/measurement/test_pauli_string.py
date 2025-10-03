@@ -136,37 +136,43 @@ def test_homogeneous_bin_operation(
     "init_ps, simplified_ps",
     [
         # Test cases with single terms
-        (I @ I, I @ I),
-        (2 * I @ I, 2 * I @ I),
-        (-I @ I, -I @ I),
-        (0 * I @ I, 0 * I @ I),
+        (pI @ pI, pI @ pI),
+        (2 * pI @ pI, 2 * pI @ pI),
+        (-pI @ pI, -pI @ pI),
+        (0 * pI @ pI, 0 * pI @ pI),
         # Test cases with multiple terms
-        (I @ I + I @ I + I @ I, 3 * I @ I),
-        (2 * I @ I + 3 * I @ I - 2 * I @ I, 3 * I @ I),
-        (2 * I @ I - 3 * I @ I + I @ I, 0),
-        (-I @ I + I @ I - I @ I, 0),
-        (I @ I - 2 * I @ I + I @ I, I @ I),
-        (2 * I @ I + I @ I - I @ I, 2 * I @ I),
-        (I @ I + I @ I + I @ I, 3 * I @ I),
-        (2 * I @ I + 3 * I @ I, 5 * I @ I),
-        (I @ I - I @ I + I @ I, I @ I),
+        (pI @ pI + pI @ pI + pI @ pI, 3 * pI @ pI),
+        (2 * pI @ pI + 3 * pI @ pI - 2 * pI @ pI, 3 * pI @ pI),
+        (2 * pI @ pI - 3 * pI @ pI + pI @ pI, 0),
+        (-pI @ pI + pI @ pI - pI @ pI, 0),
+        (pI @ pI - 2 * pI @ pI + pI @ pI, pI @ pI),
+        (2 * pI @ pI + pI @ pI - pI @ pI, 2 * pI @ pI),
+        (pI @ pI + pI @ pI + pI @ pI, 3 * pI @ pI),
+        (2 * pI @ pI + 3 * pI @ pI, 5 * pI @ pI),
+        (pI @ pI - pI @ pI + pI @ pI, pI @ pI),
         # Test cases with cancellation
-        (I @ I - I @ I, 0 * I @ I),
-        (2 * I @ I - 2 * I @ I, 0 * I @ I),
-        (-2 * I @ I + 2 * I @ I, 0 * I @ I),
-        (I @ I + I @ I - 2 * I @ I, 0 * I @ I),
+        (pI @ pI - pI @ pI, 0 * pI @ pI),
+        (2 * pI @ pI - 2 * pI @ pI, 0 * pI @ pI),
+        (-2 * pI @ pI + 2 * pI @ pI, 0 * pI @ pI),
+        (pI @ pI + pI @ pI - 2 * pI @ pI, 0 * pI @ pI),
         # Test cases with mixed terms
-        (I @ I - 2 * I @ I + 3 * I @ I, 2 * I @ I),
-        (2 * I @ I + I @ I - I @ I, 2 * I @ I),
-        (I @ I + I @ I + I @ I - 3 * I @ I, I @ I),
+        (pI @ pI - 2 * pI @ pI + 3 * pI @ pI, 2 * pI @ pI),
+        (2 * pI @ pI + pI @ pI - pI @ pI, 2 * pI @ pI),
+        (pI @ pI + pI @ pI + pI @ pI - 3 * pI @ pI, pI @ pI),
         # Test cases with combinations of different gates
-        (I @ X + X @ X - X @ I, 2 * X @ X),
-        (Y @ Z + Z @ Y - Z @ Z, Y @ Z + Z @ Y),
-        (I @ X + X @ Y - Y @ X - X @ I, 0 * I @ I),
-        (I @ X + X @ X - X @ Y - Y @ X + Y @ Y, I @ X - X @ Y - Y @ X + Y @ Y),
-        (2 * X @ X - X @ Y + Y @ X - X @ X, X @ X - X @ Y + Y @ X),
-        (X @ X + X @ Y + Y @ X - X @ X - X @ Y - Y @ X, 0 * I @ I),
-        (2 * X @ X - 3 * X @ Y + 2 * Y @ X - X @ X, X @ X - 3 * X @ Y + 2 * Y @ X),
+        (pI @ pX + pX @ pX - pX @ pI, 2 * pX @ pX),
+        (pY @ pZ + pZ @ pY - pZ @ pZ, pY @ pZ + pZ @ pY),
+        (pI @ pX + pX @ pY - pY @ pX - pX @ pI, 0 * pI @ pI),
+        (
+            pI @ pX + pX @ pX - pX @ pY - pY @ pX + pY @ pY,
+            pI @ pX - pX @ pY - pY @ pX + pY @ pY,
+        ),
+        (2 * pX @ pX - pX @ pY + pY @ pX - pX @ pX, pX @ pX - pX @ pY + pY @ pX),
+        (pX @ pX + pX @ pY + pY @ pX - pX @ pX - pX @ pY - pY @ pX, 0 * pI @ pI),
+        (
+            2 * pX @ pX - 3 * pX @ pY + 2 * pY @ pX - pX @ pX,
+            pX @ pX - 3 * pX @ pY + 2 * pY @ pX,
+        ),
     ],
 )
 def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
@@ -178,25 +184,29 @@ def test_simplify(init_ps: PauliString, simplified_ps: PauliString):
     "init_ps, subs_dict, expected_ps",
     [
         # Basic substitution with numeric values
-        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
-        (symbols("k") * X @ Y, {"k": 2}, 2 * X @ Y),
-        (symbols("a") * Y @ Z, {"a": -1}, -Y @ Z),
+        (symbols("theta") * pI @ pX, {"theta": np.pi}, np.pi * pI @ pX),
+        (symbols("k") * pX @ pY, {"k": 2}, 2 * pX @ pY),
+        (symbols("a") * pY @ pZ, {"a": -1}, -pY @ pZ),
         # Multiple variable substitutions
         (
-            symbols("theta") * I @ X + symbols("k") * Z @ Y,
+            symbols("theta") * pI @ pX + symbols("k") * pZ @ pY,
             {"theta": np.pi, "k": 1},
-            np.pi * I @ X + Z @ Y,
+            np.pi * pI @ pX + pZ @ pY,
         ),
-        (symbols("a") * X @ X + symbols("b") * Y @ Y, {"a": 0, "b": 3}, 3 * Y @ Y),
-        # Removing symbolic values
-        (symbols("theta") * I @ X, {"theta": np.pi}, np.pi * I @ X),
         (
-            symbols("theta") * X @ Y + symbols("phi") * Y @ Z,
+            symbols("a") * pX @ pX + symbols("b") * pY @ pY,
+            {"a": 0, "b": 3},
+            3 * pY @ pY,
+        ),
+        # Removing symbolic values
+        (symbols("theta") * pI @ pX, {"theta": np.pi}, np.pi * pI @ pX),
+        (
+            symbols("theta") * pX @ pY + symbols("phi") * pY @ pZ,
             {"theta": 1, "phi": 2},
-            X @ Y + 2 * Y @ Z,
+            pX @ pY + 2 * pY @ pZ,
         ),
         # No substitutions (should remain the same)
-        (symbols("theta") * I @ X, {}, symbols("theta") * I @ X),
+        (symbols("theta") * pI @ pX, {}, symbols("theta") * pI @ pX),
     ],
 )
 def test_subs(
@@ -535,3 +545,43 @@ def test_to_from_other_language(mpqp_ps: PauliString, language: Language):
         )
         == mpqp_ps
     )
+
+
+@pytest.mark.parametrize(
+    "input_str, subs_dict, expected_str",
+    [
+        ("2*XZ", None, 2 * pX @ pZ),
+        ("theta*IX", {}, symbols("theta") * pI @ pX),
+        ("theta*IX", {"theta": 2}, 2 * pI @ pX),
+        ("k*XY", {"k": 2}, 2 * pX @ pY),
+        ("theta*IX + k*ZY", {"theta": 7, "k": 1}, 7 * pI @ pX + pZ @ pY),
+        ("-a*YZ", {"a": -1}, pY @ pZ),
+        ("o2*XZ + YI - 3*ZZ", {"o": 3}, 6 * pX @ pZ + pY @ pI - 3 * pZ @ pZ),
+        (
+            "o*2*XZ + YI - 3o*ZZ",
+            None,
+            symbols("o") * 2 * pX @ pZ + pY @ pI - 3 * symbols("o") * pZ @ pZ,
+        ),
+    ],
+)
+def test_pauli_string_from_str(
+    input_str: str, subs_dict: Optional[dict[str, Coef]], expected_str: PauliString
+):
+    assert PauliString.from_str(input_str, subs_dict) == expected_str
+
+
+@pytest.mark.parametrize(
+    "prefix, atom, postfix, expected_ps",
+    [
+        (3, pX, None, pI @ pI @ pI @ pX),
+        (0, pY, 2, pY @ pI @ pI),
+        (2, pZ, 1, pI @ pI @ pZ @ pI),
+        (0, pI, 1, pI @ pI),
+        (0, pX, 0, pX),
+    ],
+)
+def test_pauli_monomial_from_atom(
+    prefix: int, atom: PauliStringAtom, postfix: Optional[int], expected_ps: PauliString
+):
+    result = atom(prefix) if postfix is None else atom(prefix, postfix)
+    assert result == expected_ps

@@ -13,7 +13,6 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
-from copy import deepcopy
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
@@ -97,8 +96,7 @@ class Job:
         >>> job2 = Job(
         ...     JobType.STATE_VECTOR,
         ...     circuit,
-        ...     IBMDevice.AER_SIMULATOR,
-        ...     circuit.measurements[0],
+        ...     IBMDevice.AER_SIMULATOR
         ... )
 
     """
@@ -112,7 +110,6 @@ class Job:
         job_type: JobType,
         circuit: QCircuit,
         device: AvailableDevice,
-        measure: Optional[Measure] = None,
     ):
         self._status = JobStatus.INIT
 
@@ -122,14 +119,6 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
-        self.measure = deepcopy(measure)
-        """See parameter description."""
-        if self.measure is not None:
-            self.measure._dynamic = False  # pyright: ignore[reportPrivateUsage]
-            if isinstance(self.measure, BasisMeasure):
-                self.measure._user_set_c_targets = (  # pyright: ignore[reportPrivateUsage]
-                    True
-                )
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
@@ -138,7 +127,17 @@ class Job:
         attributing an id to the job)."""
 
     @property
-    def status(self):
+    def measure(self) -> Optional[Measure]:
+        """Returns the first measurement from the circuit's measurements."""
+
+        return (
+            None
+            if len(self.circuit.measurements) == 0
+            else self.circuit.measurements[0]
+        )
+
+    @property
+    def status(self) -> JobStatus:
         """Update and return the current job status. Mainly relevant for remote jobs."""
         if self._status not in [
             JobStatus.DONE,
@@ -169,8 +168,7 @@ class Job:
         self._status = job_status
 
     def __repr__(self) -> str:
-        measure = ", " + repr(self.measure) if self.measure is not None else ""
-        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}{measure})"
+        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device})"
 
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Job):
@@ -201,10 +199,10 @@ class Job:
         Example:
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
 
@@ -224,7 +222,7 @@ class Job:
 
         Example:
             >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
         """
         from mpqp.local_storage.load import get_jobs_with_id
 
@@ -264,18 +262,18 @@ class Job:
         Example:
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
             >>> Job.delete_by_local_id(1)
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...))
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...))
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
 

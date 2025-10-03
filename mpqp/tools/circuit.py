@@ -5,8 +5,6 @@ from typing import TYPE_CHECKING, Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 from numpy.random import Generator
-from qiskit import QuantumCircuit
-from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate

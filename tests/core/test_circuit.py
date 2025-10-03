@@ -497,10 +497,10 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 0),),"
+                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 1),),"
                 " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
                 " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
-                " 'q'), 0), Qubit(QuantumRegister(2, 'q'), 1)), clbits=())]"
+                " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
             ),
         ),
         (
@@ -509,10 +509,10 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 0),),"
+                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 1),),"
                 " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
                 " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
-                " 'q'), 0), Qubit(QuantumRegister(2, 'q'), 1)), clbits=())]"
+                " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
             ),
         ),
         (
@@ -744,8 +744,7 @@ def test_from_other_language(
 
         if not isinstance(expected_output, str):
             qcircuit = QCircuit.from_other_language(circuit)
-            circuit = circuit.reverse_bits()
-            matrix = Operator(circuit).data
+            matrix = Operator(circuit.reverse_bits()).data
             if TYPE_CHECKING:
                 assert isinstance(matrix, np.ndarray)
             assert matrix_eq(matrix, qcircuit.to_matrix())
@@ -892,14 +891,14 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        qasm3 = circuit.to_other_language(Language.QASM3, translation_warning=False)
+        qasm3 = circuit.to_other_language(Language.QASM3)
         assert isinstance(qasm3, str)
         assert qasm3.strip() == f.read().strip()
 
 
 @pytest.mark.parametrize(
     "measure",
-    [BasisMeasure(), ExpectationMeasure(Observable(1 * I @ Zop + 1 * I @ I))],
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * pI @ pZ + 1 * pI @ pI))],
 )
 def test_measure_no_target(measure: Measure):
     circuit = QCircuit(2)
@@ -989,10 +988,10 @@ def test_to_matrix_gphase():
     gates = [gate for gate in NATIVE_GATES if issubclass(gate, SingleQubitGate)]
     for _ in range(10):
         qcircuit = random_circuit(gates, nb_qubits=4)
-        qcircuit.gphase = random.random()
+        qcircuit.input_g_phase = random.random()
         expected_matrix = compute_expected_matrix(qcircuit)
         assert matrix_eq(
-            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.gphase)
+            qcircuit.to_matrix(), expected_matrix * np.exp(1j * qcircuit.input_g_phase)
         )
 
 

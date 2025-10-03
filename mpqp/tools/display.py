@@ -54,8 +54,8 @@ def with_sign(val: Union[np.complex64, np.complex128]) -> str:
 
 
 def _remove_null_imag(
-    val: np.complex64 | np.complex128,
-) -> np.complex64 | np.complex128 | np.float32 | int:
+    val: np.complex128,
+) -> np.complex128 | np.float64 | int:
     val = np.round(val, 3)
     if val.imag != 0:
         return val
@@ -63,9 +63,9 @@ def _remove_null_imag(
 
 
 def _remove_unnecessary_decimals(
-    val: np.float32 | np.float64 | int,
-) -> np.float32 | int:
-    val = np.float32(val)
+    val: np.float64 | int,
+) -> np.float64 | int:
+    val = np.float64(val)
     if val.is_integer():
         return int(val)
     return val
@@ -77,7 +77,9 @@ def _unpack_expr(expr: Expr | Basic):
     return expr
 
 
-def format_element(element: Union[Real, int, float, complex, Expr], round: int = 10):
+def format_element(
+    element: Union[Real, int, float, complex, Expr, Basic], precision: int = 10
+):
     """
     Formats a numeric or symbolic element for cleaner representation. Rounds the real and
     imaginary parts of a number to a specified number of decimal places, formats whole
@@ -85,15 +87,15 @@ def format_element(element: Union[Real, int, float, complex, Expr], round: int =
 
     Args:
         element: The element to format, which can be an integer, float, complex number, or symbolic expression.
-        round: The number of decimal places to round to for real and imaginary parts.
+        precision: The number of decimal places to round to for real and imaginary parts.
 
     Returns:
         The formatted element without converting it to a string.
 
     Example:
-        >>> type(format_element(3.456789, round=4))
+        >>> type(format_element(3.456789, 4))
         <class 'float'>
-        >>> type(format_element(1+2j, round=2))
+        >>> type(format_element(1+2j, 2))
         <class 'complex'>
         >>> type(format_element(3+0j))
         <class 'int'>
@@ -107,21 +109,31 @@ def format_element(element: Union[Real, int, float, complex, Expr], round: int =
         <class 'int'>
 
     """
-    from sympy import Expr
+    from sympy import Expr, Basic
 
-    if isinstance(element, Expr):
-        if element.is_Float:
-            return float(element)
-        elif element.is_Integer:
+    if isinstance(element, (Expr, Basic)):
+        element = _unpack_expr(element.simplify())
+
+        from sympy import Float, Integer
+
+        if isinstance(element, Integer):
             return int(element)
-        return _unpack_expr(element.simplify())
+        elif isinstance(element, Float):
+            return round(float(element), precision)
+        elif element.is_number:
+            try:
+                elt = float(element)  # pyright: ignore[reportArgumentType]
+                return round(elt, precision)
+            except Exception:
+                pass
+        return element
 
-    real_part = float(np.round(np.real(complex(element)), round))
-    imag_part = float(np.round(np.imag(element), round))
+    real_part = float(np.round(np.real(complex(element)), precision))
+    imag_part = float(np.round(np.imag(element), precision))
 
-    if abs(real_part - int(real_part)) < 10 ** (-round):
+    if abs(real_part - int(real_part)) < 10 ** (-precision):
         real_part = int(real_part)
-    if abs(imag_part - int(imag_part)) < 10 ** (-round):
+    if abs(imag_part - int(imag_part)) < 10 ** (-precision):
         imag_part = int(imag_part)
 
     if real_part == 0 and imag_part != 0:
@@ -192,7 +204,9 @@ def format_element_str(
 
 
 def clean_1D_array(
-    array: list[Complex] | npt.NDArray[np.complex128 | np.float64 | np.int32],
+    array: (
+        list[Complex] | npt.NDArray[np.complex128 | np.float64 | np.float32 | np.int32]
+    ),
     round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function
@@ -241,7 +255,7 @@ def clean_1D_array(
     )
 
 
-def clean_number_repr(number: Union[complex, np.complex64], round: int = 7):
+def clean_number_repr(number: Union[complex, np.complex128], round: int = 7):
     """Cleans and formats a number. This function rounds the parts of
     complex numbers and formats them as integers if appropriate. It returns a
     string representation of the number.
@@ -328,7 +342,7 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
 
 
 def pprint(
-    matrix: Matrix | list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
+    matrix: Matrix | list[Complex] | npt.NDArray[np.complex128 | np.float32 | np.int32],
     round: int = 5,
     align: bool = True,
 ):

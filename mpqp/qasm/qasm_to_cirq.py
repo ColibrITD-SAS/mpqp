@@ -125,7 +125,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             self.phi = phi
 
         def __repr__(self) -> str:
-            return f"U({self.theta:.3f}, {self.theta:.3f}, {self.theta:.3f})"
+            return f"U({self.theta:.3f}, {self.phi:.3f}, {self.lmda:.3f})"
 
         def _decompose_(self, qubits: tuple[Qid, ...]):
             q = qubits[0]
@@ -135,6 +135,29 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
                 ry(self.theta).on(q),
                 rz(self.phi).on(q),
             ]
+
+    class PhaseShiftedUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
+        def __init__(
+            self, theta, phi, lam, gamma  # pyright: ignore[reportMissingParameterType]
+        ):
+            self.theta = theta
+            self.phi = phi
+            self.lam = lam
+            self.gamma = gamma
+
+        def _decompose_(self, qubits: tuple[Qid, ...]):
+            q = qubits[0]
+            return [
+                GlobalPhaseGate(
+                    coefficient=np.exp(1j * (self.gamma + (self.lam + self.phi) / 2))
+                ).on(),
+                rz(self.lam).on(q),
+                ry(self.theta).on(q),
+                rz(self.phi).on(q),
+            ]
+
+        def __str__(self):
+            return f"U(θ={self.theta}, φ={self.phi}, λ={self.lam}, γ={self.gamma})"
 
     # Remove the line containing the barrier keyword
     modified_lines = [line for line in qasm_str.split("\n") if "barrier" not in line]
@@ -155,6 +178,12 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             cirq_gate=(
                 lambda params: ControlledGate(MyQasmUGate(*[p for p in params]))
             ),
+        ),
+        "cu": QasmGateStatement(
+            qasm_gate="cu",
+            num_params=4,
+            num_args=2,
+            cirq_gate=(lambda params: ControlledGate(PhaseShiftedUGate(*params))),
         ),
         "crz": QasmGateStatement(
             qasm_gate="crz",

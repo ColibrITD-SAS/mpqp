@@ -48,7 +48,7 @@ def test_result_wrong_type(job_type: JobType, data: float | StateVector | list[S
 @pytest.mark.parametrize(
     "job_type, data",
     [
-        (JobType.STATE_VECTOR, StateVector(np.ones(4, dtype=np.complex64) / 2)),
+        (JobType.STATE_VECTOR, StateVector(np.ones(4, dtype=np.complex128) / 2)),
         (JobType.OBSERVABLE, 0.4),
         (
             JobType.SAMPLE,
@@ -60,8 +60,8 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
     size = 3
     c = QCircuit(size)
     c.add(Rx(pi / 2, 1))
-    measure = BasisMeasure(list(range(size))) if job_type == JobType.SAMPLE else None
-    j = Job(job_type, c, IBMDevice.AER_SIMULATOR, measure)
+    c.add(BasisMeasure(list(range(size)))) if job_type == JobType.SAMPLE else None
+    j = Job(job_type, c, IBMDevice.AER_SIMULATOR)
     if job_type == JobType.SAMPLE:
         assert isinstance(data, list)
         assert all(sample.count is not None for sample in data)
@@ -82,7 +82,7 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                     QCircuit(2),
                     IBMDevice.AER_SIMULATOR_STATEVECTOR,
                 ),
-                StateVector(np.ones(4, dtype=np.complex64) / 2),
+                StateVector(np.ones(4, dtype=np.complex128) / 2),
             ),
             """Result: IBMDevice, AER_SIMULATOR_STATEVECTOR
   State vector: [0.5, 0.5, 0.5, 0.5]
@@ -95,7 +95,6 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                     JobType.SAMPLE,
                     QCircuit([BasisMeasure([0, 1])]),
                     IBMDevice.AER_SIMULATOR,
-                    measure=BasisMeasure([0, 1]),
                 ),
                 [
                     Sample(2, index=0, count=135),
@@ -146,7 +145,7 @@ sampling_devices = [
 
 def test_sample_nb_shot_handle():
     circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
-    batch = run(circuit, sampling_devices, translation_warning=False)
+    batch = run(circuit, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert result.error != 0.0
@@ -173,7 +172,7 @@ def test_state_vector_nb_shot_handle():
             ),
         ]
     )
-    batch = run(circuit, sampling_devices, translation_warning=False)
+    batch = run(circuit, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert result.error != 0.0

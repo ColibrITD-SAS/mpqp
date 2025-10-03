@@ -47,6 +47,7 @@ def apply_noise_to_cirq_circuit(
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
     from cirq.ops.raw_types import Gate, Operation
+    from cirq.circuits.circuit import Circuit as CirqCircuit
 
     from mpqp.noise import DimensionalNoiseModel
 
@@ -117,16 +118,15 @@ def apply_noise_to_cirq_circuit(
             for moment_index in range(max(len(ops) for ops in qubit_noise_op))
         ]
 
-    return Circuit(noisy_moments)
+    return CirqCircuit(noisy_moments)
 
 
-def run_google(job: Job, translation_warning: bool = True) -> Result:
+def run_google(job: Job) -> Result:
     """Executes the job on the right Google device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Result after submission and execution of the job.
@@ -136,11 +136,7 @@ def run_google(job: Job, translation_warning: bool = True) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return (
-        run_local(job, translation_warning)
-        if not job.device.is_remote()
-        else run_google_remote(job, translation_warning)
-    )
+    return run_local(job) if not job.device.is_remote() else run_google_remote(job)
 
 
 def run_cirq_observable(
@@ -162,6 +158,7 @@ def run_cirq_observable(
         A result containing the expectation values of the observables.
     """
     from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
         measure_observables,
@@ -254,7 +251,15 @@ def run_cirq_observable(
         errors = {}
         expectation_values = {}
         for obs in job.measure.observables:
-            cirq_obs = obs.to_other_language(language=Language.CIRQ, circuit=circuit)
+
+            if obs.transpile is None:
+                cirq_obs = obs.to_other_language(
+                    language=Language.CIRQ, circuit=circuit
+                )
+            else:
+                cirq_obs = obs.transpile
+                if TYPE_CHECKING:
+                    assert type(cirq_obs) in (CirqPauliSum, CirqPauliString)
             job.status = JobStatus.RUNNING
             from cirq_google.engine.simulated_local_engine import SimulatedLocalEngine
 
@@ -381,14 +386,13 @@ def run_cirq_observable_remote(
     return Result(job, result)
 
 
-def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
+def run_google_remote(job: Job) -> Result:
     """Executes the job remotely on a Google quantum device. At present, only
     IonQ devices are supported.
 
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -409,7 +413,7 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
     from cirq.circuits.circuit import Circuit as CirqCircuit
 
     if job.circuit.transpiled_circuit is None:
-        job_CirqCircuit = job.circuit.to_other_device(job.device, translation_warning)
+        job_CirqCircuit = job.circuit.to_other_device(job.device)
     else:
         job_CirqCircuit = job.circuit.transpiled_circuit
 
@@ -441,14 +445,12 @@ def run_google_remote(job: Job, translation_warning: bool = True) -> Result:
         )
 
 
-def run_local(job: Job, translation_warning: bool = True) -> Result:
+def run_local(job: Job) -> Result:
     """Executes the job locally.
 
     Args:
         job : Job to be executed, it MUST be corresponding to a
             :class:`~mpqp.execution.devices.GOOGLEDevice`.
-        translation_warning: If `True`, a warning will be raised.
-        If `True`, a warning will be raised.
 
     Returns:
         The result after submission and execution of the job.
@@ -469,14 +471,7 @@ def run_local(job: Job, translation_warning: bool = True) -> Result:
         return run_local_processor(job)
 
     if job.circuit.transpiled_circuit is None:
-        if job.job_type == JobType.STATE_VECTOR:
-            # 3M-TODO: careful, if we ever support several measurements, the
-            # line bellow will have to changer
-            circuit = job.circuit.without_measurements() + job.circuit.pre_measure()
-            cirq_circuit = circuit.to_other_device(job.device, translation_warning)
-            job.circuit.gphase = circuit.gphase
-        else:
-            cirq_circuit = job.circuit.to_other_device(job.device, translation_warning)
+        cirq_circuit = job.circuit.to_other_device(job.device)
     else:
         cirq_circuit = job.circuit.transpiled_circuit
 

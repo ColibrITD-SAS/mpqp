@@ -74,14 +74,11 @@ def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
     return program
 
 
-def qasm3_to_braket_Circuit(
-    qasm3_str: str, translation_warning: bool = True
-) -> "Circuit":
+def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     """Converting a OpenQASM 3.0 code into a Braket Circuit.
 
     Args:
         qasm3_str: A string representing the OpenQASM 3.0 code.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         A Circuit equivalent to the QASM code in parameter.
@@ -131,7 +128,9 @@ def qasm3_to_braket_Circuit(
     log_lines = logger_output_stream.getvalue().split("\n")
     for message in log_lines:
         if message == braket_warning_message:
-            if translation_warning:
+            from mpqp.environment.var_cache import translation_warning_enabled
+
+            if translation_warning_enabled() is True:
                 warnings.warn(
                     "\n" + braket_warning_message, UnsupportedBraketFeaturesWarning
                 )
