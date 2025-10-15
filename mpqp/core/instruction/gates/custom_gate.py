@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Union
 
 from mpqp.tools import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter

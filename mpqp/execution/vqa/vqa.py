@@ -19,7 +19,7 @@ from mpqp.execution.vqa.optimizer import Optimizer
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
-OptimizerInput = Union[list[float], npt.NDArray[np.float32]]
+OptimizerInput = Union[list[float], npt.NDArray[np.float_]]
 OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
@@ -28,7 +28,7 @@ OptimizerCallable = Callable[
 ]
 OptimizerCallback = Union[
     Callable[[OptimizeResult], None],
-    Callable[[Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None],
+    Callable[[Union[list[float], npt.NDArray[np.float_], tuple[float, ...]]], None],
 ]
 
 
@@ -299,7 +299,7 @@ def _minimize_local_circ(
         from sympy import Expr
 
         values: dict[Expr | str, Complex] = _maps(
-            variables, params  # pyright: ignore[reportArgumentType]
+            variables, params  # pyright: ignore[reportAssignmentType]
         )
         result = run(circ, device, values)
         if TYPE_CHECKING:

@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from mpqp.core.instruction.gates import Gate
 
 from mpqp.core.languages import Language
-from mpqp.environment.typechecked import conditional_typechecked
 
 from .basis import Basis, ComputationalBasis, VariableSizeBasis
 from .measure import Measure

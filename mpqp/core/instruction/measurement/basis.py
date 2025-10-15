@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.tools.display import clean_1D_array, one_lined_repr
 from mpqp.tools.maths import is_unitary
-from mpqp.environment.typechecked import conditional_typechecked
 
 
 class Basis:

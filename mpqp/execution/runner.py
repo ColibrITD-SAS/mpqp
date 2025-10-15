@@ -31,7 +31,6 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -107,7 +106,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 
 
 def generate_job(
-    circuit: QCircuit, device: AvailableDevice, values: "Optional[dict[Expr | str, Complex]]" = None
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.

@@ -4,13 +4,13 @@ from mpqp import (
     AWSDevice,
     ExpectationMeasure,
     GOOGLEDevice,
-    I,
     IBMDevice,
     Observable,
     QCircuit,
-    Xop,
-    Yop,
-    Zop,
+    pI,
+    pX,
+    pY,
+    pZ,
     run,
 )
 from mpqp.execution.devices import AvailableDevice

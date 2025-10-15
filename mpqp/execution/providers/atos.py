@@ -14,7 +14,6 @@ from mpqp.core.instruction.measurement import (
     Observable,
 )
 from mpqp.core.languages import Language
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.gates import CNOT, CRk, Rk
 from mpqp.measures import pI
 from mpqp.noise.noise_model import Depolarizing, NoiseModel

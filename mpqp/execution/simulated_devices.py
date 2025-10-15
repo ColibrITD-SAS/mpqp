@@ -7,7 +7,6 @@ other simulated devices (QLM has this feature for instance."""
 
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.execution import AvailableDevice
 
 if TYPE_CHECKING:

@@ -33,7 +33,6 @@ from mpqp import (
     ExpectationMeasure,
     Gate,
     H,
-    I,
     IBMDevice,
     Id,
     Instruction,
@@ -53,7 +52,8 @@ from mpqp import (
     X,
     Y,
     Z,
-    Zop,
+    pI,
+    pZ,
     run,
 )
 from mpqp.core.instruction.gates.gate import SingleQubitGate

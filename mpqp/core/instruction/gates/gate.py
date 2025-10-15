@@ -13,7 +13,6 @@ from scipy.linalg import fractional_matrix_power
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import matrix_eq
 
 

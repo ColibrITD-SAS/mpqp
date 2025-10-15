@@ -29,7 +29,7 @@ def state_vector_ket_shape(sv: npt.NDArray[np.complex128]) -> str:
     )[2:]
 
 
-def with_sign(val: Union[np.complex64, np.complex128]) -> str:
+def with_sign(val: np.complex128) -> str:
     """Sometimes, we want values under a specific format, in particular
     ``<sign> <value>``. Where value is as simple as possible (*e.g.* no period
     or no imaginary part if there is no need).
@@ -109,7 +109,7 @@ def format_element(
         <class 'int'>
 
     """
-    from sympy import Expr, Basic
+    from sympy import Basic, Expr
 
     if isinstance(element, (Expr, Basic)):
         element = _unpack_expr(element.simplify())

@@ -51,7 +51,6 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -182,7 +181,7 @@ class QCircuit:
             self._user_nb_cbits = nb_cbits
         if isinstance(data, int):
             if data < 0:
-                raise TypeCheckError(
+                raise ValueError(
                     f"The data passed to QCircuit is a negative int ({data}), "
                     "this does not make sense."
                 )

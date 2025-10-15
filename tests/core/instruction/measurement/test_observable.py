@@ -4,7 +4,8 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp.measures import I, Observable, PauliString, X, Y, Z
+from mpqp import Observable, pI, pX, pY, pZ
+from mpqp.measures import PauliString
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
 

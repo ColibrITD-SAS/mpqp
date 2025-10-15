@@ -16,7 +16,7 @@ from cirq.ops.pauli_gates import X as Cirq_X
 from cirq.ops.pauli_string import PauliString as CirqPauliString
 from qat.core.wrappers.observable import Observable as QLMObservable
 
-from mpqp import ExpectationMeasure, I, Language, Observable, Xop
+from mpqp import ExpectationMeasure, Language, Observable, pI, pX
 
 
 @pytest.mark.parametrize(

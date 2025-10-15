@@ -25,7 +25,6 @@ from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
@@ -37,6 +36,7 @@ if TYPE_CHECKING:
     from qiskit.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
+
     from mpqp.core.instruction.gates.custom_controlled_gate import Gate
 
 

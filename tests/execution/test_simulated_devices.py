@@ -2,13 +2,10 @@ import sys
 
 import pytest
 
-from mpqp import (
-    BasisMeasure,
-    ExpectationMeasure,
+from mpqp import BasisMeasure, ExpectationMeasure, Observable, QCircuit, run
+from mpqp.execution.simulated_devices import (
     IBMSimulatedDevice,
-    Observable,
-    QCircuit,
-    run,
+    StaticIBMSimulatedDevice,
 )
 from mpqp.gates import *
 from mpqp.tools import DeviceJobIncompatibleError
@@ -47,7 +44,7 @@ def ibm_simulated_devices():
 
 
 def test_generation_enum():
-    assert len(list(IBMSimulatedDevice)) > 0
+    assert len(ibm_simulated_devices()) > 0
 
 
 @pytest.mark.parametrize(

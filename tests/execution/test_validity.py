@@ -18,7 +18,6 @@ from mpqp import (
     ExpectationMeasure,
     GOOGLEDevice,
     HadamardBasis,
-    I,
     IBMDevice,
     Instruction,
     Language,
@@ -28,9 +27,10 @@ from mpqp import (
     QCircuit,
     Result,
     VariableSizeBasis,
-    Xop,
-    Yop,
-    Zop,
+    pI,
+    pX,
+    pY,
+    pZ,
     run,
 )
 from mpqp.core.instruction.gates.native_gates import NATIVE_GATES

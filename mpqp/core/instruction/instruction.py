@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
-from mpqp.environment.typechecked import conditional_typechecked
 
 
 class Instruction(SimpleClassReprABC):

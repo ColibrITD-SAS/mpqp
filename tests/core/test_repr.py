@@ -18,15 +18,15 @@ from mpqp import (
     Depolarizing,
     ExpectationMeasure,
     HadamardBasis,
-    I,
     Measure,
     Observable,
     PhaseDamping,
     QCircuit,
     VariableSizeBasis,
-    Xop,
-    Yop,
-    Zop,
+    pI,
+    pX,
+    pY,
+    pZ,
 )
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit, random_gate, random_noise
@@ -178,15 +178,7 @@ def generate_expectation_measures():
 
 @pytest.mark.parametrize("measure", generate_expectation_measures())
 def repr_expectation_measures(measure: Measure):
-    measure_repr = (
-        repr(measure)
-        .replace("I", "pauli_I")
-        .replace("X", "Xop")
-        .replace("Y", "pauli_Y")
-        .replace("Z", "pauli_Z")
-    )
-    print(measure_repr)
-    assert eval(measure_repr) == measure
+    assert eval(repr(measure)) == measure
 
 
 def repr_barriers():

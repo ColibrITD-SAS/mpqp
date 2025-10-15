@@ -34,9 +34,6 @@ from typing import (
 
 from aenum import Enum
 
-from mpqp.environment.typechecked import conditional_typechecked
-
-
 # This is needed because for some reason pyright does not understand that Enum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:

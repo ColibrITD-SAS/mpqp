@@ -31,7 +31,6 @@ import numpy.typing as npt
 
 from mpqp.measures import Observable
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.operators import *
 
 

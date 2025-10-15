@@ -19,7 +19,6 @@ import numpy.typing as npt
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
@@ -133,6 +132,8 @@ class PauliString:
         """
         import re
 
+        from sympy import sympify
+
         pattern = re.compile(r'([^IXYZ]+)?([IXYZ]+)')
 
         monomials = []
@@ -167,7 +168,12 @@ class PauliString:
         from sympy import Expr
 
         return str(self._monomials[0]) + "".join(
-            (f" - {-m}" if not isinstance(m.coef, Expr) and m.coef < 0 else f" + {m}")
+            (
+                f" - {-m}"
+                if not isinstance(m.coef, Expr)
+                and m.coef < 0  # pyright: ignore[reportOperatorIssue]
+                else f" + {m}"
+            )
             for m in self._monomials[1:]
         )
 
@@ -316,7 +322,7 @@ class PauliString:
                         if mono.atoms == list(unique_mono_atoms)
                     ]  # pyright: ignore[reportArgumentType]
                 ),
-                round=round,
+                precision=round,
             )
             if TYPE_CHECKING:
                 assert isinstance(coef, Coef)
@@ -850,7 +856,7 @@ class PauliString:
             {'pIpI': '2', 'pIpZ': '1'}
 
         """
-        me = self.simplify(round=256)
+        me = self.simplify(round=255)
         result_dict: dict[str, "Coef"] = {}
         for mono in me.monomials:
             atom_str = "".join(str(atom) for atom in mono.atoms)
@@ -960,7 +966,7 @@ class PauliStringMonomial(PauliString):
     def __str__(self):
         from sympy import Expr
 
-        coef = format_element(self.coef)  # type: ignore[reportArgumentType]
+        coef = format_element(self.coef)
         if isinstance(coef, Expr):
             coef = f'({str(coef)})*'
         else:
@@ -1146,12 +1152,14 @@ class PauliStringMonomial(PauliString):
         """
         from sympy import Expr
 
+        from mpqp.tools.display import (
+            _unpack_expr,  # pyright: ignore[reportPrivateUsage]
+        )
+
         new_monomial = deepcopy(self)
         caster = lambda v: _unpack_expr(v) if remove_symbolic else v
         if isinstance(new_monomial.coef, Expr):
-            new_coef: "Coef" = caster(
-                new_monomial.coef.subs(values)
-            )  # pyright: ignore[reportAssignmentType]
+            new_coef: "Coef" = caster(new_monomial.coef.subs(values))
             new_monomial.coef = new_coef
 
         return new_monomial

@@ -32,7 +32,6 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import cos, exp, sin
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in

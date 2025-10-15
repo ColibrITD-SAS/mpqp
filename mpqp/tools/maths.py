@@ -7,6 +7,7 @@ import math
 from functools import reduce
 from numbers import Complex, Real
 from typing import TYPE_CHECKING, Any, Optional, Union
+
 import numpy as np
 import numpy.typing as npt
 from scipy.linalg import inv, sqrtm
@@ -16,7 +17,6 @@ if TYPE_CHECKING:
 
     from mpqp.tools.generics import Matrix
 
-from mpqp.environment.typechecked import conditional_typechecked
 
 rtol = 1e-05
 """The relative tolerance parameter."""

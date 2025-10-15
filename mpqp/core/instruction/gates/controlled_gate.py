@@ -5,7 +5,6 @@ from functools import reduce
 from typing import Optional, Union, cast
 
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 
 from .gate import Gate
 

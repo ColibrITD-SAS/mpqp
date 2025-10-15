@@ -66,13 +66,13 @@ from .measures import (
     ComputationalBasis,
     ExpectationMeasure,
     HadamardBasis,
-    I,
     Measure,
     Observable,
     VariableSizeBasis,
+    pI,
+    pX,
+    pY,
+    pZ,
 )
-from .measures import X as Xop
-from .measures import Y as Yop
-from .measures import Z as Zop
 from .noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from .tools.display import pprint
