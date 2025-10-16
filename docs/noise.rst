@@ -16,6 +16,9 @@ presented.
 For more details on how to use noise models taken from real hardware, you can
 look at :ref:`SimulatedDevices`.
 
+Note: you can import all noises from the root ``mpqp`` module, but we also
+provide a shorthand to import all the gates at once:
+
 .. code-block:: python
     :class: import
 
