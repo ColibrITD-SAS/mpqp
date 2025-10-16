@@ -42,12 +42,11 @@ def apply_noise_to_cirq_circuit(
     Returns:
         A new circuit with the noise operations applied.
     """
-    from cirq.circuits.circuit import Circuit
+    from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.circuits.moment import Moment
     from cirq.ops.identity import IdentityGate
     from cirq.ops.measurement_gate import MeasurementGate
     from cirq.ops.raw_types import Gate, Operation
-    from cirq.circuits.circuit import Circuit as CirqCircuit
 
     from mpqp.noise import DimensionalNoiseModel
 
@@ -157,8 +156,8 @@ def run_cirq_observable(
     Returns:
         A result containing the expectation values of the observables.
     """
-    from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.work.observable_measurement import (
         RepetitionsStoppingCriteria,
         measure_observables,
@@ -182,9 +181,7 @@ def run_cirq_observable(
                         found = True
                         break
                 if not found:
-                    monomials.append(
-                        monom / monom.coef  # pyright: ignore[reportOperatorIssue]
-                    )
+                    monomials.append(monom / monom.coef)
         expectation_values: dict[str, float] = {}
         result: dict[str, float] = {}
 

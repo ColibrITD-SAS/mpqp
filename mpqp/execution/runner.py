@@ -167,7 +167,7 @@ def _run_diagonal_observables(
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: "Oprional[dict[Expr | str, Complex]]" = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()

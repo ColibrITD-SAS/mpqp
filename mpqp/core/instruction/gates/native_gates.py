@@ -646,7 +646,7 @@ class P(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self) -> Matrix:
-        return np.array(
+        return np.array(  # pyright: ignore[reportCallIssue]
             [
                 [1, 0],
                 [
@@ -1117,7 +1117,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             exp(self.gamma * 1j),  # pyright: ignore[reportOperatorIssue]
             exp(self.phi * 1j),  # pyright: ignore[reportOperatorIssue]
         )
-        return np.array(
+        return np.array(  # pyright: ignore[reportCallIssue]
             [
                 [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
                 [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
@@ -1171,7 +1171,7 @@ class Rx(RotationGate, SingleQubitGate):
     def to_canonical_matrix(self):
         c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
         s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array(
+        return np.array(  # pyright: ignore[reportCallIssue]
             [[c, -1j * s], [-1j * s, c]]  # pyright: ignore[reportOperatorIssue]
         )
 
@@ -1264,7 +1264,9 @@ class Rz(RotationGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array([[e, 0], [0, 1 / e]])  # pyright: ignore[reportOperatorIssue]
+        return np.array(  # pyright: ignore[reportCallIssue]
+            [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
+        )
 
 
 class Rk(RotationGate, SingleQubitGate):

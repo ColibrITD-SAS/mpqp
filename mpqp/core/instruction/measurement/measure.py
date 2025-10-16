@@ -14,6 +14,7 @@ from abc import ABC
 from typing import Optional
 
 from mpqp.core.instruction import Instruction
+from mpqp.core.instruction.gates import Gate
 
 
 class Measure(Instruction, ABC):
@@ -44,9 +45,7 @@ class Measure(Instruction, ABC):
         label: Optional[str] = None,
     ):
         if shots < 0:
-            raise TypeCheckError(
-                f"Negative number of shot makes no sense, given {shots}"
-            )
+            raise ValueError(f"Negative number of shot makes no sense, given {shots}")
         if targets is None:
             targets = []
         super().__init__(targets, label)
@@ -61,7 +60,7 @@ class Measure(Instruction, ABC):
     @property
     def pre_measure(self) -> list[Gate]:
         """Operations needed so that the only measurement needed at the end of
-        the circuit is a standard measement in the computational basis with the qubits
-        in ascending order. This list of operations can for instance include swap gates
-        and U3 gates."""
+        the circuit is a standard measurement in the computational basis with
+        the qubits in ascending order. This list of operations can for instance
+        include swap gates and U3 gates."""
         return []
