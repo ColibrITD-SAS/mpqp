@@ -9,7 +9,7 @@ from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
 
 if TYPE_CHECKING:
-    from sympy import Basic
+    from sympy import Expr
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
@@ -277,8 +277,7 @@ def _minimize_local_circ(
     # The sympy `free_symbols` method returns in fact sets of Basic, which
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
-    # TODO: bellow might be a bug, check why we need this type ignore
-    variables: set["Basic"] = circ.variables()
+    variables: set["Expr"] = circ.variables()  # pyright: ignore[reportAssignmentType]
 
     if len(circ.measurements) != 1:
         raise ValueError("Cannot optimize a circuit containing several measurements.")
@@ -288,7 +287,8 @@ def _minimize_local_circ(
     else:
         if len(circ.measurements[0].observables) > 1:
             raise ValueError(
-                f"Expected only one observable in the ExpectationMeasure but got {len(circ.measurements[0].observables)}"
+                "Expected only one observable in the ExpectationMeasure but got"
+                f" {len(circ.measurements[0].observables)}"
             )
 
     def eval_circ(params: OptimizerInput):
@@ -296,11 +296,11 @@ def _minimize_local_circ(
         # "float" is incompatible with "Complex"
         from numbers import Complex
 
-        from sympy import Expr
-
-        values: dict[Expr | str, Complex] = _maps(
-            variables, params  # pyright: ignore[reportAssignmentType]
+        params_fixed_type: Collection[Complex] = (
+            params  # pyright: ignore[reportAssignmentType]
         )
+
+        values: dict[Expr | str, Complex] = _maps(variables, params_fixed_type)
         result = run(circ, device, values)
         if TYPE_CHECKING:
             assert isinstance(result.expectation_values, float)
