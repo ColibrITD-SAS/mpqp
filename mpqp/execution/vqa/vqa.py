@@ -254,11 +254,13 @@ def _minimize_remote(
             from qiskit.quantum_info import SparsePauliOp
 
             param_map = _maps(variables, params)
-            qiskit_circ = optimizable.bind_parameters(param_map, device=device) #TODO: bind_parameters()
+            qiskit_circ = optimizable.bind_parameters(
+                param_map, device=device
+            )  # TODO: bind_parameters()
 
             qiskit_observables: list[SparsePauliOp] = [
                 obs.to_other_language(Language.QISKIT) for obs in observables
-            ] # to check here
+            ]  # to check here
 
             if vqa_mode == VQAMode.JOB:
                 estimator = Runtime_Estimator(mode=backend, options=estimator_options)
