@@ -254,11 +254,13 @@ def _minimize_remote(
             from qiskit.quantum_info import SparsePauliOp
 
             param_map = _maps(variables, params)
-            qiskit_circ = optimizable.bind_parameters(param_map, device=device) #TODO: bind_parameters()
+            qiskit_circ = optimizable.bind_parameters(
+                param_map, device=device
+            )  # TODO: bind_parameters()
 
             qiskit_observables: list[SparsePauliOp] = [
                 obs.to_other_language(Language.QISKIT) for obs in observables
-            ] # to check here
+            ]  # to check here
 
             if vqa_mode == VQAMode.JOB:
                 estimator = Runtime_Estimator(mode=backend, options=estimator_options)
@@ -295,20 +297,31 @@ def _minimize_remote(
             init_params = [0.0] * len(variables)
 
         if isinstance(method, Optimizer):
-            res: OptimizeResult = scipy_minimize(
-                remote_eval,
-                x0=np.array(init_params),
-                method=method.name.lower(),
-                options=optimizer_options,
-                callback=callback,
-            )
-            print(f"[VQA][IBM] optimization complete. Best value = {res.fun}")
-            return float(res.fun), res.x
+            if method == Optimizer.CMAES:
+                import cma
+
+                best_params, es = cma.fmin2(
+                    remote_eval, x0=init_params, **(optimizer_options or {})
+                )
+                best_value = es.result.fbest
+                return best_value, best_params
+            else:
+                res: OptimizeResult = scipy_minimize(
+                    remote_eval,
+                    x0=np.array(init_params),
+                    method=method.name.lower(),
+                    options=optimizer_options,
+                    callback=callback,
+                )
+                print(f"[VQA][IBM] optimization complete. Best value = {res.fun}")
+                return float(res.fun), res.x
         else:
             best_value, best_params = method(
                 remote_eval, init_params, optimizer_options
             )
-            print(f"[VQA][IBM] custom optimizer complete. Best value = {best_value}")
+            print(
+                f"[VQA][IBM] custom optimizer complete. Best value = {best_value}"
+            )  ##add best_params?
             return best_value, best_params
 
     elif isinstance(device, AWSDevice):
@@ -490,14 +503,22 @@ def _minimize_local_func(
             init_params = [0.0] * nb_params
 
     if isinstance(method, Optimizer):
-        # TODO: CMAES integration
-        res: OptimizeResult = scipy_minimize(
-            eval_func,
-            x0=np.array(init_params),
-            method=method.name.lower(),
-            options=optimizer_options,
-            callback=callback,
-        )
-        return float(res.fun), res.x
+        if method == Optimizer.CMAES:
+            import cma
+
+            best_params, es = cma.fmin2(
+                eval_func, x0=init_params, **(optimizer_options or {})
+            )
+            best_value = es.result.fbest
+            return best_value, best_params
+        else:
+            res: OptimizeResult = scipy_minimize(
+                eval_func,
+                x0=np.array(init_params),
+                method=method.name.lower(),
+                options=optimizer_options,
+                callback=callback,
+            )
+            return float(res.fun), res.x
     else:
         return method(eval_func, init_params, optimizer_options)
