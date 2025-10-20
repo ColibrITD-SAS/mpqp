@@ -40,6 +40,8 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+from typeguard import TypeCheckError, typechecked
+
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -55,7 +57,6 @@ from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.errors import NonReversibleWarning, NumberQubitsError
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
-from typeguard import TypeCheckError, typechecked
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -63,12 +64,13 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from sympy import Basic, Expr
+
     from mpqp.execution.devices import (
         ATOSDevice,
+        AvailableDevice,
         AWSDevice,
         GOOGLEDevice,
         IBMDevice,
-        AvailableDevice,
     )
     from mpqp.execution.simulated_devices import IBMSimulatedDevice
 
@@ -1830,8 +1832,8 @@ class QCircuit:
 
             from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
             from mpqp.qasm.qasm_to_braket import (
-                braket_noise_to_mpqp,
                 braket_custom_gates_to_mpqp,
+                braket_noise_to_mpqp,
             )
 
             qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
@@ -2028,3 +2030,8 @@ class QCircuit:
     def breakpoints(self) -> list[Breakpoint]:
         """Returns the breakpoints of the circuit in order."""
         return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]
+
+    def bind_parameters(self, param_map, device):
+        """A placeholder for parameter binding logic to the transpiled circuit."""
+        # TODO: implement the logic
+        raise NotImplementedError("bind_parameters() is not implemented yet. ")

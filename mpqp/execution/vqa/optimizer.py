@@ -2,14 +2,19 @@
 :class:`Optimizer` enum lists all the methods validated with the rest of the
 library."""
 
-from enum import Enum, auto
+from enum import Enum
 
 
 class Optimizer(Enum):
     """Enum used to select the optimizer for the VQA."""
 
-    BFGS = auto()
-    COBYLA = auto()
-    CMAES = auto()
-    POWELL = auto()
-    # NELDER-MEAD = auto()
+    BFGS = "BFGS"
+    L_BFGS_B = "L-BFGS-B"
+    COBYLA = "COBYLA"
+    POWELL = "POWELL"
+    NELDER_MEAD = "Nelder-Mead"
+    CMAES = "CMAES"
+    SLSQP = "SLSQP"
+
+
+##TODO CMAES and SLSQP implementation

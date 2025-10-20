@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from enum import Enum
 from functools import partial
 from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
 
@@ -12,7 +13,7 @@ from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
-from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.devices import AvailableDevice, AWSDevice, IBMDevice
 from mpqp.execution.runner import run
 from mpqp.execution.vqa.optimizer import Optimizer
 
@@ -37,6 +38,16 @@ OptimizerCallback = Union[
 # TODO: test the minimizer options
 
 
+class VQAMode(Enum):
+    JOB = "JOB"
+    BATCH = "BATCH"
+    SESSION = "SESSION"
+    HYBRID_JOB = "HYBRID_JOB"
+
+    def __str__(self):
+        return self.value
+
+
 def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
     """Does like zip, but with a dictionary instead of a list of tuples"""
     if len(l1) != len(l2):
@@ -55,6 +66,7 @@ def minimize(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
+    vqa_mode: VQAMode = VQAMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, in order to
     minimize the measured expectation value of observables associated with the given circuit.
@@ -125,16 +137,28 @@ def minimize(
     if isinstance(optimizable, QCircuit):
         if device is None:
             raise ValueError("A device is needed to optimize a circuit")
-        optimizer = _minimize_remote if device.is_remote() else _minimize_local
-        return optimizer(
-            optimizable,
-            method,
-            device,
-            init_params,
-            nb_params,
-            optimizer_options,
-            callback,
-        )
+        # optimizer = _minimize_remote if device.is_remote() else _minimize_local
+        if device.is_remote():
+            return _minimize_remote(
+                optimizable,
+                method,
+                device,
+                init_params,
+                nb_params,
+                optimizer_options,
+                callback,
+                vqa_mode=vqa_mode,
+            )
+        else:
+            return _minimize_local(
+                optimizable,
+                method,
+                device,
+                init_params,
+                nb_params,
+                optimizer_options,
+                callback,
+            )
     else:
         # TODO: find a way to know if the job is remote or local from the function
         return _minimize_local(
@@ -157,6 +181,7 @@ def _minimize_remote(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
+    vqa_mode: VQAMode = VQAMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -189,7 +214,111 @@ def _minimize_remote(
 
     TODO to implement on QLM first
     """
-    raise NotImplementedError()
+    if isinstance(device, IBMDevice):
+        from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
+
+        from mpqp.core.languages import Language
+        from mpqp.execution.connection.ibm_connection import (
+            get_backend,
+            get_QiskitRuntimeService,
+        )
+
+        print(f"[VQA] Running on IBM {device.name} in mode {vqa_mode.value}")
+
+        if TYPE_CHECKING:
+            assert isinstance(optimizable, QCircuit)
+
+        variables: set[Basic] = optimizable.variables()
+        if not variables:
+            raise ValueError("No variables found in the circuit to optimize.")
+
+        if len(optimizable.measurements) != 1:
+            raise ValueError("Expected exactly one ExpectationMeasure in circuit.")
+
+        measurement = optimizable.measurements[0]
+        if not isinstance(measurement, ExpectationMeasure):
+            raise ValueError("Expected ExpectationMeasure as measurement.")
+
+        observables = measurement.observables
+
+        service = get_QiskitRuntimeService()
+
+        if TYPE_CHECKING:
+            assert isinstance(device, IBMDevice)
+        backend = get_backend(device)
+
+        estimator_options = {"default_shots": measurement.shots}
+
+        def remote_eval(params: OptimizerInput) -> float:
+            """run expectation evaluation on IBM backend with given parameters."""
+            from qiskit.quantum_info import SparsePauliOp
+
+            param_map = _maps(variables, params)
+            qiskit_circ = optimizable.bind_parameters(param_map, device=device) #TODO: bind_parameters()
+
+            qiskit_observables: list[SparsePauliOp] = [
+                obs.to_other_language(Language.QISKIT) for obs in observables
+            ] # to check here
+
+            if vqa_mode == VQAMode.JOB:
+                estimator = Runtime_Estimator(mode=backend, options=estimator_options)
+                ibm_job = estimator.run([(qiskit_circ, qiskit_observables)])
+                result = ibm_job.result()
+
+            elif vqa_mode == VQAMode.BATCH:
+                from qiskit_ibm_runtime import Batch
+
+                with Batch(backend=backend) as batch:
+                    estimator = Runtime_Estimator(mode=batch, options=estimator_options)
+                    ibm_job = estimator.run([(qiskit_circ, qiskit_observables)])
+                    result = ibm_job.result()
+
+            elif vqa_mode == VQAMode.SESSION:
+                from qiskit_ibm_runtime import Session
+
+                with Session(service=service, backend=backend) as session:
+                    estimator = Runtime_Estimator(
+                        mode=session, options=estimator_options
+                    )
+                    ibm_job = estimator.run([(qiskit_circ, qiskit_observables)])
+                    result = ibm_job.result()
+
+            else:
+                raise ValueError(f"Unsupported IBM execution mode: {vqa_mode.value}")
+
+            values = result.values
+            energy = float(np.sum(values))
+            print(f"  [VQA][IBM] params={params} : value={energy}")
+            return energy
+
+        if init_params is None:
+            init_params = [0.0] * len(variables)
+
+        if isinstance(method, Optimizer):
+            res: OptimizeResult = scipy_minimize(
+                remote_eval,
+                x0=np.array(init_params),
+                method=method.name.lower(),
+                options=optimizer_options,
+                callback=callback,
+            )
+            print(f"[VQA][IBM] optimization complete. Best value = {res.fun}")
+            return float(res.fun), res.x
+        else:
+            best_value, best_params = method(
+                remote_eval, init_params, optimizer_options
+            )
+            print(f"[VQA][IBM] custom optimizer complete. Best value = {best_value}")
+            return best_value, best_params
+
+    elif isinstance(device, AWSDevice):
+        # TODO: AWS Braket remote execution to be implemented
+        print(f"[VQA] Running on IBM {device.name} in mode {vqa_mode.value}")
+
+        raise NotImplementedError("AWS remote execution not implemented yet")
+
+    else:
+        raise ValueError(f"Unsupported remote device: {type(device).__name__}")
 
 
 @typechecked
@@ -361,6 +490,7 @@ def _minimize_local_func(
             init_params = [0.0] * nb_params
 
     if isinstance(method, Optimizer):
+        # TODO: CMAES integration
         res: OptimizeResult = scipy_minimize(
             eval_func,
             x0=np.array(init_params),
