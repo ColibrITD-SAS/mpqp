@@ -1,5 +1,5 @@
 from getpass import getpass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from termcolor import colored
 from typeguard import typechecked
@@ -10,10 +10,11 @@ from mpqp.tools.errors import IBMRemoteExecutionError
 
 if TYPE_CHECKING:
     from qiskit.providers.backend import BackendV2
-    from qiskit_ibm_runtime import QiskitRuntimeService
+    from qiskit_ibm_runtime import QiskitRuntimeService, Session
 
 
 Runtime_Service = None
+ibm_session: Optional[Session] = None
 
 
 @typechecked
@@ -211,3 +212,31 @@ def get_all_job_ids() -> list[str]:
     if get_env_variable("IBM_CONFIGURED") == "True":
         return [job.job_id() for job in get_QiskitRuntimeService().jobs(limit=None)]
     return []
+
+
+def get_or_create_ibm_session(
+    backend: BackendV2, max_time: Optional[int] = None
+) -> Session:
+    """Get an active IBM Runtime session or create a new one."""
+    # TODO: to complete docs
+    global ibm_session
+
+    if ibm_session and ibm_session.status() not in ("Closed", None):
+        return ibm_session
+
+    ibm_session = Session(backend=backend, max_time=max_time)
+    return ibm_session
+
+
+def close_ibm_session_final() -> None:
+    """Close the currently active session, if one exists."""
+    # TODO: to complete docs
+    global ibm_session
+
+    if ibm_session is None:
+        return
+
+    try:
+        ibm_session.close()
+    finally:
+        ibm_session = None
