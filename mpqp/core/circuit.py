@@ -34,7 +34,7 @@ could be used to add CNOT gates to your circuit, using the two registers
 from __future__ import annotations
 
 from copy import deepcopy
-from numbers import Complex
+from numbers import Complex, Number
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
 from warnings import warn
 
@@ -62,7 +62,7 @@ if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-    from qiskit.circuit import QuantumCircuit
+    from qiskit.circuit import Parameter, QuantumCircuit
     from sympy import Basic, Expr
 
     from mpqp.execution.devices import (
@@ -2031,7 +2031,20 @@ class QCircuit:
         """Returns the breakpoints of the circuit in order."""
         return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]
 
-    def bind_parameters(self, param_map, device):
-        """A placeholder for parameter binding logic to the transpiled circuit."""
-        # TODO: implement the logic
-        raise NotImplementedError("bind_parameters() is not implemented yet. ")
+    def bind_parameters(self, params: dict[str | Parameter | Basic, Number]) -> None:
+        """Bind parameter values to the transpiled circuit."""
+        # TODO: to enhance docs
+        transpiled = self.transpiled_circuit
+
+        if isinstance(transpiled, QuantumCircuit):
+            qiskit_param_map = {
+                k if isinstance(k, Parameter) else Parameter(str(k)): v
+                for k, v in params.items()
+            }
+            transpiled.assign_parameters(qiskit_param_map, inplace=True)
+
+        elif isinstance(transpiled, braket_Circuit):
+            braket_param_map = {str(k): v for k, v in params.items()}
+            self.transpiled_circuit = transpiled.make_bound_circuit(braket_param_map)
+        else:
+            raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")
