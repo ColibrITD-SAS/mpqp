@@ -6,7 +6,7 @@ from itertools import product
 import numpy as np
 import pytest
 from numpy import array  # pyright: ignore[reportUnusedImport]
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.execution import (
     ATOSDevice,

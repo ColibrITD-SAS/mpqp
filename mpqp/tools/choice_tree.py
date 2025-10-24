@@ -12,9 +12,9 @@ from dataclasses import dataclass
 from typing import Any, Callable, Iterable, Optional, TypeVar, TYPE_CHECKING
 
 from pick import pick
-from typeguard import typechecked
 
 from mpqp.tools.generics import find
+from mpqp.environment.typechecked import conditional_typechecked
 
 T = TypeVar("T")
 
@@ -73,7 +73,7 @@ class QuestionNode:
                     del to_visit[q_index]
 
 
-@typechecked
+@conditional_typechecked
 def run_choice_tree(question: QuestionNode):
     """Execute the choice tree by starting with the question node in parameter.
 

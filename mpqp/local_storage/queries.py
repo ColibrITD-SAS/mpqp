@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 
-from mpqp.execution.connection.env_manager import get_env_variable
+from mpqp.environment.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
 from mpqp.local_storage.setup import DictDB, ensure_local_storage
@@ -24,10 +24,10 @@ def fetch_all_jobs() -> list[DictDB]:
         >>> jobs = fetch_all_jobs()
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
         job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
         job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 

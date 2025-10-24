@@ -9,7 +9,7 @@ import numpy.typing as npt
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
 from sympy import Basic
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
@@ -57,7 +57,7 @@ def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
     return {e1: e2 for e1, e2 in zip(l1, l2)}
 
 
-@typechecked
+@conditional_typechecked
 def minimize(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -172,7 +172,7 @@ def minimize(
         )
 
 
-@typechecked
+@conditional_typechecked
 def _minimize_remote(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -334,7 +334,7 @@ def _minimize_remote(
         raise ValueError(f"Unsupported remote device: {type(device).__name__}")
 
 
-@typechecked
+@conditional_typechecked
 def _minimize_local(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -385,7 +385,7 @@ def _minimize_local(
         )
 
 
-@typechecked
+@conditional_typechecked
 def _minimize_local_circ(
     circ: QCircuit,
     device: AvailableDevice,
@@ -456,7 +456,7 @@ def _minimize_local_circ(
     )
 
 
-@typechecked
+@conditional_typechecked
 def _minimize_local_func(
     eval_func: OptimizableFunc,
     method: Optimizer | OptimizerCallable,

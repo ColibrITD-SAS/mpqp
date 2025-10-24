@@ -67,7 +67,7 @@ with a list of :class:`~mpqp.core.instruction.instruction.Instruction`
 
 .. code-block:: python
 
-    >>> from mpqp import QCircuit
+    >>> from mpqp.core import QCircuit
     >>> from mpqp.gates import X, CNOT
     >>> from mpqp.measures import BasisMeasure
     >>> from mpqp.execution import run, IBMDevice

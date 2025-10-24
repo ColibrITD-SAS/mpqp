@@ -7,7 +7,7 @@ from cirq.ops.named_qubit import NamedQubit
 from cirq.ops.pauli_gates import X as CirqX
 from cirq.ops.identity import I as CirqI
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
 from mpqp.execution import GOOGLEDevice, run
 from mpqp.gates import *

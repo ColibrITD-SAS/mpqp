@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from braket.devices import LocalSimulator
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
 from mpqp.core.languages import Language
 from mpqp.execution import run
@@ -319,7 +319,7 @@ def test_all_native_gates():
     circuit.add(TOF([0, 1], 2))
 
     circuit.to_other_language(Language.QASM2)
-    circuit.to_other_language(Language.QASM3, translation_warning=False)
+    circuit.to_other_language(Language.QASM3)
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(
             circuit,

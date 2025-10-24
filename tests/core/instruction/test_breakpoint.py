@@ -1,7 +1,7 @@
 import pytest
 from pytest import CaptureFixture
 
-from mpqp import Breakpoint, QCircuit
+from mpqp.core import Breakpoint, QCircuit
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice
 from mpqp.gates import *

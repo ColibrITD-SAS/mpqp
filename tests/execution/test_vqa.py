@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 from sympy import Expr, symbols
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,

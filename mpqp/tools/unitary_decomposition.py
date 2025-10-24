@@ -144,7 +144,7 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         circuit.add(Rz(alpha, position))
         circuit.add(Ry(beta, position))
         circuit.add(Rz(gamma, position))
-        circuit.gphase += delta  # Stores the gphase in the circuit
+        circuit.input_g_phase += delta  # Stores the gphase in the circuit
         return circuit
     else:  # 2 qubits or more
         length = len(U)

@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from termcolor import colored
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 
 if TYPE_CHECKING:
     from azure.quantum import Workspace

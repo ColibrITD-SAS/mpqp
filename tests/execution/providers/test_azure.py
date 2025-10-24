@@ -5,7 +5,7 @@ import sys
 
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.execution import run
 from mpqp.execution.devices import AZUREDevice
 from mpqp.gates import *
