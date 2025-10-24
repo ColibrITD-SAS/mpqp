@@ -2,9 +2,12 @@ import sys
 
 import pytest
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.execution import run
-from mpqp.execution.simulated_devices import IBMSimulatedDevice
+from mpqp.execution.simulated_devices import (
+    IBMSimulatedDevice,
+    StaticIBMSimulatedDevice,
+)
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools import DeviceJobIncompatibleError
@@ -50,7 +53,7 @@ def test_generation_enum():
     "circuit, device", [(i, j) for i in circuits() for j in ibm_simulated_devices()]
 )
 def running_sample_job_ibm_simulated_devices(
-    circuit: QCircuit, device: IBMSimulatedDevice
+    circuit: QCircuit, device: StaticIBMSimulatedDevice
 ):
     c = circuit + QCircuit([BasisMeasure()], nb_qubits=circuit.nb_qubits)
     if device.value().num_qubits < c.nb_qubits:
@@ -65,7 +68,7 @@ def running_sample_job_ibm_simulated_devices(
     "circuit, device", [(i, j) for i in circuits() for j in ibm_simulated_devices()]
 )
 def running_observable_job_ibm_simulated_devices(
-    circuit: QCircuit, device: IBMSimulatedDevice
+    circuit: QCircuit, device: StaticIBMSimulatedDevice
 ):
     c = circuit + QCircuit(
         [ExpectationMeasure(Observable(rand_hermitian_matrix(2**circuit.nb_qubits)))],

@@ -2,9 +2,10 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
-from typeguard import typechecked
+from mpqp.environment.typechecked import conditional_typechecked
 
-from mpqp import Language, QCircuit
+from mpqp.core.languages import Language
+from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
     BasisMeasure,
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
 
-@typechecked
+@conditional_typechecked
 def apply_noise_to_braket_circuit(
     braket_circuit: "Circuit",
     noises: list[NoiseModel],
@@ -86,8 +87,8 @@ def apply_noise_to_braket_circuit(
     return noisy_circuit
 
 
-@typechecked
-def run_braket(job: Job, translation_warning: bool = True) -> Result:
+@conditional_typechecked
+def run_braket(job: Job) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
@@ -95,7 +96,6 @@ def run_braket(job: Job, translation_warning: bool = True) -> Result:
     Args:
         job: Job to be executed, it MUST be corresponding to a
             :class:`mpqp.execution.devices.AWSDevice`.
-        translation_warning: If `True`, a warning will be raised.
 
     Returns:
         The result of the job.
@@ -115,8 +115,8 @@ def run_braket(job: Job, translation_warning: bool = True) -> Result:
     from braket.tasks import GateModelQuantumTaskResult
 
     if isinstance(job.measure, ExpectationMeasure):
-        return run_braket_observable(job, translation_warning)
-    _, task = submit_job_braket(job, translation_warning)
+        return run_braket_observable(job)
+    _, task = submit_job_braket(job)
     res = task.result()
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
@@ -124,8 +124,8 @@ def run_braket(job: Job, translation_warning: bool = True) -> Result:
     return extract_result(res, job, job.device)
 
 
-@typechecked
-def run_braket_observable(job: Job, translation_warning: bool = True):
+@conditional_typechecked
+def run_braket_observable(job: Job):
     """Returns the result of an ``OBSERVABLE`` job.
 
     TODO: check that the link bellow is correctly generated.
@@ -137,7 +137,6 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
 
     Args:
         job: Job to be executed.
-        translation_warning: If ``False``, the translation warnings are disabled.
 
     Returns:
         A result containing the expectation values of the observables.
@@ -145,15 +144,15 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult
 
+    assert isinstance(job.device, AWSDevice)
     if job.circuit.transpiled_circuit is None:
-        transpiled_circuit = job.circuit.to_other_device(
-            job.device, translation_warning
-        )
+        transpiled_circuit = job.circuit.to_other_device(job.device)
     else:
         transpiled_circuit = job.circuit.transpiled_circuit
-    assert isinstance(transpiled_circuit, Circuit)
+        assert isinstance(transpiled_circuit, Circuit)
+
     device = get_braket_device(
-        job.device,  # pyright: ignore[reportArgumentType]
+        job.device,
         is_noisy=bool(job.circuit.noises),
     )
     if job.measure is None:
@@ -172,7 +171,7 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
         for group in grouping:
             transpiled_pre_measure = QCircuit(
                 find_qubitwise_rotations(group)
-            ).to_other_language(Language.BRAKET, translation_warning)
+            ).to_other_language(Language.BRAKET)
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
                 from copy import deepcopy
@@ -244,10 +243,8 @@ def run_braket_observable(job: Job, translation_warning: bool = True):
     return Result(job, results, errors, job.measure.shots)
 
 
-@typechecked
-def submit_job_braket(
-    job: Job, translation_warning: bool = True
-) -> tuple[str, "QuantumTask"]:
+@conditional_typechecked
+def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
 
@@ -296,7 +293,7 @@ def submit_job_braket(
     device = get_braket_device(job.device, is_noisy=is_noisy)
 
     if job.circuit.transpiled_circuit is None:
-        braket_circuit = job.circuit.to_other_device(job.device, translation_warning)
+        braket_circuit = job.circuit.to_other_device(job.device)
     else:
         braket_circuit = job.circuit.transpiled_circuit
 
@@ -318,7 +315,10 @@ def submit_job_braket(
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
+        if job.measure.observables[0].transpile is None:
+            herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
+        else:
+            herm_op = job.measure.observables[0].transpile
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
@@ -337,7 +337,7 @@ def submit_job_braket(
     )  # TODO : [multi-obs] update this to take into account the case when we have list of Observables
 
 
-@typechecked
+@conditional_typechecked
 def extract_result(
     braket_result: "GateModelQuantumTaskResult",
     job: Optional[Job] = None,
@@ -390,7 +390,7 @@ def extract_result(
             job_type = JobType.STATE_VECTOR
             nb_qubits = int(math.log2(len(braket_result.values[0])))
             measure = BasisMeasure(list(range(nb_qubits)), shots=0)
-        job = Job(job_type, QCircuit(nb_qubits), device, measure)
+        job = Job(job_type, QCircuit([measure], nb_qubits=nb_qubits), device)
     job.status = JobStatus.DONE
 
     if job.job_type in (JobType.SAMPLE, JobType.OBSERVABLE) and job.measure is None:
@@ -424,7 +424,7 @@ def extract_result(
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
 
 
-@typechecked
+@conditional_typechecked
 def get_result_from_aws_task_arn(task_arn: str) -> Result:
     """Retrieves the result, described by the job_id in parameter, from the
     remote QLM and converts it into an mpqp result.
@@ -462,7 +462,7 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     return extract_result(result, None, device)
 
 
-@typechecked
+@conditional_typechecked
 def estimate_cost_single_job(
     job: Job, hybrid_iterations: int = 1, estimated_time_seconds: int = 3
 ) -> float:

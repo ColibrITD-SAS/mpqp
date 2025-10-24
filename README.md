@@ -47,7 +47,7 @@ To get started with MPQP, you can create a quantum circuit with a few gates, and
 run it against the backend of your choice:
 
 ```py
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.gates import *
 from mpqp.execution import run, IBMDevice
 circ = QCircuit([H(0), H(1), Rx(0,0), CNOT(1,2), Y(2)])

@@ -2,7 +2,7 @@ from typing import Optional
 
 from termcolor import colored
 
-from mpqp.execution.connection.env_manager import config_key, get_env_variable
+from mpqp.environment.env_manager import config_key, get_env_variable
 
 
 def config_ionq_key():

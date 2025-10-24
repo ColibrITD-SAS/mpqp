@@ -1,4 +1,4 @@
-from mpqp import QCircuit, Language
+from mpqp.core import QCircuit, Language
 from mpqp.gates import *
 from mpqp.measures import BasisMeasure
 

@@ -44,7 +44,7 @@
 # def test_setup_ibm_account_configured():
 #     # test case when an IBMQ account is already configured
 #     with patch(
-#         "mpqp.execution.connection.env_manager.get_env_variable", return_value="True"
+#         "mpqp.environment.env_manager.get_env_variable", return_value="True"
 #     ), patch("builtins.input", side_effect=["n"]):
 #         result, _ = setup_ibm_account()
 #         assert result == "Canceled."
@@ -53,7 +53,7 @@
 # def test_setup_ibm_account_not_configured():
 #     # test case when an IBMQ account is not configured
 #     with patch(
-#         "mpqp.execution.connection.env_manager.get_env_variable", return_value=None
+#         "mpqp.environment.env_manager.get_env_variable", return_value=None
 #     ), patch("builtins.input", side_effect=["y"]), patch(
 #         "mpqp.execution.connection.ibm_connection.test_connection", return_value=True
 #     ):
@@ -64,7 +64,7 @@
 # def test_setup_ibm_account_failed_and_not_configured():
 #     # test case when an IBMQ account is not configured and test_connection fails
 #     with patch(
-#         "mpqp.execution.connection.env_manager.get_env_variable", return_value=None
+#         "mpqp.environment.env_manager.get_env_variable", return_value=None
 #     ), patch("builtins.input", side_effect=["y"]), patch(
 #         "mpqp.execution.connection.ibm_connection.test_connection", return_value=False
 #     ):

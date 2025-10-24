@@ -15,19 +15,17 @@ from dotenv import dotenv_values, set_key, unset_key
 from numpy.random import default_rng
 
 from mpqp.all import *
-from mpqp.core.instruction.measurement import pauli_string
-from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.execution import BatchResult
-from mpqp.execution.connection.env_manager import (
+from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
 )
-from mpqp.execution.connection.env_manager import (
+from mpqp.environment.env_manager import (
     MPQP_ENV,
     get_env_variable,
     get_existing_config_str,
     load_env_variables,
     save_env_variable,
 )
+from mpqp.execution import BatchResult
 from mpqp.execution.providers.aws import estimate_cost_single_job
 from mpqp.execution.runner import generate_job
 from mpqp.execution.vqa.qaoa import QaoaMixer, QaoaMixerType
@@ -74,6 +72,7 @@ from mpqp.local_storage.queries import (
 )
 from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import setup_local_storage
+from mpqp.measures import PauliString, pI, pX, pY, pZ
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
 from mpqp.qasm import (
     qasm2_to_cirq_Circuit,
@@ -82,6 +81,7 @@ from mpqp.qasm import (
     qasm3_to_braket_Program,
 )
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 from mpqp.qasm.open_qasm_2_and_3 import (
     convert_instruction_3_to_2,
     open_qasm_2_to_3,
@@ -92,12 +92,11 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     remove_user_gates,
 )
 from mpqp.qasm.qasm_to_braket import (
-    qasm3_to_braket_Circuit,
-    braket_noise_to_mpqp,
     braket_custom_gates_to_mpqp,
+    braket_noise_to_mpqp,
+    qasm3_to_braket_Circuit,
 )
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 from mpqp.tools.circuit import (
     random_circuit,
     random_gate,
@@ -127,17 +126,14 @@ from mpqp.tools.maths import (
     normalize,
     rand_clifford_matrix,
     rand_hermitian_matrix,
-    rand_unitary_matrix,
     rand_orthogonal_matrix,
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
-)
-from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
-from mpqp.tools.pauli_grouping import (
-    CommutingTypes,
-    pauli_grouping_greedy,
+    rand_unitary_matrix,
 )
 from mpqp.tools.operators import *
+from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
+from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
 sys.path.insert(0, os.path.abspath("."))
 
@@ -183,17 +179,24 @@ class EnvRunner:
 class DBRunner:
     original_local_storage_location: str
 
+    def __init__(self, filename: str):
+        self.filename = filename
+
     def __enter__(self):
         import shutil
 
         db_original = Path("tests/local_storage/test_local_storage.db").absolute()
-        db_temp = Path("tests/local_storage/test_local_storage_tmp.db").absolute()
+        db_temp = Path(
+            f"tests/local_storage/test_local_storage_{self.filename}.db"
+        ).absolute()
 
         with open(db_original, "rb") as src, open(db_temp, "wb") as dst:
             shutil.copyfileobj(src, dst)
 
         self.original_local_storage_location = get_env_variable("DB_PATH")
-        setup_local_storage("tests/local_storage/test_local_storage_tmp.db")
+        setup_local_storage(
+            f"tests/local_storage/test_local_storage_{self.filename}.db"
+        )
 
     def __exit__(
         self,
@@ -203,7 +206,10 @@ class DBRunner:
     ):
 
         os.remove(
-            os.path.join(os.getcwd(), "tests/local_storage/test_local_storage_tmp.db")
+            os.path.join(
+                os.getcwd(),
+                f"tests/local_storage/test_local_storage_{self.filename}.db",
+            )
         )
         setup_local_storage(self.original_local_storage_location or None)
 
@@ -251,7 +257,7 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
             if safe_needed:
                 with EnvRunner():
                     if any(name in root + filename for name in files_needing_db):
-                        with DBRunner():
+                        with DBRunner(test.name):
                             assert runner.run(test).failed == 0
                     else:
                         assert runner.run(test).failed == 0

@@ -4,6 +4,6 @@ Barriers
 .. code-block:: python
     :class: import
 
-    from mpqp import Barrier
+    from mpqp.core import Barrier
 
 .. automodule:: mpqp.core.instruction.barrier

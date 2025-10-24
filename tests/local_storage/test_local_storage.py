@@ -9,7 +9,7 @@ from typing import Optional, Type
 import pytest
 
 from mpqp.all import *
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.local_storage.delete import (
     clear_local_storage,
     remove_all_with_job_id,
@@ -246,9 +246,19 @@ def test_fetch_results_with_result(
         assert isinstance(result, Result)
         fetched_results = fetch_results_with_result(result)
         expected_result = mock_local_storage_results[0]['result_local_storage']
+        assert isinstance(expected_result, dict)
+
+        excluded_keys = {'created_at', 'id'}
 
         for fetched_result in fetched_results:
-            assert fetched_result == expected_result
+            filtered_fetched = {
+                k: v for k, v in fetched_result.items() if k not in excluded_keys
+            }
+            filtered_expected = {
+                k: v for k, v in expected_result.items() if k not in excluded_keys
+            }
+
+            assert filtered_fetched == filtered_expected
 
 
 def test_get_results_with_job_id(
