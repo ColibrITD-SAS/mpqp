@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from termcolor import colored
+
 from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
@@ -122,6 +123,17 @@ def setup_aws_braket_account() -> tuple[str, list[Any]]:
     )
 
 
+def set_reservation_arn_if_needed() -> None:
+    """Optionally set and save a Braket reservation ARN if needed for specific runs.
+    This step is not required for normal usage."""
+    if not get_env_variable("BRAKET_RESERVATION_ARN"):
+        reservation_arn = input(
+            "Enter your AWS Braket reservation ARN if provided (optional, press Enter to skip): "
+        ).strip()
+        if reservation_arn:
+            save_env_variable("BRAKET_RESERVATION_ARN", reservation_arn)
+
+
 def update_aws_credentials_file(
     profile_name: str,
     access_key_id: str,
@@ -198,6 +210,9 @@ def configure_account_iam() -> tuple[str, list[Any]]:
 
     save_env_variable("BRAKET_AUTH_METHOD", "IAM")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
+    set_reservation_arn_if_needed()
+
     return "IAM configuration successful.", []
 
 
@@ -260,6 +275,9 @@ def configure_account_sso() -> tuple[str, list[Any]]:
 
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
+    set_reservation_arn_if_needed()
+
     return "SSO configuration successful.", []
 
 
