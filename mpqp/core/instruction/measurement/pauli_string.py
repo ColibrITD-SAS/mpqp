@@ -292,7 +292,7 @@ class PauliString:
             new_pauli_string += substituted_monomial
         return new_pauli_string
 
-    def simplify(self, inplace: bool = False, round: int = 10) -> PauliString:
+    def simplify(self, inplace: bool = False, precision: int = 10) -> PauliString:
         """Simplifies the Pauli string by combining identical terms and removing
         terms with null coefficients. When all terms annihilate themselves, we
         return an empty PauliString with a number of qubits corresponding to the
@@ -301,7 +301,7 @@ class PauliString:
         Args:
             inplace: Indicates if ``self`` should be updated in addition of a
                 new Pauli string being returned.
-            round: Maximum number of digits to keep.
+            precision: Maximum number of digits to keep.
 
         Returns:
             The simplified version of the Pauli string.
@@ -322,7 +322,7 @@ class PauliString:
                         if mono.atoms == list(unique_mono_atoms)
                     ]  # pyright: ignore[reportArgumentType]
                 ),
-                precision=round,
+                precision=precision,
             )
             if TYPE_CHECKING:
                 assert isinstance(coef, Coef)
@@ -856,7 +856,7 @@ class PauliString:
             {'pIpI': '2', 'pIpZ': '1'}
 
         """
-        me = self.simplify(round=255)
+        me = self.simplify(precision=255)
         result_dict: dict[str, "Coef"] = {}
         for mono in me.monomials:
             atom_str = "".join(str(atom) for atom in mono.atoms)
@@ -1058,7 +1058,7 @@ class PauliStringMonomial(PauliString):
         res @= other
         return res
 
-    def simplify(self, inplace: bool = False, round: int = 10):
+    def simplify(self, inplace: bool = False, precision: int = 10):
         return deepcopy(self)
 
     def __eq__(self, other: object) -> bool:
