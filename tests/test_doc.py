@@ -140,9 +140,6 @@ from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
 theta, k = symbols("θ k")
 obs = Observable(np.array([[0, 1], [1, 0]]))
-circ = QCircuit(
-    [P(theta, 0), ExpectationMeasure(targets=[0], observable=obs, shots=1000)]
-)
 
 sys.path.insert(0, os.path.abspath("."))
 
