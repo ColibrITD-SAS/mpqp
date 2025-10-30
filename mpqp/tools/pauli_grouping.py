@@ -55,6 +55,7 @@ def pauli_grouping_greedy(
         [[pI@pX@pX, pY@pY@pZ, pI@pI@pI], [-3*pZ@pY@pX, -1*pZ@pZ@pY], [pY@pX@pY], [2*pX@pX@pY]]
     """
     groups: list[list[PauliStringMonomial]] = []
+
     for monomial in monomials:
         added = False
         for group in groups:

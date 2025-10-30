@@ -3,7 +3,7 @@ from braket.circuits import Circuit, Operator
 from braket.circuits.gates import CNot, H
 
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.tools import UnsupportedBraketFeaturesWarning
 
 
 @pytest.mark.parametrize(

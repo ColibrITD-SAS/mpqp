@@ -161,22 +161,34 @@ def run_braket_observable(job: Job):
     results = {}
     errors = {}
     if job.measure.optimize_measurement:
-        grouping = job.measure.get_pauli_grouping()
         from mpqp.tools.pauli_grouping import (
             find_qubitwise_rotations,
             pauli_monomial_eigenvalues,
         )
 
+        if job.measure.pre_transpile is None:
+            grouping = job.measure.get_pauli_grouping()
+            transpiled_pre_measures = [
+                QCircuit(find_qubitwise_rotations(group)).to_other_language(
+                    Language.BRAKET
+                )
+                for group in grouping
+            ]
+            eigenvalues = [
+                {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
+                for group in grouping
+            ]
+
+        else:
+            eigenvalues, transpiled_pre_measures = job.measure.pre_transpile
+
         expectation_values = {}
-        for group in grouping:
-            transpiled_pre_measure = QCircuit(
-                find_qubitwise_rotations(group)
-            ).to_other_language(Language.BRAKET)
+        for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
                 from copy import deepcopy
 
-                cirq = deepcopy(transpiled_circuit + transpiled_pre_measure)
+                cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
                 local_result = device.run(cirq, shots=0, inputs=None).result()
 
@@ -187,7 +199,7 @@ def run_braket_observable(job: Job):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
                 local_result = device.run(
-                    transpiled_circuit + transpiled_pre_measure,
+                    transpiled_circuit + pre_measure,
                     shots=job.measure.shots,
                     inputs=None,
                 )
@@ -203,17 +215,18 @@ def run_braket_observable(job: Job):
                         )
                     else:
                         sorted_values.append(0)
-            for monom in group:
+            for name, eigenvalue in eigenvalues.items():
                 expectation_value: float = np.dot(
-                    pauli_monomial_eigenvalues(monom),
+                    eigenvalue,
                     np.array(sorted_values, dtype=np.float64),
                 )
-                expectation_values.update({monom.name: expectation_value})
+                expectation_values[name] = expectation_value
         for i, obs in enumerate(job.measure.observables):
             string = obs.pauli_string
             local: float = 0
             for monoms in string.monomials:
-                assert isinstance(monoms.coef, (int, float))
+                if TYPE_CHECKING:
+                    assert isinstance(monoms.coef, (int, float))
                 local += expectation_values[monoms.name] * monoms.coef
             results.update({f"observable_{i}": local})
             errors.update({f"observable_{len(errors)}": None})
@@ -225,11 +238,16 @@ def run_braket_observable(job: Job):
 
         for obs in job.measure.observables:
             from copy import deepcopy
+            from braket.circuits.observables import Sum
 
             copy = deepcopy(transpiled_circuit)
             braket_obs = obs.to_other_language(Language.BRAKET)
+            if isinstance(braket_obs, Sum):
+                targets = [job.measure.targets] * len(braket_obs.summands)
+            else:
+                targets = job.measure.targets
             copy.expectation(  # pyright: ignore[reportAttributeAccessIssue]
-                observable=braket_obs, target=job.measure.targets
+                observable=braket_obs, target=targets
             )
             job.status = JobStatus.RUNNING
             local_result = device.run(
@@ -299,8 +317,21 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
-
     if job.job_type == JobType.STATE_VECTOR:
+        # rebind safe_retrieve_samples from braket to Normalize the probability
+        # because the bracket does not do so and this causes a crash.
+        from braket.default_simulator.state_vector_simulation import (
+            StateVectorSimulation,
+        )
+
+        def safe_retrieve_samples(self):  # pyright: ignore[reportMissingParameterType]
+            probs = self.probabilities
+            probs = probs / np.sum(probs)
+            return np.random.choice(len(self._state_vector), p=probs, size=self._shots)
+
+        StateVectorSimulation.retrieve_samples = safe_retrieve_samples
+        # ----
+
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         task = device.run(braket_circuit, shots=0, inputs=None)
@@ -315,10 +346,10 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        if job.measure.observables[0].transpile is None:
+        if job.measure.observables[0].pre_transpile is None:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
-            herm_op = job.measure.observables[0].transpile
+            herm_op = job.measure.observables[0].pre_transpile
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
