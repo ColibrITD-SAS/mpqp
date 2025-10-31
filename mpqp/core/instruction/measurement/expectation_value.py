@@ -308,7 +308,7 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            # TODO: Braket do not handle pauli with coef because it use QASM2
+            # TODO: Braket does not handle pauli with coef because it uses QASM2
             #       We need to pass without coef and compute yourself
             # if self._pauli_string:
             #     return self.pauli_string.to_other_language(Language.BRAKET)
