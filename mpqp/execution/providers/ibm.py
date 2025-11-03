@@ -425,31 +425,6 @@ def generate_qiskit_noise_model(
     return noise_model, modified_circuit
 
 
-def str_ordered(noise_model: "Qiskit_NoiseModel"):
-    """Return a consistent, ordered string representation of a Qiskit NoiseModel."""
-    if noise_model.is_ideal():
-        print("NoiseModel: Ideal")
-        return
-
-    basis_gates = sorted(noise_model.basis_gates)
-    noise_instructions = sorted(noise_model.noise_instructions)
-    noise_qubits = sorted(noise_model.noise_qubits)
-
-    noise_model_str = str(noise_model)
-    specific_errors = []
-
-    for line in noise_model_str.splitlines():
-        if line.strip().startswith("Specific qubit errors:"):
-            items = line.partition(":")[2].strip()
-            specific_errors = sorted(eval(items))
-
-    return f"""NoiseModel:
-    Basis gates: {basis_gates}
-    Instructions with noise: {noise_instructions}
-    Qubits with noise: {noise_qubits}
-    Specific qubit errors: {specific_errors}"""
-
-
 @conditional_typechecked
 def run_aer(job: Job):
     """Executes the job on the right AER local simulator precised in the job in
