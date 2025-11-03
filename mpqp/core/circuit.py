@@ -95,6 +95,9 @@ class QCircuit:
         nb_cbits: Number of classical bits. It should be positive.
         label: Name of the circuit.
 
+    Raises:
+        ValueError: If a negative number of qubits is passed to the circuit.
+
     Examples:
         >>> circuit = QCircuit(2)
         >>> circuit.pretty_print()  # doctest: +NORMALIZE_WHITESPACE
@@ -142,6 +145,15 @@ class QCircuit:
     ):
         if data is None:
             data = []
+
+        if not isinstance(
+            data, (int, Sequence)
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise ValueError(
+                f"Unsupported input data type: {data} is of type {type(data)}, "
+                "check documentation for more information"
+            )
+
         self.label = label
         """See parameter description."""
         self.instructions: list[Instruction] = []
@@ -196,6 +208,11 @@ class QCircuit:
                     )
                     self._nb_qubits = max(connections, default=-1) + 1
             else:
+                if nb_qubits < 0:
+                    raise ValueError(
+                        "The number of qubits passed to QCircuit is negative "
+                        f"({nb_qubits}), this does not make sense."
+                    )
                 self._user_nb_qubits = nb_qubits
             self.add(data)
 
