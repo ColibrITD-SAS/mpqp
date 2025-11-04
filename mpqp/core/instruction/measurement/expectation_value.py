@@ -512,9 +512,6 @@ class ExpectationMeasure(Measure):
             return pauli_grouping_greedy(unique_monos, self.commuting_type)
         elif self.grouping_method == GroupingMethods.QISKIT:
             from qiskit.quantum_info import PauliList
-            from mpqp.core.instruction.measurement.pauli_string import (
-                pauli_string_from_str,
-            )
 
             pauli_labels = [mono.name.replace("@", "") for mono in unique_monos]
             pauli_list = PauliList(pauli_labels)
@@ -526,7 +523,7 @@ class ExpectationMeasure(Measure):
                 grouped = pauli_list.group_commuting()
 
             grouped_monomials = [
-                [pauli_string_from_str(mono.to_label()) for mono in pauli]
+                [PauliString.from_str(mono.to_label()) for mono in pauli]
                 for pauli in grouped
             ]
 
