@@ -519,7 +519,9 @@ class ExpectationMeasure(Measure):
                 grouped = pauli_list.group_commuting()
 
             grouped_monomials = [
-                [PauliString.from_str(mono.to_label()) for mono in pauli] # pyright: ignore[reportAttributeAccessIssue]
+                [
+                    PauliString.from_str(mono.to_label()) for mono in pauli
+                ]  # pyright: ignore[reportAttributeAccessIssue]
                 for pauli in grouped
             ]
 
