@@ -12,11 +12,9 @@ import numpy as np
 
 from mpqp.tools.display import one_lined_repr
 from mpqp.tools.generics import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
 
 
-@conditional_typechecked
 class GateDefinition(ABC):
     """Abstract class used to handle the definition of a Gate.
 
@@ -149,7 +147,6 @@ class GateDefinition(ABC):
         return result
 
 
-@conditional_typechecked
 class UnitaryMatrix(GateDefinition):
     """Definition of a gate using its matrix.
 

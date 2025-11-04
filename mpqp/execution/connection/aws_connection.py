@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 from termcolor import colored
-from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from braket.devices.device import Device as BraketDevice
@@ -339,7 +338,6 @@ def get_aws_braket_account_info() -> str:
     return result
 
 
-@conditional_typechecked
 def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 

@@ -13,8 +13,10 @@ import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
 from numpy.random import default_rng
+from sympy import symbols
 
-from mpqp.all import *
+from mpqp import *
+from mpqp.core.instruction.measurement import PauliString, pauli_string
 from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
 )
@@ -41,7 +43,7 @@ from mpqp.local_storage.delete import (
     remove_results_with_result,
     remove_results_with_results_local_storage,
 )
-from mpqp.local_storage.load import (
+from mpqp.local_storage.load import (  # get_result_from_qlm_job_id,
     get_all_jobs,
     get_all_remote_job_ids,
     get_all_results,
@@ -49,7 +51,6 @@ from mpqp.local_storage.load import (
     get_jobs_with_job,
     get_jobs_with_result,
     get_remote_result,
-    get_result_from_qlm_job_id,
     get_results_with_id,
     get_results_with_job_id,
     get_results_with_result,
@@ -86,7 +87,9 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     convert_instruction_3_to_2,
     open_qasm_2_to_3,
     open_qasm_3_to_2,
+    open_qasm_file_conversion_2_to_3,
     open_qasm_file_conversion_3_to_2,
+    open_qasm_hard_includes,
     parse_user_gates,
     remove_include_and_comment,
     remove_user_gates,
@@ -134,6 +137,9 @@ from mpqp.tools.maths import (
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
 from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
+
+theta, k = symbols("θ k")
+obs = Observable(np.array([[0, 1], [1, 0]]))
 
 sys.path.insert(0, os.path.abspath("."))
 

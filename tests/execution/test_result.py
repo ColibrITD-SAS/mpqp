@@ -4,22 +4,26 @@ import numpy as np
 import pytest
 from numpy import pi
 
-from mpqp.core import QCircuit
-from mpqp.core.instruction import Observable
-from mpqp.execution import (
+from mpqp import (
+    CNOT,
     ATOSDevice,
+    AWSDevice,
+    BasisMeasure,
+    BatchResult,
+    ExpectationMeasure,
     GOOGLEDevice,
+    H,
+    IBMDevice,
     Job,
     JobType,
+    Observable,
+    QCircuit,
     Result,
+    Rx,
     Sample,
     StateVector,
     run,
 )
-from mpqp.execution.devices import AWSDevice, IBMDevice
-from mpqp.execution.result import BatchResult
-from mpqp.gates import *
-from mpqp.measures import BasisMeasure, ExpectationMeasure
 
 
 @pytest.mark.parametrize(

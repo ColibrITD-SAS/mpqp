@@ -40,7 +40,6 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import TypeCheckError
 
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
@@ -52,7 +51,6 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -81,7 +79,6 @@ if TYPE_CHECKING:
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
-@conditional_typechecked
 class QCircuit:
     """This class models a quantum circuit.
 
@@ -97,6 +94,9 @@ class QCircuit:
             instructions and want to hardcode the number of qubits.
         nb_cbits: Number of classical bits. It should be positive.
         label: Name of the circuit.
+
+    Raises:
+        ValueError: If a negative number of qubits is passed to the circuit.
 
     Examples:
         >>> circuit = QCircuit(2)
@@ -145,6 +145,15 @@ class QCircuit:
     ):
         if data is None:
             data = []
+
+        if not isinstance(
+            data, (int, Sequence)
+        ):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise ValueError(
+                f"Unsupported input data type: {data} is of type {type(data)}, "
+                "check documentation for more information"
+            )
+
         self.label = label
         """See parameter description."""
         self.instructions: list[Instruction] = []
@@ -184,7 +193,7 @@ class QCircuit:
             self._user_nb_cbits = nb_cbits
         if isinstance(data, int):
             if data < 0:
-                raise TypeCheckError(
+                raise ValueError(
                     f"The data passed to QCircuit is a negative int ({data}), "
                     "this does not make sense."
                 )
@@ -199,6 +208,11 @@ class QCircuit:
                     )
                     self._nb_qubits = max(connections, default=-1) + 1
             else:
+                if nb_qubits < 0:
+                    raise ValueError(
+                        "The number of qubits passed to QCircuit is negative "
+                        f"({nb_qubits}), this does not make sense."
+                    )
                 self._user_nb_qubits = nb_qubits
             self.add(data)
 

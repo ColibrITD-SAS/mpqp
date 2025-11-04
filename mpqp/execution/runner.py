@@ -23,7 +23,6 @@ from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
-from sympy import Expr
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -32,7 +31,6 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -52,8 +50,10 @@ from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
 
+if TYPE_CHECKING:
+    from sympy import Expr
 
-@conditional_typechecked
+
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
@@ -105,11 +105,10 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     return tweaked_measure
 
 
-@conditional_typechecked
 def generate_job(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -163,13 +162,12 @@ def generate_job(
     return job
 
 
-@conditional_typechecked
 def _run_diagonal_observables(
     circuit: QCircuit,
     exp_measure: ExpectationMeasure,
     device: AvailableDevice,
     observable_job: Job,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()
@@ -203,11 +201,10 @@ def _run_diagonal_observables(
     )
 
 
-@conditional_typechecked
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
@@ -288,7 +285,7 @@ def _run_single(
 def run(
     circuit: OneOrMany[QCircuit],
     device: Sequence[AvailableDevice],
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
 ) -> BatchResult: ...
 
@@ -297,7 +294,7 @@ def run(
 def run(
     circuit: Sequence[QCircuit],
     device: OneOrMany[AvailableDevice],
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
 ) -> BatchResult: ...
 
@@ -306,16 +303,15 @@ def run(
 def run(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
 ) -> Result: ...
 
 
-@conditional_typechecked
 def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
@@ -410,11 +406,10 @@ def run(
         return _run_single(circuit, device, values, display_breakpoints)
 
 
-@conditional_typechecked
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve

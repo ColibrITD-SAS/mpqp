@@ -1,10 +1,9 @@
 import numpy as np
 import numpy.typing as npt
 import pytest
-from mpqp.tools import matrix_eq
 
-from mpqp.core.circuit import QCircuit
-from mpqp.gates import SWAP, CustomGate, Gate, H, X, Z
+from mpqp import SWAP, CustomGate, Gate, H, QCircuit, X, Z
+from mpqp.tools import matrix_eq
 from mpqp.tools.errors import NumberQubitsWarning
 
 

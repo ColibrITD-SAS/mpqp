@@ -8,13 +8,11 @@ import re
 from typing import TYPE_CHECKING
 
 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
-from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit
 
 
-@conditional_typechecked
 def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
     """Converting a OpenQASM 2.0 code into a QLM Circuit.
 

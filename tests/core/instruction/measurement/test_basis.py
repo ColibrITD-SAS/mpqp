@@ -5,18 +5,22 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp.core import QCircuit
-from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, Result
-from mpqp.execution.devices import AvailableDevice
-from mpqp.execution.runner import run
-from mpqp.gates import *
-from mpqp.measures import (
+from mpqp import (
+    ATOSDevice,
+    AWSDevice,
     Basis,
     BasisMeasure,
     ComputationalBasis,
+    GOOGLEDevice,
     HadamardBasis,
+    IBMDevice,
+    QCircuit,
+    Result,
     VariableSizeBasis,
+    run,
 )
+from mpqp.execution import AvailableDevice
+from mpqp.gates import *
 from mpqp.tools.maths import matrix_eq
 
 

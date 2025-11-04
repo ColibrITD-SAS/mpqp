@@ -1,8 +1,9 @@
-from mpqp.core.instruction.gates.native_gates import *
-from mpqp.tools.circuit import random_gate
-from mpqp.tools.maths import matrix_eq
 import numpy as np
 import pytest
+
+from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.tools.circuit import random_gate
+from mpqp.tools.maths import matrix_eq
 
 
 @pytest.mark.parametrize("gate", NATIVE_GATES)

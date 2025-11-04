@@ -1,6 +1,9 @@
 Gates
 =====
 
+Note: you can import all gates from the root ``mpqp`` module, but we also
+provide a shorthand to import all the gates at once:
+
 .. code-block:: python
     :class: import
 

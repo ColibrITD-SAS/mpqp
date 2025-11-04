@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from mpqp.execution.devices import AWSDevice
+from mpqp import AWSDevice
 
 # TODO: test methods
 

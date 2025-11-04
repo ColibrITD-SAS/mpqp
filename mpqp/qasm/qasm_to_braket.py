@@ -32,8 +32,6 @@ import warnings
 from logging import StreamHandler, getLogger
 from typing import TYPE_CHECKING
 
-from mpqp.environment.typechecked import conditional_typechecked
-
 if TYPE_CHECKING:
     from braket.ir.openqasm import Program
     from braket.circuits import Circuit
@@ -44,7 +42,6 @@ from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
-@conditional_typechecked
 def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
     r"""Converting a OpenQASM 3.0 code into a Braket Program.
 
@@ -77,7 +74,6 @@ def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
     return program
 
 
-@conditional_typechecked
 def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     """Converting a OpenQASM 3.0 code into a Braket Circuit.
 
@@ -145,7 +141,6 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     return circuit
 
 
-@conditional_typechecked
 def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
     """
     Parse braket's qasm3 pragmas into mpqp's Noise Models.
@@ -201,7 +196,6 @@ def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
     return noises
 
 
-@conditional_typechecked
 def braket_custom_gates_to_mpqp(qasm3_code: str) -> list[CustomGate]:
     """
     Parse braket's qasm3 pragmas into mpqp's Custom Gate.
@@ -222,9 +216,10 @@ def braket_custom_gates_to_mpqp(qasm3_code: str) -> list[CustomGate]:
         >>> print(braket_custom_gates_to_mpqp(qasm_code)) # doctest: +NORMALIZE_WHITESPACE
         [CustomGate(array([[0., 1.], [1., 0.]]), [0])]
     """
-    import numpy as np
     import ast
     import re
+
+    import numpy as np
 
     custom_gates = []
     for line in qasm3_code.split("\n"):

@@ -1,10 +1,7 @@
 import pytest
 from pytest import CaptureFixture
 
-from mpqp.core import Breakpoint, QCircuit
-from mpqp.execution import run
-from mpqp.execution.devices import ATOSDevice
-from mpqp.gates import *
+from mpqp import CNOT, ATOSDevice, Breakpoint, H, QCircuit, Y, run
 
 
 @pytest.mark.parametrize(

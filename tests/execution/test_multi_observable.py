@@ -1,12 +1,23 @@
 import numpy as np
 import pytest
 
-from mpqp.core import QCircuit
-from mpqp.core.instruction import ExpectationMeasure, Observable
-from mpqp.execution import AvailableDevice, IBMDevice
-from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice
-from mpqp.execution.runner import run
-from mpqp.gates import *
+from mpqp import (
+    CNOT,
+    ATOSDevice,
+    AWSDevice,
+    ExpectationMeasure,
+    GOOGLEDevice,
+    H,
+    IBMDevice,
+    Observable,
+    QCircuit,
+    Rx,
+    Ry,
+    Rz,
+    X,
+    run,
+)
+from mpqp.execution import AvailableDevice
 
 
 def list_circuits():

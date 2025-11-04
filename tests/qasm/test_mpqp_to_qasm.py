@@ -1,9 +1,11 @@
+import numpy as np
 import pytest
 
-from mpqp.all import *
-from mpqp.tools.circuit import random_circuit
+from mpqp import Barrier, BasisMeasure, Instruction, Language, QCircuit
+from mpqp.gates import *
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
 from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
+from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import format_element_str
 
 
@@ -503,7 +505,7 @@ def normalize_string(string: str):
     from typing import Match
 
     def simplify_expression(match: Match[str]):
-        from numpy import pi, e
+        from numpy import e, pi
 
         gate = match.group(1)
         if gate == 'u':
