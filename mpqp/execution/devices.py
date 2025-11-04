@@ -328,6 +328,9 @@ class AWSDevice(AvailableDevice):
         Returns:
             The region of the device.
 
+        Raises:
+            ValueError: If called on a local (non-remote) simulator that has no AWS region.
+
         Examples:
             >>> AWSDevice.IONQ_ARIA_1.get_region()
             'us-east-1'
@@ -338,7 +341,9 @@ class AWSDevice(AvailableDevice):
 
         """
         if not self.is_remote():
-            raise ValueError("No arn for a local simulator")
+            raise ValueError(
+                "Cannot retrieve AWS region for non-remote device (local simulator)"
+            )
         elif self == AWSDevice.RIGETTI_ANKAA_3:
             return "us-west-1"
 
