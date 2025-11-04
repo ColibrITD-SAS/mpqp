@@ -176,7 +176,9 @@ def run_braket_observable(job: Job):
             ]
 
         else:
-            eigenvalues, transpiled_pre_measures = job.measure.pre_transpile
+            eigenvalues, transpiled_pre_measures = (
+                job.measure.pre_transpile
+            )  # pyright: ignore[reportGeneralTypeIssues]
 
         expectation_values = {}
         for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):

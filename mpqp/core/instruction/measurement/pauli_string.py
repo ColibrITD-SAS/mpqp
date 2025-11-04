@@ -10,7 +10,7 @@ from copy import deepcopy
 from enum import Enum, auto
 from functools import reduce
 from numbers import Real
-from operator import matmul, mul
+from operator import mul
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
@@ -137,7 +137,7 @@ class PauliString:
 
         pattern = re.compile(r'([^IXYZ]+)?([IXYZ]+)')
 
-        monomials = []
+        monomials: list[PauliStringMonomial] = []
         for match in pattern.finditer(compact_str.replace(" ", "")):
             coef_str, atoms_str = match.groups()
 
@@ -162,7 +162,8 @@ class PauliString:
             monomials.append(
                 PauliStringMonomial(coef, [atoms_dict[atom] for atom in atoms_str])
             )
-
+        if len(monomials) == 1:
+            return monomials[0]
         return PauliString(monomials)
 
     def _non_null_str(self):
@@ -964,6 +965,10 @@ class PauliStringMonomial(PauliString):
     def name(self) -> str:
         return f"{'@'.join(map(str, self.atoms))}"
 
+    @property
+    def short_name(self) -> str:
+        return f"{''.join(atom.label for atom in self.atoms)}"
+
     def __str__(self):
         from sympy import Expr
 
@@ -1182,7 +1187,13 @@ class PauliStringMonomial(PauliString):
             ]
             from braket.circuits.observables import TensorProduct
 
-            return self.coef * TensorProduct(braket_atoms)
+            if len(braket_atoms) == 1:
+                return (
+                    self.coef * braket_atoms[0]
+                )  # pyright: ignore[reportOperatorIssue]
+            return self.coef * TensorProduct(
+                braket_atoms
+            )  # pyright: ignore[reportOperatorIssue]
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
 

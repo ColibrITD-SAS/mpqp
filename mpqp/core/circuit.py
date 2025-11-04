@@ -1408,8 +1408,8 @@ class QCircuit:
                     braket_circuit.add_instruction(braket_instr, target=target)
                 except Exception as e:
                     raise ValueError(
-                        f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit"
-                    ) from e
+                        f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
+                    )
 
             if len(self.noises) == 0:
                 return braket_circuit

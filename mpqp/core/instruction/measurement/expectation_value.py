@@ -509,7 +509,7 @@ class ExpectationMeasure(Measure):
         elif self.grouping_method == GroupingMethods.QISKIT:
             from qiskit.quantum_info import PauliList
 
-            pauli_labels = [mono.name.replace("@", "") for mono in unique_monos]
+            pauli_labels = [mono.short_name for mono in unique_monos]
             pauli_list = PauliList(pauli_labels)
 
             # Choose grouping based on commutativity type
@@ -519,7 +519,7 @@ class ExpectationMeasure(Measure):
                 grouped = pauli_list.group_commuting()
 
             grouped_monomials = [
-                [PauliString.from_str(mono.to_label()) for mono in pauli]
+                [PauliString.from_str(mono.to_label()) for mono in pauli] # pyright: ignore[reportAttributeAccessIssue]
                 for pauli in grouped
             ]
 
