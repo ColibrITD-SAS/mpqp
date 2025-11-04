@@ -84,6 +84,7 @@ def _qiskit_parameter_adder(
         qiskit_param = param
     return qiskit_param
 
+
 def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
     from sympy import Expr, Symbol
     from braket.circuits import FreeParameter
