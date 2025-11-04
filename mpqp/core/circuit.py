@@ -1406,10 +1406,10 @@ class QCircuit:
                     if isinstance(instruction, ControlledGate):
                         target = instruction.controls + target
                     braket_circuit.add_instruction(braket_instr, target=target)
-                except:
-                    print(braket_instr)
-                    print(type(braket_instr))
-                    raise
+                except Exception as e:
+                    raise ValueError(
+                        f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit"
+                    ) from e
 
             if len(self.noises) == 0:
                 return braket_circuit
