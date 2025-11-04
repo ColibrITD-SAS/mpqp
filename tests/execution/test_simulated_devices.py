@@ -2,14 +2,12 @@ import sys
 
 import pytest
 
-from mpqp.core import QCircuit
-from mpqp.execution import run
+from mpqp import BasisMeasure, ExpectationMeasure, Observable, QCircuit, run
 from mpqp.execution.simulated_devices import (
     IBMSimulatedDevice,
     StaticIBMSimulatedDevice,
 )
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.maths import rand_hermitian_matrix
 
@@ -46,7 +44,7 @@ def ibm_simulated_devices():
 
 
 def test_generation_enum():
-    assert len(list(IBMSimulatedDevice)) > 0
+    assert len(ibm_simulated_devices()) > 0
 
 
 @pytest.mark.parametrize(

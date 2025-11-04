@@ -56,7 +56,6 @@ from typing import Optional
 from warnings import warn
 
 from anytree import Node, PreOrderIter
-from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.core.languages import Language
 from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
@@ -217,7 +216,6 @@ std_braket_gates = [
 ]
 
 
-@conditional_typechecked
 def qasm_code(instr: Instr) -> str:
     """Return the string corresponding of the declaration of the instruction in
     parameter. It is also used to return the whole standard library string when
@@ -250,7 +248,6 @@ def qasm_code(instr: Instr) -> str:
         return f.read()
 
 
-@conditional_typechecked
 def parse_openqasm_2_file(code: str) -> list[str]:
     """Splits a complete OpenQASM2 program into individual instructions.
 
@@ -296,7 +293,6 @@ def parse_openqasm_2_file(code: str) -> list[str]:
     return list(filter(lambda i: i != "", instructions))
 
 
-@conditional_typechecked
 def convert_instruction_2_to_3(
     instr: str,
     included_instr: set[Instr],
@@ -460,7 +456,6 @@ phase can become non-global.""",
     return instructions_code, header_code
 
 
-@conditional_typechecked
 def open_qasm_2_to_3(
     code: str,
     gphase: float = 0,
@@ -541,7 +536,6 @@ def open_qasm_2_to_3(
     return target_code
 
 
-@conditional_typechecked
 def open_qasm_file_conversion_2_to_3(path: str) -> str:
     """Converts an OpenQASM code in a file from version 2.0 and 3.0.
 
@@ -611,7 +605,6 @@ def open_qasm_file_conversion_2_to_3(path: str) -> str:
         )
 
 
-@conditional_typechecked
 def open_qasm_hard_includes(
     code: str,
     included_files: set[str],
@@ -969,7 +962,6 @@ def parse_gphase_instruction(
     return gphase
 
 
-@conditional_typechecked
 def convert_instruction_3_to_2(
     instr: str,
     included_instr: set[Instr],
@@ -1189,7 +1181,6 @@ def _replace_header(code: str) -> str:
     return ';'.join(code_with_right_instructions)
 
 
-@conditional_typechecked
 def open_qasm_3_to_2(
     code: str,
     included_tree_current_node: Optional[Node] = None,
@@ -1292,7 +1283,6 @@ def open_qasm_3_to_2(
     return target_code, gphase
 
 
-@conditional_typechecked
 def parse_openqasm_3_file(code: str) -> list[str]:
     """Splits a complete OpenQASM 3 program into individual instructions.
 
@@ -1336,7 +1326,6 @@ def parse_openqasm_3_file(code: str) -> list[str]:
     return list(filter(lambda i: i.strip() != "", instructions))
 
 
-@conditional_typechecked
 def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
     """Converts an OpenQASM code in a file from version 3.0 and 2.0.
 

@@ -32,13 +32,15 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
-from mpqp.environment.typechecked import conditional_typechecked
 from mpqp.tools.maths import cos, exp, sin
+
+# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
+# this file :/
+
 
 # from sympy import Expr, pi
 
 
-@conditional_typechecked
 def _qiskit_parameter_adder(
     param: Expr | float, qiskit_parameters: set["Parameter"]
 ) -> "Parameter | float | int":
@@ -82,7 +84,6 @@ def _qiskit_parameter_adder(
     return qiskit_param
 
 
-@conditional_typechecked
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
@@ -112,6 +113,7 @@ class NativeGate(Gate, SimpleClassReprABC):
 
     if TYPE_CHECKING:
         from braket.circuits import gates
+        from cirq.ops.raw_types import Gate
         from qiskit.circuit.library import (
             CCXGate,
             CPhaseGate,
@@ -130,7 +132,6 @@ class NativeGate(Gate, SimpleClassReprABC):
             YGate,
             ZGate,
         )
-        from cirq.ops.raw_types import Gate
 
     @classproperty
     @abstractmethod
@@ -189,7 +190,6 @@ class NativeGate(Gate, SimpleClassReprABC):
         pass
 
 
-@conditional_typechecked
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
@@ -267,7 +267,6 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.__class__(-self.parameters[0], self.targets[0])
 
 
-@conditional_typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
     """Abstract class describing native gates that do not depend on parameters.
 
@@ -366,7 +365,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         return self.matrix
 
 
-@conditional_typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
     """Abstract Class describing one-qubit native gates that do not depend on
     parameters.
@@ -996,7 +994,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
     @classproperty
     def cirq_gate(cls):
         from cirq.circuits.qasm_output import QasmUGate
-        from cirq.ops.common_gates import ry as cirq_ry, rz as cirq_rz
+        from cirq.ops.common_gates import ry as cirq_ry
+        from cirq.ops.common_gates import rz as cirq_rz
         from cirq.ops.global_phase_op import GlobalPhaseGate
         from cirq.ops.raw_types import Qid
 
@@ -1596,8 +1595,8 @@ class CRk(RotationGate, ControlledGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
         from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
         return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
@@ -1696,8 +1695,8 @@ class CRk_dagger(RotationGate, ControlledGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
         from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
         return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 

@@ -8,13 +8,10 @@ code.
 
 from typing import TYPE_CHECKING
 
-from mpqp.environment.typechecked import conditional_typechecked
-
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
 
 
-@conditional_typechecked
 def qasm2_to_Qiskit_Circuit(qasm_str: str) -> "QuantumCircuit":
     """Converting a OpenQASM 2.0 code into a Qiskit QuantumCircuit.
 

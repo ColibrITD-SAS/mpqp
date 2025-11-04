@@ -2,16 +2,27 @@ import numpy as np
 import pytest
 from cirq.circuits.circuit import Circuit
 from cirq.ops.common_gates import CNOT as CirqCNOT
+from cirq.ops.identity import I as CirqI
 from cirq.ops.measure_util import measure
 from cirq.ops.named_qubit import NamedQubit
 from cirq.ops.pauli_gates import X as CirqX
-from cirq.ops.identity import I as CirqI
 
-from mpqp.core import QCircuit
-from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
-from mpqp.execution import GOOGLEDevice, run
-from mpqp.gates import *
-from mpqp.measures import BasisMeasure
+from mpqp import (
+    CNOT,
+    CZ,
+    SWAP,
+    BasisMeasure,
+    ExpectationMeasure,
+    GOOGLEDevice,
+    H,
+    Observable,
+    QCircuit,
+    Rx,
+    Ry,
+    S,
+    T,
+    run,
+)
 from mpqp.qasm import qasm2_to_cirq_Circuit
 
 

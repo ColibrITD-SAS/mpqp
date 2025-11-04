@@ -1,10 +1,8 @@
 import pytest
 
-from mpqp.core.circuit import QCircuit
+from mpqp import CNOT, SWAP, H, Language, QCircuit, Z
 from mpqp.core.instruction.gates.native_gates import NativeGate
-from mpqp.core.languages import Language
 from mpqp.execution.providers.ibm import generate_qiskit_noise_model
-from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel, PhaseDamping
 
 

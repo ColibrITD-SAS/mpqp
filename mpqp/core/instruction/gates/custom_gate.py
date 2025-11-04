@@ -9,7 +9,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Union
 
 from mpqp.tools import Matrix
-from mpqp.environment.typechecked import conditional_typechecked
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
@@ -20,7 +19,6 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 
 
-@conditional_typechecked
 class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 

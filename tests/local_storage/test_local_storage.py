@@ -6,9 +6,10 @@ from copy import deepcopy
 from types import TracebackType
 from typing import Optional, Type
 
+import numpy as np
 import pytest
 
-from mpqp.all import *
+from mpqp import *
 from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.local_storage.delete import (
     clear_local_storage,

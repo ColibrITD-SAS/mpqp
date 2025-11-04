@@ -3,8 +3,9 @@ from typing import Union
 import numpy as np
 import numpy.typing as npt
 import pytest
-from mpqp.core.instruction import Observable
-from mpqp.core.instruction.measurement.pauli_string import pI, PauliString, pX, pY, pZ
+
+from mpqp import Observable, pI, pX, pY, pZ
+from mpqp.measures import PauliString
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
 
