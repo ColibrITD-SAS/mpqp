@@ -1390,7 +1390,7 @@ class PauliStringAtom(PauliStringMonomial):
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
             )
         if method == CommutingTypes.FULL:
-            return other.label == "I" or self.label == "I" or self.label == other.label
+            return other is pI or self is pI or self is other
         raise ValueError(
             f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
         )
