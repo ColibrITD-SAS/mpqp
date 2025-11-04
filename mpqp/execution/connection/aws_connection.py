@@ -244,7 +244,8 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         save_env_variable("BRAKET_CONFIGURED", "False")
         return (
             f"Failed: SSO token is region-based.\n"
-            "Once a token is configured for a specific region, it cannot be used for any other region. ",
+            "Once a token is configured for a specific region, it becomes bound to that region."
+            "However, once authenticated, you can still access devices and services in other regions.",
             [],
         )
 
