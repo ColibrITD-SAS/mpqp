@@ -84,6 +84,23 @@ def _qiskit_parameter_adder(
         qiskit_param = param
     return qiskit_param
 
+def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
+    from sympy import Expr, Symbol
+    from braket.circuits import FreeParameter
+
+    if isinstance(val, Symbol):
+        return FreeParameter(str(val))
+    elif isinstance(val, Expr):
+        if val.free_symbols:
+            return FreeParameter(str(val))  # note: Braket won't parse expressions
+        else:
+            try:
+                return float(val.evalf())  # pyright: ignore[reportArgumentType]
+            except Exception as e:
+                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+    else:
+        return float(val)
+
 
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
