@@ -8,8 +8,9 @@ import numpy as np
 import numpy.typing as npt
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
-from sympy import Basic
-from mpqp.environment.typechecked import conditional_typechecked
+
+if TYPE_CHECKING:
+    from sympy import Expr
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
@@ -19,7 +20,7 @@ from mpqp.execution.vqa.optimizer import Optimizer
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
-OptimizerInput = Union[list[float], npt.NDArray[np.float32]]
+OptimizerInput = Union[list[float], npt.NDArray[np.float_]]
 OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
@@ -28,7 +29,7 @@ OptimizerCallable = Callable[
 ]
 OptimizerCallback = Union[
     Callable[[OptimizeResult], None],
-    Callable[[Union[list[float], npt.NDArray[np.float32], tuple[float, ...]]], None],
+    Callable[[Union[list[float], npt.NDArray[np.float_], tuple[float, ...]]], None],
 ]
 
 
@@ -57,7 +58,6 @@ def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
     return {e1: e2 for e1, e2 in zip(l1, l2)}
 
 
-@conditional_typechecked
 def minimize(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -172,7 +172,6 @@ def minimize(
         )
 
 
-@conditional_typechecked
 def _minimize_remote(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -334,7 +333,6 @@ def _minimize_remote(
         raise ValueError(f"Unsupported remote device: {type(device).__name__}")
 
 
-@conditional_typechecked
 def _minimize_local(
     optimizable: QCircuit | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
@@ -385,7 +383,6 @@ def _minimize_local(
         )
 
 
-@conditional_typechecked
 def _minimize_local_circ(
     circ: QCircuit,
     device: AvailableDevice,
@@ -422,8 +419,7 @@ def _minimize_local_circ(
     # The sympy `free_symbols` method returns in fact sets of Basic, which
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
-    # TODO: bellow might be a bug, check why we need this type ignore
-    variables: set[Basic] = circ.variables()
+    variables: set["Expr"] = circ.variables()  # pyright: ignore[reportAssignmentType]
 
     if len(circ.measurements) != 1:
         raise ValueError("Cannot optimize a circuit containing several measurements.")
@@ -433,7 +429,8 @@ def _minimize_local_circ(
     else:
         if len(circ.measurements[0].observables) > 1:
             raise ValueError(
-                f"Expected only one observable in the ExpectationMeasure but got {len(circ.measurements[0].observables)}"
+                "Expected only one observable in the ExpectationMeasure but got"
+                f" {len(circ.measurements[0].observables)}"
             )
 
     def eval_circ(params: OptimizerInput):
@@ -441,11 +438,11 @@ def _minimize_local_circ(
         # "float" is incompatible with "Complex"
         from numbers import Complex
 
-        from sympy import Expr
-
-        values: dict[Expr | str, Complex] = _maps(
-            variables, params  # pyright: ignore[reportArgumentType]
+        params_fixed_type: Collection[Complex] = (
+            params  # pyright: ignore[reportAssignmentType]
         )
+
+        values: dict[Expr | str, Complex] = _maps(variables, params_fixed_type)
         result = run(circ, device, values)
         if TYPE_CHECKING:
             assert isinstance(result.expectation_values, float)
@@ -456,7 +453,6 @@ def _minimize_local_circ(
     )
 
 
-@conditional_typechecked
 def _minimize_local_func(
     eval_func: OptimizableFunc,
     method: Optimizer | OptimizerCallable,

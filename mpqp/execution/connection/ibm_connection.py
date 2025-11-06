@@ -2,7 +2,6 @@ from getpass import getpass
 from typing import TYPE_CHECKING, Optional
 
 from termcolor import colored
-from mpqp.environment.typechecked import conditional_typechecked
 
 from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import IBMDevice
@@ -17,7 +16,6 @@ Runtime_Service = None
 ibm_session: Optional[Session] = None
 
 
-@conditional_typechecked
 def config_ibm_account(token: str):
     """Configure and save locally IBM Quantum account's information.
 
@@ -155,7 +153,6 @@ def get_active_account_info() -> str:
     Verify: {account["verify"]}"""
 
 
-@conditional_typechecked
 def get_backend(device: IBMDevice) -> "BackendV2":
     """Retrieves the corresponding ``qiskit`` remote device.
 

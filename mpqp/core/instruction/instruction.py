@@ -14,10 +14,8 @@ if TYPE_CHECKING:
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
-from mpqp.environment.typechecked import conditional_typechecked
 
 
-@conditional_typechecked
 class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 

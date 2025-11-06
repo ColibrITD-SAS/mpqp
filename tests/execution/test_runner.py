@@ -1,9 +1,7 @@
 import numpy as np
 import pytest
 
-from mpqp.core import QCircuit
-from mpqp.gates import H, Rx
-from mpqp.measures import ExpectationMeasure, Observable
+from mpqp import ExpectationMeasure, H, Observable, QCircuit, Rx
 from mpqp.execution import adjust_measure
 from mpqp.tools.maths import matrix_eq
 

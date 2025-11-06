@@ -1,51 +1,64 @@
 from __future__ import annotations
 
-from typing import Optional, Sequence
+import random
+from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
 import numpy.typing as npt
 import pytest
-from braket.circuits import Circuit as BraketCircuit, Noise as BraketNoise
+from braket.circuits import Circuit as BraketCircuit
+from braket.circuits import Noise as BraketNoise
 from braket.circuits.gate import Gate as BraketGate
-from qiskit import QuantumCircuit as QiskitCircuit, QuantumRegister, ClassicalRegister
-from typeguard import TypeCheckError
-from typing import TYPE_CHECKING
+from cirq.circuits.circuit import Circuit as cirq_Circuit
+from cirq.circuits.moment import Moment
+from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
+from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+from qiskit import ClassicalRegister
+from qiskit import QuantumCircuit as QiskitCircuit
+from qiskit import QuantumRegister
+from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 
-from mpqp.core import Barrier, Instruction, Language, QCircuit
-from mpqp.core.instruction.gates import native_gates
-from mpqp.core.instruction.gates.gate import SingleQubitGate
-from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import pI, pZ
-from mpqp.execution.devices import ATOSDevice, IBMDevice
-from mpqp.execution.runner import run, Result
-from mpqp.gates import (
+from mpqp import (
     CNOT,
     CZ,
     SWAP,
     TOF,
+    AmplitudeDamping,
+    ATOSDevice,
+    Barrier,
+    BasisMeasure,
+    BitFlip,
     CRk,
+    Depolarizing,
+    ExpectationMeasure,
     Gate,
     H,
+    IBMDevice,
     Id,
+    Instruction,
+    Language,
+    Measure,
+    Observable,
+    P,
+    PhaseDamping,
+    QCircuit,
+    Result,
     Rx,
     Ry,
     Rz,
     S,
     T,
+    U,
     X,
     Y,
     Z,
-    U,
-    P,
+    pI,
+    pZ,
+    run,
 )
-from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
-from mpqp.noise.noise_model import (
-    AmplitudeDamping,
-    BitFlip,
-    Depolarizing,
-    PhaseDamping,
-    NoiseModel,
-)
+from mpqp.core.instruction.gates.gate import SingleQubitGate
+from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.noise import NoiseModel
 from mpqp.tools import NumberQubitsError
 from mpqp.tools.circuit import (
     compute_expected_matrix,
@@ -53,16 +66,9 @@ from mpqp.tools.circuit import (
     statevector_from_random_circuit,
 )
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NonReversibleWarning
+from mpqp.tools.errors import NonReversibleWarning, UnsupportedBraketFeaturesWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
-import random
-
-from qiskit.circuit.random import random_circuit as random_qiskit_circuit
-from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
-from cirq.circuits.circuit import Circuit as cirq_Circuit
-from cirq.circuits.moment import Moment
-from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 
 
 @pytest.fixture
@@ -213,7 +219,21 @@ def list_cirq_funky_circuits() -> list[cirq_Circuit | Moment]:
 
 @pytest.fixture
 def list_myqlm_funky_circuits() -> list[myQLM_Circuit]:
-    from qat.lang.AQASM import Program, H, X, Y, Z, S, T, RX, RY, RZ, CNOT, SWAP, CCNOT, I, PH  # type: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import CCNOT  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import CNOT  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import PH  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import RX  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import RY  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import RZ  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import SWAP  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import H  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import I  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import Program  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import S  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import T  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import X  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import Y  # pyright: ignore[reportAttributeAccessIssue]
+    from qat.lang.AQASM import Z  # pyright: ignore[reportAttributeAccessIssue]
 
     prog = Program()
     qbits = prog.qalloc(3)
@@ -285,7 +305,7 @@ def test_init_right(
     [1.0, X(0), -1],
 )
 def test_init_wrong(init_param: int | Sequence[Instruction]):
-    with pytest.raises(TypeCheckError):
+    with pytest.raises(ValueError):
         QCircuit(init_param)
 
 
@@ -559,7 +579,7 @@ def test_to_other_language(
 
 
 def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
-    from qiskit import QuantumRegister, ClassicalRegister
+    from qiskit import ClassicalRegister, QuantumRegister
     from qiskit.circuit.library import RC3XGate
 
     qreg_q = QuantumRegister(4, 'q')
@@ -950,9 +970,7 @@ def test_to_matrix(circuit: QCircuit, expected_matrix: Matrix):
 
 
 def test_to_matrix_random():
-    gates = [
-        gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
-    ]
+    gates = [gate for gate in NATIVE_GATES if issubclass(gate, SingleQubitGate)]
     for _ in range(10):
         qcircuit = random_circuit(gates, nb_qubits=4)
         expected_matrix = compute_expected_matrix(qcircuit)
@@ -960,9 +978,7 @@ def test_to_matrix_random():
 
 
 def test_to_matrix_gphase():
-    gates = [
-        gate for gate in native_gates.NATIVE_GATES if issubclass(gate, SingleQubitGate)
-    ]
+    gates = [gate for gate in NATIVE_GATES if issubclass(gate, SingleQubitGate)]
     for _ in range(10):
         qcircuit = random_circuit(gates, nb_qubits=4)
         qcircuit.input_g_phase = random.random()

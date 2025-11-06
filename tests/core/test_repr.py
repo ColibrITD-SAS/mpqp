@@ -1,14 +1,35 @@
-from copy import deepcopy
 import itertools
 import sys
-from numpy import array, complex128  # pyright: ignore[reportUnusedImport]
-import pytest
-from sympy import Expr, cos  # pyright: ignore[reportUnusedImport]
+from copy import deepcopy
 
-from mpqp.core import QCircuit
-from mpqp.measures import pZ, pI, pX, pY
-from mpqp.tools.circuit import random_gate, random_noise
-from mpqp.all import *
+import numpy as np
+import pytest
+from numpy import array, complex64  # pyright: ignore[reportUnusedImport]
+from sympy import Expr, cos, symbols  # pyright: ignore[reportUnusedImport]
+
+from mpqp import (
+    AmplitudeDamping,
+    Barrier,
+    Basis,
+    BasisMeasure,
+    BitFlip,
+    Breakpoint,
+    ComputationalBasis,
+    Depolarizing,
+    ExpectationMeasure,
+    HadamardBasis,
+    Measure,
+    Observable,
+    PhaseDamping,
+    QCircuit,
+    VariableSizeBasis,
+    pI,
+    pX,
+    pY,
+    pZ,
+)
+from mpqp.gates import *
+from mpqp.tools.circuit import random_circuit, random_gate, random_noise
 
 
 def generate_qcircuits():
@@ -157,15 +178,7 @@ def generate_expectation_measures():
 
 @pytest.mark.parametrize("measure", generate_expectation_measures())
 def repr_expectation_measures(measure: Measure):
-    measure_repr = (
-        repr(measure)
-        .replace("I", "pauli_I")
-        .replace("X", "pauli_X")
-        .replace("Y", "pauli_Y")
-        .replace("Z", "pauli_Z")
-    )
-    print(measure_repr)
-    assert eval(measure_repr) == measure
+    assert eval(repr(measure)) == measure
 
 
 def repr_barriers():
