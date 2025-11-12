@@ -1,4 +1,3 @@
-import contextlib
 from itertools import product
 
 import numpy as np
@@ -21,7 +20,6 @@ from mpqp import (
 )
 from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import matrix_eq
 
 

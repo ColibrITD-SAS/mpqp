@@ -1,5 +1,3 @@
-from typing import Any, Callable
-
 import numpy as np
 import pytest
 from braket.devices import LocalSimulator
@@ -15,7 +13,6 @@ from mpqp import (
     QCircuit,
     run,
 )
-from mpqp.execution import AvailableDevice
 from mpqp.gates import *
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning

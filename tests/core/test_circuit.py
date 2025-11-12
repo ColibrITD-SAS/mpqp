@@ -66,7 +66,7 @@ from mpqp.tools.circuit import (
     statevector_from_random_circuit,
 )
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NonReversibleWarning, UnsupportedBraketFeaturesWarning
+from mpqp.tools.errors import NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 
