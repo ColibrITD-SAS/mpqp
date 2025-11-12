@@ -166,7 +166,10 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit]]" = (None)
+        self.transpiled_circuit: dict[
+            AvailableDevice,
+            Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit],
+        ] = {}
         """A pre-transpiled circuit to skip repeated transpilation when running 
         the circuit. Useful when working with a symbolic circuit that needs to
         be executed with different parameters."""
@@ -2126,6 +2129,13 @@ class QCircuit:
 
         return f'QCircuit({args_repr})'
 
+    def transpiled_for_device(self, device: AvailableDevice):
+        self.transpiled_circuit[device] = (
+            self.to_other_device(  # pyright: ignore[reportCallIssue]
+                device  # pyright: ignore[reportArgumentType]
+            )
+        )
+
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.
 
@@ -2151,10 +2161,15 @@ class QCircuit:
                         params.update(param.free_symbols)
         return params
 
-    def bind_parameters(self, params: dict[str | Parameter | Basic, Number]) -> None:
+    def bind_parameters(
+        self, device: AvailableDevice, params: dict[str | Parameter | Basic, Number]
+    ) -> None:
         """Bind parameter values to the transpiled circuit."""
         # TODO: to enhance docs
-        transpiled = self.transpiled_circuit
+        if device not in self.transpiled_circuit:
+            self.transpiled_for_device(device)
+
+        transpiled = self.transpiled_circuit[device]
 
         if isinstance(transpiled, QuantumCircuit):
             qiskit_param_map = {
@@ -2165,6 +2180,8 @@ class QCircuit:
 
         elif isinstance(transpiled, braket_Circuit):
             braket_param_map = {str(k): v for k, v in params.items()}
-            self.transpiled_circuit = transpiled.make_bound_circuit(braket_param_map)
+            self.transpiled_circuit[device] = transpiled.make_bound_circuit(
+                braket_param_map
+            )
         else:
             raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")
