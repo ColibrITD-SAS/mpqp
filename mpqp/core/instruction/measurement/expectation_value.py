@@ -28,6 +28,7 @@ from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
+    from braket.circuits import Circuit as braket_Circuit
     from braket.circuits.observables import Hermitian
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
@@ -38,6 +39,7 @@ if TYPE_CHECKING:
     from sympy import Expr
 
     from mpqp.core.instruction.gates.custom_controlled_gate import Gate
+    from mpqp.execution.devices import AvailableDevice
 
 
 class Observable:
@@ -81,7 +83,10 @@ class Observable:
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
         "See parameter description."
-        self.pre_transpile = None
+        self.pre_transpile: dict[
+            AvailableDevice,
+            Union[SparsePauliOp, QLMObservable, CirqPauliSum, CirqPauliString],
+        ] = {}
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -402,7 +407,11 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
-        self.pre_transpile = None
+        self.pre_transpile: dict[
+            AvailableDevice,
+            tuple[list[dict[str, npt.NDArray[np.float64]]], list[braket_Circuit]],
+        ] = {}
+
         if isinstance(observable, Observable):
             observable = [observable]
         else:
@@ -508,9 +517,6 @@ class ExpectationMeasure(Measure):
             return pauli_grouping_greedy(unique_monos, self.commuting_type)
         elif self.grouping_method == GroupingMethods.QISKIT:
             from qiskit.quantum_info import PauliList
-            from mpqp.core.instruction.measurement.pauli_string import (
-                pauli_string_from_str,
-            )
 
             pauli_labels = [mono.name.replace("@", "") for mono in unique_monos]
             pauli_list = PauliList(pauli_labels)
@@ -522,7 +528,12 @@ class ExpectationMeasure(Measure):
                 grouped = pauli_list.group_commuting()
 
             grouped_monomials = [
-                [pauli_string_from_str(mono.to_label()) for mono in pauli]
+                [
+                    PauliString.from_str(  
+                        mono.to_label() # pyright: ignore[reportAttributeAccessIssue]
+                    )
+                    for mono in pauli
+                ]
                 for pauli in grouped
             ]
 
@@ -580,3 +591,39 @@ class ExpectationMeasure(Measure):
             and not attr_name.startswith("__")
             and not callable(getattr(self, attr_name))
         }
+
+    def pre_transpile_observables(self, device: AvailableDevice):
+        from mpqp.execution.devices import AWSDevice, IBMDevice
+
+        if isinstance(device, AWSDevice):
+            from mpqp.core.circuit import QCircuit
+            from mpqp.tools.pauli_grouping import (
+                find_qubitwise_rotations,
+                pauli_monomial_eigenvalues,
+            )
+
+            grouping = self.get_pauli_grouping()
+            transpiled_pre_measures = [
+                QCircuit(find_qubitwise_rotations(group)).to_other_language(
+                    Language.BRAKET
+                )
+                for group in grouping
+            ]
+            eigenvalues = [
+                {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
+                for group in grouping
+            ]
+            self.pre_transpile[device] = (
+                eigenvalues,
+                transpiled_pre_measures,
+            )
+
+        elif isinstance(device, IBMDevice):
+            for observable in self.observables:
+                observable.pre_transpile[device] = observable.to_other_language(
+                    language=Language.QISKIT
+                )
+        else:
+            raise NotImplementedError(
+                f"Pre-transpilation for device {type(device).__name__} is not implemented."
+            )
