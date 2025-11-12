@@ -10,7 +10,7 @@ from copy import deepcopy
 from enum import Enum, auto
 from functools import reduce
 from numbers import Real
-from operator import matmul, mul
+from operator import mul
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union
 
 import numpy as np
@@ -1182,7 +1182,13 @@ class PauliStringMonomial(PauliString):
             ]
             from braket.circuits.observables import TensorProduct
 
-            return self.coef * TensorProduct(braket_atoms)
+            if len(braket_atoms) == 1:
+                return (
+                    self.coef * braket_atoms[0]
+                )  # pyright: ignore[reportOperatorIssue]
+            return self.coef * TensorProduct(
+                braket_atoms
+            )  # pyright: ignore[reportOperatorIssue]
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
 
