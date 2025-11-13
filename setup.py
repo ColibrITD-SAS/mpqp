@@ -15,7 +15,7 @@ long_description = long_description.replace(
 with open("requirements.txt", "r") as f:
     requirements = f.readlines()
 
-providers_dir = Path("providers")
+providers_dir = Path("requirements_providers")
 extras = {}
 all = []
 for f in providers_dir.glob("*.txt"):
