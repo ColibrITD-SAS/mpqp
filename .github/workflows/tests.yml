@@ -2,6 +2,10 @@ name: Tests
 
 on:
   push:
+    branches:
+      - main
+      - dev
+  pull_request:
   workflow_dispatch:
     inputs:
       python_v:
@@ -60,7 +64,7 @@ jobs:
           sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra
       - name: Run tests
         run: |
-          if [[ "${{ matrix.provider }}" == "all" ] and [[ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]]; then
+          if [[ "${{ matrix.provider }}" == "all" && ( "${{ github.event.inputs.long }}" == "true" || "${{ github.ref_name }}" == "main" ) ]]; then
             python -m pytest --long-local 
           else
             python -m pytest --providers ${{ matrix.provider }}
