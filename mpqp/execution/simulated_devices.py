@@ -63,8 +63,12 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
 
     @staticmethod
     def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
-        from qiskit_ibm_runtime import fake_provider
-        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+        try:
+            from qiskit_ibm_runtime import fake_provider
+            from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+        except ImportError:
+            # TODO: if qiskit_ibm_runtime not install, do we want to return [] ?
+            return []
 
         fake_imports = fake_provider.__dict__
         return [

@@ -19,7 +19,7 @@ from mpqp.execution.vqa.optimizer import Optimizer
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
-OptimizerInput = Union[list[float], npt.NDArray[np.float_]]
+OptimizerInput = Union[list[float], npt.NDArray[np.float64]]
 OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
@@ -28,7 +28,7 @@ OptimizerCallable = Callable[
 ]
 OptimizerCallback = Union[
     Callable[[OptimizeResult], None],
-    Callable[[Union[list[float], npt.NDArray[np.float_], tuple[float, ...]]], None],
+    Callable[[Union[list[float], npt.NDArray[np.float64], tuple[float, ...]]], None],
 ]
 
 
@@ -97,7 +97,7 @@ def minimize(
         ...         shots=0,
         ...     ),
         ... ])
-        >>> minimize(
+        >>> minimize( # doctest: +MYQLM
         ...     circuit,
         ...     Optimizer.BFGS,
         ...     ATOSDevice.MYQLM_PYLINALG,
@@ -106,14 +106,14 @@ def minimize(
         (-0.9999999999999996, array([0., 0.]))
 
 
-        >>> def cost_func(params):
+        >>> def cost_func(params): # doctest: +MYQLM
         ...     run_res = run(
         ...         circuit,
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         {alpha: params[0], beta: params[1]}
         ...     )
         ...     return 1 - run_res.expectation_values ** 2
-        >>> minimize(
+        >>> minimize( # doctest: +MYQLM
         ...     cost_func,
         ...     Optimizer.BFGS,
         ...     nb_params=2,

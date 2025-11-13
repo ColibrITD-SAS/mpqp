@@ -16,7 +16,6 @@ from mpqp import (
     BitFlip,
     Depolarizing,
     ExpectationMeasure,
-    GOOGLEDevice,
     IBMDevice,
     Observable,
     PhaseDamping,
@@ -28,14 +27,16 @@ from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
-noisy_devices: list[Any] = [
-    dev
-    for dev in list(ATOSDevice) + list(AWSDevice) + list(IBMDevice) + list(GOOGLEDevice)
-    if dev.is_noisy_simulator()
-]
+
+# noisy_devices: list[Any] = [
+#     dev
+#     for dev in list(ATOSDevice) + list(AWSDevice) + list(IBMDevice) + list(GOOGLEDevice)
+#     if dev.is_noisy_simulator()
+# ]
 # TODO: in the end this should be automatic as drafted above, but for now only
 # one device is stable
-noisy_devices = [AWSDevice.BRAKET_LOCAL_SIMULATOR, IBMDevice.AER_SIMULATOR]
+noisy_devices_Braket = [AWSDevice.BRAKET_LOCAL_SIMULATOR]
+noisy_devices_qiskit = [IBMDevice.AER_SIMULATOR]
 
 
 def filter_braket_warning(
@@ -78,20 +79,52 @@ def circuit():
 
 
 @pytest.fixture
-def devices():
-    devices: list[AvailableDevice] = [
-        AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        IBMDevice.AER_SIMULATOR,
-        IBMDevice.AER_SIMULATOR_STATEVECTOR,
-        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
-    ]
+def devices_myqlm() -> list[AvailableDevice]:
+    devices = []
     if "--long" in sys.argv:
         devices.append(ATOSDevice.QLM_NOISYQPROC)
     return devices
 
 
-def test_noisy_expectation_value_execution_without_error(
+@pytest.fixture
+def devices_braket() -> list[AvailableDevice]:
+    return [
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    ]
+
+
+@pytest.fixture
+def devices_IBMDevice() -> list[AvailableDevice]:
+    return [
+        IBMDevice.AER_SIMULATOR,
+        IBMDevice.AER_SIMULATOR_STATEVECTOR,
+        IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+    ]
+
+
+@pytest.mark.provider("myqlm")
+def test_exec_noisy_expectation_value_execution_without_error_myqlm(
+    circuit: QCircuit, devices_myqlm: list[AvailableDevice]
+):
+    exec_noisy_expectation_value_execution_without_error(circuit, devices_myqlm)
+
+
+@pytest.mark.provider("braket")
+def test_exec_noisy_expectation_value_execution_without_error_braket(
+    circuit: QCircuit, devices_braket: list[AvailableDevice]
+):
+    exec_noisy_expectation_value_execution_without_error(circuit, devices_braket)
+
+
+@pytest.mark.provider("qiskit")
+def test_exec_noisy_expectation_value_execution_without_error_IBMDevice(
+    circuit: QCircuit, devices_IBMDevice: list[AvailableDevice]
+):
+    exec_noisy_expectation_value_execution_without_error(circuit, devices_IBMDevice)
+
+
+def exec_noisy_expectation_value_execution_without_error(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
     circuit.add(
@@ -111,7 +144,30 @@ def test_noisy_expectation_value_execution_without_error(
     assert True
 
 
-def test_all_native_gates_global_noise_execution_without_error(
+@pytest.mark.provider("myqlm")
+def test_all_native_gates_global_noise_execution_without_error_myqlm(
+    circuit: QCircuit, devices_myqlm: list[AvailableDevice]
+):
+    exec_all_native_gates_global_noise_execution_without_error(circuit, devices_myqlm)
+
+
+@pytest.mark.provider("braket")
+def test_all_native_gates_global_noise_execution_without_error_braket(
+    circuit: QCircuit, devices_braket: list[AvailableDevice]
+):
+    exec_all_native_gates_global_noise_execution_without_error(circuit, devices_braket)
+
+
+@pytest.mark.provider("qiskit")
+def test_all_native_gates_global_noise_execution_without_error_IBMDevice(
+    circuit: QCircuit, devices_IBMDevice: list[AvailableDevice]
+):
+    exec_all_native_gates_global_noise_execution_without_error(
+        circuit, devices_IBMDevice
+    )
+
+
+def exec_all_native_gates_global_noise_execution_without_error(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
     circuit.add(
@@ -132,7 +188,28 @@ def test_all_native_gates_global_noise_execution_without_error(
     assert True
 
 
-def test_all_native_gates_local_noise(
+@pytest.mark.provider("myqlm")
+def test_all_native_gates_local_noise_myqlm(
+    circuit: QCircuit, devices_myqlm: list[AvailableDevice]
+):
+    exec_all_native_gates_local_noise(circuit, devices_myqlm)
+
+
+@pytest.mark.provider("braket")
+def test_all_native_gates_local_noise_braket(
+    circuit: QCircuit, devices_braket: list[AvailableDevice]
+):
+    exec_all_native_gates_local_noise(circuit, devices_braket)
+
+
+@pytest.mark.provider("qiskit")
+def test_all_native_gates_local_noise_IBMDevice(
+    circuit: QCircuit, devices_IBMDevice: list[AvailableDevice]
+):
+    exec_all_native_gates_local_noise(circuit, devices_IBMDevice)
+
+
+def exec_all_native_gates_local_noise(
     circuit: QCircuit, devices: list[AvailableDevice]
 ):
     circuit.add(
@@ -154,15 +231,34 @@ def test_all_native_gates_local_noise(
     assert True
 
 
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize(
     "depol_noise, shots, device",
     product(
         [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
         [500, 1_000, 5_000, 10_000, 50_000, 100_000],
-        noisy_devices,
+        noisy_devices_Braket,
     ),
 )
-def test_validate_depolarizing_noise(
+def test_validate_depolarizing_noise_braket(
+    circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
+):
+    circuit.add(Depolarizing(depol_noise))
+    assert filter_braket_warning(
+        lambda d: validate_noisy_circuit(circuit, shots, d), device
+    )
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "depol_noise, shots, device",
+    product(
+        [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
+        [500, 1_000, 5_000, 10_000, 50_000, 100_000],
+        noisy_devices_qiskit,
+    ),
+)
+def test_validate_depolarizing_noise_qiskit(
     circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
 ):
     circuit.add(Depolarizing(depol_noise))

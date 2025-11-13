@@ -5,16 +5,11 @@ from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
     from qiskit.quantum_info import Operator
+    from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+    from cirq.ops.pauli_string import PauliString as CirqPauliString
 
 import numpy as np
 import pytest
-from braket.circuits.observables import Hermitian
-from cirq.devices.line_qubit import LineQubit
-from cirq.ops.identity import I as Cirq_I
-from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
-from cirq.ops.pauli_gates import X as Cirq_X
-from cirq.ops.pauli_string import PauliString as CirqPauliString
-from qat.core.wrappers.observable import Observable as QLMObservable
 
 from mpqp import ExpectationMeasure, Language, Observable, pI, pX
 
@@ -47,23 +42,30 @@ def test_expectation_measure_wrong_targets(
     assert [set(swap.targets) for swap in measure.pre_measure] == expected_swaps
 
 
-a, b, c = LineQubit.range(3)
-
-
 # TODO: complete this
-@pytest.mark.parametrize(
-    "obs, translation",
-    [
-        (
-            Observable(pI @ pI + pI @ pX),
-            sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
-        ),
-    ],
-)
-def test_to_other_language(
-    obs: Observable,
-    translation: Union[
-        "Operator", QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
-    ],
+@pytest.fixture
+def list_to_cirq_pauli() -> (
+    list[tuple[Observable, Union[CirqPauliSum, CirqPauliString]]]
 ):
-    assert obs.to_other_language(Language.CIRQ) == translation
+    from cirq.devices.line_qubit import LineQubit
+    from cirq.ops.identity import I as Cirq_I
+    from cirq.ops.pauli_gates import X as Cirq_X
+
+    a, b, c = LineQubit.range(3)
+
+    return (
+        [
+            (
+                Observable(pI @ pI + pI @ pX),
+                sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
+            ),
+        ],
+    )
+
+
+@pytest.mark.provider("cirq")
+def test_to_other_language_cirq(
+    list_to_cirq_pauli: list[tuple[Observable, Union[CirqPauliSum, CirqPauliString]]],
+):
+    for obs, translation in list_to_cirq_pauli:
+        assert obs.to_other_language(Language.CIRQ) == translation

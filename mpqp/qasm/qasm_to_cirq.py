@@ -39,8 +39,8 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
         ... h q[0];
         ... cx q[0], q[1];
         ... '''
-        >>> circuit = qasm2_to_cirq_Circuit(qasm_code)
-        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
+        >>> circuit = qasm2_to_cirq_Circuit(qasm_code) # doctest: +CIRQ
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE, +CIRQ
         q_0: ───I───H───@───
                         │
         q_1: ───I───────X───

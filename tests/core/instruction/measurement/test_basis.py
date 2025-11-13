@@ -287,25 +287,69 @@ def test_run_with_custom_basis_probas(
     assert matrix_eq(expected_probabilities, res.probabilities)
 
 
+list_circuit_expected_vector_index = [
+    (QCircuit([X(0), X(0)]), 0),
+    (QCircuit([X(0)]), 1),
+]
+
+
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
-    "circuit, expected_vector_index, device",
-    [
-        (circuit, v_index, device)
-        for ((circuit, v_index), device) in product(
-            [
-                (QCircuit([X(0), X(0)]), 0),
-                (QCircuit([X(0)]), 1),
-            ],
-            [
-                IBMDevice.AER_SIMULATOR,
-                ATOSDevice.MYQLM_PYLINALG,
-                AWSDevice.BRAKET_LOCAL_SIMULATOR,
-                GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-            ],
-        )
-    ],
+    "circuit, expected_vector_index",
+    list_circuit_expected_vector_index,
 )
-def test_valid_run_custom_basis_state_vector_one_qubit(
+def test_valid_run_custom_basis_state_vector_one_qubit_qiskit(
+    circuit: QCircuit,
+    expected_vector_index: int,
+):
+    exec_valid_run_custom_basis_state_vector_one_qubit(
+        circuit, expected_vector_index, IBMDevice.AER_SIMULATOR
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "circuit, expected_vector_index",
+    list_circuit_expected_vector_index,
+)
+def test_valid_run_custom_basis_state_vector_one_qubit_braket(
+    circuit: QCircuit,
+    expected_vector_index: int,
+):
+    exec_valid_run_custom_basis_state_vector_one_qubit(
+        circuit, expected_vector_index, AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize(
+    "circuit, expected_vector_index",
+    list_circuit_expected_vector_index,
+)
+def test_valid_run_custom_basis_state_vector_one_qubit_cirq(
+    circuit: QCircuit,
+    expected_vector_index: int,
+):
+    exec_valid_run_custom_basis_state_vector_one_qubit(
+        circuit, expected_vector_index, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize(
+    "circuit, expected_vector_index",
+    list_circuit_expected_vector_index,
+)
+def test_valid_run_custom_basis_state_vector_one_qubit_myqlm(
+    circuit: QCircuit,
+    expected_vector_index: int,
+):
+    exec_valid_run_custom_basis_state_vector_one_qubit(
+        circuit, expected_vector_index, ATOSDevice.MYQLM_PYLINALG
+    )
+
+
+def exec_valid_run_custom_basis_state_vector_one_qubit(
     circuit: QCircuit, expected_vector_index: int, device: AvailableDevice
 ):
     vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
@@ -322,17 +366,32 @@ def test_valid_run_custom_basis_state_vector_one_qubit(
     assert matrix_eq(vectors[expected_vector_index], result.amplitudes)
 
 
-def test_run_custom_basis_sampling_one_qubit():
+@pytest.mark.provider("qiskit")
+def test_run_custom_basis_sampling_one_qubit_qiskit():
+    exec_run_custom_basis_sampling_one_qubit(IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_run_custom_basis_sampling_one_qubit_braket():
+    exec_run_custom_basis_sampling_one_qubit(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("cirq")
+def test_run_custom_basis_sampling_one_qubit_cirq():
+    exec_run_custom_basis_sampling_one_qubit(GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("myqlm")
+def test_run_custom_basis_sampling_one_qubit_myqlm():
+    exec_run_custom_basis_sampling_one_qubit(ATOSDevice.MYQLM_PYLINALG)
+
+
+def exec_run_custom_basis_sampling_one_qubit(device: AvailableDevice):
     vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
     basis = Basis(vectors)
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(
             QCircuit([X(0), X(0), BasisMeasure(basis=basis)]),
-            [
-                IBMDevice.AER_SIMULATOR,
-                ATOSDevice.MYQLM_PYLINALG,
-                AWSDevice.BRAKET_LOCAL_SIMULATOR,
-                GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-            ],
+            device,
         )
     assert True

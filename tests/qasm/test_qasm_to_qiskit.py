@@ -2,7 +2,7 @@ import pytest
 
 from mpqp.qasm.qasm_to_qiskit import qasm2_to_Qiskit_Circuit
 
-
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "qasm_code, gate_names",
     [

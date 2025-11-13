@@ -23,6 +23,13 @@ def pytest_addoption(parser: pytest.Parser):
         type=int,
         help="Set a global random seed for tests (default is None for random behavior).",
     )
+    parser.addoption(
+        "--providers",
+        action="store",
+        nargs="*",
+        type=str,
+        help="List of providers to enable (e.g. --providers cirq qiskit azure)",
+    )
 
 
 def pytest_configure(config: Any):
@@ -31,11 +38,15 @@ def pytest_configure(config: Any):
     This hook is called for every plugin and initial conftest
     file after command line options have been parsed.
     """
+    if (
+        not config.getoption("--long")
+        or not config.getoption("--long-costly")
+        or not config.getoption("--long-local")
+    ):
+        from tests.local_storage.test_local_storage import create_test_local_storage
 
-    from tests.local_storage.test_local_storage import create_test_local_storage
-
-    print("Creating local storage for tests")
-    create_test_local_storage()
+        print("Creating local storage for tests")
+        create_test_local_storage()
 
 
 @pytest.fixture(autouse=True)
@@ -52,3 +63,20 @@ def mock_random(monkeypatch: pytest.MonkeyPatch, request: pytest.FixtureRequest)
         return default_rng(user_seed or seed)
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
+
+
+def pytest_runtest_setup(item: pytest.Function):
+
+    providers = item.config.getoption("--providers")
+    if TYPE_CHECKING:
+        assert isinstance(providers, list) or isinstance(providers, type(None))
+    if providers is None:
+        providers = ["all"]
+    elif not providers:
+        providers = []
+
+    provider_marker = item.get_closest_marker("provider")
+    if provider_marker:
+        required = provider_marker.args[0]
+        if "all" not in providers and required not in providers:
+            pytest.skip(f"Skipping test: provider '{required}' not active")

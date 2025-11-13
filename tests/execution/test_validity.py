@@ -50,27 +50,61 @@ pi = np.pi
 s = np.sqrt
 e = np.exp
 
-all_devices = [
+
+state_vector_devices_qiskit: list[AvailableDevice] = [
     device
-    for device_family in [IBMDevice, GOOGLEDevice, AWSDevice, ATOSDevice, AZUREDevice]
+    for device_family in [IBMDevice]
     for device in device_family
-]
-# TODO: build the lists bellow from the list above + filtering
-
-state_vector_devices = [
-    IBMDevice.AER_SIMULATOR_STATEVECTOR,
-    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-    ATOSDevice.MYQLM_CLINALG,
-    ATOSDevice.MYQLM_PYLINALG,
-    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    if not device.is_remote() and device.supports_state_vector()
 ]
 
-sampling_devices = [
-    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-    IBMDevice.AER_SIMULATOR,
-    ATOSDevice.MYQLM_CLINALG,
-    ATOSDevice.MYQLM_PYLINALG,
-    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+state_vector_devices_cirq: list[AvailableDevice] = [
+    device
+    for device_family in [GOOGLEDevice]
+    for device in device_family
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+state_vector_devices_braket: list[AvailableDevice] = [
+    device
+    for device_family in [AWSDevice]
+    for device in device_family
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+state_vector_devices_myqlm: list[AvailableDevice] = [
+    device
+    for device_family in [ATOSDevice]
+    for device in device_family
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+sampling_devices_qiskit: list[AvailableDevice] = [
+    device
+    for device_family in [IBMDevice]
+    for device in device_family
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_cirq: list[AvailableDevice] = [
+    device
+    for device_family in [GOOGLEDevice]
+    for device in device_family
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_braket: list[AvailableDevice] = [
+    device
+    for device_family in [AWSDevice]
+    for device in device_family
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_myqlm: list[AvailableDevice] = [
+    device
+    for device_family in [ATOSDevice]
+    for device in device_family
+    if not device.is_remote() and device.supports_samples()
 ]
 
 
@@ -93,46 +127,87 @@ def hae_3_qubit_circuit(
     )
 
 
-@pytest.mark.parametrize(
-    "parameters, expected_vector",
-    [
-        ([0, 0, 0, 0, 0, 0], np.array([1, 0, 0, 0, 0, 0, 0, 0])),
-        ([pi / 2, 0, -pi, pi / 2, 0, 0], np.array([0, -0.5, 0, 0.5, -0.5, 0, -0.5, 0])),
-        (
-            [pi / 2, pi, -pi / 2, pi / 5, 0, -pi],
-            np.array(
-                [
-                    np.sin(pi / 10),
-                    np.sin(pi / 10),
-                    np.cos(pi / 10),
-                    np.cos(pi / 10),
-                    np.sin(pi / 10),
-                    np.sin(pi / 10),
-                    -np.cos(pi / 10),
-                    -np.cos(pi / 10),
-                ]
-            )
-            * 0.5,
+list_param_expect_vector = [
+    ([0, 0, 0, 0, 0, 0], np.array([1, 0, 0, 0, 0, 0, 0, 0])),
+    ([pi / 2, 0, -pi, pi / 2, 0, 0], np.array([0, -0.5, 0, 0.5, -0.5, 0, -0.5, 0])),
+    (
+        [pi / 2, pi, -pi / 2, pi / 5, 0, -pi],
+        np.array(
+            [
+                np.sin(pi / 10),
+                np.sin(pi / 10),
+                np.cos(pi / 10),
+                np.cos(pi / 10),
+                np.sin(pi / 10),
+                np.sin(pi / 10),
+                -np.cos(pi / 10),
+                -np.cos(pi / 10),
+            ]
+        )
+        * 0.5,
+    ),
+    (
+        [0.34, 0.321, -0.7843, 1.2232, 4.2323, 6.66],
+        np.array(
+            [
+                0.3812531672,
+                -0.05833733076,
+                0.1494487426,
+                -0.6633351291,
+                -0.5508843680,
+                0.1989958354,
+                0.1014433799,
+                0.1884958074,
+            ]
         ),
-        (
-            [0.34, 0.321, -0.7843, 1.2232, 4.2323, 6.66],
-            np.array(
-                [
-                    0.3812531672,
-                    -0.05833733076,
-                    0.1494487426,
-                    -0.6633351291,
-                    -0.5508843680,
-                    0.1989958354,
-                    0.1014433799,
-                    0.1884958074,
-                ]
-            ),
-        ),
-    ],
-)
-def test_state_vector_result_HEA_ansatz(
+    ),
+]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("parameters, expected_vector", list_param_expect_vector)
+def test_state_vector_result_HEA_ansatz_qiskit(
     parameters: list[float], expected_vector: npt.NDArray[np.complex128]
+):
+    exec_state_vector_result_HEA_ansatz(
+        parameters, expected_vector, state_vector_devices_qiskit
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("parameters, expected_vector", list_param_expect_vector)
+def test_state_vector_result_HEA_ansatz_myqlm(
+    parameters: list[float], expected_vector: npt.NDArray[np.complex128]
+):
+    exec_state_vector_result_HEA_ansatz(
+        parameters, expected_vector, state_vector_devices_myqlm
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("parameters, expected_vector", list_param_expect_vector)
+def test_state_vector_result_HEA_ansatz_cirq(
+    parameters: list[float], expected_vector: npt.NDArray[np.complex128]
+):
+    exec_state_vector_result_HEA_ansatz(
+        parameters, expected_vector, state_vector_devices_cirq
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("parameters, expected_vector", list_param_expect_vector)
+def test_state_vector_result_HEA_ansatz_braket(
+    parameters: list[float], expected_vector: npt.NDArray[np.complex128]
+):
+    exec_state_vector_result_HEA_ansatz(
+        parameters, expected_vector, state_vector_devices_braket
+    )
+
+
+def exec_state_vector_result_HEA_ansatz(
+    parameters: list[float],
+    expected_vector: npt.NDArray[np.complex128],
+    state_vector_devices: list[AvailableDevice],
 ):
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
@@ -142,69 +217,112 @@ def test_state_vector_result_HEA_ansatz(
         assert matrix_eq(result.amplitudes, expected_vector)
 
 
-@pytest.mark.parametrize(
-    "gates, expected_vector",
-    [
-        (
-            [H(0), H(1), H(2), CNOT(0, 1), P(pi / 3, 2), T(0), CZ(1, 2)],
-            np.array(
-                [
-                    s(2) / 4,
-                    e(1j * pi / 3) * s(2) / 4,
-                    s(2) / 4,
-                    -e(1j * pi / 3) * s(2) / 4,
-                    (s(2) / 2 + 1j * s(2) / 2) * s(2) / 4,
-                    (s(2) / 2 + 1j * s(2) / 2) * e(1j * pi / 3) * s(2) / 4,
-                    (s(2) / 2 + 1j * s(2) / 2) * s(2) / 4,
-                    (-s(2) / 2 - 1j * s(2) / 2) * e(1j * pi / 3) * s(2) / 4,
-                ]
-            ),
-        ),
-        (
-            [H(0), Rk(4, 1), H(2), Rx(pi / 3, 0), CRk(6, 1, 2), CNOT(0, 1), X(2)],
-            np.array(
-                [
-                    s(3) / 4 - 1j / 4,
-                    s(3) / 4 - 1j / 4,
-                    0,
-                    0,
-                    0,
-                    0,
-                    s(3) / 4 - 1j / 4,
-                    s(3) / 4 - 1j / 4,
-                ]
-            ),
-        ),
-        (
+list_gates_expect_vector = [
+    (
+        [H(0), H(1), H(2), CNOT(0, 1), P(pi / 3, 2), T(0), CZ(1, 2)],
+        np.array(
             [
-                H(0),
-                H(1),
-                H(2),
-                SWAP(0, 1),
-                Rz(pi / 7, 2),
-                Z(0),
-                Y(1),
-                S(2),
-                Id(0),
-                U(pi / 2, -pi, pi / 3, 1),
-                Ry(pi / 5, 2),
-            ],
-            np.array(
-                [
-                    0.2329753102e-1 - 0.4845363113 * 1j,
-                    0.3413257772 + 0.1522448750 * 1j,
-                    0.2797471698 + 0.1345083586e-1 * 1j,
-                    -0.878986196e-1 + 0.1970645294 * 1j,
-                    -0.2329753102e-1 + 0.4845363113 * 1j,
-                    -0.3413257772 - 0.1522448750 * 1j,
-                    -0.2797471698 - 0.1345083586e-1 * 1j,
-                    0.878986196e-1 - 0.1970645294 * 1j,
-                ]
-            ),
+                s(2) / 4,
+                e(1j * pi / 3) * s(2) / 4,
+                s(2) / 4,
+                -e(1j * pi / 3) * s(2) / 4,
+                (s(2) / 2 + 1j * s(2) / 2) * s(2) / 4,
+                (s(2) / 2 + 1j * s(2) / 2) * e(1j * pi / 3) * s(2) / 4,
+                (s(2) / 2 + 1j * s(2) / 2) * s(2) / 4,
+                (-s(2) / 2 - 1j * s(2) / 2) * e(1j * pi / 3) * s(2) / 4,
+            ]
         ),
-    ],
-)
-def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: Matrix):
+    ),
+    (
+        [H(0), Rk(4, 1), H(2), Rx(pi / 3, 0), CRk(6, 1, 2), CNOT(0, 1), X(2)],
+        np.array(
+            [
+                s(3) / 4 - 1j / 4,
+                s(3) / 4 - 1j / 4,
+                0,
+                0,
+                0,
+                0,
+                s(3) / 4 - 1j / 4,
+                s(3) / 4 - 1j / 4,
+            ]
+        ),
+    ),
+    (
+        [
+            H(0),
+            H(1),
+            H(2),
+            SWAP(0, 1),
+            Rz(pi / 7, 2),
+            Z(0),
+            Y(1),
+            S(2),
+            Id(0),
+            U(pi / 2, -pi, pi / 3, 1),
+            Ry(pi / 5, 2),
+        ],
+        np.array(
+            [
+                0.2329753102e-1 - 0.4845363113 * 1j,
+                0.3413257772 + 0.1522448750 * 1j,
+                0.2797471698 + 0.1345083586e-1 * 1j,
+                -0.878986196e-1 + 0.1970645294 * 1j,
+                -0.2329753102e-1 + 0.4845363113 * 1j,
+                -0.3413257772 - 0.1522448750 * 1j,
+                -0.2797471698 - 0.1345083586e-1 * 1j,
+                0.878986196e-1 - 0.1970645294 * 1j,
+            ]
+        ),
+    ),
+]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("gates, expected_vector", list_gates_expect_vector)
+def test_state_vector_various_native_gates_qiskit(
+    gates: list[Gate], expected_vector: Matrix
+):
+    exec_state_vector_various_native_gates(
+        gates, expected_vector, state_vector_devices_qiskit
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("gates, expected_vector", list_gates_expect_vector)
+def test_state_vector_various_native_gates_braket(
+    gates: list[Gate], expected_vector: Matrix
+):
+    exec_state_vector_various_native_gates(
+        gates, expected_vector, state_vector_devices_braket
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("gates, expected_vector", list_gates_expect_vector)
+def test_state_vector_various_native_gates_cirq(
+    gates: list[Gate], expected_vector: Matrix
+):
+    exec_state_vector_various_native_gates(
+        gates, expected_vector, state_vector_devices_cirq
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("gates, expected_vector", list_gates_expect_vector)
+def test_state_vector_various_native_gates_myqlm(
+    gates: list[Gate], expected_vector: Matrix
+):
+    exec_state_vector_various_native_gates(
+        gates, expected_vector, state_vector_devices_myqlm
+    )
+
+
+def exec_state_vector_various_native_gates(
+    gates: list[Gate],
+    expected_vector: Matrix,
+    state_vector_devices: list[AvailableDevice],
+):
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(QCircuit(gates), state_vector_devices)
     assert isinstance(batch, BatchResult)
@@ -217,42 +335,73 @@ def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: M
             assert matrix_eq(result.amplitudes, expected_vector)
 
 
-@pytest.mark.parametrize(
-    "gates, basis_states",
-    [
-        (
-            [
-                H(0),
-                CNOT(0, 1),
-                CNOT(1, 2),
-            ],
-            ["000", "111"],
-        ),
-        (
-            [H(0), H(2), CNOT(0, 1), Ry(1.87, 1), H(0), CNOT(2, 3), H(4)],
-            [
-                "00000",
-                "00011",
-                "00110",
-                "00111",
-                "01000",
-                "01001",
-                "01110",
-                "01111",
-                "10000",
-                "10001",
-                "10110",
-                "10111",
-                "11000",
-                "11001",
-                "11110",
-                "11111",
-            ],
-        ),
-        ([X(0), SWAP(0, 1), X(2), Y(0), CNOT(1, 2), S(0), T(1), H(2)], ["110", "111"]),
-    ],
-)
-def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str]):
+list_gates_basis_states = [
+    (
+        [
+            H(0),
+            CNOT(0, 1),
+            CNOT(1, 2),
+        ],
+        ["000", "111"],
+    ),
+    (
+        [H(0), H(2), CNOT(0, 1), Ry(1.87, 1), H(0), CNOT(2, 3), H(4)],
+        [
+            "00000",
+            "00011",
+            "00110",
+            "00111",
+            "01000",
+            "01001",
+            "01110",
+            "01111",
+            "10000",
+            "10001",
+            "10110",
+            "10111",
+            "11000",
+            "11001",
+            "11110",
+            "11111",
+        ],
+    ),
+    ([X(0), SWAP(0, 1), X(2), Y(0), CNOT(1, 2), S(0), T(1), H(2)], ["110", "111"]),
+]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("gates, basis_states", list_gates_basis_states)
+def test_sample_basis_state_in_samples_qiskit(
+    gates: list[Gate], basis_states: list[str]
+):
+    exec_sample_basis_state_in_samples(gates, basis_states, sampling_devices_qiskit)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("gates, basis_states", list_gates_basis_states)
+def test_sample_basis_state_in_samples_braket(
+    gates: list[Gate], basis_states: list[str]
+):
+    exec_sample_basis_state_in_samples(gates, basis_states, sampling_devices_braket)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("gates, basis_states", list_gates_basis_states)
+def test_sample_basis_state_in_samples_cirq(gates: list[Gate], basis_states: list[str]):
+    exec_sample_basis_state_in_samples(gates, basis_states, sampling_devices_cirq)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("gates, basis_states", list_gates_basis_states)
+def test_sample_basis_state_in_samples_myqlm(
+    gates: list[Gate], basis_states: list[str]
+):
+    exec_sample_basis_state_in_samples(gates, basis_states, sampling_devices_myqlm)
+
+
+def exec_sample_basis_state_in_samples(
+    gates: list[Gate], basis_states: list[str], sampling_devices: list[AvailableDevice]
+):
     c = QCircuit(gates)
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=10000))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
@@ -265,22 +414,63 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
         assert len(result.samples) == nb_states
 
 
-@pytest.mark.parametrize(
-    "instructions",
-    [
-        [H(0), CNOT(0, 1), CNOT(1, 2)],
-        [CustomGate(np.array([[0, 1], [1, 0]]), [1])],
-        [U(0.215, 0.5588, 8, 1)],
-    ],
-)
-def test_sample_counts_in_trust_interval(instructions: list[Gate]):
+list_instruction_proba = [
+    ([H(0), CNOT(0, 1), CNOT(1, 2)], [0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]),
+    ([CustomGate(np.array([[0, 1], [1, 0]]), [1])], [0.0, 1.0, 0.0, 0.0]),
+    ([U(0.215, 0.5588, 8, 1)], [0.9884882, 0.0115118, 0.0, 0.0]),
+]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("instructions, probabilities", list_instruction_proba)
+def test_sample_counts_in_trust_interval_qiskit(
+    instructions: list[Gate], probabilities: list[float]
+):
+    exec_sample_counts_in_trust_interval(
+        instructions, probabilities, sampling_devices_qiskit
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("instructions, probabilities", list_instruction_proba)
+def test_sample_counts_in_trust_interval_cirq(
+    instructions: list[Gate], probabilities: list[float]
+):
+    exec_sample_counts_in_trust_interval(
+        instructions, probabilities, sampling_devices_cirq
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("instructions, probabilities", list_instruction_proba)
+def test_sample_counts_in_trust_interval_braket(
+    instructions: list[Gate], probabilities: list[float]
+):
+    exec_sample_counts_in_trust_interval(
+        instructions, probabilities, sampling_devices_braket
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("instructions, probabilities", list_instruction_proba)
+def test_sample_counts_in_trust_interval_myqlm(
+    instructions: list[Gate], probabilities: list[float]
+):
+    exec_sample_counts_in_trust_interval(
+        instructions, probabilities, sampling_devices_myqlm
+    )
+
+
+def exec_sample_counts_in_trust_interval(
+    instructions: list[Gate],
+    probabilities: list[float],
+    sampling_devices: list[AvailableDevice],
+):
     c = QCircuit(instructions)
     shots = 50000
     err_rate = 0.2
     err_rate_percentage = 1 - np.power(1 - err_rate, (1 / 2))
-    res = run(c, state_vector_devices[0])
-    assert isinstance(res, Result)
-    expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
+    expected_counts = [int(count) for count in np.round(shots * probabilities)]
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(c, sampling_devices)
@@ -303,29 +493,71 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
             )
 
 
-@pytest.mark.parametrize(
-    "gates, observable, expected_vector",
-    [
-        (
-            [H(0), Rk(4, 1), H(2), Rx(pi / 3, 0), CRk(6, 1, 2), CNOT(0, 1), X(2)],
-            rand_hermitian_matrix(2**3),
-            np.array(
-                [
-                    s(3) / 4 - 1j / 4,
-                    s(3) / 4 - 1j / 4,
-                    0,
-                    0,
-                    0,
-                    0,
-                    s(3) / 4 - 1j / 4,
-                    s(3) / 4 - 1j / 4,
-                ]
-            ),
+list_gate_obs_vector = [
+    (
+        [H(0), Rk(4, 1), H(2), Rx(pi / 3, 0), CRk(6, 1, 2), CNOT(0, 1), X(2)],
+        rand_hermitian_matrix(2**3),
+        np.array(
+            [
+                s(3) / 4 - 1j / 4,
+                s(3) / 4 - 1j / 4,
+                0,
+                0,
+                0,
+                0,
+                s(3) / 4 - 1j / 4,
+                s(3) / 4 - 1j / 4,
+            ]
         ),
-    ],
-)
-def test_observable_ideal_case(
+    ),
+]
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("gates, observable, expected_vector", list_gate_obs_vector)
+def test_observable_ideal_case_qiskit(
     gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
+):
+    exec_observable_ideal_case(
+        gates, observable, expected_vector, sampling_devices_qiskit
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("gates, observable, expected_vector", list_gate_obs_vector)
+def test_observable_ideal_case_cirq(
+    gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
+):
+    exec_observable_ideal_case(
+        gates, observable, expected_vector, sampling_devices_cirq
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("gates, observable, expected_vector", list_gate_obs_vector)
+def test_observable_ideal_case_braket(
+    gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
+):
+    exec_observable_ideal_case(
+        gates, observable, expected_vector, sampling_devices_braket
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("gates, observable, expected_vector", list_gate_obs_vector)
+def test_observable_ideal_case_myqlm(
+    gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
+):
+    exec_observable_ideal_case(
+        gates, observable, expected_vector, sampling_devices_myqlm
+    )
+
+
+def exec_observable_ideal_case(
+    gates: list[Gate],
+    observable: npt.NDArray[np.complex128],
+    expected_vector: Matrix,
+    sampling_devices: list[AvailableDevice],
 ):
     c = QCircuit(gates)
     c.add(
@@ -367,15 +599,50 @@ def circuits_type():
     ]
 
 
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("device", list(IBMDevice))
+def test_validity_run_job_type_qiskit(
+    device: AvailableDevice, circuits_type: list[QCircuit]
+):
+    exec_validity_run_job_type(device, circuits_type)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("device", list(GOOGLEDevice))
+def test_validity_run_job_type_cirq(
+    device: AvailableDevice, circuits_type: list[QCircuit]
+):
+    exec_validity_run_job_type(device, circuits_type)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("device", list(ATOSDevice))
+def test_validity_run_job_type_myqlm(
+    device: AvailableDevice, circuits_type: list[QCircuit]
+):
+    exec_validity_run_job_type(device, circuits_type)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("device", list(AWSDevice))
+def test_validity_run_job_type_braket(
+    device: AvailableDevice, circuits_type: list[QCircuit]
+):
+    exec_validity_run_job_type(device, circuits_type)
+
+
+@pytest.mark.provider("azure")
 @pytest.mark.parametrize(
     "device",
-    list(IBMDevice)
-    + list(ATOSDevice)
-    + list(AWSDevice)
-    + list(GOOGLEDevice)
-    + list(AZUREDevice),
+    list(AZUREDevice),
 )
-def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCircuit]):
+def test_validity_run_job_type_azure(
+    device: AvailableDevice, circuits_type: list[QCircuit]
+):
+    exec_validity_run_job_type(device, circuits_type)
+
+
+def exec_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCircuit]):
     circuit_state_vector = circuits_type[0]
     circuit_samples = circuits_type[1]
     circuit_observable = circuits_type[2]
@@ -452,8 +719,35 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
                     run(circuit_observable, device)
 
 
-@pytest.mark.parametrize("language", list(Language))
-def test_validity_native_gate_to_other_language(language: Language):
+@pytest.mark.provider("qiskit")
+def test_validity_native_gate_to_other_language_qiskit():
+    exec_validity_native_gate_to_other_language(Language.QISKIT)
+
+
+@pytest.mark.provider("cirq")
+def test_validity_native_gate_to_other_language_cirq():
+    exec_validity_native_gate_to_other_language(Language.CIRQ)
+
+
+@pytest.mark.provider("braket")
+def test_validity_native_gate_to_other_language_braket():
+    exec_validity_native_gate_to_other_language(Language.BRAKET)
+
+
+@pytest.mark.provider("myqlm")
+def test_validity_native_gate_to_other_language_myqlm():
+    exec_validity_native_gate_to_other_language(Language.MY_QLM)
+
+
+def test_validity_native_gate_to_other_language_qasm2():
+    exec_validity_native_gate_to_other_language(Language.QASM2)
+
+
+def test_validity_native_gate_to_other_language_qasm3():
+    exec_validity_native_gate_to_other_language(Language.QASM3)
+
+
+def exec_validity_native_gate_to_other_language(language: Language):
     for gate in NATIVE_GATES:
         gate_build = random_gate([gate])
 
@@ -479,8 +773,35 @@ def measures():
     ]
 
 
-@pytest.mark.parametrize("language", list(Language))
-def test_validity_measure_to_other_language(
+@pytest.mark.provider("qiskit")
+def test_validity_measure_to_other_language_qiskit(measures: list[Measure]):
+    exec_validity_measure_to_other_language(Language.QISKIT, measures)
+
+
+@pytest.mark.provider("cirq")
+def test_validity_measure_to_other_language_cirq(measures: list[Measure]):
+    exec_validity_measure_to_other_language(Language.CIRQ, measures)
+
+
+@pytest.mark.provider("braket")
+def test_validity_measure_to_other_language_braket(measures: list[Measure]):
+    exec_validity_measure_to_other_language(Language.BRAKET, measures)
+
+
+@pytest.mark.provider("myqlm")
+def test_validity_measure_to_other_language_myqlm(measures: list[Measure]):
+    exec_validity_measure_to_other_language(Language.MY_QLM, measures)
+
+
+def test_validity_measure_to_other_language_qasm2(measures: list[Measure]):
+    exec_validity_measure_to_other_language(Language.QASM2, measures)
+
+
+def test_validity_measure_to_other_language_qasm3(measures: list[Measure]):
+    exec_validity_measure_to_other_language(Language.QASM3, measures)
+
+
+def exec_validity_measure_to_other_language(
     language: Language, measures: list[Measure]
 ):
     for measure in measures:
@@ -503,8 +824,45 @@ def pauli_strings():
     return [pI @ pX @ pY @ pZ, pX + pZ, pY]
 
 
-@pytest.mark.parametrize("language", list(Language))
-def test_validity_pauli_string_to_other_language(
+@pytest.mark.provider("qiskit")
+def test_validity_pauli_string_to_other_language_qiskit(
+    pauli_strings: list[PauliString],
+):
+    exec_validity_pauli_string_to_other_language(Language.QISKIT, pauli_strings)
+
+
+@pytest.mark.provider("cirq")
+def test_validity_pauli_string_to_other_language_cirq(pauli_strings: list[PauliString]):
+    exec_validity_pauli_string_to_other_language(Language.CIRQ, pauli_strings)
+
+
+@pytest.mark.provider("braket")
+def test_validity_pauli_string_to_other_language_braket(
+    pauli_strings: list[PauliString],
+):
+    exec_validity_pauli_string_to_other_language(Language.BRAKET, pauli_strings)
+
+
+@pytest.mark.provider("myqlm")
+def test_validity_pauli_string_to_other_language_myqlm(
+    pauli_strings: list[PauliString],
+):
+    exec_validity_pauli_string_to_other_language(Language.MY_QLM, pauli_strings)
+
+
+def test_validity_pauli_string_to_other_language_qasm2(
+    pauli_strings: list[PauliString],
+):
+    exec_validity_pauli_string_to_other_language(Language.QASM2, pauli_strings)
+
+
+def test_validity_pauli_string_to_other_language_qasm3(
+    pauli_strings: list[PauliString],
+):
+    exec_validity_pauli_string_to_other_language(Language.QASM3, pauli_strings)
+
+
+def exec_validity_pauli_string_to_other_language(
     language: Language, pauli_strings: list[PauliString]
 ):
 
@@ -516,8 +874,35 @@ def test_validity_pauli_string_to_other_language(
             assert pauli_string.to_other_language(language) is not None
 
 
-@pytest.mark.parametrize("language", list(Language))
-def test_validity_noise_to_other_language(language: Language):
+@pytest.mark.provider("qiskit")
+def test_validity_noise_to_other_language_qiskit():
+    exec_validity_noise_to_other_language(Language.QISKIT)
+
+
+@pytest.mark.provider("cirq")
+def test_validity_noise_to_other_language_cirq():
+    exec_validity_noise_to_other_language(Language.CIRQ)
+
+
+@pytest.mark.provider("braket")
+def test_validity_noise_to_other_language_braket():
+    exec_validity_noise_to_other_language(Language.BRAKET)
+
+
+@pytest.mark.provider("myqlm")
+def test_validity_noise_to_other_language_myqlm():
+    exec_validity_noise_to_other_language(Language.MY_QLM)
+
+
+def test_validity_noise_to_other_language_qasm2():
+    exec_validity_noise_to_other_language(Language.QASM2)
+
+
+def test_validity_noise_to_other_language_qasm3():
+    exec_validity_noise_to_other_language(Language.QASM3)
+
+
+def exec_validity_noise_to_other_language(language: Language):
     for noise in NOISE_MODELS:
         noise_build = random_noise([noise])
 
@@ -543,8 +928,45 @@ def other_instr():
     ]
 
 
-@pytest.mark.parametrize("language", list(Language))
-def test_validity_other_instr_to_other_language(
+@pytest.mark.provider("qiskit")
+def test_validity_other_instr_to_other_language_qiskit(
+    other_instr: list[Instruction],
+):
+    exec_validity_other_instr_to_other_language(Language.QISKIT, other_instr)
+
+
+@pytest.mark.provider("cirq")
+def test_validity_other_instr_to_other_language_cirq(other_instr: list[Instruction]):
+    exec_validity_other_instr_to_other_language(Language.CIRQ, other_instr)
+
+
+@pytest.mark.provider("braket")
+def test_validity_other_instr_to_other_language_braket(
+    other_instr: list[Instruction],
+):
+    exec_validity_other_instr_to_other_language(Language.BRAKET, other_instr)
+
+
+@pytest.mark.provider("myqlm")
+def test_validity_other_instr_to_other_language_myqlm(
+    other_instr: list[Instruction],
+):
+    exec_validity_other_instr_to_other_language(Language.MY_QLM, other_instr)
+
+
+def test_validity_other_instr_to_other_language_qasm2(
+    other_instr: list[Instruction],
+):
+    exec_validity_other_instr_to_other_language(Language.QASM2, other_instr)
+
+
+def test_validity_other_instr_to_other_language_qasm3(
+    other_instr: list[Instruction],
+):
+    exec_validity_other_instr_to_other_language(Language.QASM3, other_instr)
+
+
+def exec_validity_other_instr_to_other_language(
     language: Language, other_instr: list[Instruction]
 ):
     for instr in other_instr:
@@ -563,16 +985,71 @@ def test_validity_other_instr_to_other_language(
             assert instr.to_other_language(language) is not None
 
 
+list_circ_obs = [
+    (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3])),
+    (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1])),
+    (QCircuit([Rx(0.5, 0), Ry(0.6, 1)]), Observable([0, 0, -9, 7])),
+]
+
+
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "circuit, observable",
-    [
-        (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3])),
-        (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1])),
-        (QCircuit([Rx(0.5, 0), Ry(0.6, 1)]), Observable([0, 0, -9, 7])),
-    ],
+    list_circ_obs,
 )
-def test_validity_optim_ideal_single_diag_obs_and_regular_run(
+def test_validity_optim_ideal_single_diag_obs_and_regular_run_qiskit(
     circuit: QCircuit, observable: Observable
+):
+    exec_validity_optim_ideal_single_diag_obs_and_regular_run(
+        circuit,
+        observable,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize(
+    "circuit, observable",
+    list_circ_obs,
+)
+def test_validity_optim_ideal_single_diag_obs_and_regular_run_cirq(
+    circuit: QCircuit, observable: Observable
+):
+    exec_validity_optim_ideal_single_diag_obs_and_regular_run(
+        circuit, observable, IBMDevice.AER_SIMULATOR
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "circuit, observable",
+    list_circ_obs,
+)
+def test_validity_optim_ideal_single_diag_obs_and_regular_run_braket(
+    circuit: QCircuit, observable: Observable
+):
+    exec_validity_optim_ideal_single_diag_obs_and_regular_run(
+        circuit,
+        observable,
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize(
+    "circuit, observable",
+    list_circ_obs,
+)
+def test_validity_optim_ideal_single_diag_obs_and_regular_run_myqlm(
+    circuit: QCircuit, observable: Observable
+):
+    exec_validity_optim_ideal_single_diag_obs_and_regular_run(
+        circuit, observable, ATOSDevice.MYQLM_PYLINALG
+    )
+
+
+def exec_validity_optim_ideal_single_diag_obs_and_regular_run(
+    circuit: QCircuit, observable: Observable, device: AvailableDevice
 ):
     e1 = ExpectationMeasure(
         observable, shots=0, optim_diagonal=False, optimize_measurement=False
@@ -582,30 +1059,11 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run(
     )
     c1 = circuit + QCircuit([e1], nb_qubits=2)
     c2 = circuit + QCircuit([e2], nb_qubits=2)
-    br1 = run(
-        c1,
-        [
-            IBMDevice.AER_SIMULATOR,
-            ATOSDevice.MYQLM_PYLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-        ],
-    )
-    br2 = run(
-        c2,
-        [
-            IBMDevice.AER_SIMULATOR,
-            ATOSDevice.MYQLM_PYLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-        ],
-    )
-    assert isinstance(br1, BatchResult)
-    assert isinstance(br2, BatchResult)
-    for r1, r2 in zip(br1.results, br2.results):
-        assert isinstance(r1.expectation_values, float)
-        assert isinstance(r2.expectation_values, float)
-        assert np.isclose(r1.expectation_values, r2.expectation_values)
+    r1 = run(c1, device)
+    r2 = run(c2, device)
+    assert isinstance(r1.expectation_values, float)
+    assert isinstance(r2.expectation_values, float)
+    assert np.isclose(r1.expectation_values, r2.expectation_values)
 
 
 @pytest.mark.parametrize(

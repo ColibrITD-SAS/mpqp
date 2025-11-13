@@ -1,9 +1,9 @@
 import pytest
 
 from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
-from qat.core.wrappers.circuit import Circuit
 
 
+@pytest.mark.provider("myqlm")
 @pytest.mark.parametrize(
     "qasm_code, gate_names",
     [
@@ -26,6 +26,8 @@ from qat.core.wrappers.circuit import Circuit
     ],
 )
 def test_qasm2_to_myqlm_Circuit(qasm_code: str, gate_names: list[str]):
+    from qat.core.wrappers.circuit import Circuit
+
     circ = qasm2_to_myqlm_Circuit(qasm_code)
     assert isinstance(circ, Circuit)
     for op, expected_gate in zip(circ.ops, gate_names):

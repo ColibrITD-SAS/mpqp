@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
-from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
 from mpqp.core import QCircuit
 from mpqp.gates import *
+
+if TYPE_CHECKING:
+    from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
+
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
 

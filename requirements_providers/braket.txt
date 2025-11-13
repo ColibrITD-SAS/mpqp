@@ -1,0 +1,4 @@
+amazon-braket-sdk==1.79.1
+amazon-braket-default-simulator==1.23.2
+boto3==1.35.82
+aws-configure==2.1.8

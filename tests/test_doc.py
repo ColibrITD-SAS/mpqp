@@ -3,7 +3,7 @@ import importlib
 import os
 import sys
 import warnings
-from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner
+from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner, register_optionflag
 from functools import partial
 from pathlib import Path
 from types import TracebackType
@@ -223,7 +223,7 @@ class DBRunner:
 test_globals = globals().copy()
 test_globals.update(locals())
 
-to_pass = ["connection", "noise_methods", "remote_handle"]
+file_to_pass = ["connection", "noise_methods", "remote_handle"]
 files_needing_db = ["local_storage", "result", "job"]
 unsafe_files = ["env"] + files_needing_db
 
@@ -231,13 +231,42 @@ unsafe_files = ["env"] + files_needing_db
 finder = DocTestFinder()
 runner = DocTestRunner()
 
+PROVIDER_MYQLM = register_optionflag("MYQLM")
+PROVIDER_QISKIT = register_optionflag("QISKIT")
+PROVIDER_BRAKET = register_optionflag("BRAKET")
+PROVIDER_CIRQ = register_optionflag("CIRQ")
+
+PROVIDER_FLAGS = {
+    "myqlm": PROVIDER_MYQLM,
+    "qiskit": PROVIDER_QISKIT,
+    "braket": PROVIDER_BRAKET,
+    "cirq": PROVIDER_CIRQ,
+}
+
 
 def stable_random(*args: Any, **kwargs: Any):
     user_seed = args[0] if len(args) != 0 else None
     return default_rng(user_seed or 351)
 
 
-def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
+def run_doctest(
+    root: str,
+    filename: str,
+    monkeypatch: pytest.MonkeyPatch,
+    request: pytest.FixtureRequest,
+):
+
+    active_providers = request.config.getoption("--providers")
+    skip_provider_flags = []
+    func_to_pass = []
+    if active_providers is not None:
+        for name, flag in PROVIDER_FLAGS.items():
+            if len(active_providers) == 0 or name not in active_providers:
+                func_to_pass.append(name)
+                if name == "qiskit":
+                    func_to_pass.append("ibm")
+                skip_provider_flags.append(flag)
+
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
@@ -259,12 +288,20 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
+            and all(func not in test.name for func in func_to_pass)
         ):
+            for example in test.examples:
+                flags = example.options
+                for flag in PROVIDER_FLAGS.values():
+                    if flag in flags and flag in skip_provider_flags:
+                        example.options[SKIP] = True
+
             if safe_needed:
                 with EnvRunner():
                     if any(name in root + filename for name in files_needing_db):
-                        with DBRunner(test.name):
-                            assert runner.run(test).failed == 0
+                        if "--long-local" in sys.argv or "--long" in sys.argv:
+                            with DBRunner(test.name):
+                                assert runner.run(test).failed == 0
                     else:
                         assert runner.run(test).failed == 0
             else:
@@ -274,7 +311,9 @@ def run_doctest(root: str, filename: str, monkeypatch: pytest.MonkeyPatch):
 folder_path = "mpqp"
 for root, _, files in os.walk(folder_path):
     for filename in files:
-        if all(str not in filename for str in to_pass) and filename.endswith(".py"):
+        if all(str not in filename for str in file_to_pass) and filename.endswith(
+            ".py"
+        ):
             t_function_name = "test_doc_" + "mpqp".join(
                 (root + "_" + filename).split("mpqp")
             ).replace("\\", "_").replace("/", "_").replace(".py", "")

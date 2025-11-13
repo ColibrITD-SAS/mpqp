@@ -342,7 +342,7 @@ class Depolarizing(DimensionalNoiseModel):
             Depolarizing(0.05, [0, 1], dimension=2)
             Depolarizing(0.12, [2], gates=[H, Rx, Ry, Rz])
             Depolarizing(0.05, [0, 1, 2], dimension=2, gates=[CNOT, CZ])
-        >>> print(circuit.to_other_language(Language.BRAKET))  # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.BRAKET))  # doctest: +NORMALIZE_WHITESPACE +BRAKET
         T  : │                        0                         │
               ┌───┐ ┌────────────┐ ┌────────────┐
         q0 : ─┤ H ├─┤ DEPO(0.01) ├─┤ DEPO(0.32) ├────────────────
@@ -354,7 +354,7 @@ class Depolarizing(DimensionalNoiseModel):
         q2 : ─┤ H ├─┤ DEPO(0.12) ├─┤ DEPO(0.01) ├─┤ DEPO(0.32) ├─
               └───┘ └────────────┘ └────────────┘ └────────────┘
         T  : │                        0                         │
-        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE +CIRQ
         q_0: ───I───H───D(0.01)───D(0.32)─────────────
         q_1: ───I───H───D(0.01)───D(0.32)─────────────
         q_2: ───I───H───D(0.12)───D(0.01)───D(0.32)───
@@ -402,17 +402,17 @@ class Depolarizing(DimensionalNoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET)
+            >>> Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.BRAKET) # doctest: +BRAKET
             Depolarizing('probability': 0.3, 'qubit_count': 1)
 
-            >>> Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT).to_quantumchannel()
+            >>> Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.QISKIT).to_quantumchannel() # doctest: +QISKIT
             SuperOp([[0.85+0.j, 0.  +0.j, 0.  +0.j, 0.15+0.j],
                      [0.  +0.j, 0.7 +0.j, 0.  +0.j, 0.  +0.j],
                      [0.  +0.j, 0.  +0.j, 0.7 +0.j, 0.  +0.j],
                      [0.15+0.j, 0.  +0.j, 0.  +0.j, 0.85+0.j]],
                     input_dims=(2,), output_dims=(2,))
 
-            >>> print(Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM))  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(Depolarizing(0.3, [0,1], dimension=1).to_other_language(Language.MY_QLM))  # doctest: +NORMALIZE_WHITESPACE +MYQLM
             Depolarizing channel, p = 0.3:
             [[0.83666003 0.        ]
              [0.         0.83666003]]
@@ -423,7 +423,7 @@ class Depolarizing(DimensionalNoiseModel):
             [[ 0.31622777+0.j  0.        +0.j]
              [ 0.        +0.j -0.31622777+0.j]]
 
-            >>> Depolarizing(0.3, [0,1]).to_other_language(Language.CIRQ)
+            >>> Depolarizing(0.3, [0,1]).to_other_language(Language.CIRQ) # doctest: +CIRQ
             cirq.depolarize(p=0.3)
 
         """
@@ -520,7 +520,7 @@ class BitFlip(NoiseModel):
             BitFlip(0.3, [1, 2])
             BitFlip(0.05, [0], gates=[H])
             BitFlip(0.3)
-        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE +BRAKET
         T  : │                    0                     │
               ┌───┐ ┌─────────┐ ┌──────────┐ ┌─────────┐
         q0 : ─┤ H ├─┤ BF(0.3) ├─┤ BF(0.05) ├─┤ BF(0.1) ├─
@@ -532,7 +532,7 @@ class BitFlip(NoiseModel):
         q2 : ─┤ H ├─┤ BF(0.3) ├─┤ BF(0.3) ├──────────────
               └───┘ └─────────┘ └─────────┘
         T  : │                    0                     │
-        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE +CIRQ
         q_0: ───I───H───BF(0.3)───BF(0.05)───BF(0.1)───
         q_1: ───I───H───BF(0.3)───BF(0.3)──────────────
         q_2: ───I───H───BF(0.3)───BF(0.3)──────────────
@@ -572,17 +572,17 @@ class BitFlip(NoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET)
+            >>> BitFlip(0.3, [0,1]).to_other_language(Language.BRAKET) # doctest: +BRAKET
             BitFlip('probability': 0.3, 'qubit_count': 1)
 
-            >>> BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT).to_quantumchannel()
+            >>> BitFlip(0.3, [0,1]).to_other_language(Language.QISKIT).to_quantumchannel()  # doctest: +QISKIT
             SuperOp([[0.7+0.j, 0. +0.j, 0. +0.j, 0.3+0.j],
                      [0. +0.j, 0.7+0.j, 0.3+0.j, 0. +0.j],
                      [0. +0.j, 0.3+0.j, 0.7+0.j, 0. +0.j],
                      [0.3+0.j, 0. +0.j, 0. +0.j, 0.7+0.j]],
                     input_dims=(2,), output_dims=(2,))
 
-            >>> BitFlip(0.3, [0,1]).to_other_language(Language.CIRQ)
+            >>> BitFlip(0.3, [0,1]).to_other_language(Language.CIRQ) # doctest: +CIRQ
             cirq.bit_flip(p=0.3)
 
         """
@@ -663,7 +663,7 @@ class AmplitudeDamping(NoiseModel):
             AmplitudeDamping(0.1, targets=[0, 1, 2])
             AmplitudeDamping(0.1)
             AmplitudeDamping(0.7, targets=[0, 1])
-        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE +BRAKET
         T  : │                               0                               │
               ┌───┐ ┌─────────┐ ┌─────────┐   ┌─────────┐     ┌────────────┐
         q0 : ─┤ H ├─┤ AD(0.7) ├─┤ AD(0.1) ├───┤ AD(0.1) ├─────┤ GAD(0.2,0) ├──
@@ -675,7 +675,7 @@ class AmplitudeDamping(NoiseModel):
         q2 : ─┤ H ├─┤ AD(0.1) ├─┤ AD(0.1) ├─┤ GAD(0.4,0.1) ├──────────────────
               └───┘ └─────────┘ └─────────┘ └──────────────┘
         T  : │                               0                               │
-        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE +CIRQ
         q_0: ───I───H───AD(0.7)───AD(0.1)───AD(0.1)────────GAD(0,0.2)─────
         q_1: ───I───H───AD(0.7)───AD(0.1)───AD(0.1)────────GAD(0.1,0.4)───
         q_2: ───I───H───AD(0.1)───AD(0.1)───GAD(0.1,0.4)──────────────────
@@ -726,23 +726,23 @@ class AmplitudeDamping(NoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> AmplitudeDamping(0.4, targets=[0, 1]).to_other_language(Language.BRAKET)
+            >>> AmplitudeDamping(0.4, targets=[0, 1]).to_other_language(Language.BRAKET) # doctest: +BRAKET
             AmplitudeDamping('gamma': 0.4, 'qubit_count': 1)
 
-            >>> AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.BRAKET)
+            >>> AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.BRAKET) # doctest: +BRAKET
             GeneralizedAmplitudeDamping('gamma': 0.4, 'probability': 0.2, 'qubit_count': 1)
 
-            >>> AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.QISKIT).to_quantumchannel()
+            >>> AmplitudeDamping(0.2, 0.4, [0, 1]).to_other_language(Language.QISKIT).to_quantumchannel() # doctest: +QISKIT
             SuperOp([[0.88      +0.j, 0.        +0.j, 0.        +0.j, 0.08      +0.j],
                      [0.        +0.j, 0.89442719+0.j, 0.        +0.j, 0.        +0.j],
                      [0.        +0.j, 0.        +0.j, 0.89442719+0.j, 0.        +0.j],
                      [0.12      +0.j, 0.        +0.j, 0.        +0.j, 0.92      +0.j]],
                     input_dims=(2,), output_dims=(2,))
 
-            >>> AmplitudeDamping(0.4, targets=[0, 1]).to_other_language(Language.CIRQ)
+            >>> AmplitudeDamping(0.4, targets=[0, 1]).to_other_language(Language.CIRQ) # doctest: +CIRQ
             cirq.amplitude_damp(gamma=0.4)
 
-            >>> AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.CIRQ)
+            >>> AmplitudeDamping(0.4, 0.2, [1]).to_other_language(Language.CIRQ) # doctest: +CIRQ
             cirq.generalized_amplitude_damp(p=0.2,gamma=0.4)
 
         """
@@ -823,7 +823,7 @@ class PhaseDamping(NoiseModel):
             PhaseDamping(0.32, [0, 1, 2])
             PhaseDamping(0.01)
             PhaseDamping(0.45, [0, 1])
-        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.BRAKET)) # doctest: +NORMALIZE_WHITESPACE +BRAKET
         T  : │                     0                      │
               ┌───┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
         q0 : ─┤ H ├─┤ PD(0.45) ├─┤ PD(0.01) ├─┤ PD(0.32) ├─
@@ -835,7 +835,7 @@ class PhaseDamping(NoiseModel):
         q2 : ─┤ H ├─┤ PD(0.01) ├─┤ PD(0.32) ├──────────────
               └───┘ └──────────┘ └──────────┘
         T  : │                     0                      │
-        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(circuit.to_other_language(Language.CIRQ)) # doctest: +NORMALIZE_WHITESPACE +CIRQ
         q_0: ───I───H───PD(0.45)───PD(0.01)───PD(0.32)───
         q_1: ───I───H───PD(0.45)───PD(0.01)───PD(0.32)───
         q_2: ───I───H───PD(0.01)───PD(0.32)──────────────
@@ -878,24 +878,24 @@ class PhaseDamping(NoiseModel):
             language: Enum representing the target language.
 
         Examples:
-            >>> PhaseDamping(0.4, [0, 1]).to_other_language(Language.BRAKET)
+            >>> PhaseDamping(0.4, [0, 1]).to_other_language(Language.BRAKET) # doctest: +BRAKET
             PhaseDamping('gamma': 0.4, 'qubit_count': 1)
 
-            >>> PhaseDamping(0.4, [0, 1]).to_other_language(Language.QISKIT).to_quantumchannel()
+            >>> PhaseDamping(0.4, [0, 1]).to_other_language(Language.QISKIT).to_quantumchannel() # doctest: +QISKIT
             SuperOp([[1.        +0.j, 0.        +0.j, 0.        +0.j, 0.        +0.j],
                      [0.        +0.j, 0.77459667+0.j, 0.        +0.j, 0.        +0.j],
                      [0.        +0.j, 0.        +0.j, 0.77459667+0.j, 0.        +0.j],
                      [0.        +0.j, 0.        +0.j, 0.        +0.j, 1.        +0.j]],
                     input_dims=(2,), output_dims=(2,))
 
-            >>> print(PhaseDamping(0.4, [0, 1]).to_other_language(Language.MY_QLM))  # doctest: +NORMALIZE_WHITESPACE
+            >>> print(PhaseDamping(0.4, [0, 1]).to_other_language(Language.MY_QLM))  # doctest: +NORMALIZE_WHITESPACE +MYQLM
             Phase Damping channel, gamma = 0.4:
             [[1.         0.        ]
              [0.         0.77459667]]
             [[0.         0.        ]
              [0.         0.77459667]]
 
-            >>> print(PhaseDamping(0.4, [0, 1]).to_other_language(Language.CIRQ))
+            >>> print(PhaseDamping(0.4, [0, 1]).to_other_language(Language.CIRQ)) # doctest: +CIRQ
             phase_damp(gamma=0.4)
 
         """

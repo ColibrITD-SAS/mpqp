@@ -4,7 +4,7 @@ import pytest
 from mpqp import CNOT, AWSDevice, H, QCircuit, run
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
-
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize(
     "circuit",
     [
