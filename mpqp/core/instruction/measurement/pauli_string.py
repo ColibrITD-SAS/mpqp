@@ -881,9 +881,7 @@ class PauliString:
             if atom_str not in result_dict:
                 result_dict[atom_str] = mono.coef
             else:
-                coef: "Coef" = (
-                    result_dict[atom_str] + mono.coef
-                )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                coef: "Coef" = result_dict[atom_str] + mono.coef # pyright: ignore[reportOperatorIssue]
                 result_dict[atom_str] = coef
         return {k: str(result_dict[k]) for k in sorted(result_dict)}
 
@@ -1033,7 +1031,7 @@ class PauliStringMonomial(PauliString):
     def __imul__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
             self.coef * other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+        )  # pyright: ignore[reportOperatorIssue]
         self.coef = new_coef
         return self
 
@@ -1044,7 +1042,7 @@ class PauliStringMonomial(PauliString):
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
             self.coef / other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+        )  # pyright: ignore[reportOperatorIssue]
         self.coef = new_coef
         return self
 
@@ -1060,7 +1058,7 @@ class PauliStringMonomial(PauliString):
         elif isinstance(other, PauliStringMonomial):
             new_coef: "Coef" = (
                 self.coef * other.coef
-            )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+            )  # pyright: ignore[reportOperatorIssue]
             self.coef = new_coef
             self.atoms.extend(other.atoms)
             return self
@@ -1321,7 +1319,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: "Coef") -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportOperatorIssue]
             [self],
         )
 

@@ -1,3 +1,4 @@
+from typing import TYPE_CHECKING
 import numpy as np
 import pytest
 
@@ -18,6 +19,9 @@ from mpqp import (
     run,
 )
 from mpqp.qasm import qasm2_to_cirq_Circuit
+
+if TYPE_CHECKING:
+    from cirq.circuits.circuit import Circuit
 
 
 @pytest.mark.provider("cirq")
@@ -76,7 +80,7 @@ def test_running_local_cirq(circuit: QCircuit):
 
 
 @pytest.fixture
-def list_cirq() -> list[tuple[QCircuit, str]]:
+def list_cirq() -> list[tuple["Circuit", str]]:
     from cirq.circuits.circuit import Circuit
     from cirq.ops.common_gates import CNOT as CirqCNOT
     from cirq.ops.identity import I as CirqI

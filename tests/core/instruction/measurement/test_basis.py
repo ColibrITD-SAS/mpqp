@@ -1,5 +1,4 @@
 import contextlib
-from itertools import product
 
 import numpy as np
 import numpy.typing as npt

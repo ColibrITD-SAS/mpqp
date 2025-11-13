@@ -23,6 +23,10 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
     from cirq.ops.linear_combinations import PauliSum
     from braket.circuits.observables import Sum as BraketSum
+    from braket.circuits.observables import I as Braket_I
+    from braket.circuits.observables import X as Braket_X
+    from braket.circuits.observables import Y as Braket_Y
+    from braket.circuits.observables import Z as Braket_Z
     from qat.core.wrappers.observable import Term
 
 import numpy as np
@@ -259,29 +263,30 @@ def list_pauli_strings_cirq() -> list["PauliSum"]:
         Cirq_X(a) * Cirq_Y(b) * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
         Cirq_I(a) + Cirq_Z(b) + Cirq_X(c),
         Cirq_Y(a) * Cirq_Z(b) * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
-        Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),
-        Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
-        Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
-        2 * Cirq_X(a)
-        + 3 * Cirq_Y(b)
+        Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
+        Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
+        Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
+        2 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
+        + 3 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
         + 4 * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
         -Cirq_X(a)
-        * (1.5 * Cirq_Y(b))
+        * (1.5 * Cirq_Y(b))  # pyright: ignore[reportOperatorIssue]
         * (0.5 * Cirq_Z(c)),  # pyright: ignore[reportOperatorIssue]
-        0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b)
+        0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
         + 2 * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
-        1.5 * Cirq_X(a)
+        1.5 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
         + Cirq_I(b) * -2.5 * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
-        0.25 * Cirq_I(a) * 4 * Cirq_X(b) + 3 * Cirq_Y(c),
+        0.25 * Cirq_I(a) * 4 * Cirq_X(b)
+        + 3 * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
         Cirq_I(a),
         Cirq_X(a),
         Cirq_Z(a),
         Cirq_Y(a),
-        1 * Cirq_I(b),
-        1 * Cirq_X(b),
-        1 * Cirq_Z(b),
-        1 * Cirq_Y(b),
-        1 * Cirq_I(a) + 1 * Cirq_I(a),
+        1 * Cirq_I(b),  # pyright: ignore[reportOperatorIssue]
+        1 * Cirq_X(b),  # pyright: ignore[reportOperatorIssue]
+        1 * Cirq_Z(b),  # pyright: ignore[reportOperatorIssue]
+        1 * Cirq_Y(b),  # pyright: ignore[reportOperatorIssue]
+        1 * Cirq_I(a) + 1 * Cirq_I(a),  # pyright: ignore[reportOperatorIssue]
         1 * Cirq_I(a) + 1 * Cirq_X(a),  # pyright: ignore[reportOperatorIssue]
         1 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
         + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
@@ -293,7 +298,9 @@ def list_pauli_strings_cirq() -> list["PauliSum"]:
 
 
 @pytest.fixture
-def list_pauli_strings_braket() -> list["BraketSum"]:
+def list_pauli_strings_braket() -> (
+    list[Union["BraketSum", "Braket_I", "Braket_X", "Braket_Y", "Braket_Z"]]
+):
     from braket.circuits.observables import I as Braket_I
     from braket.circuits.observables import X as Braket_X
     from braket.circuits.observables import Y as Braket_Y
@@ -372,12 +379,12 @@ def list_pauli_strings_qiskit() -> list["SparsePauliOp"]:
         SparsePauliOp(["IXI", "IIY"]),
         SparsePauliOp(
             ["XII", "YII", "ZII"],
-            coeffs=[2.0, 3.0, 4.0],
+            coeffs=[2.0, 3.0, 4.0], # pyright: ignore[reportArgumentType]
         ),
-        SparsePauliOp(["XYZ"], coeffs=[-0.75]),
-        SparsePauliOp(["ZYI", "IIX"], coeffs=[0.25, 2.0]),
-        SparsePauliOp(["XII", "IIY"], coeffs=[1.5, -2.5]),
-        SparsePauliOp(["XII", "IIY"], coeffs=[1.0, 3.0]),
+        SparsePauliOp(["XYZ"], coeffs=[-0.75]), # pyright: ignore[reportArgumentType]
+        SparsePauliOp(["ZYI", "IIX"], coeffs=[0.25, 2.0]), # pyright: ignore[reportArgumentType]
+        SparsePauliOp(["XII", "IIY"], coeffs=[1.5, -2.5]), # pyright: ignore[reportArgumentType]
+        SparsePauliOp(["XII", "IIY"], coeffs=[1.0, 3.0]), # pyright: ignore[reportArgumentType]
         SparsePauliOp(["I"]),
         SparsePauliOp(["X"]),
         SparsePauliOp(["Z"]),

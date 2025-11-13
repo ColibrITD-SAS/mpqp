@@ -646,7 +646,7 @@ def test_from_qiskit(circuit: QiskitCircuit, expected_output: Optional[str]):
     if not isinstance(expected_output, str):
         qcircuit = QCircuit.from_other_language(circuit)
         matrix = Operator(circuit.reverse_bits()).data
-        assert matrix_eq(matrix, qcircuit.to_matrix())
+        assert matrix_eq(matrix, qcircuit.to_matrix()) # pyright: ignore[reportArgumentType]
     else:
         with pytest.raises(ValueError, match=expected_output):
             QCircuit.from_other_language(circuit)

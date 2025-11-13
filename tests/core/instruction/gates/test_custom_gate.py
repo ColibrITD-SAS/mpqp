@@ -1,7 +1,6 @@
 import contextlib
 import random
 from functools import reduce
-from itertools import product
 
 import numpy as np
 import pytest

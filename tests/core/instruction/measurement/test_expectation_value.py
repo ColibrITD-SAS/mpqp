@@ -4,7 +4,6 @@ import warnings
 from typing import TYPE_CHECKING, Union
 
 if TYPE_CHECKING:
-    from qiskit.quantum_info import Operator
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
 
@@ -51,16 +50,18 @@ def list_to_cirq_pauli() -> (
     from cirq.ops.identity import I as Cirq_I
     from cirq.ops.pauli_gates import X as Cirq_X
 
-    a, b, c = LineQubit.range(3)
+    a, b = LineQubit.range(2)
 
-    return (
-        [
-            (
-                Observable(pI @ pI + pI @ pX),
-                sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
-            ),
-        ],
-    )
+    return [
+        (
+            [
+                (
+                    Observable(pI @ pI + pI @ pX),
+                    sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
+                ),
+            ],
+        )
+    ]
 
 
 @pytest.mark.provider("cirq")

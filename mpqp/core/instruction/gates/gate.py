@@ -204,12 +204,12 @@ class Gate(Instruction, ABC):
         for attr_name in dir(self):
             if attr_name == "cirq_gate":
                 try:
-                    import cirq
+                    import cirq # pyright: ignore[reportUnusedImport]
                 except ImportError:
                     continue
             if attr_name == "braket_gate":
                 try:
-                    import braket
+                    import braket # pyright: ignore[reportUnusedImport]
                 except ImportError:
                     continue
             if (
