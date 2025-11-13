@@ -379,12 +379,18 @@ def list_pauli_strings_qiskit() -> list["SparsePauliOp"]:
         SparsePauliOp(["IXI", "IIY"]),
         SparsePauliOp(
             ["XII", "YII", "ZII"],
-            coeffs=[2.0, 3.0, 4.0], # pyright: ignore[reportArgumentType]
+            coeffs=[2.0, 3.0, 4.0],  # pyright: ignore[reportArgumentType]
         ),
-        SparsePauliOp(["XYZ"], coeffs=[-0.75]), # pyright: ignore[reportArgumentType]
-        SparsePauliOp(["ZYI", "IIX"], coeffs=[0.25, 2.0]), # pyright: ignore[reportArgumentType]
-        SparsePauliOp(["XII", "IIY"], coeffs=[1.5, -2.5]), # pyright: ignore[reportArgumentType]
-        SparsePauliOp(["XII", "IIY"], coeffs=[1.0, 3.0]), # pyright: ignore[reportArgumentType]
+        SparsePauliOp(["XYZ"], coeffs=[-0.75]),  # pyright: ignore[reportArgumentType]
+        SparsePauliOp(
+            ["ZYI", "IIX"], coeffs=[0.25, 2.0]
+        ),  # pyright: ignore[reportArgumentType]
+        SparsePauliOp(
+            ["XII", "IIY"], coeffs=[1.5, -2.5]
+        ),  # pyright: ignore[reportArgumentType]
+        SparsePauliOp(
+            ["XII", "IIY"], coeffs=[1.0, 3.0]
+        ),  # pyright: ignore[reportArgumentType]
         SparsePauliOp(["I"]),
         SparsePauliOp(["X"]),
         SparsePauliOp(["Z"]),
