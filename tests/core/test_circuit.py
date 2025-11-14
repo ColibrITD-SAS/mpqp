@@ -530,7 +530,7 @@ def test_to_other_language_qiskit(
 @pytest.fixture
 def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
     from braket.circuits import Circuit as BraketCircuit
-    
+
     return [
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
