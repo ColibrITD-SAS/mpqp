@@ -231,10 +231,12 @@ def exec_all_native_gates_local_noise(
 @pytest.mark.provider("braket")
 @pytest.mark.parametrize(
     "depol_noise, shots, device",
-    product(
-        [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
-        [500, 1_000, 5_000, 10_000, 50_000, 100_000],
-        noisy_devices_Braket,
+    list(
+        product(
+            [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
+            [500, 1_000, 5_000, 10_000, 50_000, 100_000],
+            noisy_devices_Braket,
+        )
     ),
 )
 def test_validate_depolarizing_noise_braket(
@@ -249,10 +251,12 @@ def test_validate_depolarizing_noise_braket(
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "depol_noise, shots, device",
-    product(
-        [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
-        [500, 1_000, 5_000, 10_000, 50_000, 100_000],
-        noisy_devices_qiskit,
+    list(
+        product(
+            [0.001, 0.01, 0.1, 0.1, 0.2, 0.3],
+            [500, 1_000, 5_000, 10_000, 50_000, 100_000],
+            noisy_devices_qiskit,
+        )
     ),
 )
 def test_validate_depolarizing_noise_qiskit(

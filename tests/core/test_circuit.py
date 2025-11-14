@@ -530,7 +530,7 @@ def test_to_other_language_qiskit(
 @pytest.fixture
 def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
     from braket.circuits import Circuit as BraketCircuit
-    
+
     return [
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
@@ -651,8 +651,8 @@ def test_from_qiskit(circuit: QiskitCircuit, expected_output: Optional[str]):
         qcircuit = QCircuit.from_other_language(circuit)
         matrix = Operator(circuit.reverse_bits()).data
         assert matrix_eq(
-            matrix, qcircuit.to_matrix()
-        )  # pyright: ignore[reportArgumentType]
+            matrix, qcircuit.to_matrix()  # pyright: ignore[reportArgumentType]
+        )
     else:
         with pytest.raises(ValueError, match=expected_output):
             QCircuit.from_other_language(circuit)

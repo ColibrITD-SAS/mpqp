@@ -262,8 +262,9 @@ def run_doctest(
     if active_providers is not None:
         for name, flag in PROVIDER_FLAGS.items():
             if (
-                len(active_providers) == 0 or name not in active_providers
-            ):  # pyright: ignore[reportOperatorIssue, reportArgumentType]
+                len(active_providers) == 0  # pyright: ignore[reportArgumentType]
+                or name not in active_providers  # pyright: ignore[reportOperatorIssue]
+            ):
                 func_to_pass.append(name)
                 if name == "qiskit":
                     func_to_pass.append("ibm")

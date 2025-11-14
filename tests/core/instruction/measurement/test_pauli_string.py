@@ -264,29 +264,29 @@ def list_pauli_strings_cirq() -> list["PauliSum"]:
         Cirq_I(a) + Cirq_Z(b) + Cirq_X(c),
         Cirq_Y(a) * Cirq_Z(b) * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
         Cirq_Z(a) * Cirq_Y(b) + Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
-        Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
-        Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
+        Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
+        Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
         2 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
         + 3 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
         + 4 * Cirq_Z(c),  # pyright: ignore[reportOperatorIssue]
-        -Cirq_X(a)
+        -Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
         * (1.5 * Cirq_Y(b))  # pyright: ignore[reportOperatorIssue]
         * (0.5 * Cirq_Z(c)),  # pyright: ignore[reportOperatorIssue]
         0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
         + 2 * Cirq_X(c),  # pyright: ignore[reportOperatorIssue]
         1.5 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
-        + Cirq_I(b) * -2.5 * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
+        + Cirq_I(b) * -2.5 * Cirq_Y(c),
         0.25 * Cirq_I(a) * 4 * Cirq_X(b)
         + 3 * Cirq_Y(c),  # pyright: ignore[reportOperatorIssue]
         Cirq_I(a),
         Cirq_X(a),
         Cirq_Z(a),
         Cirq_Y(a),
-        1 * Cirq_I(b),  # pyright: ignore[reportOperatorIssue]
+        1 * Cirq_I(b),
         1 * Cirq_X(b),  # pyright: ignore[reportOperatorIssue]
         1 * Cirq_Z(b),  # pyright: ignore[reportOperatorIssue]
         1 * Cirq_Y(b),  # pyright: ignore[reportOperatorIssue]
-        1 * Cirq_I(a) + 1 * Cirq_I(a),  # pyright: ignore[reportOperatorIssue]
+        1 * Cirq_I(a) + 1 * Cirq_I(a),
         1 * Cirq_I(a) + 1 * Cirq_X(a),  # pyright: ignore[reportOperatorIssue]
         1 * Cirq_X(a)  # pyright: ignore[reportOperatorIssue]
         + 1 * Cirq_Z(a),  # pyright: ignore[reportOperatorIssue]
