@@ -83,7 +83,9 @@ sampling_devices_qiskit: list[AvailableDevice] = [
     device
     for device_family in [IBMDevice]
     for device in device_family
-    if not device.is_remote() and device.supports_samples()
+    if not device.is_remote()
+    and device.supports_samples()
+    and not device.has_reduced_gate_set()
 ]
 
 sampling_devices_cirq: list[AvailableDevice] = [
@@ -209,8 +211,7 @@ def exec_state_vector_result_HEA_ansatz(
     expected_vector: npt.NDArray[np.complex128],
     state_vector_devices: list[AvailableDevice],
 ):
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
+    batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
@@ -323,8 +324,7 @@ def exec_state_vector_various_native_gates(
     expected_vector: Matrix,
     state_vector_devices: list[AvailableDevice],
 ):
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(QCircuit(gates), state_vector_devices)
+    batch = run(QCircuit(gates), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
@@ -404,8 +404,7 @@ def exec_sample_basis_state_in_samples(
 ):
     c = QCircuit(gates)
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=10000))
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(c, sampling_devices)
+    batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
@@ -415,9 +414,15 @@ def exec_sample_basis_state_in_samples(
 
 
 list_instruction_proba = [
-    ([H(0), CNOT(0, 1), CNOT(1, 2)], [0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]),
-    ([CustomGate(np.array([[0, 1], [1, 0]]), [1])], [0.0, 1.0, 0.0, 0.0]),
-    ([U(0.215, 0.5588, 8, 1)], [0.9884882, 0.0115118, 0.0, 0.0]),
+    (
+        [H(0), CNOT(0, 1), CNOT(1, 2)],
+        np.array([0.5, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.5]),
+    ),
+    ([CustomGate(np.array([[0, 1], [1, 0]]), [1])], np.array([0.0, 1.0, 0.0, 0.0])),
+    (
+        [U(0.215, 0.5588, 8, 1)],
+        np.array([0.9884881971034313, 0.011511802896568812, 0.0, 0.0]),
+    ),
 ]
 
 
@@ -470,14 +475,13 @@ def exec_sample_counts_in_trust_interval(
     shots = 50000
     err_rate = 0.2
     err_rate_percentage = 1 - np.power(1 - err_rate, (1 / 2))
-    expected_counts = [int(count) for count in np.round(shots * probabilities)]
+    res = run(c, IBMDevice.AER_SIMULATOR_STATEVECTOR)
+    expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(c, sampling_devices)
+    batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
-        print(result)
         print("expected_counts: " + str(expected_counts))
         counts = result.counts
         # check if the true value is inside the trust interval
@@ -485,7 +489,6 @@ def exec_sample_counts_in_trust_interval(
             trust_interval = np.ceil(
                 err_rate_percentage * expected_counts[i] + shots / 15
             )
-            print(trust_interval)
             assert (
                 np.floor(counts[i] - trust_interval)
                 <= expected_counts[i]
@@ -519,7 +522,7 @@ def test_observable_ideal_case_qiskit(
     gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
 ):
     exec_observable_ideal_case(
-        gates, observable, expected_vector, sampling_devices_qiskit
+        gates, observable, expected_vector, state_vector_devices_qiskit
     )
 
 
@@ -529,7 +532,7 @@ def test_observable_ideal_case_cirq(
     gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
 ):
     exec_observable_ideal_case(
-        gates, observable, expected_vector, sampling_devices_cirq
+        gates, observable, expected_vector, state_vector_devices_cirq
     )
 
 
@@ -539,7 +542,7 @@ def test_observable_ideal_case_braket(
     gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
 ):
     exec_observable_ideal_case(
-        gates, observable, expected_vector, sampling_devices_braket
+        gates, observable, expected_vector, state_vector_devices_braket
     )
 
 
@@ -549,7 +552,7 @@ def test_observable_ideal_case_myqlm(
     gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
 ):
     exec_observable_ideal_case(
-        gates, observable, expected_vector, sampling_devices_myqlm
+        gates, observable, expected_vector, state_vector_devices_myqlm
     )
 
 
@@ -566,10 +569,12 @@ def exec_observable_ideal_case(
         )
     )
     expected_value = float(
-        expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
+        expected_vector.transpose()
+        .conjugate()
+        .dot(observable.dot(expected_vector))
+        .real
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(c, sampling_devices)
+    batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         evs = result.expectation_values

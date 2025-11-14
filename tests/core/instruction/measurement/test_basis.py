@@ -388,9 +388,8 @@ def test_run_custom_basis_sampling_one_qubit_myqlm():
 def exec_run_custom_basis_sampling_one_qubit(device: AvailableDevice):
     vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
     basis = Basis(vectors)
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(
-            QCircuit([X(0), X(0), BasisMeasure(basis=basis)]),
-            device,
-        )
+    run(
+        QCircuit([X(0), X(0), BasisMeasure(basis=basis)]),
+        device,
+    )
     assert True

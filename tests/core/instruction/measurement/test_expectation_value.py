@@ -54,13 +54,9 @@ def list_to_cirq_pauli() -> (
 
     return [
         (
-            [
-                (
-                    Observable(pI @ pI + pI @ pX),
-                    sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
-                ),
-            ],
-        )
+            Observable(pI @ pI + pI @ pX),
+            sum(1.0 * Cirq_I(a) * Cirq_I(b) + Cirq_X(b)),
+        ),
     ]
 
 

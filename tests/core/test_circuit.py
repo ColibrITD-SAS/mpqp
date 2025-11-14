@@ -118,6 +118,8 @@ def list_qiskit_funky_circuits() -> list[QiskitCircuit]:
 @pytest.fixture
 def list_braket_funky_circuits() -> list[BraketCircuit]:
     from braket.circuits import Circuit as BraketCircuit
+    from braket.circuits import Noise as BraketNoise
+    from braket.circuits.gate import Gate as BraketGate
 
     braket_circuit1 = BraketCircuit().h(0).x(control=0, target=1)  # type: ignore[reportAttributeAccessIssue]
     braket_circuit1.ry(angle=0.13, target=2, control=(0, 1))
@@ -527,6 +529,8 @@ def test_to_other_language_qiskit(
 
 @pytest.fixture
 def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
+    from braket.circuits import Circuit as BraketCircuit
+    
     return [
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
@@ -741,7 +745,7 @@ def test_from_qasm(circuit: str, expected_output: QCircuit):
 
 
 @pytest.fixture
-def list_random_cirq_circuit() -> list[cirq_Circuit]:
+def list_random_cirq_circuit() -> list["cirq_Circuit"]:
     from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
 
     return [
@@ -800,7 +804,7 @@ def test_from_other_language_qiskit_circuits(
 
 @pytest.mark.provider("braket")
 def test_from_other_language_braket_circuits(
-    list_braket_funky_circuits: list[BraketCircuit],
+    list_braket_funky_circuits: list["BraketCircuit"],
 ):
     for i in range(len(list_braket_funky_circuits)):
         if i == 0:

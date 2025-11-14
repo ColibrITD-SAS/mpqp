@@ -378,19 +378,19 @@ def list_pauli_strings_qiskit() -> list["SparsePauliOp"]:
         SparsePauliOp(["XII", "IIY"]),
         SparsePauliOp(["IXI", "IIY"]),
         SparsePauliOp(
-            ["XII", "YII", "ZII"],
+            ["XII", "IYI", "IIZ"],
             coeffs=[2.0, 3.0, 4.0],  # pyright: ignore[reportArgumentType]
         ),
         SparsePauliOp(["XYZ"], coeffs=[-0.75]),  # pyright: ignore[reportArgumentType]
         SparsePauliOp(
-            ["ZYI", "IIX"], coeffs=[0.25, 2.0]
-        ),  # pyright: ignore[reportArgumentType]
+            ["ZYI", "IIX"], coeffs=[0.25, 2.0]  # pyright: ignore[reportArgumentType]
+        ),
         SparsePauliOp(
-            ["XII", "IIY"], coeffs=[1.5, -2.5]
-        ),  # pyright: ignore[reportArgumentType]
+            ["XII", "IIY"], coeffs=[1.5, -2.5]  # pyright: ignore[reportArgumentType]
+        ),
         SparsePauliOp(
-            ["XII", "IIY"], coeffs=[1.0, 3.0]
-        ),  # pyright: ignore[reportArgumentType]
+            ["IXI", "IIY"], coeffs=[1.0, 3.0]  # pyright: ignore[reportArgumentType]
+        ),
         SparsePauliOp(["I"]),
         SparsePauliOp(["X"]),
         SparsePauliOp(["Z"]),
@@ -417,29 +417,29 @@ def list_pauli_strings_my_qlm() -> list[list["Term"]]:
             Term(1, "Y", [1]),
             Term(1, "Z", [2]),
         ],
-        [Term(1, "XYZ", [0, 1, 2])],
+        Term(1, "XYZ", [0, 1, 2]),
         [
             Term(1, "I", [0]),
             Term(1, "Z", [1]),
             Term(1, "X", [2]),
         ],
-        [Term(1, "YZX", [0, 1, 2])],
+        Term(1, "YZX", [0, 1, 2]),
         [Term(1, "ZY", [0, 1]), Term(1, "X", [2])],
         [Term(1, "X", [0]), Term(1, "Y", [2])],
         [Term(1, "X", [1]), Term(1, "Y", [2])],
         [Term(2, "X", [0]), Term(3, "Y", [1]), Term(4, "Z", [2])],
-        [Term(-0.75, "XYZ", [0, 1, 2])],
+        Term(-0.75, "XYZ", [0, 1, 2]),
         [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])],
         [Term(1.5, "X", [0]), Term(-2.5, "Y", [2])],
         [Term(4 * 0.25, "X", [1]), Term(3, "Y", [2])],
-        [Term(1, "I", [])],
-        [Term(1, "X", [0])],
-        [Term(1, "Z", [0])],
-        [Term(1, "Y", [0])],
-        [Term(1, "II", [0, 1])],
-        [Term(1, "X", [1])],
-        [Term(1, "Z", [1])],
-        [Term(1, "Y", [1])],
+        Term(1, "I", [0]),
+        Term(1, "X", [0]),
+        Term(1, "Z", [0]),
+        Term(1, "Y", [0]),
+        Term(1, "II", [0, 1]),
+        Term(1, "X", [1]),
+        Term(1, "Z", [1]),
+        Term(1, "Y", [1]),
         [Term(1, "I", [0]), Term(1, "I", [0])],
         [Term(1, "I", [0]), Term(1, "X", [0])],
         [Term(1, "Z", [0]), Term(1, "X", [0])],
@@ -478,7 +478,7 @@ def test_from_other_language_qiskit(
 @pytest.mark.provider("myqlm")
 def test_from_other_language_my_qlm(
     list_pauli_strings: list[PauliString],
-    list_pauli_strings_my_qlm: list[list["Term"]],
+    list_pauli_strings_my_qlm: list["Term"],
 ):
     for mpqp_ps, my_qlm_ps in zip(list_pauli_strings, list_pauli_strings_my_qlm):
         assert PauliString.from_other_language(my_qlm_ps) == mpqp_ps

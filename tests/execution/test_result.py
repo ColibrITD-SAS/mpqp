@@ -215,25 +215,25 @@ def exec_sample_nb_shot_handle(device: AvailableDevice):
 
 
 @pytest.mark.provider("qiskit")
-@pytest.mark.parametrize("device", sampling_devices_qiskit)
+@pytest.mark.parametrize("device", state_vector_devices_qiskit)
 def test_state_vector_nb_shot_handle_qiskit(device: AvailableDevice):
     exec_state_vector_nb_shot_handle(device)
 
 
 @pytest.mark.provider("braket")
-@pytest.mark.parametrize("device", sampling_devices_braket)
+@pytest.mark.parametrize("device", state_vector_devices_braket)
 def test_state_vector_nb_shot_handle_braket(device: AvailableDevice):
     exec_state_vector_nb_shot_handle(device)
 
 
 @pytest.mark.provider("cirq")
-@pytest.mark.parametrize("device", sampling_devices_cirq)
+@pytest.mark.parametrize("device", state_vector_devices_cirq)
 def test_state_vector_nb_shot_handle_cirq(device: AvailableDevice):
     exec_state_vector_nb_shot_handle(device)
 
 
 @pytest.mark.provider("myqlm")
-@pytest.mark.parametrize("device", sampling_devices_myqlm)
+@pytest.mark.parametrize("device", state_vector_devices_myqlm)
 def test_state_vector_nb_shot_handle_myqlm(device: AvailableDevice):
     exec_state_vector_nb_shot_handle(device)
 

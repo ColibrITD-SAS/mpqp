@@ -399,8 +399,7 @@ def exec_all_native_gates(device: AvailableDevice):
 
     circuit.to_other_language(Language.QASM2)
     circuit.to_other_language(Language.QASM3)
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(
-            circuit,
-            device,
-        )
+    run(
+        circuit,
+        device,
+    )

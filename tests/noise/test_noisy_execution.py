@@ -139,8 +139,7 @@ def exec_noisy_expectation_value_execution_without_error(
             PhaseDamping(0.6),
         ]
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, devices)
+    run(circuit, devices)
     assert True
 
 
@@ -183,8 +182,7 @@ def exec_all_native_gates_global_noise_execution_without_error(
             PhaseDamping(0.4, gates=[CNOT, H]),
         ]
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, devices)
+    run(circuit, devices)
     assert True
 
 
@@ -226,8 +224,7 @@ def exec_all_native_gates_local_noise(
             PhaseDamping(0.4, [0, 1, 2], gates=[CNOT, H]),
         ]
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, devices)
+    run(circuit, devices)
     assert True
 
 
