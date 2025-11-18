@@ -8,10 +8,8 @@ use MPQP."""
 
 import numpy as np
 
-from mpqp import Barrier, QCircuit
-from mpqp.execution import IBMDevice, Result, run
+from mpqp import Barrier, BasisMeasure, IBMDevice, QCircuit, Result, run
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure
 
 U_gate = Ry(np.pi / 4, 0)
 precision = 3
@@ -31,7 +29,7 @@ def c_Uk(unitary: Gate, phase_precision: int) -> CustomGate:
         k_vec = np.zeros((N_phase, N_phase))
         k_vec[k, k] = 1
         matrix += np.kron(k_vec, unitary.power(k).to_matrix())
-    return CustomGate(UnitaryMatrix(matrix), list(range(total_size)))
+    return CustomGate(matrix, list(range(total_size)))
 
 
 qft = QCircuit(

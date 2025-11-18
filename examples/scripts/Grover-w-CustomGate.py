@@ -13,14 +13,13 @@ import sys
 
 import numpy as np
 
-from mpqp import QCircuit
-from mpqp.execution import IBMDevice, run
+from mpqp import IBMDevice, QCircuit, run
 from mpqp.gates import *
 
 n = int(sys.argv[1])
 k = math.floor(math.pi / (4 * math.asin(math.sqrt(1 / 2**n))))
-oracle = UnitaryMatrix(np.diag([1] * (2**n - 1) + [-1]))
-diffusion = CustomGate(UnitaryMatrix(np.diag([-1] + [1] * (2**n - 1))), list(range(n)))
+oracle = np.diag([1] * (2**n - 1) + [-1])
+diffusion = CustomGate(np.diag([-1] + [1] * (2**n - 1)), list(range(n)))
 qaa = QCircuit(
     H.range(n)
     + sum(
