@@ -209,6 +209,7 @@ def _run_single(
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    reservation_arn: Optional[str] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -275,7 +276,7 @@ def _run_single(
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job)
+        return run_braket(job, reservation_arn=reservation_arn)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
     elif isinstance(device, AZUREDevice):
@@ -290,6 +291,7 @@ def run(
     device: Sequence[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    reservation_arn: Optional[str] = None,
 ) -> BatchResult: ...
 
 
@@ -299,6 +301,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    reservation_arn: Optional[str] = None,
 ) -> BatchResult: ...
 
 
@@ -308,6 +311,7 @@ def run(
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    reservation_arn: Optional[str] = None,
 ) -> Result: ...
 
 
@@ -317,6 +321,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: Optional[dict[Expr | str, Complex]] = None,
     display_breakpoints: bool = True,
+    reservation_arn: Optional[str] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -401,6 +406,7 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
+                    reservation_arn,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
@@ -415,6 +421,7 @@ def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
+    reservation_arn: Optional[str] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -462,7 +469,7 @@ def submit(
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
-        job_id, _ = submit_job_braket(job)
+        job_id, _ = submit_job_braket(job, reservation_arn=reservation_arn)
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
     else:

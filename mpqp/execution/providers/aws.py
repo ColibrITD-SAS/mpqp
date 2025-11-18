@@ -21,7 +21,6 @@ from mpqp.noise.noise_model import NoiseModel
 from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
 
 if TYPE_CHECKING:
-    from braket.aws import AwsDevice
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
@@ -114,11 +113,6 @@ def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
             f"{job.device} instead"
         )
 
-    if reservation_arn is None:
-        from mpqp.environment.env_manager import get_env_variable
-
-        reservation_arn = get_env_variable("BRAKET_RESERVATION_ARN")
-
     from braket.tasks import GateModelQuantumTaskResult
 
     if isinstance(job.measure, ExpectationMeasure):
@@ -150,11 +144,6 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
     """
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult
-
-    if reservation_arn is None:
-        from mpqp.environment.env_manager import get_env_variable
-
-        reservation_arn = get_env_variable("BRAKET_RESERVATION_ARN")
 
     assert isinstance(job.device, AWSDevice)
     if job.circuit.transpiled_circuit is None:
@@ -244,6 +233,9 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
                 observable=braket_obs, target=job.measure.targets
             )
             job.status = JobStatus.RUNNING
+
+            if TYPE_CHECKING:
+                assert isinstance(device, AWSDevice)
             with optional_reservation_arn(device, reservation_arn):
                 local_result = device.run(
                     copy, shots=job.measure.shots, inputs=None
@@ -287,11 +279,6 @@ def submit_job_braket(
             f"{job.device} instead"
         )
 
-    if reservation_arn is None:
-        from mpqp.environment.env_manager import get_env_variable
-
-        reservation_arn = get_env_variable("BRAKET_RESERVATION_ARN")
-
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using AWS Braket remote simulators"
@@ -324,6 +311,9 @@ def submit_job_braket(
     if job.job_type == JobType.STATE_VECTOR:
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
+
+        if TYPE_CHECKING:
+            assert isinstance(device, AWSDevice)
         with optional_reservation_arn(device, reservation_arn):
             task = device.run(braket_circuit, shots=0, inputs=None)
 
@@ -332,7 +322,7 @@ def submit_job_braket(
             assert job.measure is not None
         job.status = JobStatus.RUNNING
         if TYPE_CHECKING:
-            assert isinstance(device, AwsDevice)
+            assert isinstance(device, AWSDevice)
         with optional_reservation_arn(device, reservation_arn):
             task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
@@ -349,6 +339,9 @@ def submit_job_braket(
         )
 
         job.status = JobStatus.RUNNING
+
+        if TYPE_CHECKING:
+            assert isinstance(device, AWSDevice)
         with optional_reservation_arn(device, reservation_arn):
             task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
@@ -559,13 +552,11 @@ def estimate_cost_single_job(
 
 
 @contextmanager
-def optional_reservation_arn(
-    device: "AwsDevice", reservation_arn: Optional[str] = None
-):
+def optional_reservation_arn(device: AWSDevice, reservation_arn: Optional[str] = None):
     from braket.aws import DirectReservation
 
     if reservation_arn:
-        with DirectReservation(device, reservation_arn=reservation_arn):
+        with DirectReservation(device.get_arn(), reservation_arn=reservation_arn):
             yield
     else:
         yield
