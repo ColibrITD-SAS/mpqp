@@ -9,16 +9,13 @@ from warnings import warn
 import numpy as np
 import numpy.typing as npt
 from scipy.linalg import fractional_matrix_power
-from typeguard import typechecked
 
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
 
 
-@typechecked
 class Gate(Instruction, ABC):
     """Represent a unitary operator acting on qubit(s).
 
@@ -55,9 +52,8 @@ class Gate(Instruction, ABC):
             A numpy array representing the unitary matrix of the gate.
 
         Example:
-            >>> m = UnitaryMatrix(
-            ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
-            ... )
+            >>> m = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
+            ...
             >>> pprint(CustomGate(m, [1, 2]).to_matrix())
             [[0, 0, 0, 1],
              [0, 1, 0, 0],
@@ -130,9 +126,7 @@ class Gate(Instruction, ABC):
             A numpy array representing the unitary matrix of the gate.
 
         Example:
-            >>> m = UnitaryMatrix(
-            ...     np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
-            ... )
+            >>> m = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
             >>> pprint(CustomGate(m, [1, 2]).to_canonical_matrix())
             [[0, 0, 0, 1],
              [0, 1, 0, 0],
@@ -156,7 +150,7 @@ class Gate(Instruction, ABC):
         Example:
             >>> Z(0).inverse()
             Z(0)
-            >>> gate = CustomGate(UnitaryMatrix(np.diag([1,1j])),[0])
+            >>> gate = CustomGate(np.diag([1,1j]),[0])
             >>> pprint(gate.inverse().to_matrix())
             [[1, 0  ],
              [0, -1j]]
@@ -166,7 +160,7 @@ class Gate(Instruction, ABC):
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
-            UnitaryMatrix(self.to_matrix().transpose().conjugate()),
+            self.to_matrix().transpose().conjugate(),
             self.targets,
             (
                 None
@@ -189,12 +183,35 @@ class Gate(Instruction, ABC):
             ``True`` if the two gates' matrix semantics are equal.
 
         Example:
-            >>> X(0).is_equivalent(CustomGate(UnitaryMatrix(np.array([[0,1],[1,0]])),[1]))
+            >>> X(0).is_equivalent(CustomGate(np.array([[0,1],[1,0]]),[1]))
             True
 
         """
         # TODO: test
         return matrix_eq(self.to_matrix(), other.to_matrix())
+
+    def __eq__(self, value: object) -> bool:
+        return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
+
+    def to_dict(self) -> dict[str, int | str | list[str] | float | None]:
+        """
+        Serialize the gate to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the gate.
+        """
+        result = {}
+        for attr_name in dir(self):
+            if (
+                attr_name not in {'_abc_impl'}
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            ):
+                value = getattr(self, attr_name)
+                if isinstance(value, np.ndarray):
+                    value = value.tolist()
+                result[attr_name] = value
+        return result
 
     def power(self, exponent: float) -> Gate:
         """Compute the exponentiation `G^{exponent}` of this gate G.
@@ -232,12 +249,12 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex64] = fractional_matrix_power(
+        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
             self.to_matrix(), exponent
         )
 
         return CustomGate(
-            definition=UnitaryMatrix(semantics / np.linalg.norm(semantics, ord=2)),
+            matrix=semantics / np.linalg.norm(semantics, ord=2),
             targets=self.targets,
             label=None if self.label is None else self.label + f"^{exponent}",
         )
@@ -282,12 +299,12 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
             else:
                 targets = self.targets + other.targets
 
-        gd = UnitaryMatrix(np.kron(self.to_matrix(), other.to_matrix()))
+        gd = np.kron(self.to_matrix(), other.to_matrix())
 
         l1 = "g1" if self.label is None else self.label
         l2 = "g2" if self.label is None else self.label
 
-        return CustomGate(definition=gd, targets=targets, label=f"{l1}⊗{l2}")
+        return CustomGate(matrix=gd, targets=targets, label=f"{l1}⊗{l2}")
 
     def _mandatory_label(self, postfix: str = ""):
         return "g" + postfix if self.label is None else self.label
@@ -319,7 +336,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
-            definition=UnitaryMatrix(self.to_matrix().dot(other.to_matrix())),
+            matrix=self.to_matrix().dot(other.to_matrix()),
             targets=self._check_targets_compatibility(other, targets),
             label=f"{self._mandatory_label('1')}×{other._mandatory_label('2')}",
         )
@@ -348,7 +365,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         return CustomGate(
-            UnitaryMatrix(self.to_matrix() * scalar / abs(scalar)),
+            self.to_matrix() * scalar / abs(scalar),
             targets=self.targets,
             label=f"{scalar}×{self._mandatory_label()}",
         )
@@ -379,7 +396,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
 
         subtraction = self.to_matrix() - other.to_matrix()
         return CustomGate(
-            definition=UnitaryMatrix(subtraction / np.linalg.norm(subtraction, 2)),
+            matrix=subtraction / np.linalg.norm(subtraction, 2),
             targets=self._check_targets_compatibility(other, targets),
             label=f"{self._mandatory_label('1')}-{other._mandatory_label('2')}",
         )
@@ -410,7 +427,7 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
 
         addition = self.to_matrix() + other.to_matrix()
         return CustomGate(
-            definition=UnitaryMatrix(addition / np.linalg.norm(addition, 2)),
+            matrix=addition / np.linalg.norm(addition, 2),
             targets=self._check_targets_compatibility(other, targets),
             label=f"{self._mandatory_label('1')}+{other._mandatory_label('2')}",
         )
@@ -442,7 +459,6 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         return self.minus(other)
 
 
-@typechecked
 class InvolutionGate(Gate, ABC):
     """Gate who's inverse is itself.
 
@@ -455,7 +471,6 @@ class InvolutionGate(Gate, ABC):
         return deepcopy(self)
 
 
-@typechecked
 class SingleQubitGate(Gate, ABC):
     """Abstract class for gates operating on a single qubit.
 

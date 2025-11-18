@@ -1,19 +1,18 @@
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 from venv import logger
 
 from ply.lex import lex
 
-
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
+from mpqp.core.instruction import Barrier
 from mpqp.gates import *
 from mpqp.measures import *
-from mpqp.core.instruction import Barrier
 from mpqp.qasm.lexer_utils import *
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates, remove_include_and_comment
-
+from mpqp.qasm.open_qasm_2_and_3 import remove_include_and_comment, remove_user_gates
 
 # TODO:
 # if: not handle
@@ -83,16 +82,7 @@ def qasm2_parse(input_string: str) -> QCircuit:
         raise SyntaxError('Invalid OpenQASM, must start with OPENQASM 2.0;')
 
     idx = 3
-    if idx < len(tokens) and tokens[idx].type == 'QREG':
-        if check_Id(tokens, idx + 1) and tokens[idx + 5].type != 'SEMICOLON':
-            raise SyntaxError(
-                'must  have a qreg with the number of qubit such as "qreg ID[INTN];": '
-                + f'{" ".join(str(token.value) for token in tokens[idx : idx + 5])}'
-            )
-        circuit = QCircuit(tokens[idx + 3].value)
-        idx += 6
-    else:
-        circuit = QCircuit(0)
+    circuit = QCircuit()
     i_max = len(tokens)
     while idx < i_max:
         logger.debug(circuit)
@@ -105,7 +95,9 @@ def qasm2_parse(input_string: str) -> QCircuit:
 
 def _TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     token = tokens[idx]
-    if token.type == 'CREG':
+    if token.type == 'QREG':
+        return _TokenQREG(circuit, tokens, idx)
+    elif token.type == 'CREG':
         return _TokenCREG(circuit, tokens, idx)
     elif token.type == 'MEASURE':
         return _TokenMeasure(circuit, tokens, idx)
@@ -115,6 +107,17 @@ def _TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
         return _TokenGate(circuit, tokens, idx)
     else:
         raise SyntaxError(f"Invalid token: {idx} {token.type}")
+
+
+def _TokenQREG(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+    if idx < len(tokens) and tokens[idx].type == 'QREG':
+        if check_Id(tokens, idx + 1) and tokens[idx + 5].type != 'SEMICOLON':
+            raise SyntaxError(
+                'must  have a qreg with the number of qubit such as "qreg ID[INTN];": '
+                + f'{" ".join(str(token.value) for token in tokens[idx : idx + 5])}'
+            )
+        circuit.nb_qubits += tokens[idx + 3].value
+    return idx + 6
 
 
 def _TokenCREG(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
@@ -166,6 +169,10 @@ def _TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     idx += 2
+    while (
+        tokens[idx].type != 'SEMICOLON'
+    ):  # 3M-TODO: to be removed if we handle multi target
+        idx += 1
     if tokens[idx].type != 'SEMICOLON':
         raise SyntaxError(f"Barrier: {idx} {tokens[idx]}")
     circuit.add(Barrier())
@@ -346,3 +353,43 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     target = tokens[idx + 2].value
     circuit.add(U(theta, phi, lbda, target))
     return idx + 5
+
+
+def parse_qasm2_gates(code: str) -> tuple[str, float]:
+    from mpqp.qasm.open_qasm_2_and_3 import (
+        qasm_code,
+        remove_user_gates,
+        Instr,
+        parse_gphase_instruction,
+        remove_include_and_comment,
+    )
+    import re
+
+    code = remove_include_and_comment(code)
+
+    lines = code.split(";")
+    lines.insert(1, qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
+    code = ";".join(lines)
+
+    code = remove_user_gates(code)
+
+    gphase = 0
+    clean_code = []
+    to_add = True
+
+    for line in code.split("\n"):
+        if line.startswith("gphase"):
+            match = re.match(r"\s*(\w+)\s*", line)
+            if match:
+                gphase = parse_gphase_instruction(gphase, line, match)
+            to_add = False
+        elif line.startswith(";"):
+            to_add = False
+        elif "//" in line:
+            line = line[:13]
+
+        if to_add == True:
+            clean_code.append(line)
+        to_add = True
+
+    return "\n".join(clean_code), gphase

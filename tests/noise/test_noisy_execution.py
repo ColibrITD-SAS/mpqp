@@ -8,22 +8,23 @@ from typing import Any, Callable, Iterable
 import numpy as np
 import pytest
 
-from mpqp import QCircuit
-from mpqp.core.instruction.measurement import (
-    BasisMeasure,
-    ExpectationMeasure,
-    Observable,
-)
-from mpqp.execution import (
+from mpqp import (
+    AmplitudeDamping,
     ATOSDevice,
-    AvailableDevice,
     AWSDevice,
+    BasisMeasure,
+    BitFlip,
+    Depolarizing,
+    ExpectationMeasure,
     GOOGLEDevice,
     IBMDevice,
+    Observable,
+    PhaseDamping,
+    QCircuit,
     run,
 )
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
@@ -59,7 +60,8 @@ def circuit():
             X(1),
             Y(2),
             Z(0),
-            S(1),
+            S(0),
+            S_dagger(1),
             T(0),
             Rx(1.2324, 2),
             Ry(-2.43, 0),
@@ -136,7 +138,9 @@ def test_all_native_gates_local_noise(
     circuit.add(
         [
             BasisMeasure([0, 1, 2], shots=1023),
-            Depolarizing(0.23, [0, 2], gates=[H, X, Y, Z, S, T, Rx, Ry, Rz, Rk, P, U]),
+            Depolarizing(
+                0.23, [0, 2], gates=[H, X, Y, Z, S, S_dagger, T, Rx, Ry, Rz, Rk, P, U]
+            ),
             Depolarizing(0.23, [0, 1], dimension=2, gates=[SWAP, CNOT, CZ]),
             BitFlip(0.2, [0, 2]),
             BitFlip(0.1, [0, 1], gates=[CNOT, H]),

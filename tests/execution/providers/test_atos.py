@@ -7,12 +7,8 @@ import sys
 import numpy as np
 import pytest
 
-from mpqp import QCircuit
-from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
-from mpqp.execution import run
-from mpqp.execution.devices import ATOSDevice
+from mpqp import ATOSDevice, BasisMeasure, ExpectationMeasure, Observable, QCircuit, run
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure
 
 
 @pytest.mark.parametrize(
@@ -24,7 +20,7 @@ from mpqp.measures import BasisMeasure
                 T(0),
                 CNOT(0, 1),
                 Ry(np.pi / 2, 2),
-                S(1),
+                S_dagger(1),
                 CZ(2, 1),
                 SWAP(2, 0),
                 BasisMeasure(list(range(3)), shots=2000),
@@ -36,7 +32,7 @@ from mpqp.measures import BasisMeasure
                 T(0),
                 CNOT(0, 1),
                 Ry(np.pi / 2, 2),
-                S(1),
+                S_dagger(1),
                 CZ(2, 1),
                 SWAP(2, 0),
                 BasisMeasure(list(range(3)), shots=0),

@@ -6,18 +6,17 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Optional, Union
-
-if TYPE_CHECKING:
-    from sympy import Expr
-    import sympy as sp
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
 from scipy.linalg import inv, sqrtm
-from typeguard import typechecked
 
-from mpqp.tools.generics import Matrix
+if TYPE_CHECKING:
+    from sympy import Expr
+
+    from mpqp.tools.generics import Matrix
+
 
 rtol = 1e-05
 """The relative tolerance parameter."""
@@ -25,8 +24,7 @@ atol = 1e-08
 """The absolute tolerance parameter."""
 
 
-@typechecked
-def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
+def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex128]:
     """Normalizes an array representing the amplitudes of the state.
 
     Args:
@@ -48,7 +46,6 @@ def normalize(v: npt.NDArray[np.complex64]) -> npt.NDArray[np.complex64]:
     return v if norm == 0 else v / norm
 
 
-@typechecked
 def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) -> bool:
     r"""Checks whether two matrix (including vectors) are element-wise equal, within a tolerance.
 
@@ -58,6 +55,8 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
     Args:
         lhs: Left-hand side matrix of the equality.
         rhs: Right-hand side matrix of the equality.
+        atol: The absolute tolerance parameter.
+        rtol: The relative tolerance parameter.
 
     Returns:
         ``True`` if the two matrix are equal (according to the definition above).
@@ -74,7 +73,6 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
     return True
 
 
-@typechecked
 def is_hermitian(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is hermitian.
 
@@ -108,7 +106,6 @@ def is_hermitian(matrix: Matrix) -> bool:
     )
 
 
-@typechecked
 def is_unitary(matrix: Matrix) -> bool:
     """Checks whether the matrix in parameter is unitary.
 
@@ -118,7 +115,7 @@ def is_unitary(matrix: Matrix) -> bool:
     Returns:
         ``True`` if the matrix in parameter is Unitary.
 
-    Example:
+    Examples:
         >>> is_unitary(np.array([[1,1],[1,-1]]))
         False
         >>> is_unitary(np.array([[1,1],[1,-1]])/np.sqrt(2))
@@ -126,14 +123,44 @@ def is_unitary(matrix: Matrix) -> bool:
 
     """
     return matrix_eq(
-        np.eye(len(matrix), dtype=np.complex64),
+        np.eye(len(matrix), dtype=np.complex128),
         matrix.transpose().conjugate().dot(matrix),
         atol=1e-5,
     )
 
 
-@typechecked
-def closest_unitary(matrix: Matrix):
+def is_diagonal(matrix: npt.NDArray[Any]) -> bool:
+    """Checks whether the square matrix in parameter is diagonal.
+
+    Args:
+        matrix: Matrix for which we want to know if it is diagonal.
+
+    Returns:
+        ``True`` if the matrix in parameter is diagonal.
+
+    Examples:
+        >>> is_diagonal(np.diag([1, 4, 2, 3]))
+        True
+        >>> is_diagonal(np.array([[1, 1], [1, -1]]))
+        False
+    """
+    # Reference: https://stackoverflow.com/questions/43884189/check-if-a-large-matrix-is-diagonal-matrix-in-python
+    # Author: Daniel F, 10th May 2017
+
+    i, j = matrix.shape
+    if i != j:
+        raise ValueError(
+            "The input matrix is not square. Dimensions = ("
+            + str(i)
+            + ", "
+            + str(j)
+            + ")."
+        )
+    test = matrix.reshape(-1)[:-1].reshape(i - 1, j + 1)
+    return not np.any(test[:, 1:])
+
+
+def closest_unitary(matrix: Matrix) -> Matrix:
     """Calculate the unitary matrix that is closest with respect to the operator
     norm distance to the general matrix in parameter.
 
@@ -160,8 +187,7 @@ def closest_unitary(matrix: Matrix):
     return np.array(V.dot(Wh))
 
 
-@typechecked
-def cos(angle: Expr | Real) -> sp.Expr | float:
+def cos(angle: Expr | float) -> Expr | float:
     """Generalization of the cosine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -176,17 +202,15 @@ def cos(angle: Expr | Real) -> sp.Expr | float:
             assert isinstance(angle, float)
         return np.cos(angle)
     else:
-        import sympy as sp
-        from sympy import Expr
+        from sympy import cos as sp_cos
 
-        res = sp.cos(angle)
+        res = sp_cos(angle)
         if TYPE_CHECKING:
             assert isinstance(res, Expr)
         return res
 
 
-@typechecked
-def sin(angle: Expr | Real) -> sp.Expr | float:
+def sin(angle: Expr | float) -> Expr | float:
     """Generalization of the sine function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -201,17 +225,15 @@ def sin(angle: Expr | Real) -> sp.Expr | float:
             assert isinstance(angle, float)
         return np.sin(angle)
     else:
-        import sympy as sp
-        from sympy import Expr
+        from sympy import sin as sp_sin
 
-        res = sp.sin(angle)
+        res = sp_sin(angle)
         if TYPE_CHECKING:
             assert isinstance(res, Expr)
         return res
 
 
-@typechecked
-def exp(angle: Expr | Complex) -> sp.Expr | complex:
+def exp(angle: Expr | complex) -> Expr | complex:
     """Generalization of the exponential function, to take as input either
     ``sympy``'s expressions or floating numbers.
 
@@ -226,19 +248,17 @@ def exp(angle: Expr | Complex) -> sp.Expr | complex:
             assert isinstance(angle, complex)
         return np.exp(angle)
     else:
-        import sympy as sp
-        from sympy import Expr
+        from sympy import exp as sp_exp
 
-        res = sp.exp(angle)
+        res = sp_exp(angle)
         if TYPE_CHECKING:
             assert isinstance(res, Expr)
         return res
 
 
-@typechecked
 def rand_orthogonal_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random orthogonal matrix optionally with a given seed.
 
     Args:
@@ -266,14 +286,13 @@ def rand_orthogonal_matrix(
     return m.dot(inv(sqrtm(m.T.dot(m))))
 
 
-@typechecked
 def rand_clifford_matrix(
     nb_qubits: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random Clifford matrix.
 
     Args:
-        size: Size (number of columns) of the square matrix to generate.
+        nb_qubits: Qubits of the clifford operator to be generated.
         seed: Seed used to initialize the random number generation.
 
     Returns:
@@ -293,24 +312,22 @@ def rand_clifford_matrix(
          [0.70711j, 0        , 0.70711j , 0        ]]
 
     """
-    from qiskit import quantum_info
+    from qiskit.quantum_info import random_clifford
 
     rng = np.random.default_rng(seed)
 
-    res = quantum_info.random_clifford(nb_qubits, seed=rng).to_matrix()
+    res = random_clifford(nb_qubits, seed=rng).to_matrix()
     if TYPE_CHECKING:
         assert isinstance(res, np.ndarray)
     return res
 
 
-@typechecked
 def rand_unitary_2x2_matrix(
     seed: Optional[Union[int, np.random.Generator]] = None,
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random one-qubit unitary matrix.
 
     Args:
-        size: Size (number of columns) of the square matrix to generate.
         seed: Used for the random number generation. If unspecified, a new
             generator will be used. If a ``Generator`` is provided, it will be
             used to generate any random number needed. Finally if an ``int`` is
@@ -346,10 +363,9 @@ def rand_unitary_2x2_matrix(
     return np.array([[c, -eg * s], [eg * s, eg * ep * c]])
 
 
-@typechecked
 def rand_product_local_unitaries(
     nb_qubits: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a pseudo random matrix, resulting from a tensor product of
     random unitary matrices.
 
@@ -379,10 +395,29 @@ def rand_product_local_unitaries(
     return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
 
 
-@typechecked
+def rand_unitary_matrix(size: int) -> Matrix:
+    """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
+
+    Args:
+        size: Size (number of columns) of the square matrix to generate.
+
+    Returns:
+        A random unitary matrix with complex coefficients.
+
+    Example:
+        >>> is_unitary(rand_unitary_matrix(4))
+        True
+        >>> is_unitary(rand_unitary_matrix(8))
+        True
+    """
+    from scipy.stats import unitary_group
+
+    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
+
+
 def rand_hermitian_matrix(
     size: int, seed: Optional[int] = None
-) -> npt.NDArray[np.complex64]:
+) -> npt.NDArray[np.complex128]:
     """Generate a random Hermitian matrix.
 
     Args:
@@ -404,12 +439,11 @@ def rand_hermitian_matrix(
     """
     rng = np.random.default_rng(seed)
 
-    m = rng.random((size, size)).astype(np.complex64)
-    return m + m.conjugate().transpose()
+    m = rng.random((size, size))
+    return (m + m.conjugate().transpose()).astype(np.complex128)
 
 
-@typechecked
-def is_power_of_two(n: int):
+def is_power_of_two(n: int) -> bool:
     """Checks if the integer in parameter is a (positive) power of two.
 
     Args:

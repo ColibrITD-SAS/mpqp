@@ -4,20 +4,19 @@ import numpy as np
 import pytest
 from sympy import Expr, symbols
 
-from mpqp import QCircuit
-from mpqp.core.instruction.measurement.expectation_value import (
-    ExpectationMeasure,
-    Observable,
-)
-from mpqp.execution.devices import (
+from mpqp import (
     ATOSDevice,
-    AvailableDevice,
     AWSDevice,
-    IBMDevice,
+    ExpectationMeasure,
     GOOGLEDevice,
+    IBMDevice,
+    Observable,
+    Optimizer,
+    QCircuit,
+    minimize,
+    run,
 )
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
-from mpqp.execution.vqa import Optimizer, minimize
+from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.vqa.vqa import OptimizableFunc
 from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
@@ -72,7 +71,7 @@ def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevi
         (
             lambda params: (
                 1
-                - _run_single(
+                - run(
                     QCircuit(
                         [
                             P(theta, 0),
@@ -83,7 +82,7 @@ def test_optimizer_circuit(circ: QCircuit, minimum: float, device: AvailableDevi
                     ),
                     ATOSDevice.MYQLM_PYLINALG,
                     {theta: params[0]},
-                ).expectation_value
+                ).expectation_values  # pyright: ignore[reportOperatorIssue]
                 ** 2
             ),
             1,

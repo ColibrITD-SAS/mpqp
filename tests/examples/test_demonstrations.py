@@ -4,13 +4,19 @@ import numpy as np
 import pytest
 from braket.devices import LocalSimulator
 
-from mpqp import QCircuit
-from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
-from mpqp.core.languages import Language
-from mpqp.execution import run
-from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from mpqp import (
+    ATOSDevice,
+    AWSDevice,
+    BasisMeasure,
+    ExpectationMeasure,
+    IBMDevice,
+    Language,
+    Observable,
+    QCircuit,
+    run,
+)
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
@@ -38,7 +44,8 @@ def test_sample_demo():
     circuit.add(CZ(2, 1))
     circuit.add([SWAP(2, 0), CNOT(0, 2)])
     circuit.add(Ry(3.14 / 2, 2))
-    circuit.add(S(1))
+    circuit.add(S(0))
+    circuit.add(S_dagger(1))
     circuit.add(H(3))
     circuit.add(CNOT(1, 2))
     circuit.add(Rx(3.14, 1))
@@ -80,7 +87,7 @@ def test_sample_demo_aer_stabilizers():
     circuit.add(Z(2))
     circuit.add(CZ(2, 1))
     circuit.add([SWAP(2, 0), CNOT(0, 2)])
-    circuit.add(S(1))
+    circuit.add(S_dagger(1))
     circuit.add(H(3))
     circuit.add(CNOT(1, 2))
     circuit.add(CNOT(3, 0))
@@ -112,7 +119,7 @@ def test_statevector_demo():
             SWAP(2, 0),
             CNOT(0, 2),
             Ry(1.7, 2),
-            S(1),
+            S_dagger(1),
             H(3),
             CNOT(1, 2),
             Rx(3.14, 1),
@@ -162,14 +169,14 @@ def test_statevector_demo_stab():
     circuit = QCircuit(4)
 
     # Constructing the circuit by adding gates
-    circuit.add(S(0))
+    circuit.add(S_dagger(0))
     circuit.add(CNOT(0, 1))
     circuit.add(X(0))
     circuit.add(H(1))
     circuit.add(Z(2))
     circuit.add(CZ(2, 1))
     circuit.add([SWAP(2, 0), CNOT(0, 2)])
-    circuit.add(S(1))
+    circuit.add(S_dagger(1))
     circuit.add(H(3))
     circuit.add(CNOT(3, 0))
 
@@ -252,7 +259,7 @@ def test_aws_mpqp_executions():
     circuit.add(SWAP(2, 0))
     circuit.add(CNOT(0, 2))
     circuit.add(Ry(3.14 / 2, 2))
-    circuit.add(S(1))
+    circuit.add(S_dagger(1))
     circuit.add(H(3))
     circuit.add(CNOT(1, 2))
     circuit.add(Rx(3.14, 1))
@@ -310,7 +317,7 @@ def test_all_native_gates():
     # Declaration of the circuit with the right size
     circuit = QCircuit(3, label="Test native gates")
     # Constructing the circuit by adding gates and measurements
-    circuit.add([H(0), X(1), Y(2), Z(0), S(1), T(0)])
+    circuit.add([H(0), X(1), Y(2), Z(0), S_dagger(1), T(0)])
     circuit.add([Rx(1.2324, 2), Ry(-2.43, 0), Rz(1.04, 1), Rk(-1, 1), P(-323, 2)])
     circuit.add(U(1.2, 2.3, 3.4, 2))
     circuit.add(SWAP(2, 0))
@@ -318,7 +325,7 @@ def test_all_native_gates():
     circuit.add(TOF([0, 1], 2))
 
     circuit.to_other_language(Language.QASM2)
-    circuit.to_other_language(Language.QASM3, translation_warning=False)
+    circuit.to_other_language(Language.QASM3)
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         run(
             circuit,

@@ -1,8 +1,6 @@
 import numpy as np
 
-from mpqp import QCircuit
-from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.gates import *
+from mpqp import CNOT, BasisMeasure, H, QCircuit
 from mpqp.tools.theoretical_simulation import theoretical_probs
 
 

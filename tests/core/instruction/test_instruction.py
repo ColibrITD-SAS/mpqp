@@ -1,8 +1,9 @@
-from mpqp.core.instruction.gates.native_gates import *
-from mpqp.tools.circuit import random_gate
-from mpqp.tools.maths import matrix_eq
 import numpy as np
 import pytest
+
+from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.tools.circuit import random_gate
+from mpqp.tools.maths import matrix_eq
 
 
 @pytest.mark.parametrize("gate", NATIVE_GATES)
@@ -16,5 +17,5 @@ def test_inverse_gate(gate: type):
     # G†G = I
     assert matrix_eq(
         np.matmul(gate_build_dagger.to_matrix(), gate_build_matrix),
-        np.eye(gate_build_matrix.shape[0], dtype=np.complex64),
+        np.eye(gate_build_matrix.shape[0], dtype=np.complex128),
     )

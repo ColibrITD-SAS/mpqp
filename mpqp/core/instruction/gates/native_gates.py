@@ -26,10 +26,6 @@ if TYPE_CHECKING:
 import numpy as np
 import numpy.typing as npt
 
-# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
-# this file :/
-from typeguard import typechecked
-
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -38,10 +34,13 @@ from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
 from mpqp.tools.maths import cos, exp, sin
 
+# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
+# this file :/
+
+
 # from sympy import Expr, pi
 
 
-@typechecked
 def _qiskit_parameter_adder(
     param: Expr | float, qiskit_parameters: set["Parameter"]
 ) -> "Parameter | float | int":
@@ -85,7 +84,6 @@ def _qiskit_parameter_adder(
     return qiskit_param
 
 
-@typechecked
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
@@ -115,6 +113,7 @@ class NativeGate(Gate, SimpleClassReprABC):
 
     if TYPE_CHECKING:
         from braket.circuits import gates
+        from cirq.ops.raw_types import Gate
         from qiskit.circuit.library import (
             CCXGate,
             CPhaseGate,
@@ -182,8 +181,15 @@ class NativeGate(Gate, SimpleClassReprABC):
     ]:
         pass
 
+    @classproperty
+    @abstractmethod
+    def cirq_gate(
+        cls,
+    ) -> type[Gate]:
+        """Returns the corresponding ``cirq`` class for this gate."""
+        pass
 
-@typechecked
+
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
@@ -236,6 +242,8 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
                     "export, this feature is coming very soon!"
                 )
             return self.braket_gate(theta)
+        elif language == Language.CIRQ:
+            return self.cirq_gate(theta)
         if language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
 
@@ -259,7 +267,6 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.__class__(-self.parameters[0], self.targets[0])
 
 
-@typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
     """Abstract class describing native gates that do not depend on parameters.
 
@@ -328,7 +335,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         pass
 
     """Corresponding ``qiskit``'s gate class."""
-    matrix: npt.NDArray[np.complex64]
+    matrix: npt.NDArray[np.complex128]
     """Matricial semantics of the gate."""
 
     def to_other_language(
@@ -340,13 +347,15 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             return self.qiskit_gate()
         elif language == Language.BRAKET:
             return self.braket_gate()
+        elif language == Language.CIRQ:
+            return self.cirq_gate
         elif language == Language.QASM2:
             instruction_str = self.qasm2_gate
 
             qubits = ""
             if isinstance(self, ControlledGate):
-                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
-            qubits += ",".join([f"q[{j}]" for j in self.targets])
+                qubits = ",".join([f"q[{j}]" for j in reversed(self.controls)]) + ","
+            qubits += ",".join([f"q[{j}]" for j in reversed(self.targets)])
 
             return instruction_str + " " + qubits + ";"
         else:
@@ -356,7 +365,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         return self.matrix
 
 
-@typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
     """Abstract Class describing one-qubit native gates that do not depend on
     parameters.
@@ -365,8 +373,10 @@ class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
         target: Index referring to the qubits on which the gate will be applied.
     """
 
-    def __init__(self, target: int):
-        SingleQubitGate.__init__(self, target, type(self).__name__)
+    def __init__(self, target: int, label: Optional[str] = None):
+        SingleQubitGate.__init__(
+            self, target, type(self).__name__ if label is None else label
+        )
 
 
 class Id(OneQubitNoParamGate, InvolutionGate):
@@ -396,13 +406,19 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
         return IGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.identity import I as CirqI
+
+        return CirqI
+
     qlm_aqasm_keyword = "I"
     qiskit_string = "id"
 
     def __init__(self, target: int, label: Optional[str] = None):
         super().__init__(target)
         self.label = label
-        self.matrix = np.eye(2, dtype=np.complex64)
+        self.matrix = np.eye(2, dtype=np.complex128)
 
     def to_other_language(
         self,
@@ -415,6 +431,8 @@ class Id(OneQubitNoParamGate, InvolutionGate):
             return self.qiskit_gate()
         elif language == Language.BRAKET:
             return self.braket_gate()
+        elif language == Language.CIRQ:
+            return self.cirq_gate
         elif language == Language.QASM2:
 
             instruction_str = self.qasm2_gate
@@ -452,6 +470,12 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
         return XGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.pauli_gates import X as CirqX
+
+        return CirqX
+
     qlm_aqasm_keyword = "X"
     qiskit_string = "x"
 
@@ -486,6 +510,12 @@ class Y(OneQubitNoParamGate, InvolutionGate):
         from qiskit.circuit.library import YGate
 
         return YGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.pauli_gates import Y as CirqY
+
+        return CirqY
 
     qlm_aqasm_keyword = "Y"
     qiskit_string = "y"
@@ -522,6 +552,12 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
         return ZGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.pauli_gates import Z as CirqZ
+
+        return CirqZ
+
     qlm_aqasm_keyword = "Z"
     qiskit_string = "z"
 
@@ -554,6 +590,12 @@ class H(OneQubitNoParamGate, InvolutionGate):
         from qiskit.circuit.library import HGate
 
         return HGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import H as CirqH
+
+        return CirqH
 
     qlm_aqasm_keyword = "H"
     qiskit_string = "h"
@@ -590,6 +632,12 @@ class P(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import PhaseGate
 
         return PhaseGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+
+        return lambda theta: ZPowGate(exponent=theta / np.pi)
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
@@ -639,6 +687,13 @@ class CP(RotationGate, ControlledGate):
         from qiskit.circuit.library import CPhaseGate
 
         return CPhaseGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
+
+        return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
@@ -696,12 +751,68 @@ class S(OneQubitNoParamGate):
 
         return SGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import S as CirqS
+
+        return CirqS
+
     qlm_aqasm_keyword = "S"
     qiskit_string = "s"
 
     def __init__(self, target: int):
         super().__init__(target)
         self.matrix = np.array([[1, 0], [0, 1j]])
+
+    def inverse(self) -> Gate:
+        return S_dagger(self.targets[0])
+
+
+class S_dagger(OneQubitNoParamGate):
+    r"""One qubit S adjoint gate. It's equivalent to ``P(-pi/2)``.
+
+    `\begin{pmatrix}1&0\\0&-i\end{pmatrix}`
+
+    Args:
+        target: Index referring to the qubit on which the gate will be applied.
+
+    Example:
+        >>> pprint(S_dagger(0).to_matrix())
+        [[1, 0  ],
+         [0, -1j]]
+
+    """
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.Si
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import SdgGate
+
+        return SdgGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+
+        return ZPowGate(exponent=-1 / 2)
+
+    qlm_aqasm_keyword = "DAG(S)"
+    qiskit_string = "sdg"
+
+    def __init__(self, target: int):
+        super().__init__(target, "S†")
+        self.matrix = np.array([[1, 0], [0, -1j]])
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.targets[0]})"
+
+    def inverse(self) -> Gate:
+        return S(self.targets[0])
 
 
 class T(OneQubitNoParamGate):
@@ -733,6 +844,12 @@ class T(OneQubitNoParamGate):
         from qiskit.circuit.library import TGate
 
         return TGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import T as CirqT
+
+        return CirqT
 
     qlm_aqasm_keyword = "T"
     qiskit_string = "t"
@@ -776,6 +893,12 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         return SwapGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.swap_gates import SWAP as CirqSWAP
+
+        return CirqSWAP
+
     qlm_aqasm_keyword = "SWAP"
     qiskit_string = "swap"
 
@@ -791,7 +914,7 @@ class SWAP(InvolutionGate, NoParameterGate):
     )
     """Size of the gate."""
 
-    def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex64]:
+    def to_matrix(self, desired_gate_size: int = 0) -> npt.NDArray[np.complex128]:
         """Constructs the matrix representation of a SWAP gate for two qubits.
 
         Args:
@@ -812,7 +935,7 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         nb_qubits_swap = abs(control - target) + 1
         min_nb_qubits = min(control, target)
-        swap_matrix = np.eye(2**nb_qubits_swap, dtype=np.complex64)
+        swap_matrix = np.eye(2**nb_qubits_swap, dtype=np.complex128)
 
         for i in range(2**nb_qubits_swap):
             binary_state = list(format(i, f"0{nb_qubits_swap}b"))
@@ -868,8 +991,49 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
         return UGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.circuits.qasm_output import QasmUGate
+        from cirq.ops.common_gates import ry as cirq_ry
+        from cirq.ops.common_gates import rz as cirq_rz
+        from cirq.ops.global_phase_op import GlobalPhaseGate
+        from cirq.ops.raw_types import Qid
+
+        class CirqUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
+            # 3M-TODO: find better way to define the class outside
+            def __init__(
+                self, theta, phi, lmda  # pyright: ignore[reportMissingParameterType]
+            ) -> None:
+                self.lmda = lmda
+                self.theta = theta
+                self.phi = phi
+
+            def __repr__(self) -> str:
+                return (
+                    f'U('
+                    f'theta={self.theta!r}, '
+                    f'phi={self.phi!r}, '
+                    f'lmda={self.lmda})'
+                )
+
+            def _decompose_(self, qubits: tuple[Qid, ...]):
+                q = qubits[0]
+                return [
+                    GlobalPhaseGate(np.exp(1j * (self.lmda + self.phi) / 2)).on(),
+                    cirq_rz(self.lmda).on(q),
+                    cirq_ry(self.theta).on(q),
+                    cirq_rz(self.phi).on(q),
+                ]
+
+        return CirqUGate
+
     qlm_aqasm_keyword = "U"
-    qiskit_string = "u"
+    qiskit_string = "u3"
+
+    @classproperty
+    def qasm2_gate(cls) -> str:
+        """Keyword(s) corresponding to the gate in ``QASM2``."""
+        return "u3"
 
     def __init__(
         self,
@@ -929,7 +1093,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 )
 
             return self.braket_gate(self.theta, self.phi, self.gamma)
-        if language == Language.QASM2:
+        elif language == Language.CIRQ:
+            return self.cirq_gate(self.theta, self.phi, self.gamma)
+        elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
@@ -990,6 +1156,12 @@ class Rx(RotationGate, SingleQubitGate):
 
         return RXGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import rx as CirqRx
+
+        return CirqRx
+
     qlm_aqasm_keyword = "RX"
     qiskit_string = "rx"
 
@@ -1032,6 +1204,12 @@ class Ry(RotationGate, SingleQubitGate):
 
         return RYGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ry as CirqRy
+
+        return CirqRy
+
     qlm_aqasm_keyword = "RY"
     qiskit_string = "ry"
 
@@ -1071,6 +1249,12 @@ class Rz(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import RZGate
 
         return RZGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import rz as CirqRz
+
+        return CirqRz
 
     qlm_aqasm_keyword = "RZ"
     qiskit_string = "rz"
@@ -1116,6 +1300,12 @@ class Rk(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import PhaseGate
 
         return PhaseGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+
+        return lambda theta: ZPowGate(exponent=theta / np.pi)
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
@@ -1198,6 +1388,12 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         from qiskit.circuit.library import PhaseGate
 
         return PhaseGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+
+        return lambda theta: ZPowGate(exponent=theta / np.pi)
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
@@ -1284,6 +1480,12 @@ class CNOT(InvolutionGate, ControlledGate, NoParameterGate):
 
         return CXGate
 
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import CNOT as CirqCNOT
+
+        return CirqCNOT
+
     qlm_aqasm_keyword = "CNOT"
     qiskit_string = "cx"
 
@@ -1329,6 +1531,12 @@ class CZ(InvolutionGate, ControlledGate, NoParameterGate):
         from qiskit.circuit.library import CZGate
 
         return CZGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import CZ as CirqCZ
+
+        return CirqCZ
 
     qiskit_string = "cz"
     qlm_aqasm_keyword = "CSIGN"
@@ -1384,6 +1592,13 @@ class CRk(RotationGate, ControlledGate):
         from qiskit.circuit.library import CPhaseGate
 
         return CPhaseGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
+
+        return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
@@ -1477,6 +1692,13 @@ class CRk_dagger(RotationGate, ControlledGate):
         from qiskit.circuit.library import CPhaseGate
 
         return CPhaseGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
+
+        return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
@@ -1573,6 +1795,12 @@ class TOF(InvolutionGate, ControlledGate, NoParameterGate):
         from qiskit.circuit.library import CCXGate
 
         return CCXGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.three_qubit_gates import CCNOT as CirqCCNOT
+
+        return CirqCCNOT
 
     qlm_aqasm_keyword = "CCNOT"
     qiskit_string = "ccx"

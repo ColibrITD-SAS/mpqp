@@ -2,18 +2,20 @@ from __future__ import annotations
 
 import re
 
-from numpy import exp
+import numpy as np
 import pytest
+from numpy import exp
 
-from mpqp.all import *
+from mpqp import CNOT, H, IBMDevice, Instruction, QCircuit, Result, U, run
+from mpqp.execution.devices import IBMDevice
 from mpqp.qasm.open_qasm_2_and_3 import (
-    open_qasm_file_conversion_3_to_2,
+    open_qasm_2_to_3,
+    open_qasm_3_to_2,
     open_qasm_file_conversion_2_to_3,
+    open_qasm_file_conversion_3_to_2,
     open_qasm_hard_includes,
     parse_user_gates,
     remove_user_gates,
-    open_qasm_2_to_3,
-    open_qasm_3_to_2,
 )
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.theoretical_simulation import amplitude
@@ -245,10 +247,37 @@ def test_conversion_2_and_3(qasm_code: str):
                qubit[1] q;
                reset q[0];""",
         ),
+        (
+            """OPENQASM 2.0;
+               include "qelib1.inc";
+               qreg q[1];
+               creg c[1];
+               if(c==1) u1(pi/2) q[0];""",
+            """OPENQASM 3.0;
+               qubit[1] q;
+               bit[1] c;
+               if(c==1) u1(pi/2) q[0];""",
+        ),
+        (
+            """OPENQASM 2.0;
+               include "qelib1.inc";
+               gate mygate(param0) q0 { 
+                 h q0; 
+               }
+               qreg q[1];
+               mygate(pi) q[0];""",
+            """OPENQASM 3.0;
+               include "stdgates.inc";
+               gate mygate(param0) q0 {
+                 h q0;
+               }
+               qubit[1] q;
+               mygate(pi) q[0];""",
+        ),
     ],
 )
 def test_conversion_2_to_3(qasm_code: str, expected_output: str):
-    convert = open_qasm_2_to_3(qasm_code, translation_warning=False)
+    convert = open_qasm_2_to_3(qasm_code)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 
@@ -680,9 +709,9 @@ def test_conversion_3_to_2(expected_output: str, qasm_code: str):
                         'p((lambda+phi)/2) c;',
                         'p((lambda-phi)/2) t;',
                         'cx c,t;',
-                        'u(-theta/2,0,-(phi+lambda)/2) t;',
+                        'u3(-theta/2,0,-(phi+lambda)/2) t;',
                         'cx c,t;',
-                        'u(theta/2,phi,0) t;',
+                        'u3(theta/2,phi,0) t;',
                     ],
                 },
             ],
@@ -884,9 +913,9 @@ def test_sample_counts_in_trust_interval(
 
     expected_amplitudes = amplitude(expected_circuit) * exp(expected_gphase * 1j)
 
-    print(circuit.gphase)
-    circuit.gphase = gphase
-    print(circuit.gphase)
+    print(circuit.input_g_phase)
+    circuit.input_g_phase = gphase
+    print(circuit.input_g_phase)
     result = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(result, Result)
     print("result_amplitudes: " + str(result.amplitudes))

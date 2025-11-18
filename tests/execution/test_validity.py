@@ -5,39 +5,39 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp import QCircuit
-from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
-from mpqp.core.instruction.instruction import Instruction
-from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import I as Ip
-from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.core.instruction.measurement.pauli_string import X as Xp
-from mpqp.core.instruction.measurement.pauli_string import Y as Yp
-from mpqp.core.instruction.measurement.pauli_string import Z as Zp
-from mpqp.core.languages import Language
-from mpqp.execution import (
+from mpqp import (
     ATOSDevice,
-    AvailableDevice,
     AWSDevice,
     AZUREDevice,
+    Barrier,
+    BasisMeasure,
+    BatchResult,
+    Breakpoint,
+    ComputationalBasis,
+    Depolarizing,
+    ExpectationMeasure,
     GOOGLEDevice,
+    HadamardBasis,
     IBMDevice,
+    Instruction,
+    Language,
+    Measure,
+    Observable,
+    PhaseDamping,
+    QCircuit,
+    Result,
+    VariableSizeBasis,
+    pI,
+    pX,
+    pY,
+    pZ,
     run,
 )
-from mpqp.execution.result import BatchResult, Result
+from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.measures import (
-    BasisMeasure,
-    ComputationalBasis,
-    ExpectationMeasure,
-    HadamardBasis,
-    Observable,
-    VariableSizeBasis,
-)
-from mpqp.noise.noise_model import NOISE_MODELS, Depolarizing, PhaseDamping
+from mpqp.measures import PauliString
+from mpqp.noise.noise_model import NOISE_MODELS
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
@@ -49,6 +49,13 @@ from mpqp.tools.maths import matrix_eq
 pi = np.pi
 s = np.sqrt
 e = np.exp
+
+all_devices = [
+    device
+    for device_family in [IBMDevice, GOOGLEDevice, AWSDevice, ATOSDevice, AZUREDevice]
+    for device in device_family
+]
+# TODO: build the lists bellow from the list above + filtering
 
 state_vector_devices = [
     IBMDevice.AER_SIMULATOR_STATEVECTOR,
@@ -125,12 +132,13 @@ def hae_3_qubit_circuit(
     ],
 )
 def test_state_vector_result_HEA_ansatz(
-    parameters: list[float], expected_vector: npt.NDArray[np.complex64]
+    parameters: list[float], expected_vector: npt.NDArray[np.complex128]
 ):
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        assert isinstance(result, Result)
         assert matrix_eq(result.amplitudes, expected_vector)
 
 
@@ -201,6 +209,7 @@ def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: M
         batch = run(QCircuit(gates), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        assert isinstance(result, Result)
         if isinstance(result.device, GOOGLEDevice):
             # TODO : Cirq needs atol 1 as some results differ by 0.1
             assert matrix_eq(result.amplitudes, expected_vector, atol=1)
@@ -251,6 +260,8 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
+        print(result.device)
+        assert isinstance(result, Result)
         assert len(result.samples) == nb_states
 
 
@@ -258,7 +269,7 @@ def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str
     "instructions",
     [
         [H(0), CNOT(0, 1), CNOT(1, 2)],
-        [CustomGate(UnitaryMatrix(np.array([[0, 1], [1, 0]])), [1])],
+        [CustomGate(np.array([[0, 1], [1, 0]]), [1])],
         [U(0.215, 0.5588, 8, 1)],
     ],
 )
@@ -275,6 +286,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
+        assert isinstance(result, Result)
         print(result)
         print("expected_counts: " + str(expected_counts))
         counts = result.counts
@@ -313,20 +325,24 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     ],
 )
 def test_observable_ideal_case(
-    gates: list[Gate], observable: npt.NDArray[np.complex64], expected_vector: Matrix
+    gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
 ):
     c = QCircuit(gates)
-    c.add(ExpectationMeasure(Observable(observable), list(range(c.nb_qubits))))
-    expected_value = (
+    c.add(
+        ExpectationMeasure(
+            Observable(observable), list(range(c.nb_qubits)), optimize_measurement=False
+        )
+    )
+    expected_value = float(
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
-        assert abs(result.expectation_value - expected_value) < (
-            atol + rtol * abs(expected_value)
-        )
+        evs = result.expectation_values
+        assert isinstance(evs, float)
+        assert abs(evs - expected_value) < (atol + rtol * abs(expected_value))
 
 
 @pytest.fixture
@@ -441,7 +457,7 @@ def test_validity_native_gate_to_other_language(language: Language):
     for gate in NATIVE_GATES:
         gate_build = random_gate([gate])
 
-        if language in [Language.MY_QLM, Language.CIRQ, Language.QASM3]:
+        if language in [Language.MY_QLM, Language.QASM3]:
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
@@ -457,9 +473,9 @@ def measures():
             shots=1024,
             basis=VariableSizeBasis([np.array([1, 0]), np.array([0, -1])]),
         ),
-        BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(3)),
+        BasisMeasure([0, 1], shots=1024, basis=ComputationalBasis(2)),
         BasisMeasure([0, 1], shots=1024, basis=HadamardBasis(2)),
-        ExpectationMeasure(Observable(np.diag([0.7, -1, 1, 1])), shots=10),
+        ExpectationMeasure(Observable([0.7, -1, 1, 1]), shots=10),
     ]
 
 
@@ -473,7 +489,6 @@ def test_validity_measure_to_other_language(
                 measure.to_other_language(language)
         elif language in [
             Language.MY_QLM,
-            Language.CIRQ,
             Language.BRAKET,
             Language.QASM3,
         ]:
@@ -485,7 +500,7 @@ def test_validity_measure_to_other_language(
 
 @pytest.fixture
 def pauli_strings():
-    return [Ip @ Xp @ Yp @ Zp, Xp + Zp, Yp]
+    return [pI @ pX @ pY @ pZ, pX + pZ, pY]
 
 
 @pytest.mark.parametrize("language", list(Language))
@@ -506,14 +521,16 @@ def test_validity_noise_to_other_language(language: Language):
     for noise in NOISE_MODELS:
         noise_build = random_noise([noise])
 
-        if language in [Language.CIRQ, Language.QASM3, Language.QASM2]:
+        if language in [Language.QASM3, Language.QASM2]:
             with pytest.raises(NotImplementedError):
                 noise_build.to_other_language(language)
+
         elif language in [Language.MY_QLM] and not isinstance(
             noise_build, (Depolarizing, PhaseDamping)
         ):
             with pytest.raises(NotImplementedError):
                 noise_build.to_other_language(language)
+
         else:
             assert noise_build.to_other_language(language) is not None
 
@@ -544,3 +561,96 @@ def test_validity_other_instr_to_other_language(
                 instr.to_other_language(language)
         else:
             assert instr.to_other_language(language) is not None
+
+
+@pytest.mark.parametrize(
+    "circuit, observable",
+    [
+        (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3])),
+        (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1])),
+        (QCircuit([Rx(0.5, 0), Ry(0.6, 1)]), Observable([0, 0, -9, 7])),
+    ],
+)
+def test_validity_optim_ideal_single_diag_obs_and_regular_run(
+    circuit: QCircuit, observable: Observable
+):
+    e1 = ExpectationMeasure(
+        observable, shots=0, optim_diagonal=False, optimize_measurement=False
+    )
+    e2 = ExpectationMeasure(
+        observable, shots=0, optim_diagonal=True, optimize_measurement=False
+    )
+    c1 = circuit + QCircuit([e1], nb_qubits=2)
+    c2 = circuit + QCircuit([e2], nb_qubits=2)
+    br1 = run(
+        c1,
+        [
+            IBMDevice.AER_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+    br2 = run(
+        c2,
+        [
+            IBMDevice.AER_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+    assert isinstance(br1, BatchResult)
+    assert isinstance(br2, BatchResult)
+    for r1, r2 in zip(br1.results, br2.results):
+        assert isinstance(r1.expectation_values, float)
+        assert isinstance(r2.expectation_values, float)
+        assert np.isclose(r1.expectation_values, r2.expectation_values)
+
+
+@pytest.mark.parametrize(
+    "circuit, o1, o2",
+    [
+        (QCircuit([H(0), H(1)]), Observable([1, 2, 5, 3]), Observable([-1, 4, 0, 1])),
+        (QCircuit([S(0), T(1)]), Observable([-1, 4, 0, 1]), Observable([0, 0, -9, 7])),
+        (
+            QCircuit([Rx(0.5, 0), Ry(0.6, 1)]),
+            Observable([0, 0, -9, 7]),
+            Observable([1, 2, 5, 3]),
+        ),
+    ],
+)
+def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
+    circuit: QCircuit, o1: Observable, o2: Observable
+):
+    e1 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=False)
+    e2 = ExpectationMeasure([o1, o2], shots=0, optim_diagonal=True)
+    c1 = circuit + QCircuit([e1], nb_qubits=2)
+    c2 = circuit + QCircuit([e2], nb_qubits=2)
+    br1 = run(
+        c1,
+        [
+            IBMDevice.AER_SIMULATOR,
+            # ATOSDevice.MYQLM_PYLINALG,
+            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+    br2 = run(
+        c2,
+        [
+            IBMDevice.AER_SIMULATOR,
+            # ATOSDevice.MYQLM_PYLINALG,
+            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ],
+    )
+
+    assert isinstance(br1, BatchResult)
+    assert isinstance(br2, BatchResult)
+    for r1, r2 in zip(br1.results, br2.results):
+        assert isinstance(r1.expectation_values, dict)
+        assert isinstance(r2.expectation_values, dict)
+        assert r1.expectation_values.keys() == r2.expectation_values.keys()
+        for k in r1.expectation_values:
+            assert np.isclose(r1.expectation_values[k], r2.expectation_values[k])

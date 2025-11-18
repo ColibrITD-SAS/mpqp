@@ -1,6 +1,9 @@
 Gates
 =====
 
+Note: you can import all gates from the root ``mpqp`` module, but we also
+provide a shorthand to import all the gates at once:
+
 .. code-block:: python
     :class: import
 
@@ -51,3 +54,8 @@ Custom Gates
 ------------
 
 .. automodule:: mpqp.core.instruction.gates.custom_gate
+
+Controlled Custom Gates
+-----------------------
+
+.. automodule:: mpqp.core.instruction.gates.controlled_custom_gate

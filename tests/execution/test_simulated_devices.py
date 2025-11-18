@@ -2,11 +2,12 @@ import sys
 
 import pytest
 
-from mpqp import QCircuit
-from mpqp.execution import run
-from mpqp.execution.simulated_devices import IBMSimulatedDevice
+from mpqp import BasisMeasure, ExpectationMeasure, Observable, QCircuit, run
+from mpqp.execution.simulated_devices import (
+    IBMSimulatedDevice,
+    StaticIBMSimulatedDevice,
+)
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure, ExpectationMeasure, Observable
 from mpqp.tools import DeviceJobIncompatibleError
 from mpqp.tools.maths import rand_hermitian_matrix
 
@@ -19,7 +20,8 @@ def circuits():
                 X(1),
                 Y(2),
                 Z(0),
-                S(1),
+                S(0),
+                S_dagger(1),
                 T(0),
                 Rx(1.2324, 2),
                 Ry(-2.43, 0),
@@ -42,14 +44,14 @@ def ibm_simulated_devices():
 
 
 def test_generation_enum():
-    assert len(list(IBMSimulatedDevice)) > 0
+    assert len(ibm_simulated_devices()) > 0
 
 
 @pytest.mark.parametrize(
     "circuit, device", [(i, j) for i in circuits() for j in ibm_simulated_devices()]
 )
 def running_sample_job_ibm_simulated_devices(
-    circuit: QCircuit, device: IBMSimulatedDevice
+    circuit: QCircuit, device: StaticIBMSimulatedDevice
 ):
     c = circuit + QCircuit([BasisMeasure()], nb_qubits=circuit.nb_qubits)
     if device.value().num_qubits < c.nb_qubits:
@@ -64,7 +66,7 @@ def running_sample_job_ibm_simulated_devices(
     "circuit, device", [(i, j) for i in circuits() for j in ibm_simulated_devices()]
 )
 def running_observable_job_ibm_simulated_devices(
-    circuit: QCircuit, device: IBMSimulatedDevice
+    circuit: QCircuit, device: StaticIBMSimulatedDevice
 ):
     c = circuit + QCircuit(
         [ExpectationMeasure(Observable(rand_hermitian_matrix(2**circuit.nb_qubits)))],
@@ -78,7 +80,7 @@ def running_observable_job_ibm_simulated_devices(
     assert True
 
 
-if "--long-local" in sys.argv:
+if "--long-local" in sys.argv or "--long" in sys.argv:
     test_running_sample_job_ibm_simulated_devices = (
         running_sample_job_ibm_simulated_devices
     )

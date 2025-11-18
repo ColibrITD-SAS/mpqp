@@ -56,8 +56,8 @@ from typing import Optional
 from warnings import warn
 
 from anytree import Node, PreOrderIter
-from typeguard import typechecked
 
+from mpqp.core.languages import Language
 from mpqp.tools.errors import InstructionParsingError, OpenQASMTranslationWarning
 
 
@@ -80,7 +80,9 @@ class Instr(Enum):
     C3SQRTX = auto()
     OQASM2_ALL_STDGATES = auto()
     OQASM3_ALL_STDGATES = auto()
+    QISKIT_CUSTOM_INCLUDE = auto()
     BRAKET_CUSTOM_INCLUDE = auto()
+    BRAKET_INVERSE_CUSTOM_INCLUDE = auto()
 
 
 std_gates_2 = [
@@ -169,9 +171,51 @@ std_gates_3_to_2_map = {
     "phase": "u1",
     "cphase": "cu1",
 }
+std_qiskit_gates = [
+    "ch",
+    "sx",
+    "sy",
+    "sz",
+    "sxdg",
+    "csx",
+    "cy",
+    "cz",
+    "cswap",
+    "sdg",
+    "tdg",
+    "crx",
+    "cry",
+    "crz",
+    "cu",
+    "cu1",
+    "rxx",
+    "ryy",
+    "rzz",
+]
+std_braket_gates = [
+    "i",
+    "cnot",
+    "ccnot",
+    "phaseshift",
+    "cphaseshift",
+    "cswap",
+    "cy",
+    "iswap",
+    "si",
+    "ti",
+    "v",
+    "vi",
+    "xx",
+    "xy",
+    "yy",
+    "zz",
+    "ecr",
+    "gpi",
+    "gpi2",
+    "ms",
+]
 
 
-@typechecked
 def qasm_code(instr: Instr) -> str:
     """Return the string corresponding of the declaration of the instruction in
     parameter. It is also used to return the whole standard library string when
@@ -190,7 +234,9 @@ def qasm_code(instr: Instr) -> str:
     special_file_names = {
         Instr.OQASM2_ALL_STDGATES: "qelib1.inc",
         Instr.OQASM3_ALL_STDGATES: "stdgates.inc",
+        Instr.QISKIT_CUSTOM_INCLUDE: "qiskit_custom_include.inc",
         Instr.BRAKET_CUSTOM_INCLUDE: "braket_custom_include.inc",
+        Instr.BRAKET_INVERSE_CUSTOM_INCLUDE: "braket_inverse_custom_include.inc",
     }
 
     if instr in special_file_names:
@@ -202,7 +248,6 @@ def qasm_code(instr: Instr) -> str:
         return f.read()
 
 
-@typechecked
 def parse_openqasm_2_file(code: str) -> list[str]:
     """Splits a complete OpenQASM2 program into individual instructions.
 
@@ -248,14 +293,12 @@ def parse_openqasm_2_file(code: str) -> list[str]:
     return list(filter(lambda i: i != "", instructions))
 
 
-@typechecked
 def convert_instruction_2_to_3(
     instr: str,
     included_instr: set[Instr],
     included_tree_current: Node,
     defined_gates: set[str],
     path_to_main: Optional[str] = None,
-    translation_warning: bool = True,
 ) -> tuple[str, str]:
     """Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
@@ -310,10 +353,10 @@ def convert_instruction_2_to_3(
                     child = Node(path, parent=included_tree_current)
                     converted_content = open_qasm_2_to_3(
                         f.read(),
+                        0,
                         child,
                         path_to_main,
                         defined_gates,
-                        translation_warning,
                     )
                 new_path = splitext(path)[0] + "_converted" + splitext(path)[1]
                 with open(f"{path_to_main}/{new_path}", "w") as f:
@@ -336,7 +379,9 @@ def convert_instruction_2_to_3(
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
     elif instr_name.lower() == "u":
-        if translation_warning:
+        from mpqp.environment.var_cache import translation_warning_enabled
+
+        if translation_warning_enabled() is True:
             warn(
                 """
 There is a phase e^(i(a+c)/2) difference between U(a,b,c) gate in 2.0 and 3.0.
@@ -361,7 +406,9 @@ phase can become non-global.""",
         if new_instr is not None and new_instr not in included_instr:
             included_instr.add(new_instr)
     elif instr_name == "gate":
-        defined_gates.add(instr.split()[1])
+        g_name = instr.split()[1]
+        g_name = g_name.split('(')[0]
+        defined_gates.add(g_name)
         g_string = instr.split("{")[0] + "{\n"
         g_instructions = filter(
             lambda i: not re.fullmatch(r"\s*", i),
@@ -375,7 +422,6 @@ phase can become non-global.""",
                 included_tree_current,
                 defined_gates,
                 path_to_main,
-                translation_warning,
             )
             g_string += " " * 4 + i_code
             header_code += h_code
@@ -389,7 +435,6 @@ phase can become non-global.""",
             included_tree_current,
             defined_gates,
             path_to_main,
-            translation_warning,
         )
         instructions_code += if_statement + i_code
         header_code += h_code
@@ -399,21 +444,24 @@ phase can become non-global.""",
         gate = instr.split()[0]
         if gate == "ctrl":
             gate = instr.split()[2]
-        if gate not in defined_gates:
-            raise ValueError(f"Gates undefined at the time of usage: {gate}")
+        if gate.count('(') != 0:
+            if gate.split('(')[0] not in defined_gates:
+                raise ValueError(f"Gates undefined at the time of usage: {gate}")
+        else:
+            if gate not in defined_gates:
+                raise ValueError(f"Gates undefined at the time of usage: {gate}")
         if len(instr) != 0:
             instructions_code += instr + ";\n"
 
     return instructions_code, header_code
 
 
-@typechecked
 def open_qasm_2_to_3(
     code: str,
+    gphase: float = 0,
     included_tree_current_node: Optional[Node] = None,
     path_to_file: Optional[str] = None,
     defined_gates: Optional[set[str]] = None,
-    translation_warning: bool = True,
 ) -> str:
     """Converts an OpenQASM code from version 2.0 and 3.0.
 
@@ -424,6 +472,7 @@ def open_qasm_2_to_3(
 
     Args:
         code: String containing the OpenQASM 2.0 code and instructions.
+        gphase: Global phase of the circuit.
         included_tree_current_node: Current Node in the file inclusion tree.
         path_to_file: Path to the location of the file from which the code is
             coming (useful for locating imports).
@@ -476,20 +525,18 @@ def open_qasm_2_to_3(
             included_tree_current_node,
             defined_gates,
             path_to_file,
-            translation_warning,
         )
         header_code += h_code
         instructions_code += i_code
 
     target_code = header_code + "\n" + instructions_code
 
+    if gphase != 0:
+        target_code += f"gphase({gphase});\n"
     return target_code
 
 
-@typechecked
-def open_qasm_file_conversion_2_to_3(
-    path: str, translation_warning: bool = True
-) -> str:
+def open_qasm_file_conversion_2_to_3(path: str) -> str:
     """Converts an OpenQASM code in a file from version 2.0 and 3.0.
 
     This function is a shorthand to initialize :func:`open_qasm_2_to_3` with the
@@ -552,13 +599,12 @@ def open_qasm_file_conversion_2_to_3(
         code = f.read()
         return open_qasm_2_to_3(
             code,
+            0,
             Node(path),
             str(Path(path).parent),
-            translation_warning=translation_warning,
         )
 
 
-@typechecked
 def open_qasm_hard_includes(
     code: str,
     included_files: set[str],
@@ -611,8 +657,14 @@ def open_qasm_hard_includes(
                     converted_code.append(qasm_code(Instr.OQASM2_ALL_STDGATES))
                 elif file_name in {"stdgates.inc"}:
                     converted_code.append(qasm_code(Instr.OQASM3_ALL_STDGATES))
+                elif file_name in {"qiskit_custom_include.inc"}:
+                    converted_code.append(qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
                 elif file_name in {"braket_custom_include.inc"}:
                     converted_code.append(qasm_code(Instr.BRAKET_CUSTOM_INCLUDE))
+                elif file_name in {"braket_inverse_custom_include.inc"}:
+                    converted_code.append(
+                        qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE)
+                    )
                 else:
                     with open(path_to_file + file_name, "r") as f:
                         converted_code.append(
@@ -865,7 +917,51 @@ def remove_include_and_comment(qasm_code: str) -> str:
     return "\n".join(replaced_code)
 
 
-@typechecked
+def parse_gphase_instruction(
+    gphase: float, instr: str, instr_match: re.Match[str]
+) -> float:
+    import numpy as np
+    from sympy import sympify
+
+    depth = 0
+    i = 0
+    values = []
+
+    while i < len(instr):
+        if instr[i] == '{':
+            depth += 1
+            i += 1
+        elif instr[i] == '}':
+            depth = max(depth - 1, 0)
+            i += 1
+        elif instr[i : i + 7] == 'gphase(' and depth == 0:
+            i += 7
+            start = i
+            paren_count = 1
+
+            while i < len(instr) and paren_count > 0:
+                if instr[i] == '(':
+                    paren_count += 1
+                elif instr[i] == ')':
+                    paren_count -= 1
+                i += 1
+
+            arg_expr = instr[start : i - 1].strip()
+            try:
+                val = float(sympify(arg_expr).evalf(subs={"pi": np.pi}))
+                values.append(val)
+            except ValueError:
+                if instr_match:
+                    raise ValueError(
+                        f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
+                    )
+            else:
+                i += 1
+
+    gphase += sum(values)
+    return gphase
+
+
 def convert_instruction_3_to_2(
     instr: str,
     included_instr: set[Instr],
@@ -873,6 +969,7 @@ def convert_instruction_3_to_2(
     defined_gates: set[str],
     path_to_main: Optional[str] = None,
     gphase: float = 0.0,
+    language: Language = Language.QASM3,
 ) -> tuple[str, str, float]:
     r"""Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
@@ -889,6 +986,7 @@ def convert_instruction_3_to_2(
         path_to_main: Path to the main folder from which include paths are
             described.
         gphase: The global phase of a circuit, which is not handled in OpenQASM2.
+        language: The language of origin of the OpenQASM3 instruction
 
     Returns:
         The upgraded instruction, the potential code to add in the header as
@@ -919,6 +1017,8 @@ def convert_instruction_3_to_2(
     instr_match = re.match(r"\s*(\w+)\s*", instr)
     if instr_match:
         instr_name = instr_match.group(1)
+    elif "#pragma" in instr:
+        instr_name = "pragma"
     else:
         raise ValueError(f"Could not parse instruction: {instr}")
 
@@ -1036,18 +1136,18 @@ def convert_instruction_3_to_2(
     elif instr_name in {"reset", "barrier"}:
         instructions_code += instr + ";\n"
     elif instr_name == "gphase":
-        instr_match = re.match(r"gphase\((.*)\)\s*", instr)
         if instr_match:
-            try:
-                phase = float(instr_match.group(1))
-            except ValueError:
-                raise ValueError(
-                    f"gphase can not be converted to float: {instr_match.group(1)}, {instr}"
-                )
-            gphase += phase
+            gphase = parse_gphase_instruction(gphase, instr, instr_match)
+    elif language == Language.BRAKET and instr_name == "pragma":
+        pass
+
     else:
         gate = instr.split()[0].split("(")[0]
         if gate not in defined_gates:
+            if "pow" in gate:
+                raise ValueError("Pow instruction is not handled yet.")
+            elif "input" in gate:
+                raise ValueError("Gates with variable parameters are not handled yet.")
             raise ValueError(
                 f"Gates not defined/handled at the time of usage: {gate}, {instr_name}"
             )
@@ -1058,13 +1158,36 @@ def convert_instruction_3_to_2(
     return instructions_code, header_code, gphase
 
 
-@typechecked
+def _replace_header(code: str) -> str:
+    code_with_right_instructions = []
+    for line in code.split(";"):
+        line_to_add = True
+        if "stdgates.inc" in line:
+            line_to_add = False
+        if "ctrl" in line:
+            regex = r"ctrl(?:\((\d+)\))?\s*@"
+            value = re.findall(regex, line)
+            lines = line.split("@ ")
+            c = ""
+            if value[0] == '':
+                c = "c"
+            else:
+                for _ in range(int(value[0])):
+                    c += "c"
+            line = c + lines[1]
+
+        if line_to_add:
+            code_with_right_instructions.append(line)
+    return ';'.join(code_with_right_instructions)
+
+
 def open_qasm_3_to_2(
     code: str,
     included_tree_current_node: Optional[Node] = None,
     path_to_file: Optional[str] = None,
     defined_gates: Optional[set[str]] = None,
     gphase: float = 0.0,
+    language: Language = Language.QASM3,
 ) -> tuple[str, float]:
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
@@ -1080,6 +1203,7 @@ def open_qasm_3_to_2(
         path_to_file: Path to the location of the file from which the code is coming (useful for locating imports).
         defined_gates: Set of custom gates already defined.
         gphase: The global phase of a circuit, which is not handled in OpenQASM2.
+        language: Set the specific gates to parse in function of the origin of the OpenQASM 3.0 code
 
     Returns:
         Converted OpenQASM code in the 2.0 version.
@@ -1115,10 +1239,31 @@ def open_qasm_3_to_2(
     header_code = ""
     instructions_code = ""
 
+    if language == Language.QISKIT:
+        from mpqp.qasm.open_qasm_2_and_3 import qasm_code
+
+        lines = code.split(";")
+        lines.insert(1, qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
+        code = ";".join(lines)
+    elif language == Language.BRAKET:
+        from mpqp.qasm.open_qasm_2_and_3 import qasm_code
+
+        lines = code.split(";")
+        lines.insert(1, qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE))
+        code = ";".join(lines)
+
+    if language == Language.QISKIT or language == Language.BRAKET:
+        code = _replace_header(code)
+        code = remove_user_gates(code)
+
     instructions = parse_openqasm_3_file(code)
 
     included_instructions = set()
     defined_gates.update(std_gates_3)
+    if language == Language.QISKIT:
+        defined_gates.update(std_qiskit_gates)
+    elif language == Language.BRAKET:
+        defined_gates.update(std_braket_gates)
 
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(
@@ -1128,6 +1273,7 @@ def open_qasm_3_to_2(
             defined_gates,
             path_to_file,
             gphase,
+            language,
         )
         header_code += h_code
         instructions_code += i_code
@@ -1137,7 +1283,6 @@ def open_qasm_3_to_2(
     return target_code, gphase
 
 
-@typechecked
 def parse_openqasm_3_file(code: str) -> list[str]:
     """Splits a complete OpenQASM 3 program into individual instructions.
 
@@ -1160,6 +1305,9 @@ def parse_openqasm_3_file(code: str) -> list[str]:
         cleaned_code[: gate_matches[0].span()[0]] if gate_matches else cleaned_code
     )
 
+    if re.search(r"if\s*\(.*?\)\s*{[^}]*}", code, flags=re.DOTALL):
+        raise ValueError("\"If\" instructions aren't handled")
+
     instructions = sanitized_start.split(";")
 
     for i in range(len(gate_matches)):
@@ -1178,7 +1326,6 @@ def parse_openqasm_3_file(code: str) -> list[str]:
     return list(filter(lambda i: i.strip() != "", instructions))
 
 
-@typechecked
 def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
     """Converts an OpenQASM code in a file from version 3.0 and 2.0.
 

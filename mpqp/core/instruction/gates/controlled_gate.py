@@ -2,16 +2,13 @@ from __future__ import annotations
 
 from abc import ABC
 from functools import reduce
-from typing import Optional
-
-from typeguard import typechecked
+from typing import Optional, Union, cast
 
 from mpqp.tools.generics import Matrix
 
 from .gate import Gate
 
 
-@typechecked
 class ControlledGate(Gate, ABC):
     """Abstract class representing a controlled gate, that can be controlled by
     one or several qubits.
@@ -25,17 +22,26 @@ class ControlledGate(Gate, ABC):
 
     def __init__(
         self,
-        controls: list[int],
-        targets: list[int],
+        controls: Union[list[int], int],
+        targets: Union[list[int], int],
         non_controlled_gate: Gate,
         label: Optional[str] = None,
     ):
+        if isinstance(controls, int):
+            controls = [controls]
+        if isinstance(targets, int):
+            targets = [targets]
         if len(set(controls)) != len(controls):
             raise ValueError(f"Duplicate registers in controls: {controls}")
+
         if len(set(controls).intersection(set(targets))):
             raise ValueError(
                 f"Common registers between targets {targets} and controls {controls}"
             )
+        if any(control < 0 for control in controls):
+            raise ValueError(f"Negative index in controls: {controls}")
+        if any(target < 0 for target in targets):
+            raise ValueError(f"Negative index in targets: {targets}")
         self.controls = controls
         """See parameter description."""
         self.non_controlled_gate = non_controlled_gate
@@ -58,7 +64,9 @@ class ControlledGate(Gate, ABC):
                 controls = [x - min_qubit for x in controls]
                 targets = [x - min_qubit for x in targets]
             elif desired_gate_size < max_qubit + 1:
-                raise ValueError(f"nb_qubits must be at least {max_qubit + 1}")
+                raise ValueError(
+                    f"Total number of qubits must be at least {max_qubit + 1}"
+                )
 
             canonical_matrix = np.kron(
                 self.to_canonical_matrix(),
@@ -90,10 +98,10 @@ class ControlledGate(Gate, ABC):
             target -= min_qubit
             desired_gate_size = abs(control - target) + 1
 
-        zero = np.diag([1, 0]).astype(np.complex64)
-        one = np.diag([0, 1]).astype(np.complex64)
+        zero = np.diag(np.array([1, 0], dtype=np.complex128))
+        one = np.diag(np.array([0, 1], dtype=np.complex128))
         non_controlled_gate = self.non_controlled_gate.to_matrix()
-        I2 = np.eye(2, dtype=np.complex64)
+        I2 = np.eye(2, dtype=np.complex128)
 
         control_matrix = zero if control == 0 else I2
         target_matrix = (
@@ -111,7 +119,7 @@ class ControlledGate(Gate, ABC):
                 target_matrix = np.kron(target_matrix, I2)
                 control_matrix = np.kron(control_matrix, I2)
 
-        return control_matrix + target_matrix
+        return cast(Matrix, control_matrix + target_matrix)
 
     def __repr__(self) -> str:
         c = self.controls if len(self.controls) > 1 else self.controls[0]

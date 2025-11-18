@@ -1,11 +1,10 @@
-import pytest
 from typing import TYPE_CHECKING
 
-from mpqp.core.instruction.barrier import Language
+import pytest
+
+from mpqp import CNOT, CP, BasisMeasure, H, Language
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-from mpqp.core.instruction import *
 from mpqp.tools.circuit import random_circuit
-from mpqp import Language
 
 
 @pytest.mark.parametrize(
@@ -30,8 +29,8 @@ from mpqp import Language
             [
                 H(0),
                 CNOT(0, 1),
-                BasisMeasure([0]),
-                BasisMeasure([1]),
+                BasisMeasure([0], [0]),
+                BasisMeasure([1], [1]),
             ],
         ),
         (
@@ -49,8 +48,8 @@ from mpqp import Language
                 H(0),
                 H(1),
                 CNOT(0, 1),
-                BasisMeasure([0]),
-                BasisMeasure([1]),
+                BasisMeasure([0], [0]),
+                BasisMeasure([1], [1]),
             ],
         ),
         (
@@ -132,8 +131,8 @@ from mpqp import Language
 
             gate MyMixedGate a, b {
                 h a;
-                measure b -> c[0];
                 cx a, b;
+                measure b -> c[0];
             }
 
             qreg q[2];
@@ -141,7 +140,7 @@ from mpqp import Language
 
             MyMixedGate q[0], q[1];
             measure q[1] -> c[1];""",
-            [H(0), BasisMeasure([1]), CNOT(0, 1), BasisMeasure([1])],
+            [H(0), CNOT(0, 1), BasisMeasure([1], [0]), BasisMeasure([1], [1])],
         ),
         (
             """OPENQASM 2.0;

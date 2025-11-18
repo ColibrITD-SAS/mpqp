@@ -1,7 +1,6 @@
 import pytest
 
-from mpqp.core.instruction.measurement.basis import ComputationalBasis
-from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
+from mpqp import BasisMeasure, ComputationalBasis
 
 
 def test_basis_measure_init():

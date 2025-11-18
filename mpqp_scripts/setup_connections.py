@@ -5,7 +5,7 @@ the tokens, passwords, etc... but for now, it is a prerequisite that you already
 have these credentials to use this script.
 
 Information concerning which provider is configured and related credentials are
-stored in the ``~/.mpqp`` file."""
+stored in the ``~/.mpqp/.env`` file."""
 
 import os
 
@@ -14,9 +14,9 @@ os.environ["FOR_DISABLE_CONSOLE_CTRL_HANDLER"] = "1"
 
 def print_config_info():
     """Displays the information stored for each provider."""
+    import mpqp.environment.env_manager as env_m
     import mpqp.execution.connection.aws_connection as awsc
     import mpqp.execution.connection.azure_connection as azuc
-    import mpqp.execution.connection.env_manager as env_m
     import mpqp.execution.connection.ibm_connection as ibmqc
     import mpqp.execution.connection.ionq_connection as ionqc
     from mpqp.tools.errors import IBMRemoteExecutionError

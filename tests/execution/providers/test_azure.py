@@ -5,13 +5,22 @@ import sys
 
 import pytest
 
-from mpqp import QCircuit
-from mpqp.execution import run
-from mpqp.execution.devices import AZUREDevice
-from mpqp.gates import *
-from mpqp.measures import BasisMeasure
-from mpqp.execution.result import BatchResult
-
+from mpqp import (
+    CNOT,
+    SWAP,
+    AZUREDevice,
+    BasisMeasure,
+    BatchResult,
+    Gate,
+    H,
+    QCircuit,
+    Ry,
+    S,
+    T,
+    X,
+    Y,
+    run,
+)
 
 sampling_devices_cost = [
     AZUREDevice.IONQ_SIMULATOR,
@@ -21,7 +30,7 @@ sampling_devices_cost = [
     AZUREDevice.QUANTINUUM_SIM_H1_1,
     AZUREDevice.QUANTINUUM_SIM_H1_1E,
     AZUREDevice.QUANTINUUM_SIM_H1_1SC,
-    AZUREDevice.RIGETTI_SIM_QPU_ANKAA_2,
+    AZUREDevice.RIGETTI_SIM_QPU_ANKAA_3,
     AZUREDevice.RIGETTI_SIM_QVM,
 ]
 

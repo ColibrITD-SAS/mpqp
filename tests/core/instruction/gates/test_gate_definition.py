@@ -3,8 +3,8 @@ import numpy.typing as npt
 import pytest
 from sympy import symbols
 
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
-from mpqp.core.instruction.gates.native_gates import *
+from mpqp.gates import *
+from mpqp.gates import UnitaryMatrix
 
 
 @pytest.mark.parametrize(
@@ -14,7 +14,7 @@ from mpqp.core.instruction.gates.native_gates import *
     ],
 )
 def test_unitary_matrix_is_equivalent(
-    matrix_1: npt.NDArray[np.complex64], matrix_2: npt.NDArray[np.complex64]
+    matrix_1: npt.NDArray[np.complex128], matrix_2: npt.NDArray[np.complex128]
 ):
     unitary_matrix_1 = UnitaryMatrix(matrix_1)
     unitary_matrix_2 = UnitaryMatrix(matrix_2)
@@ -25,7 +25,7 @@ def test_unitary_matrix_is_equivalent(
     "matrix",
     [np.array([[symbols("theta"), 0], [0, 1]])],
 )
-def test_unitary_matrix_inverse_failing(matrix: npt.NDArray[np.complex64]):
+def test_unitary_matrix_inverse_failing(matrix: npt.NDArray[np.complex128]):
     with pytest.warns(
         UserWarning,
         match="Cannot ensure that a operator defined with symbolic variables is unitary.",
@@ -42,7 +42,7 @@ def test_unitary_matrix_inverse_failing(matrix: npt.NDArray[np.complex64]):
     "matrix",
     [np.array([[1, 0], [0, 1]])],
 )
-def test_unitary_matrix_inverse_(matrix: npt.NDArray[np.complex64]):
+def test_unitary_matrix_inverse_(matrix: npt.NDArray[np.complex128]):
     unit = UnitaryMatrix(matrix)
     assert unit.is_equivalent(unit.inverse())
 
@@ -691,6 +691,6 @@ def test_unitary_matrix_inverse_(matrix: npt.NDArray[np.complex64]):
         ),
     ],
 )
-def test_gate_to_matrix(gate: Gate, matrix: npt.NDArray[np.complex64]):
+def test_gate_to_matrix(gate: Gate, matrix: npt.NDArray[np.complex128]):
     gate_matrix = UnitaryMatrix(gate.to_matrix())
     assert gate_matrix.is_equivalent(UnitaryMatrix(matrix))

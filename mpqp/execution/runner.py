@@ -20,11 +20,9 @@ from __future__ import annotations
 
 from numbers import Complex
 from textwrap import indent
-from typing import Iterable, Optional
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
-from sympy import Expr
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
@@ -44,17 +42,18 @@ from mpqp.execution.devices import (
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
-from mpqp.execution.providers.azure import run_azure
+from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
-from mpqp.execution.simulated_devices import IBMSimulatedDevice, SimulatedDevice
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index, flatten
 
+if TYPE_CHECKING:
+    from sympy import Expr
 
-@typechecked
+
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
@@ -74,19 +73,42 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Returns:
         The measure padded with identities before and after.
     """
-    Id_before = np.eye(2 ** measure.rearranged_targets[0])
-    Id_after = np.eye(2 ** (circuit.nb_qubits - measure.rearranged_targets[-1] - 1))
+    # TODO: use this only for specific provider
+
+    if measure.targets == list(range(circuit.nb_qubits)):
+        return measure
+
+    tweaked_observables = []
+    n_before = measure.rearranged_targets[0]
+    n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
+    for obs in measure.observables:
+        if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
+            from mpqp.measures import pI
+
+            pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
+            tweaked_observables.append(Observable(pauli))
+        else:
+            Id_before = np.eye(2**n_before)
+            Id_after = np.eye(2**n_after)
+            tweaked_observables.append(
+                Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+            )
+
     tweaked_measure = ExpectationMeasure(
-        Observable(np.kron(np.kron(Id_before, measure.observable.matrix), Id_after)),
+        tweaked_observables,
         list(range(circuit.nb_qubits)),
         measure.shots,
+        measure.commuting_type,
+        measure.grouping_method,
+        optimize_measurement=measure.optimize_measurement,
     )
     return tweaked_measure
 
 
-@typechecked
 def generate_job(
-    circuit: QCircuit, device: AvailableDevice, values: dict[Expr | str, Complex] = {}
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -103,7 +125,8 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    circuit = circuit.subs(values, True)
+    if values is not None:
+        circuit = circuit.subs(values, True)
 
     m_list = circuit.measurements
     nb_meas = len(m_list)
@@ -113,18 +136,18 @@ def generate_job(
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
-            modified_circuit = circuit.without_measurements() + measurement.pre_measure
-            modified_circuit.add(measurement)
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, modified_circuit, device, measurement)
+                job = Job(JobType.STATE_VECTOR, circuit, device)
             else:
-                job = Job(JobType.SAMPLE, modified_circuit, device, measurement)
+                job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
+            m = adjust_measure(measurement, circuit)
+            c = circuit.without_measurements()
+            c.add(m)
             job = Job(
                 JobType.OBSERVABLE,
-                circuit + measurement.pre_measure,
+                c,
                 device,
-                adjust_measure(measurement, circuit),
             )
         else:
             raise NotImplementedError(
@@ -139,11 +162,49 @@ def generate_job(
     return job
 
 
-@typechecked
+def _run_diagonal_observables(
+    circuit: QCircuit,
+    exp_measure: ExpectationMeasure,
+    device: AvailableDevice,
+    observable_job: Job,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+) -> Result:
+
+    adapted_circuit = circuit.without_measurements()
+    adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
+
+    result = _run_single(adapted_circuit, device, values, False)
+    probas = result.probabilities
+
+    error = 0 if exp_measure.shots == 0 else None
+    if exp_measure.nb_observables == 1:
+        exp_value = float(probas.dot(exp_measure.observables[0].diagonal_elements))
+        return Result(
+            observable_job,
+            exp_value,
+            error,
+            exp_measure.shots,
+        )
+
+    exp_values = dict()
+    errors = dict()
+    for obs in exp_measure.observables:
+        # 3M-TODO: replace this dot product with cupy, apparently more optim
+        exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
+        errors[obs.label] = error
+
+    return Result(
+        observable_job,
+        exp_values,
+        errors,
+        exp_measure.shots,
+    )
+
+
 def _run_single(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: dict[Expr | str, Complex],
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
@@ -179,14 +240,22 @@ def _run_single(
          Error: None
 
     """
+    from mpqp.execution.simulated_devices import (
+        SimulatedDevice,
+        StaticIBMSimulatedDevice,
+    )
 
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
-    circuit = circuit.without_breakpoints()
     job = generate_job(circuit, device, values)
     job.status = JobStatus.INIT
+    if len(circuit.measurements) == 1:
+        measure = circuit.measurements[0]
+        if isinstance(measure, ExpectationMeasure):
+            if measure.optim_diagonal and measure.only_diagonal_observables():
+                return _run_diagonal_observables(circuit, measure, device, job, values)
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -194,11 +263,11 @@ def _run_single(
                 f"Device {device} cannot simulate circuits containing NoiseModels."
             )
         elif not isinstance(
-            device, (ATOSDevice, AWSDevice, IBMDevice, SimulatedDevice)
+            device, (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice)
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, (IBMDevice, IBMSimulatedDevice)):
+    if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
@@ -212,11 +281,37 @@ def _run_single(
         raise NotImplementedError(f"Device {device} not handled")
 
 
-@typechecked
+@overload
+def run(
+    circuit: OneOrMany[QCircuit],
+    device: Sequence[AvailableDevice],
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+    display_breakpoints: bool = True,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: Sequence[QCircuit],
+    device: OneOrMany[AvailableDevice],
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+    display_breakpoints: bool = True,
+) -> BatchResult: ...
+
+
+@overload
+def run(
+    circuit: QCircuit,
+    device: AvailableDevice,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
+    display_breakpoints: bool = True,
+) -> Result: ...
+
+
 def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
@@ -245,29 +340,29 @@ def run(
         >>> result = run(c, IBMDevice.AER_SIMULATOR)
         >>> print(result)
         Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+          Counts: [0, 0, 0, 1000]
+          Probabilities: [0, 0, 0, 1]
+          Samples:
+            State: 11, Index: 3, Count: 1000, Probability: 1
+          Error: None
         >>> batch_result = run(
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
         >>> print(batch_result)
         BatchResult: 2 results
-        Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: 0.0
-        Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+            Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: 0.0
+            Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
         >>> c2 = QCircuit(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
@@ -275,22 +370,20 @@ def run(
         >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
         >>> print(result)
         BatchResult: 2 results
-        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
-        Result: X circuit, IBMDevice, AER_SIMULATOR
-         Counts: [0, 0, 0, 1000]
-         Probabilities: [0, 0, 0, 1]
-         Samples:
-          State: 11, Index: 3, Count: 1000, Probability: 1
-         Error: None
+            Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
+            Result: X circuit, IBMDevice, AER_SIMULATOR
+              Counts: [0, 0, 0, 1000]
+              Probabilities: [0, 0, 0, 1]
+              Samples:
+                State: 11, Index: 3, Count: 1000, Probability: 1
+              Error: None
 
     """
-    if values is None:
-        values = {}
 
     def namer(circ: QCircuit, i: int):
         circ.label = f"circuit {i}" if circ.label is None else circ.label
@@ -299,7 +392,12 @@ def run(
     if isinstance(circuit, Iterable) or isinstance(device, Iterable):
         return BatchResult(
             [
-                _run_single(namer(circ, i + 1), dev, values, display_breakpoints)
+                _run_single(
+                    namer(circ, i + 1),
+                    dev,
+                    values,
+                    display_breakpoints,
+                )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
@@ -308,11 +406,10 @@ def run(
         return _run_single(circuit, device, values, display_breakpoints)
 
 
-@typechecked
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: Optional[dict[Expr | str, Complex]] = None,
+    values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -361,6 +458,8 @@ def submit(
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
         job_id, _ = submit_job_braket(job)
+    elif isinstance(device, AZUREDevice):
+        job_id, _ = submit_job_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -397,7 +496,9 @@ def display_kth_breakpoint(
             nb_cbits=circuit.nb_cbits,
             label=circuit.label,
         )
-        res = _run_single(copy, device, {}, False)
+        res = _run_single(copy, device, None, False)
+        if TYPE_CHECKING:
+            assert isinstance(res, Result)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
         print("       " + state_vector_ket_shape(res.amplitudes))
         if bp.draw_circuit:

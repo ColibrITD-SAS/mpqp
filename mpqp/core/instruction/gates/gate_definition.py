@@ -9,14 +9,12 @@ if TYPE_CHECKING:
     from sympy import Expr
 
 import numpy as np
-from typeguard import typechecked
 
 from mpqp.tools.display import clean_matrix, one_lined_repr
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
 
 
-@typechecked
 class GateDefinition(ABC):
     """Abstract class used to handle the definition of a Gate.
 
@@ -29,8 +27,7 @@ class GateDefinition(ABC):
 
     Example:
         >>> gate_matrix = np.array([[0, 0, 0, 1], [0, 1, 0, 0], [1, 0, 0, 0], [0, 0, 1, 0]])
-        >>> gate_definition = UnitaryMatrix(gate_matrix)
-        >>> custom_gate = CustomGate(gate_definition, [0,1])
+        >>> custom_gate = CustomGate(gate_matrix, [0,1])
 
     """
 
@@ -90,19 +87,66 @@ class GateDefinition(ABC):
         """
         mat = self.to_matrix()
 
-        if not all(
-            isinstance(
-                elt.item(), Complex  # pyright: ignore[reportAttributeAccessIssue]
-            )
-            for elt in np.nditer(mat, ["refs_ok"])
-        ):
+        if not all(isinstance(elt, Complex) for elt in mat.flatten()):
             raise ValueError("Cannot invert arbitrary gates using symbolic variables")
         return UnitaryMatrix(
             np.linalg.inv(mat)  # pyright: ignore[reportCallIssue, reportArgumentType]
         )
 
+    def __eq__(self, value: object) -> bool:
+        if not isinstance(value, self.__class__):
+            return False
+        self_dict = self.to_dict()
+        value_dict = value.to_dict()
 
-@typechecked
+        if self_dict.keys() != value_dict.keys():
+            return False
+
+        for key in self_dict:
+            val1, val2 = self_dict[key], value_dict[key]
+
+            if isinstance(val1, list) and isinstance(val2, list):
+                try:
+                    from sympy import N
+
+                    # TODO: replace by matrix_eq
+                    val1_numeric = np.array(
+                        [[N(el) for el in row] for row in val1], dtype=complex
+                    )
+                    val2_numeric = np.array(
+                        [[N(el) for el in row] for row in val2], dtype=complex
+                    )
+                    if not np.allclose(val1_numeric, val2_numeric, atol=1e-7):
+                        return False
+                except:
+                    if val1 != val2:
+                        return False
+            else:
+                if val1 != val2:
+                    return False
+        return True
+
+    def to_dict(self):
+        """
+        Serialize the gate to a dictionary.
+
+        Returns:
+            dict: A dictionary representation of the circuit.
+        """
+        result = {}
+        for attr_name in dir(self):
+            if (
+                attr_name not in {'_abc_impl', '_nb_qubits'}
+                and not attr_name.startswith("__")
+                and not callable(getattr(self, attr_name))
+            ):
+                value = getattr(self, attr_name)
+                if isinstance(value, np.ndarray):
+                    value = value.tolist()
+                result[attr_name] = value
+        return result
+
+
 class UnitaryMatrix(GateDefinition):
     """Definition of a gate using its matrix.
 
@@ -110,6 +154,11 @@ class UnitaryMatrix(GateDefinition):
         definition: Matrix defining the unitary gate.
         disable_symbol_warn: Boolean used to enable/disable warning concerning
             unitary checking with symbolic variables.
+
+    Raises:
+        ValueError: Matrices defining gates have to be unitary.
+        ValueError: The unitary matrix of a gate acting on qubits must have
+            dimensions that are power of two.
     """
 
     def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
@@ -207,4 +256,4 @@ class UnitaryMatrix(GateDefinition):
         )
 
     def __repr__(self) -> str:
-        return f"UnitaryMatrix({one_lined_repr(getattr(self, 'matrix', ''))})"
+        return f"UnitaryMatrix({one_lined_repr(self.matrix)})"

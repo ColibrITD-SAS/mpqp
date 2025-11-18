@@ -4,62 +4,62 @@ cases, you can use :class:`mpqp.core.instruction.gates.custom_gate.CustomGate`
 to add your custom unitary operation to the circuit, which will be decomposed
 and executed transparently."""
 
-from typing import TYPE_CHECKING, Optional
+from __future__ import annotations
 
-from typeguard import typechecked
+from typing import TYPE_CHECKING, Optional, Union
 
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+    from mpqp.core.circuit import QCircuit
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 
 
-@typechecked
 class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 
     Args:
-        definition: The GateDefinition describing the gate.
+        matrix: The matrix describing the gate.
         targets: The qubits on which the gate operates.
         label: The label of the gate. Defaults to None.
 
     Raises:
         ValueError: the target qubits must be contiguous and in order, and must
-            match the size of the UnitaryMatrix
+            match the size of the matrix
+
+        ValueError: Target qubits must be ordered and contiguous for a CustomGate.
+
 
     Example:
-        >>> u = UnitaryMatrix(np.array([[0,-1],[1,0]]))
+        >>> u = np.array([[0,-1],[1,0]])
         >>> cg = CustomGate(u, [0])
         >>> print(run(QCircuit([X(0), cg]), IBMDevice.AER_SIMULATOR))
         Result: IBMDevice, AER_SIMULATOR
-         State vector: [-1, 0]
-         Probabilities: [1, 0]
-         Number of qubits: 1
-
-    Note:
-        For the moment, only ordered and contiguous target qubits are allowed
-        when instantiating a CustomGate.
+          State vector: [-1, 0]
+          Probabilities: [1, 0]
+          Number of qubits: 1
 
     """
 
     def __init__(
-        self, definition: UnitaryMatrix, targets: list[int], label: Optional[str] = None
+        self,
+        matrix: Matrix,
+        targets: Union[list[int], int],
+        label: Optional[str] = None,
     ):
+        definition = UnitaryMatrix(matrix)
+        if isinstance(targets, int):
+            targets = [targets]
         self.definition = definition
         """See parameter description."""
-
         if definition.nb_qubits != len(targets):
             raise ValueError(
                 f"Size of the targets ({len(targets)}) must match the number of qubits of the "
                 f"UnitaryMatrix ({definition.nb_qubits})"
-            )
-        if not all([targets[i] + 1 == targets[i + 1] for i in range(len(targets) - 1)]):
-            raise ValueError(
-                "Target qubits must be ordered and contiguous for a CustomGate."
             )
 
         # 3M-TODO: add later the possibility to give non-contiguous and/or non-ordered target qubits for CustomGate,
@@ -82,13 +82,45 @@ class CustomGate(Gate):
         self,
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
+        printing: bool = False,
     ):
         if language == Language.QISKIT:
-            from qiskit.quantum_info.operators import Operator as QiskitOperator
+            from qiskit.circuit.library import UnitaryGate
+            from sympy import Expr
 
             if qiskit_parameters is None:
                 qiskit_parameters = set()
-            return QiskitOperator(self.matrix)
+            gate_symbols = set().union(
+                *(
+                    elt.free_symbols
+                    for elt in self.matrix.flatten()
+                    if isinstance(elt, Expr)
+                )
+            )
+            from mpqp.core.instruction.gates.native_gates import (
+                _qiskit_parameter_adder,  # pyright: ignore[reportPrivateUsage]
+            )
+
+            for symbol in gate_symbols:
+                if TYPE_CHECKING:
+                    assert isinstance(symbol, Expr)
+                _qiskit_parameter_adder(symbol, qiskit_parameters)
+
+            if len(gate_symbols) > 0:
+                if not printing:
+                    raise ValueError(
+                        "Custom gates defined with symbolic variables cannot be"
+                        " exported to qiskit."
+                    )
+                from qiskit import QuantumCircuit
+
+                dummy_circuit = QuantumCircuit(self.nb_qubits)
+                for param in qiskit_parameters:
+                    # Rx is just a random choice so to have the parameter in the
+                    # list of inputs
+                    dummy_circuit.rx(param, 0)
+                return dummy_circuit.to_gate(label="CustomGate")
+            return UnitaryGate(self.matrix)
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 
@@ -123,18 +155,28 @@ class CustomGate(Gate):
                     or line.startswith("OPENQASM")
                 )
             ]
-
             return "\n".join(instructions_only), gphase
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
     def __repr__(self) -> str:
-        label = ", " + self.label if self.label else ""
-        return f"CustomGate({UnitaryMatrix(self.matrix)}, {self.targets} {label})"
+        label = f", \"{self.label}\"" if self.label else ""
+        return f"CustomGate({repr(self.matrix)}, {self.targets}{label})"
 
-    def decompose(self):
+    def decompose(self) -> "QCircuit":
         """Returns the circuit made of native gates equivalent to this gate.
 
-        3M-TODO refine this doc and implement
+        The circuit follows the quantum Shannon decomposition which decomposes any unitary matrix into Ry,Rz and CNOT gates.
+
+        Example:
+            >>> U = np.array([[0,1], [1,0]])
+            >>> gate = CustomGate(U, [0])
+            >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+               ┌─────────┐┌───────┐┌──────────┐
+            q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
+               └─────────┘└───────┘└──────────┘
+
         """
-        raise NotImplementedError()
+        from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
+
+        return quantum_shannon_decomposition(self.matrix)

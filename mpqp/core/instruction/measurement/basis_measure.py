@@ -5,10 +5,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from typeguard import typechecked
-
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
+    from mpqp.core.instruction.gates import Gate
 
 from mpqp.core.languages import Language
 
@@ -16,7 +15,6 @@ from .basis import Basis, ComputationalBasis, VariableSizeBasis
 from .measure import Measure
 
 
-@typechecked
 class BasisMeasure(Measure):
     """Class representing a measure of one or several qubits in a specific
     basis.
@@ -65,13 +63,27 @@ class BasisMeasure(Measure):
         if c_targets is not None:
             if len(set(c_targets)) != len(c_targets):
                 raise ValueError(f"Duplicate registers in targets: {c_targets}")
+            if targets is None:
+                raise ValueError(f"Missing targets for c_targets: {c_targets}")
+            elif len(c_targets) != len(targets):
+                raise ValueError(
+                    f"Different number of targets and c_targets: targets={len(targets)}, c_targets={len(c_targets)}"
+                )
+            self._user_set_c_targets = True
+        else:
+            self._user_set_c_targets = False
 
         super().__init__(targets, shots, label)
 
         if basis is None:
             basis = ComputationalBasis()
-
-        if not isinstance(basis, VariableSizeBasis):
+        if (
+            isinstance(basis, VariableSizeBasis)
+            and basis._dynamic  # pyright: ignore[reportPrivateUsage]
+        ):
+            if targets is not None:
+                basis.set_size(max(targets) + 1)
+        else:
             self._dynamic = False
             if (
                 len(self.targets) != 0
@@ -83,7 +95,7 @@ class BasisMeasure(Measure):
                 )
             self.targets = list(range(basis.nb_qubits))
 
-        self.user_set_c_targets = c_targets is not None
+        self._user_set_c_targets = c_targets is not None
         self.c_targets = c_targets
         """See parameter description."""
         self.basis = basis
@@ -100,6 +112,10 @@ class BasisMeasure(Measure):
             from qiskit.circuit import Measure
 
             return Measure()
+        elif language == Language.CIRQ:
+            from cirq.ops.measurement_gate import MeasurementGate
+
+            return MeasurementGate(num_qubits=self.nb_qubits)
         if language == Language.QASM2:
             if self.c_targets is None:
                 return "\n".join(
@@ -116,27 +132,41 @@ class BasisMeasure(Measure):
             raise NotImplementedError(f"{language} is not supported")
 
     @property
-    def pre_measure(self):
-        return self.basis.to_computational()
+    def pre_measure(self) -> list[Gate]:
+        if isinstance(self.basis, ComputationalBasis):
+            return []
+        return [self.basis.to_instruction()]
 
     def __repr__(self) -> str:
-        targets = (
-            f"{self.targets}" if (not self._dynamic and len(self.targets)) != 0 else ""
-        )
-        options = ""
+        components = []
+        if not self._dynamic and len(self.targets) != 0:
+            components.append(str(self.targets))
+        if not self._dynamic and self._user_set_c_targets:
+            components.append(f"c_targets={self.c_targets}")
         if self.shots != 1024:
-            options += f"shots={self.shots}"
-        if not isinstance(self.basis, ComputationalBasis):
-            options += (
-                f", basis={self.basis}"
-                if len(options) != 0 or len(targets) != 0
-                else f"basis={self.basis}"
-            )
+            components.append(f"shots={self.shots}")
         if self.label is not None:
-            options += (
-                f", label={self.label}"
-                if len(options) != 0 or len(targets) != 0
-                else f"label={self.label}"
-            )
-        separator = ", " if len(options) != 0 and len(targets) != 0 else ""
-        return f"BasisMeasure({targets}{separator}{options})"
+            components.append(f"label='{self.label}'")
+        if (
+            not isinstance(self.basis, ComputationalBasis)
+            or not self.basis._dynamic  # pyright: ignore[reportPrivateUsage]
+        ):
+            components.append(f"basis={self.basis}")
+
+        return f"BasisMeasure({', '.join(components)})"
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, BasisMeasure):
+            return False
+        return self.to_dict() == other.to_dict()
+
+    def to_dict(self):
+        # TODO: can this be a bit more automatic ?
+        return {
+            "targets": self.targets,
+            "c_targets": self.c_targets,
+            "shots": self.shots,
+            "basis": self.basis,
+            "label": self.label,
+            "_dynamic": self._dynamic,
+        }

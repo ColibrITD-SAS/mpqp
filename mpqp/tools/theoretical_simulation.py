@@ -29,20 +29,17 @@ import numpy.typing as npt
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from scipy.spatial.distance import jensenshannon
-from typeguard import typechecked
 
-from mpqp import QCircuit
-from mpqp.execution import AvailableDevice, AWSDevice
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
+from mpqp.core import QCircuit
+from mpqp.execution import AvailableDevice, AWSDevice, Result, run
 from mpqp.measures import BasisMeasure
 
 
-@typechecked
 def amplitude(
     circ: QCircuit,
-) -> npt.NDArray[np.complex64]:
-    """Computes the theoretical probabilities of a (potentially) noisy circuit
-    execution.
+) -> npt.NDArray[np.complex128]:
+    """Computes the theoretical probabilities of a (potentially) noisy
+    circuit execution.
 
     Args:
         circ: The circuit to run.
@@ -52,13 +49,13 @@ def amplitude(
     """
     d: int = 2**circ.nb_qubits
 
-    state = np.zeros((d), dtype=np.complex64)
+    state = np.zeros((d), dtype=np.complex128)
     state[0] = 1
     gates = circ.gates
     print(state)
 
     for gate in gates:
-        g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
+        g = gate.to_matrix(circ.nb_qubits)
         print(g)
         state = g @ state
         print(state)
@@ -75,7 +72,7 @@ def amplitude(
                             gate.connections(), circ.nb_qubits
                         )
                     ),
-                    start=np.zeros(d, dtype=np.complex64),
+                    start=np.zeros(d, dtype=np.complex128),
                 )
 
     connected_qubits = set().union(*[gate.connections() for gate in gates])
@@ -89,16 +86,15 @@ def amplitude(
                         unconnected_qubits, circ.nb_qubits
                     )
                 ),
-                start=np.zeros(d, dtype=np.complex64),
+                start=np.zeros(d, dtype=np.complex128),
             )
 
     return state
 
 
-@typechecked
 def theoretical_probs(
     circ: QCircuit,
-) -> npt.NDArray[np.float32]:
+) -> npt.NDArray[np.float64]:
     """Computes the theoretical probabilities of a (potentially) noisy circuit
     execution.
 
@@ -110,12 +106,13 @@ def theoretical_probs(
     """
     d: int = 2**circ.nb_qubits
 
-    state = np.zeros((d, d), dtype=np.complex64)
+    state = np.zeros((d, d), dtype=np.complex128)
     state[0, 0] = 1
     gates = circ.gates
 
     for gate in gates:
         g = gate.to_matrix(circ.nb_qubits).astype(np.complex64)
+        assert g.dtype == np.complex64 or g.dtype == np.float32
         state = g @ state @ g.T.conj()
         for noise in circ.noises:
             if (
@@ -130,7 +127,7 @@ def theoretical_probs(
                             gate.connections(), circ.nb_qubits
                         )
                     ),
-                    start=np.zeros((d, d), dtype=np.complex64),
+                    start=np.zeros((d, d), dtype=np.complex128),
                 )
 
     connected_qubits = set().union(*[gate.connections() for gate in gates])
@@ -144,13 +141,12 @@ def theoretical_probs(
                         unconnected_qubits, circ.nb_qubits
                     )
                 ),
-                start=np.zeros((d, d), dtype=np.complex64),
+                start=np.zeros((d, d), dtype=np.complex128),
             )
 
-    return state.diagonal().real
+    return state.diagonal().real.astype(np.float64)
 
 
-@typechecked
 def dist_alpha_matching(alpha: float):
     """The trust interval is computed from the distance between the circuit
     without noise and the noisy circuits probability distributions. This
@@ -172,7 +168,6 @@ def dist_alpha_matching(alpha: float):
 # ...
 
 
-@typechecked
 def trust_int(circuit: QCircuit):
     """Given a circuit, this computes the diameter of the trust interval for the
     output samples given into consideration the noise in the circuit.
@@ -189,7 +184,6 @@ def trust_int(circuit: QCircuit):
     return dist_alpha_matching(float(jensenshannon(noiseless_probs, noisy_probs)))
 
 
-@typechecked
 def exp_id_dist(
     circuit: QCircuit,
     shots: int = 1024,
@@ -211,12 +205,12 @@ def exp_id_dist(
 
     noisy_circuit = circuit.without_measurements()
     noisy_circuit.add(BasisMeasure(shots=shots))
-    mpqp_counts = _run_single(noisy_circuit, device, {}).counts
-
+    result = run(noisy_circuit, device)
+    assert isinstance(result, Result)
+    mpqp_counts = result.counts
     return float(jensenshannon(mpqp_counts, noisy_probs * sum(mpqp_counts)))
 
 
-@typechecked
 def validate_noisy_circuit(
     circuit: QCircuit,
     shots: int = 1024,
@@ -235,7 +229,6 @@ def validate_noisy_circuit(
     return bool(exp_id_dist(circuit, shots, device) <= trust_int(circuit))
 
 
-@typechecked
 def exp_id_dist_excess(circuit: QCircuit, shots: int = 1024) -> float:
     """Computes the gap between theory and our noise pipeline for a circuit.
 
@@ -253,7 +246,7 @@ def exp_id_dist_excess(circuit: QCircuit, shots: int = 1024) -> float:
 
 
 if __name__ == "__main__":
-    from mpqp.all import *
+    from mpqp import *
 
     gates = [
         H(0),

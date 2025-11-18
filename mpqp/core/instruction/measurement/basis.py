@@ -12,19 +12,19 @@ from __future__ import annotations
 
 from abc import abstractmethod
 from functools import reduce
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
+
+if TYPE_CHECKING:
+    from mpqp.core import QCircuit
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.tools.display import clean_1D_array, one_lined_repr
 from mpqp.tools.maths import is_unitary
 
 
-@typechecked
 class Basis:
     """Represents a basis of the Hilbert space used for measuring a qubit.
 
@@ -56,7 +56,7 @@ class Basis:
 
     def __init__(
         self,
-        basis_vectors: list[npt.NDArray[np.complex64]],
+        basis_vectors: list[npt.NDArray[np.complex128]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
         basis_vectors_labels: Optional[list[str]] = None,
@@ -129,11 +129,18 @@ class Basis:
         print(f"Basis: [\n    {joint_vectors}\n]")
 
     def __repr__(self) -> str:
-        joint_vectors = ", ".join(map(one_lined_repr, self.basis_vectors))
-        qubits = "" if isinstance(self, VariableSizeBasis) else f", {self.nb_qubits}"
-        return f"{type(self).__name__}({joint_vectors}{qubits})"
+        joint_vectors = "[" + ", ".join(map(one_lined_repr, self.basis_vectors)) + "]"
+        args = []
+        args.append(joint_vectors)
+        if isinstance(self, VariableSizeBasis):
+            args.append(f"nb_qubits={self.nb_qubits}")
+        if self.symbols != ("0", "1"):
+            args.append(f"symbols={self.symbols}")
+        if self.basis_vectors_labels is not None:
+            args.append(f"basis_vectors_labels={self.basis_vectors_labels}")
+        return f"{type(self).__name__}({', '.join(args)})"
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         """Converts the custom basis to the computational basis.
 
         This method creates a quantum circuit with a custom gate represented by
@@ -154,17 +161,42 @@ class Basis:
 
         from mpqp.core.circuit import QCircuit
 
+        return QCircuit([self.to_instruction()])
+
+    def to_instruction(self) -> CustomGate:
+        """Converts the custom basis to the corresponding change-of-basis gate.
+        The returned unitary is the conjugate transpose (P^†) of the matrix whose
+        columns are the custom basis vectors. This operator maps states from the
+        custom basis back to the computational basis, so that a computational
+        measurement corresponds to measurement in the custom basis.
+
+        Returns:
+            A custom gate representing the basis change circuit.
+
+        Example:
+            >>> basis = Basis([np.array([1, 0]), np.array([0, -1])])
+            >>> gate = basis.to_instruction()
+            >>> print(repr(gate))
+            CustomGate(array([[ 1,  0],
+                   [ 0, -1]]), [0])
+
+        """
+
         basis_change = np.array(self.basis_vectors).T.conjugate()
-        return QCircuit(
-            [
-                CustomGate(
-                    UnitaryMatrix(basis_change), targets=list(range(self.nb_qubits))
-                )
-            ]
+        return CustomGate(basis_change, targets=list(range(self.nb_qubits)))
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Basis):
+            return False
+
+        return (
+            self.nb_qubits == other.nb_qubits
+            and np.array_equal(self.basis_vectors, other.basis_vectors)
+            and self.symbols == other.symbols
+            and self.basis_vectors_labels == other.basis_vectors_labels
         )
 
 
-@typechecked
 class VariableSizeBasis(Basis):
     """A variable-size basis with a dynamically adjustable size to different qubit numbers
     during circuit execution.
@@ -196,12 +228,13 @@ class VariableSizeBasis(Basis):
 
     def __init__(
         self,
-        basis_vectors: list[npt.NDArray[np.complex64]],
+        basis_vectors: list[npt.NDArray[np.complex128]],
         nb_qubits: Optional[int] = None,
         symbols: Optional[tuple[str, str]] = None,
     ):
         super().__init__(basis_vectors, symbols=symbols)
         self._init_basis = Basis(basis_vectors, symbols=symbols)
+        self._dynamic = True if nb_qubits is None else False
         nb_qubits = (
             int(np.log2(len(basis_vectors[0]))) if nb_qubits is None else nb_qubits
         )
@@ -242,7 +275,14 @@ class VariableSizeBasis(Basis):
         self.nb_qubits = nb_qubits
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}(symbols={self.symbols}, nb_qubits={self.nb_qubits}, basis_vectors={len(self.basis_vectors)})"
+        args = []
+        args.append(f"{self._init_basis.basis_vectors}")
+        if not self._dynamic:
+            args.append(f"{self.nb_qubits}")
+        if self.symbols != ("0", "1"):
+            args.append(f"symbols={self.symbols}")
+
+        return f"{type(self).__name__}({', '.join(args)})"
 
 
 class ComputationalBasis(VariableSizeBasis):
@@ -285,15 +325,18 @@ class ComputationalBasis(VariableSizeBasis):
         if self.nb_qubits == nb_qubits:
             return
         self.basis_vectors = [
-            np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex64)
+            np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex128)
             for i in range(2**nb_qubits)
         ]
         self.nb_qubits = nb_qubits
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         from mpqp.core.circuit import QCircuit
 
         return QCircuit(self.nb_qubits)
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.nb_qubits if not self._dynamic else ''})"
 
 
 class HadamardBasis(VariableSizeBasis):
@@ -336,15 +379,18 @@ class HadamardBasis(VariableSizeBasis):
     def set_size(self, nb_qubits: int):
         if self.nb_qubits == nb_qubits:
             return
-        H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)
+        H = np.array([[1, 1], [1, -1]], dtype=np.complex128) / np.sqrt(2)
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits
 
-    def to_computational(self):
+    def to_computational(self) -> QCircuit:
         from mpqp.core.circuit import QCircuit
         from mpqp.core.instruction.gates.native_gates import H
 
         if self.nb_qubits == 0:
             return QCircuit(self.nb_qubits)
         return QCircuit([H(qb) for qb in range(self.nb_qubits)])
+
+    def __repr__(self) -> str:
+        return f"{type(self).__name__}({self.nb_qubits if not self._dynamic else ''})"

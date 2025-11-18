@@ -1,9 +1,7 @@
 import numpy as np
 import pytest
 
-from mpqp import QCircuit
-from mpqp.gates import H, Rx
-from mpqp.measures import ExpectationMeasure, Observable
+from mpqp import ExpectationMeasure, H, Observable, QCircuit, Rx
 from mpqp.execution import adjust_measure
 from mpqp.tools.maths import matrix_eq
 
@@ -33,10 +31,11 @@ def test_adjust_measure(
     measure = ExpectationMeasure(Observable(obs_matrix), measure_targets)
     adjusted_observable_matrix = np.kron(
         np.kron(
-            np.eye(2**nb_ids_before, dtype=np.complex64), measure.observable.matrix
+            np.eye(2**nb_ids_before, dtype=np.complex128), measure.observables[0].matrix
         ),
         np.eye(2**nb_ids_after),
     )
     assert matrix_eq(
-        adjust_measure(measure, circuit).observable.matrix, adjusted_observable_matrix
+        adjust_measure(measure, circuit).observables[0].matrix,
+        adjusted_observable_matrix,
     )

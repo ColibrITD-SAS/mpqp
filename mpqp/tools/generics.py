@@ -41,7 +41,6 @@ if TYPE_CHECKING:
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
 
 T = TypeVar("T")
 """A generic type."""
@@ -59,12 +58,16 @@ Examples:
     >>> l = [2,1,3]
 
 """
-Matrix = Union[npt.NDArray[np.complex64], npt.NDArray[np.object_]]
+Matrix = Union[
+    npt.NDArray[np.complex64],
+    npt.NDArray[np.float64],
+    npt.NDArray[np.object_],
+    npt.NDArray[np.complex128],
+]
 """Type alias denoting all the matrices we consider (either matrices of complex 
 or of ``sympy`` expressions, given to ``numpy`` as objects)"""
 
 
-@typechecked
 def flatten_generator(lst: ArbitraryNestedSequence[T]) -> Iterator[T]:
     """Helper generator function for flattening an arbitrarily nested list.
 
@@ -81,7 +84,6 @@ def flatten_generator(lst: ArbitraryNestedSequence[T]) -> Iterator[T]:
         yield lst
 
 
-@typechecked
 def flatten(lst: ArbitraryNestedSequence[T]) -> list[T]:
     """Flattens an arbitrarily nested Sequence.
 
@@ -102,7 +104,6 @@ def flatten(lst: ArbitraryNestedSequence[T]) -> list[T]:
     return list(flatten_generator(lst))
 
 
-@typechecked
 def find(sequence: Sequence[T], oracle: Callable[[T], bool]) -> T:
     """Finds the first element in the sequence that satisfies the given oracle.
 
@@ -127,7 +128,6 @@ def find(sequence: Sequence[T], oracle: Callable[[T], bool]) -> T:
     return sequence[find_index(sequence, oracle)]
 
 
-@typechecked
 def find_index(iterable: Iterable[T], oracle: Callable[[T], bool]) -> int:
     """Finds the index of the first element in the iterable that satisfies the
     given oracle.
@@ -178,7 +178,6 @@ class SimpleClassReprABC(metaclass=SimpleClassReprABCMeta):
     pass
 
 
-@typechecked
 class classproperty:
     """Decorator yo unite the ``classmethod`` and ``property`` decorators."""
 
@@ -192,7 +191,6 @@ class classproperty:
         return self.fget(owner)
 
 
-@typechecked
 def _get_doc(enum: type[Any], member: str):
     src = getsource(enum)
     member_pointer = src.find(member)
@@ -201,7 +199,6 @@ def _get_doc(enum: type[Any], member: str):
     return src[docstr_start:docstr_end]
 
 
-@typechecked
 class MessageEnum(Enum):
     """Enum subclass allowing you to access the docstring of the members of your
     enum through the ``message`` property.

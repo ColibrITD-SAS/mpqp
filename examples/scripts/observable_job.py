@@ -2,11 +2,11 @@
 
 import numpy as np
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
-from mpqp.gates import H, Rx
-from mpqp.measures import ExpectationMeasure, I, Observable, Z
+from mpqp.gates import CNOT, H, Rx
+from mpqp.measures import ExpectationMeasure, pI, Observable, pZ
 
 obs = Observable(
     np.array(
@@ -20,7 +20,7 @@ obs = Observable(
     )
 )
 
-obs2 = Observable(1 * I @ Z + 1 * I @ I)
+obs2 = Observable(1 * pI @ pZ + 1 * pI @ pI)
 
 # Observable can be constructed from a Pauli string or a matrix
 print("Observable2:")
@@ -71,3 +71,15 @@ results = run(
     ],
 )
 print(results)
+
+# Evaulating the expectation value of several observables
+
+print("\nRunning on IBM Aer simulator / Multi-Obervables")
+
+d_obs = Observable([1, -2, 3, -4])
+
+exp = ExpectationMeasure([obs, obs2, d_obs], shots=1024)
+circuit = QCircuit([H(0), CNOT(0, 1), exp])
+
+result = run(circuit, IBMDevice.AER_SIMULATOR)
+print(result)

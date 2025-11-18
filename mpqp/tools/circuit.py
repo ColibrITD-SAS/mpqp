@@ -3,10 +3,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
+import numpy.typing as npt
 from numpy.random import Generator
-from qiskit import QuantumCircuit
-from qiskit.circuit.quantumcircuitdata import CircuitInstruction
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
@@ -39,7 +37,6 @@ if TYPE_CHECKING:
     from qiskit.circuit.quantumcircuitdata import CircuitInstruction
 
 
-@typechecked
 def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -92,7 +89,35 @@ def random_circuit(
     return qcircuit
 
 
-@typechecked
+def statevector_from_random_circuit(
+    nb_qubits: int = 5,
+    seed: Optional[int] = None,
+) -> npt.NDArray[np.complex128]:
+    """
+    This function creates a statevector with a specified number of qubits,
+    generated from a random circuit executed on IBM AER Simulator.
+    The QCircuit is generated randomly and his statevector is calculated.
+
+    args:
+        nb_qubits : Number of qubits in the circuit.
+        seed: Seed used to initialize the random number generation.
+
+    Returns:
+        The statevector with the specified number of qubits
+
+    Examples:
+        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
+        [0.70710678+0.j  0. -0.j  0.26893257-0.65396886j  0. -0.j ]
+    """
+    from mpqp.execution import IBMDevice, Result, run
+
+    mpqp_circ = random_circuit(None, nb_qubits, None, seed)
+    res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
+    if TYPE_CHECKING:
+        assert isinstance(res, Result)
+    return res.state_vector.vector
+
+
 def random_gate(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -144,9 +169,9 @@ def random_gate(
         if issubclass(gate_class, ParametrizedGate):
             if issubclass(gate_class, U):
                 return U(
-                    rng.uniform(0, 2 * np.pi),
-                    rng.uniform(0, 2 * np.pi),
-                    rng.uniform(0, 2 * np.pi),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
                     target,
                 )
             elif issubclass(gate_class, Rk):
@@ -154,7 +179,7 @@ def random_gate(
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))
-                return gate_class(rng.uniform(0, 2 * np.pi), target)
+                return gate_class(np.round(rng.uniform(0, 2 * np.pi), 5), target)
             else:
                 raise ValueError
         else:
@@ -223,7 +248,6 @@ def random_noise(
         raise NotImplementedError(f"{noise} model not implemented")
 
 
-@typechecked
 def compute_expected_matrix(qcircuit: QCircuit):
     """
     Computes the expected matrix resulting from applying single-qubit gates
@@ -269,10 +293,9 @@ def compute_expected_matrix(qcircuit: QCircuit):
     return np.vectorize(N)(result_matrix).astype(complex)
 
 
-@typechecked
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int
-) -> tuple["QuantumCircuit", float]:
+    custom_unitary: "CircuitInstruction", nb_qubits: int  # type: ignore[reportInvalidTypeForm]
+) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
 

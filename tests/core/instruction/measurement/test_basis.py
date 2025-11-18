@@ -5,19 +5,22 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp import QCircuit
-from mpqp.execution import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice
-from mpqp.execution.devices import AvailableDevice
-from mpqp.execution.runner import _run_single  # pyright: ignore[reportPrivateUsage]
-from mpqp.execution.runner import run
-from mpqp.gates import *
-from mpqp.measures import (
+from mpqp import (
+    ATOSDevice,
+    AWSDevice,
     Basis,
     BasisMeasure,
     ComputationalBasis,
+    GOOGLEDevice,
     HadamardBasis,
+    IBMDevice,
+    QCircuit,
+    Result,
     VariableSizeBasis,
+    run,
 )
+from mpqp.execution import AvailableDevice
+from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import matrix_eq
 
@@ -28,7 +31,7 @@ from mpqp.tools.maths import matrix_eq
         ([np.array([1, 0]), np.array([0, -1])], 1),
     ],
 )
-def test_right_init_basis(init_vectors: list[npt.NDArray[np.complex64]], size: int):
+def test_right_init_basis(init_vectors: list[npt.NDArray[np.complex128]], size: int):
     b = Basis(init_vectors)
     assert b.nb_qubits == size
     assert (b.basis_vectors[i] == init_vectors[i] for i in range(len(init_vectors)))
@@ -45,7 +48,7 @@ def test_right_init_basis(init_vectors: list[npt.NDArray[np.complex64]], size: i
     ],
 )
 def test_wrong_init_basis(
-    init_vectors: list[npt.NDArray[np.complex64]], part_of_error: str
+    init_vectors: list[npt.NDArray[np.complex128]], part_of_error: str
 ):
     with pytest.raises(ValueError) as error:
         Basis(init_vectors)
@@ -115,7 +118,7 @@ def test_wrong_init_basis(
     ],
 )
 def test_variable_size_basis(
-    basis_vectors: list[npt.NDArray[np.complex64]],
+    basis_vectors: list[npt.NDArray[np.complex128]],
     size: int,
     result_pp: str,
     capsys: pytest.CaptureFixture[str],
@@ -164,7 +167,7 @@ def test_variable_size_basis(
     ],
 )
 def test_value_error_variable_size_basis(
-    basis_vectors: list[npt.NDArray[np.complex64]],
+    basis_vectors: list[npt.NDArray[np.complex128]],
     size: int,
 ):
     b = VariableSizeBasis(basis_vectors)
@@ -278,11 +281,10 @@ def test_basis_implementations(
     ],
 )
 def test_run_with_custom_basis_probas(
-    circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex64]
+    circuit: QCircuit, expected_probabilities: npt.NDArray[np.complex128]
 ):
-    res = _run_single(circuit, IBMDevice.AER_SIMULATOR, {})
-
-    assert matrix_eq(expected_probabilities, res.probabilities.astype(np.complex64))
+    res = run(circuit, IBMDevice.AER_SIMULATOR)
+    assert matrix_eq(expected_probabilities, res.probabilities)
 
 
 @pytest.mark.parametrize(
@@ -313,12 +315,10 @@ def test_valid_run_custom_basis_state_vector_one_qubit(
         if isinstance(device, AWSDevice)
         else contextlib.suppress()
     ):
-        result = _run_single(
-            circuit + QCircuit([BasisMeasure(basis=Basis(vectors), shots=0)]),
-            device,
-            {},
+        result = run(
+            circuit + QCircuit([BasisMeasure(basis=Basis(vectors), shots=0)]), device
         )
-
+    assert isinstance(result, Result)
     assert matrix_eq(vectors[expected_vector_index], result.amplitudes)
 
 
