@@ -1503,7 +1503,9 @@ pZ = PauliStringAtom(
     [],
 )
 r"""Pauli-Z atom representing the Z operator in a Pauli monomial or string.
-Matrix representation: `\begin{pmatrix}1&0\\0&-1\end{pmatrix}`"""
+Matrix representation:
+`\begin{pmatrix}1&0\\0&-1\end{pmatrix}`
+"""
 
 _pauli_atom_dict = {"I": pI, "X": pX, "Y": pY, "Z": pZ}
 _allow_atom_creation = False
