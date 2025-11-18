@@ -54,3 +54,11 @@ Querying
 --------
 
 .. automodule:: mpqp.local_storage.queries
+
+Environment
+-----------
+
+In addition of saving results, the ``.mpqp`` folder in the user's home
+directory is used to manage environment variables for MPQP, as described bellow.
+
+.. automodule:: mpqp.environment.env_manager

@@ -9,12 +9,11 @@ To run your choice tree, just run :func:`run_choice_tree` on your root question.
 """
 
 from dataclasses import dataclass
-from typing import Any, Callable, Iterable, Optional, TypeVar, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, TypeVar
 
 from pick import pick
 
 from mpqp.tools.generics import find
-from mpqp.environment.typechecked import conditional_typechecked
 
 T = TypeVar("T")
 
@@ -73,7 +72,6 @@ class QuestionNode:
                     del to_visit[q_index]
 
 
-@conditional_typechecked
 def run_choice_tree(question: QuestionNode):
     """Execute the choice tree by starting with the question node in parameter.
 

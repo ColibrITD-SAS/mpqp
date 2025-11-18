@@ -1,9 +1,7 @@
 # 3M-TODO
 import pytest
 
-from mpqp.core import QCircuit
-from mpqp.execution import AWSDevice, run
-from mpqp.gates import *
+from mpqp import CNOT, AWSDevice, H, QCircuit, run
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 

@@ -1,17 +1,19 @@
 import pytest
-from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.measurement.expectation_value import (
-    ExpectationMeasure,
-    Observable,
-)
-from mpqp.core.instruction.measurement.pauli_string import pI, pX, pY, pZ
-from mpqp.execution.devices import (
+
+from mpqp import (
     AWSDevice,
-    AvailableDevice,
+    ExpectationMeasure,
     GOOGLEDevice,
     IBMDevice,
+    Observable,
+    QCircuit,
+    pI,
+    pX,
+    pY,
+    pZ,
+    run,
 )
-from mpqp.execution.runner import run
+from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.circuit import random_circuit
 
 

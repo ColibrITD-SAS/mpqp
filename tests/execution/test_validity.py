@@ -5,35 +5,39 @@ import numpy as np
 import numpy.typing as npt
 import pytest
 
-from mpqp.core import QCircuit
-from mpqp.core.instruction.barrier import Barrier
-from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
-from mpqp.core.instruction.instruction import Instruction
-from mpqp.core.instruction.measurement.measure import Measure
-from mpqp.core.instruction.measurement.pauli_string import PauliString
-from mpqp.core.instruction.measurement.pauli_string import pI, pX, pY, pZ
-from mpqp.core.languages import Language
-from mpqp.execution import (
+from mpqp import (
     ATOSDevice,
-    AvailableDevice,
     AWSDevice,
     AZUREDevice,
+    Barrier,
+    BasisMeasure,
+    BatchResult,
+    Breakpoint,
+    ComputationalBasis,
+    Depolarizing,
+    ExpectationMeasure,
     GOOGLEDevice,
+    HadamardBasis,
     IBMDevice,
+    Instruction,
+    Language,
+    Measure,
+    Observable,
+    PhaseDamping,
+    QCircuit,
+    Result,
+    VariableSizeBasis,
+    pI,
+    pX,
+    pY,
+    pZ,
     run,
 )
-from mpqp.execution.result import BatchResult, Result
+from mpqp.core.instruction.gates.native_gates import NATIVE_GATES
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.measures import (
-    BasisMeasure,
-    ComputationalBasis,
-    ExpectationMeasure,
-    HadamardBasis,
-    Observable,
-    VariableSizeBasis,
-)
-from mpqp.noise.noise_model import NOISE_MODELS, Depolarizing, PhaseDamping
+from mpqp.measures import PauliString
+from mpqp.noise.noise_model import NOISE_MODELS
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
@@ -45,6 +49,13 @@ from mpqp.tools.maths import matrix_eq
 pi = np.pi
 s = np.sqrt
 e = np.exp
+
+all_devices = [
+    device
+    for device_family in [IBMDevice, GOOGLEDevice, AWSDevice, ATOSDevice, AZUREDevice]
+    for device in device_family
+]
+# TODO: build the lists bellow from the list above + filtering
 
 state_vector_devices = [
     IBMDevice.AER_SIMULATOR_STATEVECTOR,
@@ -322,16 +333,16 @@ def test_observable_ideal_case(
             Observable(observable), list(range(c.nb_qubits)), optimize_measurement=False
         )
     )
-    expected_value = (
+    expected_value = float(
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
     with pytest.warns(UnsupportedBraketFeaturesWarning):
         batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
-        print(result.device)
-        assert isinstance(result, Result)
-        assert abs(result.expectation_values - expected_value) < (atol + rtol * abs(expected_value))  # type: ignore[reportOperatorIssue]
+        evs = result.expectation_values
+        assert isinstance(evs, float)
+        assert abs(evs - expected_value) < (atol + rtol * abs(expected_value))
 
 
 @pytest.fixture

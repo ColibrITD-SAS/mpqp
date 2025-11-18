@@ -4,20 +4,19 @@ import numpy as np
 import pytest
 from sympy import Expr, symbols
 
-from mpqp.core import QCircuit
-from mpqp.core.instruction.measurement.expectation_value import (
-    ExpectationMeasure,
-    Observable,
-)
-from mpqp.execution.devices import (
+from mpqp import (
     ATOSDevice,
-    AvailableDevice,
     AWSDevice,
+    ExpectationMeasure,
     GOOGLEDevice,
     IBMDevice,
+    Observable,
+    Optimizer,
+    QCircuit,
+    minimize,
+    run,
 )
-from mpqp.execution.runner import run
-from mpqp.execution.vqa import Optimizer, minimize
+from mpqp.execution.devices import AvailableDevice
 from mpqp.execution.vqa.vqa import OptimizableFunc
 from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning

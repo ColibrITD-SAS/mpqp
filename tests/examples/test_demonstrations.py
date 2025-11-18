@@ -4,13 +4,19 @@ import numpy as np
 import pytest
 from braket.devices import LocalSimulator
 
-from mpqp.core import QCircuit
-from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
-from mpqp.core.languages import Language
-from mpqp.execution import run
-from mpqp.execution.devices import ATOSDevice, AvailableDevice, AWSDevice, IBMDevice
+from mpqp import (
+    ATOSDevice,
+    AWSDevice,
+    BasisMeasure,
+    ExpectationMeasure,
+    IBMDevice,
+    Language,
+    Observable,
+    QCircuit,
+    run,
+)
+from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.measures import BasisMeasure
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
