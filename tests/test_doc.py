@@ -258,16 +258,16 @@ def run_doctest(
 
     active_providers = request.config.getoption("--providers")
     skip_provider_flags = []
-    func_to_pass = []
+    keyword_to_skip = []
     if active_providers is not None:
         for name, flag in PROVIDER_FLAGS.items():
             if (
                 len(active_providers) == 0  # pyright: ignore[reportArgumentType]
                 or name not in active_providers  # pyright: ignore[reportOperatorIssue]
             ):
-                func_to_pass.append(name)
+                keyword_to_skip.append(name)
                 if name == "qiskit":
-                    func_to_pass.append("ibm")
+                    keyword_to_skip.append("ibm")
                 skip_provider_flags.append(flag)
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
@@ -291,7 +291,7 @@ def run_doctest(
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
-            and all(func not in test.name for func in func_to_pass)
+            and all(keyword not in test.name for keyword in keyword_to_skip)
         ):
             for example in test.examples:
                 flags = example.options

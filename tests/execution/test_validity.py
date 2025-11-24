@@ -53,36 +53,31 @@ e = np.exp
 
 state_vector_devices_qiskit: list[AvailableDevice] = [
     device
-    for device_family in [IBMDevice]
-    for device in device_family
+    for device in IBMDevice
     if not device.is_remote() and device.supports_state_vector()
 ]
 
 state_vector_devices_cirq: list[AvailableDevice] = [
     device
-    for device_family in [GOOGLEDevice]
-    for device in device_family
+    for device in GOOGLEDevice
     if not device.is_remote() and device.supports_state_vector()
 ]
 
 state_vector_devices_braket: list[AvailableDevice] = [
     device
-    for device_family in [AWSDevice]
-    for device in device_family
+    for device in AWSDevice
     if not device.is_remote() and device.supports_state_vector()
 ]
 
 state_vector_devices_myqlm: list[AvailableDevice] = [
     device
-    for device_family in [ATOSDevice]
-    for device in device_family
+    for device in ATOSDevice
     if not device.is_remote() and device.supports_state_vector()
 ]
 
 sampling_devices_qiskit: list[AvailableDevice] = [
     device
-    for device_family in [IBMDevice]
-    for device in device_family
+    for device in IBMDevice
     if not device.is_remote()
     and device.supports_samples()
     and not device.has_reduced_gate_set()
@@ -90,22 +85,19 @@ sampling_devices_qiskit: list[AvailableDevice] = [
 
 sampling_devices_cirq: list[AvailableDevice] = [
     device
-    for device_family in [GOOGLEDevice]
-    for device in device_family
+    for device in GOOGLEDevice
     if not device.is_remote() and device.supports_samples()
 ]
 
 sampling_devices_braket: list[AvailableDevice] = [
     device
-    for device_family in [AWSDevice]
-    for device in device_family
+    for device in AWSDevice
     if not device.is_remote() and device.supports_samples()
 ]
 
 sampling_devices_myqlm: list[AvailableDevice] = [
     device
-    for device_family in [ATOSDevice]
-    for device in device_family
+    for device in ATOSDevice
     if not device.is_remote() and device.supports_samples()
 ]
 
