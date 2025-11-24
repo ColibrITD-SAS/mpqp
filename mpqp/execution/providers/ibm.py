@@ -99,11 +99,10 @@ def compute_expectation_value(
     nb_shots = job.measure.shots
 
     qiskit_observables: list[SparsePauliOp] = []
+    job.measure.pre_transpile_observables(job.device)
     for obs in job.measure.observables:
-        if obs.pre_transpile is None:
-            translated = obs.to_other_language(Language.QISKIT)
-        else:
-            translated = obs.pre_transpile
+        translated = obs.pre_transpile[job.device]
+
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
@@ -455,29 +454,21 @@ def run_aer(job: Job):
             # to it directly)
         backend_sim = job.device.to_noisy_simulator()
     elif len(job.circuit.noises) != 0:
-        if job.circuit.transpiled_circuit is not None:
-            if job.circuit.transpiled_noise_model is None:
-                raise InstructionParsingError(
-                    "transpiled_noise_model is not initialized"
-                )
-            backend_sim = AerSimulator(
-                method=job.device.value, noise_model=job.circuit.transpiled_noise_model
-            )
-        else:
-            noise_model, modified_circuit = generate_qiskit_noise_model(job.circuit)
-            job_circuit = modified_circuit
-            backend_sim = AerSimulator(method=job.device.value, noise_model=noise_model)
+        job_circuit = job.circuit.transpiled_for_device(job.device)
+
+        if job.circuit.transpiled_noise_model is None:
+            raise InstructionParsingError("transpiled_noise_model is not initialized")
+        backend_sim = AerSimulator(
+            method=job.device.value, noise_model=job.circuit.transpiled_noise_model
+        )
+
     else:
+        job_circuit = job.circuit.transpiled_for_device(job.device)
         backend_sim = AerSimulator(method=job.device.value)
 
-    if job.circuit.transpiled_circuit is None:
-        qiskit_circuit = job_circuit.to_other_device(
-            job.device, backend_sim=backend_sim
-        )
-    else:
-        qiskit_circuit = job.circuit.transpiled_circuit
-        if TYPE_CHECKING:
-            assert isinstance(qiskit_circuit, QuantumCircuit)
+    qiskit_circuit = job_circuit
+    if TYPE_CHECKING:
+        assert isinstance(qiskit_circuit, QuantumCircuit)
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.
@@ -542,11 +533,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     job.device = IBMDevice(backend.name)
     session = Session(service=service, backend=backend)
 
-    if job.circuit.transpiled_circuit is None:
-        qiskit_circ = job.circuit.to_other_device(job.device)
-    else:
-        qiskit_circ = job.circuit.transpiled_circuit
-
+    qiskit_circ = job.circuit.transpiled_for_device(job.device)
     if TYPE_CHECKING:
         assert isinstance(qiskit_circ, QuantumCircuit)
 
@@ -554,22 +541,15 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         estimator = Runtime_Estimator(mode=session)
-        qiskit_observables = [
-            (
-                obs.to_other_language(Language.QISKIT)
-                if obs.pre_transpile is None
-                else obs.pre_transpile
-            )
-            for obs in meas.observables
-        ]
+
+        meas.pre_transpile_observables(job.device)
+        qiskit_observables = [obs.pre_transpile[job.device] for obs in meas.observables]
+
         if TYPE_CHECKING:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
         qiskit_observables = [
-            obs.apply_layout(  # pyright: ignore[reportAttributeAccessIssue]
-                qiskit_circ.layout
-            )
-            for obs in qiskit_observables
+            obs.apply_layout(qiskit_circ.layout) for obs in qiskit_observables
         ]
 
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
