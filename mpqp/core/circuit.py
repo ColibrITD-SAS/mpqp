@@ -2130,11 +2130,13 @@ class QCircuit:
         return f'QCircuit({args_repr})'
 
     def transpiled_for_device(self, device: AvailableDevice):
-        self.transpiled_circuit[device] = (
-            self.to_other_device(  # pyright: ignore[reportCallIssue]
-                device  # pyright: ignore[reportArgumentType]
+        if device not in self.transpiled_circuit:
+            self.transpiled_circuit[device] = (
+                self.to_other_device(  # pyright: ignore[reportCallIssue]
+                    device  # pyright: ignore[reportArgumentType]
+                )
             )
-        )
+        return self.transpiled_circuit[device]
 
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.
