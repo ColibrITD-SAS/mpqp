@@ -1025,10 +1025,6 @@ class PauliStringMonomial(PauliString):
         self.coef = new_coef
         return self
 
-        res = deepcopy(self)
-        res *= other
-        return res
-
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
             self.coef / other
