@@ -596,7 +596,7 @@ def test_to_other_language_braket(
 
 def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
     from qiskit import ClassicalRegister, QuantumRegister
-    from qiskit.circuit.library import RC3XGate
+    from qiskit.circuit.library import RC3XGate, RZZGate
 
     qreg_q = QuantumRegister(4, 'q')
     creg_c = ClassicalRegister(4, 'c')
@@ -628,7 +628,8 @@ def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
     circuit.id(qreg_q[3])
 
     circuit_2 = QiskitCircuit(qreg_q, creg_c)
-    circuit_2.rzz(np.pi / 2, qreg_q[1], qreg_q[2]).c_if(creg_c, 0)
+    with circuit_2.if_test((creg_c, 0)):
+        circuit_2.append(RZZGate(np.pi/2), [qreg_q[1], qreg_q[2]])
 
     return circuit, circuit_2
 

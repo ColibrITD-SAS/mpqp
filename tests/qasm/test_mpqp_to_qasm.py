@@ -266,17 +266,11 @@ def test_mpqp_to_qasm_gate(instructions: list[Instruction], qasm_expectation: st
 )
 def test_mpqp_to_qasm_custom_gate(instructions: list[Instruction]):
     circuit = QCircuit(instructions)
-    from qiskit import QuantumCircuit, qasm2
-
-    qiskit_circuit = circuit.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_circuit, QuantumCircuit)
-    str_qiskit_circuit = remove_user_gates(qasm2.dumps(qiskit_circuit), True)
+    from mpqp.tools.display import pprint 
     str_circuit = circuit.to_other_language(Language.QASM2)
-    assert isinstance(str_circuit, str)
-    for i in str_circuit:
-        assert i in str_qiskit_circuit
-    for i in str_qiskit_circuit:
-        assert i in str_circuit
+    mpqp_qasm = QCircuit.from_other_language(str_circuit)
+    assert np.isclose(circuit.to_matrix(), mpqp_qasm.to_matrix()).all()
+    
 
 
 @pytest.mark.parametrize(
