@@ -85,6 +85,7 @@ def apply_noise_to_braket_circuit(
 
     return noisy_circuit
 
+
 def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
