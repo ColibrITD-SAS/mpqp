@@ -4,7 +4,6 @@ import pytest
 from mpqp.core import QCircuit
 from mpqp.execution import AWSDevice, run
 from mpqp.gates import *
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 
 @pytest.mark.parametrize(
@@ -17,5 +16,4 @@ from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
     ],
 )
 def test_braket_non_contiguous_qubits(circuit: QCircuit):
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)

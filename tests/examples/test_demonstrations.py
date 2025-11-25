@@ -17,14 +17,6 @@ from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 # TODO: add CIRQ local simulator devices to this file
 
 
-def warn_guard(device: AvailableDevice, run: Callable[[], Any]):
-    if isinstance(device, AWSDevice):
-        with pytest.warns(UnsupportedBraketFeaturesWarning):
-            return run()
-    else:
-        return run()
-
-
 def test_sample_demo():
     # Declaration of the circuit with the right size
     circuit = QCircuit(4)
@@ -50,7 +42,7 @@ def test_sample_demo():
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
     # Run the circuit on a selected device
-    runner = lambda: run(
+    run(
         circuit,
         [
             IBMDevice.AER_SIMULATOR,
@@ -64,8 +56,6 @@ def test_sample_demo():
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ],
     )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     assert True
 
@@ -123,7 +113,7 @@ def test_statevector_demo():
     )
 
     # when no measure in the circuit, must run in statevector mode
-    runner = lambda: run(
+    run(
         circuit,
         [
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
@@ -134,14 +124,12 @@ def test_statevector_demo():
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ],
     )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     # same when we add a BasisMeasure with 0 shots
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=0))
 
     # Run the circuit on a selected device
-    runner = lambda: run(
+    run(
         circuit,
         [
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
@@ -152,8 +140,6 @@ def test_statevector_demo():
             AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ],
     )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     assert True
 
@@ -202,7 +188,7 @@ def test_observable_demo(shots: int):
     circuit.add(ExpectationMeasure(obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    runner = lambda: run(
+    run(
         circuit,
         [
             ATOSDevice.MYQLM_PYLINALG,
@@ -216,8 +202,6 @@ def test_observable_demo(shots: int):
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         ],
     )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
 
     assert True
 
@@ -234,8 +218,8 @@ def test_aws_qasm_executions():
     c[0] = measure q[0];
     c[1] = measure q[1];"""
 
-    runner = lambda: qasm3_to_braket_Circuit(qasm_str)
-    circuit = warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        circuit = qasm3_to_braket_Circuit(qasm_str)
     device.run(circuit, shots=100).result()
 
 
@@ -262,9 +246,7 @@ def test_aws_mpqp_executions():
     # Add measurement
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
-    runner = lambda: run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
     #####################################################
 
@@ -288,10 +270,7 @@ def test_aws_mpqp_executions():
     circuit.add(ExpectationMeasure(obs, shots=0))
 
     # Running the computation on myQLM and on Braket simulator, then retrieving the results
-    runner = lambda: run(
-        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
-    )
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 
     #####################################################
 
@@ -301,10 +280,7 @@ def test_aws_mpqp_executions():
     )
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    runner = lambda: run(
-        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
-    )
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 
 
 def test_all_native_gates():
@@ -320,13 +296,12 @@ def test_all_native_gates():
 
     circuit.to_other_language(Language.QASM2)
     circuit.to_other_language(Language.QASM3)
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(
-            circuit,
-            [
-                ATOSDevice.MYQLM_PYLINALG,
-                ATOSDevice.MYQLM_CLINALG,
-                IBMDevice.AER_SIMULATOR_STATEVECTOR,
-                AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            ],
-        )
+    run(
+        circuit,
+        [
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        ],
+    )

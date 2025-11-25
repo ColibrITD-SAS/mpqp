@@ -58,6 +58,7 @@ class GroupingMethods(Enum):
     COLORING_DB = auto()
     COLORING_DSATUR = auto()
     CLIQUE_REMOVING = auto()
+    QISKIT = auto()
 
 
 @conditional_typechecked
@@ -811,15 +812,15 @@ class PauliString:
         elif language == Language.MY_QLM:
             return [mono.to_other_language(language) for mono in self.monomials]
         elif language == Language.BRAKET:
-            pauli_string = None
+            from braket.circuits.observables import Sum
+
+            pauli_string = []
+
             for mono in self.monomials:
                 braket_mono = mono.to_other_language(Language.BRAKET)
-                pauli_string = (
-                    pauli_string + braket_mono
-                    if pauli_string is not None
-                    else braket_mono
-                )
-            return pauli_string
+                pauli_string.append(braket_mono)
+
+            return Sum(pauli_string)
         elif language == Language.CIRQ:
             cirq_pauli_string = None
             for monomial in self.monomials:
@@ -1098,10 +1099,7 @@ class PauliStringMonomial(PauliString):
             )
         elif method == CommutingTypes.FULL:
             return (
-                sum(
-                    1 for a, b in zip(self.atoms, other.atoms) if not a.commutes_with(b)
-                )
-                % 2
+                sum(not a.commutes_with(b) for a, b in zip(self.atoms, other.atoms)) % 2
                 == 0
             )
         else:
@@ -1164,8 +1162,9 @@ class PauliStringMonomial(PauliString):
                 atom.to_other_language(Language.BRAKET)
                 for atom in self.atoms  # pyright: ignore[reportAssignmentType]
             ]
+            from braket.circuits.observables import TensorProduct
 
-            return self.coef * reduce(matmul, braket_atoms)
+            return self.coef * TensorProduct(braket_atoms)
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
 
@@ -1391,7 +1390,7 @@ class PauliStringAtom(PauliStringMonomial):
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
             )
         if method == CommutingTypes.FULL:
-            return other == pI or self == pI or self == other
+            return other.label == "I" or self.label == "I" or self.label == other.label
         raise ValueError(
             f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
         )
@@ -1493,3 +1492,96 @@ Matrix representation:
 
 _pauli_atom_dict = {"I": pI, "X": pX, "Y": pY, "Z": pZ}
 _allow_atom_creation = False
+
+
+def pauli_string_from_str(
+    compact_str: str, dict_value: Optional[dict[str, Coef]] = None
+) -> PauliString | PauliStringMonomial:
+    """
+    Construct a `PauliString` from a string representation.
+
+    Args:
+        compact_str: A string representing one or more Pauli terms
+        dict_value: Optional dictionary of symbolic replacements
+           to substitute into symbolic coefficients.
+
+    Returns:
+        PauliString object.
+
+    Examples:
+        >>> print(pauli_string_from_str("X"))
+        X
+        >>> print(pauli_string_from_str("-YZ"))
+        -1*Y@Z
+        >>> print(pauli_string_from_str("a*X", dict_value={"a": 0.5}))
+        0.5*X
+        >>> print(pauli_string_from_str("2*PX + 3*Y"))
+        (2*P)*X + 3*Y
+
+    """
+    import re
+
+    pattern = re.compile(r'([^IXYZ]+)?([IXYZ]+)')
+
+    monomials = []
+    for match in pattern.finditer(compact_str.replace(" ", "")):
+        coef_str, atoms_str = match.groups()
+
+        if coef_str is None or coef_str == '' or coef_str == '+':
+            coef = 1
+        elif coef_str == '-':
+            coef = -1
+        else:
+            coef_str = coef_str.rstrip('*')
+            coef_str = re.sub(r'(\d)([a-zA-Z])', r'\1*\2', coef_str)
+            coef_str = re.sub(r'([a-zA-Z])(\d)', r'\1*\2', coef_str)
+            coef = sympify(coef_str)
+            if dict_value:
+                coef = coef.subs(dict_value)
+
+        atoms = [globals()["P" + ch] for ch in atoms_str]
+        monomials.append(PauliStringMonomial(coef, atoms))
+
+    if len(monomials) == 1:
+        return monomials[0]
+    return PauliString(monomials)
+
+
+def pauli_string_with_atom(
+    n: int, atom: PauliStringAtom = PI, qubit_index: int | None = None
+) -> PauliStringMonomial:
+    """
+    Construct a PauliStringMonomial of length n with a single specified atom at a target qubit.
+
+    Args:
+        n: Total number of qubits (length of the Pauli string).
+        atom: The `PauliStringAtom` to insert (``PX``, ``PY``, ``PZ``, ``PI``). Defaults to ``PI``.
+        qubit_index: Index of the qubit where the `atom` should be placed.
+            If Non, places it at the last qubit.
+
+    Returns:
+        A PauliStringMonomial with the specified atom in the desired position,
+        and identity atoms elsewhere.
+
+    Raises:
+        IndexError: If qubit_index is out of range.
+
+    Examples:
+        >>> print(pauli_string_with_atom(1))
+        I
+        >>> print(pauli_string_with_atom(4, PZ))
+        I@I@I@Z
+        >>> print(pauli_string_with_atom(3, PX, 0))
+        X@I@I
+
+    """
+    if qubit_index is None:
+        qubit_index = n - 1
+    if not (qubit_index < n):
+        raise IndexError(f"qubit_index {qubit_index} is out of range for {n} qubits")
+
+    atoms = [PI] * n
+    if n != 0:
+        atoms[qubit_index] = atom
+
+    return PauliStringMonomial(1, atoms)

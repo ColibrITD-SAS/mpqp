@@ -83,9 +83,15 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
     for obs in measure.observables:
         if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-            from mpqp.measures import pI
+            from mpqp.core.instruction.measurement.pauli_string import (
+                pauli_string_with_atom,
+            )
 
-            pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
+            pauli = (
+                pauli_string_with_atom(n_before)
+                @ obs.pauli_string
+                @ pauli_string_with_atom(n_after)
+            )
             tweaked_observables.append(Observable(pauli))
         else:
             Id_before = np.eye(2**n_before)
