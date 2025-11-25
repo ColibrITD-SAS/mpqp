@@ -520,8 +520,10 @@ class ExpectationMeasure(Measure):
 
             grouped_monomials = [
                 [
-                    PauliString.from_str(mono.to_label()) # pyright: ignore[reportAttributeAccessIssue]
-                    for mono in pauli  
+                    PauliString.from_str(
+                        mono.to_label()
+                    )  # pyright: ignore[reportAttributeAccessIssue]
+                    for mono in pauli
                 ]
                 for pauli in grouped
             ]
