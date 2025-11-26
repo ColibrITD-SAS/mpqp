@@ -9,12 +9,15 @@ from __future__ import annotations
 from copy import deepcopy
 from enum import Enum, auto
 from functools import reduce
+from itertools import product
+from math import prod
 from numbers import Real
 from operator import matmul, mul
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
 
 import numpy as np
 import numpy.typing as npt
+from typing_extensions import TypeIs
 
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
@@ -36,7 +39,14 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Basic, Expr
 
-    Coef = Union[Real, float, Expr, Basic]
+    Coef = Union[Real, int, float, Expr, Basic]
+
+
+def _is_coef(v: Any) -> "TypeIs[Coef]":
+    from sympy import Basic, Expr
+
+    Coef = Union[Real, int, float, Expr, Basic]
+    return isinstance(v, Coef)
 
 
 class CommutingTypes(Enum):
@@ -220,20 +230,46 @@ class PauliString:
     def __sub__(self, other: "PauliString") -> "PauliString":
         return self + (-1) * other
 
-    def __imul__(self, other: "Coef") -> "PauliString":
-        for i, mono in enumerate(self._monomials):
-            if isinstance(mono, PauliStringAtom):
-                self.monomials[i] = PauliStringMonomial(atoms=[mono])
-            self.monomials[i] *= other
-        return self
+    def __imul__(
+        self, other: "Coef | PauliString | PauliStringMonomial | PauliStringAtom"
+    ) -> "PauliString":
+        if _is_coef(other):
+            for i, mono in enumerate(self.monomials):
+                res_mono = mono * other
+                if TYPE_CHECKING:
+                    assert isinstance(res_mono, PauliStringMonomial)
+                self.monomials[i] = res_mono
+            return self
+        return PauliString(
+            [
+                s_mono * o_mono
+                for (s_mono, o_mono) in product(self.monomials, other.monomials)
+            ]
+        )
 
-    def __mul__(self, other: "Coef") -> "PauliString":
+    def __mul__(
+        self, other: "Coef | PauliString | PauliStringMonomial | PauliStringAtom"
+    ) -> "PauliString":
         res = deepcopy(self)
         res *= other
         return res
 
-    def __rmul__(self, other: "Coef") -> "PauliString":
-        return self * other
+    def __rmul__(self, other: "Coef | PauliString") -> PauliString:
+        if _is_coef(other):
+            return self * other
+        if other.nb_qubits != self.nb_qubits:
+            raise ValueError(
+                f"Cannot multiply differently sized Pauli strings: {self} and {other}"
+            )
+        phase = (-1) ** len(
+            [
+                s_mono.atoms[i] != o_mono.atoms[i]
+                and pI not in (s_mono.atoms[i], o_mono.atoms[i])
+                for s_mono, o_mono in product(self.monomials, other.monomials)
+                for i in range(self.nb_qubits)
+            ]
+        )
+        return phase * self * other
 
     def __itruediv__(self, other: "Coef") -> "PauliString":
         self *= 1 / other  # pyright: ignore[reportOperatorIssue]
@@ -1012,16 +1048,54 @@ class PauliStringMonomial(PauliString):
         res += other
         return res
 
-    def __imul__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = (
-            self.coef * other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
-        self.coef = new_coef
-        return self
+    @overload
+    def __mul__(self, other: "Coef") -> PauliStringMonomial: ...
+    @overload
+    def __mul__(
+        self, other: PauliStringMonomial | PauliStringAtom
+    ) -> PauliStringMonomial: ...
+    @overload
+    def __mul__(self, other: PauliString) -> PauliString: ...
 
-        res = deepcopy(self)
-        res *= other
-        return res
+    def __mul__(
+        self, other: "Coef | PauliString | PauliStringMonomial | PauliStringAtom"
+    ) -> PauliString | PauliStringMonomial:
+        if _is_coef(other):
+            res = deepcopy(self)
+            coef = res.coef * other  # pyright: ignore[reportOperatorIssue]
+            res.coef = coef  # pyright: ignore[reportAttributeAccessIssue]
+            return res
+        if self.nb_qubits != other.nb_qubits:
+            raise ValueError(f"Inhomogeneous multiplication between {self} and {other}")
+        pre_monomials: list[list[PauliStringMonomial]] = [
+            [s_atom * o_atom for s_atom, o_atom in zip(self.atoms, mono.atoms)]
+            for mono in other.monomials
+        ]
+        monomials = [
+            PauliStringMonomial(
+                prod(  # pyright: ignore[reportCallIssue]
+                    atom.coef for atom in mono  # pyright: ignore[reportArgumentType]
+                )
+                * self.coef,
+                [atom.atoms[0] for atom in mono],
+            )
+            for mono in pre_monomials
+        ]
+        if len(monomials) == 1:
+            return monomials[0]
+        return PauliString(monomials)
+
+    @overload
+    def __rmul__(self, other: "Coef") -> PauliStringMonomial: ...
+    @overload
+    def __rmul__(
+        self, other: PauliStringMonomial | PauliStringAtom
+    ) -> PauliStringMonomial: ...
+    @overload
+    def __rmul__(self, other: PauliString) -> PauliString: ...
+
+    def __rmul__(self, other: "Coef | PauliString") -> PauliString:
+        return super().__rmul__(other)
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
@@ -1307,15 +1381,63 @@ class PauliStringAtom(PauliStringMonomial):
             [self],
         )
 
-    def __imul__(self, other: "Coef") -> PauliStringMonomial:
+    @overload
+    def __imul__(self, other: "Coef") -> PauliStringMonomial: ...
+    @overload
+    def __imul__(
+        self, other: PauliStringMonomial | PauliStringAtom
+    ) -> PauliStringMonomial: ...
+    @overload
+    def __imul__(self, other: PauliString) -> PauliString: ...
+
+    def __imul__(self, other: "Coef | PauliString") -> PauliString:
         self = self * other
         return self
 
-    def __mul__(self, other: "Coef") -> PauliStringMonomial:
-        return PauliStringMonomial(other, [self])
+    def _atom_mul(self, other: PauliStringMonomial) -> PauliStringMonomial:
+        other_atom = other.atoms[0]
+        if self == pI:
+            return other
+        if other_atom == pI:
+            return self
+        if self == other_atom:
+            return other.coef * pI  # pyright: ignore[reportReturnType]
+        ps_cycle = [pX, pY, pZ] * 2
+        s_index = ps_cycle.index(self)
+        if other_atom == ps_cycle[s_index + 1]:
+            return (
+                other.coef * ps_cycle[s_index + 2]
+            )  # pyright: ignore[reportReturnType]
+        else:
+            inv_cycle = ps_cycle[::-1]
+            s_inv_index = inv_cycle.index(self)
+            return other.coef * (
+                -1 * inv_cycle[s_inv_index + 2]
+            )  # pyright: ignore[reportReturnType]
 
-    def __rmul__(self, other: "Coef") -> PauliStringMonomial:
-        return PauliStringMonomial(other, [self])
+    @overload
+    def __mul__(self, other: "Coef") -> PauliStringMonomial: ...
+    @overload
+    def __mul__(
+        self, other: PauliStringMonomial | PauliStringAtom
+    ) -> PauliStringMonomial: ...
+    @overload
+    def __mul__(self, other: PauliString) -> PauliString: ...
+
+    def __mul__(
+        self, other: "Coef | PauliString | PauliStringMonomial | PauliStringAtom"
+    ) -> PauliString:
+        if _is_coef(other):
+            return PauliStringMonomial(other, [self])
+        if other.nb_qubits != 1:
+            raise ValueError(
+                f"Cannot multiply differently sized Pauli strings: {self} and {other}"
+            )
+        if len(other.monomials) == 1:
+            return self._atom_mul(
+                other if isinstance(other, PauliStringAtom) else other.monomials[0]
+            )
+        return PauliString([self._atom_mul(mono) for mono in other.monomials])
 
     def __imatmul__(self, other: PauliString) -> PauliString:
         res = (
@@ -1508,4 +1630,5 @@ Matrix representation:
 """
 
 _pauli_atom_dict = {"I": pI, "X": pX, "Y": pY, "Z": pZ}
+_allow_atom_creation = False
 _allow_atom_creation = False
