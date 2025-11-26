@@ -252,10 +252,9 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
 
             if TYPE_CHECKING:
                 assert isinstance(device, AWSDevice)
-            with optional_reservation_arn(device, reservation_arn):
-                local_result = device.run(
-                    copy, shots=job.measure.shots, inputs=None
-                ).result()
+            local_result = device.run(
+                copy, shots=job.measure.shots, inputs=None
+            ).result()
             assert isinstance(local_result, GateModelQuantumTaskResult)
             results.update({f"observable_{len(results)}": local_result.values[0].real})
             errors.update({f"observable_{len(errors)}": None})
@@ -342,8 +341,7 @@ def submit_job_braket(
 
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        with optional_reservation_arn(device, reservation_arn):
-            task = device.run(braket_circuit, shots=0, inputs=None)
+        task = device.run(braket_circuit, shots=0, inputs=None)
 
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
@@ -351,8 +349,7 @@ def submit_job_braket(
         job.status = JobStatus.RUNNING
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        with optional_reservation_arn(device, reservation_arn):
-            task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
@@ -370,8 +367,7 @@ def submit_job_braket(
 
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        with optional_reservation_arn(device, reservation_arn):
-            task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
