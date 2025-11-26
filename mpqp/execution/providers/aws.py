@@ -237,6 +237,7 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
 
         for obs in job.measure.observables:
             from copy import deepcopy
+
             from braket.circuits.observables import Sum
 
             copy = deepcopy(transpiled_circuit)
@@ -581,7 +582,8 @@ def optional_reservation_arn(device: AWSDevice, reservation_arn: Optional[str] =
     from braket.aws import DirectReservation
 
     if reservation_arn:
-        with DirectReservation(device.get_arn(), reservation_arn=reservation_arn):
+        braket_device = get_braket_device(device)
+        with DirectReservation(braket_device, reservation_arn=reservation_arn):
             yield
     else:
         yield
