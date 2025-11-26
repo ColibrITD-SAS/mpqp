@@ -22,8 +22,12 @@ def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
     Returns:
         A Circuit equivalent to the QASM code in parameter.
 
+    note:
+        This function requires the MyQLM provider to run.
+
+
     Example:
-        >>> qasm_code = '''
+        >>> qasm_code = ''' # doctest: +EXAMPLES_NEED_MYQLM
         ... OPENQASM 2.0;
         ... qreg q[2];
         ... h q[0];
