@@ -13,7 +13,7 @@ from itertools import product
 from math import prod
 from numbers import Real
 from operator import matmul, mul
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, get_args, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -39,14 +39,14 @@ if TYPE_CHECKING:
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Basic, Expr
 
-    Coef = Union[Real, int, float, Expr, Basic]
+    Coef = Union[int, float, complex, Expr, Basic]
 
 
 def _is_coef(v: Any) -> "TypeIs[Coef]":
     from sympy import Basic, Expr
 
-    Coef = Union[Real, int, float, Expr, Basic]
-    return isinstance(v, Coef)
+    Coef = Union[int, float, complex, Expr, Basic]
+    return isinstance(v, get_args(Coef))
 
 
 class CommutingTypes(Enum):
@@ -180,7 +180,7 @@ class PauliString:
         return str(self._monomials[0]) + "".join(
             (
                 f" - {-m}"
-                if not isinstance(m.coef, Expr)
+                if not isinstance(m.coef, (Expr, complex))
                 and m.coef < 0  # pyright: ignore[reportOperatorIssue]
                 else f" + {m}"
             )
@@ -391,11 +391,11 @@ class PauliString:
         res = PauliString()
         res._initial_nb_qubits = self.nb_qubits
         for mono in self.monomials:
-            coef: "Coef" = format_element(mono.coef)  # type: ignore[reportArgumentType]
+            coef: "Coef" = format_element(mono.coef)
             if isinstance(coef, (Expr, Basic)):
                 res.monomials.append(PauliStringMonomial(mono.coef, mono.atoms))
             else:
-                coef = float(np.round(float(coef), max_digits))
+                coef = complex(np.round(complex(coef), max_digits))
                 if coef != 0:
                     res.monomials.append(PauliStringMonomial(coef, mono.atoms))
         return res
@@ -662,6 +662,7 @@ class PauliString:
 
         def tensor_product_to_pauli_sting(pauli: TensorProduct):
             monomial = PauliStringMonomial()
+            print("ntm")
             for atom in pauli.factors:
                 monomial @= _pauli_atom_dict[atom.ascii_symbols[0]]
             monomial *= pauli.coefficient
@@ -901,7 +902,7 @@ class PauliString:
             else:
                 coef: "Coef" = (
                     result_dict[atom_str] + mono.coef
-                )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                )  # pyright: ignore[reportOperatorIssue]
                 result_dict[atom_str] = coef
         return {k: str(result_dict[k]) for k in sorted(result_dict)}
 
@@ -1063,12 +1064,15 @@ class PauliStringMonomial(PauliString):
         if _is_coef(other):
             res = deepcopy(self)
             coef = res.coef * other  # pyright: ignore[reportOperatorIssue]
-            res.coef = coef  # pyright: ignore[reportAttributeAccessIssue]
+            res.coef = coef
             return res
         if self.nb_qubits != other.nb_qubits:
             raise ValueError(f"Inhomogeneous multiplication between {self} and {other}")
-        pre_monomials: list[list[PauliStringMonomial]] = [
-            [s_atom * o_atom for s_atom, o_atom in zip(self.atoms, mono.atoms)]
+        pre_monomials: list[tuple[Coef, list[PauliStringMonomial]]] = [
+            (
+                mono.coef,
+                [s_atom * o_atom for s_atom, o_atom in zip(self.atoms, mono.atoms)],
+            )
             for mono in other.monomials
         ]
         monomials = [
@@ -1076,10 +1080,11 @@ class PauliStringMonomial(PauliString):
                 prod(  # pyright: ignore[reportCallIssue]
                     atom.coef for atom in mono  # pyright: ignore[reportArgumentType]
                 )
-                * self.coef,
+                * self.coef
+                * o_coef,
                 [atom.atoms[0] for atom in mono],
             )
-            for mono in pre_monomials
+            for o_coef, mono in pre_monomials
         ]
         if len(monomials) == 1:
             return monomials[0]
@@ -1098,9 +1103,7 @@ class PauliStringMonomial(PauliString):
         return super().__rmul__(other)
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = (
-            self.coef / other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+        new_coef: "Coef" = self.coef / other  # pyright: ignore[reportOperatorIssue]
         self.coef = new_coef
         return self
 
@@ -1116,7 +1119,7 @@ class PauliStringMonomial(PauliString):
         elif isinstance(other, PauliStringMonomial):
             new_coef: "Coef" = (
                 self.coef * other.coef
-            )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+            )  # pyright: ignore[reportOperatorIssue]
             self.coef = new_coef
             self.atoms.extend(other.atoms)
             return self
@@ -1377,8 +1380,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: "Coef") -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
-            [self],
+            1 / other, [self]  # pyright: ignore[reportOperatorIssue]
         )
 
     @overload
@@ -1401,19 +1403,16 @@ class PauliStringAtom(PauliStringMonomial):
         if other_atom == pI:
             return self
         if self == other_atom:
-            return other.coef * pI  # pyright: ignore[reportReturnType]
+            return other.coef * pI
         ps_cycle = [pX, pY, pZ] * 2
         s_index = ps_cycle.index(self)
         if other_atom == ps_cycle[s_index + 1]:
-            return (
-                other.coef * ps_cycle[s_index + 2]
-            )  # pyright: ignore[reportReturnType]
+
+            return 1j * (other.coef * ps_cycle[s_index + 2])
         else:
             inv_cycle = ps_cycle[::-1]
             s_inv_index = inv_cycle.index(self)
-            return other.coef * (
-                -1 * inv_cycle[s_inv_index + 2]
-            )  # pyright: ignore[reportReturnType]
+            return -1j * (other.coef * inv_cycle[s_inv_index + 2])
 
     @overload
     def __mul__(self, other: "Coef") -> PauliStringMonomial: ...
@@ -1630,5 +1629,4 @@ Matrix representation:
 """
 
 _pauli_atom_dict = {"I": pI, "X": pX, "Y": pY, "Z": pZ}
-_allow_atom_creation = False
 _allow_atom_creation = False

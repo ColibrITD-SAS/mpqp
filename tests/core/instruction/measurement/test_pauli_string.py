@@ -1,6 +1,5 @@
 from copy import deepcopy
 from itertools import product
-from numbers import Real
 from operator import (
     add,
     iadd,
@@ -43,19 +42,27 @@ from mpqp import Language, pI, pX, pY, pZ
 from mpqp.core.instruction.measurement.pauli_string import PauliString, PauliStringAtom
 from mpqp.tools.maths import matrix_eq
 
-Coef = Union[Real, float, Expr, Basic]
+Coef = Union[int, float, complex, Expr, Basic]
 
 
 def pauli_matrix_mapping():
     return [
-        (pI, np.eye(2)),
-        ((pI @ pI), np.eye(4)),
-        ((pI + pI), (2 * np.eye(2))),
-        ((pI + pI) @ pI, (2 * np.eye(4))),
-        ((pX + pX), np.array([[0, 2.0], [2.0, 0]])),
-        ((pX + pZ), np.array([[1.0, 1.0], [1.0, -1.0]])),
-        ((2 * pI), (2 * np.eye(2))),
-        ((symbols("a") * pI), (symbols("a") * np.eye(2))),
+        (pI, np.eye(2, dtype=np.complex128)),
+        ((pI @ pI), np.eye(4, dtype=np.complex128)),
+        ((pI + pI), (2 * np.eye(2, dtype=np.complex128))),
+        ((pI + pI) @ pI, (2 * np.eye(4, dtype=np.complex128))),
+        ((pX + pX), 2 * np.fliplr(np.eye(2, dtype=np.complex128))),
+        ((pX + pZ), np.array([[1.0, 1.0], [1.0, -1.0]], dtype=np.complex128)),
+        ((2 * pI), (2 * np.eye(2, dtype=np.complex128))),
+        ((symbols("a") * pI), (symbols("a") * np.eye(2, dtype=np.complex128))),
+        (
+            (pI @ pI - pX @ pX),
+            np.eye(4, dtype=np.complex128) - np.fliplr(np.eye(4, dtype=np.complex128)),
+        ),
+        (
+            (pI @ pY - pX @ pZ),
+            np.array([[0, -1j, -1, 0], [1j, 0, 0, 1], [-1, 0, 0, -1j], [0, 1, 1j, 0]]),
+        ),
     ]
 
 
@@ -116,7 +123,7 @@ def test_bin_operation(
     (
         (ps1, ps2, matrix1, matrix2, op)
         for (ps1, matrix1), (ps2, matrix2), op in product(
-            pauli_matrix_mapping(), pauli_matrix_mapping(), [add, sub, iadd]
+            pauli_matrix_mapping(), pauli_matrix_mapping(), [add, sub, iadd, mul]
         )
     ),
 )
@@ -133,7 +140,8 @@ def test_homogeneous_bin_operation(
         return
     if matrix2.dtype == object:
         clean_matrix1 = np.array(clean_matrix1, dtype=object)
-    assert matrix_eq(op(clean_ps1, ps2).to_matrix(), op(clean_matrix1, matrix2))
+    matrix_op = matmul if op == mul else op
+    assert matrix_eq(op(clean_ps1, ps2).to_matrix(), matrix_op(clean_matrix1, matrix2))
 
 
 @pytest.mark.parametrize(
@@ -503,6 +511,7 @@ def test_from_other_language(
     assert isinstance(mpqp_ps, PauliString)
     for language, ps in pauli_strings.items():
         if language is not None:
+            print(language)
             assert (
                 PauliString.from_other_language(
                     ps, mpqp_ps.nb_qubits if language == Language.CIRQ else 1
