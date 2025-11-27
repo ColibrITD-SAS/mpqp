@@ -27,7 +27,7 @@ def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
 
 
     Example:
-        >>> qasm_code = ''' # doctest: +EXAMPLES_NEED_MYQLM
+        >>> qasm_code = ''' # doctest: +FUNC_NEED_MYQLM
         ... OPENQASM 2.0;
         ... qreg q[2];
         ... h q[0];

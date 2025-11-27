@@ -235,6 +235,10 @@ PROVIDER_MYQLM = register_optionflag("MYQLM")
 PROVIDER_QISKIT = register_optionflag("QISKIT")
 PROVIDER_BRAKET = register_optionflag("BRAKET")
 PROVIDER_CIRQ = register_optionflag("CIRQ")
+register_optionflag("FUNC_NEED_MYQLM")
+register_optionflag("FUNC_NEED_QISKIT")
+register_optionflag("FUNC_NEED_BRAKET")
+register_optionflag("FUNC_NEED_CIRQ")
 
 PROVIDER_FLAGS = {
     "myqlm": PROVIDER_MYQLM,
@@ -288,7 +292,7 @@ def run_doctest(
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
             and all(
-                f"# doctest: +EXAMPLES_NEED_{keyword.upper()}" not in test.docstring
+                f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring
                 for keyword in skip_provider_flags.keys()
             )
         ):
