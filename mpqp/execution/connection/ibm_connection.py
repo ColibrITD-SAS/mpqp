@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 Runtime_Service = None
-ibm_session: Optional[Session] = None
+ibm_session: Optional["Session"] = None
 
 
 def config_ibm_account(token: str):
@@ -212,8 +212,8 @@ def get_all_job_ids() -> list[str]:
 
 
 def get_or_create_ibm_session(
-    backend: BackendV2, max_time: Optional[int] = None
-) -> Session:
+    backend: "BackendV2", max_time: Optional[int] = None
+) -> "Session":
     """Get an active IBM Runtime session or create a new one."""
     # TODO: to complete docs
     global ibm_session
