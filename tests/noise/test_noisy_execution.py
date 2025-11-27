@@ -25,6 +25,7 @@ from mpqp import (
 )
 from mpqp.execution import AvailableDevice
 from mpqp.gates import *
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
 noisy_devices: list[Any] = [

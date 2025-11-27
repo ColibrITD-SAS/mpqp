@@ -157,11 +157,8 @@ def _test_execution_equivalence(
     )
     targets = [position for _, position in gates_n_positions]
 
-    print(matrix)
     result_custom_gate = run(QCircuit([CustomGate(matrix, targets)]), device)
     result_circuit = run(circuit, device)
-    print(result_circuit)
-    print(result_custom_gate)
     assert matrix_eq(
         result_custom_gate.amplitudes, result_circuit.amplitudes, 1e-4, 1e-4
     )

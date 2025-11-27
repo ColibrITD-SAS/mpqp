@@ -311,8 +311,7 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            # TODO: Braket do not handle pauli with coef because it use QASM2
-            #       We need to pass without coef and compute yourself
+            # TODO: Braket does not handle pauli with coef because it uses QASM2
             # if self._pauli_string:
             #     return self.pauli_string.to_other_language(Language.BRAKET)
             # else:
@@ -432,6 +431,7 @@ class ExpectationMeasure(Measure):
             if obs.label is None:
                 while f"{default_label}_{label_counter}" in label_defined:
                     label_counter += 1
+
                 # Create a new instance of Observable with the new label
                 new_obs = Observable.__new__(Observable)
                 for attr, val in obs.__dict__.items():
@@ -518,7 +518,7 @@ class ExpectationMeasure(Measure):
         elif self.grouping_method == GroupingMethods.QISKIT:
             from qiskit.quantum_info import PauliList
 
-            pauli_labels = [mono.name.replace("@", "") for mono in unique_monos]
+            pauli_labels = [mono.short_name for mono in unique_monos]
             pauli_list = PauliList(pauli_labels)
 
             # Choose grouping based on commutativity type
@@ -530,8 +530,8 @@ class ExpectationMeasure(Measure):
             grouped_monomials = [
                 [
                     PauliString.from_str(
-                        mono.to_label()  # pyright: ignore[reportAttributeAccessIssue]
-                    )
+                        mono.to_label()
+                    )  # pyright: ignore[reportAttributeAccessIssue]
                     for mono in pauli
                 ]
                 for pauli in grouped

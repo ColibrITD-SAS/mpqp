@@ -136,7 +136,7 @@ class CustomGate(Gate):
                 if not printing:
                     raise ValueError(
                         "Custom gates defined with symbolic variables cannot be "
-                        "exported to Braket yet (Braket requires numeric matrices)."
+                        "exported to Braket for now (only numerical matrices are supported)."
                     )
                 return None
             else:

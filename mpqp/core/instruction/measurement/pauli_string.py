@@ -137,7 +137,7 @@ class PauliString:
 
         pattern = re.compile(r'([^IXYZ]+)?([IXYZ]+)')
 
-        monomials = []
+        monomials: list[PauliStringMonomial] = []
         for match in pattern.finditer(compact_str.replace(" ", "")):
             coef_str, atoms_str = match.groups()
 
@@ -162,7 +162,8 @@ class PauliString:
             monomials.append(
                 PauliStringMonomial(coef, [atoms_dict[atom] for atom in atoms_str])
             )
-
+        if len(monomials) == 1:
+            return monomials[0]
         return PauliString(monomials)
 
     def _non_null_str(self):
@@ -964,6 +965,10 @@ class PauliStringMonomial(PauliString):
     def name(self) -> str:
         return f"{'@'.join(map(str, self.atoms))}"
 
+    @property
+    def short_name(self) -> str:
+        return f"{''.join(atom.label for atom in self.atoms)}"
+
     def __str__(self):
         from sympy import Expr
 
@@ -1412,7 +1417,7 @@ class PauliStringAtom(PauliStringMonomial):
                 f"Expected a PauliStringAtom in parameter but got {type(other).__name__}"
             )
         if method == CommutingTypes.FULL:
-            return other.label == "I" or self.label == "I" or self.label == other.label
+            return other is pI or self is pI or self is other
         raise ValueError(
             f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
         )
