@@ -22,6 +22,7 @@ from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatib
 if TYPE_CHECKING:
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+    from braket.devices.device import Device as BraketDevice
 
 
 def apply_noise_to_braket_circuit(
@@ -86,7 +87,7 @@ def apply_noise_to_braket_circuit(
     return noisy_circuit
 
 
-def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
+def run_braket(job: Job, device: Optional["BraketDevice"] = None) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
@@ -113,8 +114,8 @@ def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
     from braket.tasks import GateModelQuantumTaskResult
 
     if isinstance(job.measure, ExpectationMeasure):
-        return run_braket_observable(job, reservation_arn)
-    _, task = submit_job_braket(job, reservation_arn)
+        return run_braket_observable(job, device)
+    _, task = submit_job_braket(job, device)
     res = task.result()
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
@@ -122,7 +123,7 @@ def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
     return extract_result(res, job, job.device)
 
 
-def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
+def run_braket_observable(job: Job, device: Optional["BraketDevice"] = None):
     """Returns the result of an ``OBSERVABLE`` job.
 
     TODO: check that the link bellow is correctly generated.
@@ -148,10 +149,11 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
         transpiled_circuit = job.circuit.transpiled_circuit
         assert isinstance(transpiled_circuit, Circuit)
 
-    device = get_braket_device(
-        job.device,
-        is_noisy=bool(job.circuit.noises),
-    )
+    if device is None:
+        device = get_braket_device(
+            job.device,
+            is_noisy=bool(job.circuit.noises),
+        )
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     assert isinstance(job.measure, ExpectationMeasure)
@@ -264,7 +266,7 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
 
 
 def submit_job_braket(
-    job: Job, reservation_arn: Optional[str] = None
+    job: Job, device: Optional["BraketDevice"] = None
 ) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
@@ -312,7 +314,8 @@ def submit_job_braket(
 
     from braket.circuits import Circuit
 
-    device = get_braket_device(job.device, is_noisy=is_noisy)
+    if device is None:
+        device = get_braket_device(job.device, is_noisy=is_noisy)
 
     if job.circuit.transpiled_circuit is None:
         braket_circuit = job.circuit.to_other_device(job.device)

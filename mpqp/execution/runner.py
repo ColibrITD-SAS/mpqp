@@ -52,7 +52,7 @@ from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 if TYPE_CHECKING:
     from sympy import Expr
-
+    from braket.devices.device import Device as BraketDevice
 
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
@@ -206,7 +206,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    device_aws: Optional["BraketDevice"] = None
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -273,7 +273,7 @@ def _run_single(
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job, reservation_arn=reservation_arn)
+        return run_braket(job, device_aws)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
     elif isinstance(device, AZUREDevice):
