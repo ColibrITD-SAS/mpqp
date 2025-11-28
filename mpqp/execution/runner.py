@@ -54,6 +54,7 @@ if TYPE_CHECKING:
     from sympy import Expr
     from braket.devices.device import Device as BraketDevice
 
+
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
@@ -206,7 +207,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    device_aws: Optional["BraketDevice"] = None
+    device_aws: Optional["BraketDevice"] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
