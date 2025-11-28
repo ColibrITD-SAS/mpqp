@@ -289,7 +289,7 @@ def run(
     device: Sequence[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    device_aws: Optional["BraketDevice"] = None,
 ) -> BatchResult: ...
 
 
@@ -299,7 +299,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    device_aws: Optional["BraketDevice"] = None
 ) -> BatchResult: ...
 
 
@@ -309,7 +309,7 @@ def run(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    device_aws: Optional["BraketDevice"] = None
 ) -> Result: ...
 
 
@@ -318,7 +318,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    device_aws: Optional["BraketDevice"] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -403,14 +403,14 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
-                    reservation_arn,
+                    device_aws,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(circuit, device, values, display_breakpoints, device_aws)
 
 
 def submit(
