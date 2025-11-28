@@ -284,6 +284,7 @@ class AWSDevice(AvailableDevice):
     QUERA_AQUILA = "qpu/quera/Aquila"
     RIGETTI_ANKAA_2 = "qpu/rigetti/Ankaa-2"
     IQM_GARNET = "qpu/iqm/Garnet"
+    IQM_EMERALD = "qpu/iqm/Emerald"
 
     def is_remote(self):
         return self != AWSDevice.BRAKET_LOCAL_SIMULATOR
@@ -340,7 +341,7 @@ class AWSDevice(AvailableDevice):
         elif self == AWSDevice.RIGETTI_ANKAA_2:
             return "us-west-1"
 
-        elif self == AWSDevice.IQM_GARNET:
+        elif self in [AWSDevice.IQM_GARNET, AWSDevice.IQM_EMERALD]:
             return "eu-north-1"
         elif self in [
             AWSDevice.IONQ_ARIA_1,
