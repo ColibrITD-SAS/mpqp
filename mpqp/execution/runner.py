@@ -299,7 +299,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    device_aws: Optional["BraketDevice"] = None
+    device_aws: Optional["BraketDevice"] = None,
 ) -> BatchResult: ...
 
 
@@ -309,7 +309,7 @@ def run(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    device_aws: Optional["BraketDevice"] = None
+    device_aws: Optional["BraketDevice"] = None,
 ) -> Result: ...
 
 
