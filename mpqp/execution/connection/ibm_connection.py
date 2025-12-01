@@ -13,7 +13,7 @@ if TYPE_CHECKING:
 
 
 Runtime_Service = None
-ibm_session: Optional["Session"] = None
+_ibm_sessions: dict[str, "Session"] = {}
 
 
 def config_ibm_account(token: str):
@@ -216,24 +216,25 @@ def get_or_create_ibm_session(
 ) -> "Session":
     """Get an active IBM Runtime session or create a new one."""
     # TODO: to complete docs
-    global ibm_session
 
-    if ibm_session and ibm_session.status() not in ("Closed", None):
-        return ibm_session
+    backend_name = backend.name
+    if backend_name in _ibm_sessions:
+        session = _ibm_sessions[backend_name]
+        if session.status() not in ("Closed", None):
+            return session
 
-    ibm_session = Session(backend=backend, max_time=max_time)
-    return ibm_session
+    new_session = Session(backend=backend, max_time=max_time)
+    _ibm_sessions[backend_name] = new_session
+    return new_session
 
 
-def close_ibm_session_final() -> None:
+def close_ibm_session(backend: "BackendV2") -> None:
     """Close the currently active session, if one exists."""
     # TODO: to complete docs
-    global ibm_session
 
-    if ibm_session is None:
-        return
-
-    try:
-        ibm_session.close()
-    finally:
-        ibm_session = None
+    backend_name = backend.name
+    if backend_name in _ibm_sessions:
+        try:
+            _ibm_sessions[backend_name].close()
+        finally:
+            del _ibm_sessions[backend_name]

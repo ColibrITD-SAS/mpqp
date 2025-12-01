@@ -520,18 +520,18 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     from qiskit import QuantumCircuit
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
-    from qiskit_ibm_runtime import Session
+
+    from mpqp.execution.connection.ibm_connection import get_or_create_ibm_session
 
     meas = job.measure
 
     check_job_compatibility(job)
 
-    service = get_QiskitRuntimeService()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     job.device = IBMDevice(backend.name)
-    session = Session(service=service, backend=backend)
+    session = get_or_create_ibm_session(backend)
 
     qiskit_circ = job.circuit.transpiled_for_device(job.device)
     if TYPE_CHECKING:
