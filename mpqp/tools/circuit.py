@@ -324,8 +324,6 @@ def replace_custom_gate(
         transpiled = transpile(
             transpilation_circuit,
             basis_gates=['u3', 'cx'],
-            optimization_level=0,
-            layout_method='trivial',
         )
     except QiskitError as e:
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
@@ -337,8 +335,6 @@ def replace_custom_gate(
             transpiled = transpile(
                 transpilation_circuit,
                 basis_gates=['u3', 'cx'],
-                optimization_level=0,
-                layout_method='trivial',
             )
         else:
             raise e
