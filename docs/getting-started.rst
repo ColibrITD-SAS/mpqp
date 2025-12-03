@@ -7,7 +7,7 @@ Installation
 .. TODO: grab the compatibility matrix from MyQLM and relax our requirements 
 .. when possible, test on many different configurations (tox or other ?)
 
-For now, we support Python versions 3.9 to 3.11, and all of Windows, Linux and 
+For now, we support Python versions 3.10 to 3.11, and all of Windows, Linux and 
 MacOS (specifically, Linux was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 
 is not supported, so your milage may vary).
 
@@ -36,7 +36,7 @@ version, run instead
         $ curl -L https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/mac-install.sh | bash -s -- <your-python-bin>
         
     where ``<your-python-bin>`` is the binary you use to invoke python. For instance, it could
-    be ``python``, ``python3``, or ``python3.9``.
+    be ``python``, ``python3``, or ``python3.10``.
 
 .. warning::
     The migration from ``qiskit`` version ``0.x`` to ``1.x`` caused a few issues. 
