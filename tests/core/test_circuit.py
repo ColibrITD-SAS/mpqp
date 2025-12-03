@@ -485,7 +485,7 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        assert str(circuit.without_measurements()) == f.read()
+        assert str(circuit.without_measurements(deep_copy=False)) == f.read()
 
 
 @pytest.mark.parametrize(
