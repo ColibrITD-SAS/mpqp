@@ -211,6 +211,8 @@ def mpqp_to_qasm2(
     if previous:
         qasm_str += _simplify_instruction_to_qasm(previous, targets, c_targets)
 
+    if gphase != 0:
+        qasm_str += f"\n// gphase:{gphase}"
     qasm_str += qasm_measure
 
     return qasm_str, gphase

@@ -1000,7 +1000,7 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run_qiskit(
     exec_validity_optim_ideal_single_diag_obs_and_regular_run(
         circuit,
         observable,
-        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        IBMDevice.AER_SIMULATOR,
     )
 
 

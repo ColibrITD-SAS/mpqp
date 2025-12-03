@@ -321,7 +321,12 @@ def replace_custom_gate(
     transpilation_circuit = QuantumCircuit(nb_qubits)
     transpilation_circuit.append(custom_unitary)
     try:
-        transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+        transpiled = transpile(
+            transpilation_circuit,
+            basis_gates=['u3', 'cx'],
+            optimization_level=0,
+            layout_method='trivial',
+        )
     except QiskitError as e:
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
         # matrix by the closest unitary
@@ -329,7 +334,12 @@ def replace_custom_gate(
             custom_unitary.operation.params[0] = closest_unitary(
                 custom_unitary.operation.params[0]
             )
-            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+            transpiled = transpile(
+                transpilation_circuit,
+                basis_gates=['u3', 'cx'],
+                optimization_level=0,
+                layout_method='trivial',
+            )
         else:
             raise e
     return transpiled, transpiled.global_phase

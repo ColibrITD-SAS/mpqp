@@ -70,7 +70,8 @@ def qasm2_parse(input_string: str) -> QCircuit:
     from mpqp.core.circuit import QCircuit
 
     input_string = remove_user_gates(input_string, skip_qelib1=True)
-    input_string = remove_include_and_comment(input_string)
+    input_string, gphase = remove_include_and_comment(input_string)
+
     tokens = lex_openqasm(input_string)
 
     if (
@@ -83,6 +84,7 @@ def qasm2_parse(input_string: str) -> QCircuit:
 
     idx = 3
     circuit = QCircuit()
+    circuit.input_g_phase = gphase
     i_max = len(tokens)
     while idx < i_max:
         logger.debug(circuit)
@@ -302,10 +304,19 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
     import numpy as np  # pyright: ignore[reportUnusedImport]
 
     expr = ""
-    while tokens[idx].type != 'COMMA' and tokens[idx].type != 'RPAREN':
-        if check_num_expr(tokens[idx].type):
+    open_paren = 0
+    while tokens[idx].type != 'COMMA' and (
+        tokens[idx].type != 'RPAREN' or open_paren > 0
+    ):
+        if tokens[idx].type == 'LPAREN':
+            open_paren += 1
+            expr += "("
+        elif tokens[idx].type == 'RPAREN':
+            open_paren -= 1
+            expr += ")"
+        elif check_num_expr(tokens[idx].type):
             raise SyntaxError(f"not a nb or expr: {idx}, {tokens[idx]}")
-        if tokens[idx].type == 'PI':
+        elif tokens[idx].type == 'PI':
             expr += "np.pi"
         else:
             expr += str(tokens[idx].value)
@@ -365,7 +376,7 @@ def parse_qasm2_gates(code: str) -> tuple[str, float]:
     )
     import re
 
-    code = remove_include_and_comment(code)
+    code, gphase = remove_include_and_comment(code)
 
     lines = code.split(";")
     lines.insert(1, qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
@@ -373,7 +384,6 @@ def parse_qasm2_gates(code: str) -> tuple[str, float]:
 
     code = remove_user_gates(code)
 
-    gphase = 0
     clean_code = []
     to_add = True
 

@@ -1915,7 +1915,7 @@ class QCircuit:
                 )
 
                 qc = qasm2_parse(qasm2_code)
-                qc.input_g_phase = phase
+                qc.input_g_phase += phase
 
                 return qc
         try:
@@ -1998,7 +1998,7 @@ class QCircuit:
 
                         qasm2_code, gphase = parse_qasm2_gates(qcircuit)
                         qc = qasm2_parse(qasm2_code)
-                        qc.input_g_phase = gphase
+                        qc.input_g_phase += gphase
 
                         return qc
 

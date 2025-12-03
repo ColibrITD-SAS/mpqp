@@ -886,7 +886,7 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
     return qasm_code
 
 
-def remove_include_and_comment(qasm_code: str) -> str:
+def remove_include_and_comment(qasm_code: str) -> tuple[str, float]:
     r"""
     Removes lines that start with 'include' or comments (starting with '\\')
     from a given OpenQASM code string.
@@ -901,20 +901,27 @@ def remove_include_and_comment(qasm_code: str) -> str:
         >>> qasm_code = '''include "stdgates.inc";
         ... qreg q[2];
         ... // This is a comment
+        ... // gphase: 1.57
         ... H q[0];'''
-        >>> print(remove_include_and_comment(qasm_code))
+        >>> qasm, gphase = remove_include_and_comment(qasm_code)
+        >>> print(qasm)
         qreg q[2];
         H q[0];
+        >>> gphase
+        1.57
 
     """
     replaced_code = []
+    gphase = 0.00
     for line in qasm_code.split("\n"):
         line = line.lstrip()
-        if line.startswith("include") or line.startswith("//"):
+        if line.startswith("// gphase:"):
+            gphase += float(line.split(":")[1].strip())
+        elif line.startswith("include") or line.startswith("//"):
             pass
         else:
             replaced_code.append(line)
-    return "\n".join(replaced_code)
+    return "\n".join(replaced_code), gphase
 
 
 def parse_gphase_instruction(

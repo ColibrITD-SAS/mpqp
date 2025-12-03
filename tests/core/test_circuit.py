@@ -511,10 +511,10 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 1),),"
+                " num_clbits=0, params=[]), qubits=(<Qubit register=(2, \"q\"), index=1>,),"
                 " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
-                " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
-                " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
+                " num_qubits=2, num_clbits=0, params=[]), qubits=(<Qubit register=(2,"
+                " \"q\"), index=1>, <Qubit register=(2, \"q\"), index=0>), clbits=())]"
             ),
         ),
     ],
@@ -629,7 +629,7 @@ def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
 
     circuit_2 = QiskitCircuit(qreg_q, creg_c)
     with circuit_2.if_test((creg_c, 0)):
-        circuit_2.append(RZZGate(np.pi/2), [qreg_q[1], qreg_q[2]])
+        circuit_2.append(RZZGate(np.pi / 2), [qreg_q[1], qreg_q[2]])
 
     return circuit, circuit_2
 
