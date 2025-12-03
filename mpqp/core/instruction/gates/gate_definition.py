@@ -179,7 +179,7 @@ class UnitaryMatrix(GateDefinition):
         if numeric and not is_unitary(definition):
             raise ValueError(
                 "Matrices defining gates have to be unitary. It is not the case"
-                f" for\n{clean_matrix(definition)}"
+                f" for\n{clean_matrix(definition, max_display_size=8)}"
             )
         if not is_power_of_two(definition.shape[0]):
             raise ValueError(
