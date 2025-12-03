@@ -1,0 +1,11 @@
+documentation:
+- changed-files:
+  - any-glob-to-any-file: ['docs/**/*', 'README.md']
+
+maintenance:
+- changed-files:
+  - any-glob-to-any-file: ['.github/**/*', 'requirements*', 'requirements/**/*', '.mpqp_scripts/**/*', 'Dockerfile', 'conftest.py', 'mac-install.sh', 'pyproject.toml', 'setup.py']
+
+testing:
+- changed-files:
+  - any-glob-to-any-file: ['tests/**/*']
