@@ -214,13 +214,20 @@ def get_all_job_ids() -> list[str]:
 def get_or_create_ibm_session(
     backend: "BackendV2", max_time: Optional[int] = None
 ) -> "Session":
-    """Get an active IBM Runtime session or create a new one."""
-    # TODO: to complete docs
+    """Get an active IBM Runtime session for the given backend.
+    If a session exists and is valid, reuse it. Otherwise, create a new one.
+    """
+    from qiskit_ibm_runtime import Session
 
     backend_name = backend.name
     if backend_name in _ibm_sessions:
         session = _ibm_sessions[backend_name]
-        if session.status() not in ("Closed", None):
+        try:
+            status = session.status()
+        except Exception:
+            status = "Closed"
+
+        if status not in ("Closed", None):
             return session
 
     new_session = Session(backend=backend, max_time=max_time)
@@ -230,11 +237,12 @@ def get_or_create_ibm_session(
 
 def close_ibm_session(backend: "BackendV2") -> None:
     """Close the currently active session, if one exists."""
-    # TODO: to complete docs
 
     backend_name = backend.name
     if backend_name in _ibm_sessions:
         try:
             _ibm_sessions[backend_name].close()
+        except Exception:
+            pass
         finally:
             del _ibm_sessions[backend_name]
