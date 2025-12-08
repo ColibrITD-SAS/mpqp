@@ -86,7 +86,7 @@ def apply_noise_to_braket_circuit(
     return noisy_circuit
 
 
-def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
+def run_braket(job: Job, **provider_options) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
@@ -102,6 +102,8 @@ def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    reservation_arn: Optional[str] = provider_options.get("reservation_arn")
+
     # TODO : [multi-obs] update this to take into account the case when we have list of Observables
     # TODO : [multi-obs] check if Braket allows for a list of several observables
     if not isinstance(job.device, AWSDevice):
@@ -113,8 +115,8 @@ def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
     from braket.tasks import GateModelQuantumTaskResult
 
     if isinstance(job.measure, ExpectationMeasure):
-        return run_braket_observable(job, reservation_arn)
-    _, task = submit_job_braket(job, reservation_arn)
+        return run_braket_observable(job, **provider_options)
+    _, task = submit_job_braket(job, **provider_options)
     res = task.result()
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
@@ -122,7 +124,7 @@ def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
     return extract_result(res, job, job.device)
 
 
-def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
+def run_braket_observable(job: Job, **provider_options):
     """Returns the result of an ``OBSERVABLE`` job.
 
     TODO: check that the link bellow is correctly generated.
@@ -140,6 +142,8 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
     """
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult
+
+    reservation_arn: Optional[str] = provider_options.get("reservation_arn")
 
     assert isinstance(job.device, AWSDevice)
     if job.circuit.transpiled_circuit is None:
@@ -266,7 +270,8 @@ def run_braket_observable(job: Job, reservation_arn: Optional[str] = None):
 
 
 def submit_job_braket(
-    job: Job, reservation_arn: Optional[str] = None
+    job: Job,
+    **provider_options,
 ) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
@@ -289,6 +294,8 @@ def submit_job_braket(
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    reservation_arn: Optional[str] = provider_options.get("reservation_arn")
+
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "

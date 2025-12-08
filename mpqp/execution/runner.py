@@ -206,7 +206,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    provider_options: Optional[dict] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -241,6 +241,8 @@ def _run_single(
          Error: None
 
     """
+    provider_options = provider_options or {}
+
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
         StaticIBMSimulatedDevice,
@@ -273,7 +275,7 @@ def _run_single(
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job, reservation_arn=reservation_arn)
+        return run_braket(job, **provider_options)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
     elif isinstance(device, AZUREDevice):
@@ -288,7 +290,7 @@ def run(
     device: Sequence[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    provider_options: Optional[dict] = None,
 ) -> BatchResult: ...
 
 
@@ -298,7 +300,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    provider_options: Optional[dict] = None,
 ) -> BatchResult: ...
 
 
@@ -308,7 +310,7 @@ def run(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    provider_options: Optional[dict] = None,
 ) -> Result: ...
 
 
@@ -317,7 +319,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    reservation_arn: Optional[str] = None,
+    provider_options: Optional[dict] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -402,21 +404,23 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
-                    reservation_arn,
+                    provider_options,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(
+            circuit, device, values, display_breakpoints, provider_options
+        )
 
 
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
-    reservation_arn: Optional[str] = None,
+    provider_options: Optional[dict] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -449,6 +453,8 @@ def submit(
     Note:
         Unlike :func:`run`, you can only submit on one device at a time.
     """
+    provider_options = provider_options or {}
+
     if values is None:
         values = {}
     if not device.is_remote():
@@ -464,7 +470,7 @@ def submit(
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
-        job_id, _ = submit_job_braket(job, reservation_arn=reservation_arn)
+        job_id, _ = submit_job_braket(job, **provider_options)
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
     else:
