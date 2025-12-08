@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from numbers import Complex
 from textwrap import indent
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
+from typing import TYPE_CHECKING, Optional, Sequence, overload
 
 import numpy as np
 
@@ -39,16 +39,15 @@ from mpqp.execution.devices import (
     GOOGLEDevice,
     IBMDevice,
 )
-from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.job import Job, JobStatus, JobType, VQAMode
 from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
-from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
-from mpqp.tools.generics import OneOrMany, find_index, flatten
+from mpqp.tools.generics import OneOrMany, find_index
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -109,6 +108,7 @@ def generate_job(
     circuit: QCircuit,
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
+    mode: Optional[VQAMode] = None,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
@@ -128,18 +128,21 @@ def generate_job(
     if values is not None:
         circuit = circuit.subs(values, True)
 
+    if mode is None:
+        mode = VQAMode.JOB
+
     m_list = circuit.measurements
     nb_meas = len(m_list)
 
     if nb_meas == 0:
-        job = Job(JobType.STATE_VECTOR, circuit, device)
+        job = Job(JobType.STATE_VECTOR, circuit, device, mode)
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device)
+                job = Job(JobType.STATE_VECTOR, circuit, device, mode)
             else:
-                job = Job(JobType.SAMPLE, circuit, device)
+                job = Job(JobType.SAMPLE, circuit, device, mode)
         elif isinstance(measurement, ExpectationMeasure):
             m = adjust_measure(measurement, circuit)
             c = circuit.without_measurements()
@@ -148,6 +151,7 @@ def generate_job(
                 JobType.OBSERVABLE,
                 c,
                 device,
+                mode,
             )
         else:
             raise NotImplementedError(
@@ -168,12 +172,13 @@ def _run_diagonal_observables(
     device: AvailableDevice,
     observable_job: Job,
     values: "Optional[dict[Expr | str, Complex]]" = None,
+    mode: Optional[VQAMode] = None,
 ) -> Result:
 
     adapted_circuit = circuit.without_measurements()
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
-    result = _run_single(adapted_circuit, device, values, False)
+    result = _run_single(adapted_circuit, device, values, False, mode)
     probas = result.probabilities
 
     error = 0 if exp_measure.shots == 0 else None
@@ -206,6 +211,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    mode: Optional[VQAMode] = None,
     reservation_arn: Optional[str] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
@@ -250,13 +256,15 @@ def _run_single(
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
-    job = generate_job(circuit, device, values)
+    job = generate_job(circuit, device, values, mode)
     job.status = JobStatus.INIT
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
-                return _run_diagonal_observables(circuit, measure, device, job, values)
+                return _run_diagonal_observables(
+                    circuit, measure, device, job, values, mode
+                )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():
@@ -269,6 +277,11 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+        from mpqp.execution.providers.ibm import run_ibm, run_remote_ibm_batch
+
+        if job.mode == VQAMode.BATCH:
+            batch_results = run_remote_ibm_batch([job])
+            return batch_results[0]
         return run_ibm(job)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
@@ -289,6 +302,7 @@ def run(
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     reservation_arn: Optional[str] = None,
+    mode: Optional[VQAMode] = None,
 ) -> BatchResult: ...
 
 
@@ -299,6 +313,7 @@ def run(
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     reservation_arn: Optional[str] = None,
+    mode: Optional[VQAMode] = None,
 ) -> BatchResult: ...
 
 
@@ -309,6 +324,7 @@ def run(
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     reservation_arn: Optional[str] = None,
+    mode: Optional[VQAMode] = None,
 ) -> Result: ...
 
 
@@ -318,6 +334,7 @@ def run(
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
     reservation_arn: Optional[str] = None,
+    mode: Optional[VQAMode] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -394,28 +411,88 @@ def run(
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
-    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+    if isinstance(circuit, QCircuit):
+        circuits = [circuit]
+    else:
+        circuits = list(circuit)
+
+    if isinstance(device, AvailableDevice):
+        devices = [device]
+    else:
+        devices = list(device)
+
+    exec_mode = mode or VQAMode.JOB
+
+    if exec_mode == VQAMode.BATCH:
+        if len(devices) != 1:
+            raise ValueError(
+                "Batch mode is only defined for a single backend, but got "
+                f"{len(devices)} devices."
+            )
+
+        device = devices[0]
+        jobs = [
+            generate_job(namer(circ, i + 1), device, values, exec_mode)
+            for i, circ in enumerate(circuits)
+        ]
+
+        if isinstance(device, IBMDevice) and device.is_remote():
+            from mpqp.execution.providers.ibm import run_remote_ibm_batch
+
+            for job in jobs:
+                if job.job_type != JobType.OBSERVABLE:
+                    raise ValueError(
+                        "IBM batch execution supports only observable jobs "
+                        f"(found {job.job_type} in circuit '{job.circuit.label}')."
+                    )
+            return run_remote_ibm_batch(jobs)
+
         return BatchResult(
             [
                 _run_single(
                     namer(circ, i + 1),
-                    dev,
+                    device,
                     values,
                     display_breakpoints,
+                    mode,
                     reservation_arn,
                 )
-                for i, circ in enumerate(flatten(circuit))
-                for dev in flatten(device)
+                for i, circ in enumerate(circuits)
             ]
         )
+
+    if len(circuits) > 1 or len(devices) > 1:
+        counter = 1
+        outputs = []
+
+        for circ in circuits:
+            labeled = namer(circ, counter)
+            counter += 1
+
+            for device in devices:
+                outputs.append(
+                    _run_single(
+                        labeled,
+                        device,
+                        values,
+                        display_breakpoints,
+                        exec_mode,
+                        reservation_arn,
+                    )
+                )
+        return BatchResult(outputs)
+
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        circ = namer(circuits[0], 1)
+        device = devices[0]
+        return _run_single(circ, device, values, display_breakpoints, exec_mode)
 
 
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
+    mode: Optional[VQAMode] = None,
     reservation_arn: Optional[str] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
@@ -456,11 +533,25 @@ def submit(
             "submit(...) function is only made for remote device."
         )
 
-    job = generate_job(circuit, device, values)
+    job = generate_job(circuit, device, values, mode)
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        job_id, _ = submit_remote_ibm(job)
+        if mode == VQAMode.SESSION:
+            from mpqp.execution.connection.ibm_connection import (
+                get_backend,
+                get_or_create_ibm_session,
+            )
+            from mpqp.execution.providers.ibm import submit_remote_ibm_session
+
+            backend = get_backend(device)
+            session = get_or_create_ibm_session(backend)
+
+            job_id, _ = submit_remote_ibm_session(job, session)
+        else:
+            from mpqp.execution.providers.ibm import submit_remote_ibm
+
+            job_id, _ = submit_remote_ibm(job)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):
@@ -474,7 +565,10 @@ def submit(
 
 
 def display_kth_breakpoint(
-    circuit: QCircuit, k: int, device: AvailableDevice = ATOSDevice.MYQLM_CLINALG
+    circuit: QCircuit,
+    k: int,
+    device: AvailableDevice = ATOSDevice.MYQLM_CLINALG,
+    mode: Optional[VQAMode] = None,
 ):
     """Prints to the standard output the state vector corresponding to the state
     of the system when it encounters the `k^{th}` breakpoint.
@@ -503,7 +597,7 @@ def display_kth_breakpoint(
             nb_cbits=circuit.nb_cbits,
             label=circuit.label,
         )
-        res = _run_single(copy, device, None, False)
+        res = _run_single(copy, device, None, False, mode)
         if TYPE_CHECKING:
             assert isinstance(res, Result)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")
