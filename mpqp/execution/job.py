@@ -70,6 +70,15 @@ class JobType(Enum):
     retrieve the expectation value in an optimal manner."""
 
 
+class VQAMode(Enum):
+    JOB = "JOB"
+    BATCH = "BATCH"
+    SESSION = "SESSION"
+
+    def __str__(self):
+        return self.value
+
+
 class Job:
     """Representation of a job, an object regrouping all the information about
     the submission of a computation/measure of a quantum circuit on a
@@ -110,6 +119,7 @@ class Job:
         job_type: JobType,
         circuit: QCircuit,
         device: AvailableDevice,
+        mode: VQAMode = VQAMode.JOB,
     ):
         self._status = JobStatus.INIT
 
@@ -119,6 +129,7 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
+        self.mode = mode
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
@@ -168,7 +179,8 @@ class Job:
         self._status = job_status
 
     def __repr__(self) -> str:
-        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device})"
+        #TODO: improve repr
+        return f"{type(self).__name__}({self.job_type}, {repr(self.circuit)}, {self.device}, mode={self.mode})"
 
     def __eq__(self, other):  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, Job):
@@ -185,6 +197,7 @@ class Job:
             "job_type": self.job_type,
             "circuit": self.circuit,
             "device": self.device,
+            "mode": self.mode,
             "measure": self.measure,
             "id": self.id,
             "status": self.status,
