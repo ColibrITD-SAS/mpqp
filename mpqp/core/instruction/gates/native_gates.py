@@ -109,8 +109,6 @@ class NativeGate(Gate, SimpleClassReprABC):
         """Keyword(s) corresponding to the gate in ``QASM2``."""
         return cls.qiskit_string
 
-    native_gate_options = {"disable_symbol_warn": True}
-
     if TYPE_CHECKING:
         from braket.circuits import gates
         from cirq.ops.raw_types import Gate
@@ -204,9 +202,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(
             self, definition, [target], [self.theta], type(self).__name__.capitalize()
         )
@@ -702,9 +698,7 @@ class CP(RotationGate, ControlledGate):
     def __init__(self, theta: Expr | float, control: int, target: int):
         self.parameters = [theta]
         ControlledGate.__init__(self, [control], [target], P(theta, target), "CP")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [theta], "CP")
 
     def to_canonical_matrix(self):
@@ -1043,9 +1037,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         target: int,
     ):
         self.parameters = [theta, phi, gamma]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [theta, phi, gamma], "U")
 
     @property
@@ -1312,9 +1304,7 @@ class Rk(RotationGate, SingleQubitGate):
 
     def __init__(self, k: Expr | int, target: int):
         self.parameters = [k]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk")
 
     @property
@@ -1400,9 +1390,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
     def __init__(self, k: Expr | int, target: int):
         self.parameters = [k]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk†")
 
     @property
@@ -1607,9 +1595,7 @@ class CRk(RotationGate, ControlledGate):
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [k], "CRk")
 
     @property
@@ -1707,9 +1693,7 @@ class CRk_dagger(RotationGate, ControlledGate):
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk_dagger(k, target), "CRk†")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [k], "CRk†")
 
     @property
