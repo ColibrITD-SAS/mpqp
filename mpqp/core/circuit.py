@@ -2164,26 +2164,33 @@ class QCircuit:
         return params
 
     def bind_parameters(
-        self, device: AvailableDevice, params: dict[str | Parameter | Basic, Number]
-    ) -> None:
+        self, device: AvailableDevice, values: dict[str | Parameter | Basic, Number]
+    ) -> QCircuit:
         """Bind parameter values to the transpiled circuit."""
         # TODO: to enhance docs
         if device not in self.transpiled_circuit:
             self.transpiled_for_device(device)
-
         transpiled = self.transpiled_circuit[device]
+
+        param_values = {str(k): v for k, v in values.items()}
+
+        from qiskit import QuantumCircuit
 
         if isinstance(transpiled, QuantumCircuit):
             qiskit_param_map = {
-                k if isinstance(k, Parameter) else Parameter(str(k)): v
-                for k, v in params.items()
+                p: param_values[p.name]
+                for p in transpiled.parameters
+                if p.name in param_values
             }
-            transpiled.assign_parameters(qiskit_param_map, inplace=True)
+            if qiskit_param_map:
+                transpiled.assign_parameters(qiskit_param_map, inplace=True)
+            return self
 
         elif isinstance(transpiled, braket_Circuit):
-            braket_param_map = {str(k): v for k, v in params.items()}
             self.transpiled_circuit[device] = transpiled.make_bound_circuit(
-                braket_param_map
+                param_values
             )
+            return self
+
         else:
             raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")
