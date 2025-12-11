@@ -988,7 +988,7 @@ class QCircuit:
         return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]
 
     def _clone_without(
-        self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = False
+        self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = True
     ):
         """Creates a clone of the current QCircuit object, excluding specified attributes.
 
@@ -1043,7 +1043,7 @@ class QCircuit:
 
         return gates
 
-    def without_measurements(self, deep_copy: bool = False) -> QCircuit:
+    def without_measurements(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the measurements removed.
 
         Args:
@@ -1079,7 +1079,7 @@ class QCircuit:
 
         return new_circuit
 
-    def without_noises(self, deep_copy: bool = False) -> QCircuit:
+    def without_noises(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the noise models removed.
 
         Args:
@@ -1954,7 +1954,7 @@ class QCircuit:
             )
             qc = qasm2_parse(qasm2_code)
             qc.input_g_phase = phase
-            qc = qc.without_measurements()
+            qc = qc.without_measurements(deep_copy=False)
             if len(custom_gates) != 0:
                 qc.add(custom_gates)
             if len(noises) != 0:

@@ -142,7 +142,7 @@ def generate_job(
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
             m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements()
+            c = circuit.without_measurements(deep_copy=False)
             c.add(m)
             job = Job(
                 JobType.OBSERVABLE,
@@ -170,7 +170,7 @@ def _run_diagonal_observables(
     values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Result:
 
-    adapted_circuit = circuit.without_measurements()
+    adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False)
