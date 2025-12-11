@@ -11,7 +11,7 @@ from enum import Enum, auto
 from functools import reduce
 from numbers import Real
 from operator import mul
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -768,6 +768,19 @@ class PauliString:
 
         raise NotImplementedError(f"Unsupported input type: {type(pauli)}.")
 
+    @overload
+    def to_other_language(self, language: Literal[Language.BRAKET]) -> BraketSum: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QISKIT]
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(self, language: Literal[Language.MY_QLM]) -> list[Term]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+    ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
+
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
     ) -> Union[
@@ -1167,6 +1180,19 @@ class PauliStringMonomial(PauliString):
 
         return new_monomial
 
+    @overload
+    def to_other_language(self, language: Literal[Language.BRAKET]) -> BraketSum: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QISKIT]
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(self, language: Literal[Language.MY_QLM]) -> list[Term]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+    ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
+
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
     ):
@@ -1182,8 +1208,7 @@ class PauliStringMonomial(PauliString):
             return Term(self.coef, pauli_mono_str, list(range(len(pauli_mono_str))))
         elif language == Language.BRAKET:
             braket_atoms: list[BraketObservable] = [
-                atom.to_other_language(Language.BRAKET)
-                for atom in self.atoms  # pyright: ignore[reportAssignmentType]
+                atom.to_other_language(Language.BRAKET) for atom in self.atoms
             ]
             from braket.circuits.observables import TensorProduct
 
@@ -1421,6 +1446,35 @@ class PauliStringAtom(PauliStringMonomial):
         raise ValueError(
             f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
         )
+
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.BRAKET],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> BraketSum: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QISKIT],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.MY_QLM],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> list[Term]: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.CIRQ],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
 
     def to_other_language(
         self,
