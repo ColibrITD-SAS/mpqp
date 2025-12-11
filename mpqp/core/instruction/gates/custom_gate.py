@@ -145,7 +145,7 @@ class CustomGate(Gate):
 
                 return BraketInstruction(
                     operator=BraketUnitary(self.definition.matrix),
-                    target=list(range(self.nb_qubits)),
+                    target=self.targets,
                 )
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2

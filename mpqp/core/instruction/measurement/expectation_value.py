@@ -81,7 +81,7 @@ class Observable:
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
         "See parameter description."
-        self.pre_transpile = None
+        self.pre_transpiled = None
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -306,16 +306,15 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            # TODO: Braket does not handle pauli with coef because it uses QASM2
-            # if self._pauli_string:
-            #     return self.pauli_string.to_other_language(Language.BRAKET)
-            # else:
-            from braket.circuits.observables import Hermitian
+            if self._pauli_string:
+                return self.pauli_string.to_other_language(Language.BRAKET)
+            else:
+                from braket.circuits.observables import Hermitian
 
-            return Hermitian(
-                self.matrix,
-                display_name=self.label if self.label is not None else "Hermitian",
-            )
+                return Hermitian(
+                    self.matrix,
+                    display_name=self.label if self.label is not None else "Hermitian",
+                )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
@@ -401,7 +400,7 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
-        self.pre_transpile = None
+        self.pre_transpiled = None
         if isinstance(observable, Observable):
             observable = [observable]
         else:
@@ -515,8 +514,12 @@ class ExpectationMeasure(Measure):
             # Choose grouping based on commutativity type
             if self.commuting_type == CommutingTypes.QUBITWISE:
                 grouped = pauli_list.group_qubit_wise_commuting()
-            else:
+            elif self.commuting_type == CommutingTypes.FULL:
                 grouped = pauli_list.group_commuting()
+            else:
+                raise NotImplementedError(
+                    f"{self.commuting_type} is not yet supported."
+                )
 
             grouped_monomials = [
                 [
