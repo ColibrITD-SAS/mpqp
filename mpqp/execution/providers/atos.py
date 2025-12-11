@@ -252,10 +252,10 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
     result = []
     for obs in job.measure.observables:
-        if obs.pre_transpile is None:
+        if obs.pre_transpiled is None:
             qlm_obs = obs.to_other_language(Language.MY_QLM)
         else:
-            qlm_obs = obs.pre_transpile
+            qlm_obs = obs.pre_transpiled
         result.append(
             myqlm_circuit.to_job(
                 job_type="OBS",

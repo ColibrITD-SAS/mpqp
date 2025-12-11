@@ -81,7 +81,7 @@ class Observable:
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
         "See parameter description."
-        self.pre_transpile = None
+        self.pre_transpiled = None
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -401,7 +401,7 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
-        self.pre_transpile = None
+        self.pre_transpiled = None
         if isinstance(observable, Observable):
             observable = [observable]
         else:
@@ -515,14 +515,18 @@ class ExpectationMeasure(Measure):
             # Choose grouping based on commutativity type
             if self.commuting_type == CommutingTypes.QUBITWISE:
                 grouped = pauli_list.group_qubit_wise_commuting()
-            else:
+            elif self.commuting_type == CommutingTypes.FULL:
                 grouped = pauli_list.group_commuting()
+            else:
+                raise NotImplementedError(
+                    f"{self.commuting_type} is not yet supported."
+                )
 
             grouped_monomials = [
                 [
                     PauliString.from_str(
-                        mono.to_label()
-                    )  # pyright: ignore[reportAttributeAccessIssue]
+                        mono.to_label() # pyright: ignore[reportAttributeAccessIssue]
+                    )  
                     for mono in pauli
                 ]
                 for pauli in grouped

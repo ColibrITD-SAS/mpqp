@@ -824,13 +824,9 @@ class PauliString:
         elif language == Language.BRAKET:
             from braket.circuits.observables import Sum
 
-            pauli_string = []
-
-            for mono in self.monomials:
-                braket_mono = mono.to_other_language(Language.BRAKET)
-                pauli_string.append(braket_mono)
-
-            return Sum(pauli_string)
+            return Sum(
+                [mono.to_other_language(Language.BRAKET) for mono in self.monomials]
+            )
         elif language == Language.CIRQ:
             cirq_pauli_string = None
             for monomial in self.monomials:
@@ -963,10 +959,12 @@ class PauliStringMonomial(PauliString):
 
     @property
     def name(self) -> str:
+        """Return a monomial without the coefficient."""
         return f"{'@'.join(map(str, self.atoms))}"
 
     @property
     def short_name(self) -> str:
+        """Return a monomial without the coefficient and tensor product."""
         return f"{''.join(atom.label for atom in self.atoms)}"
 
     def __str__(self):
@@ -1187,7 +1185,7 @@ class PauliStringMonomial(PauliString):
             ]
             from braket.circuits.observables import TensorProduct
 
-            if len(braket_atoms) == 1:
+            if self.nb_qubits == 1:
                 return (
                     self.coef * braket_atoms[0]
                 )  # pyright: ignore[reportOperatorIssue]

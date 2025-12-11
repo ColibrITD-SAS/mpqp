@@ -258,7 +258,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
                 connection += self.controls
             return Instruction(
                 operator=self.braket_gate(_sympy_to_braket_param(theta)),
-                target=list(range(len(connection))),
+                target=connection,
             )
         elif language == Language.CIRQ:
             return self.cirq_gate(theta)
@@ -369,9 +369,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             connection = self.targets
             if isinstance(self, ControlledGate):
                 connection += self.controls
-            return Instruction(
-                operator=self.braket_gate(), target=list(range(len(connection)))
-            )
+            return Instruction(operator=self.braket_gate(), target=connection)
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -457,12 +455,7 @@ class Id(OneQubitNoParamGate, InvolutionGate):
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
 
-            connection = self.targets
-            if isinstance(self, ControlledGate):
-                connection += self.controls
-            return Instruction(
-                operator=self.braket_gate(), target=list(range(len(connection)))
-            )
+            return Instruction(operator=self.braket_gate(), target=self.targets)
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -1113,16 +1106,13 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
 
-            connection = self.targets
-            if isinstance(self, ControlledGate):
-                connection += self.controls
             return Instruction(
                 operator=self.braket_gate(
                     _sympy_to_braket_param(self.theta),
                     _sympy_to_braket_param(self.phi),
                     _sympy_to_braket_param(self.gamma),
                 ),
-                target=list(range(len(connection))),
+                target=self.targets,
             )
         elif language == Language.CIRQ:
             return self.cirq_gate(self.theta, self.phi, self.gamma)

@@ -249,12 +249,12 @@ def run_cirq_observable(
         expectation_values = {}
         for obs in job.measure.observables:
 
-            if obs.pre_transpile is None:
+            if obs.pre_transpiled is None:
                 cirq_obs = obs.to_other_language(
                     language=Language.CIRQ, circuit=circuit
                 )
             else:
-                cirq_obs = obs.pre_transpile
+                cirq_obs = obs.pre_transpiled
                 if TYPE_CHECKING:
                     assert type(cirq_obs) in (CirqPauliSum, CirqPauliString)
             job.status = JobStatus.RUNNING
