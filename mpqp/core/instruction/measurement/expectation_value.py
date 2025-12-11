@@ -306,16 +306,15 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            # TODO: Braket does not handle pauli with coef because it uses QASM2
-            # if self._pauli_string:
-            #     return self.pauli_string.to_other_language(Language.BRAKET)
-            # else:
-            from braket.circuits.observables import Hermitian
+            if self._pauli_string:
+                return self.pauli_string.to_other_language(Language.BRAKET)
+            else:
+                from braket.circuits.observables import Hermitian
 
-            return Hermitian(
-                self.matrix,
-                display_name=self.label if self.label is not None else "Hermitian",
-            )
+                return Hermitian(
+                    self.matrix,
+                    display_name=self.label if self.label is not None else "Hermitian",
+                )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
@@ -525,8 +524,8 @@ class ExpectationMeasure(Measure):
             grouped_monomials = [
                 [
                     PauliString.from_str(
-                        mono.to_label() # pyright: ignore[reportAttributeAccessIssue]
-                    )  
+                        mono.to_label()  # pyright: ignore[reportAttributeAccessIssue]
+                    )
                     for mono in pauli
                 ]
                 for pauli in grouped
