@@ -1,5 +1,4 @@
 import math
-from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
@@ -237,6 +236,7 @@ def run_braket_observable(job: Job):
 
         for obs in job.measure.observables:
             from copy import deepcopy
+
             from braket.circuits.observables import Sum
 
             copy = deepcopy(transpiled_circuit)
