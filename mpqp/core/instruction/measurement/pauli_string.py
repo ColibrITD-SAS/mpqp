@@ -784,6 +784,18 @@ class PauliString:
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
+    @overload
+    def to_other_language(
+        self, language: Language, circuit: Optional[CirqCircuit] = None
+    ) -> Union[
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+        SparsePauliOp,
+        Never,
+        BraketSum,
+        list[Term],
+    ]: ...
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
@@ -880,8 +892,9 @@ class PauliString:
                 result_dict[atom_str] = mono.coef
             else:
                 coef: "Coef" = (
-                    result_dict[atom_str] + mono.coef
-                )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                    result_dict[atom_str]
+                    + mono.coef  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                )
                 result_dict[atom_str] = coef
         return {k: str(result_dict[k]) for k in sorted(result_dict)}
 
@@ -1035,9 +1048,7 @@ class PauliStringMonomial(PauliString):
         return res
 
     def __imul__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = (
-            self.coef * other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+        new_coef: "Coef" = self.coef * other  # pyright: ignore[reportOperatorIssue]
         self.coef = new_coef
         return self
 
@@ -1047,8 +1058,9 @@ class PauliStringMonomial(PauliString):
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
-            self.coef / other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+            self.coef
+            / other  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+        )
         self.coef = new_coef
         return self
 
@@ -1063,8 +1075,9 @@ class PauliStringMonomial(PauliString):
             return self
         elif isinstance(other, PauliStringMonomial):
             new_coef: "Coef" = (
-                self.coef * other.coef
-            )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                self.coef
+                * other.coef  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+            )
             self.coef = new_coef
             self.atoms.extend(other.atoms)
             return self
@@ -1199,6 +1212,18 @@ class PauliStringMonomial(PauliString):
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
+    @overload
+    def to_other_language(
+        self, language: Language, circuit: Optional[CirqCircuit] = None
+    ) -> Union[
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+        SparsePauliOp,
+        Never,
+        BraketSum,
+        list[Term],
+    ]: ...
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
@@ -1345,7 +1370,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: "Coef") -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportOperatorIssue, reportArgumentType]
             [self],
         )
 
@@ -1486,6 +1511,21 @@ class PauliStringAtom(PauliStringMonomial):
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Language,
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> Union[
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+        SparsePauliOp,
+        Never,
+        BraketSum,
+        list[Term],
+    ]: ...
 
     def to_other_language(
         self,

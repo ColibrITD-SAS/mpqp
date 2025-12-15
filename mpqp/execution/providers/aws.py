@@ -237,23 +237,26 @@ def run_braket_observable(job: Job):
         for obs in job.measure.observables:
             from copy import deepcopy
 
-            from braket.circuits.observables import Sum
+            from braket.program_sets import ProgramSet, CircuitBinding
 
             copy = deepcopy(transpiled_circuit)
             braket_obs = obs.to_other_language(Language.BRAKET)
-            if isinstance(braket_obs, Sum):
-                targets = [job.measure.targets] * len(braket_obs.summands)
-            else:
-                targets = job.measure.targets
-            copy.expectation(  # pyright: ignore[reportAttributeAccessIssue]
-                observable=braket_obs, target=targets
+
+            program_set = ProgramSet(
+                CircuitBinding(
+                    copy,
+                    observables=braket_obs,
+                )
             )
             job.status = JobStatus.RUNNING
 
             if TYPE_CHECKING:
                 assert isinstance(device, AWSDevice)
+
             local_result = device.run(
-                copy, shots=job.measure.shots, inputs=None
+                program_set,
+                shots=program_set.total_executables * job.measure.shots,
+                inputs=None,
             ).result()
             assert isinstance(local_result, GateModelQuantumTaskResult)
             results.update({f"observable_{len(results)}": local_result.values[0].real})

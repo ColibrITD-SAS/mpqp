@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 from numbers import Real
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Literal, Never, Optional, Union, overload
 from warnings import warn
 
 import numpy as np
@@ -28,7 +28,7 @@ from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
-    from braket.circuits.observables import Hermitian
+    from braket.circuits.observables import Hermitian, Sum
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
@@ -272,6 +272,33 @@ class Observable:
         """3M-TODO"""
         ...
 
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.BRAKET]
+    ) -> Union[Hermitian, Sum]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QISKIT]
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.MY_QLM]
+    ) -> QLMObservable: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+    ) -> Union[CirqPauliSum, CirqPauliString]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QASM2, Language.QASM3]
+    ) -> Never: ...
+    @overload
+    def to_other_language(
+        self, language: Language, circuit: Optional[CirqCircuit] = None
+    ) -> Union[
+        SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
+    ]: ...
+
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
     ) -> Union[SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString]:
@@ -309,12 +336,17 @@ class Observable:
             if self._pauli_string:
                 return self.pauli_string.to_other_language(Language.BRAKET)
             else:
-                from braket.circuits.observables import Hermitian
+                if self._pauli_string:
+                    return self.pauli_string.to_other_language(Language.BRAKET)
+                else:
+                    from braket.circuits.observables import Hermitian
 
-                return Hermitian(
-                    self.matrix,
-                    display_name=self.label if self.label is not None else "Hermitian",
-                )
+                    return Hermitian(
+                        self.matrix,
+                        display_name=(
+                            self.label if self.label is not None else "Hermitian"
+                        ),
+                    )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
