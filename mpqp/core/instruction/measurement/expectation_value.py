@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import copy
 from numbers import Real
-from typing import TYPE_CHECKING, Literal, Never, Optional, Union, overload
+from typing import TYPE_CHECKING, Literal, NoReturn, Optional, Union, overload
 from warnings import warn
 
 import numpy as np
@@ -291,7 +291,7 @@ class Observable:
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
-    ) -> Never: ...
+    ) -> NoReturn: ...
     @overload
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None

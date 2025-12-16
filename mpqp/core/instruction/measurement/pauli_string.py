@@ -11,7 +11,7 @@ from enum import Enum, auto
 from functools import reduce
 from numbers import Real
 from operator import mul
-from typing import TYPE_CHECKING, Any, Literal, Never, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Literal, NoReturn, Optional, Union, overload
 
 import numpy as np
 import numpy.typing as npt
@@ -785,7 +785,7 @@ class PauliString:
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
-    ) -> Never: ...
+    ) -> NoReturn: ...
     @overload
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
@@ -794,7 +794,6 @@ class PauliString:
         CirqPauliString,
         list[CirqPauliString],
         SparsePauliOp,
-        Never,
         BraketSum,
         TensorProduct,
         list[Term],
@@ -811,7 +810,6 @@ class PauliString:
         CirqPauliSum,
         CirqPauliString,
         list[CirqPauliString],
-        Never,
     ]:
         """Converts the pauli string to pauli string of another quantum
         programming language.
@@ -1218,7 +1216,7 @@ class PauliStringMonomial(PauliString):
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
-    ) -> Never: ...
+    ) -> NoReturn: ...
     @overload
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
@@ -1227,7 +1225,6 @@ class PauliStringMonomial(PauliString):
         CirqPauliString,
         list[CirqPauliString],
         SparsePauliOp,
-        Never,
         BraketSum,
         TensorProduct,
         list[Term],
@@ -1528,7 +1525,7 @@ class PauliStringAtom(PauliStringMonomial):
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
-    ) -> Never: ...
+    ) -> NoReturn: ...
     @overload
     def to_other_language(
         self,
@@ -1540,7 +1537,6 @@ class PauliStringAtom(PauliStringMonomial):
         CirqPauliString,
         list[CirqPauliString],
         SparsePauliOp,
-        Never,
         BraketSum,
         list[Term],
     ]: ...
