@@ -769,7 +769,9 @@ class PauliString:
         raise NotImplementedError(f"Unsupported input type: {type(pauli)}.")
 
     @overload
-    def to_other_language(self, language: Literal[Language.BRAKET]) -> BraketSum: ...
+    def to_other_language(
+        self, language: Literal[Language.BRAKET]
+    ) -> Union[BraketSum, TensorProduct]: ...
     @overload
     def to_other_language(
         self, language: Literal[Language.QISKIT]
@@ -794,6 +796,7 @@ class PauliString:
         SparsePauliOp,
         Never,
         BraketSum,
+        TensorProduct,
         list[Term],
     ]: ...
 
@@ -802,6 +805,7 @@ class PauliString:
     ) -> Union[
         SparsePauliOp,
         BraketSum,
+        TensorProduct,
         list[Term],
         Term,
         CirqPauliSum,
@@ -857,6 +861,7 @@ class PauliString:
             return Sum(
                 [mono.to_other_language(Language.BRAKET) for mono in self.monomials]
             )
+
         elif language == Language.CIRQ:
             cirq_pauli_string = None
             for monomial in self.monomials:
@@ -1197,7 +1202,9 @@ class PauliStringMonomial(PauliString):
         return new_monomial
 
     @overload
-    def to_other_language(self, language: Literal[Language.BRAKET]) -> BraketSum: ...
+    def to_other_language(
+        self, language: Literal[Language.BRAKET]
+    ) -> Union[BraketSum, TensorProduct]: ...
     @overload
     def to_other_language(
         self, language: Literal[Language.QISKIT]
@@ -1222,6 +1229,7 @@ class PauliStringMonomial(PauliString):
         SparsePauliOp,
         Never,
         BraketSum,
+        TensorProduct,
         list[Term],
     ]: ...
 
@@ -1239,18 +1247,28 @@ class PauliStringMonomial(PauliString):
             pauli_mono_str = "".join(atom.label for atom in self.atoms)
             return Term(self.coef, pauli_mono_str, list(range(len(pauli_mono_str))))
         elif language == Language.BRAKET:
-            braket_atoms: list[BraketObservable] = [
-                atom.to_other_language(Language.BRAKET) for atom in self.atoms
-            ]
-            from braket.circuits.observables import TensorProduct
 
-            if self.nb_qubits == 1:
-                return (
-                    self.coef * braket_atoms[0]
-                )  # pyright: ignore[reportOperatorIssue]
-            return self.coef * TensorProduct(
-                braket_atoms
-            )  # pyright: ignore[reportOperatorIssue]
+            from braket.circuits.observables import I as Braket_I
+            from braket.circuits.observables import X as Braket_X
+            from braket.circuits.observables import Y as Braket_Y
+            from braket.circuits.observables import Z as Braket_Z
+
+            pauli_gate_map = {
+                "I": Braket_I,
+                "X": Braket_X,
+                "Y": Braket_Y,
+                "Z": Braket_Z,
+            }
+            braket_sum = None
+            for target, atom in enumerate(self.atoms):
+                braket_sum = (
+                    braket_sum @ pauli_gate_map[atom.label](target)
+                    if braket_sum
+                    else pauli_gate_map[atom.label](target)
+                )
+            if braket_sum is None:
+                raise ValueError("Pauli monomial cannot be empty.")
+            return self.coef * (braket_sum)  # pyright: ignore[reportOperatorIssue]
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
 
@@ -1548,10 +1566,10 @@ class PauliStringAtom(PauliStringMonomial):
             from braket.circuits.observables import Z as Braket_Z
 
             pauli_gate_map = {
-                "I": Braket_I(),
-                "X": Braket_X(),
-                "Y": Braket_Y(),
-                "Z": Braket_Z(),
+                "I": Braket_I(0),
+                "X": Braket_X(0),
+                "Y": Braket_Y(0),
+                "Z": Braket_Z(0),
             }
             return pauli_gate_map[self.label]
         elif language == Language.CIRQ:

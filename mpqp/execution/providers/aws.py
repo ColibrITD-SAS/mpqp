@@ -233,19 +233,53 @@ def run_braket_observable(job: Job):
         return Result(job, results, errors, shots=job.measure.shots)
 
     else:
+        from copy import deepcopy
 
-        for obs in job.measure.observables:
-            from copy import deepcopy
+        braket_sum = None
+        index = []
+        for i, obs in enumerate(job.measure.observables):
+            from braket.circuits.observables import Hermitian
 
-            from braket.program_sets import ProgramSet, CircuitBinding
-
-            copy = deepcopy(transpiled_circuit)
+            if job.measure.shots == 0:
+                # TODO: Remove this when Braket will have fixed PauliString with coeff
+                # force the conversion to matrix to avoid issues with pauli_string with coeff
+                if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
+                    obs = deepcopy(obs)
+                    obs.matrix
+                    obs._pauli_string = None  # pyright: ignore[reportPrivateUsage]
             braket_obs = obs.to_other_language(Language.BRAKET)
 
+            if isinstance(braket_obs, Hermitian):
+                copy = deepcopy(transpiled_circuit)
+                copy.expectation(  # pyright: ignore[reportAttributeAccessIssue]
+                    observable=braket_obs, target=job.measure.targets
+                )
+                job.status = JobStatus.RUNNING
+                local_result = device.run(
+                    copy, shots=job.measure.shots, inputs=None
+                ).result()
+                assert isinstance(local_result, GateModelQuantumTaskResult)
+                results.update({f"observable_{i}": local_result.values[0].real})
+                errors.update({f"observable_{i}": None})
+            else:
+                index.append(i)
+                results.update({f"observable_{i}": None})
+                errors.update({f"observable_{i}": None})
+                braket_sum = (
+                    braket_sum + braket_obs if braket_sum is not None else braket_obs
+                )
+
+        if braket_sum is not None:
+            from braket.program_sets import ProgramSet, CircuitBinding
+            from braket.tasks.program_set_quantum_task_result import (
+                ProgramSetQuantumTaskResult,
+            )
+
+            copy = deepcopy(transpiled_circuit)
             program_set = ProgramSet(
                 CircuitBinding(
                     copy,
-                    observables=braket_obs,
+                    observables=braket_sum,
                 )
             )
             job.status = JobStatus.RUNNING
@@ -258,9 +292,12 @@ def run_braket_observable(job: Job):
                 shots=program_set.total_executables * job.measure.shots,
                 inputs=None,
             ).result()
-            assert isinstance(local_result, GateModelQuantumTaskResult)
-            results.update({f"observable_{len(results)}": local_result.values[0].real})
-            errors.update({f"observable_{len(errors)}": None})
+            assert isinstance(local_result, ProgramSetQuantumTaskResult)
+            for res in local_result:
+                for i, value in enumerate(res.entries):
+                    results.update({f"observable_{index[i]}": value.expectation})
+                    errors.update({f"observable_{index[i]}": None})
+
         if len(results) == 1:
             return Result(job, results["observable_0"], None, job.measure.shots)
     return Result(job, results, errors, job.measure.shots)

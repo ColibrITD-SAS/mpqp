@@ -1,10 +1,10 @@
 numpy>=1.26.4
 scipy>=1.11.4
-amazon-braket-sdk==1.79.1
+amazon-braket-sdk==1.106.5
 aws-configure==2.1.8
 boto3==1.35.82
 osqp==1.0.1
-amazon-braket-default-simulator==1.23.2
+amazon-braket-default-simulator==1.32.0
 myqlm==1.10.6
 myqlm-interop
 cvxpy==1.4.3

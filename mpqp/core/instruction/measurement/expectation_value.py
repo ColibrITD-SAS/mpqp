@@ -301,7 +301,9 @@ class Observable:
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
-    ) -> Union[SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString]:
+    ) -> Union[
+        SparsePauliOp, QLMObservable, Hermitian, Sum, CirqPauliSum, CirqPauliString
+    ]:
         """Converts the observable to the representation of another quantum
         programming language.
 
@@ -334,19 +336,21 @@ class Observable:
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
             if self._pauli_string:
-                return self.pauli_string.to_other_language(Language.BRAKET)
-            else:
-                if self._pauli_string:
-                    return self.pauli_string.to_other_language(Language.BRAKET)
-                else:
-                    from braket.circuits.observables import Hermitian
+                from braket.circuits.observables import TensorProduct, Sum
 
-                    return Hermitian(
-                        self.matrix,
-                        display_name=(
-                            self.label if self.label is not None else "Hermitian"
-                        ),
-                    )
+                obs = self.pauli_string.to_other_language(Language.BRAKET)
+                if isinstance(obs, TensorProduct):
+                    return Sum([obs])
+                return obs
+            else:
+                from braket.circuits.observables import Hermitian
+
+                return Hermitian(
+                    self.matrix,
+                    display_name=(
+                        self.label if self.label is not None else "Hermitian"
+                    ),
+                )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
