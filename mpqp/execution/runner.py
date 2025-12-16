@@ -125,7 +125,7 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    if values is not None:
+    if values is not None and not device.is_remote():
         circuit = circuit.subs(values, True)
 
     if mode is None:
