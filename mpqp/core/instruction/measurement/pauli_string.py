@@ -11,7 +11,8 @@ from enum import Enum, auto
 from functools import reduce
 from numbers import Real
 from operator import mul
-from typing import TYPE_CHECKING, Any, Literal, NoReturn, Optional, Union, overload
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+from typing_extensions import Never
 
 import numpy as np
 import numpy.typing as npt
@@ -785,7 +786,7 @@ class PauliString:
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
-    ) -> NoReturn: ...
+    ) -> Never: ...
     @overload
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
@@ -1216,7 +1217,7 @@ class PauliStringMonomial(PauliString):
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
-    ) -> NoReturn: ...
+    ) -> Never: ...
     @overload
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
@@ -1525,7 +1526,7 @@ class PauliStringAtom(PauliStringMonomial):
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
-    ) -> NoReturn: ...
+    ) -> Never: ...
     @overload
     def to_other_language(
         self,

@@ -530,7 +530,9 @@ def test_to_other_language(
             if language == Language.BRAKET:
                 assert repr(mpqp_ps.to_other_language(language)) == repr(ps)
             else:
-                assert mpqp_ps.to_other_language(language) == ps
+                assert (
+                    mpqp_ps.to_other_language(language) == ps
+                )  # pyright: ignore[reportOperatorIssue]
 
 
 @pytest.mark.parametrize(
