@@ -1054,8 +1054,8 @@ def convert_instruction_3_to_2(
                 ):
                     with open(f"{path_to_main}/{path}", "r") as f:
                         child = Node(path, parent=included_tree_current)
-                        converted_content, gphase = open_qasm_3_to_2(
-                            f.read(), child, path_to_main, defined_gates, gphase
+                        converted_content = open_qasm_3_to_2(
+                            f.read(), child, path_to_main, defined_gates
                         )
                     new_path = splitext(path)[0] + "_converted" + splitext(path)[1]
                     with open(f"{path_to_main}/{new_path}", "w") as f:
@@ -1195,7 +1195,7 @@ def open_qasm_3_to_2(
     defined_gates: Optional[set[str]] = None,
     gphase: float = 0.0,
     language: Language = Language.QASM3,
-) -> tuple[str, float]:
+) -> str:
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
     This function will also recursively go through the imported files to
@@ -1224,7 +1224,7 @@ def open_qasm_3_to_2(
         ... c[0] = measure q[0];
         ... c[1] = measure q[1];
         ... '''
-        >>> qasm_2, gphase = open_qasm_3_to_2(qasm3_str)
+        >>> qasm_2 = open_qasm_3_to_2(qasm3_str)
         >>> print(qasm_2)  # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
         include "qelib1.inc";
@@ -1284,10 +1284,10 @@ def open_qasm_3_to_2(
         )
         header_code += h_code
         instructions_code += i_code
-    gphase_code = f"// gphase {gphase}\n" if gphase != 0 else ""
+    gphase_code = f"// gphase:{gphase}\n" if gphase != 0 else ""
     target_code = header_code + gphase_code + instructions_code
 
-    return target_code, gphase
+    return target_code
 
 
 def parse_openqasm_3_file(code: str) -> list[str]:
@@ -1333,7 +1333,7 @@ def parse_openqasm_3_file(code: str) -> list[str]:
     return list(filter(lambda i: i.strip() != "", instructions))
 
 
-def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
+def open_qasm_file_conversion_3_to_2(path: str) -> str:
     """Converts an OpenQASM code in a file from version 3.0 and 2.0.
 
     This function is a shorthand to initialize :func:`open_qasm_3_to_2` with the
@@ -1362,7 +1362,7 @@ def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
         gate3 q[0], q[1];
         c[0] = measure q[0];
         c[1] = measure q[1];
-        >>> qasm_2, gphase = open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")
+        >>> qasm_2 = open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")
         >>> print(qasm_2) # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
         include 'include1_converted_converted.qasm';

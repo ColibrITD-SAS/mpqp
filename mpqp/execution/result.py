@@ -291,6 +291,7 @@ class Result:
         data: float | dict["str", float] | StateVector | list[Sample],
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
+        g_phase_handling: bool = True,
     ):
         self.job = job
         """See parameter description."""
@@ -326,7 +327,7 @@ class Result:
                     job.circuit.input_g_phase
                     + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage]
                 )
-                if gphase != 0:
+                if g_phase_handling and gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
                     self._state_vector.vector *= np.exp(1j * gphase)
                 self._probabilities = data.probabilities

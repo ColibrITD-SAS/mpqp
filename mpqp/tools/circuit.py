@@ -322,8 +322,7 @@ def replace_custom_gate(
     transpilation_circuit.append(custom_unitary)
     try:
         transpiled = transpile(
-            transpilation_circuit,
-            basis_gates=['u3', 'cx'],
+            transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
         )
     except QiskitError as e:
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
@@ -333,8 +332,7 @@ def replace_custom_gate(
                 custom_unitary.operation.params[0]
             )
             transpiled = transpile(
-                transpilation_circuit,
-                basis_gates=['u3', 'cx'],
+                transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
             )
         else:
             raise e

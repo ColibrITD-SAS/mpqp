@@ -4,7 +4,6 @@ import pytest
 from mpqp import Barrier, BasisMeasure, Instruction, Language, QCircuit
 from mpqp.gates import *
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import format_element_str
 
@@ -518,7 +517,7 @@ def test_random_mpqp_to_qasm():
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
         from qiskit import QuantumCircuit, qasm2
 
-        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT).reverse_bits()
+        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
         qiskit_qasm = normalize_string(qasm2.dumps(qiskit_circuit))
         mpqp_qasm = qcircuit.to_other_language(Language.QASM2)

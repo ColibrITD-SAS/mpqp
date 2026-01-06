@@ -511,10 +511,10 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(<Qubit register=(2, \"q\"), index=1>,),"
+                " num_clbits=0, params=[]), qubits=(<Qubit register=(2, \"q\"), index=0>,),"
                 " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
                 " num_qubits=2, num_clbits=0, params=[]), qubits=(<Qubit register=(2,"
-                " \"q\"), index=1>, <Qubit register=(2, \"q\"), index=0>), clbits=())]"
+                " \"q\"), index=0>, <Qubit register=(2, \"q\"), index=1>), clbits=())]"
             ),
         ),
     ],

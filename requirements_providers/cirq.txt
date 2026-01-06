@@ -1,5 +1,5 @@
-cirq-core==1.3.0
+cirq-core==1.6.1
 qsimcirq
-cirq-google==1.3.0
-cirq-ionq==1.3.0
-cirq-aqt==1.3.0
+cirq-google==1.6.1
+cirq-ionq==1.6.1
+cirq-aqt==1.6.1

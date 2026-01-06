@@ -72,9 +72,6 @@ class CustomGate(Gate):
         # TODO: move this to `to_canonical_matrix` and check for the usages
         return self.definition.matrix
 
-    def to_matrix(self, desired_gate_size: int = 0):
-        return self.matrix
-
     def to_canonical_matrix(self):
         return self.matrix
 
@@ -131,12 +128,13 @@ class CustomGate(Gate):
             qiskit_circ = QuantumCircuit(nb_qubits)
             instr = self.to_other_language(Language.QISKIT)
             if TYPE_CHECKING:
-                from qiskit.quantum_info.operators import Operator as QiskitOperator
+                from qiskit.circuit.library import UnitaryGate
 
-                assert isinstance(instr, QiskitOperator)
+                assert isinstance(instr, UnitaryGate)
+
             qiskit_circ.unitary(
                 instr,
-                list(reversed(self.targets)),  # dang qiskit qubits order
+                list(reversed(self.targets)),
                 self.label,
             )
 
@@ -172,6 +170,7 @@ class CustomGate(Gate):
             >>> U = np.array([[0,1], [1,0]])
             >>> gate = CustomGate(U, [0])
             >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+            global phase: π/2
                ┌─────────┐┌───────┐┌──────────┐
             q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
                └─────────┘└───────┘└──────────┘
