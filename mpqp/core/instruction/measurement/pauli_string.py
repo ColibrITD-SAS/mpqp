@@ -994,7 +994,7 @@ class PauliStringMonomial(PauliString):
 
     @property
     def name(self) -> str:
-        """Return a monomial without the coefficient."""
+        """Returns the string associated to the monomial without the coefficient."""
         return f"{'@'.join(map(str, self.atoms))}"
 
     @property
