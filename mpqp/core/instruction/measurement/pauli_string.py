@@ -999,7 +999,7 @@ class PauliStringMonomial(PauliString):
 
     @property
     def short_name(self) -> str:
-        """Return a monomial without the coefficient and tensor product."""
+        """Returns the string associated to the monomial without the coefficient and tensor product symbol."""
         return f"{''.join(atom.label for atom in self.atoms)}"
 
     def __str__(self):
