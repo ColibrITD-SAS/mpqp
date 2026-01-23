@@ -218,13 +218,14 @@ def get_or_create_ibm_session(
     If a session exists and is valid, reuse it. Otherwise, create a new one.
     """
     from qiskit_ibm_runtime import Session
+    from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError, IBMRuntimeError
 
     backend_name = backend.name
     if backend_name in _ibm_sessions:
         session = _ibm_sessions[backend_name]
         try:
             status = session.status()
-        except Exception:
+        except (IBMNotAuthorizedError, IBMRuntimeError):
             status = "Closed"
 
         if status not in ("Closed", None):
@@ -238,11 +239,19 @@ def get_or_create_ibm_session(
 def close_ibm_session(backend: "BackendV2") -> None:
     """Close the currently active session, if one exists."""
 
+    from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError, IBMRuntimeError
+
     backend_name = backend.name
-    if backend_name in _ibm_sessions:
-        try:
-            _ibm_sessions[backend_name].close()
-        except Exception:
-            pass
-        finally:
-            del _ibm_sessions[backend_name]
+    if backend_name not in _ibm_sessions:
+        return
+
+    session = _ibm_sessions[backend_name]
+    try:
+        session.close()
+    except (IBMNotAuthorizedError, IBMRuntimeError) as err:
+        raise IBMRemoteExecutionError(
+            f"Failed to close IBM session for backend '{backend_name}'. "
+            "Session was not removed; you can retry.\nTrace: " + str(err)
+        )
+    else:
+        del _ibm_sessions[backend_name]
