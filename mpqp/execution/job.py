@@ -13,7 +13,6 @@ would in principle never need to instantiate one yourself.
 
 from __future__ import annotations
 
-from numbers import Number
 from typing import TYPE_CHECKING, Optional
 
 from aenum import Enum, NoAlias, auto
@@ -73,7 +72,11 @@ class JobType(Enum):
     retrieve the expectation value in an optimal manner."""
 
 
-class VQAMode(Enum):
+class ExecutionMode(Enum):
+    """Execution mode for remote backends.
+    It controls how jobs are submitted (single job, batch and session).
+    """
+
     JOB = "JOB"
     BATCH = "BATCH"
     SESSION = "SESSION"
@@ -99,6 +102,7 @@ class Job:
         device: Device (simulator, quantum computer) on which we want to execute
             the job.
         measure: Object representing the measure to perform.
+        mode: Remote execution mode (JOB(single), BATCH(batch/params) and SESSION(IBM Runtime Session)).
 
     Examples:
         >>> circuit = QCircuit(3)
@@ -122,7 +126,7 @@ class Job:
         job_type: JobType,
         circuit: QCircuit,
         device: AvailableDevice,
-        mode: VQAMode = VQAMode.JOB,
+        mode: ExecutionMode = ExecutionMode.JOB,
     ):
         self._status = JobStatus.INIT
 
@@ -133,13 +137,22 @@ class Job:
         self.device = device
         """See parameter description."""
         self.mode = mode
+        """See parameter description."""
         self.id: Optional[str] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
-        self.values: Optional[dict[str | Parameter | Basic, Number]] = None
+        self.values: Optional[dict[str | Parameter | Basic, float | int | complex]] = (
+            None
+        )
+        """Parameter bindings for circuits containing symbolic variables.
+        
+        For local execution, parameters are typically substituted directly into the
+        circuit prior to execution. For remote execution, these bindings are stored in the
+        ``Job`` so the provider can bind them on the transpiled circuit without 
+        re-transpiling the circuit each time."""
 
     @property
     def measure(self) -> Optional[Measure]:
@@ -235,7 +248,7 @@ class Job:
         Uses :func:`~mpqp.local_storage.load.get_jobs_with_id`.
 
         Args:
-            job_id: Local id of the job you need.
+           job_id: Local id of the job you need.
 
         Example:
             >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS
