@@ -85,7 +85,9 @@ class Observable:
         "See parameter description."
         self.pre_transpile: dict[
             AvailableDevice,
-            Union[SparsePauliOp, QLMObservable, CirqPauliSum, CirqPauliString],
+            Union[
+                SparsePauliOp, QLMObservable, CirqPauliSum, CirqPauliString, Hermitian
+            ],
         ] = {}
 
         if isinstance(observable, PauliString):
@@ -406,7 +408,7 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
-        self.pre_transpile: dict[
+        self.translated_pre_measures: dict[
             AvailableDevice,
             tuple[list[dict[str, npt.NDArray[np.float64]]], list[braket_Circuit]],
         ] = {}
@@ -530,8 +532,8 @@ class ExpectationMeasure(Measure):
             grouped_monomials = [
                 [
                     PauliString.from_str(
-                        mono.to_label()
-                    )  # pyright: ignore[reportAttributeAccessIssue]
+                        mono.to_label()  # pyright: ignore[reportAttributeAccessIssue]
+                    )
                     for mono in pauli
                 ]
                 for pauli in grouped
@@ -613,16 +615,17 @@ class ExpectationMeasure(Measure):
                 {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
                 for group in grouping
             ]
-            self.pre_transpile[device] = (
+            self.translated_pre_measures[device] = (
                 eigenvalues,
                 transpiled_pre_measures,
             )
 
         elif isinstance(device, IBMDevice):
             for observable in self.observables:
-                observable.pre_transpile[device] = observable.to_other_language(
-                    language=Language.QISKIT
-                )
+                if device not in observable.pre_transpile:
+                    observable.pre_transpile[device] = observable.to_other_language(
+                        language=Language.QISKIT
+                    )
         else:
             raise NotImplementedError(
                 f"Pre-transpilation for device {type(device).__name__} is not implemented."
