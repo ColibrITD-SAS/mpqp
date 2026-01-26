@@ -994,12 +994,12 @@ class PauliStringMonomial(PauliString):
 
     @property
     def name(self) -> str:
-        """Return a monomial without the coefficient."""
+        """Returns the string associated to the monomial without the coefficient."""
         return f"{'@'.join(map(str, self.atoms))}"
 
     @property
     def short_name(self) -> str:
-        """Return a monomial without the coefficient and tensor product."""
+        """Returns the string associated to the monomial without the coefficient and tensor product symbol."""
         return f"{''.join(atom.label for atom in self.atoms)}"
 
     def __str__(self):
