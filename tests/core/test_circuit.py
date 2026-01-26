@@ -1074,11 +1074,9 @@ def test_inverse_random():
         (QCircuit([H(0)]), 1),
         (QCircuit([H(1)]), 2),
         (QCircuit([S(0), CZ(0, 2), H(1), Ry(4.56, 1)]), 3),
-        (QCircuit([S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)]), 4),
+        (QCircuit([S(0), CZ(0, 1), H(3)]), 4),
         (
-            QCircuit(
-                [S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1), BasisMeasure()]
-            ),
+            QCircuit([S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1)]),
             3,
         ),
     ],

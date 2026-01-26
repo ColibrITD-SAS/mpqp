@@ -420,7 +420,7 @@ class ExpectationMeasure(Measure):
         targets: Optional[list[int]] = None,
         shots: int = 0,
         commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
-        grouping_method: GroupingMethods = GroupingMethods.QISKIT,
+        grouping_method: GroupingMethods = GroupingMethods.QISKIT_COLORING_GREEDY,
         label: Optional[str] = None,
         optimize_measurement: Optional[bool] = True,
         optim_diagonal: Optional[bool] = False,
@@ -542,7 +542,7 @@ class ExpectationMeasure(Measure):
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
             return pauli_grouping_greedy(unique_monos, self.commuting_type)
-        elif self.grouping_method == GroupingMethods.QISKIT:
+        elif self.grouping_method == GroupingMethods.QISKIT_COLORING_GREEDY:
             from qiskit.quantum_info import PauliList
 
             pauli_labels = [mono.short_name for mono in unique_monos]

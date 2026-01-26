@@ -58,7 +58,7 @@ class GroupingMethods(Enum):
     COLORING_DB = auto()
     COLORING_DSATUR = auto()
     CLIQUE_REMOVING = auto()
-    QISKIT = auto()
+    QISKIT_COLORING_GREEDY = auto()
 
 
 class PauliString:

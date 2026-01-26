@@ -57,6 +57,7 @@ from mpqp.tools.errors import (
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
+    InstructionAfterMeasurementError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -296,6 +297,14 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
+            if isinstance(components, Gate):
+                for i in range(len(self.instructions) - 1, -1, -1):
+                    if isinstance(self.instructions[i], Measure):
+                        raise InstructionAfterMeasurementError(
+                            "Cannot add gate after measurement in the circuit."
+                        )
+                    if isinstance(self.instructions[i], Gate):
+                        break
             self.instructions.append(components)
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
