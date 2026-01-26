@@ -2174,6 +2174,9 @@ class QCircuit:
 
         param_values = {str(k): v for k, v in values.items()}
 
+        bound_circuit = deepcopy(self)
+        bound_circuit.transpiled_circuit = dict(self.transpiled_circuit)
+
         from qiskit import QuantumCircuit
 
         if isinstance(transpiled, QuantumCircuit):
@@ -2182,15 +2185,18 @@ class QCircuit:
                 for p in transpiled.parameters
                 if p.name in param_values
             }
-            if qiskit_param_map:
-                transpiled.assign_parameters(qiskit_param_map, inplace=True)
-            return self
+            bound_circuit.transpiled_circuit[device] = (
+                transpiled.assign_parameters(qiskit_param_map)
+                if qiskit_param_map
+                else transpiled
+            )
+            return bound_circuit
 
         elif isinstance(transpiled, braket_Circuit):
-            self.transpiled_circuit[device] = transpiled.make_bound_circuit(
+            bound_circuit.transpiled_circuit[device] = transpiled.make_bound_circuit(
                 param_values
             )
-            return self
+            return bound_circuit
 
         else:
             raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")
