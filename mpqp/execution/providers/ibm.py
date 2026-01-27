@@ -18,7 +18,7 @@ from mpqp.execution.connection.ibm_connection import (
     get_QiskitRuntimeService,
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
-from mpqp.execution.job import Job, JobStatus, JobType, VQAMode
+from mpqp.execution.job import ExecutionMode, Job, JobStatus, JobType
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import (
@@ -64,7 +64,7 @@ def run_ibm(job: Job) -> Result:
     if not job.device.is_remote():
         return run_aer(job)
 
-    if job.mode == VQAMode.SESSION:
+    if job.mode == ExecutionMode.SESSION:
         return run_remote_ibm_session(job)
 
     return run_remote_ibm(job)
@@ -110,7 +110,6 @@ def compute_expectation_value(
     job.measure.pre_transpile_observables(job.device)
     for obs in job.measure.observables:
         translated = obs.pre_transpile[job.device]
-
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
@@ -451,6 +450,7 @@ def run_aer(job: Job):
     job_circuit = job.circuit
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
+
     if isinstance(job.device, StaticIBMSimulatedDevice):
         if len(job.circuit.noises) != 0:
             warnings.warn(
@@ -461,6 +461,8 @@ def run_aer(job: Job):
             # (grab qiskit NoiseModel from AerSimulator generated below, and add
             # to it directly)
         backend_sim = job.device.to_noisy_simulator()
+        job_circuit = job.circuit.transpiled_for_device(job.device)
+
     elif len(job.circuit.noises) != 0:
         job_circuit = job.circuit.transpiled_for_device(job.device)
 
@@ -477,6 +479,7 @@ def run_aer(job: Job):
     qiskit_circuit = job_circuit
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
+
     if job.job_type == JobType.STATE_VECTOR:
         # the save_statevector method is patched on qiskit_aer load, meaning
         # the type checker can't find it. I hate it but it is what it is.
@@ -493,9 +496,7 @@ def run_aer(job: Job):
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
-
         job.status = JobStatus.RUNNING
-
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
         result_sim = job_sim.result()
         if TYPE_CHECKING:
@@ -533,20 +534,20 @@ def _submit_remote_ibm(
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 
     meas = job.measure
-
     check_job_compatibility(job)
 
-    qiskit_circ = job.circuit.transpiled_for_device(job.device)
-
+    circuit = job.circuit
     if job.values is not None:
-        job.circuit.bind_parameters(job.device, job.values)
+        circuit = circuit.bind_parameters(job.device, job.values)
 
+    qiskit_circ = job.circuit.transpiled_for_device(job.device)
     if TYPE_CHECKING:
         assert isinstance(qiskit_circ, QuantumCircuit)
 
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
+
         estimator = Runtime_Estimator(mode=runtime_target)
 
         meas.pre_transpile_observables(job.device)
@@ -567,7 +568,6 @@ def _submit_remote_ibm(
             twirling.shots_per_randomization = meas.shots
 
         setattr(estimator.options, "default_shots", meas.shots)
-
         ibm_job = estimator.run([(qiskit_circ, qiskit_observables)])
 
     elif job.job_type == JobType.SAMPLE:
@@ -575,6 +575,7 @@ def _submit_remote_ibm(
             assert isinstance(meas, BasisMeasure)
         sampler = Runtime_Sampler(mode=runtime_target)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
+
     else:
         raise NotImplementedError(
             f"{job.job_type} not handled by remote remote IBM devices."
@@ -607,10 +608,10 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
             "Batch execution requires at leat one Job object"
         )
 
-    first_job = jobs[0]
+    reference_job = jobs[0]
     if TYPE_CHECKING:
-        assert isinstance(first_job.device, IBMDevice)
-    backend = get_backend(first_job.device)
+        assert isinstance(reference_job.device, IBMDevice)
+    backend = get_backend(reference_job.device)
 
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
@@ -618,7 +619,7 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
 
     execution_target = (
         get_or_create_ibm_session(backend)
-        if first_job.mode == VQAMode.SESSION
+        if reference_job.mode == ExecutionMode.SESSION
         else backend
     )
     estimator = Runtime_Estimator(mode=execution_target)
@@ -630,8 +631,13 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
         meas = job.measure
         check_job_compatibility(job)
 
+        circuit = job.circuit
+        if job.values is not None:
+            circuit = circuit.bind_parameters(job.device, job.values)
+
         qc = job.circuit.transpiled_for_device(job.device)
-        assert isinstance(qc, QuantumCircuit)
+        if TYPE_CHECKING:
+            assert isinstance(qc, QuantumCircuit)
 
         per_job_circuits.append(qc)
 
@@ -654,7 +660,9 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
     return job_ids, ibm_job
 
 
-def submit_remote_ibm_session(job: Job, session: Session) -> tuple[str, "RuntimeJobV2"]:
+def submit_remote_ibm_session(
+    job: Job, session: "Session"
+) -> tuple[str, "RuntimeJobV2"]:
     # TODO: docs
     return _submit_remote_ibm(job, runtime_target=session)
 
