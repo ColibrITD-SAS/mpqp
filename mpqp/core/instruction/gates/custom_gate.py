@@ -6,8 +6,13 @@ and executed transparently."""
 
 from __future__ import annotations
 
+from copy import copy
+from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
 
+from sympy import Expr
+
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
@@ -180,3 +185,10 @@ class CustomGate(Gate):
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
         return quantum_shannon_decomposition(self.matrix)
+
+    def subs(
+        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+    ) -> Instruction:
+        res = copy(self)
+        res.definition = res.definition.subs(values, remove_symbolic)
+        return res
