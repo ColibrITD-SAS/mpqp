@@ -1283,11 +1283,14 @@ class QCircuit:
                     if TYPE_CHECKING:
                         assert isinstance(qiskit_inst, Operator)
                     qargs = [self.nb_qubits - 1 - q for q in instruction.targets]
-                    new_circ.unitary(
-                        qiskit_inst,
-                        list(reversed(qargs)),
-                        instruction.label,
-                    )
+                    if printing:
+                        new_circ.append(qiskit_inst, list(reversed(qargs)))
+                    else:
+                        new_circ.unitary(
+                            qiskit_inst,
+                            list(reversed(qargs)),
+                            instruction.label,
+                        )
                 else:
                     if isinstance(instruction, ControlledGate):
                         qargs = instruction.targets + instruction.controls
