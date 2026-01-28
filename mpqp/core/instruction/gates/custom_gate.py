@@ -78,7 +78,8 @@ class CustomGate(Gate):
         from sympy import Expr
 
         return set.union(
-            *[e.free_symbols for e in self.matrix.flatten() if isinstance(e, Expr)]
+            set(),
+            *[e.free_symbols for e in self.matrix.flatten() if isinstance(e, Expr)],
         )
 
     def to_matrix(self, desired_gate_size: int = 0):
