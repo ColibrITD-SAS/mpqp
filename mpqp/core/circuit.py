@@ -1283,7 +1283,7 @@ class QCircuit:
                     if TYPE_CHECKING:
                         assert isinstance(qiskit_inst, Operator)
                     qargs = [self.nb_qubits - 1 - q for q in instruction.targets]
-                    if printing:
+                    if printing and len(instruction.free_symbols) > 0:
                         new_circ.append(qiskit_inst, list(reversed(qargs)))
                     else:
                         new_circ.unitary(

@@ -6,6 +6,7 @@ from itertools import product
 import numpy as np
 import pytest
 from numpy import array  # pyright: ignore[reportUnusedImport]
+from sympy import symbols
 
 from mpqp import ATOSDevice, AWSDevice, GOOGLEDevice, IBMDevice, QCircuit, Result, run
 from mpqp.core.instruction.gates.gate import SingleQubitGate
@@ -217,3 +218,14 @@ def test_non_contiguous_ordered_targets_execution(
     gates_n_positions: list[tuple[type[SingleQubitGate], int]], device: AvailableDevice
 ):
     _test_execution_equivalence(gates_n_positions, device)
+
+
+def test_symbolic_str():
+    theta = symbols("theta")
+
+    correct_result = """\
+   ┌───────────────────┐
+q: ┤ CustomGate(theta) ├
+   └───────────────────┘"""
+
+    assert str(CustomGate(np.array([[theta, 0], [0, 1]]), [0])) == correct_result
