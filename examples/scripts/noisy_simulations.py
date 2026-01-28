@@ -4,7 +4,6 @@ from mpqp.gates import *
 from mpqp.noise import *
 from mpqp.execution import *
 
-
 circuit = QCircuit(
     [Rx(0.3, 2), H(0), CNOT(1, 0), SWAP(2, 1), U(0.9, 0.2, 1, 1), BasisMeasure()]
 )
