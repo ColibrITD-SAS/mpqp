@@ -342,9 +342,7 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements[
-    "preamble"
-] += r"""
+latex_elements["preamble"] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{
