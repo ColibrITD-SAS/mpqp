@@ -111,7 +111,6 @@ t_DIV = r'/'
 
 from mpqp.gates import *
 
-
 single_qubits_gate_qasm = {
     "h": H,
     "x": X,
