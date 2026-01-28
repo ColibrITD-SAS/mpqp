@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from sympy import Expr
 
-from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
@@ -188,7 +187,7 @@ class CustomGate(Gate):
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> Instruction:
+    ) -> CustomGate:
         res = copy(self)
         res.definition = res.definition.subs(values, remove_symbolic)
         return res
