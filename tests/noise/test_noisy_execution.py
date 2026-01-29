@@ -27,7 +27,6 @@ from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
-
 # noisy_devices: list[Any] = [
 #     dev
 #     for dev in list(ATOSDevice) + list(AWSDevice) + list(IBMDevice) + list(GOOGLEDevice)
