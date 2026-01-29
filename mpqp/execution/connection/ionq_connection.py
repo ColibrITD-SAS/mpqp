@@ -37,6 +37,26 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
         return False
 
 
+def delete_ionq_account():
+    decision = input(
+        colored(
+            "This will delete the local IonQ API key configuration. Continue? [y/N] ",
+            "yellow",
+        )
+    )
+    if decision.lower().strip() != "y":
+        return "Canceled.", []
+
+    from mpqp.environment.env_manager import save_env_variable
+
+    save_env_variable("IONQ_API_KEY", "")
+    save_env_variable("IONQ_API_KEY_CONFIGURED", "False")
+
+    print(colored("IonQ account deleted.", "green"))
+    input("Press 'Enter' to continue")
+    return "IonQ account deleted.", []
+
+
 def get_ionq_account_info() -> str:
     """Get the IonQ API key from the environment variables.
 

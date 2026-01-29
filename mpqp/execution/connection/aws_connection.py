@@ -200,6 +200,56 @@ def configure_account_iam() -> tuple[str, list[Any]]:
     return "IAM configuration successful.", []
 
 
+def delete_aws_braket_account() -> tuple[str, list[Any]]:
+    """Deletes the locally stored AWS Braket configuration."""
+    from pathlib import Path
+    import configparser
+
+    decision = input(
+        colored(
+            "This will delete the local AWS Braket configuration (default profile). Continue? [y/N] ",
+            "yellow",
+        )
+    )
+    if decision.lower().strip() != "y":
+        return "Canceled.", []
+
+    credentials_file = Path.home() / ".aws" / "credentials"
+    config_file = Path.home() / ".aws" / "config"
+
+    try:
+        if credentials_file.exists():
+            parser = configparser.ConfigParser()
+            parser.read(credentials_file)
+
+            if parser.has_section("default"):
+                parser.remove_section("default")
+                with open(credentials_file, "w") as f:
+                    parser.write(f)
+    except Exception as err:
+        print(colored(f"Failed to update AWS credentials file: {err}", "red"))
+
+    try:
+        if config_file.exists():
+            parser = configparser.ConfigParser()
+            parser.read(config_file)
+
+            if parser.has_section("default"):
+                parser.remove_section("default")
+                with open(config_file, "w") as f:
+                    parser.write(f)
+    except Exception as err:
+        print(colored(f"Failed to update AWS config file: {err}", "red"))
+
+    save_env_variable("BRAKET_CONFIGURED", "False")
+    save_env_variable("BRAKET_AUTH_METHOD", "")
+    save_env_variable("AWS_DEFAULT_REGION", "")
+
+    print(colored("AWS Braket account deleted.", "green"))
+    input("Press 'Enter' to continue")
+    return "AWS Braket account deleted.", []
+
+
 def get_user_sso_credentials() -> Union[dict[str, str], None]:
 
     from getpass import getpass

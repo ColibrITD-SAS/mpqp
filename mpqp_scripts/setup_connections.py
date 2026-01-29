@@ -26,8 +26,10 @@ def print_config_info():
     try:
         print(ibmqc.get_active_account_info())
     except IBMRemoteExecutionError as err:
-        if "Unable to find account" in str(err):
+        if "Unable to find account" in str(err) or "No IBM account configured" in str(err):
             print("Account not configured")
+        else:
+            print(f"{err}")
 
     print("===== Qaptiva QLMaaS info : ===== ")
     user_name = env_m.get_env_variable("QLM_USER")
@@ -57,6 +59,42 @@ def print_config_info():
     return "", []
 
 
+def delete_config():
+    """Delete stored credentials for a selected provider."""
+    from mpqp.execution.connection.aws_connection import delete_aws_braket_account
+    from mpqp.execution.connection.azure_connection import delete_azure_account
+    from mpqp.execution.connection.ibm_connection import delete_ibm_account
+    from mpqp.execution.connection.ionq_connection import delete_ionq_account
+    from mpqp.execution.connection.qlm_connection import delete_qlm_account
+    from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
+
+    def delete_all():
+        delete_ibm_account()
+        delete_qlm_account()
+        delete_aws_braket_account()
+        delete_ionq_account()
+        delete_azure_account()
+        delete_azure_account()
+
+        return "All accounts deleted", []
+
+    delete_tree = QuestionNode(
+        "Select provider to delete configuration:",
+        [
+            AnswerNode("IBM", delete_ibm_account),
+            AnswerNode("QLM", delete_qlm_account),
+            AnswerNode("Braket", delete_aws_braket_account),
+            AnswerNode("IonQ", delete_ionq_account),
+            AnswerNode("Azure", delete_azure_account),
+            AnswerNode("All", delete_all),
+        ],
+        leaf_loop_to_here=True,
+    )
+
+    run_choice_tree(delete_tree)
+    return "", []
+
+
 def main_setup():
     """Main function of the script, triggering the choice selection, and guiding
     you through the steps needed to configure each provider access. This
@@ -78,6 +116,7 @@ def main_setup():
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Azure", config_azure_account),
             AnswerNode("Recap", print_config_info),
+            AnswerNode("Delete configuration", delete_config),
         ],
         leaf_loop_to_here=True,
     )

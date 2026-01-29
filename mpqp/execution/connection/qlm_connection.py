@@ -150,6 +150,41 @@ def get_all_job_ids() -> list[str]:
     return []
 
 
+def delete_qlm_account() -> tuple[str, list[Any]]:
+    """Deletes the locally stored QLM account configuration."""
+    global QLM_connection
+
+    decision = input(
+        colored(
+            "This will delete the local QLM account configuration. Continue? [y/N] ",
+            "yellow",
+        )
+    )
+    if decision.lower().strip() != "y":
+        return "Canceled.", []
+
+    netrc_path = os.path.expanduser("~") + "/.netrc"
+    try:
+        if os.path.exists(netrc_path):
+            remove_decision = input(
+                "'~/.netrc' exists. Do you want to remove it? [y/N] "
+            )
+            if remove_decision.lower().strip() == "y":
+                os.remove(netrc_path)
+    except Exception as err:
+        print(colored(f"Could not remove ~/.netrc: {err}", "red"))
+
+    save_env_variable("QLM_USER", "")
+    save_env_variable("QLM_PASSWD", "")
+    save_env_variable("QLM_CONFIGURED", "False")
+
+    QLM_connection = None
+
+    print(colored("QLM account deleted.", "green"))
+    input("Press 'Enter' to continue")
+    return "QLM account deleted", []
+
+
 def get_QLMaaSConnection():
     """Connects to the QLM and returns the QLMaaSConnection. If the connection
     was already established, we only return the one stored in global variable,
