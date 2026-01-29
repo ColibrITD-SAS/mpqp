@@ -81,7 +81,6 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
                 and "cairo" not in name.lower()
             ]
         else:
-            # TODO: if qiskit_ibm_runtime not install, do we want to return [] ?
             return []
 
 
