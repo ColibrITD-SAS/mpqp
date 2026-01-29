@@ -51,12 +51,10 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
         if global_config:
             print("we are in the global part")
             with open(netrc_path, "w") as file:
-                file.write(
-                    f"""\
+                file.write(f"""\
 machine qlm35e.neasqc.eu
 login {username}
-password {password}"""
-                )
+password {password}""")
             # Set the permissions to read and right for user only
             os.chmod(netrc_path, 0o600)
         else:
