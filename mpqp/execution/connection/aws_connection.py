@@ -197,6 +197,7 @@ def configure_account_iam() -> tuple[str, list[Any]]:
 
     save_env_variable("BRAKET_AUTH_METHOD", "IAM")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
     return "IAM configuration successful.", []
 
 
@@ -275,6 +276,7 @@ def configure_account_sso() -> tuple[str, list[Any]]:
 
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
     return "SSO configuration successful.", []
 
 

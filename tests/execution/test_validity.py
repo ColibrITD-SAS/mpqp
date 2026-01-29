@@ -1,4 +1,3 @@
-import contextlib
 from copy import deepcopy
 
 import numpy as np
@@ -42,7 +41,6 @@ from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
-    UnsupportedBraketFeaturesWarning,
 )
 from mpqp.tools.maths import matrix_eq
 
@@ -134,8 +132,7 @@ def hae_3_qubit_circuit(
 def test_state_vector_result_HEA_ansatz(
     parameters: list[float], expected_vector: npt.NDArray[np.complex128]
 ):
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
+    batch = run(hae_3_qubit_circuit(*parameters), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
@@ -205,8 +202,7 @@ def test_state_vector_result_HEA_ansatz(
     ],
 )
 def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: Matrix):
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(QCircuit(gates), state_vector_devices)
+    batch = run(QCircuit(gates), state_vector_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
@@ -255,8 +251,7 @@ def test_state_vector_various_native_gates(gates: list[Gate], expected_vector: M
 def test_sample_basis_state_in_samples(gates: list[Gate], basis_states: list[str]):
     c = QCircuit(gates)
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=10000))
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(c, sampling_devices)
+    batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     nb_states = len(basis_states)
     for result in batch:
@@ -282,8 +277,7 @@ def test_sample_counts_in_trust_interval(instructions: list[Gate]):
     assert isinstance(res, Result)
     expected_counts = [int(count) for count in np.round(shots * res.probabilities)]
     c.add(BasisMeasure(list(range(c.nb_qubits)), shots=shots))
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(c, sampling_devices)
+    batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         assert isinstance(result, Result)
@@ -336,8 +330,7 @@ def test_observable_ideal_case(
     expected_value = float(
         expected_vector.transpose().conjugate().dot(observable.dot(expected_vector))
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        batch = run(c, sampling_devices)
+    batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)
     for result in batch:
         evs = result.expectation_values
@@ -383,23 +376,12 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
 
     if not device.is_remote():
         if device.supports_samples():
-            with (
-                pytest.warns(UnsupportedBraketFeaturesWarning)
-                if isinstance(device, AWSDevice)
-                else contextlib.suppress()
-            ):
-                assert run(circuit_samples, device) is not None
+            assert run(circuit_samples, device) is not None
         else:
-            with pytest.raises(NotImplementedError):
-                run(circuit_samples, device)
+            run(circuit_samples, device)
 
         if device.supports_state_vector():
-            with (
-                pytest.warns(UnsupportedBraketFeaturesWarning)
-                if isinstance(device, AWSDevice)
-                else contextlib.suppress()
-            ):
-                assert run(circuit_state_vector, device) is not None
+            assert run(circuit_state_vector, device) is not None
         else:
             if isinstance(device, IBMDevice) and not device.supports_state_vector():
                 with pytest.raises(DeviceJobIncompatibleError):
@@ -415,12 +397,7 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
                 circuit_observable.measurements[0].shots = 10
                 assert run(circuit_observable, device) is not None
             else:
-                with (
-                    pytest.warns(UnsupportedBraketFeaturesWarning)
-                    if isinstance(device, AWSDevice)
-                    else contextlib.suppress()
-                ):
-                    assert run(circuit_observable, device) is not None
+                assert run(circuit_observable, device) is not None
 
         else:
             if isinstance(device, IBMDevice):
@@ -437,12 +414,7 @@ def test_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
                 circuit_observable_ideal.measurements[0].shots = 10
                 assert run(circuit_observable_ideal, device) is not None
             else:
-                with (
-                    pytest.warns(UnsupportedBraketFeaturesWarning)
-                    if isinstance(device, AWSDevice)
-                    else contextlib.suppress()
-                ):
-                    assert run(circuit_observable_ideal, device) is not None
+                assert run(circuit_observable_ideal, device) is not None
         else:
             if isinstance(device, IBMDevice):
                 with pytest.raises(DeviceJobIncompatibleError):

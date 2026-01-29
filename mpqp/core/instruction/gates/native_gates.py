@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from sympy import Expr
     from qiskit.circuit import Parameter
+    from braket.circuits import FreeParameter
 
 import numpy as np
 import numpy.typing as npt
@@ -82,6 +83,22 @@ def _qiskit_parameter_adder(
     else:
         qiskit_param = param
     return qiskit_param
+
+
+def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
+    from sympy import Expr
+    from braket.circuits import FreeParameter
+
+    if isinstance(val, Expr):
+        if val.free_symbols:
+            return FreeParameter(str(val))  # note: Braket won't parse expressions
+        else:
+            try:
+                return float(val.evalf())  # pyright: ignore[reportArgumentType]
+            except Exception as e:
+                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+    else:
+        return float(val)
 
 
 class NativeGate(Gate, SimpleClassReprABC):
@@ -224,24 +241,25 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
+
         try:
             theta = float(self.theta)
         except:
             theta = self.theta
         if language == Language.QISKIT:
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
-            from sympy import Expr
+            from braket.circuits import Instruction
 
-            # TODO: handle symbolic parameters for Braket
-            if isinstance(theta, Expr):
-                raise NotImplementedError(
-                    "Symbolic expressions are not yet supported for braket "
-                    "export, this feature is coming very soon!"
-                )
-            return self.braket_gate(theta)
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(
+                operator=self.braket_gate(_sympy_to_braket_param(theta)),
+                target=list(range(len(connection))),
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate(theta)
         if language == Language.QASM2:
@@ -346,7 +364,14 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         if language == Language.QISKIT:
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            return self.braket_gate()
+            from braket.circuits import Instruction
+
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(
+                operator=self.braket_gate(), target=list(range(len(connection)))
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -430,7 +455,14 @@ class Id(OneQubitNoParamGate, InvolutionGate):
                 return self.qiskit_gate(label=self.label)
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            return self.braket_gate()
+            from braket.circuits import Instruction
+
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(
+                operator=self.braket_gate(), target=list(range(len(connection)))
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -1079,20 +1111,19 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
         elif language == Language.BRAKET:
-            from sympy import Expr
+            from braket.circuits import Instruction
 
-            # TODO handle symbolic parameters
-            if (
-                isinstance(self.theta, Expr)
-                or isinstance(self.phi, Expr)
-                or isinstance(self.gamma, Expr)
-            ):
-                raise NotImplementedError(
-                    "Symbolic expressions are not yet supported for braket "
-                    "export, this feature is coming very soon!"
-                )
-
-            return self.braket_gate(self.theta, self.phi, self.gamma)
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(
+                operator=self.braket_gate(
+                    _sympy_to_braket_param(self.theta),
+                    _sympy_to_braket_param(self.phi),
+                    _sympy_to_braket_param(self.gamma),
+                ),
+                target=list(range(len(connection))),
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate(self.theta, self.phi, self.gamma)
         elif language == Language.QASM2:

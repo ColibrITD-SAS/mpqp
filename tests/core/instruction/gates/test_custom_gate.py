@@ -1,4 +1,3 @@
-import contextlib
 import random
 from functools import reduce
 from itertools import product
@@ -13,7 +12,6 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.execution import AvailableDevice
 from mpqp.gates import *
 from mpqp.tools.circuit import random_circuit
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
 
 
@@ -47,12 +45,7 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     for _ in range(targets_start + gate_size, circ_size):
         exp_state_vector = np.kron(exp_state_vector, np.array([1, 0]))
 
-    with (
-        pytest.warns(UnsupportedBraketFeaturesWarning)
-        if isinstance(device, AWSDevice)
-        else contextlib.suppress()
-    ):
-        result = run(c, device)
+    result = run(c, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
     assert isinstance(result, Result)
@@ -77,19 +70,9 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
     )
     c2 = QCircuit([X(0), H(1), CNOT(1, 2), Z(0)])
 
-    with (
-        pytest.warns(UnsupportedBraketFeaturesWarning)
-        if isinstance(device, AWSDevice)
-        else contextlib.suppress()
-    ):
-        result1 = run(c1, device)
+    result1 = run(c1, device)
 
-    with (
-        pytest.warns(UnsupportedBraketFeaturesWarning)
-        if isinstance(device, AWSDevice)
-        else contextlib.suppress()
-    ):
-        result2 = run(c2, device)
+    result2 = run(c2, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
     assert isinstance(result1, Result)
@@ -103,13 +86,8 @@ def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit([CustomGate(matrix, list(range(circ_size)))])
 
-    with (
-        pytest.warns(UnsupportedBraketFeaturesWarning)
-        if isinstance(device, AWSDevice)
-        else contextlib.suppress()
-    ):
-        result1 = run(random_circ, device)
-        result2 = run(custom_gate_circ, device)
+    result1 = run(random_circ, device)
+    result2 = run(custom_gate_circ, device)
 
     assert isinstance(result1, Result)
     assert isinstance(result2, Result)
@@ -180,13 +158,8 @@ def _test_execution_equivalence(
     )
     targets = [position for _, position in gates_n_positions]
 
-    with (
-        pytest.warns(UnsupportedBraketFeaturesWarning)
-        if isinstance(device, AWSDevice)
-        else contextlib.suppress()
-    ):
-        result_custom_gate = run(QCircuit([CustomGate(matrix, targets)]), device)
-        result_circuit = run(circuit, device)
+    result_custom_gate = run(QCircuit([CustomGate(matrix, targets)]), device)
+    result_circuit = run(circuit, device)
     assert matrix_eq(
         result_custom_gate.amplitudes, result_circuit.amplitudes, 1e-4, 1e-4
     )

@@ -1,9 +1,9 @@
 import math
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
-from mpqp.core.languages import Language
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import CRk
 from mpqp.core.instruction.measurement import (
@@ -11,6 +11,7 @@ from mpqp.core.instruction.measurement import (
     ExpectationMeasure,
     Observable,
 )
+from mpqp.core.languages import Language
 from mpqp.execution.connection.aws_connection import get_braket_device
 from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
@@ -85,7 +86,7 @@ def apply_noise_to_braket_circuit(
     return noisy_circuit
 
 
-def run_braket(job: Job) -> Result:
+def run_braket(job: Job, **provider_options) -> Result:
     """Executes the job on the right AWS Braket device (local or remote)
     precised in the job in parameter and waits until the task is completed, then
     returns the Result.
@@ -101,6 +102,8 @@ def run_braket(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    reservation_arn: Optional[str] = provider_options.get("reservation_arn")
+
     # TODO : [multi-obs] update this to take into account the case when we have list of Observables
     # TODO : [multi-obs] check if Braket allows for a list of several observables
     if not isinstance(job.device, AWSDevice):
@@ -112,8 +115,8 @@ def run_braket(job: Job) -> Result:
     from braket.tasks import GateModelQuantumTaskResult
 
     if isinstance(job.measure, ExpectationMeasure):
-        return run_braket_observable(job)
-    _, task = submit_job_braket(job)
+        return run_braket_observable(job, **provider_options)
+    _, task = submit_job_braket(job, **provider_options)
     res = task.result()
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
@@ -121,7 +124,7 @@ def run_braket(job: Job) -> Result:
     return extract_result(res, job, job.device)
 
 
-def run_braket_observable(job: Job):
+def run_braket_observable(job: Job, **provider_options):
     """Returns the result of an ``OBSERVABLE`` job.
 
     TODO: check that the link bellow is correctly generated.
@@ -140,6 +143,8 @@ def run_braket_observable(job: Job):
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult
 
+    reservation_arn: Optional[str] = provider_options.get("reservation_arn")
+
     assert isinstance(job.device, AWSDevice)
     if job.circuit.transpiled_circuit is None:
         transpiled_circuit = job.circuit.to_other_device(job.device)
@@ -154,25 +159,39 @@ def run_braket_observable(job: Job):
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     assert isinstance(job.measure, ExpectationMeasure)
-    results = {}
-    errors = {}
+
+    results, errors = {}, {}
     if job.measure.optimize_measurement:
-        grouping = job.measure.get_pauli_grouping()
         from mpqp.tools.pauli_grouping import (
             find_qubitwise_rotations,
             pauli_monomial_eigenvalues,
         )
 
+        if job.measure.pre_transpile is None:
+            grouping = job.measure.get_pauli_grouping()
+            transpiled_pre_measures = [
+                QCircuit(find_qubitwise_rotations(group)).to_other_language(
+                    Language.BRAKET
+                )
+                for group in grouping
+            ]
+            eigenvalues = [
+                {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
+                for group in grouping
+            ]
+
+        else:
+            eigenvalues, transpiled_pre_measures = (
+                job.measure.pre_transpile
+            )  # pyright: ignore[reportGeneralTypeIssues]
+
         expectation_values = {}
-        for group in grouping:
-            transpiled_pre_measure = QCircuit(
-                find_qubitwise_rotations(group)
-            ).to_other_language(Language.BRAKET)
+        for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
                 from copy import deepcopy
 
-                cirq = deepcopy(transpiled_circuit + transpiled_pre_measure)
+                cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
                 local_result = device.run(cirq, shots=0, inputs=None).result()
 
@@ -183,7 +202,7 @@ def run_braket_observable(job: Job):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
             else:
                 local_result = device.run(
-                    transpiled_circuit + transpiled_pre_measure,
+                    transpiled_circuit + pre_measure,
                     shots=job.measure.shots,
                     inputs=None,
                 )
@@ -199,17 +218,18 @@ def run_braket_observable(job: Job):
                         )
                     else:
                         sorted_values.append(0)
-            for monom in group:
+            for name, eigenvalue in eigenvalues.items():
                 expectation_value: float = np.dot(
-                    pauli_monomial_eigenvalues(monom),
+                    eigenvalue,
                     np.array(sorted_values, dtype=np.float64),
                 )
-                expectation_values.update({monom.name: expectation_value})
+                expectation_values[name] = expectation_value
         for i, obs in enumerate(job.measure.observables):
             string = obs.pauli_string
             local: float = 0
             for monoms in string.monomials:
-                assert isinstance(monoms.coef, (int, float))
+                if TYPE_CHECKING:
+                    assert isinstance(monoms.coef, (int, float))
                 local += expectation_values[monoms.name] * monoms.coef
             results.update({f"observable_{i}": local})
             errors.update({f"observable_{len(errors)}": None})
@@ -222,15 +242,25 @@ def run_braket_observable(job: Job):
         for obs in job.measure.observables:
             from copy import deepcopy
 
+            from braket.circuits.observables import Sum
+
             copy = deepcopy(transpiled_circuit)
             braket_obs = obs.to_other_language(Language.BRAKET)
+            if isinstance(braket_obs, Sum):
+                targets = [job.measure.targets] * len(braket_obs.summands)
+            else:
+                targets = job.measure.targets
             copy.expectation(  # pyright: ignore[reportAttributeAccessIssue]
-                observable=braket_obs, target=job.measure.targets
+                observable=braket_obs, target=targets
             )
             job.status = JobStatus.RUNNING
-            local_result = device.run(
-                copy, shots=job.measure.shots, inputs=None
-            ).result()
+
+            if TYPE_CHECKING:
+                assert isinstance(device, AWSDevice)
+            with optional_reservation_arn(device, reservation_arn):
+                local_result = device.run(
+                    copy, shots=job.measure.shots, inputs=None
+                ).result()
             assert isinstance(local_result, GateModelQuantumTaskResult)
             results.update({f"observable_{len(results)}": local_result.values[0].real})
             errors.update({f"observable_{len(errors)}": None})
@@ -239,7 +269,10 @@ def run_braket_observable(job: Job):
     return Result(job, results, errors, job.measure.shots)
 
 
-def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
+def submit_job_braket(
+    job: Job,
+    **provider_options,
+) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
 
@@ -261,11 +294,14 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
+    reservation_arn: Optional[str] = provider_options.get("reservation_arn")
+
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
             f"{job.device} instead"
         )
+
     if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using AWS Braket remote simulators"
@@ -294,32 +330,56 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
-
     if job.job_type == JobType.STATE_VECTOR:
+        # rebind safe_retrieve_samples from braket to Normalize the probability
+        # because the bracket does not do so and this causes a crash.
+        from braket.default_simulator.state_vector_simulation import (
+            StateVectorSimulation,
+        )
+
+        def safe_retrieve_samples(self):  # pyright: ignore[reportMissingParameterType]
+            probs = self.probabilities
+            probs = probs / np.sum(probs)
+            return np.random.choice(len(self._state_vector), p=probs, size=self._shots)
+
+        StateVectorSimulation.retrieve_samples = safe_retrieve_samples
+        # ----
+
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
-        task = device.run(braket_circuit, shots=0, inputs=None)
+
+        if TYPE_CHECKING:
+            assert isinstance(device, AWSDevice)
+        with optional_reservation_arn(device, reservation_arn):
+            task = device.run(braket_circuit, shots=0, inputs=None)
 
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
-        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+        if TYPE_CHECKING:
+            assert isinstance(device, AWSDevice)
+        with optional_reservation_arn(device, reservation_arn):
+            task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
-        if job.measure.observables[0].transpile is None:
+        if job.measure.observables[0].pre_transpile is None:
             herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
         else:
-            herm_op = job.measure.observables[0].transpile
+            herm_op = job.measure.observables[0].pre_transpile
         braket_circuit.expectation(  # pyright: ignore[reportAttributeAccessIssue]
             observable=herm_op, target=job.measure.targets
         )
 
         job.status = JobStatus.RUNNING
-        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+
+        if TYPE_CHECKING:
+            assert isinstance(device, AWSDevice)
+        with optional_reservation_arn(device, reservation_arn):
+            task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")
@@ -522,3 +582,15 @@ def estimate_cost_single_job(
 
     else:
         return 0
+
+
+@contextmanager
+def optional_reservation_arn(device: AWSDevice, reservation_arn: Optional[str] = None):
+    from braket.aws import DirectReservation
+
+    if reservation_arn:
+        braket_device = get_braket_device(device)
+        with DirectReservation(braket_device, reservation_arn=reservation_arn):
+            yield
+    else:
+        yield
