@@ -226,3 +226,14 @@ def test_non_contiguous_ordered_targets_execution(
     gates_n_positions: list[tuple[type[SingleQubitGate], int]], device: AvailableDevice
 ):
     _test_execution_equivalence(gates_n_positions, device)
+
+
+def test_symbolic_str():
+    theta = symbols("theta")
+
+    correct_result = """\
+   ┌───────────────────┐
+q: ┤ CustomGate(theta) ├
+   └───────────────────┘"""
+
+    assert str(CustomGate(np.array([[theta, 0], [0, 1]]), [0])) == correct_result
