@@ -7,8 +7,11 @@ other simulated devices (QLM has this feature for instance."""
 
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from mpqp.environment.var_cache import (
+    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import InstalledProviders
 from mpqp.execution import AvailableDevice
-from mpqp.environment.var_cache import MPQP_PACKAGE_INSTALL, PackageInstall
 
 if TYPE_CHECKING:
     from qiskit_aer.backends.aer_simulator import AerSimulator
@@ -64,7 +67,7 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
 
     @staticmethod
     def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
-        if PackageInstall.QISKIT_IBM_RUNTIME in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.QISKIT_IBM_RUNTIME in _INSTALLED_MPQP_PROVIDERS:
             from qiskit_ibm_runtime import fake_provider
             from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 

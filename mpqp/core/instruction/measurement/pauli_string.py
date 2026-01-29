@@ -19,10 +19,10 @@ import numpy.typing as npt
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
+from mpqp.environment.var_cache import _INSTALLED_MPQP_PROVIDERS, InstalledProviders
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
-from mpqp.environment.var_cache import MPQP_PACKAGE_INSTALL, PackageInstall
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Observable as BraketObservable
@@ -730,19 +730,19 @@ class PauliString:
                 "Cannot parse non-homogeneous types when `pauli` is a `list`."
             )
 
-        if PackageInstall.QISKIT in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.quantum_info import SparsePauliOp
 
             if isinstance(pauli, SparsePauliOp):
                 return PauliString._from_qiskit(pauli)
 
-        if PackageInstall.BRAKET in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             from braket.circuits.observables import Observable as BraketObservable
 
             if isinstance(pauli, BraketObservable):
                 return PauliString._from_braket(pauli)
 
-        if PackageInstall.MY_QLM in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.MY_QLM in _INSTALLED_MPQP_PROVIDERS:
             from qat.core.wrappers.observable import Term
 
             if isinstance(pauli, Term):
@@ -759,7 +759,7 @@ class PauliString:
                     pauli_string += PauliString._from_my_qml(term, min_dimension)
                 return pauli_string
 
-        if PackageInstall.CIRQ in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             from cirq.ops.gate_operation import GateOperation as CirqGateOperation
             from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
             from cirq.ops.pauli_string import PauliString as CirqPauliString

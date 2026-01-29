@@ -51,6 +51,7 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.environment.var_cache import _INSTALLED_MPQP_PROVIDERS, InstalledProviders
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -60,7 +61,6 @@ from mpqp.tools.errors import (
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
-from mpqp.environment.var_cache import MPQP_PACKAGE_INSTALL, PackageInstall
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -1899,7 +1899,7 @@ class QCircuit:
                       └───┘
         """
 
-        if PackageInstall.QISKIT in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.circuit import QuantumCircuit
 
             if isinstance(qcircuit, QuantumCircuit):
@@ -1917,13 +1917,12 @@ class QCircuit:
                 qc.input_g_phase = phase
 
                 return qc
-        if PackageInstall.CIRQ in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             from cirq.circuits.circuit import Circuit as cirq_Circuit
             from cirq.circuits.moment import Moment
 
             if isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
-                from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+                from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates, qasm2_parse
 
                 if isinstance(qcircuit, Moment):
                     qcircuit = cirq_Circuit([qcircuit])
@@ -1934,7 +1933,7 @@ class QCircuit:
 
                 return qc
 
-        if PackageInstall.BRAKET in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             from braket.circuits import Circuit as braket_Circuit
 
             if isinstance(qcircuit, braket_Circuit):
@@ -1942,11 +1941,11 @@ class QCircuit:
                 from braket.ir.openqasm.program_v1 import Program
 
                 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
                 from mpqp.qasm.qasm_to_braket import (
                     braket_custom_gates_to_mpqp,
                     braket_noise_to_mpqp,
                 )
+                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
                 qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
                 if TYPE_CHECKING:
@@ -1966,7 +1965,7 @@ class QCircuit:
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc
-        if PackageInstall.MY_QLM in MPQP_PACKAGE_INSTALL:
+        if InstalledProviders.MY_QLM in _INSTALLED_MPQP_PROVIDERS:
             from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 
             if isinstance(qcircuit, myQLM_Circuit):
