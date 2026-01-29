@@ -27,13 +27,13 @@ def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
 
 
     Example:
-        >>> qasm_code = ''' # doctest: +FUNC_NEED_MYQLM
+        >>> qasm_code = '''
         ... OPENQASM 2.0;
         ... qreg q[2];
         ... h q[0];
         ... cx q[0], q[1];
         ... '''
-        >>> circuit = qasm2_to_myqlm_Circuit(qasm_code)
+        >>> circuit = qasm2_to_myqlm_Circuit(qasm_code) # doctest: +FUNC_NEED_MYQLM
         >>> circuit.display(batchmode=True) # doctest: +NORMALIZE_WHITESPACE
           ┌─┐
          ─┤H├─●─

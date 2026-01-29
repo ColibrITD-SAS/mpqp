@@ -15,3 +15,4 @@ ply
 matplotlib
 networkx
 qiskit==1.2.4
+qiskit-aer==0.15.1

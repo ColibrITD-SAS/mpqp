@@ -8,6 +8,7 @@ other simulated devices (QLM has this feature for instance."""
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from mpqp.execution import AvailableDevice
+from mpqp.environment.var_cache import MPQP_PACKAGE_INSTALL, PackageInstall
 
 if TYPE_CHECKING:
     from qiskit_aer.backends.aer_simulator import AerSimulator
@@ -63,22 +64,22 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
 
     @staticmethod
     def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
-        try:
+        if PackageInstall.QISKIT_IBM_RUNTIME in MPQP_PACKAGE_INSTALL:
             from qiskit_ibm_runtime import fake_provider
             from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
-        except ImportError:
+
+            fake_imports = fake_provider.__dict__
+            return [
+                (name, device)
+                for name, device in fake_imports.items()
+                if name.startswith("Fake")
+                and not name.startswith(("FakeProvider", "FakeFractional"))
+                and issubclass(device, FakeBackendV2)
+                and "cairo" not in name.lower()
+            ]
+        else:
             # TODO: if qiskit_ibm_runtime not install, do we want to return [] ?
             return []
-
-        fake_imports = fake_provider.__dict__
-        return [
-            (name, device)
-            for name, device in fake_imports.items()
-            if name.startswith("Fake")
-            and not name.startswith(("FakeProvider", "FakeFractional"))
-            and issubclass(device, FakeBackendV2)
-            and "cairo" not in name.lower()
-        ]
 
 
 class _LazyIBMSimulatedDevice:

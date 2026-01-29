@@ -22,6 +22,7 @@ from mpqp.core.languages import Language
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
+from mpqp.environment.var_cache import MPQP_PACKAGE_INSTALL, PackageInstall
 
 if TYPE_CHECKING:
     from braket.circuits.observables import Observable as BraketObservable
@@ -729,24 +730,21 @@ class PauliString:
                 "Cannot parse non-homogeneous types when `pauli` is a `list`."
             )
 
-        from qiskit.quantum_info import SparsePauliOp
+        if PackageInstall.QISKIT in MPQP_PACKAGE_INSTALL:
+            from qiskit.quantum_info import SparsePauliOp
 
-        if isinstance(pauli, SparsePauliOp):
-            return PauliString._from_qiskit(pauli)
+            if isinstance(pauli, SparsePauliOp):
+                return PauliString._from_qiskit(pauli)
 
-        try:
+        if PackageInstall.BRAKET in MPQP_PACKAGE_INSTALL:
             from braket.circuits.observables import Observable as BraketObservable
-        except ImportError:
-            pass
-        else:
+
             if isinstance(pauli, BraketObservable):
                 return PauliString._from_braket(pauli)
 
-        try:
+        if PackageInstall.MY_QLM in MPQP_PACKAGE_INSTALL:
             from qat.core.wrappers.observable import Term
-        except ImportError:
-            pass
-        else:
+
             if isinstance(pauli, Term):
                 return PauliString._from_my_qml(pauli)
             elif isinstance(pauli, list) and isinstance(pauli[0], Term):
@@ -761,13 +759,11 @@ class PauliString:
                     pauli_string += PauliString._from_my_qml(term, min_dimension)
                 return pauli_string
 
-        try:
+        if PackageInstall.CIRQ in MPQP_PACKAGE_INSTALL:
             from cirq.ops.gate_operation import GateOperation as CirqGateOperation
             from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
             from cirq.ops.pauli_string import PauliString as CirqPauliString
-        except ImportError:
-            pass
-        else:
+
             if isinstance(pauli, (CirqPauliSum, CirqPauliString, CirqGateOperation)):
                 return PauliString._from_cirq(pauli, min_dimension)
             elif isinstance(pauli, list) and isinstance(pauli[0], CirqPauliString):

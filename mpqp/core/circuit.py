@@ -60,6 +60,7 @@ from mpqp.tools.errors import (
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
+from mpqp.environment.var_cache import MPQP_PACKAGE_INSTALL, PackageInstall
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
@@ -1898,11 +1899,9 @@ class QCircuit:
                       └───┘
         """
 
-        try:
+        if PackageInstall.QISKIT in MPQP_PACKAGE_INSTALL:
             from qiskit.circuit import QuantumCircuit
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, QuantumCircuit):
                 from qiskit import qasm3
 
@@ -1918,12 +1917,10 @@ class QCircuit:
                 qc.input_g_phase = phase
 
                 return qc
-        try:
+        if PackageInstall.CIRQ in MPQP_PACKAGE_INSTALL:
             from cirq.circuits.circuit import Circuit as cirq_Circuit
             from cirq.circuits.moment import Moment
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
                 from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
                 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
@@ -1936,11 +1933,10 @@ class QCircuit:
                 qc.input_g_phase = gphase
 
                 return qc
-        try:
+
+        if PackageInstall.BRAKET in MPQP_PACKAGE_INSTALL:
             from braket.circuits import Circuit as braket_Circuit
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, braket_Circuit):
                 from braket.circuits.serialization import IRType
                 from braket.ir.openqasm.program_v1 import Program
@@ -1970,12 +1966,9 @@ class QCircuit:
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc
-
-        try:
+        if PackageInstall.MY_QLM in MPQP_PACKAGE_INSTALL:
             from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, myQLM_Circuit):
                 from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 
@@ -2012,10 +2005,10 @@ class QCircuit:
                         return qc
                     break
             return qasm2_parse(qcircuit)
-        else:
-            raise NotImplementedError(
-                f"Error: {type(qcircuit)} is not supported, or sdk not installed."
-            )
+
+        raise NotImplementedError(
+            f"Error: {type(qcircuit)} is not supported, or sdk not installed."
+        )
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
