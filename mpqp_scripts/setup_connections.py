@@ -26,7 +26,9 @@ def print_config_info():
     try:
         print(ibmqc.get_active_account_info())
     except IBMRemoteExecutionError as err:
-        if "Unable to find account" in str(err) or "No IBM account configured" in str(err):
+        if "Unable to find account" in str(err) or "No IBM account configured" in str(
+            err
+        ):
             print("Account not configured")
         else:
             print(f"{err}")
