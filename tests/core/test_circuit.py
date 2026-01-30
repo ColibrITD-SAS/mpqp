@@ -66,7 +66,7 @@ from mpqp.tools.circuit import (
     statevector_from_random_circuit,
 )
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NonReversibleWarning, UnsupportedBraketFeaturesWarning
+from mpqp.tools.errors import NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -564,14 +564,7 @@ T  : │         0         │"""),
 def test_to_other_language(
     circuit: QCircuit, args: tuple[Language], result_type: type, result_repr: str
 ):
-    language = Language.QISKIT if len(args) == 0 else args[0]
-    # TODO: test other languages
-    if language == Language.BRAKET:
-        with pytest.warns(UnsupportedBraketFeaturesWarning) as record:
-            converted_circuit = circuit.to_other_language(*args)
-        assert len(record) == 1
-    else:
-        converted_circuit = circuit.to_other_language(*args)
+    converted_circuit = circuit.to_other_language(*args)
     assert type(converted_circuit) == result_type
     if isinstance(converted_circuit, QiskitCircuit):
         assert repr(converted_circuit.data) == result_repr
@@ -1075,11 +1068,9 @@ def test_inverse_random():
         (QCircuit([H(0)]), 1),
         (QCircuit([H(1)]), 2),
         (QCircuit([S(0), CZ(0, 2), H(1), Ry(4.56, 1)]), 3),
-        (QCircuit([S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)]), 4),
+        (QCircuit([S(0), CZ(0, 1), H(3)]), 4),
         (
-            QCircuit(
-                [S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1), BasisMeasure()]
-            ),
+            QCircuit([S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1)]),
             3,
         ),
     ],

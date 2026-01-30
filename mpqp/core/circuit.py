@@ -57,6 +57,7 @@ from mpqp.tools.errors import (
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
+    InstructionAfterMeasurementError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -296,6 +297,14 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
+            if isinstance(components, Gate):
+                for i in range(len(self.instructions) - 1, -1, -1):
+                    if isinstance(self.instructions[i], Measure):
+                        raise InstructionAfterMeasurementError(
+                            "Cannot add gate after measurement in the circuit."
+                        )
+                    if isinstance(self.instructions[i], Gate):
+                        break
             self.instructions.append(components)
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
@@ -1386,16 +1395,33 @@ class QCircuit:
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
+            from braket.circuits import Circuit as BracketCircuit
 
-            qasm3_code = circuit.to_other_language(
-                Language.QASM3,
-                skip_pre_measure=skip_pre_measure,
-                skip_measurements=skip_measurements,
-            )
-
-            from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-
-            braket_circuit = qasm3_to_braket_Circuit(qasm3_code)
+            braket_circuit = BracketCircuit()
+            for instruction in circuit.instructions:
+                if isinstance(instruction, (Barrier, Breakpoint)):
+                    continue
+                if isinstance(instruction, Measure):
+                    if not skip_pre_measure:
+                        for pre_measure in instruction.pre_measure:
+                            bracket_pre_measure = pre_measure.to_other_language(
+                                Language.BRAKET
+                            )
+                            braket_circuit.add(bracket_pre_measure, instruction.targets)
+                    if not skip_measurements:
+                        if isinstance(instruction, BasisMeasure):
+                            braket_circuit.measure(instruction.targets)
+                    continue
+                braket_instr = instruction.to_other_language(Language.BRAKET)
+                try:
+                    target = instruction.targets
+                    if isinstance(instruction, ControlledGate):
+                        target = instruction.controls + target
+                    braket_circuit.add_instruction(braket_instr, target=target)
+                except Exception as e:
+                    raise ValueError(
+                        f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
+                    )
 
             if len(self.noises) == 0:
                 return braket_circuit

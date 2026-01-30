@@ -100,10 +100,10 @@ def compute_expectation_value(
 
     qiskit_observables: list[SparsePauliOp] = []
     for obs in job.measure.observables:
-        if obs.transpile is None:
+        if obs.pre_transpiled is None:
             translated = obs.to_other_language(Language.QISKIT)
         else:
-            translated = obs.transpile
+            translated = obs.pre_transpiled
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
@@ -557,8 +557,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
-                if obs.transpile is None
-                else obs.transpile
+                if obs.pre_transpiled is None
+                else obs.pre_transpiled
             )
             for obs in meas.observables
         ]

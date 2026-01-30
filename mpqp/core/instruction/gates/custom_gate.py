@@ -135,6 +135,32 @@ class CustomGate(Gate):
                     dummy_circuit.rx(param, 0)
                 return dummy_circuit.to_gate(label="CustomGate")
             return UnitaryGate(self.matrix)
+        elif language == Language.BRAKET:
+            from sympy import Expr
+
+            gate_symbols = set().union(
+                *(
+                    elt.free_symbols
+                    for elt in self.matrix.flatten()
+                    if isinstance(elt, Expr)
+                )
+            )
+
+            if len(gate_symbols) > 0:
+                if not printing:
+                    raise ValueError(
+                        "Custom gates defined with symbolic variables cannot be "
+                        "exported to Braket for now (only numerical matrices are supported)."
+                    )
+                return None
+            else:
+                from braket.circuits import Instruction as BraketInstruction
+                from braket.circuits.gates import Unitary as BraketUnitary
+
+                return BraketInstruction(
+                    operator=BraketUnitary(self.definition.matrix),
+                    target=self.targets,
+                )
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 

@@ -3,7 +3,7 @@ too slow)"""
 
 import sys
 from itertools import product
-from typing import Any, Callable, Iterable
+from typing import Any
 
 import numpy as np
 import pytest
@@ -25,7 +25,7 @@ from mpqp import (
 )
 from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
 
 noisy_devices: list[Any] = [
@@ -36,20 +36,6 @@ noisy_devices: list[Any] = [
 # TODO: in the end this should be automatic as drafted above, but for now only
 # one device is stable
 noisy_devices = [AWSDevice.BRAKET_LOCAL_SIMULATOR, IBMDevice.AER_SIMULATOR]
-
-
-def filter_braket_warning(
-    action: Callable[[AvailableDevice], Any],
-    devices: AvailableDevice,
-):
-    if (
-        isinstance(devices, Iterable)
-        and any(isinstance(device, AWSDevice) for device in devices)
-    ) or isinstance(devices, AWSDevice):
-        with pytest.warns((UnsupportedBraketFeaturesWarning)):
-            return action(devices)
-    else:
-        return action(devices)
 
 
 @pytest.fixture
@@ -106,8 +92,7 @@ def test_noisy_expectation_value_execution_without_error(
             PhaseDamping(0.6),
         ]
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, devices)
+    run(circuit, devices)
     assert True
 
 
@@ -127,8 +112,7 @@ def test_all_native_gates_global_noise_execution_without_error(
             PhaseDamping(0.4, gates=[CNOT, H]),
         ]
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, devices)
+    run(circuit, devices)
     assert True
 
 
@@ -149,8 +133,7 @@ def test_all_native_gates_local_noise(
             PhaseDamping(0.4, [0, 1, 2], gates=[CNOT, H]),
         ]
     )
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, devices)
+    run(circuit, devices)
     assert True
 
 
@@ -166,6 +149,4 @@ def test_validate_depolarizing_noise(
     circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
 ):
     circuit.add(Depolarizing(depol_noise))
-    assert filter_braket_warning(
-        lambda d: validate_noisy_circuit(circuit, shots, d), device
-    )
+    assert validate_noisy_circuit(circuit, shots, device)

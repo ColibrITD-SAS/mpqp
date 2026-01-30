@@ -7,10 +7,9 @@ on:
       python_v:
         description: "python version"
         required: true
-        default: "3.9"
+        default: "3.10"
         type: choice
         options:
-          - "3.9"
           - "3.10"
           - "3.11"
       commit_ref:
@@ -29,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
-        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.9", "3.10", "3.11"]') }}
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11"]') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,7 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.9", "3.10", "3.11"]') }}
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11"]') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
