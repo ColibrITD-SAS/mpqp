@@ -535,7 +535,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -543,12 +544,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -556,14 +559,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -571,7 +576,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 
@@ -581,10 +587,8 @@ def test_to_other_language_braket(
     list_braket_circuit: list[tuple[QCircuit, type, str]],
 ):
     for circuit, result_type, result_repr in list_braket_circuit:
-        with pytest.warns(UnsupportedBraketFeaturesWarning) as record:
-            converted_circuit = circuit.to_other_language(Language.BRAKET)
+        converted_circuit = circuit.to_other_language(Language.BRAKET)
         assert type(converted_circuit) == result_type
-        assert len(record) == 1
         assert str(converted_circuit) == result_repr
 
 

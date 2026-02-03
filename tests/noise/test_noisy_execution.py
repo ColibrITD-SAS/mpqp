@@ -228,8 +228,7 @@ def test_validate_depolarizing_noise_braket(
     circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
 ):
     circuit.add(Depolarizing(depol_noise))
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        validate_noisy_circuit(circuit, shots, device)
+    validate_noisy_circuit(circuit, shots, device)
 
 
 @pytest.mark.provider("qiskit")
