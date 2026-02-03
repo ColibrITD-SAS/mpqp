@@ -3,7 +3,6 @@ too slow)"""
 
 import sys
 from itertools import product
-from typing import Any
 
 import numpy as np
 import pytest
@@ -26,6 +25,7 @@ from mpqp.execution import AvailableDevice
 from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, PhaseDamping
 from mpqp.tools.theoretical_simulation import validate_noisy_circuit
+from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 # noisy_devices: list[Any] = [
 #     dev
@@ -228,9 +228,8 @@ def test_validate_depolarizing_noise_braket(
     circuit: QCircuit, depol_noise: float, shots: int, device: AvailableDevice
 ):
     circuit.add(Depolarizing(depol_noise))
-    assert filter_braket_warning(
-        lambda d: validate_noisy_circuit(circuit, shots, d), device
-    )
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        validate_noisy_circuit(circuit, shots, device)
 
 
 @pytest.mark.provider("qiskit")
