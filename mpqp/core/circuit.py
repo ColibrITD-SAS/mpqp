@@ -1292,7 +1292,9 @@ class QCircuit:
                     if TYPE_CHECKING:
                         assert isinstance(qiskit_inst, Operator)
                     if printing and len(instruction.free_symbols) > 0:
-                        new_circ.append(qiskit_inst, list(reversed(instruction.targets)))
+                        new_circ.append(
+                            qiskit_inst, list(reversed(instruction.targets))
+                        )
                     else:
                         new_circ.unitary(
                             qiskit_inst,
