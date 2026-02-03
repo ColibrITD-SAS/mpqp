@@ -197,6 +197,7 @@ def configure_account_iam() -> tuple[str, list[Any]]:
 
     save_env_variable("BRAKET_AUTH_METHOD", "IAM")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
     return "IAM configuration successful.", []
 
 
@@ -232,7 +233,21 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         save_env_variable("BRAKET_CONFIGURED", "False")
         return "Failed to retrieve SSO credentials.", []
 
+    import os
+
     import boto3
+
+    configured_region = os.environ.get("AWS_DEFAULT_REGION")
+    other_region = sso_credentials["region"]
+
+    if configured_region and configured_region != other_region:
+        save_env_variable("BRAKET_CONFIGURED", "False")
+        return (
+            f"Failed: SSO token is region-based.\n"
+            "Once a token is configured for a specific region, it becomes bound to that region."
+            "However, once authenticated, you can still access devices and services in other regions.",
+            [],
+        )
 
     session = boto3.Session(
         aws_access_key_id=sso_credentials["access_key_id"],
@@ -257,8 +272,11 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         region=sso_credentials["region"],
     )
 
+    os.environ["AWS_DEFAULT_REGION"] = sso_credentials["region"]
+
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
     return "SSO configuration successful.", []
 
 
@@ -350,7 +368,7 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
             retrieved.
 
     Example:
-        >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_2)
+        >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_3)
         >>> device.properties.action['braket.ir.openqasm.program'].supportedResultTypes
         [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),

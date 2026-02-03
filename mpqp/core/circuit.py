@@ -51,12 +51,17 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.environment.var_cache import (
+    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+    InstalledProviders,
+)
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
+    InstructionAfterMeasurementError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -296,6 +301,14 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
+            if isinstance(components, Gate):
+                for i in range(len(self.instructions) - 1, -1, -1):
+                    if isinstance(self.instructions[i], Measure):
+                        raise InstructionAfterMeasurementError(
+                            "Cannot add gate after measurement in the circuit."
+                        )
+                    if isinstance(self.instructions[i], Gate):
+                        break
             self.instructions.append(components)
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
@@ -984,7 +997,7 @@ class QCircuit:
         return [inst for inst in self.instructions if isinstance(inst, Breakpoint)]
 
     def _clone_without(
-        self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = False
+        self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = True
     ):
         """Creates a clone of the current QCircuit object, excluding specified attributes.
 
@@ -1039,7 +1052,7 @@ class QCircuit:
 
         return gates
 
-    def without_measurements(self, deep_copy: bool = False) -> QCircuit:
+    def without_measurements(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the measurements removed.
 
         Args:
@@ -1075,7 +1088,7 @@ class QCircuit:
 
         return new_circuit
 
-    def without_noises(self, deep_copy: bool = False) -> QCircuit:
+    def without_noises(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the noise models removed.
 
         Args:
@@ -1278,11 +1291,14 @@ class QCircuit:
                 if isinstance(instruction, CustomGate):
                     if TYPE_CHECKING:
                         assert isinstance(qiskit_inst, Operator)
-                    new_circ.unitary(
-                        qiskit_inst,
-                        list(reversed(instruction.targets)),
-                        instruction.label,
-                    )
+                    if printing and len(instruction.free_symbols) > 0:
+                        new_circ.append(qiskit_inst, list(reversed(instruction.targets)))
+                    else:
+                        new_circ.unitary(
+                            qiskit_inst,
+                            list(reversed(instruction.targets)),
+                            instruction.label,
+                        )
                 else:
                     if isinstance(instruction, ControlledGate):
                         qargs = list(reversed(instruction.controls)) + list(
@@ -1376,16 +1392,33 @@ class QCircuit:
                         "Cannot simulate noisy circuit with CRk gate due to "
                         "an error on AWS Braket side."
                     )
+            from braket.circuits import Circuit as BracketCircuit
 
-            qasm3_code = circuit.to_other_language(
-                Language.QASM3,
-                skip_pre_measure=skip_pre_measure,
-                skip_measurements=skip_measurements,
-            )
-
-            from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-
-            braket_circuit = qasm3_to_braket_Circuit(qasm3_code)
+            braket_circuit = BracketCircuit()
+            for instruction in circuit.instructions:
+                if isinstance(instruction, (Barrier, Breakpoint)):
+                    continue
+                if isinstance(instruction, Measure):
+                    if not skip_pre_measure:
+                        for pre_measure in instruction.pre_measure:
+                            bracket_pre_measure = pre_measure.to_other_language(
+                                Language.BRAKET
+                            )
+                            braket_circuit.add(bracket_pre_measure, instruction.targets)
+                    if not skip_measurements:
+                        if isinstance(instruction, BasisMeasure):
+                            braket_circuit.measure(instruction.targets)
+                    continue
+                braket_instr = instruction.to_other_language(Language.BRAKET)
+                try:
+                    target = instruction.targets
+                    if isinstance(instruction, ControlledGate):
+                        target = instruction.controls + target
+                    braket_circuit.add_instruction(braket_instr, target=target)
+                except Exception as e:
+                    raise ValueError(
+                        f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
+                    )
 
             if len(self.noises) == 0:
                 return braket_circuit
@@ -1891,11 +1924,9 @@ class QCircuit:
                       └───┘
         """
 
-        try:
+        if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.circuit import QuantumCircuit
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, QuantumCircuit):
                 from qiskit import qasm3
 
@@ -1907,15 +1938,12 @@ class QCircuit:
 
                 qc = qasm2_parse(qasm2_code)
                 return qc
-        try:
+        if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             from cirq.circuits.circuit import Circuit as cirq_Circuit
             from cirq.circuits.moment import Moment
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
-                from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+                from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates, qasm2_parse
 
                 if isinstance(qcircuit, Moment):
                     qcircuit = cirq_Circuit([qcircuit])
@@ -1925,21 +1953,20 @@ class QCircuit:
                 qc.input_g_phase = gphase
 
                 return qc
-        try:
+
+        if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             from braket.circuits import Circuit as braket_Circuit
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, braket_Circuit):
                 from braket.circuits.serialization import IRType
                 from braket.ir.openqasm.program_v1 import Program
 
                 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
                 from mpqp.qasm.qasm_to_braket import (
                     braket_custom_gates_to_mpqp,
                     braket_noise_to_mpqp,
                 )
+                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
                 qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
                 if TYPE_CHECKING:
@@ -1952,18 +1979,16 @@ class QCircuit:
                     str(qasm3_code.source), language=Language.BRAKET
                 )
                 qc = qasm2_parse(qasm2_code)
-                qc = qc.without_measurements()
+                # qc.input_g_phase = phase
+                qc = qc.without_measurements(deep_copy=False)
                 if len(custom_gates) != 0:
                     qc.add(custom_gates)
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc
-
-        try:
+        if InstalledProviders.MY_QLM in _INSTALLED_MPQP_PROVIDERS:
             from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-        except ImportError:
-            pass
-        else:
+
             if isinstance(qcircuit, myQLM_Circuit):
                 from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 
@@ -1999,10 +2024,10 @@ class QCircuit:
                         return qc
                     break
             return qasm2_parse(qcircuit)
-        else:
-            raise NotImplementedError(
-                f"Error: {type(qcircuit)} is not supported, or sdk not installed."
-            )
+
+        raise NotImplementedError(
+            f"Error: {type(qcircuit)} is not supported, or sdk not installed."
+        )
 
     def subs(
         self, values: dict[Expr | str, Complex], remove_symbolic: bool = False

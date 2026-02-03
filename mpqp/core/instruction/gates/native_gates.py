@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from sympy import Expr
     from qiskit.circuit import Parameter
+    from braket.circuits import FreeParameter
 
 import numpy as np
 import numpy.typing as npt
@@ -84,6 +85,22 @@ def _qiskit_parameter_adder(
     return qiskit_param
 
 
+def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
+    from sympy import Expr
+    from braket.circuits import FreeParameter
+
+    if isinstance(val, Expr):
+        if val.free_symbols:
+            return FreeParameter(str(val))  # note: Braket won't parse expressions
+        else:
+            try:
+                return float(val.evalf())  # pyright: ignore[reportArgumentType]
+            except Exception as e:
+                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+    else:
+        return float(val)
+
+
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
@@ -108,8 +125,6 @@ class NativeGate(Gate, SimpleClassReprABC):
     def qasm2_gate(cls) -> str:
         """Keyword(s) corresponding to the gate in ``QASM2``."""
         return cls.qiskit_string
-
-    native_gate_options = {"disable_symbol_warn": True}
 
     if TYPE_CHECKING:
         from braket.circuits import gates
@@ -204,9 +219,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(
             self, definition, [target], [self.theta], type(self).__name__.capitalize()
         )
@@ -224,24 +237,25 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
+
         try:
             theta = float(self.theta)
         except:
             theta = self.theta
         if language == Language.QISKIT:
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
-            from sympy import Expr
+            from braket.circuits import Instruction
 
-            # TODO: handle symbolic parameters for Braket
-            if isinstance(theta, Expr):
-                raise NotImplementedError(
-                    "Symbolic expressions are not yet supported for braket "
-                    "export, this feature is coming very soon!"
-                )
-            return self.braket_gate(theta)
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(
+                operator=self.braket_gate(_sympy_to_braket_param(theta)),
+                target=connection,
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate(theta)
         if language == Language.QASM2:
@@ -346,7 +360,12 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         if language == Language.QISKIT:
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            return self.braket_gate()
+            from braket.circuits import Instruction
+
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(operator=self.braket_gate(), target=connection)
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -430,7 +449,9 @@ class Id(OneQubitNoParamGate, InvolutionGate):
                 return self.qiskit_gate(label=self.label)
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            return self.braket_gate()
+            from braket.circuits import Instruction
+
+            return Instruction(operator=self.braket_gate(), target=self.targets)
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -702,9 +723,7 @@ class CP(RotationGate, ControlledGate):
     def __init__(self, theta: Expr | float, control: int, target: int):
         self.parameters = [theta]
         ControlledGate.__init__(self, [control], [target], P(theta, target), "CP")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [theta], "CP")
 
     def to_canonical_matrix(self):
@@ -1043,9 +1062,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         target: int,
     ):
         self.parameters = [theta, phi, gamma]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [theta, phi, gamma], "U")
 
     @property
@@ -1079,20 +1096,16 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
         elif language == Language.BRAKET:
-            from sympy import Expr
+            from braket.circuits import Instruction
 
-            # TODO handle symbolic parameters
-            if (
-                isinstance(self.theta, Expr)
-                or isinstance(self.phi, Expr)
-                or isinstance(self.gamma, Expr)
-            ):
-                raise NotImplementedError(
-                    "Symbolic expressions are not yet supported for braket "
-                    "export, this feature is coming very soon!"
-                )
-
-            return self.braket_gate(self.theta, self.phi, self.gamma)
+            return Instruction(
+                operator=self.braket_gate(
+                    _sympy_to_braket_param(self.theta),
+                    _sympy_to_braket_param(self.phi),
+                    _sympy_to_braket_param(self.gamma),
+                ),
+                target=self.targets,
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate(self.theta, self.phi, self.gamma)
         elif language == Language.QASM2:
@@ -1312,9 +1325,7 @@ class Rk(RotationGate, SingleQubitGate):
 
     def __init__(self, k: Expr | int, target: int):
         self.parameters = [k]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk")
 
     @property
@@ -1400,9 +1411,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
     def __init__(self, k: Expr | int, target: int):
         self.parameters = [k]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk†")
 
     @property
@@ -1607,9 +1616,7 @@ class CRk(RotationGate, ControlledGate):
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [k], "CRk")
 
     @property
@@ -1707,9 +1714,7 @@ class CRk_dagger(RotationGate, ControlledGate):
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk_dagger(k, target), "CRk†")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [k], "CRk†")
 
     @property

@@ -46,17 +46,33 @@ def normalize(v: npt.NDArray[np.complex128]) -> npt.NDArray[np.complex128]:
     return v if norm == 0 else v / norm
 
 
-def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) -> bool:
-    r"""Checks whether two matrix (including vectors) are element-wise equal, within a tolerance.
+def matrix_eq(
+    lhs: Matrix,
+    rhs: Matrix,
+    atol: float = atol,
+    rtol: float = rtol,
+    fuzzy: bool = False,
+) -> bool:
+    r"""Checks whether two matrix (including vectors) are element-wise equal,
+    within a tolerance.
 
     For respectively each elements `a` and `b` of both inputs, we check this
     specific condition: `|a - b| \leq (atol + rtol * |b|)`.
+
+    A fuzzy option can be enabled to check if the matrices have a chance to be
+    equal by considering that if a coefficient of the difference between the two
+    matrix is symbolic then it could 0. Note that this is quite naive and that
+    to be more complete we could derive equations from the equality and ensure
+    that the equations have at least one solution, but this would take too much
+    time so we stick with the naive approach.
 
     Args:
         lhs: Left-hand side matrix of the equality.
         rhs: Right-hand side matrix of the equality.
         atol: The absolute tolerance parameter.
         rtol: The relative tolerance parameter.
+        fuzzy: If ``True``, symbolic difference is considered as nullable (see
+            above for more detail).
 
     Returns:
         ``True`` if the two matrix are equal (according to the definition above).
@@ -67,7 +83,7 @@ def matrix_eq(lhs: Matrix, rhs: Matrix, atol: float = atol, rtol: float = rtol) 
             if abs(elt[0] - elt[1]) > (atol + rtol * abs(elt[1])):
                 return False
         except TypeError:
-            if elt[0] != elt[1]:
+            if not fuzzy and elt[0] != elt[1]:
                 return False
 
     return True
@@ -106,11 +122,13 @@ def is_hermitian(matrix: Matrix) -> bool:
     )
 
 
-def is_unitary(matrix: Matrix) -> bool:
+def is_unitary(matrix: Matrix, fuzzy: bool = False) -> bool:
     """Checks whether the matrix in parameter is unitary.
 
     Args:
         matrix: Matrix for which we want to know if it is unitary.
+        fuzzy: Whether the check used in the matrix equality should be fuzzy or
+            not.
 
     Returns:
         ``True`` if the matrix in parameter is Unitary.
@@ -123,9 +141,7 @@ def is_unitary(matrix: Matrix) -> bool:
 
     """
     return matrix_eq(
-        np.eye(len(matrix), dtype=np.complex128),
-        matrix.transpose().conjugate().dot(matrix),
-        atol=1e-5,
+        np.eye(len(matrix)), matrix.T.conj().dot(matrix), atol=1e-5, fuzzy=fuzzy
     )
 
 

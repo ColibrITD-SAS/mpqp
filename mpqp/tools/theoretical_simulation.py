@@ -175,7 +175,7 @@ def trust_int(circuit: QCircuit):
     Returns:
         The size of the trust interval (related to the Jensen-Shannon distance).
     """
-    noiseless_circuit = circuit.without_noises()
+    noiseless_circuit = circuit.without_noises(deep_copy=False)
     noiseless_probs = theoretical_probs(noiseless_circuit)
     noisy_probs = theoretical_probs(circuit)
     return dist_alpha_matching(float(jensenshannon(noiseless_probs, noisy_probs)))
@@ -200,7 +200,7 @@ def exp_id_dist(
     """
     noisy_probs = theoretical_probs(circuit)
 
-    noisy_circuit = circuit.without_measurements()
+    noisy_circuit = circuit.without_measurements(deep_copy=False)
     noisy_circuit.add(BasisMeasure(shots=shots))
     result = run(noisy_circuit, device)
     assert isinstance(result, Result)

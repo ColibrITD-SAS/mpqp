@@ -235,6 +235,10 @@ PROVIDER_MYQLM = register_optionflag("MYQLM")
 PROVIDER_QISKIT = register_optionflag("QISKIT")
 PROVIDER_BRAKET = register_optionflag("BRAKET")
 PROVIDER_CIRQ = register_optionflag("CIRQ")
+register_optionflag("FUNC_NEED_MYQLM")
+register_optionflag("FUNC_NEED_QISKIT")
+register_optionflag("FUNC_NEED_BRAKET")
+register_optionflag("FUNC_NEED_CIRQ")
 
 PROVIDER_FLAGS = {
     "myqlm": PROVIDER_MYQLM,
@@ -257,18 +261,14 @@ def run_doctest(
 ):
 
     active_providers = request.config.getoption("--providers")
-    skip_provider_flags = []
-    keyword_to_skip = []
+    skip_provider_flags = {}
     if active_providers is not None:
         for name, flag in PROVIDER_FLAGS.items():
             if (
                 len(active_providers) == 0  # pyright: ignore[reportArgumentType]
                 or name not in active_providers  # pyright: ignore[reportOperatorIssue]
             ):
-                keyword_to_skip.append(name)
-                if name == "qiskit":
-                    keyword_to_skip.append("ibm")
-                skip_provider_flags.append(flag)
+                skip_provider_flags[name] = flag
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
@@ -291,12 +291,15 @@ def run_doctest(
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
-            and all(keyword not in test.name for keyword in keyword_to_skip)
+            and all(
+                f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring
+                for keyword in skip_provider_flags.keys()
+            )
         ):
             for example in test.examples:
                 flags = example.options
                 for flag in PROVIDER_FLAGS.values():
-                    if flag in flags and flag in skip_provider_flags:
+                    if flag in flags and flag in skip_provider_flags.values():
                         example.options[SKIP] = True
 
             if safe_needed:

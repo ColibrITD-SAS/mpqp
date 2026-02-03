@@ -73,7 +73,7 @@ from mpqp.tools.circuit import (
     statevector_from_random_circuit,
 )
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NonReversibleWarning, UnsupportedBraketFeaturesWarning
+from mpqp.tools.errors import NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -499,7 +499,7 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        assert str(circuit.without_measurements()) == f.read()
+        assert str(circuit.without_measurements(deep_copy=False)) == f.read()
 
 
 @pytest.mark.provider("qiskit")
@@ -535,8 +535,7 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            (
-                """\
+            ("""\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -544,14 +543,12 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""
-            ),
+T  : │         0         │"""),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            (
-                """\
+            ("""\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -559,16 +556,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""
-            ),
+T  : │         0         │"""),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            (
-                """\
+            ("""\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -576,8 +571,7 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""
-            ),
+T  : │         0         │"""),
         ),
     ]
 
@@ -587,10 +581,8 @@ def test_to_other_language_braket(
     list_braket_circuit: list[tuple[QCircuit, type, str]],
 ):
     for circuit, result_type, result_repr in list_braket_circuit:
-        with pytest.warns(UnsupportedBraketFeaturesWarning) as record:
-            converted_circuit = circuit.to_other_language(Language.BRAKET)
+        converted_circuit = circuit.to_other_language(Language.BRAKET)
         assert type(converted_circuit) == result_type
-        assert len(record) == 1
         assert str(converted_circuit) == result_repr
 
 
@@ -1134,11 +1126,9 @@ def test_inverse_random():
         (QCircuit([H(0)]), 1),
         (QCircuit([H(1)]), 2),
         (QCircuit([S(0), CZ(0, 2), H(1), Ry(4.56, 1)]), 3),
-        (QCircuit([S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)]), 4),
+        (QCircuit([S(0), CZ(0, 1), H(3)]), 4),
         (
-            QCircuit(
-                [S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1), BasisMeasure()]
-            ),
+            QCircuit([S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1)]),
             3,
         ),
     ],
