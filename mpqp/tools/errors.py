@@ -7,6 +7,11 @@ class InstructionParsingError(ValueError):
     """Raised when an QASM instruction encountered by the parser is malformed."""
 
 
+class InstructionAfterMeasurementError(ValueError):
+    """Raised when one tries to add an instruction after a measurement in a
+    circuit."""
+
+
 class NumberQubitsError(ValueError):
     """Raised when the number of qubits defining an instruction, a gate, or a
     measurement, is not coherent with the related objects (circuit, matrix,

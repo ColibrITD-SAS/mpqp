@@ -1,5 +1,3 @@
-import contextlib
-
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -20,7 +18,6 @@ from mpqp import (
 )
 from mpqp.execution import AvailableDevice
 from mpqp.gates import *
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 from mpqp.tools.maths import matrix_eq
 
 
@@ -353,14 +350,9 @@ def exec_valid_run_custom_basis_state_vector_one_qubit(
 ):
     vectors = [np.array([np.sqrt(3) / 2, 1 / 2]), np.array([-1 / 2, np.sqrt(3) / 2])]
 
-    with (
-        pytest.warns(UnsupportedBraketFeaturesWarning)
-        if isinstance(device, AWSDevice)
-        else contextlib.suppress()
-    ):
-        result = run(
-            circuit + QCircuit([BasisMeasure(basis=Basis(vectors), shots=0)]), device
-        )
+    result = run(
+        circuit + QCircuit([BasisMeasure(basis=Basis(vectors), shots=0)]), device
+    )
     assert isinstance(result, Result)
     assert matrix_eq(vectors[expected_vector_index], result.amplitudes)
 

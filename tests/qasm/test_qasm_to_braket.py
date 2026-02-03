@@ -5,7 +5,7 @@ if TYPE_CHECKING:
     from braket.circuits import Operator
 
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp.tools import UnsupportedBraketFeaturesWarning
 
 
 @pytest.mark.provider("braket")
