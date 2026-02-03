@@ -543,7 +543,10 @@ def test_from_other_language_cirq(
 ):
     assert (
         PauliString.from_other_language(
-            pauli_strings[Language.CIRQ](), pauli_strings[None]().nb_qubits
+            pauli_strings[Language.CIRQ](),
+            pauli_strings[
+                None
+            ]().nb_qubits,  # pyright: ignore[reportAttributeAccessIssue]
         )
         == pauli_strings[None]()
     )
@@ -612,7 +615,9 @@ def test_to_other_language_cirq(
     ],
 ):
     assert (
-        pauli_strings[None]().to_other_language(Language.CIRQ)
+        pauli_strings[None]().to_other_language(
+            Language.CIRQ
+        )  # pyright: ignore[reportAttributeAccessIssue]
         == pauli_strings[Language.CIRQ]()
     )
 
@@ -629,7 +634,9 @@ def test_to_other_language_braket(
     ],
 ):
     assert (
-        pauli_strings[None]().to_other_language(Language.BRAKET)
+        pauli_strings[None]().to_other_language(
+            Language.BRAKET
+        )  # pyright: ignore[reportAttributeAccessIssue, reportOperatorIssue]
         == pauli_strings[Language.BRAKET]()
     )
 
@@ -646,7 +653,9 @@ def test_to_other_language_qiskit(
     ],
 ):
     assert (
-        pauli_strings[None]().to_other_language(Language.QISKIT)
+        pauli_strings[None]().to_other_language(
+            Language.QISKIT
+        )  # pyright: ignore[reportAttributeAccessIssue]
         == pauli_strings[Language.QISKIT]()
     )
 
@@ -663,7 +672,9 @@ def test_to_other_language_my_qlm(
     ],
 ):
     assert (
-        pauli_strings[None]().to_other_language(Language.MY_QLM)
+        pauli_strings[None]().to_other_language(
+            Language.MY_QLM
+        )  # pyright: ignore[reportAttributeAccessIssue]
         == pauli_strings[Language.MY_QLM]()
     )
 
@@ -681,8 +692,12 @@ def test_to_from_other_language_cirq(
 ):
     assert (
         PauliString.from_other_language(
-            pauli_strings[None]().to_other_language(Language.CIRQ),
-            pauli_strings[None]().nb_qubits,
+            pauli_strings[None]().to_other_language(
+                Language.CIRQ
+            ),  # pyright: ignore[reportAttributeAccessIssue]
+            pauli_strings[
+                None
+            ]().nb_qubits,  # pyright: ignore[reportAttributeAccessIssue]
         )
         == pauli_strings[None]()
     )
@@ -701,8 +716,12 @@ def test_to_from_other_language_braket(
 ):
     assert (
         PauliString.from_other_language(
-            pauli_strings[None]().to_other_language(Language.BRAKET),
-            pauli_strings[None]().nb_qubits,
+            pauli_strings[None]().to_other_language(
+                Language.BRAKET
+            ),  # pyright: ignore[reportAttributeAccessIssue]
+            pauli_strings[
+                None
+            ]().nb_qubits,  # pyright: ignore[reportAttributeAccessIssue]
         )
         == pauli_strings[None]()
     )
@@ -721,8 +740,12 @@ def test_to_from_other_language_qiskit(
 ):
     assert (
         PauliString.from_other_language(
-            pauli_strings[None]().to_other_language(Language.QISKIT),
-            pauli_strings[None]().nb_qubits,
+            pauli_strings[None]().to_other_language(
+                Language.QISKIT
+            ),  # pyright: ignore[reportAttributeAccessIssue]
+            pauli_strings[
+                None
+            ]().nb_qubits,  # pyright: ignore[reportAttributeAccessIssue]
         )
         == pauli_strings[None]()
     )
@@ -741,8 +764,12 @@ def test_to_from_other_language_my_qlm(
 ):
     assert (
         PauliString.from_other_language(
-            pauli_strings[None]().to_other_language(Language.MY_QLM),
-            pauli_strings[None]().nb_qubits,
+            pauli_strings[None]().to_other_language(
+                Language.MY_QLM
+            ),  # pyright: ignore[reportAttributeAccessIssue]
+            pauli_strings[
+                None
+            ]().nb_qubits,  # pyright: ignore[reportAttributeAccessIssue]
         )
         == pauli_strings[None]()
     )
