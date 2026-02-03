@@ -16,6 +16,7 @@ on:
         options:
           - "3.10"
           - "3.11"
+          - "3.12"
       commit_ref:
         description: Specific ref (branch, tag or SHA)
         default: ""
@@ -42,7 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
-        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11"]') }}
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11", "3.12"]') }}
         provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || (github.ref_name == 'main' && '["all", "qiskit", "cirq", "braket", "myqlm"]' || '["all"]')) }}
     steps:
       - name: Checkout repository
@@ -78,7 +79,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11"]') }}
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11", "3.12"]') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
