@@ -26,7 +26,9 @@ def installed_providers() -> InstalledProviders:
         flags |= InstalledProviders.QISKIT
 
     try:
-        from qiskit_ibm_runtime import fake_provider # pyright: ignore[reportUnusedImport]
+        from qiskit_ibm_runtime import (
+            fake_provider,
+        )  # pyright: ignore[reportUnusedImport]
 
         flags |= InstalledProviders.QISKIT_IBM_RUNTIME
     except ImportError:
