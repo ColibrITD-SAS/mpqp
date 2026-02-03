@@ -542,7 +542,6 @@ def test_to_other_language(
                 assert repr(mpqp_ps.to_other_language(language)) == repr(ps())
             else:
                 assert mpqp_ps.to_other_language(language) == ps
-                
 
 
 @pytest.mark.parametrize(
