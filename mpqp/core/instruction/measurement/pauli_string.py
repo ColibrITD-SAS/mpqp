@@ -21,9 +21,9 @@ from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
 from mpqp.environment.var_cache import (
-    _INSTALLED_MPQP_PROVIDERS,
+    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
-)  # pyright: ignore[reportPrivateUsage]
+)
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
