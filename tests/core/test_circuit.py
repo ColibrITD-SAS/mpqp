@@ -639,9 +639,12 @@ def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
 )
 def test_from_qiskit(circuit: QiskitCircuit, expected_output: Optional[str]):
     from qiskit.quantum_info import Operator
+
     if not isinstance(expected_output, str):
         qcircuit = QCircuit.from_other_language(circuit)
-        assert Operator(circuit).equiv(Operator(qcircuit.to_other_language(Language.QISKIT)))
+        assert Operator(circuit).equiv(
+            Operator(qcircuit.to_other_language(Language.QISKIT))
+        )
     else:
         with pytest.raises(ValueError, match=expected_output):
             QCircuit.from_other_language(circuit)
