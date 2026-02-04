@@ -191,39 +191,39 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
 def list_cirq_funky_circuits() -> list[cirq_Circuit | Moment]:
     import cirq
 
-    q0, q1, q2 = cirq.LineQubit.range(3)  # type: ignore[reportPrivateImportUsage]
+    q0, q1, q2 = cirq.LineQubit.range(3)
 
-    cirq_circuit_1 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1 = cirq.Circuit()
 
-    cirq_circuit_1.append(cirq.X(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.Y(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.Z(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.H(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.S(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.S(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.T(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.T(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.X(q0))
+    cirq_circuit_1.append(cirq.Y(q0))
+    cirq_circuit_1.append(cirq.Z(q0))
+    cirq_circuit_1.append(cirq.H(q0))
+    cirq_circuit_1.append(cirq.S(q0))
+    cirq_circuit_1.append(cirq.S(q0) ** -1)
+    cirq_circuit_1.append(cirq.T(q0))
+    cirq_circuit_1.append(cirq.T(q0) ** -1)
+    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))
+    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))
+    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))
 
-    cirq_circuit_1.append(cirq.CX(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.CZ(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.SWAP(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CX(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))
+    cirq_circuit_1.append(cirq.CZ(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))
+    cirq_circuit_1.append(cirq.SWAP(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))
 
-    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))
+    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))
 
-    qubit = cirq.LineQubit(0)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2.append(cirq.H(qubit))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2.append(cirq.measure(qubit))  # type: ignore[reportPrivateImportUsage]
+    qubit = cirq.LineQubit(0)
+    cirq_circuit_2 = cirq.Circuit()
+    cirq_circuit_2.append(cirq.H(qubit))
+    cirq_circuit_2.append(cirq.measure(qubit))
 
-    q0, q1 = cirq.LineQubit.range(2)  # type: ignore[reportPrivateImportUsage]
-    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])  # type: ignore[reportPrivateImportUsage]
+    q0, q1 = cirq.LineQubit.range(2)
+    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])
 
     return [cirq_circuit_1, cirq_circuit_2, moment]
 
@@ -535,7 +535,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -543,12 +544,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -556,14 +559,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -571,7 +576,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 

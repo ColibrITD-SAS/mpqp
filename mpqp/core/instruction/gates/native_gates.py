@@ -1125,12 +1125,12 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         c, s, eg, ep = (
-            cos(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
-            sin(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
-            exp(self.gamma * 1j),  # pyright: ignore[reportOperatorIssue]
-            exp(self.phi * 1j),  # pyright: ignore[reportOperatorIssue]
+            cos(self.theta / 2),
+            sin(self.theta / 2),
+            exp(self.gamma * 1j),
+            exp(self.phi * 1j),
         )
-        return np.array(  # pyright: ignore[reportCallIssue]
+        return np.array(
             [
                 [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
                 [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]

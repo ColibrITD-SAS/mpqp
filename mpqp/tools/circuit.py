@@ -175,7 +175,7 @@ def random_gate(
                     target,
                 )
             elif issubclass(gate_class, Rk):
-                return Rk(rng.integers(1, 10), target)
+                return Rk(int(rng.integers(1, 10)), target)
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))
@@ -190,7 +190,7 @@ def random_gate(
             if TYPE_CHECKING:
                 assert issubclass(gate_class, CRk)
             return gate_class(
-                rng.integers(1, 10),
+                int(rng.integers(1, 10)),
                 control,
                 target,
             )

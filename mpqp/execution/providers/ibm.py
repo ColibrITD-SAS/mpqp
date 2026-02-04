@@ -535,12 +535,11 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     check_job_compatibility(job)
 
-    service = get_QiskitRuntimeService()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     job.device = IBMDevice(backend.name)
-    session = Session(service=service, backend=backend)
+    session = Session(backend=backend)
 
     if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
@@ -771,6 +770,7 @@ def extract_result(
                 elif "counts" in job_data:
                     job_type = JobType.SAMPLE
                     nb_qubits = len(list(result.get_counts())[0])
+                    assert result.results is not None
                     shots = result.results[0].shots
                     job = Job(
                         job_type,

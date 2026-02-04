@@ -70,8 +70,10 @@ class StateVector:
             int(math.log(len(vector), 2)) if nb_qubits is None else nb_qubits
         )
         """See parameter description."""
-        self.probabilities = (
-            abs(self.vector) ** 2 if probabilities is None else np.array(probabilities)
+        self.probabilities: npt.NDArray[np.float64] = (
+            (abs(self.vector) ** 2).astype(np.float64)
+            if probabilities is None
+            else np.array(probabilities, dtype=np.float64)
         )
         """See parameter description."""
 
