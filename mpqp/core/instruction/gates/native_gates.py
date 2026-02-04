@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from sympy import Expr
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from braket.circuits import FreeParameter
 
 import numpy as np
@@ -94,7 +94,7 @@ def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
             return FreeParameter(str(val))  # note: Braket won't parse expressions
         else:
             try:
-                return float(val.evalf())  # pyright: ignore[reportArgumentType]
+                return float(val.evalf())
             except Exception as e:
                 raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
     else:
@@ -667,14 +667,12 @@ class P(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self) -> Matrix:
-        return np.array(  # pyright: ignore[reportCallIssue]
+        return np.array(
             [
                 [1, 0],
                 [
                     0,
-                    exp(
-                        self.parameters[0] * 1j  # pyright: ignore[reportOperatorIssue]
-                    ),
+                    exp(self.parameters[0] * 1j),
                 ],
             ]
         )
@@ -727,7 +725,7 @@ class CP(RotationGate, ControlledGate):
         ParametrizedGate.__init__(self, definition, [target], [theta], "CP")
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def __repr__(self) -> str:
@@ -973,10 +971,13 @@ class SWAP(InvolutionGate, NoParameterGate):
             swap_matrix[swapped_index, i] = 1
 
         if desired_gate_size != 0:
-            swap_matrix = np.kron(np.eye(2**min_nb_qubits), swap_matrix)
-            swap_matrix = np.kron(
-                swap_matrix, np.eye(2 ** (desired_gate_size - max_qubits))
-            )
+            swap_matrix: npt.NDArray[np.complex128] = np.kron(
+                np.eye(2**min_nb_qubits, dtype=np.complex128), swap_matrix
+            ).astype(np.complex128)
+            swap_matrix: npt.NDArray[np.complex128] = np.kron(
+                swap_matrix,
+                np.eye(2 ** (desired_gate_size - max_qubits), dtype=np.complex128),
+            ).astype(np.complex128)
         return swap_matrix
 
 
@@ -1132,8 +1133,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         )
         return np.array(
             [
-                [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
-                [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
+                [c, -eg * s],
+                [ep * s, eg * ep * c],
             ]
         )
 
@@ -1182,11 +1183,9 @@ class Rx(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array(  # pyright: ignore[reportCallIssue]
-            [[c, -1j * s], [-1j * s, c]]  # pyright: ignore[reportOperatorIssue]
-        )
+        c = cos(self.parameters[0] / 2)
+        s = sin(self.parameters[0] / 2)
+        return np.array([[c, -1j * s], [-1j * s, c]])
 
 
 class Ry(RotationGate, SingleQubitGate):
@@ -1230,8 +1229,8 @@ class Ry(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+        c = cos(self.parameters[0] / 2)
+        s = sin(self.parameters[0] / 2)
         return np.array([[c, -s], [s, c]])
 
 
@@ -1276,10 +1275,8 @@ class Rz(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array(  # pyright: ignore[reportCallIssue]
-            [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
-        )
+        e = exp(-1j * self.parameters[0] / 2)
+        return np.array([[e, 0], [0, 1 / e]])
 
 
 class Rk(RotationGate, SingleQubitGate):
@@ -1335,7 +1332,7 @@ class Rk(RotationGate, SingleQubitGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
+        return p / 2 ** (self.k - 1)
 
     @property
     def k(self) -> Expr | int:
@@ -1343,7 +1340,7 @@ class Rk(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0], [0, e]])
 
     def __repr__(self):
@@ -1422,7 +1419,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
         # TODO study the relevance of having pi from sympy
         p = np.pi if isinstance(self.k, Integral) else pi
-        return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
+        return -(p / 2 ** (self.k - 1))
 
     @property
     def k(self) -> Expr | float:
@@ -1430,7 +1427,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0], [0, e]])
 
     def to_other_language(
@@ -1626,7 +1623,7 @@ class CRk(RotationGate, ControlledGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
+        return p / 2 ** (self.k - 1)
 
     @property
     def k(self) -> Expr | float:
@@ -1634,7 +1631,7 @@ class CRk(RotationGate, ControlledGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def to_other_language(
@@ -1724,7 +1721,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
+        return -(p / 2 ** (self.k - 1))
 
     @property
     def k(self) -> Expr | int:
@@ -1732,7 +1729,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def __repr__(self) -> str:

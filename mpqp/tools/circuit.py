@@ -34,7 +34,7 @@ from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
-    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
+    from qiskit._accelerate.circuit import CircuitInstruction
 
 
 def random_circuit(
@@ -331,8 +331,11 @@ def replace_custom_gate(
             custom_unitary.operation.params[0] = closest_unitary(
                 custom_unitary.operation.params[0]
             )
+            decomposed = transpilation_circuit.decompose(reps=10)
             transpiled = transpile(
-                transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
+                decomposed,
+                basis_gates=["u3", "cx"],
+                optimization_level=0,
             )
         else:
             raise e

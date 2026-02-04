@@ -408,7 +408,9 @@ def rand_product_local_unitaries(
     """
     rng = np.random.default_rng(seed)
 
-    return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
+    return reduce(
+        np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)]
+    )  # pyright: ignore[reportReturnType]
 
 
 def rand_unitary_matrix(size: int) -> Matrix:

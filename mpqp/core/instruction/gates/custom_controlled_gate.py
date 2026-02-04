@@ -5,7 +5,7 @@ from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.languages import Language
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
     from mpqp.core.instruction.gates.gate import Gate
 

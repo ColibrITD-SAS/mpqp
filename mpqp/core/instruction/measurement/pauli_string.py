@@ -156,7 +156,7 @@ class PauliString:
                 coef_str = re.sub(r'([a-zA-Z])(\d)', r'\1*\2', coef_str)
                 coef = sympify(coef_str)
                 if dict_value:
-                    coef = coef.subs(dict_value)
+                    coef = coef.subs(dict_value)  # pyright: ignore[reportArgumentType, reportCallIssue]
 
             atoms_dict = {
                 "I": pI,
@@ -1069,7 +1069,9 @@ class PauliStringMonomial(PauliString):
         return res
 
     def __imul__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = self.coef * other  # pyright: ignore[reportOperatorIssue]
+        new_coef: "Coef" = (
+            self.coef * other
+        )  # pyright: ignore[reportAssignmentType, reportOperatorIssue]
         self.coef = new_coef
         return self
 
@@ -1212,7 +1214,9 @@ class PauliStringMonomial(PauliString):
         new_monomial = deepcopy(self)
         caster = lambda v: _unpack_expr(v) if remove_symbolic else v
         if isinstance(new_monomial.coef, Expr):
-            new_coef: "Coef" = caster(new_monomial.coef.subs(values))
+            new_coef: "Coef" = caster(
+                new_monomial.coef.subs(values)  # pyright: ignore[reportArgumentType, reportCallIssue]
+            )
             new_monomial.coef = new_coef
 
         return new_monomial

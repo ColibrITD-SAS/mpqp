@@ -562,7 +562,7 @@ def exec_observable_ideal_case(
         expected_vector.transpose()
         .conjugate()
         .dot(observable.dot(expected_vector))
-        .real
+        .real # pyright: ignore[reportAttributeAccessIssue]
     )
     batch = run(c, sampling_devices)
     assert isinstance(batch, BatchResult)

@@ -955,7 +955,13 @@ def parse_gphase_instruction(
 
             arg_expr = instr[start : i - 1].strip()
             try:
-                val = float(sympify(arg_expr).evalf(subs={"pi": np.pi}))
+                val = float(
+                    sympify(
+                        arg_expr
+                    ).evalf(  # pyright: ignore[reportAttributeAccessIssue]
+                        subs={"pi": np.pi}
+                    )
+                )
                 values.append(val)
             except ValueError:
                 if instr_match:

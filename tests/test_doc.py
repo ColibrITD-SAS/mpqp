@@ -264,10 +264,7 @@ def run_doctest(
     skip_provider_flags = {}
     if active_providers is not None:
         for name, flag in PROVIDER_FLAGS.items():
-            if (
-                len(active_providers) == 0  # pyright: ignore[reportArgumentType]
-                or name not in active_providers  # pyright: ignore[reportOperatorIssue]
-            ):
+            if len(active_providers) == 0 or name not in active_providers:
                 skip_provider_flags[name] = flag
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)

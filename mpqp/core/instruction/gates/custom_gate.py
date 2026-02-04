@@ -15,7 +15,7 @@ from sympy import Expr
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from mpqp.core.circuit import QCircuit
     from sympy import Basic
 

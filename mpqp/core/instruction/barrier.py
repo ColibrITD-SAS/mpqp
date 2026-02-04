@@ -5,7 +5,7 @@ circuit (since it artificially increases the depth)."""
 from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
 from mpqp.core.languages import Language
 

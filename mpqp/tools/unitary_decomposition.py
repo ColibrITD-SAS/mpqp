@@ -173,8 +173,8 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, position + 1)
         circuit = _gray_code_decomposition(
-            dv, circuit, position, Rz
-        )  # pyright: ignore[reportArgumentType]
+            dv, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+        )
         circuit = _decompose(Vv, circuit, position + 1)
 
         circuit = _gray_code_decomposition(
@@ -186,8 +186,8 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
 
         circuit = _decompose(Wu, circuit, position + 1)
         circuit = _gray_code_decomposition(
-            du, circuit, position, Rz
-        )  # pyright: ignore[reportArgumentType]
+            du, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+        )
         circuit = _decompose(Vu, circuit, position + 1)
 
         return circuit

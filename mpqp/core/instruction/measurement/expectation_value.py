@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from qat.core.wrappers.observable import Observable as QLMObservable
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
 
