@@ -959,7 +959,7 @@ class QCircuit:
         qiskit_circuit.append(
             StatePreparation(Statevector(normalize(state))), range(size)
         )
-        circ, phase = replace_custom_gate(qiskit_circuit[0], size)
+        circ, phase = replace_custom_gate(qiskit_circuit[0], size, list(range(size)))
         cls = QCircuit.from_other_language(circ.reverse_bits())
         cls.input_g_phase = phase
         return cls

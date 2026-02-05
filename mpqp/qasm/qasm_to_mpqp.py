@@ -314,6 +314,18 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
         elif tokens[idx].type == 'RPAREN':
             open_paren -= 1
             expr += ")"
+        elif tokens[idx].type == 'ID' and tokens[idx].value == 'e':
+            expr += 'e'
+            idx += 1
+
+            if tokens[idx].type in ('PLUS', 'MINUS'):
+                expr += tokens[idx].value
+                idx += 1
+
+            if tokens[idx].type not in ('INTN', 'REALN'):
+                raise SyntaxError("Invalid scientific notation")
+
+            expr += str(tokens[idx].value)
         elif check_num_expr(tokens[idx].type):
             raise SyntaxError(f"not a nb or expr: {idx}, {tokens[idx]}")
         elif tokens[idx].type == 'PI':

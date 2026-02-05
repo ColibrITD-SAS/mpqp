@@ -181,7 +181,9 @@ class CustomGate(Gate):
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(qiskit_circ.data[0], nb_qubits)
+            circuit, gphase = replace_custom_gate(
+                qiskit_circ.data[0], nb_qubits, self.targets
+            )
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()
