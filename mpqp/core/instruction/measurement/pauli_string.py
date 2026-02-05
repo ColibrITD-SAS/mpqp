@@ -157,8 +157,8 @@ class PauliString:
                 coef = sympify(coef_str)
                 if dict_value:
                     coef = coef.subs(
-                        dict_value # pyright: ignore[reportArgumentType, reportCallIssue]
-                    )  
+                        dict_value  # pyright: ignore[reportArgumentType, reportCallIssue]
+                    )
 
             atoms_dict = {
                 "I": pI,
@@ -1218,8 +1218,8 @@ class PauliStringMonomial(PauliString):
         if isinstance(new_monomial.coef, Expr):
             new_coef: "Coef" = caster(
                 new_monomial.coef.subs(
-                    values # pyright: ignore[reportArgumentType, reportCallIssue]
-                )  
+                    values  # pyright: ignore[reportArgumentType, reportCallIssue]
+                )
             )
             new_monomial.coef = new_coef
 
