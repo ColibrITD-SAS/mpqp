@@ -7,7 +7,7 @@ from .devices import (
     GOOGLEDevice,
     IBMDevice,
 )
-from .job import Job, JobStatus, JobType, VQAMode
+from .job import ExecutionMode, Job, JobStatus, JobType
 from .result import BatchResult, Result, Sample, StateVector
 from .runner import adjust_measure, run, submit
 from .simulated_devices import IBMSimulatedDevice
