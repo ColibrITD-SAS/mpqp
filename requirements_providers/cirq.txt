@@ -1,9 +1,9 @@
 cirq-core==1.5.0 ; python_version <= "3.10"
-cirq-google==1.5.0 ; python_version >= "3.10"
-cirq-ionq==1.5.0 ; python_version >= "3.10"
-cirq-aqt==1.5.0 ; python_version >= "3.10"
+cirq-google==1.5.0 ; python_version <= "3.10"
+cirq-ionq==1.5.0 ; python_version <= "3.10"
+cirq-aqt==1.5.0 ; python_version <= "3.10"
 
-cirq-core==1.6.1 ; python_version <= "3.11"
+cirq-core==1.6.1 ; python_version >= "3.11"
 cirq-google==1.6.1 ; python_version >= "3.11"
 cirq-ionq==1.6.1 ; python_version >= "3.11"
 cirq-aqt==1.6.1 ; python_version >= "3.11"
