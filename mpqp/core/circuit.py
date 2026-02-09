@@ -1964,27 +1964,29 @@ class QCircuit:
                 from braket.ir.openqasm.program_v1 import Program
 
                 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
-                from mpqp.qasm.qasm_to_braket import (
-                    braket_custom_gates_to_mpqp,
-                    braket_noise_to_mpqp,
-                )
+                from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
                 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
+                remove_measure = True
+                for instr in qcircuit.instructions:
+                    if instr.operator.name == "Measure":
+                        remove_measure = False
+                        break
+
                 qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
+
                 if TYPE_CHECKING:
                     assert isinstance(qasm3_code, Program)
-
-                custom_gates = braket_custom_gates_to_mpqp(qasm3_code.source)
-                noises = braket_noise_to_mpqp(qasm3_code.source)
+                noises, qasm3_code = braket_noise_to_mpqp(qasm3_code.source)
 
                 qasm2_code = open_qasm_3_to_2(
-                    str(qasm3_code.source), language=Language.BRAKET
+                    qasm3_code,
+                    language=Language.BRAKET,
+                    remove_measure=remove_measure,
                 )
+
                 qc = qasm2_parse(qasm2_code)
                 # qc.input_g_phase = phase
-                qc = qc.without_measurements(deep_copy=False)
-                if len(custom_gates) != 0:
-                    qc.add(custom_gates)
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc
