@@ -88,7 +88,7 @@ nbsphinx_prolog = r"""
 """
 
 
-def copy_notebooks(app):
+def copy_notebooks(app: Sphinx):
     # src_dir: relative to conf.py
     src_dir = os.path.abspath(os.path.join(app.srcdir, "../examples/notebooks"))
     dest_dir = os.path.join(app.srcdir, "notebooks")
@@ -102,7 +102,7 @@ def copy_notebooks(app):
             shutil.copy2(os.path.join(src_dir, nb), dest_dir)
 
 
-def copy_requirements_providers(app):
+def copy_requirements_providers(app: Sphinx):
     """
     Copy requirements_providers/*.txt into docs/requirements_providers
     so Sphinx can access them.
@@ -380,7 +380,9 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements["preamble"] += r"""
+latex_elements[
+    "preamble"
+] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{
