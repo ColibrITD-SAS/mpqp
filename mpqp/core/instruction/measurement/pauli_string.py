@@ -729,12 +729,13 @@ class PauliString:
             0.25*pZ@pY@pI + 2*pI@pI@pX
 
         """
-        if isinstance(pauli, list) and any(
-            not isinstance(p, type(pauli[0])) for p in pauli
-        ):
-            raise ValueError(
-                "Cannot parse non-homogeneous types when `pauli` is a `list`."
-            )
+        if isinstance(pauli, list):
+            if len(pauli) == 0:
+                return PauliString()
+            elif any(not isinstance(p, type(pauli[0])) for p in pauli):
+                raise ValueError(
+                    "Cannot parse non-homogeneous types when `pauli` is a `list`."
+                )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.quantum_info import SparsePauliOp
