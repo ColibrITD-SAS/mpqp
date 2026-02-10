@@ -2,12 +2,12 @@
 setuptools
 pytest==9.0.2
 nbmake
-sphinx<=5.1.1
+sphinx==9.1.0
 sphinx-rtd-dark-mode>=1.3.0
 sphinx-copybutton>=0.5.2
 sphinx_github_changelog>=1.3.0
-nbsphinx==0.9.3
-nbsphinx_link==1.3.0
+nbsphinx
+nbsphinx_link
 pyright==1.1.408
 boto3-stubs
 black==24.4.2

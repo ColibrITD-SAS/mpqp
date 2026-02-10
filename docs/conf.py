@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import sys
 from typing import Literal
 
@@ -40,7 +41,6 @@ extensions = [
     "sphinx_rtd_dark_mode",
     "sphinx_copybutton",
     "nbsphinx",  # requires pandoc ?
-    "nbsphinx_link",
 ]
 default_dark_mode = True
 autodoc_typehints = "description"
@@ -86,6 +86,44 @@ nbsphinx_prolog = r"""
     \textcolor{gray}{The following section was generated from the notebook
     \sphinxcode{\sphinxupquote{\strut {{ docname | escape_latex }}}} \dotfill}}
 """
+
+
+def copy_notebooks(app):
+    # src_dir: relative to conf.py
+    src_dir = os.path.abspath(os.path.join(app.srcdir, "../examples/notebooks"))
+    dest_dir = os.path.join(app.srcdir, "notebooks")
+    os.makedirs(dest_dir, exist_ok=True)
+
+    if not os.path.exists(src_dir):
+        raise FileNotFoundError(f"Source notebooks directory not found: {src_dir}")
+
+    for nb in os.listdir(src_dir):
+        if nb.endswith(".ipynb"):
+            shutil.copy2(os.path.join(src_dir, nb), dest_dir)
+
+
+def copy_requirements_providers(app):
+    """
+    Copy requirements_providers/*.txt into docs/requirements_providers
+    so Sphinx can access them.
+    """
+    src_dir = os.path.abspath(os.path.join(app.srcdir, "../requirements_providers"))
+    dest_dir = os.path.join(app.srcdir, "requirements_providers")
+
+    os.makedirs(dest_dir, exist_ok=True)
+
+    if not os.path.exists(src_dir):
+        raise FileNotFoundError(
+            f"Source requirements_providers directory not found: {src_dir}"
+        )
+
+    for fname in os.listdir(src_dir):
+        if fname.endswith(".txt"):
+            shutil.copy2(
+                os.path.join(src_dir, fname),
+                os.path.join(dest_dir, fname),
+            )
+
 
 # The suffix of source filenames.
 source_suffix = ".rst"
@@ -342,7 +380,9 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements["preamble"] += r"""
+latex_elements[
+    "preamble"
+] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{
@@ -385,4 +425,6 @@ def maybe_skip_member(
 
 
 def setup(app: Sphinx):
+    app.connect("builder-inited", copy_notebooks)
+    app.connect("builder-inited", copy_requirements_providers)
     app.connect("autodoc-skip-member", maybe_skip_member)
