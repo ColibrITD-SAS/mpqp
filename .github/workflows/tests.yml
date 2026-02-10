@@ -59,8 +59,8 @@ jobs:
           pip install --upgrade pip
           pip install -r requirements-dev.txt
           providers_comma=$(echo "${{ matrix.provider }}" | sed 's/ /,/g')
-          echo $providers_comma
-          pip install .[$providers_comma]
+          echo "$providers_comma"
+          pip install ".[$providers_comma]"
       - name: Install os specific dependencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
         run: |
