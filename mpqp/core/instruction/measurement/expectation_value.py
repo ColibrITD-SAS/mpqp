@@ -471,7 +471,7 @@ class ExpectationMeasure(Measure):
             self.observables.append(new_obs)
 
         if targets is None:
-            self.targets = range(observable[0].nb_qubits)
+            self.targets = list(range(observable[0].nb_qubits))
         self._check_targets_order()
 
     @property
