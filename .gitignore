@@ -1,5 +1,7 @@
 # build artifacts
 build/
+docs/notebooks/
+docs/requirements_providers/
 docs/html/
 out/
 
