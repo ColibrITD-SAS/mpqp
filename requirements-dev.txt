@@ -1,5 +1,4 @@
 -r requirements.txt
-setuptools>=56.0.0
 pytest==9.0.2
 nbmake
 sphinx<=5.1.1
