@@ -44,5 +44,5 @@ setup(
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     ],
     package_data={"mpqp.qasm.header_codes": ["*.qasm", "*.inc"]},
-    python_requires=">=3.9,<3.12",
+    python_requires=">=3.10,<3.14",
 )
