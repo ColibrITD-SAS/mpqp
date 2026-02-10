@@ -1,0 +1,11 @@
+documentation:
+- changed-files:
+  - any-glob-to-any-file: ['docs/**/*', 'README.md']
+
+maintenance:
+- changed-files:
+  - any-glob-to-any-file: ['.github/**/*', 'conftest.py', 'requirements.txt', 'requirements-dev.txt']
+
+testing:
+- changed-files:
+  - any-glob-to-any-file: ['tests/*']
