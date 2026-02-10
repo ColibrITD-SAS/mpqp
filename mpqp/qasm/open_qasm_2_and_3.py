@@ -1159,7 +1159,6 @@ def convert_instruction_3_to_2(
     elif language == Language.BRAKET and instr_name == "pragma":
         from mpqp.qasm.qasm_to_braket import braket_custom_gates_to_mpqp
 
-        print(instr)
         custom_gate = braket_custom_gates_to_mpqp(instr)
         instructions_code += (
             "#pragma mpqp" + repr(custom_gate).replace('\n', ' ') + "\n"

@@ -89,7 +89,6 @@ nbsphinx_prolog = r"""
 
 
 def copy_notebooks(app: Sphinx):
-    # src_dir: relative to conf.py
     src_dir = os.path.abspath(os.path.join(app.srcdir, "../examples/notebooks"))
     dest_dir = os.path.join(app.srcdir, "notebooks")
     os.makedirs(dest_dir, exist_ok=True)
@@ -380,7 +379,9 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements["preamble"] += r"""
+latex_elements[
+    "preamble"
+] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{
