@@ -566,10 +566,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
         qiskit_observables = [
-            obs.apply_layout(  # pyright: ignore[reportAttributeAccessIssue]
-                qiskit_circ.layout
-            )
-            for obs in qiskit_observables
+            obs.apply_layout(qiskit_circ.layout) for obs in qiskit_observables
         ]
 
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits

@@ -20,6 +20,10 @@ import numpy.typing as npt
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
+from mpqp.environment.var_cache import (
+    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+    InstalledProviders,
+)
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
@@ -696,21 +700,21 @@ class PauliString:
             output will be a list of :class:`PauliString`.
 
         Examples:
-            >>> from cirq import LineQubit, PauliSum, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
-            >>> a, b, c = LineQubit.range(3)
-            >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c)
-            >>> PauliString.from_other_language(cirq_ps)
+            >>> from cirq import LineQubit, PauliSum, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z # doctest: +CIRQ
+            >>> a, b, c = LineQubit.range(3) # doctest: +CIRQ
+            >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c) # doctest: +CIRQ
+            >>> PauliString.from_other_language(cirq_ps) # doctest: +CIRQ
             0.25*pZ@pY@pI + 2*pI@pI@pX
 
-            >>> from braket.circuits.observables import (
+            >>> from braket.circuits.observables import ( # doctest: +BRAKET
             ...     Sum as BraketSum,
             ...     I as Braket_I,
             ...     X as Braket_X,
             ...     Y as Braket_Y,
             ...     Z as Braket_Z,
             ... )
-            >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X()
-            >>> PauliString.from_other_language(braket_ps)
+            >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X() # doctest: +BRAKET
+            >>> PauliString.from_other_language(braket_ps) # doctest: +BRAKET
             0.25*pZ@pY@pI + 2*pI@pI@pX
 
             >>> from qiskit.quantum_info import SparsePauliOp
@@ -719,55 +723,69 @@ class PauliString:
             2*pI@pI@pX + 0.25*pZ@pY@pI
 
 
-            >>> from qat.core.wrappers.observable import Term
-            >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
-            >>> PauliString.from_other_language(my_qml_ps)
+            >>> from qat.core.wrappers.observable import Term # doctest: +MYQLM
+            >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])] # doctest: +MYQLM
+            >>> PauliString.from_other_language(my_qml_ps) # doctest: +MYQLM
             0.25*pZ@pY@pI + 2*pI@pI@pX
 
         """
-        if isinstance(pauli, list) and any(
-            not isinstance(p, type(pauli[0])) for p in pauli
-        ):
-            raise ValueError(
-                "Cannot parse non-homogeneous types when `pauli` is a `list`."
-            )
-
-        from braket.circuits.observables import Observable as BraketObservable
-        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
-        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
-        from cirq.ops.pauli_string import PauliString as CirqPauliString
-        from qat.core.wrappers.observable import Term
-        from qiskit.quantum_info import SparsePauliOp
-
-        if isinstance(pauli, SparsePauliOp):
-            return PauliString._from_qiskit(pauli)
-        elif isinstance(pauli, BraketObservable):
-            return PauliString._from_braket(pauli)
-        elif isinstance(pauli, Term):
-            return PauliString._from_my_qml(pauli)
-        elif isinstance(pauli, list) and isinstance(pauli[0], Term):
-            for term in pauli:
-                min_dimension = (
-                    max(max(term.qbits) + 1, min_dimension)
-                    if len(term.qbits) > 0
-                    else min_dimension
+        if isinstance(pauli, list):
+            if len(pauli) == 0:
+                return PauliString()
+            elif any(not isinstance(p, type(pauli[0])) for p in pauli):
+                raise ValueError(
+                    "Cannot parse non-homogeneous types when `pauli` is a `list`."
                 )
-            pauli_string = PauliString()
-            for term in pauli:
-                pauli_string += PauliString._from_my_qml(term, min_dimension)
-            return pauli_string
-        elif isinstance(pauli, (CirqPauliSum, CirqPauliString, CirqGateOperation)):
-            return PauliString._from_cirq(pauli, min_dimension)
-        elif isinstance(pauli, list) and isinstance(pauli[0], CirqPauliString):
-            min_dimension = max(
-                max(map(PauliString._get_dimension_cirq_pauli, pauli)), min_dimension
-            )
-            return [
-                PauliString._from_cirq(pauli_mono, min_dimension)
-                for pauli_mono in pauli
-            ]
 
-        raise NotImplementedError(f"Unsupported input type: {type(pauli)}.")
+        if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
+            from qiskit.quantum_info import SparsePauliOp
+
+            if isinstance(pauli, SparsePauliOp):
+                return PauliString._from_qiskit(pauli)
+
+        if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
+            from braket.circuits.observables import Observable as BraketObservable
+
+            if isinstance(pauli, BraketObservable):
+                return PauliString._from_braket(pauli)
+
+        if InstalledProviders.MY_QLM in _INSTALLED_MPQP_PROVIDERS:
+            from qat.core.wrappers.observable import Term
+
+            if isinstance(pauli, Term):
+                return PauliString._from_my_qml(pauli)
+            elif isinstance(pauli, list) and isinstance(pauli[0], Term):
+                for term in pauli:
+                    min_dimension = (
+                        max(max(term.qbits) + 1, min_dimension)
+                        if len(term.qbits) > 0
+                        else min_dimension
+                    )
+                pauli_string = PauliString()
+                for term in pauli:
+                    pauli_string += PauliString._from_my_qml(term, min_dimension)
+                return pauli_string
+
+        if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
+            from cirq.ops.gate_operation import GateOperation as CirqGateOperation
+            from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+            from cirq.ops.pauli_string import PauliString as CirqPauliString
+
+            if isinstance(pauli, (CirqPauliSum, CirqPauliString, CirqGateOperation)):
+                return PauliString._from_cirq(pauli, min_dimension)
+            elif isinstance(pauli, list) and isinstance(pauli[0], CirqPauliString):
+                min_dimension = max(
+                    max(map(PauliString._get_dimension_cirq_pauli, pauli)),
+                    min_dimension,
+                )
+                return [
+                    PauliString._from_cirq(pauli_mono, min_dimension)
+                    for pauli_mono in pauli
+                ]
+
+        raise NotImplementedError(
+            f"Unsupported input type: {type(pauli)}, or sdk not installed."
+        )
 
     @overload
     def to_other_language(
@@ -825,9 +843,9 @@ class PauliString:
 
         Example:
             >>> ps = pX@ pX@ pI + pI @ pY@ pI + pI @ pI @ pZ
-            >>> print(ps.to_other_language(Language.CIRQ))
+            >>> print(ps.to_other_language(Language.CIRQ)) # doctest: +CIRQ
             1.000*X(q(0))*X(q(1))+1.000*Y(q(1))+1.000*Z(q(2))
-            >>> for term in ps.to_other_language(Language.MY_QLM):
+            >>> for term in ps.to_other_language(Language.MY_QLM): # doctest: +MYQLM
             ...     print(term.op, term.qbits)
             XX [0, 1]
             Y [1]
@@ -835,7 +853,7 @@ class PauliString:
             >>> ps.to_other_language(Language.QISKIT)
             SparsePauliOp(['XXI', 'IYI', 'IIZ'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
-            >>> for tensor in ps.to_other_language(Language.BRAKET).summands:
+            >>> for tensor in ps.to_other_language(Language.BRAKET).summands:  # doctest: +BRAKET
             ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors))
             1 XXI
             1 IYI

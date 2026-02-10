@@ -43,41 +43,49 @@ def ibm_simulated_devices():
     return list(IBMSimulatedDevice)
 
 
+@pytest.mark.provider("qiskit")
 def test_generation_enum():
     assert len(ibm_simulated_devices()) > 0
 
 
-@pytest.mark.parametrize(
-    "circuit, device", [(i, j) for i in circuits() for j in ibm_simulated_devices()]
-)
+@pytest.fixture
+def list_ibm_simulated_device() -> list[tuple[QCircuit, StaticIBMSimulatedDevice]]:
+    return [(i, j) for i in circuits() for j in ibm_simulated_devices()]
+
+
+@pytest.mark.provider("qiskit")
 def running_sample_job_ibm_simulated_devices(
-    circuit: QCircuit, device: StaticIBMSimulatedDevice
+    list_ibm_simulated_device: list[tuple[QCircuit, StaticIBMSimulatedDevice]],
 ):
-    c = circuit + QCircuit([BasisMeasure()], nb_qubits=circuit.nb_qubits)
-    if device.value().num_qubits < c.nb_qubits:
-        with pytest.raises(DeviceJobIncompatibleError):
+    for circuit, device in list_ibm_simulated_device:
+        c = circuit + QCircuit([BasisMeasure()], nb_qubits=circuit.nb_qubits)
+        if device.value().num_qubits < c.nb_qubits:
+            with pytest.raises(DeviceJobIncompatibleError):
+                run(c, device)
+        else:
             run(c, device)
-    else:
-        run(c, device)
-    assert True
+        assert True
 
 
-@pytest.mark.parametrize(
-    "circuit, device", [(i, j) for i in circuits() for j in ibm_simulated_devices()]
-)
+@pytest.mark.provider("qiskit")
 def running_observable_job_ibm_simulated_devices(
-    circuit: QCircuit, device: StaticIBMSimulatedDevice
+    list_ibm_simulated_device: list[tuple[QCircuit, StaticIBMSimulatedDevice]],
 ):
-    c = circuit + QCircuit(
-        [ExpectationMeasure(Observable(rand_hermitian_matrix(2**circuit.nb_qubits)))],
-        nb_qubits=circuit.nb_qubits,
-    )
-    if device.value().num_qubits < c.nb_qubits:
-        with pytest.raises(DeviceJobIncompatibleError):
+    for circuit, device in list_ibm_simulated_device:
+        c = circuit + QCircuit(
+            [
+                ExpectationMeasure(
+                    Observable(rand_hermitian_matrix(2**circuit.nb_qubits))
+                )
+            ],
+            nb_qubits=circuit.nb_qubits,
+        )
+        if device.value().num_qubits < c.nb_qubits:
+            with pytest.raises(DeviceJobIncompatibleError):
+                run(c, device)
+        else:
             run(c, device)
-    else:
-        run(c, device)
-    assert True
+        assert True
 
 
 if "--long-local" in sys.argv or "--long" in sys.argv:

@@ -1,6 +1,5 @@
 import random
 from functools import reduce
-from itertools import product
 
 import numpy as np
 import pytest
@@ -15,22 +14,36 @@ from mpqp.tools.circuit import random_circuit
 from mpqp.tools.maths import is_unitary, matrix_eq, rand_orthogonal_matrix
 
 
-def local_simulators():
-    return [
-        IBMDevice.AER_SIMULATOR,
-        AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        ATOSDevice.MYQLM_PYLINALG,
-        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-    ]
-
-
 def test_custom_gate_is_unitary():
     definition = np.array([[1, 0], [0, 1j]])
     assert is_unitary(CustomGate(definition, [0]).to_matrix())
 
 
-@pytest.mark.parametrize("circ_size, device", product(range(1, 6), local_simulators()))
-def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_random_orthogonal_matrix_qiskit(circ_size: int):
+    exec_random_orthogonal_matrix(circ_size, IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_random_orthogonal_matrix_braket(circ_size: int):
+    exec_random_orthogonal_matrix(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_random_orthogonal_matrix_cirq(circ_size: int):
+    exec_random_orthogonal_matrix(circ_size, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_random_orthogonal_matrix_myqlm(circ_size: int):
+    exec_random_orthogonal_matrix(circ_size, ATOSDevice.MYQLM_PYLINALG)
+
+
+def exec_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     gate_size = random.randint(1, circ_size)
     targets_start = random.randint(0, circ_size - gate_size)
     m = rand_orthogonal_matrix(2**gate_size)
@@ -52,8 +65,27 @@ def test_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     assert matrix_eq(result.amplitudes, exp_state_vector, 1e-5, 1e-5)
 
 
-@pytest.mark.parametrize("device", local_simulators())
-def test_custom_gate_with_native_gates(device: AvailableDevice):
+@pytest.mark.provider("qiskit")
+def test_custom_gate_with_native_gates_qiskit():
+    exec_custom_gate_with_native_gates(IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_custom_gate_with_native_gates_braket():
+    exec_custom_gate_with_native_gates(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("cirq")
+def test_custom_gate_with_native_gates_cirq():
+    exec_custom_gate_with_native_gates(GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("myqlm")
+def test_custom_gate_with_native_gates_myqlm():
+    exec_custom_gate_with_native_gates(ATOSDevice.MYQLM_PYLINALG)
+
+
+def exec_custom_gate_with_native_gates(device: AvailableDevice):
     x = np.array([[0, 1], [1, 0]])
     h = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
     cnot = np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 0, 1], [0, 0, 1, 0]])
@@ -80,8 +112,31 @@ def test_custom_gate_with_native_gates(device: AvailableDevice):
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 
 
-@pytest.mark.parametrize("circ_size, device", product(range(1, 6), local_simulators()))
-def test_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_custom_gate_with_random_circuit_qiskit(circ_size: int):
+    exec_custom_gate_with_random_circuit(circ_size, IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_custom_gate_with_random_circuit_braket(circ_size: int):
+    exec_custom_gate_with_random_circuit(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_custom_gate_with_random_circuit_cirq(circ_size: int):
+    exec_custom_gate_with_random_circuit(circ_size, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("circ_size", range(1, 6))
+def test_custom_gate_with_random_circuit_myqlm(circ_size: int):
+    exec_custom_gate_with_random_circuit(circ_size, ATOSDevice.MYQLM_PYLINALG)
+
+
+def exec_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
     random_circ = random_circuit(nb_qubits=circ_size)
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit([CustomGate(matrix, list(range(circ_size)))])
@@ -165,19 +220,131 @@ def _test_execution_equivalence(
     )
 
 
-@pytest.mark.parametrize(
-    "gates_n_positions, device", product(non_ordered_targets(), local_simulators())
-)
-def test_non_ordered_targets_execution(
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("gates_n_positions", non_ordered_targets())
+def test_non_ordered_targets_execution_qiskit(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_ordered_targets_execution(gates_n_positions, IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("gates_n_positions", non_ordered_targets())
+def test_non_ordered_targets_execution_braket(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_ordered_targets_execution(
+        gates_n_positions, AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("gates_n_positions", non_ordered_targets())
+def test_non_ordered_targets_execution_cirq(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_ordered_targets_execution(
+        gates_n_positions, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("gates_n_positions", non_ordered_targets())
+def test_non_ordered_targets_execution_myqlm(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_ordered_targets_execution(gates_n_positions, ATOSDevice.MYQLM_PYLINALG)
+
+
+def exec_non_ordered_targets_execution(
     gates_n_positions: list[tuple[type[SingleQubitGate], int]], device: AvailableDevice
 ):
     _test_execution_equivalence(gates_n_positions, device)
 
 
-@pytest.mark.parametrize(
-    "gates_n_positions, device", product(non_contiguous_targets(), local_simulators())
-)
-def test_non_contiguous_targets_execution(
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_targets())
+def test_non_contiguous_targets_execution_qiskit(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_targets_execution(gates_n_positions, IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_targets())
+def test_non_contiguous_targets_execution_braket(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_targets_execution(
+        gates_n_positions, AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_targets())
+def test_non_contiguous_targets_execution_cirq(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_targets_execution(
+        gates_n_positions, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_targets())
+def test_non_contiguous_targets_execution_myqlm(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_targets_execution(gates_n_positions, ATOSDevice.MYQLM_PYLINALG)
+
+
+def exec_non_contiguous_targets_execution(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]], device: AvailableDevice
+):
+    _test_execution_equivalence(gates_n_positions, device)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_ordered_targets())
+def test_non_contiguous_ordered_targets_execution_qiskit(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_ordered_targets_execution(
+        gates_n_positions, IBMDevice.AER_SIMULATOR
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_ordered_targets())
+def test_non_contiguous_ordered_targets_execution_braket(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_ordered_targets_execution(
+        gates_n_positions, AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_ordered_targets())
+def test_non_contiguous_ordered_targets_execution_cirq(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_ordered_targets_execution(
+        gates_n_positions, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+    )
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("gates_n_positions", non_contiguous_ordered_targets())
+def test_non_contiguous_ordered_targets_execution_myqlm(
+    gates_n_positions: list[tuple[type[SingleQubitGate], int]],
+):
+    exec_non_contiguous_ordered_targets_execution(
+        gates_n_positions, ATOSDevice.MYQLM_PYLINALG
+    )
+
+
+def exec_non_contiguous_ordered_targets_execution(
     gates_n_positions: list[tuple[type[SingleQubitGate], int]], device: AvailableDevice
 ):
     _test_execution_equivalence(gates_n_positions, device)
@@ -189,16 +356,6 @@ def test_subs():
     assert g.matrix[0, 0] == theta
     g2 = g.subs({"theta": 1})  # pyright: ignore
     assert g2.matrix[0, 0] == 1
-
-
-@pytest.mark.parametrize(
-    "gates_n_positions, device",
-    product(non_contiguous_ordered_targets(), local_simulators()),
-)
-def test_non_contiguous_ordered_targets_execution(
-    gates_n_positions: list[tuple[type[SingleQubitGate], int]], device: AvailableDevice
-):
-    _test_execution_equivalence(gates_n_positions, device)
 
 
 def test_symbolic_str():

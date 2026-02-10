@@ -6,17 +6,24 @@ from typing import TYPE_CHECKING, Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 import pytest
-from braket.circuits import Circuit as BraketCircuit
-from braket.circuits import Noise as BraketNoise
-from braket.circuits.gate import Gate as BraketGate
-from cirq.circuits.circuit import Circuit as cirq_Circuit
-from cirq.circuits.moment import Moment
-from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
-from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 from qiskit import ClassicalRegister
 from qiskit import QuantumCircuit as QiskitCircuit
 from qiskit import QuantumRegister
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
+
+from mpqp.execution.devices import (
+    AvailableDevice,
+    ATOSDevice,
+    GOOGLEDevice,
+    IBMDevice,
+    AWSDevice,
+)
+
+if TYPE_CHECKING:
+    from braket.circuits import Circuit as BraketCircuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from cirq.circuits.moment import Moment
+    from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 
 from mpqp import (
     CNOT,
@@ -110,6 +117,10 @@ def list_qiskit_funky_circuits() -> list[QiskitCircuit]:
 
 @pytest.fixture
 def list_braket_funky_circuits() -> list[BraketCircuit]:
+    from braket.circuits import Circuit as BraketCircuit
+    from braket.circuits import Noise as BraketNoise
+    from braket.circuits.gate import Gate as BraketGate
+
     braket_circuit1 = BraketCircuit().h(0).x(control=0, target=1)  # type: ignore[reportAttributeAccessIssue]
     braket_circuit1.ry(angle=0.13, target=2, control=(0, 1))
     braket_circuit1.x(0, power=1 / 5)
@@ -407,9 +418,9 @@ def test_tensor(
     )
 
 
-@pytest.mark.parametrize(
-    "state",
-    [
+@pytest.fixture
+def states() -> list[npt.NDArray[np.complex128]]:
+    return [
         (np.array([1 / np.sqrt(2), 1 / np.sqrt(2)])),
         (np.array([1, 0, 0, 1]) / np.sqrt(2)),
         (statevector_from_random_circuit(1)),
@@ -418,15 +429,18 @@ def test_tensor(
         (statevector_from_random_circuit(6)),
         (np.array([1 / 2, np.sqrt(3) / 2])),
         (np.array([1, 1j]) / np.sqrt(2)),
-    ],
-)
-def test_initializer(state: npt.NDArray[np.complex128]):
-    qc = QCircuit.initializer(state)
-    res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
-    if TYPE_CHECKING:
-        assert isinstance(res, Result)
-    state_vector_initialized = res.state_vector.vector
-    assert matrix_eq(state, state_vector_initialized)
+    ]
+
+
+@pytest.mark.provider("qiskit")
+def test_initializer(states: list[npt.NDArray[np.complex128]]):
+    for state in states:
+        qc = QCircuit.initializer(state)
+        res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
+        if TYPE_CHECKING:
+            assert isinstance(res, Result)
+        state_vector_initialized = res.state_vector.vector
+        assert matrix_eq(state, state_vector_initialized)
 
 
 @pytest.mark.parametrize(
@@ -488,12 +502,12 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         assert str(circuit.without_measurements(deep_copy=False)) == f.read()
 
 
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
-    "circuit, args, result_type, result_repr",
+    "circuit, result_type, result_repr",
     [
         (
             QCircuit([X(0), CNOT(0, 1)]),
-            (),
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
@@ -503,21 +517,23 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
                 " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
             ),
         ),
-        (
-            QCircuit([X(0), CNOT(0, 1)]),
-            (Language.QISKIT,),
-            QiskitCircuit,
-            (
-                "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 1),),"
-                " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
-                " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
-                " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
-            ),
-        ),
+    ],
+)
+def test_to_other_language_qiskit(
+    circuit: QCircuit, result_type: type, result_repr: str
+):
+    converted_circuit = circuit.to_other_language(Language.QISKIT)
+    assert type(converted_circuit) == result_type
+    assert repr(converted_circuit.data) == result_repr
+
+
+@pytest.fixture
+def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
+    from braket.circuits import Circuit as BraketCircuit
+
+    return [
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
-            (Language.BRAKET,),
             BraketCircuit,
             ("""\
 T  : │         0         │
@@ -531,7 +547,6 @@ T  : │         0         │"""),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
-            (Language.BRAKET,),
             BraketCircuit,
             ("""\
 T  : │         0         │
@@ -547,7 +562,6 @@ T  : │         0         │"""),
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
-            (Language.BRAKET,),
             BraketCircuit,
             ("""\
 T  : │         0         │
@@ -559,16 +573,16 @@ q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
 T  : │         0         │"""),
         ),
-    ],
-)
-def test_to_other_language(
-    circuit: QCircuit, args: tuple[Language], result_type: type, result_repr: str
+    ]
+
+
+@pytest.mark.provider("braket")
+def test_to_other_language_braket(
+    list_braket_circuit: list[tuple[QCircuit, type, str]],
 ):
-    converted_circuit = circuit.to_other_language(*args)
-    assert type(converted_circuit) == result_type
-    if isinstance(converted_circuit, QiskitCircuit):
-        assert repr(converted_circuit.data) == result_repr
-    if isinstance(converted_circuit, BraketCircuit):
+    for circuit, result_type, result_repr in list_braket_circuit:
+        converted_circuit = circuit.to_other_language(Language.BRAKET)
+        assert type(converted_circuit) == result_type
         assert str(converted_circuit) == result_repr
 
 
@@ -611,33 +625,40 @@ def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
     return circuit, circuit_2
 
 
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
-    "circuit, language, expected_output",
+    "circuit, expected_output",
     [
-        (random_qiskit_circuit(2, 5), Language.QISKIT, None),
-        (random_qiskit_circuit(5, 5), Language.QISKIT, None),
-        (random_qiskit_circuit(10, 5), Language.QISKIT, None),
-        (
-            _create_large_circuits_for_tests()[0],
-            Language.QISKIT,
-            None,
-        ),
-        (
-            _create_large_circuits_for_tests()[1],
-            Language.QISKIT,
-            "\"If\" instructions aren't handled",
-        ),
-        (QCircuit([H(0), CNOT(0, 1)]), Language.QASM2, None),
-        (random_circuit(None, 2), Language.QASM2, None),
-        (random_circuit(None, 10), Language.QASM2, None),
+        (random_qiskit_circuit(2, 5), None),
+        (random_qiskit_circuit(5, 5), None),
+        (random_qiskit_circuit(10, 5), None),
+        (_create_large_circuits_for_tests()[0], None),
+        (_create_large_circuits_for_tests()[1], "\"If\" instructions aren't handled"),
+    ],
+)
+def test_from_qiskit(circuit: QiskitCircuit, expected_output: Optional[str]):
+    from qiskit.quantum_info import Operator
+
+    if not isinstance(expected_output, str):
+        qcircuit = QCircuit.from_other_language(circuit)
+        matrix = Operator(circuit.reverse_bits()).data
+        assert matrix_eq(
+            matrix, qcircuit.to_matrix()  # pyright: ignore[reportArgumentType]
+        )
+    else:
+        with pytest.raises(ValueError, match=expected_output):
+            QCircuit.from_other_language(circuit)
+
+
+@pytest.mark.parametrize(
+    "circuit, expected_output",
+    [
         (
             "OPENQASM 2.0;\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
-            Language.QASM2,
             QCircuit([H(0), CNOT(0, 1)]),
         ),
         (
             "// Generated from Cirq v1.3.0\n\nOPENQASM 2.0;\n\n// Qubits: [q0, q1]\nqreg q[2];\nh q[0];\ncx q[0],q[1];",
-            Language.QASM2,
             QCircuit([H(0), CNOT(0, 1)]),
         ),
         (
@@ -662,7 +683,6 @@ def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
             h q[0];
             id q[2];
             id q[3];""",
-            Language.QASM2,
             QCircuit(
                 [
                     Z(0),
@@ -701,71 +721,72 @@ def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
                 ]
             ),
         ),
-        (random_cirq_circuit(2, 5, 0.5), Language.CIRQ, None),
-        (random_cirq_circuit(10, 5, 0.5), Language.CIRQ, None),
-        (QCircuit([H(0), CNOT(0, 1)]), Language.BRAKET, None),
-        (random_circuit(None, 2), Language.BRAKET, None),
-        (random_circuit(None, 10), Language.BRAKET, None),
-        (QCircuit([H(0), CNOT(0, 1)]), Language.MY_QLM, None),
-        (random_circuit(None, 2), Language.MY_QLM, None),
-        (random_circuit(None, 10), Language.MY_QLM, None),
         (
             "OPENQASM 3.0;include \"stdgates.inc\";qubit[2] q;h q[0];cx q[0], q[1];",
-            Language.QASM3,
             QCircuit([H(0), CNOT(0, 1)]),
         ),
         (
             "//Generated with Qiskit\n\nOPENQASM 3.0;include \"stdgates.inc\";\n//Qubits\nqubit[2] q;h q[0];cx q[0], q[1];",
-            Language.QASM3,
             QCircuit([H(0), CNOT(0, 1)]),
         ),
     ],
 )
-def test_from_other_language(
-    circuit: QiskitCircuit | QCircuit | cirq_Circuit | str,
-    language: Language,
-    expected_output: Optional[str | QCircuit],
-):
-    if isinstance(circuit, QiskitCircuit):
-        from qiskit.quantum_info import Operator
+def test_from_qasm(circuit: str, expected_output: QCircuit):
+    qcircuit = QCircuit.from_other_language(circuit)
+    assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
 
-        if not isinstance(expected_output, str):
-            qcircuit = QCircuit.from_other_language(circuit)
-            matrix = Operator(circuit.reverse_bits()).data
-            if TYPE_CHECKING:
-                assert isinstance(matrix, np.ndarray)
-            assert matrix_eq(matrix, qcircuit.to_matrix())
-        else:
-            with pytest.raises(ValueError, match=expected_output):
-                QCircuit.from_other_language(circuit)
 
-    elif isinstance(circuit, cirq_Circuit):
-        from cirq.protocols.unitary_protocol import unitary
+@pytest.fixture
+def list_random_cirq_circuit() -> list["cirq_Circuit"]:
+    from cirq.testing.random_circuit import random_circuit as random_cirq_circuit
 
+    return [
+        random_cirq_circuit(2, 5, 0.5),
+        random_cirq_circuit(10, 5, 0.5),
+    ]
+
+
+@pytest.mark.provider("cirq")
+def test_from_cirq(list_random_cirq_circuit: list[cirq_Circuit]):
+    from cirq.protocols.unitary_protocol import unitary
+
+    for circuit in list_random_cirq_circuit:
         qcircuit = QCircuit.from_other_language(circuit)
-        cirq_circuit = qcircuit.to_other_language(language)
+        cirq_circuit = qcircuit.to_other_language(Language.CIRQ)
         assert matrix_eq(unitary(cirq_circuit), unitary(circuit))
 
-    elif language == Language.QASM3:
-        qcircuit = QCircuit.from_other_language(circuit)
-        if TYPE_CHECKING:
-            assert isinstance(expected_output, QCircuit)
-        assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
 
-    elif isinstance(circuit, str):
-        qcircuit = QCircuit.from_other_language(circuit)
-        if TYPE_CHECKING:
-            assert isinstance(expected_output, QCircuit)
-        assert matrix_eq(qcircuit.to_matrix(), expected_output.to_matrix())
-
-    else:
-        circ_to_test = circuit.to_other_language(language)
-        if TYPE_CHECKING:
-            assert isinstance(circ_to_test, (BraketCircuit, str))
-        qcircuit = QCircuit.from_other_language(circ_to_test)
-        assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "circuit",
+    [
+        QCircuit([H(0), CNOT(0, 1)]),
+        random_circuit(None, 2),
+        random_circuit(None, 10),
+    ],
+)
+def test_from_braket(circuit: QCircuit):
+    circ_to_test = circuit.to_other_language(Language.BRAKET)
+    qcircuit = QCircuit.from_other_language(circ_to_test)
+    assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
 
 
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize(
+    "circuit",
+    [
+        QCircuit([H(0), CNOT(0, 1)]),
+        random_circuit(None, 2),
+        random_circuit(None, 10),
+    ],
+)
+def test_from_myqlm(circuit: QCircuit):
+    circ_to_test = circuit.to_other_language(Language.MY_QLM)
+    qcircuit = QCircuit.from_other_language(circ_to_test)
+    assert matrix_eq(qcircuit.to_matrix(), circuit.to_matrix())
+
+
+@pytest.mark.provider("qiskit")
 def test_from_other_language_qiskit_circuits(
     list_qiskit_funky_circuits: list[QiskitCircuit],
 ):
@@ -773,8 +794,9 @@ def test_from_other_language_qiskit_circuits(
         QCircuit.from_other_language(qiskit_circuit)
 
 
+@pytest.mark.provider("braket")
 def test_from_other_language_braket_circuits(
-    list_braket_funky_circuits: list[BraketCircuit],
+    list_braket_funky_circuits: list["BraketCircuit"],
 ):
     for i in range(len(list_braket_funky_circuits)):
         if i == 0:
@@ -793,6 +815,7 @@ def test_from_other_language_braket_circuits(
             QCircuit.from_other_language(list_braket_funky_circuits[i])
 
 
+@pytest.mark.provider("cirq")
 def test_from_other_language_cirq_circuits(
     list_cirq_funky_circuits: list[cirq_Circuit],
 ):
@@ -800,6 +823,7 @@ def test_from_other_language_cirq_circuits(
         QCircuit.from_other_language(circ)
 
 
+@pytest.mark.provider("myqlm")
 def test_from_other_language_myqlm_circuits(
     list_myqlm_funky_circuits: list[myQLM_Circuit],
 ):
@@ -807,6 +831,7 @@ def test_from_other_language_myqlm_circuits(
         QCircuit.from_other_language(circ)
 
 
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize(
     "circuit, expected_str",
     [
@@ -822,7 +847,7 @@ def test_from_other_language_myqlm_circuits(
         )
     ],
 )
-def test_from_other_language_noise(circuit: QCircuit, expected_str: str):
+def test_from_other_language_noise_braket(circuit: QCircuit, expected_str: str):
     braket_circuit = circuit.to_other_language(Language.BRAKET)
     qc = QCircuit.from_other_language(braket_circuit)
     assert str(qc.noises) == expected_str
@@ -883,20 +908,52 @@ def test_to_qasm_3(circuit: QCircuit, printed_result_filename: str):
         assert qasm3.strip() == f.read().strip()
 
 
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "measure",
     [BasisMeasure(), ExpectationMeasure(Observable(1 * pI @ pZ + 1 * pI @ pI))],
 )
-def test_measure_no_target(measure: Measure):
+def test_measure_no_target_qiskit(measure: Measure):
+    exec_measure_no_target(measure, IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "measure",
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * pI @ pZ + 1 * pI @ pI))],
+)
+def test_measure_no_target_braket(measure: Measure):
+    exec_measure_no_target(measure, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize(
+    "measure",
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * pI @ pZ + 1 * pI @ pI))],
+)
+def test_measure_no_target_cirq(measure: Measure):
+    exec_measure_no_target(measure, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize(
+    "measure",
+    [BasisMeasure(), ExpectationMeasure(Observable(1 * pI @ pZ + 1 * pI @ pI))],
+)
+def test_measure_no_target_myqlm(measure: Measure):
+    exec_measure_no_target(measure, ATOSDevice.MYQLM_CLINALG)
+
+
+def exec_measure_no_target(measure: Measure, device: AvailableDevice):
     circuit = QCircuit(2)
     circuit.add(H(0))
     circuit.add(CNOT(0, 1))
     circuit.add(measure)
 
     if isinstance(measure, ExpectationMeasure):
-        isinstance(run(circuit, ATOSDevice.MYQLM_PYLINALG).expectation_values, float)
+        isinstance(run(circuit, device).expectation_values, float)
     else:
-        assert run(circuit, ATOSDevice.MYQLM_PYLINALG).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
+        assert run(circuit, device).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
 
 
 @pytest.mark.parametrize(

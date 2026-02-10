@@ -202,6 +202,16 @@ class Gate(Instruction, ABC):
         """
         result = {}
         for attr_name in dir(self):
+            if attr_name == "cirq_gate":
+                try:
+                    import cirq  # pyright: ignore[reportUnusedImport]
+                except ImportError:
+                    continue
+            if attr_name == "braket_gate":
+                try:
+                    import braket  # pyright: ignore[reportUnusedImport]
+                except ImportError:
+                    continue
             if (
                 attr_name not in {'_abc_impl'}
                 and not attr_name.startswith("__")
