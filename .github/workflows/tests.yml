@@ -58,11 +58,11 @@ jobs:
           cache: "pip"
       - name: Install python dependencies
         run: |
-          pip install --upgrade pip
-          pip install -r requirements-dev.txt
           providers_comma=$(echo "${{ matrix.provider }}" | sed 's/ /,/g')
           echo $providers_comma
+          pip install --upgrade pip
           pip install .[$providers_comma]
+          pip install -r requirements-dev.txt
       - name: Install os specific dependencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
         run: |
@@ -94,7 +94,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements-dev.txt
           pip install -r requirements-all.txt
+          pip install -r requirements-dev.txt
       - name: Run type checker
         run: pyright
