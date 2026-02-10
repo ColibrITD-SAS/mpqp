@@ -57,8 +57,8 @@ def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
         ... qubit[2] q;
         ... h q[0];
         ... '''
-        >>> program = qasm3_to_braket_Program(qasm_code)
-        >>> print(program)
+        >>> program = qasm3_to_braket_Program(qasm_code) # doctest: +MYQLM
+        >>> print(program) # doctest: +MYQLM
         braketSchemaHeader=BraketSchemaHeader(name='braket.ir.openqasm.program', version='1') source='\nOPENQASM 3.0;\nqubit[2] q;\nh q[0];\n' inputs=None
 
     """
@@ -89,8 +89,8 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
         ... qubit[2] q;
         ... h q[0];
         ... '''
-        >>> circuit = qasm3_to_braket_Circuit(qasm_code)
-        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
+        >>> circuit = qasm3_to_braket_Circuit(qasm_code) # doctest: +MYQLM
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE, +MYQLM
         T  : │  0  │
               ┌───┐
         q0 : ─┤ H ├─

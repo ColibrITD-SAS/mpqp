@@ -1,12 +1,11 @@
 from typing import Any, Callable
-
 import numpy as np
 import pytest
-from braket.devices import LocalSimulator
 
 from mpqp import (
     ATOSDevice,
     AWSDevice,
+    GOOGLEDevice,
     BasisMeasure,
     ExpectationMeasure,
     IBMDevice,
@@ -15,7 +14,7 @@ from mpqp import (
     QCircuit,
     run,
 )
-from mpqp.execution import AvailableDevice
+from mpqp.execution.devices import AvailableDevice
 from mpqp.gates import *
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
@@ -31,7 +30,41 @@ def warn_guard(device: AvailableDevice, run: Callable[[], Any]):
         return run()
 
 
-def test_sample_demo():
+@pytest.mark.provider("qiskit")
+def test_sample_demo_qiskit():
+    exec_sample_demo(
+        [
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            # IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+        ],
+    )
+
+
+@pytest.mark.provider("braket")
+def test_sample_demo_braket():
+    exec_sample_demo([AWSDevice.BRAKET_LOCAL_SIMULATOR])
+
+
+@pytest.mark.provider("myqlm")
+def test_sample_demo_myqlm():
+    exec_sample_demo(
+        [
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+        ],
+    )
+
+
+@pytest.mark.provider("cirq")
+def test_sample_demo_cirq():
+    exec_sample_demo([GOOGLEDevice.CIRQ_LOCAL_SIMULATOR])
+
+
+def exec_sample_demo(devices: list[AvailableDevice]):
     # Declaration of the circuit with the right size
     circuit = QCircuit(4)
 
@@ -55,23 +88,7 @@ def test_sample_demo():
     # Add measurement
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
-    # Run the circuit on a selected device
-    runner = lambda: run(
-        circuit,
-        [
-            IBMDevice.AER_SIMULATOR,
-            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-            IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            # IBMDevice.AER_SIMULATOR_STABILIZER,
-            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
-            ATOSDevice.MYQLM_PYLINALG,
-            ATOSDevice.MYQLM_CLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        ],
-    )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, devices)
 
     assert True
 
@@ -107,7 +124,38 @@ def test_sample_demo_aer_stabilizers():
     assert True
 
 
-def test_statevector_demo():
+@pytest.mark.provider("qiskit")
+def test_statevector_demo_qiskit():
+    exec_statevector_demo(
+        [
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        ],
+    )
+
+
+@pytest.mark.provider("braket")
+def test_statevector_demo_braket():
+    exec_statevector_demo([AWSDevice.BRAKET_LOCAL_SIMULATOR])
+
+
+@pytest.mark.provider("myqlm")
+def test_statevector_demo_myqlm():
+    exec_statevector_demo(
+        [
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+        ],
+    )
+
+
+@pytest.mark.provider("cirq")
+def test_statevector_demo_cirq():
+    exec_statevector_demo([GOOGLEDevice.CIRQ_LOCAL_SIMULATOR])
+
+
+def exec_statevector_demo(devices: list[AvailableDevice]):
     circuit = QCircuit(
         [
             T(0),
@@ -129,37 +177,13 @@ def test_statevector_demo():
     )
 
     # when no measure in the circuit, must run in statevector mode
-    runner = lambda: run(
-        circuit,
-        [
-            IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            IBMDevice.AER_SIMULATOR,
-            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-            ATOSDevice.MYQLM_PYLINALG,
-            ATOSDevice.MYQLM_CLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        ],
-    )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, devices)
 
     # same when we add a BasisMeasure with 0 shots
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=0))
 
     # Run the circuit on a selected device
-    runner = lambda: run(
-        circuit,
-        [
-            IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            IBMDevice.AER_SIMULATOR,
-            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-            ATOSDevice.MYQLM_PYLINALG,
-            ATOSDevice.MYQLM_CLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        ],
-    )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, devices)
 
     assert True
 
@@ -186,8 +210,47 @@ def test_statevector_demo_stab():
     assert True
 
 
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("shots", [0, 1000])
-def test_observable_demo(shots: int):
+def test_observable_demo_qiskit(shots: int):
+    exec_observable_demo(
+        shots,
+        [
+            IBMDevice.AER_SIMULATOR,
+            IBMDevice.AER_SIMULATOR_STATEVECTOR,
+            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+            # IBMDevice.AER_SIMULATOR_STABILIZER,
+            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
+            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
+        ],
+    )
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("shots", [0, 1000])
+def test_observable_demo_braket(shots: int):
+    exec_observable_demo(shots, [AWSDevice.BRAKET_LOCAL_SIMULATOR])
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("shots", [0, 1000])
+def test_observable_demo_myqlm(shots: int):
+    exec_observable_demo(
+        shots,
+        [
+            ATOSDevice.MYQLM_PYLINALG,
+            ATOSDevice.MYQLM_CLINALG,
+        ],
+    )
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("shots", [0, 1000])
+def test_observable_demo_cirq(shots: int):
+    exec_observable_demo(shots, [GOOGLEDevice.CIRQ_LOCAL_SIMULATOR])
+
+
+def exec_observable_demo(shots: int, devices: list[AvailableDevice]):
     obs = Observable(
         np.array(
             [
@@ -208,27 +271,15 @@ def test_observable_demo(shots: int):
     circuit.add(ExpectationMeasure(obs, shots=shots))
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    runner = lambda: run(
-        circuit,
-        [
-            ATOSDevice.MYQLM_PYLINALG,
-            ATOSDevice.MYQLM_CLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            IBMDevice.AER_SIMULATOR,
-            IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-            # IBMDevice.AER_SIMULATOR_STABILIZER,
-            IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
-            IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-        ],
-    )
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, devices)
 
     assert True
 
 
+@pytest.mark.provider("braket")
 def test_aws_qasm_executions():
+    from braket.devices import LocalSimulator
+
     device = LocalSimulator()
 
     qasm_str = """OPENQASM 3.0;
@@ -240,11 +291,12 @@ def test_aws_qasm_executions():
     c[0] = measure q[0];
     c[1] = measure q[1];"""
 
-    runner = lambda: qasm3_to_braket_Circuit(qasm_str)
-    circuit = warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        circuit = qasm3_to_braket_Circuit(qasm_str)
     device.run(circuit, shots=100).result()
 
 
+@pytest.mark.provider("braket")
 def test_aws_mpqp_executions():
     # Declaration of the circuit with the right size
     circuit = QCircuit(4)
@@ -268,9 +320,7 @@ def test_aws_mpqp_executions():
     # Add measurement
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
-    runner = lambda: run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
     #####################################################
 
@@ -294,10 +344,7 @@ def test_aws_mpqp_executions():
     circuit.add(ExpectationMeasure(obs, shots=0))
 
     # Running the computation on myQLM and on Braket simulator, then retrieving the results
-    runner = lambda: run(
-        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
-    )
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 
     #####################################################
 
@@ -307,13 +354,30 @@ def test_aws_mpqp_executions():
     )
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    runner = lambda: run(
-        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
-    )
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 
 
-def test_all_native_gates():
+@pytest.mark.provider("qiskit")
+def test_all_native_gates_qiskit():
+    exec_all_native_gates(IBMDevice.AER_SIMULATOR_STATEVECTOR)
+
+
+@pytest.mark.provider("cirq")
+def test_all_native_gates_cirq():
+    exec_all_native_gates(GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_all_native_gates_braket():
+    exec_all_native_gates(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("myqlm")
+def test_all_native_gates_myqlm():
+    exec_all_native_gates(ATOSDevice.MYQLM_PYLINALG)
+
+
+def exec_all_native_gates(device: AvailableDevice):
     # Declaration of the circuit with the right size
     circuit = QCircuit(3, label="Test native gates")
     # Constructing the circuit by adding gates and measurements
@@ -326,13 +390,7 @@ def test_all_native_gates():
 
     circuit.to_other_language(Language.QASM2)
     circuit.to_other_language(Language.QASM3)
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(
-            circuit,
-            [
-                ATOSDevice.MYQLM_PYLINALG,
-                ATOSDevice.MYQLM_CLINALG,
-                IBMDevice.AER_SIMULATOR_STATEVECTOR,
-                AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            ],
-        )
+    run(
+        circuit,
+        device,
+    )

@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+import sys
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    "--long-local" not in sys.argv and "--long" not in sys.argv,
+    reason="local_storage not tested in short tests",
+)
+
 import inspect
 import os
 from copy import deepcopy
@@ -7,7 +16,6 @@ from types import TracebackType
 from typing import Optional, Type
 
 import numpy as np
-import pytest
 
 from mpqp import *
 from mpqp.environment.env_manager import get_env_variable, save_env_variable

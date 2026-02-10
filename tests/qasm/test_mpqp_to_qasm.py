@@ -228,7 +228,7 @@ y q[1];
 measure q[0] -> c[0];""",
         ),
         (
-            [X(0), BasisMeasure([0]), Y(0)],
+            [X(0), Y(0), BasisMeasure([0])],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];
@@ -293,7 +293,7 @@ x q[0],q[1];
 measure q -> c;""",
         ),
         (
-            [X(0), BasisMeasure([0]), Y(0)],
+            [X(0), Y(0), BasisMeasure([0])],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];

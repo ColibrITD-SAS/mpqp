@@ -98,19 +98,58 @@ def pauliObservables():
     ]
 
 
-def optimized_devices():
+def optimized_devices_qiskit():
     return [
         IBMDevice.AER_SIMULATOR,
+    ]
+
+
+def optimized_devices_cirq():
+    return [
         GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+    ]
+
+
+def optimized_devices_braket():
+    return [
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
     ]
 
 
+@pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "observable, device",
-    [(i, j) for i in pauliObservables() for j in optimized_devices()],
+    [(i, j) for i in pauliObservables() for j in optimized_devices_qiskit()],
 )
-def test_pauli_grouping_optimization(
+def test_pauli_grouping_optimization_qiskit(
+    observable: list[Observable], device: AvailableDevice
+):
+    exec_pauli_grouping_optimization(observable, device)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize(
+    "observable, device",
+    [(i, j) for i in pauliObservables() for j in optimized_devices_cirq()],
+)
+def test_pauli_grouping_optimization_cirq(
+    observable: list[Observable], device: AvailableDevice
+):
+    exec_pauli_grouping_optimization(observable, device)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize(
+    "observable, device",
+    [(i, j) for i in pauliObservables() for j in optimized_devices_braket()],
+)
+def test_pauli_grouping_optimization_braket(
+    observable: list[Observable], device: AvailableDevice
+):
+    exec_pauli_grouping_optimization(observable, device)
+
+
+def exec_pauli_grouping_optimization(
     observable: list[Observable], device: AvailableDevice
 ):
     from mpqp.execution import Result, run
@@ -155,33 +194,74 @@ def test_pauli_grouping_optimization(
         assert True
 
 
-@pytest.mark.parametrize(
-    "expectation_value,circuit,observable",
-    [
-        [
+@pytest.fixture
+def list_expect_v_circ_obs() -> list[tuple[float, QCircuit, Observable]]:
+    return [
+        (
             -0.2279775,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
             Observable(pX @ pY + pZ @ pX),
-        ],
-        [
-            0,
+        ),
+        (
+            0.0,
             QCircuit([Rx(0.23, 0), Rz(24.23, 1), CNOT(0, 1)]),
             Observable(pI @ pX + pY @ pZ),
-        ],
-    ],
-)
-def test_expectation_value_all_devices(
-    expectation_value: float, circuit: QCircuit, observable: Observable
-):
-    devices = [
-        IBMDevice.AER_SIMULATOR,
-        AWSDevice.BRAKET_LOCAL_SIMULATOR,
-        ATOSDevice.MYQLM_PYLINALG,
-        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        ),
     ]
+
+
+@pytest.mark.provider("qiskit")
+def test_expectation_value_all_devices_qiskit(
+    list_expect_v_circ_obs: list[tuple[float, QCircuit, Observable]],
+):
+    for expectation_value, circuit, observable in list_expect_v_circ_obs:
+        exec_expectation_value_all_devices(
+            expectation_value, circuit, observable, IBMDevice.AER_SIMULATOR
+        )
+
+
+@pytest.mark.provider("braket")
+def test_expectation_value_all_devices_braket(
+    list_expect_v_circ_obs: list[tuple[float, QCircuit, Observable]],
+):
+    for expectation_value, circuit, observable in list_expect_v_circ_obs:
+        exec_expectation_value_all_devices(
+            expectation_value,
+            circuit,
+            observable,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        )
+
+
+@pytest.mark.provider("cirq")
+def test_expectation_value_all_devices_cirq(
+    list_expect_v_circ_obs: list[tuple[float, QCircuit, Observable]],
+):
+    for expectation_value, circuit, observable in list_expect_v_circ_obs:
+        exec_expectation_value_all_devices(
+            expectation_value, circuit, observable, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
+        )
+
+
+@pytest.mark.provider("myqlm")
+def test_expectation_value_all_devices_myqlm(
+    list_expect_v_circ_obs: list[tuple[float, QCircuit, Observable]],
+):
+    for expectation_value, circuit, observable in list_expect_v_circ_obs:
+        exec_expectation_value_all_devices(
+            expectation_value, circuit, observable, ATOSDevice.MYQLM_PYLINALG
+        )
+
+
+def exec_expectation_value_all_devices(
+    expectation_value: float,
+    circuit: QCircuit,
+    observable: Observable,
+    device: AvailableDevice,
+):
     circuit.add(ExpectationMeasure(observable, shots=0, optimize_measurement=True))
 
-    assert all(
+    assert (
         round(  # pyright: ignore[reportCallIssue]
             run(
                 circuit, device
@@ -189,5 +269,4 @@ def test_expectation_value_all_devices(
             7,
         )
         == expectation_value
-        for device in devices
     )

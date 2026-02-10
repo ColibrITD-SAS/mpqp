@@ -142,7 +142,7 @@ def generate_job(
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
             m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements()
+            c = circuit.without_measurements(deep_copy=False)
             c.add(m)
             job = Job(
                 JobType.OBSERVABLE,
@@ -170,7 +170,7 @@ def _run_diagonal_observables(
     values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Result:
 
-    adapted_circuit = circuit.without_measurements()
+    adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False)
@@ -337,19 +337,19 @@ def run(
         ...     [X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X CNOT circuit",
         ... )
-        >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> result = run(c, IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
+        >>> print(result) # doctest: +QISKIT
         Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
           Counts: [0, 0, 0, 1000]
           Probabilities: [0, 0, 0, 1]
           Samples:
             State: 11, Index: 3, Count: 1000, Probability: 1
           Error: None
-        >>> batch_result = run(
+        >>> batch_result = run(  # doctest: +MYQLM, +BRAKET
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
-        >>> print(batch_result)
+        >>> print(batch_result) # doctest: +MYQLM, +BRAKET
         BatchResult: 2 results
             Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
               Counts: [0, 0, 0, 1000]
@@ -367,8 +367,8 @@ def run(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
         ... )
-        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
+        >>> print(result) # doctest: +QISKIT
         BatchResult: 2 results
             Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
               Counts: [0, 0, 0, 1000]
@@ -409,7 +409,7 @@ def run(
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve

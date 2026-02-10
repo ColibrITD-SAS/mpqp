@@ -17,15 +17,22 @@ from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.circuit import random_circuit
 
 
-@pytest.mark.parametrize(
-    "device",
-    [
-        (IBMDevice.AER_SIMULATOR),
-        (GOOGLEDevice.CIRQ_LOCAL_SIMULATOR),
-        (AWSDevice.BRAKET_LOCAL_SIMULATOR),
-    ],
-)
-def test_expectation_values_devices(device: AvailableDevice):
+@pytest.mark.provider("qiskit")
+def test_expectation_qiskit():
+    exec_expectation_value_check(IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("cirq")
+def test_expectation_cirq():
+    exec_expectation_value_check(GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_expectation_braket():
+    exec_expectation_value_check(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+def exec_expectation_value_check(device: AvailableDevice):
     circuit = random_circuit(nb_qubits=3)
     string = pX @ pI @ pZ + pX @ pZ @ pZ + pI @ pZ @ pZ
     str2 = pI @ pZ @ pZ - 2 * pY @ pZ @ pZ + 3 * pX @ pY @ pZ

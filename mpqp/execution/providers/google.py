@@ -249,12 +249,12 @@ def run_cirq_observable(
         expectation_values = {}
         for obs in job.measure.observables:
 
-            if obs.transpile is None:
+            if obs.pre_transpiled is None:
                 cirq_obs = obs.to_other_language(
                     language=Language.CIRQ, circuit=circuit
                 )
             else:
-                cirq_obs = obs.transpile
+                cirq_obs = obs.pre_transpiled
                 if TYPE_CHECKING:
                     assert type(cirq_obs) in (CirqPauliSum, CirqPauliString)
             job.status = JobStatus.RUNNING
@@ -289,7 +289,7 @@ def run_cirq_observable(
             else:
                 results = measure_observables(
                     circuit,
-                    observables=(  # pyright: ignore[reportArgumentType]
+                    observables=(
                         [cirq_obs]
                         if isinstance(cirq_obs, CirqPauliString)
                         else cirq_obs
