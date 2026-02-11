@@ -18,7 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
-from numbers import Complex
+from numbers import Complex, Number
 from textwrap import indent
 from typing import TYPE_CHECKING, Optional, Sequence, Union, overload
 
@@ -50,11 +50,12 @@ from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
 from mpqp.tools.generics import OneOrMany, find_index
 
 if TYPE_CHECKING:
-    from sympy import Expr
+    from qiskit.circuit import Parameter
+    from sympy import Basic, Expr
 
 
-ValuesKey = Union["Expr", str]
-ValuesDict = dict[ValuesKey, Complex]
+ValuesKey = Union["Expr", "Parameter", "Basic", str]
+ValuesDict = dict[ValuesKey, Number]
 BatchValuesInput = Optional[Union[ValuesDict, Sequence[ValuesDict]]]
 
 
@@ -160,7 +161,18 @@ def generate_job(
         The Job containing information about the execution of the circuit.
     """
     if values is not None and not device.is_remote():
-        circuit = circuit.subs(values, True)
+        from sympy import Expr
+
+        subs_values: dict[Expr | str, Complex] = {}
+        for k, v in values.items():
+            if isinstance(k, (str, Expr)):
+                if not isinstance(v, Complex):
+                    raise TypeError(
+                        f"Parameter binding requires numeric values; got {type(v).__name__}."
+                    )
+                subs_values[k] = v
+
+        circuit = circuit.subs(subs_values, True)
 
     exec_mode = mode or ExecutionMode.JOB
 
