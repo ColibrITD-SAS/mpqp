@@ -4,7 +4,7 @@ library."""
 
 from enum import Enum
 from functools import partial
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -36,6 +36,9 @@ def run_optimizer(
     init_params: OptimizerInput,
     optimizer_options: Optional[OptimizerOptions] = None,
     callback: Optional[Callable[[OptimizerInput], None]] = None,
+    batch_eval: Optional[
+        Callable[[Sequence[npt.NDArray[np.float_]]], Sequence[float]]
+    ] = None,
 ) -> tuple[float, npt.NDArray[np.float_]]:
 
     if optimizer_options is None:
@@ -47,16 +50,27 @@ def run_optimizer(
         import cma
 
         sigma0 = float(optimizer_options.pop("sigma0", 0.5))
+        es = cma.CMAEvolutionStrategy([float(x) for x in x0], sigma0, optimizer_options)
 
-        best_params, es = cma.fmin2(
-            eval_func,
-            x0=x0,
-            sigma0=sigma0,
-            options=optimizer_options,
-        )
-        best_value = float(es.result.fbest)
+        best_value = float("inf")
+        best_params = np.asarray(x0, dtype=float)
 
-        return best_value, np.asarray(best_params, dtype=float)
+        while not es.stop():
+            solutions = es.ask()
+
+            if batch_eval is not None:
+                candidates = [np.asarray(x, dtype=float) for x in solutions]
+                fit = [float(v) for v in batch_eval(candidates)]
+            else:
+                fit = [float(eval_func(np.asarray(x, dtype=float))) for x in solutions]
+
+            es.tell(solutions, fit)
+            es.disp()
+
+            if callback is not None:
+                callback(np.asarray(es.best.x, dtype=float))
+
+        return float(best_value), np.asarray(best_params, dtype=float)
 
     result: OptimizeResult = scipy_minimize(
         eval_func,
