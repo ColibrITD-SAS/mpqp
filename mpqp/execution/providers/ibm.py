@@ -530,6 +530,7 @@ def _submit_remote_ibm(
         :func:`~mpqp.execution.runner.run` instead.
     """
     from qiskit import QuantumCircuit
+    from qiskit.quantum_info import SparsePauliOp
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
 
@@ -551,10 +552,14 @@ def _submit_remote_ibm(
         estimator = Runtime_Estimator(mode=runtime_target)
 
         meas.pre_transpile_observables(job.device)
-        qiskit_observables = [
-            obs.pre_transpile[job.device].apply_layout(qiskit_circ.layout)
-            for obs in meas.observables
-        ]
+
+        qiskit_observables: list[SparsePauliOp] = []
+
+        for obs in meas.observables:
+            translated = obs.pre_transpile[job.device]
+            if TYPE_CHECKING:
+                assert isinstance(translated, SparsePauliOp)
+            qiskit_observables.append(translated.apply_layout(qiskit_circ.layout))
 
         if TYPE_CHECKING:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
@@ -613,6 +618,7 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
         assert isinstance(reference_job.device, IBMDevice)
     backend = get_backend(reference_job.device)
 
+    from qiskit.quantum_info import SparsePauliOp
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
     from mpqp.execution.connection.ibm_connection import get_or_create_ibm_session
@@ -644,10 +650,18 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
         meas.pre_transpile_observables(job.device)
-        obs_list = [
-            obs.pre_transpile[job.device].apply_layout(qc.layout)
-            for obs in meas.observables
-        ]
+
+        obs_list: list[SparsePauliOp] = []
+
+        for obs in meas.observables:
+            translated = obs.pre_transpile[job.device]
+            if TYPE_CHECKING:
+                assert isinstance(translated, SparsePauliOp)
+            obs_list.append(translated.apply_layout(qc.layout))
+
+        if TYPE_CHECKING:
+            assert all(isinstance(obs, SparsePauliOp) for obs in obs_list)
+
         per_job_observables.append(obs_list)
 
     estimator_input = list(zip(per_job_circuits, per_job_observables))
