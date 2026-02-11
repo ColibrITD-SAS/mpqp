@@ -597,6 +597,9 @@ class ExpectationMeasure(Measure):
     def pre_transpile_observables(self, device: AvailableDevice):
         from mpqp.execution.devices import AWSDevice, IBMDevice
 
+        if device in self.translated_pre_measures:
+            return
+
         if isinstance(device, AWSDevice):
             from mpqp.core.circuit import QCircuit
             from mpqp.tools.pauli_grouping import (
