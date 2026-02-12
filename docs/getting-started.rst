@@ -24,7 +24,7 @@ run instead:
 
    $ pip install -U mpqp
 
-Install specific providers
+Add more providers
 --------------------------
 
 ``mpqp`` provides integrations with several quantum SDKs and execution backends.

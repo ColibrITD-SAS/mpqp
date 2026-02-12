@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 import shutil
 import sys
 from typing import Literal
@@ -89,8 +90,9 @@ nbsphinx_prolog = r"""
 
 
 def copy_notebooks(app: Sphinx):
-    src_dir = os.path.abspath(os.path.join(app.srcdir, "../examples/notebooks"))
-    dest_dir = os.path.join(app.srcdir, "notebooks")
+    src_dir = (Path(app.srcdir) / "../examples/notebooks").absolute()
+    dest_dir = Path(app.srcdir) / "notebooks"
+
     os.makedirs(dest_dir, exist_ok=True)
 
     if not os.path.exists(src_dir):
@@ -98,7 +100,7 @@ def copy_notebooks(app: Sphinx):
 
     for nb in os.listdir(src_dir):
         if nb.endswith(".ipynb"):
-            shutil.copy2(os.path.join(src_dir, nb), dest_dir)
+            shutil.copy2(src_dir / nb, dest_dir)
 
 
 def copy_requirements_providers(app: Sphinx):
@@ -106,8 +108,8 @@ def copy_requirements_providers(app: Sphinx):
     Copy requirements_providers/*.txt into docs/requirements_providers
     so Sphinx can access them.
     """
-    src_dir = os.path.abspath(os.path.join(app.srcdir, "../requirements_providers"))
-    dest_dir = os.path.join(app.srcdir, "requirements_providers")
+    src_dir = (Path(app.srcdir) / "../requirements_providers").absolute()
+    dest_dir = Path(app.srcdir) / "requirements_providers"
 
     os.makedirs(dest_dir, exist_ok=True)
 
@@ -118,10 +120,27 @@ def copy_requirements_providers(app: Sphinx):
 
     for fname in os.listdir(src_dir):
         if fname.endswith(".txt"):
-            shutil.copy2(
-                os.path.join(src_dir, fname),
-                os.path.join(dest_dir, fname),
-            )
+            shutil.copy2(src_dir / fname, dest_dir / fname)
+
+
+def generate_notebooks_toctree(app: Sphinx):
+    """
+    Automatically generate a toctree listing all notebooks
+    found in notebooks/.
+    """
+    notebooks_dir = Path(app.srcdir) / "notebooks"
+    os.makedirs(notebooks_dir, exist_ok=True)
+    output_file = notebooks_dir / "notebooks_toctree.rst"
+
+    notebooks = sorted(f for f in os.listdir(notebooks_dir) if f.endswith(".ipynb"))
+
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(".. toctree::\n")
+        f.write("   :maxdepth: 1\n")
+        f.write("   :caption: Notebooks:\n\n")
+
+        for nb in notebooks:
+            f.write(f"   notebooks/{nb}\n")
 
 
 # The suffix of source filenames.
@@ -379,7 +398,9 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements["preamble"] += r"""
+latex_elements[
+    "preamble"
+] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{
@@ -425,3 +446,4 @@ def setup(app: Sphinx):
     app.connect("builder-inited", copy_notebooks)
     app.connect("builder-inited", copy_requirements_providers)
     app.connect("autodoc-skip-member", maybe_skip_member)
+    app.connect("builder-inited", generate_notebooks_toctree)

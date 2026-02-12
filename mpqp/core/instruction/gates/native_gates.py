@@ -972,11 +972,11 @@ class SWAP(InvolutionGate, NoParameterGate):
 
         if desired_gate_size != 0:
             swap_matrix: npt.NDArray[np.complex128] = np.kron(
-                np.eye(2**min_nb_qubits, dtype=np.complex128), swap_matrix
+                np.eye(2**min_nb_qubits), swap_matrix
             ).astype(np.complex128)
             swap_matrix: npt.NDArray[np.complex128] = np.kron(
                 swap_matrix,
-                np.eye(2 ** (desired_gate_size - max_qubits), dtype=np.complex128),
+                np.eye(2 ** (desired_gate_size - max_qubits)),
             ).astype(np.complex128)
         return swap_matrix
 
