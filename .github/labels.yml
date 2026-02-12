@@ -14,7 +14,7 @@
   description: New features or code improvements
   color: FFD827
 
-- name: good first issue
+- name: Easy to solve
   description: Easy to solve for newcomers
   color: 62ca50
 
@@ -34,10 +34,6 @@
   description: Anything related to graphics
   color: 5903A8
 
-- name: lucid
-  description: Anything related to lucid
-  color: 062f67
-
 - name: limitation
   description: Current limitation
   color: 7983A8
@@ -49,7 +45,3 @@
 - name: top priority
   description: Must be fixed promptly
   color: ab8a50
-
-- name: aps
-  description: Anything related to Ansys Prime Server
-  color: db8af7
