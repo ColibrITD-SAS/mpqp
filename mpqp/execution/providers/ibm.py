@@ -140,6 +140,7 @@ def compute_expectation_value(
 
     job.status = JobStatus.RUNNING
     job_expectation = estimator.run([(ibm_circuit, qiskit_observables)])
+    job.id = job_expectation.job_id()
     estimator_result = job_expectation.result()
 
     if TYPE_CHECKING:
@@ -486,6 +487,7 @@ def run_aer(job: Job):
         qiskit_circuit.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
         job_sim = backend_sim.run(qiskit_circuit, shots=0)
+        job.id = job_sim.job_id()
         result_sim = job_sim.result()
         if TYPE_CHECKING:
             assert isinstance(job.device, IBMDevice)
@@ -498,6 +500,7 @@ def run_aer(job: Job):
         job.status = JobStatus.RUNNING
 
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
+        job.id = job_sim.job_id()
         result_sim = job_sim.result()
         if TYPE_CHECKING:
             assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
@@ -510,6 +513,7 @@ def run_aer(job: Job):
         raise ValueError(f"Job type {job.job_type} not handled.")
 
     job.status = JobStatus.DONE
+    
     return result
 
 
@@ -610,7 +614,7 @@ def run_remote_ibm(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    _, remote_job = submit_remote_ibm(job)
+    job.id, remote_job = submit_remote_ibm(job)
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)

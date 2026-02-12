@@ -119,7 +119,7 @@ class Job:
         """See parameter description."""
         self.device = device
         """See parameter description."""
-        self.id: Optional[str] = None
+        self.id: Optional[str | list[str]] = None
         """Contains the id of the remote job, used to retrieve the result from 
         the remote provider.  ``None`` if the job is local. It can take a little
         while before it is set to the right value (For instance, a job

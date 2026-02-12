@@ -113,7 +113,7 @@ def run_braket(job: Job) -> Result:
 
     if isinstance(job.measure, ExpectationMeasure):
         return run_braket_observable(job)
-    _, task = submit_job_braket(job)
+    job.id, task = submit_job_braket(job)
     res = task.result()
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
@@ -181,6 +181,7 @@ def run_braket_observable(job: Job):
             )  # pyright: ignore[reportGeneralTypeIssues]
 
         expectation_values = {}
+        job.id = []
         for eigenvalues, pre_measure in zip(eigenvalues, transpiled_pre_measures):
             job.status = JobStatus.RUNNING
             if job.measure.shots == 0:
@@ -188,7 +189,9 @@ def run_braket_observable(job: Job):
 
                 cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
-                local_result = device.run(cirq, shots=0, inputs=None).result()
+                local_result = device.run(cirq, shots=0, inputs=None)
+                job.id.append(local_result.id)
+                local_result = local_result.result()
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 values = local_result.values[0]
@@ -201,6 +204,7 @@ def run_braket_observable(job: Job):
                     shots=job.measure.shots,
                     inputs=None,
                 )
+                job.id.append(local_result.id)
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
                 length = 2**job.circuit.nb_qubits
@@ -228,6 +232,9 @@ def run_braket_observable(job: Job):
                 local += expectation_values[monoms.name] * monoms.coef
             results.update({f"observable_{i}": local})
             errors.update({f"observable_{len(errors)}": None})
+        
+        if len(job.id) == 1:
+            job.id = job.id[0]
         if len(results) == 1:
             return Result(job, results["observable_0"], shots=job.measure.shots)
         return Result(job, results, errors, shots=job.measure.shots)
@@ -237,6 +244,7 @@ def run_braket_observable(job: Job):
 
         braket_sum = None
         index = []
+        job.id = []
         for i, obs in enumerate(job.measure.observables):
             from braket.circuits.observables import Hermitian
 
@@ -257,7 +265,9 @@ def run_braket_observable(job: Job):
                 job.status = JobStatus.RUNNING
                 local_result = device.run(
                     copy, shots=job.measure.shots, inputs=None
-                ).result()
+                )
+                job.id.append(local_result.id)
+                local_result = local_result.result()
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 results.update({f"observable_{i}": local_result.values[0].real})
                 errors.update({f"observable_{i}": None})
@@ -298,9 +308,11 @@ def run_braket_observable(job: Job):
                     results.update({f"observable_{index[i]}": value.expectation})
                     errors.update({f"observable_{index[i]}": None})
 
+        if len(job.id) == 1:
+            job.id = job.id[0]
         if len(results) == 1:
             return Result(job, results["observable_0"], None, job.measure.shots)
-    return Result(job, results, errors, job.measure.shots)
+        return Result(job, results, errors, job.measure.shots)
 
 
 def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
