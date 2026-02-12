@@ -513,7 +513,7 @@ def run_aer(job: Job):
         raise ValueError(f"Job type {job.job_type} not handled.")
 
     job.status = JobStatus.DONE
-    
+
     return result
 
 

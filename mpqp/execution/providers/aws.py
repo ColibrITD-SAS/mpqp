@@ -232,7 +232,7 @@ def run_braket_observable(job: Job):
                 local += expectation_values[monoms.name] * monoms.coef
             results.update({f"observable_{i}": local})
             errors.update({f"observable_{len(errors)}": None})
-        
+
         if len(job.id) == 1:
             job.id = job.id[0]
         if len(results) == 1:
@@ -263,9 +263,7 @@ def run_braket_observable(job: Job):
                     observable=braket_obs, target=job.measure.targets
                 )
                 job.status = JobStatus.RUNNING
-                local_result = device.run(
-                    copy, shots=job.measure.shots, inputs=None
-                )
+                local_result = device.run(copy, shots=job.measure.shots, inputs=None)
                 job.id.append(local_result.id)
                 local_result = local_result.result()
                 assert isinstance(local_result, GateModelQuantumTaskResult)

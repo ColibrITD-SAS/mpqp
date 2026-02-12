@@ -73,7 +73,7 @@ def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
         job_sim = backend_sim.run(qiskit_circuit, shots=job.measure.shots)
     else:
         raise ValueError(f"Job type {job.job_type} not handled on Azure devices.")
-    
+
     job.id = job_sim.id()
     return job.id, job_sim
 
