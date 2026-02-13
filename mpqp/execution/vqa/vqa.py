@@ -236,7 +236,13 @@ def _minimize_local(
         )
     else:
         return _minimize_local_func(
-            optimizable, method, init_params, nb_params, optimizer_options, callback, mode
+            optimizable,
+            method,
+            init_params,
+            nb_params,
+            optimizer_options,
+            callback,
+            mode,
         )
 
 
