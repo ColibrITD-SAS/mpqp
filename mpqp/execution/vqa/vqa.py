@@ -6,6 +6,10 @@ from typing import Any, Callable, Collection, Optional, Sequence, TypeVar, Union
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import OptimizeResult
+from scipy.optimize import minimize as scipy_minimize
+
+if TYPE_CHECKING:
+    from sympy import Expr
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
@@ -16,9 +20,7 @@ from mpqp.execution.vqa.optimizer import Optimizer, run_optimizer
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
-
-
-OptimizerInput = Union[list[float], npt.NDArray[np.float_]]
+OptimizerInput = Union[list[float], npt.NDArray[np.float64]]
 OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 OptimizerCallable = Callable[
@@ -27,7 +29,7 @@ OptimizerCallable = Callable[
 ]
 OptimizerCallback = Union[
     Callable[[OptimizeResult], None],
-    Callable[[Union[list[float], npt.NDArray[np.float_], tuple[float, ...]]], None],
+    Callable[[Union[list[float], npt.NDArray[np.float64], tuple[float, ...]]], None],
 ]
 
 
@@ -97,7 +99,7 @@ def minimize(
         ...         shots=0,
         ...     ),
         ... ])
-        >>> minimize(
+        >>> minimize( # doctest: +MYQLM
         ...     circuit,
         ...     Optimizer.BFGS,
         ...     ATOSDevice.MYQLM_PYLINALG,
@@ -106,14 +108,14 @@ def minimize(
         (-0.9999999999999996, array([0., 0.]))
 
 
-        >>> def cost_func(params):
+        >>> def cost_func(params): # doctest: +MYQLM
         ...     run_res = run(
         ...         circuit,
         ...         ATOSDevice.MYQLM_PYLINALG,
         ...         {alpha: params[0], beta: params[1]}
         ...     )
         ...     return 1 - run_res.expectation_values ** 2
-        >>> minimize(
+        >>> minimize( # doctest: +MYQLM
         ...     cost_func,
         ...     Optimizer.BFGS,
         ...     nb_params=2,
@@ -122,39 +124,10 @@ def minimize(
         (8.881784197001252e-16, array([0., 0.]))
 
     """
-    if isinstance(optimizable, QCircuit):
-        if device is None:
-            raise ValueError("A device is needed to optimize a circuit")
-
-        if device.is_remote():
-            return _minimize_remote(
-                optimizable,
-                method,
-                device,
-                init_params,
-                nb_params,
-                optimizer_options,
-                callback,
-                mode,
-            )
-
-        return _minimize_local(
-            optimizable,
-            method,
-            device,
-            init_params,
-            nb_params,
-            optimizer_options,
-            callback,
-            mode,
-        )
-
-    if device is not None and device.is_remote():
-        raise ValueError(
-            "Remote execution is only supported when `optimizable` is a QCircuit."
-        )
-
-    return _minimize_local(
+    if device is None:
+        raise ValueError("A device is needed to optimize a circuit")
+    optimizer = _minimize_remote if device.is_remote() else _minimize_local
+    return optimizer(
         optimizable,
         method,
         device,
@@ -174,7 +147,7 @@ def _minimize_remote(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
-    mode: Optional[ExecutionMode] = None,
+    mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -207,16 +180,7 @@ def _minimize_remote(
 
     TODO to implement on QLM first
     """
-    return _minimize_local(
-        optimizable,
-        method,
-        device,
-        init_params,
-        nb_params,
-        optimizer_options,
-        callback,
-        mode,
-    )
+    raise NotImplementedError()
 
 
 def _minimize_local(
@@ -227,7 +191,7 @@ def _minimize_local(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
-    mode: Optional[ExecutionMode] = None,
+    mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -272,7 +236,7 @@ def _minimize_local(
         )
     else:
         return _minimize_local_func(
-            optimizable, method, init_params, nb_params, optimizer_options, callback
+            optimizable, method, init_params, nb_params, optimizer_options, callback, mode
         )
 
 
@@ -283,7 +247,6 @@ def _minimize_local_circ(
     init_params: Optional[OptimizerInput] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
-    mode: Optional[ExecutionMode] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by its
@@ -310,6 +273,12 @@ def _minimize_local_circ(
     Returns:
         The optimal value reached and the parameters used to reach this value.
     """
+    # TODO: rework all this, minimize_local shouldn't have been touched at all in principle, only the remote one
+    # The sympy `free_symbols` method returns in fact sets of Basic, which
+    # are theoretically different from Expr, but in our case the difference
+    # is not relevant.
+    variables: set["Expr"] = circ.variables()  # pyright: ignore[reportAssignmentType]
+
     if len(circ.measurements) != 1:
         raise ValueError("Cannot optimize a circuit containing several measurements.")
 
@@ -393,6 +362,7 @@ def _minimize_local_func(
         Callable[[Sequence[npt.NDArray[np.float_]]], Sequence[float]]
     ] = None,
 ) -> tuple[float, OptimizerInput]:
+    # TODO: rework all this, minimize_local shouldn't have been touched at all in principle, only the remote one
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
     observables. Note that this means that the circuit should contain an

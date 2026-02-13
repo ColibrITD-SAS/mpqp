@@ -294,7 +294,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
 
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int  # type: ignore[reportInvalidTypeForm]
+    custom_unitary: "CircuitInstruction", nb_qubits: int
 ) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.

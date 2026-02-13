@@ -1,11 +1,6 @@
+from typing import TYPE_CHECKING
 import numpy as np
 import pytest
-from cirq.circuits.circuit import Circuit
-from cirq.ops.common_gates import CNOT as CirqCNOT
-from cirq.ops.identity import I as CirqI
-from cirq.ops.measure_util import measure
-from cirq.ops.named_qubit import NamedQubit
-from cirq.ops.pauli_gates import X as CirqX
 
 from mpqp import (
     CNOT,
@@ -25,7 +20,11 @@ from mpqp import (
 )
 from mpqp.qasm import qasm2_to_cirq_Circuit
 
+if TYPE_CHECKING:
+    from cirq.circuits.circuit import Circuit
 
+
+@pytest.mark.provider("cirq")
 @pytest.mark.parametrize(
     "circuit",
     [
@@ -80,9 +79,16 @@ def test_running_local_cirq(circuit: QCircuit):
     run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
-@pytest.mark.parametrize(
-    "circuit, qasm_filename",
-    [
+@pytest.fixture
+def list_cirq() -> list[tuple["Circuit", str]]:
+    from cirq.circuits.circuit import Circuit
+    from cirq.ops.common_gates import CNOT as CirqCNOT
+    from cirq.ops.identity import I as CirqI
+    from cirq.ops.measure_util import measure
+    from cirq.ops.named_qubit import NamedQubit
+    from cirq.ops.pauli_gates import X as CirqX
+
+    return [
         (
             Circuit(
                 CirqI(NamedQubit("q_0")),
@@ -94,13 +100,16 @@ def test_running_local_cirq(circuit: QCircuit):
             ),
             "all",
         )
-    ],
-)
-def test_qasm2_to_cirq_Circuit(circuit: QCircuit, qasm_filename: str):
+    ]
+
+
+@pytest.mark.provider("cirq")
+def test_qasm2_to_cirq_Circuit(list_cirq: list[tuple[QCircuit, str]]):
     # 3M-TODO test everything
-    with open(
-        f"tests/core/test_circuit/{qasm_filename}.qasm2",
-        "r",
-        encoding="utf-8",
-    ) as f:
-        assert qasm2_to_cirq_Circuit(f.read()) == circuit
+    for circuit, qasm_filename in list_cirq:
+        with open(
+            f"tests/core/test_circuit/{qasm_filename}.qasm2",
+            "r",
+            encoding="utf-8",
+        ) as f:
+            assert qasm2_to_cirq_Circuit(f.read()) == circuit

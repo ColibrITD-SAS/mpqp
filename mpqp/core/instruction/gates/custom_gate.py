@@ -6,13 +6,18 @@ and executed transparently."""
 
 from __future__ import annotations
 
+from copy import copy
+from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
+
+from sympy import Expr
 
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
     from mpqp.core.circuit import QCircuit
+    from sympy import Basic
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -71,6 +76,15 @@ class CustomGate(Gate):
     def matrix(self) -> Matrix:
         # TODO: move this to `to_canonical_matrix` and check for the usages
         return self.definition.matrix
+
+    @property
+    def free_symbols(self) -> "set[Basic]":
+        from sympy import Expr
+
+        return set.union(
+            set(),
+            *[e.free_symbols for e in self.matrix.flatten() if isinstance(e, Expr)],
+        )
 
     def to_matrix(self, desired_gate_size: int = 0):
         return self.matrix
@@ -145,7 +159,7 @@ class CustomGate(Gate):
 
                 return BraketInstruction(
                     operator=BraketUnitary(self.definition.matrix),
-                    target=list(range(self.nb_qubits)),
+                    target=self.targets,
                 )
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
@@ -206,3 +220,10 @@ class CustomGate(Gate):
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
         return quantum_shannon_decomposition(self.matrix)
+
+    def subs(
+        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
+    ) -> CustomGate:
+        res = copy(self)
+        res.definition = res.definition.subs(values, remove_symbolic)
+        return res

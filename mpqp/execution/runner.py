@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from numbers import Complex, Number
 from textwrap import indent
-from typing import TYPE_CHECKING, Optional, Sequence, Union, overload
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, overload
 
 import numpy as np
 
@@ -47,7 +47,7 @@ from mpqp.execution.providers.google import run_google
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
-from mpqp.tools.generics import OneOrMany, find_index
+from mpqp.tools.generics import OneOrMany, find_index, flatten
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
@@ -143,8 +143,9 @@ def generate_job(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[ValuesDict] = None,
-    mode: Optional[ExecutionMode] = None,
+    exec_mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> Job:
+    # TODO: docstring
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
 
@@ -156,6 +157,7 @@ def generate_job(
         circuit: Circuit to be run.
         device: Device on which the circuit will be run.
         values: Set of values to substitute for symbolic variables.
+        exec_mode:
 
     Returns:
         The Job containing information about the execution of the circuit.
@@ -174,8 +176,6 @@ def generate_job(
 
         circuit = circuit.subs(subs_values, True)
 
-    exec_mode = mode or ExecutionMode.JOB
-
     m_list = circuit.measurements
     nb_meas = len(m_list)
 
@@ -193,7 +193,7 @@ def generate_job(
 
         elif isinstance(measurement, ExpectationMeasure):
             m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements()
+            c = circuit.without_measurements(deep_copy=False)
             c.add(m)
             job = Job(
                 JobType.OBSERVABLE,
@@ -224,10 +224,10 @@ def _run_diagonal_observables(
     device: AvailableDevice,
     observable_job: Job,
     values: Optional[ValuesDict] = None,
-    mode: Optional[ExecutionMode] = None,
+    mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> Result:
 
-    adapted_circuit = circuit.without_measurements()
+    adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False, mode)
@@ -263,9 +263,10 @@ def _run_single(
     device: AvailableDevice,
     values: Optional[ValuesDict] = None,
     display_breakpoints: bool = True,
-    mode: Optional[ExecutionMode] = None,
+    mode: Optional[ExecutionMode] = ExecutionMode.JOB,
     reservation_arn: Optional[str] = None,
 ) -> Result:
+    # TODO: docstring + replace reservation_arn by dict for provider specific options
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
 
@@ -361,6 +362,7 @@ def run(
     mode: Optional[ExecutionMode] = None,
     values_batch: Optional[list[ValuesDict]] = None,
 ) -> BatchResult: ...
+# TODO: why using values and values_batch at the same time
 
 
 @overload
@@ -419,19 +421,19 @@ def run(
         ...     [X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X CNOT circuit",
         ... )
-        >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> result = run(c, IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
+        >>> print(result) # doctest: +QISKIT
         Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
           Counts: [0, 0, 0, 1000]
           Probabilities: [0, 0, 0, 1]
           Samples:
             State: 11, Index: 3, Count: 1000, Probability: 1
           Error: None
-        >>> batch_result = run(
+        >>> batch_result = run(  # doctest: +MYQLM, +BRAKET
         ...     c,
         ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
         ... )
-        >>> print(batch_result)
+        >>> print(batch_result) # doctest: +MYQLM, +BRAKET
         BatchResult: 2 results
             Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
               Counts: [0, 0, 0, 1000]
@@ -449,8 +451,8 @@ def run(
         ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
         ...     label="X circuit",
         ... )
-        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR)
-        >>> print(result)
+        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
+        >>> print(result) # doctest: +QISKIT
         BatchResult: 2 results
             Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
               Counts: [0, 0, 0, 1000]
@@ -500,6 +502,8 @@ def run(
                 )
             )
 
+        # TODO: batch only supported for IBM ? maybe raise an error otherwise.
+        #  And why only observable here ?
         if isinstance(target_device, IBMDevice) and target_device.is_remote():
             from mpqp.execution.providers.ibm import run_remote_ibm_batch
 
@@ -511,53 +515,24 @@ def run(
                     )
             return run_remote_ibm_batch(jobs)
 
-        results = []
-        for i, circ in enumerate(per_run_circuits):
-            results.append(
-                _run_single(
-                    namer(circ, i + 1),
-                    target_device,
-                    per_run_values[i],
-                    display_breakpoints,
-                    exec_mode,
-                    reservation_arn,
-                )
-            )
-        return BatchResult(results)
-
-    if len(circuits) > 1 or len(devices) > 1:
-        counter = 1
-        results = []
-
-        for circ in circuits:
-            labeled = namer(circ, counter)
-            counter += 1
-
-            for device in devices:
-                results.append(
+        if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+            return BatchResult(
+                [
                     _run_single(
-                        labeled,
-                        device,
-                        values if isinstance(values, dict) else None,
+                        namer(circ, i + 1),
+                        dev,
+                        values,
                         display_breakpoints,
-                        exec_mode,
-                        reservation_arn,
                     )
-                )
-        return BatchResult(results)
+                    for i, circ in enumerate(flatten(circuit))
+                    for dev in flatten(device)
+                ]
+            )
 
+        # TODO : remark, remove weird management of multi circuit and multi device, it was already done in a more
+        #  compact way
     else:
-        base_circuit = namer(circuits[0], 1)
-        target_device = devices[0]
-
-        return _run_single(
-            base_circuit,
-            target_device,
-            values if isinstance(values, dict) else None,
-            display_breakpoints,
-            exec_mode,
-            reservation_arn,
-        )
+        return _run_single(circuit, device, values, display_breakpoints)
 
 
 def submit(
@@ -567,6 +542,7 @@ def submit(
     mode: Optional[ExecutionMode] = None,
     reservation_arn: Optional[str] = None,
 ) -> tuple[str, Job]:
+    # TODO replace reservation_arn + docstring
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
     the :class:`~mpqp.execution.result.Result` later using the
@@ -609,6 +585,8 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
+        # TODO: we said that provider specific stuff should only go into the provider specific execution file ,
+        #  here ibm.py, to keep the logic simple on runner.py
         if mode == ExecutionMode.SESSION:
             from mpqp.execution.connection.ibm_connection import (
                 get_backend,
@@ -637,10 +615,7 @@ def submit(
 
 
 def display_kth_breakpoint(
-    circuit: QCircuit,
-    k: int,
-    device: AvailableDevice = ATOSDevice.MYQLM_CLINALG,
-    mode: Optional[ExecutionMode] = None,
+    circuit: QCircuit, k: int, device: AvailableDevice = ATOSDevice.MYQLM_CLINALG
 ):
     """Prints to the standard output the state vector corresponding to the state
     of the system when it encounters the `k^{th}` breakpoint.
@@ -669,7 +644,7 @@ def display_kth_breakpoint(
             nb_cbits=circuit.nb_cbits,
             label=circuit.label,
         )
-        res = _run_single(copy, device, None, False, mode)
+        res = _run_single(copy, device, None, False)
         if TYPE_CHECKING:
             assert isinstance(res, Result)
         print(f"DEBUG: After instruction {bp_instructions_index}{name_part}, state is")

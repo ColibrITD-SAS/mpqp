@@ -1,9 +1,9 @@
 import pytest
 
 from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-from cirq.circuits.circuit import Circuit
 
 
+@pytest.mark.provider("cirq")
 @pytest.mark.parametrize(
     "qasm_code, gate_names",
     [
@@ -85,6 +85,8 @@ from cirq.circuits.circuit import Circuit
     ],
 )
 def test_qasm2_to_Cirq_Circuit(qasm_code: str, gate_names: list[str]):
+    from cirq.circuits.circuit import Circuit
+
     circ = qasm2_to_cirq_Circuit(qasm_code)
     assert isinstance(circ, Circuit)
     for operations, expected_gate in zip(circ.all_operations(), gate_names):

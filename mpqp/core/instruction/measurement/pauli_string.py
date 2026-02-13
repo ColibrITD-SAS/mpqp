@@ -11,7 +11,8 @@ from enum import Enum, auto
 from functools import reduce
 from numbers import Real
 from operator import mul
-from typing import TYPE_CHECKING, Any, Literal, Optional, Union
+from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
+from typing_extensions import Never
 
 import numpy as np
 import numpy.typing as npt
@@ -19,6 +20,10 @@ import numpy.typing as npt
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
+from mpqp.environment.var_cache import (
+    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+    InstalledProviders,
+)
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
@@ -57,7 +62,7 @@ class GroupingMethods(Enum):
     COLORING_DB = auto()
     COLORING_DSATUR = auto()
     CLIQUE_REMOVING = auto()
-    QISKIT = auto()
+    QISKIT_COLORING_GREEDY = auto()
 
 
 class PauliString:
@@ -695,21 +700,21 @@ class PauliString:
             output will be a list of :class:`PauliString`.
 
         Examples:
-            >>> from cirq import LineQubit, PauliSum, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z
-            >>> a, b, c = LineQubit.range(3)
-            >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c)
-            >>> PauliString.from_other_language(cirq_ps)
+            >>> from cirq import LineQubit, PauliSum, X as Cirq_X, Y as Cirq_Y, Z as Cirq_Z # doctest: +CIRQ
+            >>> a, b, c = LineQubit.range(3) # doctest: +CIRQ
+            >>> cirq_ps = 0.5 * Cirq_Z(a) * 0.5 * Cirq_Y(b) + 2 * Cirq_X(c) # doctest: +CIRQ
+            >>> PauliString.from_other_language(cirq_ps) # doctest: +CIRQ
             0.25*pZ@pY@pI + 2*pI@pI@pX
 
-            >>> from braket.circuits.observables import (
+            >>> from braket.circuits.observables import ( # doctest: +BRAKET
             ...     Sum as BraketSum,
             ...     I as Braket_I,
             ...     X as Braket_X,
             ...     Y as Braket_Y,
             ...     Z as Braket_Z,
             ... )
-            >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X()
-            >>> PauliString.from_other_language(braket_ps)
+            >>> braket_ps = 0.25 * Braket_Z() @ Braket_Y() @ Braket_I() + 2 * Braket_I() @ Braket_I() @ Braket_X() # doctest: +BRAKET
+            >>> PauliString.from_other_language(braket_ps) # doctest: +BRAKET
             0.25*pZ@pY@pI + 2*pI@pI@pX
 
             >>> from qiskit.quantum_info import SparsePauliOp
@@ -718,61 +723,107 @@ class PauliString:
             2*pI@pI@pX + 0.25*pZ@pY@pI
 
 
-            >>> from qat.core.wrappers.observable import Term
-            >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])]
-            >>> PauliString.from_other_language(my_qml_ps)
+            >>> from qat.core.wrappers.observable import Term # doctest: +MYQLM
+            >>> my_qml_ps = [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])] # doctest: +MYQLM
+            >>> PauliString.from_other_language(my_qml_ps) # doctest: +MYQLM
             0.25*pZ@pY@pI + 2*pI@pI@pX
 
         """
-        if isinstance(pauli, list) and any(
-            not isinstance(p, type(pauli[0])) for p in pauli
-        ):
-            raise ValueError(
-                "Cannot parse non-homogeneous types when `pauli` is a `list`."
-            )
-
-        from braket.circuits.observables import Observable as BraketObservable
-        from cirq.ops.gate_operation import GateOperation as CirqGateOperation
-        from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
-        from cirq.ops.pauli_string import PauliString as CirqPauliString
-        from qat.core.wrappers.observable import Term
-        from qiskit.quantum_info import SparsePauliOp
-
-        if isinstance(pauli, SparsePauliOp):
-            return PauliString._from_qiskit(pauli)
-        elif isinstance(pauli, BraketObservable):
-            return PauliString._from_braket(pauli)
-        elif isinstance(pauli, Term):
-            return PauliString._from_my_qml(pauli)
-        elif isinstance(pauli, list) and isinstance(pauli[0], Term):
-            for term in pauli:
-                min_dimension = (
-                    max(max(term.qbits) + 1, min_dimension)
-                    if len(term.qbits) > 0
-                    else min_dimension
+        if isinstance(pauli, list):
+            if len(pauli) == 0:
+                return PauliString()
+            elif any(not isinstance(p, type(pauli[0])) for p in pauli):
+                raise ValueError(
+                    "Cannot parse non-homogeneous types when `pauli` is a `list`."
                 )
-            pauli_string = PauliString()
-            for term in pauli:
-                pauli_string += PauliString._from_my_qml(term, min_dimension)
-            return pauli_string
-        elif isinstance(pauli, (CirqPauliSum, CirqPauliString, CirqGateOperation)):
-            return PauliString._from_cirq(pauli, min_dimension)
-        elif isinstance(pauli, list) and isinstance(pauli[0], CirqPauliString):
-            min_dimension = max(
-                max(map(PauliString._get_dimension_cirq_pauli, pauli)), min_dimension
-            )
-            return [
-                PauliString._from_cirq(pauli_mono, min_dimension)
-                for pauli_mono in pauli
-            ]
 
-        raise NotImplementedError(f"Unsupported input type: {type(pauli)}.")
+        if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
+            from qiskit.quantum_info import SparsePauliOp
+
+            if isinstance(pauli, SparsePauliOp):
+                return PauliString._from_qiskit(pauli)
+
+        if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
+            from braket.circuits.observables import Observable as BraketObservable
+
+            if isinstance(pauli, BraketObservable):
+                return PauliString._from_braket(pauli)
+
+        if InstalledProviders.MY_QLM in _INSTALLED_MPQP_PROVIDERS:
+            from qat.core.wrappers.observable import Term
+
+            if isinstance(pauli, Term):
+                return PauliString._from_my_qml(pauli)
+            elif isinstance(pauli, list) and isinstance(pauli[0], Term):
+                for term in pauli:
+                    min_dimension = (
+                        max(max(term.qbits) + 1, min_dimension)
+                        if len(term.qbits) > 0
+                        else min_dimension
+                    )
+                pauli_string = PauliString()
+                for term in pauli:
+                    pauli_string += PauliString._from_my_qml(term, min_dimension)
+                return pauli_string
+
+        if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
+            from cirq.ops.gate_operation import GateOperation as CirqGateOperation
+            from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
+            from cirq.ops.pauli_string import PauliString as CirqPauliString
+
+            if isinstance(pauli, (CirqPauliSum, CirqPauliString, CirqGateOperation)):
+                return PauliString._from_cirq(pauli, min_dimension)
+            elif isinstance(pauli, list) and isinstance(pauli[0], CirqPauliString):
+                min_dimension = max(
+                    max(map(PauliString._get_dimension_cirq_pauli, pauli)),
+                    min_dimension,
+                )
+                return [
+                    PauliString._from_cirq(pauli_mono, min_dimension)
+                    for pauli_mono in pauli
+                ]
+
+        raise NotImplementedError(
+            f"Unsupported input type: {type(pauli)}, or sdk not installed."
+        )
+
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.BRAKET]
+    ) -> Union[BraketSum, TensorProduct]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QISKIT]
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(self, language: Literal[Language.MY_QLM]) -> list[Term]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+    ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QASM2, Language.QASM3]
+    ) -> Never: ...
+    @overload
+    def to_other_language(
+        self, language: Language, circuit: Optional[CirqCircuit] = None
+    ) -> Union[
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+        SparsePauliOp,
+        BraketSum,
+        TensorProduct,
+        list[Term],
+    ]: ...
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
     ) -> Union[
         SparsePauliOp,
         BraketSum,
+        TensorProduct,
         list[Term],
         Term,
         CirqPauliSum,
@@ -792,9 +843,9 @@ class PauliString:
 
         Example:
             >>> ps = pX@ pX@ pI + pI @ pY@ pI + pI @ pI @ pZ
-            >>> print(ps.to_other_language(Language.CIRQ))
+            >>> print(ps.to_other_language(Language.CIRQ)) # doctest: +CIRQ
             1.000*X(q(0))*X(q(1))+1.000*Y(q(1))+1.000*Z(q(2))
-            >>> for term in ps.to_other_language(Language.MY_QLM):
+            >>> for term in ps.to_other_language(Language.MY_QLM): # doctest: +MYQLM
             ...     print(term.op, term.qbits)
             XX [0, 1]
             Y [1]
@@ -802,7 +853,7 @@ class PauliString:
             >>> ps.to_other_language(Language.QISKIT)
             SparsePauliOp(['XXI', 'IYI', 'IIZ'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
-            >>> for tensor in ps.to_other_language(Language.BRAKET).summands:
+            >>> for tensor in ps.to_other_language(Language.BRAKET).summands:  # doctest: +BRAKET
             ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors))
             1 XXI
             1 IYI
@@ -824,13 +875,10 @@ class PauliString:
         elif language == Language.BRAKET:
             from braket.circuits.observables import Sum
 
-            pauli_string = []
+            return Sum(
+                [mono.to_other_language(Language.BRAKET) for mono in self.monomials]
+            )
 
-            for mono in self.monomials:
-                braket_mono = mono.to_other_language(Language.BRAKET)
-                pauli_string.append(braket_mono)
-
-            return Sum(pauli_string)
         elif language == Language.CIRQ:
             cirq_pauli_string = None
             for monomial in self.monomials:
@@ -866,8 +914,9 @@ class PauliString:
                 result_dict[atom_str] = mono.coef
             else:
                 coef: "Coef" = (
-                    result_dict[atom_str] + mono.coef
-                )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                    result_dict[atom_str]
+                    + mono.coef  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                )
                 result_dict[atom_str] = coef
         return {k: str(result_dict[k]) for k in sorted(result_dict)}
 
@@ -963,10 +1012,12 @@ class PauliStringMonomial(PauliString):
 
     @property
     def name(self) -> str:
+        """Returns the string associated to the monomial without the coefficient."""
         return f"{'@'.join(map(str, self.atoms))}"
 
     @property
     def short_name(self) -> str:
+        """Returns the string associated to the monomial without the coefficient and tensor product symbol."""
         return f"{''.join(atom.label for atom in self.atoms)}"
 
     def __str__(self):
@@ -1019,9 +1070,7 @@ class PauliStringMonomial(PauliString):
         return res
 
     def __imul__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = (
-            self.coef * other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+        new_coef: "Coef" = self.coef * other  # pyright: ignore[reportOperatorIssue]
         self.coef = new_coef
         return self
 
@@ -1031,8 +1080,9 @@ class PauliStringMonomial(PauliString):
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
-            self.coef / other
-        )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+            self.coef
+            / other  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+        )
         self.coef = new_coef
         return self
 
@@ -1047,8 +1097,9 @@ class PauliStringMonomial(PauliString):
             return self
         elif isinstance(other, PauliStringMonomial):
             new_coef: "Coef" = (
-                self.coef * other.coef
-            )  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+                self.coef
+                * other.coef  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
+            )
             self.coef = new_coef
             self.atoms.extend(other.atoms)
             return self
@@ -1167,6 +1218,37 @@ class PauliStringMonomial(PauliString):
 
         return new_monomial
 
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.BRAKET]
+    ) -> Union[BraketSum, TensorProduct]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QISKIT]
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(self, language: Literal[Language.MY_QLM]) -> list[Term]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+    ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QASM2, Language.QASM3]
+    ) -> Never: ...
+    @overload
+    def to_other_language(
+        self, language: Language, circuit: Optional[CirqCircuit] = None
+    ) -> Union[
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+        SparsePauliOp,
+        BraketSum,
+        TensorProduct,
+        list[Term],
+    ]: ...
+
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
     ):
@@ -1181,19 +1263,28 @@ class PauliStringMonomial(PauliString):
             pauli_mono_str = "".join(atom.label for atom in self.atoms)
             return Term(self.coef, pauli_mono_str, list(range(len(pauli_mono_str))))
         elif language == Language.BRAKET:
-            braket_atoms: list[BraketObservable] = [
-                atom.to_other_language(Language.BRAKET)
-                for atom in self.atoms  # pyright: ignore[reportAssignmentType]
-            ]
-            from braket.circuits.observables import TensorProduct
 
-            if len(braket_atoms) == 1:
-                return (
-                    self.coef * braket_atoms[0]
-                )  # pyright: ignore[reportOperatorIssue]
-            return self.coef * TensorProduct(
-                braket_atoms
-            )  # pyright: ignore[reportOperatorIssue]
+            from braket.circuits.observables import I as Braket_I
+            from braket.circuits.observables import X as Braket_X
+            from braket.circuits.observables import Y as Braket_Y
+            from braket.circuits.observables import Z as Braket_Z
+
+            pauli_gate_map = {
+                "I": Braket_I,
+                "X": Braket_X,
+                "Y": Braket_Y,
+                "Z": Braket_Z,
+            }
+            braket_sum = None
+            for target, atom in enumerate(self.atoms):
+                braket_sum = (
+                    braket_sum @ pauli_gate_map[atom.label](target)
+                    if braket_sum
+                    else pauli_gate_map[atom.label](target)
+                )
+            if braket_sum is None:
+                raise ValueError("Pauli monomial cannot be empty.")
+            return self.coef * (braket_sum)  # pyright: ignore[reportOperatorIssue]
         elif language == Language.CIRQ:
             from cirq.devices.line_qubit import LineQubit
 
@@ -1313,7 +1404,7 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __truediv__(self, other: "Coef") -> PauliStringMonomial:
         return PauliStringMonomial(
-            1 / other,  # pyright: ignore[reportArgumentType, reportOperatorIssue]
+            1 / other,  # pyright: ignore[reportOperatorIssue, reportArgumentType]
             [self],
         )
 
@@ -1422,6 +1513,53 @@ class PauliStringAtom(PauliStringMonomial):
             f"PauliStringAtoms can only fully commutes with each others, instead received {method}"
         )
 
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.BRAKET],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> BraketSum: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.QISKIT],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.MY_QLM],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> list[Term]: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.CIRQ],
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QASM2, Language.QASM3]
+    ) -> Never: ...
+    @overload
+    def to_other_language(
+        self,
+        language: Language,
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
+    ) -> Union[
+        CirqPauliSum,
+        CirqPauliString,
+        list[CirqPauliString],
+        SparsePauliOp,
+        BraketSum,
+        list[Term],
+    ]: ...
+
     def to_other_language(
         self,
         language: Language,
@@ -1443,10 +1581,10 @@ class PauliStringAtom(PauliStringMonomial):
             from braket.circuits.observables import Z as Braket_Z
 
             pauli_gate_map = {
-                "I": Braket_I(),
-                "X": Braket_X(),
-                "Y": Braket_Y(),
-                "Z": Braket_Z(),
+                "I": Braket_I(0),
+                "X": Braket_X(0),
+                "Y": Braket_Y(0),
+                "Z": Braket_Z(0),
             }
             return pauli_gate_map[self.label]
         elif language == Language.CIRQ:

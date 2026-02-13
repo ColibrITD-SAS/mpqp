@@ -7,7 +7,8 @@ from __future__ import annotations
 
 import copy
 from numbers import Real
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Literal, Optional, Union, overload
+from typing_extensions import Never
 from warnings import warn
 
 import numpy as np
@@ -28,8 +29,8 @@ from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
 if TYPE_CHECKING:
+    from braket.circuits.observables import Hermitian, Sum
     from braket.circuits import Circuit as braket_Circuit
-    from braket.circuits.observables import Hermitian
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
@@ -82,13 +83,15 @@ class Observable:
         self._is_diagonal = None
         self._diag_elements: Optional[npt.NDArray[np.float64]] = None
         self.label = label
-        "See parameter description."
-        self.pre_transpile: dict[
+        """See parameter description."""
+        self.pre_transpiled: dict[
             AvailableDevice,
             Union[
                 SparsePauliOp, QLMObservable, CirqPauliSum, CirqPauliString, Hermitian
             ],
-        ] = {}
+        ] = {}  # TODO: do we put None, or empty dict ?
+        # TODO: docstring
+        """TODO: documentation"""
 
         if isinstance(observable, PauliString):
             self.nb_qubits = observable.nb_qubits
@@ -279,9 +282,38 @@ class Observable:
         """3M-TODO"""
         ...
 
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.BRAKET]
+    ) -> Union[Hermitian, Sum]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QISKIT]
+    ) -> SparsePauliOp: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.MY_QLM]
+    ) -> QLMObservable: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+    ) -> Union[CirqPauliSum, CirqPauliString]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.QASM2, Language.QASM3]
+    ) -> Never: ...
+    @overload
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
-    ) -> Union[SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString]:
+    ) -> Union[
+        SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
+    ]: ...
+
+    def to_other_language(
+        self, language: Language, circuit: Optional[CirqCircuit] = None
+    ) -> Union[
+        SparsePauliOp, QLMObservable, Hermitian, Sum, CirqPauliSum, CirqPauliString
+    ]:
         """Converts the observable to the representation of another quantum
         programming language.
 
@@ -313,16 +345,22 @@ class Observable:
 
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
-            # TODO: Braket does not handle pauli with coef because it uses QASM2
-            # if self._pauli_string:
-            #     return self.pauli_string.to_other_language(Language.BRAKET)
-            # else:
-            from braket.circuits.observables import Hermitian
+            if self._pauli_string:
+                from braket.circuits.observables import TensorProduct, Sum
 
-            return Hermitian(
-                self.matrix,
-                display_name=self.label if self.label is not None else "Hermitian",
-            )
+                obs = self.pauli_string.to_other_language(Language.BRAKET)
+                if isinstance(obs, TensorProduct):
+                    return Sum([obs])
+                return obs
+            else:
+                from braket.circuits.observables import Hermitian
+
+                return Hermitian(
+                    self.matrix,
+                    display_name=(
+                        self.label if self.label is not None else "Hermitian"
+                    ),
+                )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
         else:
@@ -391,7 +429,7 @@ class ExpectationMeasure(Measure):
         targets: Optional[list[int]] = None,
         shots: int = 0,
         commuting_type: CommutingTypes = CommutingTypes.QUBITWISE,
-        grouping_method: GroupingMethods = GroupingMethods.QISKIT,
+        grouping_method: GroupingMethods = GroupingMethods.QISKIT_COLORING_GREEDY,
         label: Optional[str] = None,
         optimize_measurement: Optional[bool] = True,
         optim_diagonal: Optional[bool] = False,
@@ -408,10 +446,16 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
+        # TODO: do we need both pre_transpiled and translated_pre_measures ?
+        # self.pre_transpiled = None
+        # TODO : docstring
+        """TODO"""
         self.translated_pre_measures: dict[
             AvailableDevice,
             tuple[list[dict[str, npt.NDArray[np.float64]]], list[braket_Circuit]],
         ] = {}
+        # TODO : docstring
+        """TODO"""
 
         if isinstance(observable, Observable):
             observable = [observable]
@@ -517,7 +561,7 @@ class ExpectationMeasure(Measure):
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
             return pauli_grouping_greedy(unique_monos, self.commuting_type)
-        elif self.grouping_method == GroupingMethods.QISKIT:
+        elif self.grouping_method == GroupingMethods.QISKIT_COLORING_GREEDY:
             from qiskit.quantum_info import PauliList
 
             pauli_labels = [mono.short_name for mono in unique_monos]
@@ -526,8 +570,12 @@ class ExpectationMeasure(Measure):
             # Choose grouping based on commutativity type
             if self.commuting_type == CommutingTypes.QUBITWISE:
                 grouped = pauli_list.group_qubit_wise_commuting()
-            else:
+            elif self.commuting_type == CommutingTypes.FULL:
                 grouped = pauli_list.group_commuting()
+            else:
+                raise NotImplementedError(
+                    f"{self.commuting_type} is not yet supported."
+                )
 
             grouped_monomials = [
                 [
@@ -594,6 +642,7 @@ class ExpectationMeasure(Measure):
             and not callable(getattr(self, attr_name))
         }
 
+    # TODO: double check this method
     def pre_transpile_observables(self, device: AvailableDevice):
         from mpqp.execution.devices import AWSDevice, IBMDevice
 

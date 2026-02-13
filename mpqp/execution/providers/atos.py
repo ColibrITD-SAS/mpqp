@@ -251,10 +251,10 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"
 
     result = []
     for obs in job.measure.observables:
-        if job.device not in obs.pre_transpile:
-            obs.pre_transpile[job.device] = obs.to_other_language(Language.MY_QLM)
+        if job.device not in obs.pre_transpiled:
+            obs.pre_transpiled[job.device] = obs.to_other_language(Language.MY_QLM)
 
-        qlm_obs = obs.pre_transpile[job.device]
+        qlm_obs = obs.pre_transpiled[job.device]
 
         result.append(
             myqlm_circuit.to_job(

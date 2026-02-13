@@ -7,6 +7,10 @@ other simulated devices (QLM has this feature for instance."""
 
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
+from mpqp.environment.var_cache import (
+    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import InstalledProviders
 from mpqp.execution import AvailableDevice
 
 if TYPE_CHECKING:
@@ -63,18 +67,21 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
 
     @staticmethod
     def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
-        from qiskit_ibm_runtime import fake_provider
-        from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
+        if InstalledProviders.QISKIT_IBM_RUNTIME in _INSTALLED_MPQP_PROVIDERS:
+            from qiskit_ibm_runtime import fake_provider
+            from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
 
-        fake_imports = fake_provider.__dict__
-        return [
-            (name, device)
-            for name, device in fake_imports.items()
-            if name.startswith("Fake")
-            and not name.startswith(("FakeProvider", "FakeFractional"))
-            and issubclass(device, FakeBackendV2)
-            and "cairo" not in name.lower()
-        ]
+            fake_imports = fake_provider.__dict__
+            return [
+                (name, device)
+                for name, device in fake_imports.items()
+                if name.startswith("Fake")
+                and not name.startswith(("FakeProvider", "FakeFractional"))
+                and issubclass(device, FakeBackendV2)
+                and "cairo" not in name.lower()
+            ]
+        else:
+            return []
 
 
 class _LazyIBMSimulatedDevice:
