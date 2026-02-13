@@ -2,15 +2,57 @@
 storage. In the process, they are converted to MPQP  objects
 (:class:`~mpqp.execution.job.Job` and :class:`~mpqp.execution.result.Result`)."""
 
-# TODO: put DB specific errors here ?
-
 from __future__ import annotations
 
-from typing import Optional
+from typing import Any, Optional
 
 from mpqp.all import *
 from mpqp.local_storage.queries import *
 from mpqp.local_storage.setup import DictDB
+
+
+def _build_safe_namespace() -> dict[str, Any]:
+    """Build a restricted namespace containing only the MPQP symbols needed
+    to deserialize objects stored in the local database. This prevents
+    arbitrary code execution from tampered database content."""
+    import numpy as np
+    from numpy import array, complex64, float64  # noqa: F401
+
+    import mpqp.all as _all
+
+    safe_ns: dict[str, Any] = {"__builtins__": {}}
+    # Pull in all public symbols from mpqp.all
+    for name in dir(_all):
+        if not name.startswith("_"):
+            safe_ns[name] = getattr(_all, name)
+    # Add numpy helpers commonly found in serialized repr() strings
+    safe_ns.update(
+        {
+            "np": np,
+            "array": np.array,
+            "complex64": np.complex64,
+            "float64": np.float64,
+        }
+    )
+    return safe_ns
+
+
+_SAFE_NAMESPACE: dict[str, Any] | None = None
+
+
+def _safe_eval(expr: str) -> Any:
+    """Evaluate an expression in a restricted namespace that only contains
+    known MPQP symbols. Raises ``ValueError`` on failure."""
+    global _SAFE_NAMESPACE
+    if _SAFE_NAMESPACE is None:
+        _SAFE_NAMESPACE = _build_safe_namespace()
+    try:
+        return eval(expr, _SAFE_NAMESPACE)  # noqa: S307
+    except Exception as e:
+        raise ValueError(
+            f"Failed to safely deserialize from local storage: {e!r}\n"
+            f"Expression was: {expr[:200]!r}"
+        ) from e
 
 
 def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Job]:
@@ -30,27 +72,26 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
     """
     if jobs is None:
         return []
-    from numpy import array, complex64  # pyright: ignore[reportUnusedImport]
 
     jobs_mpqp = []
     if isinstance(jobs, dict):
-        measure = eval(eval(jobs['measure'])) if jobs['measure'] is not None else None
+        measure = _safe_eval(_safe_eval(jobs['measure'])) if jobs['measure'] is not None else None
         jobs_mpqp.append(
             Job(
-                eval("JobType." + jobs['type']),
-                eval(eval(jobs['circuit'])),
-                eval(jobs['device']),
+                _safe_eval("JobType." + jobs['type']),
+                _safe_eval(_safe_eval(jobs['circuit'])),
+                _safe_eval(jobs['device']),
                 measure,
             )
         )
     else:
         for job in jobs:
-            measure = eval(eval(job['measure'])) if job['measure'] is not None else None
+            measure = _safe_eval(_safe_eval(job['measure'])) if job['measure'] is not None else None
             jobs_mpqp.append(
                 Job(
-                    eval("JobType." + job['type']),
-                    eval(eval(job['circuit'])),
-                    eval(job['device']),
+                    _safe_eval("JobType." + job['type']),
+                    _safe_eval(_safe_eval(job['circuit'])),
+                    _safe_eval(job['device']),
                     measure,
                 )
             )
@@ -83,28 +124,28 @@ def results_local_storage_to_mpqp(
         return []
     results_mpqp = []
     if isinstance(results, dict):
-        error = eval(eval(results['error'])) if results['error'] is not None else None
+        error = _safe_eval(_safe_eval(results['error'])) if results['error'] is not None else None
         job = fetch_jobs_with_id(results['job_id'])
         if len(job) == 0:
             raise ValueError("Job not found for result, can not be instantiated.")
         results_mpqp.append(
             Result(
                 jobs_local_storage_to_mpqp(job)[0],
-                eval(eval(results['data'])),
+                _safe_eval(_safe_eval(results['data'])),
                 error,
                 results['shots'],
             )
         )
     else:
         for result in results:
-            error = None if result['error'] is None else eval(eval(result['error']))
+            error = None if result['error'] is None else _safe_eval(_safe_eval(result['error']))
             job = fetch_jobs_with_id(result['job_id'])
             if len(job) == 0:
                 raise ValueError("Job not found for result, can not be instantiated.")
             results_mpqp.append(
                 Result(
                     jobs_local_storage_to_mpqp(job)[0],
-                    eval(eval(result['data'])),
+                    _safe_eval(_safe_eval(result['data'])),
                     error,
                     result['shots'],
                 )

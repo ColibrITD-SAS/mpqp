@@ -49,12 +49,20 @@ def ensure_local_storage(func: Callable[..., T]) -> Callable[..., T]:
 
         db_version = get_database_version()
         if db_version != DATABASE_VERSION:
-            raise RuntimeError(
-                f"""\
-Database version {db_version} is outdated. Current supported version: {DATABASE_VERSION}.
-Automated migration is not yet supported, please contact library authors to get\
- help for the migration."""
+            import shutil
+            from warnings import warn
+
+            db_path = get_env_variable("DB_PATH")
+            backup_path = db_path + f".v{db_version}.bak"
+            shutil.copy2(db_path, backup_path)
+            warn(
+                f"Database version {db_version} is outdated (current: "
+                f"{DATABASE_VERSION}). The old database has been backed up to "
+                f"'{backup_path}' and a fresh database will be created.",
+                stacklevel=2,
             )
+            Path(db_path).unlink()
+            setup_local_storage(db_path)
 
         return func(*args, **kwargs)
 

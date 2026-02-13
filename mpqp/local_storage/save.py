@@ -47,7 +47,7 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int]:
                     cursor.execute(
                         '''
                         INSERT INTO jobs (type, circuit, device, measure, remote_id, status)
-                        VALUES (?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     ''',
                         (
                             job.job_type.name,
@@ -71,14 +71,16 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int]:
 
                 cursor.execute(
                     '''
-                    INSERT INTO jobs (type, circuit, device, measure)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO jobs (type, circuit, device, measure, remote_id, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ''',
                     (
                         jobs.job_type.name,
                         circuit_json,
                         str(jobs.device),
                         measure_json,
+                        str(jobs.id),
+                        str(jobs.status),
                     ),
                 )
                 id = cursor.lastrowid
