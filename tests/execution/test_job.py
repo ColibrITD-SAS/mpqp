@@ -26,7 +26,6 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.runner import generate_job
 from mpqp.gates import CNOT, H, X
 
-
 # ---------------------------------------------------------------------------
 # JobStatus enum
 # ---------------------------------------------------------------------------
@@ -163,9 +162,7 @@ class TestJobEquality:
     def test_different_device(self):
         circuit = QCircuit([H(0)])
         job1 = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        job2 = Job(
-            JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR_STATEVECTOR
-        )
+        job2 = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR_STATEVECTOR)
         assert job1 != job2
 
     def test_different_circuit(self):
@@ -251,9 +248,7 @@ class TestGenerateJob:
 
     def test_expectation_measure_gives_observable(self):
         obs = Observable(np.array([[1, 0], [0, -1]]))
-        circuit = QCircuit(
-            [H(0), ExpectationMeasure(obs, [0], shots=0)]
-        )
+        circuit = QCircuit([H(0), ExpectationMeasure(obs, [0], shots=0)])
         job = generate_job(circuit, IBMDevice.AER_SIMULATOR)
         assert job.job_type == JobType.OBSERVABLE
 
