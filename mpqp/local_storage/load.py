@@ -74,14 +74,18 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
         return []
 
     from numpy import (
-            array,  # pyright: ignore[reportUnusedImport]
-            complex64,  # pyright: ignore[reportUnusedImport]
-            complex128,  # pyright: ignore[reportUnusedImport]
-        )
+        array,  # pyright: ignore[reportUnusedImport]
+        complex64,  # pyright: ignore[reportUnusedImport]
+        complex128,  # pyright: ignore[reportUnusedImport]
+    )
 
     jobs_mpqp = []
     if isinstance(jobs, dict):
-        measure = _safe_eval(_safe_eval(jobs['measure'])) if jobs['measure'] is not None else None
+        measure = (
+            _safe_eval(_safe_eval(jobs['measure']))
+            if jobs['measure'] is not None
+            else None
+        )
         jobs_mpqp.append(
             Job(
                 _safe_eval("JobType." + jobs['type']),
@@ -92,7 +96,11 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
         )
     else:
         for job in jobs:
-            measure = _safe_eval(_safe_eval(job['measure'])) if job['measure'] is not None else None
+            measure = (
+                _safe_eval(_safe_eval(job['measure']))
+                if job['measure'] is not None
+                else None
+            )
             jobs_mpqp.append(
                 Job(
                     _safe_eval("JobType." + job['type']),
@@ -103,7 +111,6 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
             )
 
     return jobs_mpqp
-
 
 
 def results_local_storage_to_mpqp(
@@ -131,7 +138,11 @@ def results_local_storage_to_mpqp(
         return []
     results_mpqp = []
     if isinstance(results, dict):
-        error = _safe_eval(_safe_eval(results['error'])) if results['error'] is not None else None
+        error = (
+            _safe_eval(_safe_eval(results['error']))
+            if results['error'] is not None
+            else None
+        )
         job = fetch_jobs_with_id(results['job_id'])
         if len(job) == 0:
             raise ValueError("Job not found for result, can not be instantiated.")
@@ -145,7 +156,11 @@ def results_local_storage_to_mpqp(
         )
     else:
         for result in results:
-            error = None if result['error'] is None else _safe_eval(_safe_eval(result['error']))
+            error = (
+                None
+                if result['error'] is None
+                else _safe_eval(_safe_eval(result['error']))
+            )
             job = fetch_jobs_with_id(result['job_id'])
             if len(job) == 0:
                 raise ValueError("Job not found for result, can not be instantiated.")
