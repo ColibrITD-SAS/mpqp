@@ -2,15 +2,18 @@ name: Tests
 
 on:
   push:
+    branches:
+      - main
+      - dev
+  pull_request:
   workflow_dispatch:
     inputs:
       python_v:
         description: "python version"
         required: true
-        default: "3.9"
+        default: "3.10"
         type: choice
         options:
-          - "3.9"
           - "3.10"
           - "3.11"
       commit_ref:
@@ -23,13 +26,24 @@ on:
         required: false
         default: false
         type: boolean
-
+      providers:
+        description: "Providers to enable (space-separated) e.g., 'qiskit cirq myqlm braket')"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - "all"
+          - "qiskit"
+          - "cirq"
+          - "braket"
+          - "myqlm"
 jobs:
   tests:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
-        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.9", "3.10", "3.11"]') }}
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11"]') }}
+        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || (github.ref_name == 'main' && '["all", "qiskit", "cirq", "braket", "myqlm"]' || '["all"]')) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -44,25 +58,27 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements-dev.txt
+          providers_comma=$(echo "${{ matrix.provider }}" | sed 's/ /,/g')
+          echo "$providers_comma"
+          pip install ".[$providers_comma]"
       - name: Install os specific dependencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
         run: |
-          pip install .
           sudo apt-get update
           sudo apt install -y poppler-utils
           sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra
       - name: Run tests
         run: |
-          if [ "${{ github.event.inputs.long }}" == "true" ] || [ "${{ github.ref_name }}" == "main" ]; then
-            python -m pytest --long-local
+          if [[ "${{ github.event.inputs.long }}" == "true" || "${{ github.ref_name }}" == "main" ]]; then
+            python -m pytest --long-local 
           else
-            python -m pytest
+            python -m pytest --providers ${{ matrix.provider }}
           fi
   typechecks:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.9", "3.10", "3.11"]') }}
+        python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11"]') }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -77,5 +93,6 @@ jobs:
         run: |
           pip install --upgrade pip
           pip install -r requirements-dev.txt
+          pip install -r requirements-all.txt
       - name: Run type checker
         run: pyright

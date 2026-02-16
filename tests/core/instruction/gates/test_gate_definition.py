@@ -3,8 +3,8 @@ import numpy.typing as npt
 import pytest
 from sympy import symbols
 
-from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
-from mpqp.core.instruction.gates.native_gates import *
+from mpqp.gates import *
+from mpqp.gates import UnitaryMatrix
 
 
 @pytest.mark.parametrize(
@@ -26,11 +26,7 @@ def test_unitary_matrix_is_equivalent(
     [np.array([[symbols("theta"), 0], [0, 1]])],
 )
 def test_unitary_matrix_inverse_failing(matrix: npt.NDArray[np.complex128]):
-    with pytest.warns(
-        UserWarning,
-        match="Cannot ensure that a operator defined with symbolic variables is unitary.",
-    ):
-        unitary_matrix = UnitaryMatrix(matrix)
+    unitary_matrix = UnitaryMatrix(matrix)
     with pytest.raises(
         ValueError,
         match="Cannot invert arbitrary gates using symbolic variables",

@@ -16,17 +16,15 @@ from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
 
 if TYPE_CHECKING:
-    from mpqp import QCircuit
+    from mpqp.core import QCircuit
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.tools.display import clean_1D_array, one_lined_repr
 from mpqp.tools.maths import is_unitary
 
 
-@typechecked
 class Basis:
     """Represents a basis of the Hilbert space used for measuring a qubit.
 
@@ -163,8 +161,29 @@ class Basis:
 
         from mpqp.core.circuit import QCircuit
 
+        return QCircuit([self.to_instruction()])
+
+    def to_instruction(self) -> CustomGate:
+        """Converts the custom basis to the corresponding change-of-basis gate.
+        The returned unitary is the conjugate transpose (P^†) of the matrix whose
+        columns are the custom basis vectors. This operator maps states from the
+        custom basis back to the computational basis, so that a computational
+        measurement corresponds to measurement in the custom basis.
+
+        Returns:
+            A custom gate representing the basis change circuit.
+
+        Example:
+            >>> basis = Basis([np.array([1, 0]), np.array([0, -1])])
+            >>> gate = basis.to_instruction()
+            >>> print(repr(gate))
+            CustomGate(array([[ 1,  0],
+                   [ 0, -1]]), [0])
+
+        """
+
         basis_change = np.array(self.basis_vectors).T.conjugate()
-        return QCircuit([CustomGate(basis_change, targets=list(range(self.nb_qubits)))])
+        return CustomGate(basis_change, targets=list(range(self.nb_qubits)))
 
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Basis):
@@ -178,7 +197,6 @@ class Basis:
         )
 
 
-@typechecked
 class VariableSizeBasis(Basis):
     """A variable-size basis with a dynamically adjustable size to different qubit numbers
     during circuit execution.
@@ -307,7 +325,7 @@ class ComputationalBasis(VariableSizeBasis):
         if self.nb_qubits == nb_qubits:
             return
         self.basis_vectors = [
-            np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex64)
+            np.array([0] * i + [1] + [0] * (2**nb_qubits - 1 - i), dtype=np.complex128)
             for i in range(2**nb_qubits)
         ]
         self.nb_qubits = nb_qubits
@@ -361,7 +379,7 @@ class HadamardBasis(VariableSizeBasis):
     def set_size(self, nb_qubits: int):
         if self.nb_qubits == nb_qubits:
             return
-        H = np.array([[1, 1], [1, -1]], dtype=np.complex64) / np.sqrt(2)
+        H = np.array([[1, 1], [1, -1]], dtype=np.complex128) / np.sqrt(2)
         Hn = reduce(np.kron, [H] * nb_qubits, np.eye(1))
         self.basis_vectors = [line for line in Hn]
         self.nb_qubits = nb_qubits

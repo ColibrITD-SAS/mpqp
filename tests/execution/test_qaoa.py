@@ -3,11 +3,10 @@ import sys
 import pytest
 from networkx import Graph
 
-from mpqp.core.instruction.measurement.expectation_value import Observable
-from mpqp.execution import AvailableDevice, IBMDevice
+from mpqp import IBMDevice, Observable, Optimizer
+from mpqp.execution import AvailableDevice
 from mpqp.execution.vqa.qaoa import QaoaMixer, QaoaMixerType, qaoa_solver
 from mpqp.execution.vqa.qubo import Qubo, QuboAtom
-from mpqp.execution.vqa import Optimizer
 
 x = QuboAtom('x')
 y = QuboAtom('y')

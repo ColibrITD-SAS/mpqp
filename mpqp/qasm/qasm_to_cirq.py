@@ -18,12 +18,9 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_circuit
 
-from typeguard import typechecked
-
 from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
 
 
-@typechecked
 def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
     """
     Converting a OpenQASM 2.0 code into a cirq Circuit
@@ -42,8 +39,8 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
         ... h q[0];
         ... cx q[0], q[1];
         ... '''
-        >>> circuit = qasm2_to_cirq_Circuit(qasm_code)
-        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE
+        >>> circuit = qasm2_to_cirq_Circuit(qasm_code) # doctest: +CIRQ
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE, +CIRQ
         q_0: ───I───H───@───
                         │
         q_1: ───I───────X───
@@ -128,7 +125,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             self.phi = phi
 
         def __repr__(self) -> str:
-            return f"U({self.theta:.3f}, {self.theta:.3f}, {self.theta:.3f})"
+            return f"U({self.theta:.3f}, {self.phi:.3f}, {self.lmda:.3f})"
 
         def _decompose_(self, qubits: tuple[Qid, ...]):
             q = qubits[0]
@@ -138,6 +135,29 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
                 ry(self.theta).on(q),
                 rz(self.phi).on(q),
             ]
+
+    class PhaseShiftedUGate(QasmUGate):  # pyright: ignore[reportUntypedBaseClass]
+        def __init__(
+            self, theta, phi, lam, gamma  # pyright: ignore[reportMissingParameterType]
+        ):
+            self.theta = theta
+            self.phi = phi
+            self.lam = lam
+            self.gamma = gamma
+
+        def _decompose_(self, qubits: tuple[Qid, ...]):
+            q = qubits[0]
+            return [
+                GlobalPhaseGate(
+                    coefficient=np.exp(1j * (self.gamma + (self.lam + self.phi) / 2))
+                ).on(),
+                rz(self.lam).on(q),
+                ry(self.theta).on(q),
+                rz(self.phi).on(q),
+            ]
+
+        def __str__(self):
+            return f"U(θ={self.theta}, φ={self.phi}, λ={self.lam}, γ={self.gamma})"
 
     # Remove the line containing the barrier keyword
     modified_lines = [line for line in qasm_str.split("\n") if "barrier" not in line]
@@ -158,6 +178,12 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             cirq_gate=(
                 lambda params: ControlledGate(MyQasmUGate(*[p for p in params]))
             ),
+        ),
+        "cu": QasmGateStatement(
+            qasm_gate="cu",
+            num_params=4,
+            num_args=2,
+            cirq_gate=(lambda params: ControlledGate(PhaseShiftedUGate(*params))),
         ),
         "crz": QasmGateStatement(
             qasm_gate="crz",

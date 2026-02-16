@@ -1,4 +1,5 @@
 from setuptools import find_packages, setup
+from pathlib import Path
 
 with open("README.md", "r", encoding="utf-8") as f:
     long_description = f.read()
@@ -14,6 +15,16 @@ long_description = long_description.replace(
 with open("requirements.txt", "r") as f:
     requirements = f.readlines()
 
+providers_dir = Path("requirements_providers")
+extras = {}
+all = []
+for f in providers_dir.glob("*.txt"):
+    provider_name = f.stem
+    with open(f, "r", encoding="utf-8") as fh:
+        extra = fh.readlines()
+        extras[provider_name] = extra
+        all.extend(extra)
+extras["all"] = all
 
 setup(
     name="mpqp",
@@ -27,6 +38,7 @@ setup(
     author_email="quantum@colibritd.com",
     url="https://colibritd.com",
     install_requires=["wheel"] + requirements,
+    extras_require=extras,
     packages=find_packages(include=["mpqp*"]),
     entry_points={
         "console_scripts": [

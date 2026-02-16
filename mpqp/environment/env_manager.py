@@ -8,7 +8,6 @@ from typing import Callable
 
 from dotenv import load_dotenv, set_key
 from termcolor import colored
-from typeguard import typechecked
 
 MPQP_ENV = Path("~/.mpqp/.env").expanduser()
 
@@ -76,7 +75,6 @@ def load_env_variables() -> bool:
     return load_dotenv(MPQP_ENV, override=True)
 
 
-@typechecked
 def get_env_variable(key: str) -> str:
     """Loads the configuration file and returns the value associated with the key
     in parameter. If the variable does not exist, an empty string is returned.
@@ -93,13 +91,13 @@ def get_env_variable(key: str) -> str:
         ''
 
     """
+    assert isinstance(key, str), "Key must be a string"
     _create_config_if_needed()
     load_env_variables()
 
     return os.getenv(key, "")
 
 
-@typechecked
 def save_env_variable(key: str, value: str) -> bool:
     """Adds or updates the ``key`` environment variable in the configuration file.
 

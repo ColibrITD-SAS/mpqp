@@ -51,7 +51,7 @@ autodoc_type_aliases = {
     "Measure": "Measure",
     "Breakpoint": "Breakpoint",
     "PauliStringMonomial": "PauliStringMonomial",
-    "npt.NDArray[np.complex64]": "np.array[np.complex64]",
+    "npt.NDArray[np.complex128]": "np.array[np.complex128]",
 }
 autodoc_mock_imports = ["braket.circuits.measure"]
 simplify_optional_unions = True
@@ -342,9 +342,7 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements[
-    "preamble"
-] += r"""
+latex_elements["preamble"] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{

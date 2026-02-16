@@ -2,7 +2,7 @@
 
 import numpy as np
 
-from mpqp import Language, QCircuit
+from mpqp.core import Language, QCircuit
 from mpqp.execution import *
 from mpqp.gates import *
 
@@ -26,4 +26,4 @@ print(
 print(circuit.to_other_language(Language.QISKIT))
 print(circuit.to_other_language(Language.QASM2))
 print(circuit.to_other_language(Language.QASM3))
-print(circuit.gphase)
+print(circuit.input_g_phase)

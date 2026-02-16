@@ -3,11 +3,6 @@
 Variational Quantum Algorithms
 ==============================
 
-.. code-block:: python
-    :class: import
-
-    from mpqp.execution.vqa import *
-
 In order to support Variational Quantum Algorithms (VQA for short), the
 parametrized gates of our circuits accept `sympy <https://sympy.org>`_'s
 symbolic variable as arguments.

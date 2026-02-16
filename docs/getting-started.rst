@@ -67,10 +67,7 @@ with a list of :class:`~mpqp.core.instruction.instruction.Instruction`
 
 .. code-block:: python
 
-    >>> from mpqp import QCircuit
-    >>> from mpqp.gates import X, CNOT
-    >>> from mpqp.measures import BasisMeasure
-    >>> from mpqp.execution import run, IBMDevice
+    >>> from mpqp import QCircuit, X, CNOT, BasisMeasure, run, IBMDevice
     >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
     >>> print(circuit)
          ┌───┐     ┌─┐

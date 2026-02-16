@@ -1,11 +1,6 @@
 Execution
 =========
 
-.. code-block:: python
-    :class: import
-
-    from mpqp.execution import *
-
 Execution is the core of this library. Our goal is to allow you to run a circuit
 on any hardware without you having to rewrite your circuit in the providers'SDK. 
 We introduce here how execution works in ``MPQP``, both in local simulator and 

@@ -25,10 +25,8 @@ from mpqp.execution.providers.atos import get_result_from_qlm_job_id
 from mpqp.execution.providers.aws import get_result_from_aws_task_arn
 from mpqp.execution.providers.azure import get_result_from_azure_job_id
 from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
-from typeguard import typechecked
 
 
-@typechecked
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
 ) -> Result:

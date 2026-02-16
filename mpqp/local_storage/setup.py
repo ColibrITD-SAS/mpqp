@@ -12,7 +12,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Callable, Optional
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.tools.generics import T
 
 DictDB = dict[str, Any]
@@ -98,8 +98,7 @@ def setup_local_storage(path: Optional[str] = None):
     cursor = connection.cursor()
 
     # Create the jobs table
-    cursor.execute(
-        '''
+    cursor.execute('''
     CREATE TABLE IF NOT EXISTS jobs (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         type TEXT NOT NULL,
@@ -110,12 +109,10 @@ def setup_local_storage(path: Optional[str] = None):
         status TEXT,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
-    '''
-    )
+    ''')
 
     # Create the results table
-    cursor.execute(
-        '''
+    cursor.execute('''
     CREATE TABLE IF NOT EXISTS results (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         job_id INTEGER NOT NULL,
@@ -124,17 +121,14 @@ def setup_local_storage(path: Optional[str] = None):
         shots INTEGER DEFAULT 0,
         created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
-    '''
-    )
+    ''')
 
-    cursor.execute(
-        '''
+    cursor.execute('''
         CREATE TABLE IF NOT EXISTS version (
             id INTEGER PRIMARY KEY CHECK (id = 1),  -- Ensures only one row exists
             version VARCHAR
         )
-        '''
-    )
+        ''')
 
     cursor.execute(
         "INSERT OR IGNORE INTO version (id, version) VALUES (1, ?)", (DATABASE_VERSION,)

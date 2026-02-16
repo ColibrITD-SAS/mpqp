@@ -1,10 +1,8 @@
 import pytest
 
-from mpqp.core.circuit import QCircuit
+from mpqp import CNOT, SWAP, H, Language, QCircuit, Z
 from mpqp.core.instruction.gates.native_gates import NativeGate
-from mpqp.core.languages import Language
 from mpqp.execution.providers.ibm import generate_qiskit_noise_model
-from mpqp.gates import *
 from mpqp.noise import AmplitudeDamping, BitFlip, Depolarizing, NoiseModel, PhaseDamping
 
 
@@ -45,6 +43,7 @@ def noise():
     return Depolarizing(0.3, [0])
 
 
+@pytest.mark.provider("braket")
 def test_depolarizing_braket_export(noise: NoiseModel):
     from braket.circuits.noises import Depolarizing as BraketDepolarizing
 
@@ -54,6 +53,7 @@ def test_depolarizing_braket_export(noise: NoiseModel):
     assert braket_noise.qubit_count == 1
 
 
+@pytest.mark.provider("myqlm")
 def test_depolarizing_qlm_export(noise: NoiseModel):
     from qat.quops.quantum_channels import QuantumChannelKraus
 

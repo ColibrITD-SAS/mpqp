@@ -6,22 +6,18 @@ if TYPE_CHECKING:
     from qiskit.result import Result as QiskitResult
     from azure.quantum.qiskit.job import AzureQuantumJob
 
-from typeguard import typechecked
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure
-from mpqp.core.languages import Language
 from mpqp.execution.connection.azure_connection import (
     get_azure_provider,
     get_jobs_by_id,
 )
 from mpqp.execution.devices import AZUREDevice
-from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.job import IBMDevice, Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample
 
 
-@typechecked
-def run_azure(job: Job, warnings: bool = True) -> Result:
+def run_azure(job: Job) -> Result:
     """Executes the job on the right AZURE device precised in the job in
     parameter.
 
@@ -35,7 +31,7 @@ def run_azure(job: Job, warnings: bool = True) -> Result:
         This function is not meant to be used directly, please use
         :func:``run<mpqp.execution.runner.run>`` instead.
     """
-    _, job_sim = submit_job_azure(job, warnings)
+    _, job_sim = submit_job_azure(job)
     result_sim = job_sim.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, AZUREDevice)
@@ -43,10 +39,7 @@ def run_azure(job: Job, warnings: bool = True) -> Result:
     return extract_result(result_sim, job, job.device)
 
 
-@typechecked
-def submit_job_azure(
-    job: Job, translation_warning: bool = True
-) -> tuple[str, "AzureQuantumJob"]:
+def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
     """Submits the job on the remote Azure device (quantum computer or simulator).
 
     Args:
@@ -54,7 +47,6 @@ def submit_job_azure(
 
     Returns:
         Azure's job id and the job itself.
-        translation_warning: If `True`, a warning will be raised.
 
     Note:
         This function is not meant to be used directly, please use
@@ -63,26 +55,11 @@ def submit_job_azure(
     from qiskit import QuantumCircuit
 
     if job.circuit.transpiled_circuit is None:
-        qiskit_circuit = (
-            (
-                # 3M-TODO: careful, if we ever support several measurements, the
-                # line bellow will have to changer
-                job.circuit.without_measurements()
-                + job.circuit.pre_measure()
-            ).to_other_language(
-                Language.QISKIT, translation_warning=translation_warning
-            )
-            if (job.job_type == JobType.STATE_VECTOR)
-            else job.circuit.to_other_language(
-                Language.QISKIT, translation_warning=translation_warning
-            )
-        )
+        qiskit_circuit = job.circuit.to_other_device(IBMDevice.AER_SIMULATOR)
     else:
         qiskit_circuit = job.circuit.transpiled_circuit
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
-
-    qiskit_circuit = qiskit_circuit.reverse_bits()
 
     backend_sim = get_azure_provider().get_backend(job.device.value)
 
@@ -100,7 +77,6 @@ def submit_job_azure(
     return job_sim.id(), job_sim
 
 
-@typechecked
 def extract_result(
     result: "QiskitResult",
     job: Optional[Job],
@@ -125,7 +101,6 @@ def extract_result(
     return extract_result_ibm(result, job, device)
 
 
-@typechecked
 def get_result_from_azure_job_id(job_id: str) -> Result:
     """Retrieves from Azure remote platform and parse the result of the job_id
     given in parameter. If the job is still running, we wait (blocking) until it
@@ -191,7 +166,6 @@ def get_result_from_azure_job_id(job_id: str) -> Result:
             [BasisMeasure(list(range(nb_qubits)), shots=shots)], nb_qubits=nb_qubits
         ),
         device,
-        BasisMeasure(list(range(nb_qubits)), shots=shots),
     )
     return Result(job_, data, None, shots)
 
