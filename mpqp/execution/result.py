@@ -30,7 +30,7 @@ import numpy as np
 import numpy.typing as npt
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.execution import Job, JobType
+from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
@@ -288,8 +288,8 @@ class Result:
     def __init__(
         self,
         job: Job,
-        data: float | dict["str", float] | StateVector | list[Sample],
-        errors: Optional[float | dict[Any, Any]] = None,
+        data: float | dict["str", float] | StateVector | list[Sample] | None,
+        errors: Optional[float | dict[Any, Any] | str] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -304,6 +304,11 @@ class Result:
         self.error = errors
         """See parameter description."""
         self._data = data
+
+        if data is None:
+            if job.status != JobStatus.ERROR:
+                raise TypeError("Result data cannot be None unless job.status == ERROR")
+            return
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
@@ -457,6 +462,9 @@ class Result:
     def __str__(self):
         label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
         header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
+
+        if self.job.status == JobStatus.ERROR:
+            return f"{header}\n  Error: {self.error}"
 
         if self.job.job_type == JobType.SAMPLE:
             measures = self.job.circuit.measurements

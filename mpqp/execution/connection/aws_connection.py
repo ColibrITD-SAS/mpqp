@@ -356,7 +356,11 @@ def get_aws_braket_account_info() -> str:
     return result
 
 
-def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevice":
+def get_braket_device(
+    device: AWSDevice,
+    is_noisy: bool = False,
+    is_gate_model: bool = True,
+) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Args:
@@ -378,6 +382,11 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
     """
     from braket.devices import LocalSimulator
 
+    from mpqp.tools.errors import (
+        AWSBraketRemoteExecutionError,
+        DeviceJobIncompatibleError,
+    )
+
     if not device.is_remote():
         if is_noisy:
             return LocalSimulator("braket_dm")
@@ -397,7 +406,8 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
         aws_session.add_braket_user_agent(
             user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
         )
-        return AwsDevice(device.get_arn(), aws_session=aws_session)
+        braket_device = AwsDevice(device.get_arn(), aws_session=aws_session)
+
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
             "Failed to retrieve remote AWS device. Please check the arn, or if the "
@@ -409,6 +419,22 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
             "configured correctly your AWS account with 'setup_connections.py' script."
             "\nTrace: " + str(err)
         )
+
+    if is_gate_model:
+        actions = getattr(getattr(braket_device, "properties", None), "action", None)
+        if actions is not None:
+            supported = [getattr(k, "value", str(k)) for k in actions.keys()]
+            supports_gate_model = any(
+                ("openqasm" in action.lower()) or ("jaqcd" in action.lower()) for action in supported
+            )
+            if not supports_gate_model:
+                raise DeviceJobIncompatibleError(
+                    f"{device.name} does not support gate-model workloads. "
+                    f"Supported Braket action types: {supported}. "
+                    "This is an AHS device, which cannot run MPQP QCircuit."
+                )
+
+    return braket_device
 
 
 def get_all_task_ids() -> list[str]:
