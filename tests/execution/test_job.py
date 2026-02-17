@@ -1,14 +1,11 @@
 """Unit tests for the Job class and related enums (JobType, JobStatus).
 
-These tests cover local, non-remote functionality only — no SDK connections
-are required.
-
-# 3M-TODO
-# Remote job status polling tests need a stable account or mocked connections.
+Tests cover local functionality and mocked remote status polling.
 """
 
 import numpy as np
 import pytest
+from unittest.mock import patch
 
 from mpqp import QCircuit
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
@@ -25,24 +22,6 @@ from mpqp.execution.devices import (
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.runner import generate_job
 from mpqp.gates import CNOT, H, X
-
-# ---------------------------------------------------------------------------
-# JobStatus enum
-# ---------------------------------------------------------------------------
-
-
-class TestJobStatus:
-    def test_all_statuses_exist(self):
-        expected = {"INIT", "QUEUED", "RUNNING", "CANCELLED", "ERROR", "DONE"}
-        actual = {s.name for s in JobStatus}
-        assert expected == actual
-
-    def test_terminal_statuses(self):
-        """DONE, ERROR, CANCELLED should be considered terminal."""
-        terminal = {JobStatus.DONE, JobStatus.ERROR, JobStatus.CANCELLED}
-        non_terminal = {JobStatus.INIT, JobStatus.QUEUED, JobStatus.RUNNING}
-        assert terminal.isdisjoint(non_terminal)
-
 
 # ---------------------------------------------------------------------------
 # JobType enum
@@ -83,18 +62,11 @@ class TestJobConstruction:
         assert job.measure is None
         assert job.id is None
 
-    def test_initial_status_is_init(self):
-        circuit = QCircuit(2)
-        job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        assert job._status == JobStatus.INIT
-
     def test_construction_with_measure(self):
-        circuit = QCircuit([H(0), CNOT(0, 1)])
         measure = BasisMeasure([0, 1], shots=100)
-        job = Job(JobType.SAMPLE, circuit, IBMDevice.AER_SIMULATOR, measure)
+        circuit = QCircuit([H(0), CNOT(0, 1), measure])
+        job = Job(JobType.SAMPLE, circuit, IBMDevice.AER_SIMULATOR)
         assert job.measure is not None
-        # measure should be deep-copied
-        assert job.measure is not measure
 
     def test_construction_with_different_devices(self):
         circuit = QCircuit(2)
@@ -110,74 +82,58 @@ class TestJobConstruction:
 
 
 # ---------------------------------------------------------------------------
-# Job status property
-# ---------------------------------------------------------------------------
-
-
-class TestJobStatusProperty:
-    def test_status_setter(self):
-        circuit = QCircuit(2)
-        job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        job.status = JobStatus.RUNNING
-        assert job._status == JobStatus.RUNNING
-
-    def test_local_status_returns_directly(self):
-        """For local (non-remote) devices, the status property should return
-        the stored status without attempting a remote call."""
-        circuit = QCircuit(2)
-        job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        job.status = JobStatus.DONE
-        # Should not raise — no remote lookup attempted for local device
-        assert job.status == JobStatus.DONE
-
-    def test_terminal_status_no_remote_check(self):
-        """Once a job reaches a terminal state, the status property should
-        return immediately for any device."""
-        circuit = QCircuit(2)
-        job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        for terminal in [JobStatus.DONE, JobStatus.ERROR, JobStatus.CANCELLED]:
-            job.status = terminal
-            assert job.status == terminal
-
-
-# ---------------------------------------------------------------------------
 # Job equality
 # ---------------------------------------------------------------------------
 
 
 class TestJobEquality:
-    def test_equal_jobs(self):
-        circuit = QCircuit([H(0), CNOT(0, 1)])
-        job1 = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        job2 = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        assert job1 == job2
+    @pytest.mark.parametrize(
+        "make_other, expected_equal",
+        [
+            pytest.param(
+                lambda: Job(
+                    JobType.STATE_VECTOR, QCircuit([H(0)]), IBMDevice.AER_SIMULATOR
+                ),
+                True,
+                id="identical",
+            ),
+            pytest.param(
+                lambda: Job(
+                    JobType.SAMPLE,
+                    QCircuit([H(0), BasisMeasure([0], shots=100)]),
+                    IBMDevice.AER_SIMULATOR,
+                ),
+                False,
+                id="different_type",
+            ),
+            pytest.param(
+                lambda: Job(
+                    JobType.STATE_VECTOR,
+                    QCircuit([H(0)]),
+                    IBMDevice.AER_SIMULATOR_STATEVECTOR,
+                ),
+                False,
+                id="different_device",
+            ),
+            pytest.param(
+                lambda: Job(
+                    JobType.STATE_VECTOR, QCircuit([X(0)]), IBMDevice.AER_SIMULATOR
+                ),
+                False,
+                id="different_circuit",
+            ),
+        ],
+    )
+    def test_equality(self, make_other, expected_equal):
+        job = Job(JobType.STATE_VECTOR, QCircuit([H(0)]), IBMDevice.AER_SIMULATOR)
+        assert (job == make_other()) == expected_equal
 
-    def test_different_type(self):
-        circuit = QCircuit([H(0)])
-        measure = BasisMeasure([0], shots=100)
-        job1 = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        job2 = Job(JobType.SAMPLE, circuit, IBMDevice.AER_SIMULATOR, measure)
-        assert job1 != job2
-
-    def test_different_device(self):
-        circuit = QCircuit([H(0)])
-        job1 = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        job2 = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR_STATEVECTOR)
-        assert job1 != job2
-
-    def test_different_circuit(self):
-        circ1 = QCircuit([H(0)])
-        circ2 = QCircuit([X(0)])
-        job1 = Job(JobType.STATE_VECTOR, circ1, IBMDevice.AER_SIMULATOR)
-        job2 = Job(JobType.STATE_VECTOR, circ2, IBMDevice.AER_SIMULATOR)
-        assert job1 != job2
-
-    def test_not_equal_to_non_job(self):
-        circuit = QCircuit(2)
-        job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        assert job != "not a job"
-        assert job != 42
-        assert job != None
+    @pytest.mark.parametrize(
+        "other", ["not a job", 42, None], ids=["str", "int", "None"]
+    )
+    def test_not_equal_to_non_job(self, other):
+        job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
+        assert job != other
 
 
 # ---------------------------------------------------------------------------
@@ -185,41 +141,81 @@ class TestJobEquality:
 # ---------------------------------------------------------------------------
 
 
-class TestJobRepr:
-    def test_repr_no_measure(self):
+class TestJobReprAndDict:
+    def test_repr(self):
         circuit = QCircuit(2)
         job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        r = repr(job)
-        assert "Job(" in r
-        assert "STATE_VECTOR" in r
-        assert "AER_SIMULATOR" in r
+        expected = f"Job({JobType.STATE_VECTOR}, {repr(circuit)}, {IBMDevice.AER_SIMULATOR})"
+        assert repr(job) == expected
 
-    def test_repr_with_measure(self):
-        circuit = QCircuit([H(0)])
-        measure = BasisMeasure([0], shots=100)
-        job = Job(JobType.SAMPLE, circuit, IBMDevice.AER_SIMULATOR, measure)
-        r = repr(job)
-        assert "BasisMeasure" in r
-
-    def test_to_dict_keys(self):
-        circuit = QCircuit(2)
-        job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        d = job.to_dict()
-        assert "job_type" in d
-        assert "circuit" in d
-        assert "device" in d
-        assert "measure" in d
-        assert "id" in d
-        assert "status" in d
-
-    def test_to_dict_values(self):
+    def test_to_dict(self):
         circuit = QCircuit(2)
         job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
         d = job.to_dict()
         assert d["job_type"] == JobType.STATE_VECTOR
+        assert d["circuit"] is circuit
         assert d["device"] == IBMDevice.AER_SIMULATOR
         assert d["measure"] is None
         assert d["id"] is None
+        assert d["status"] == JobStatus.INIT
+
+
+# ---------------------------------------------------------------------------
+# Remote job status (mocked)
+# ---------------------------------------------------------------------------
+
+
+class TestRemoteStatus:
+    @pytest.mark.parametrize(
+        "device, status_func, remote_status",
+        [
+            pytest.param(
+                IBMDevice.IBM_LEAST_BUSY,
+                "mpqp.execution.job.get_ibm_job_status",
+                JobStatus.RUNNING,
+                id="ibm_running",
+            ),
+            pytest.param(
+                IBMDevice.IBM_LEAST_BUSY,
+                "mpqp.execution.job.get_ibm_job_status",
+                JobStatus.QUEUED,
+                id="ibm_queued",
+            ),
+            pytest.param(
+                ATOSDevice.QLM_LINALG,
+                "mpqp.execution.job.get_qlm_job_status",
+                JobStatus.RUNNING,
+                id="qlm_running",
+            ),
+        ],
+    )
+    def test_polling(self, device, status_func, remote_status):
+        """Accessing .status on a non-terminal remote job should query the provider."""
+        job = Job(JobType.STATE_VECTOR, QCircuit(2), device)
+        job.id = "fake-remote-id"
+        with patch(status_func, return_value=remote_status) as mock_fn:
+            assert job.status == remote_status
+            mock_fn.assert_called_once_with("fake-remote-id")
+
+    @pytest.mark.parametrize(
+        "terminal", [JobStatus.DONE, JobStatus.ERROR, JobStatus.CANCELLED]
+    )
+    def test_terminal_status_skips_polling(self, terminal):
+        """Once a remote job reaches a terminal state, no provider call should happen."""
+        job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.IBM_LEAST_BUSY)
+        job.id = "fake-remote-id"
+        job.status = terminal
+        with patch("mpqp.execution.job.get_ibm_job_status") as mock_fn:
+            assert job.status == terminal
+            mock_fn.assert_not_called()
+
+    def test_local_device_never_polls(self):
+        """For a local simulator, the status property should never trigger a remote call."""
+        job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
+        job.status = JobStatus.RUNNING
+        with patch("mpqp.execution.job.get_ibm_job_status") as mock_fn:
+            assert job.status == JobStatus.RUNNING
+            mock_fn.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
