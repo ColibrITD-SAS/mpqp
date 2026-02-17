@@ -425,7 +425,8 @@ def get_braket_device(
         if actions is not None:
             supported = [getattr(k, "value", str(k)) for k in actions.keys()]
             supports_gate_model = any(
-                ("openqasm" in action.lower()) or ("jaqcd" in action.lower()) for action in supported
+                ("openqasm" in action.lower()) or ("jaqcd" in action.lower())
+                for action in supported
             )
             if not supports_gate_model:
                 raise DeviceJobIncompatibleError(
