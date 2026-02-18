@@ -217,11 +217,13 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         target: Index referring to the qubits on which the gate will be applied.
     """
 
-    def __init__(self, theta: Expr | float, target: int):
+    def __init__(self, theta: Expr | float, target: list[int] | int):
         self.parameters = [theta]
         definition = UnitaryMatrix(self.to_canonical_matrix())
+        if isinstance(target, int):
+            target = [target]
         ParametrizedGate.__init__(
-            self, definition, [target], [self.theta], type(self).__name__.capitalize()
+            self, definition, target, [self.theta], type(self).__name__.capitalize()
         )
 
     @property
@@ -230,7 +232,8 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.parameters[0]
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.theta}, {self.targets[0]})"
+        target = ", ".join(str(t) for t in self.targets)
+        return f"{type(self).__name__}({self.theta}, {target})"
 
     def to_other_language(
         self,
@@ -1277,6 +1280,75 @@ class Rz(RotationGate, SingleQubitGate):
     def to_canonical_matrix(self):
         e = exp(-1j * self.parameters[0] / 2)
         return np.array([[e, 0], [0, 1 / e]])
+
+
+class Rzz(
+    RotationGate,
+):
+    r"""Two-qubit ZZ rotation gate.
+
+    `\begin{bmatrix}
+            e^{-i\phi/2} & 0 & 0 & 0 \\
+            0 & e^{i\phi/2} & 0 & 0 \\
+            0 & 0 & e^{i\phi/2} & 0 \\
+            0 & 0 & 0 & e^{-i\phi/2}
+        \end{bmatrix}`
+
+    Args:
+        phi: Rotation angle.
+        a: First target qubit.
+        b: Second target qubit.
+
+    Example:
+        >>> pprint(ZZ(np.pi/2, 0, 1).to_matrix())
+        [[1, 0, 0, 0],
+         [0, 0, 1, 0],
+         [0, 1, 0, 0],
+         [0, 0, 0, 1]]
+
+    """
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.ZZ
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import RZZGate
+
+        return RZZGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.parity_gates import ZZPowGate
+
+        return ZZPowGate
+
+    qlm_aqasm_keyword = "RZZ"
+    qiskit_string = "rzz"
+    nb_qubits = (  # pyright: ignore[reportAssignmentType,reportIncompatibleMethodOverride]
+        2
+    )
+
+    def __init__(self, phi: Expr | float, a: int, b: int):
+        super().__init__(phi, [a, b])
+
+    def to_canonical_matrix(self):
+        phi = self.parameters[0]
+        e_minus = exp(-1j * phi / 2)
+        e_plus = exp(1j * phi / 2)
+
+        return np.array(
+            [
+                [e_minus, 0, 0, 0],
+                [0, e_plus, 0, 0],
+                [0, 0, e_plus, 0],
+                [0, 0, 0, e_minus],
+            ],
+            dtype=complex,
+        )
 
 
 class Rk(RotationGate, SingleQubitGate):
