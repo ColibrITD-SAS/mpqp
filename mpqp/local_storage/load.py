@@ -18,10 +18,10 @@ def _build_safe_namespace() -> dict[str, Any]:
     import numpy as np
     from numpy import array, complex64, float64  # noqa: F401
 
-    import mpqp.all as _all
+    import mpqp as _all
 
     safe_ns: dict[str, Any] = {"__builtins__": {}}
-    # Pull in all public symbols from mpqp.all
+    # Pull in all public symbols from mpqp
     for name in dir(_all):
         if not name.startswith("_"):
             safe_ns[name] = getattr(_all, name)
@@ -81,32 +81,20 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
 
     jobs_mpqp = []
     if isinstance(jobs, dict):
-        measure = (
-            _safe_eval(_safe_eval(jobs['measure']))
-            if jobs['measure'] is not None
-            else None
-        )
         jobs_mpqp.append(
             Job(
                 _safe_eval("JobType." + jobs['type']),
                 _safe_eval(_safe_eval(jobs['circuit'])),
                 _safe_eval(jobs['device']),
-                measure,
             )
         )
     else:
         for job in jobs:
-            measure = (
-                _safe_eval(_safe_eval(job['measure']))
-                if job['measure'] is not None
-                else None
-            )
             jobs_mpqp.append(
                 Job(
                     _safe_eval("JobType." + job['type']),
                     _safe_eval(_safe_eval(job['circuit'])),
                     _safe_eval(job['device']),
-                    measure,
                 )
             )
 
