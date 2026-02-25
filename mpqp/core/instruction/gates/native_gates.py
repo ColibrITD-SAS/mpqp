@@ -217,8 +217,12 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         target: Index referring to the qubits on which the gate will be applied.
     """
 
-    def __init__(self, theta: Expr | float, target: list[int] | int):
-        self.parameters = [theta]
+    def __init__(
+        self, theta: list[Expr | float] | Expr | float, target: list[int] | int
+    ):
+        if not isinstance(theta, list):
+            theta = [theta]
+        self.parameters = theta
         definition = UnitaryMatrix(self.to_canonical_matrix())
         if isinstance(target, int):
             target = [target]
@@ -1349,6 +1353,122 @@ class Rzz(
             ],
             dtype=complex,
         )
+
+
+class PRX(RotationGate, SingleQubitGate):
+    r"""Parametrized rotated-X gate.
+
+    PRX(θ, φ) = Rz(φ) Rx(θ) Rz(-φ)
+
+    Equivalent to a rotation of angle θ around
+    the axis (cos φ, sin φ, 0) in the XY plane.
+
+    Args:
+        theta: Rotation angle.
+        phi: Axis angle in XY plane.
+        target: Target qubit.
+
+    Matrix form:
+        Rz(φ) Rx(θ) Rz(-φ)
+    """
+
+    qlm_aqasm_keyword = "PRX"
+    qiskit_string = "prx"
+
+    @classproperty
+    def braket_gate(cls):
+        from braket.circuits import gates
+
+        return gates.PRx
+
+    @classproperty
+    def qiskit_gate(cls):
+        from qiskit.circuit.library import UGate
+
+        return UGate
+
+    @classproperty
+    def cirq_gate(cls):
+        from cirq.ops.phased_x_gate import PhasedXPowGate
+
+        return PhasedXPowGate
+
+    def __init__(self, theta: Expr | float, phi: Expr | float, target: int):
+        super().__init__([theta, phi], target)
+
+    def to_canonical_matrix(self):
+        theta, phi = self.parameters
+
+        c = np.cos(theta / 2)
+        s = np.sin(theta / 2)
+
+        e_minus = np.exp(-1j * phi)
+        e_plus = np.exp(1j * phi)
+
+        return np.array(
+            [
+                [c, -1j * e_minus * s],
+                [-1j * e_plus * s, c],
+            ],
+            dtype=complex,
+        )
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+
+        theta, phi = self.parameters
+        try:
+            theta = float(theta)
+        except:
+            pass
+        try:
+            phi = float(phi)
+        except:
+            pass
+
+        if language == Language.QISKIT:
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
+            return self.qiskit_gate(
+                _qiskit_parameter_adder(theta, qiskit_parameters),
+                _qiskit_parameter_adder(phi, qiskit_parameters),
+                _qiskit_parameter_adder(-phi, qiskit_parameters),
+            )
+        elif language == Language.BRAKET:
+            from braket.circuits import Instruction
+
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(
+                operator=self.braket_gate(
+                    _sympy_to_braket_param(theta), _sympy_to_braket_param(phi)
+                ),
+                target=connection,
+            )
+        elif language == Language.CIRQ:
+            return self.cirq_gate(theta, phi)
+        if language == Language.QASM2:
+            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+
+            instruction_str = self.qasm2_gate
+            instruction_str += (
+                "("
+                + ",".join(float_to_qasm_str(float(param)) for param in self.parameters)
+                + ")"
+            )
+
+            qubits = ""
+            if isinstance(self, ControlledGate):
+                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
+            qubits += ",".join([f"q[{j}]" for j in self.targets])
+
+            return instruction_str + " " + qubits + ";"
+        else:
+            raise NotImplementedError(f"Error: {language} is not supported")
 
 
 class Rk(RotationGate, SingleQubitGate):
