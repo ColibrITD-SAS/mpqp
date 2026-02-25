@@ -96,7 +96,7 @@ def copy_notebooks(app: Sphinx):
 
     os.makedirs(dest_dir, exist_ok=True)
 
-    if not os.path.exists(src_dir):
+    if not src_dir.exists():
         raise FileNotFoundError(f"Source notebooks directory not found: {src_dir}")
 
     for nb in os.listdir(src_dir):
