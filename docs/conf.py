@@ -90,8 +90,9 @@ nbsphinx_prolog = r"""
 
 
 def copy_notebooks(app: Sphinx):
-    src_dir = (Path(app.srcdir) / "../examples/notebooks").absolute()
-    dest_dir = Path(app.srcdir) / "notebooks"
+    app_dir = Path(app.srcdir).absolute()
+    src_dir = app_dir / "../examples/notebooks"
+    dest_dir = app_dir / "notebooks"
 
     os.makedirs(dest_dir, exist_ok=True)
 
