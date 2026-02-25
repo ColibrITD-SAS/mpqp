@@ -227,7 +227,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         if isinstance(target, int):
             target = [target]
         ParametrizedGate.__init__(
-            self, definition, target, [self.theta], type(self).__name__.capitalize()
+            self, definition, target, self.parameters, type(self).__name__.capitalize()
         )
 
     @property
@@ -1381,23 +1381,11 @@ class PRX(RotationGate, SingleQubitGate):
 
         return gates.PRx
 
-    @classproperty
-    def qiskit_gate(cls):
-        from qiskit.circuit.library import UGate
-
-        return UGate
-
-    @classproperty
-    def cirq_gate(cls):
-        from cirq.ops.phased_x_gate import PhasedXPowGate
-
-        return PhasedXPowGate
-
     def __init__(self, theta: Expr | float, phi: Expr | float, target: int):
         super().__init__([theta, phi], target)
 
     def to_canonical_matrix(self):
-        theta, phi = self.parameters
+        theta, phi = self.parameters[0], self.parameters[1]
 
         c = np.cos(theta / 2)
         s = np.sin(theta / 2)
@@ -1419,7 +1407,7 @@ class PRX(RotationGate, SingleQubitGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
 
-        theta, phi = self.parameters
+        theta, phi = self.parameters[0], self.parameters[1]
         try:
             theta = float(theta)
         except:
@@ -1430,13 +1418,11 @@ class PRX(RotationGate, SingleQubitGate):
             pass
 
         if language == Language.QISKIT:
+            from qiskit.circuit.library import UnitaryGate
+
             if qiskit_parameters is None:
                 qiskit_parameters = set()
-            return self.qiskit_gate(
-                _qiskit_parameter_adder(theta, qiskit_parameters),
-                _qiskit_parameter_adder(phi, qiskit_parameters),
-                _qiskit_parameter_adder(-phi, qiskit_parameters),
-            )
+            return UnitaryGate(self.to_matrix())
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
 
@@ -1450,7 +1436,9 @@ class PRX(RotationGate, SingleQubitGate):
                 target=connection,
             )
         elif language == Language.CIRQ:
-            return self.cirq_gate(theta, phi)
+            from cirq import MatrixGate
+
+            return MatrixGate(self.to_matrix())
         if language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
 
