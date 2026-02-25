@@ -99,7 +99,7 @@ def copy_notebooks(app: Sphinx):
     if not src_dir.exists():
         raise FileNotFoundError(f"Source notebooks directory not found: {src_dir}")
 
-    for nb in os.listdir(src_dir):
+    for nb in src_dir.iterdir():
         if nb.endswith(".ipynb"):
             shutil.copy2(src_dir / nb, dest_dir)
 
