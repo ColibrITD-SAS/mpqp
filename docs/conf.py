@@ -131,7 +131,7 @@ def generate_notebooks_toctree(app: Sphinx):
     found in notebooks/.
     """
     notebooks_dir = Path(app.srcdir) / "notebooks"
-    os.makedirs(notebooks_dir, exist_ok=True)
+    notebooks_dir.makedir(exist_ok=True)
     output_file = notebooks_dir / "notebooks_toctree.rst"
 
     notebooks = sorted(f for f in notebooks_dir.iterdir() if f.endswith(".ipynb"))
