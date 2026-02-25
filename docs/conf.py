@@ -115,7 +115,7 @@ def copy_requirements_providers(app: Sphinx):
 
     dest_dir.mkdir(exist_ok=True)
 
-    if not os.path.exists(src_dir):
+    if not src_dir.exists():
         raise FileNotFoundError(
             f"Source requirements_providers directory not found: {src_dir}"
         )
