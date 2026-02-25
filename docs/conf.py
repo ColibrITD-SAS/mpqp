@@ -120,7 +120,7 @@ def copy_requirements_providers(app: Sphinx):
             f"Source requirements_providers directory not found: {src_dir}"
         )
 
-    for fname in os.listdir(src_dir):
+    for fname in src_dir.iterdir():
         if fname.endswith(".txt"):
             shutil.copy2(src_dir / fname, dest_dir / fname)
 
