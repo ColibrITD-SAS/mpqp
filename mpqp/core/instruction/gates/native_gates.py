@@ -1386,20 +1386,12 @@ class PRX(RotationGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         theta, phi = self.parameters[0], self.parameters[1]
-        from sympy import cos, sin, exp, I
 
-        c = cos(theta / 2)
-        s = sin(theta / 2)
+        rz_plus = Rz(phi, self.targets[0]).to_matrix()
+        rx = Rx(theta, self.targets[0]).to_matrix()
+        rz_minus = Rz(-phi, self.targets[0]).to_matrix()
 
-        e_minus = exp(-I * phi)
-        e_plus = exp(I * phi)
-
-        return np.array(
-            [
-                [c, -1j * e_minus * s],
-                [-1j * e_plus * s, c],
-            ],
-        )
+        return rz_plus @ rx @ rz_minus
 
     def to_other_language(
         self,
