@@ -94,7 +94,7 @@ def copy_notebooks(app: Sphinx):
     src_dir = app_dir / "../examples/notebooks"
     dest_dir = app_dir / "notebooks"
 
-    os.makedirs(dest_dir, exist_ok=True)
+    dest_dir.mkdir(exist_ok=True)
 
     if not src_dir.exists():
         raise FileNotFoundError(f"Source notebooks directory not found: {src_dir}")
