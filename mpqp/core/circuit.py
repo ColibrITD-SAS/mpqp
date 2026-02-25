@@ -1282,44 +1282,84 @@ class QCircuit:
                 qiskit_inst = instruction.to_other_language(
                     language, qiskit_parameters, **options
                 )
-                if TYPE_CHECKING:
-                    assert isinstance(
-                        qiskit_inst, (CircuitInstruction, Operation, Operator)
-                    )
-                cargs = []
+                if isinstance(qiskit_inst, list):
+                    for inst in qiskit_inst:
+                        if TYPE_CHECKING:
+                            assert isinstance(
+                                inst, (CircuitInstruction, Operation, Operator)
+                            )
+                        cargs = []
+                        if isinstance(instruction, CustomGate):
+                            if TYPE_CHECKING:
+                                assert isinstance(inst, Operator)
+                            if printing and len(instruction.free_symbols) > 0:
+                                new_circ.append(
+                                    inst, list(reversed(instruction.targets))
+                                )
+                            else:
+                                new_circ.unitary(
+                                    inst,
+                                    list(reversed(instruction.targets)),
+                                    instruction.label,
+                                )
+                        else:
+                            if isinstance(instruction, ControlledGate):
+                                qargs = list(reversed(instruction.controls)) + list(
+                                    reversed(instruction.targets)
+                                )
+                            elif isinstance(instruction, Gate):
+                                qargs = list(reversed(instruction.targets))
+                            elif isinstance(instruction, Barrier):
+                                qargs = range(self.nb_qubits)
+                            else:
+                                raise ValueError(f"Instruction not handled: {instruction}")
 
-                if isinstance(instruction, CustomGate):
-                    if TYPE_CHECKING:
-                        assert isinstance(qiskit_inst, Operator)
-                    if printing and len(instruction.free_symbols) > 0:
-                        new_circ.append(
-                            qiskit_inst, list(reversed(instruction.targets))
-                        )
-                    else:
-                        new_circ.unitary(
-                            qiskit_inst,
-                            list(reversed(instruction.targets)),
-                            instruction.label,
-                        )
+                            if TYPE_CHECKING:
+                                assert not isinstance(inst, Operator)
+                            new_circ.append(
+                                inst,
+                                list(qargs),
+                                cargs,
+                            )
                 else:
-                    if isinstance(instruction, ControlledGate):
-                        qargs = list(reversed(instruction.controls)) + list(
-                            reversed(instruction.targets)
-                        )
-                    elif isinstance(instruction, Gate):
-                        qargs = list(reversed(instruction.targets))
-                    elif isinstance(instruction, Barrier):
-                        qargs = range(self.nb_qubits)
-                    else:
-                        raise ValueError(f"Instruction not handled: {instruction}")
-
                     if TYPE_CHECKING:
-                        assert not isinstance(qiskit_inst, Operator)
-                    new_circ.append(
-                        qiskit_inst,
-                        list(qargs),
-                        cargs,
-                    )
+                        assert isinstance(
+                            qiskit_inst, (CircuitInstruction, Operation, Operator)
+                        )
+                    cargs = []
+
+                    if isinstance(instruction, CustomGate):
+                        if TYPE_CHECKING:
+                            assert isinstance(qiskit_inst, Operator)
+                        if printing and len(instruction.free_symbols) > 0:
+                            new_circ.append(
+                                qiskit_inst, list(reversed(instruction.targets))
+                            )
+                        else:
+                            new_circ.unitary(
+                                qiskit_inst,
+                                list(reversed(instruction.targets)),
+                                instruction.label,
+                            )
+                    else:
+                        if isinstance(instruction, ControlledGate):
+                            qargs = list(reversed(instruction.controls)) + list(
+                                reversed(instruction.targets)
+                            )
+                        elif isinstance(instruction, Gate):
+                            qargs = list(reversed(instruction.targets))
+                        elif isinstance(instruction, Barrier):
+                            qargs = range(self.nb_qubits)
+                        else:
+                            raise ValueError(f"Instruction not handled: {instruction}")
+
+                        if TYPE_CHECKING:
+                            assert not isinstance(qiskit_inst, Operator)
+                        new_circ.append(
+                            qiskit_inst,
+                            list(qargs),
+                            cargs,
+                        )
 
             for measurement in self.measurements:
                 if not skip_pre_measure:

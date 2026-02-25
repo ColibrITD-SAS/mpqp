@@ -1411,11 +1411,15 @@ class PRX(RotationGate, SingleQubitGate):
             pass
 
         if language == Language.QISKIT:
-            from qiskit.circuit.library import UnitaryGate
+            from qiskit.circuit.library import RZGate, RXGate
 
             if qiskit_parameters is None:
                 qiskit_parameters = set()
-            return UnitaryGate(self.to_matrix())
+            return [
+                RZGate(_qiskit_parameter_adder(phi, qiskit_parameters)),
+                RXGate(_qiskit_parameter_adder(theta, qiskit_parameters)),
+                RZGate(_qiskit_parameter_adder(-phi, qiskit_parameters)),
+            ]
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
 
