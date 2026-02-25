@@ -134,7 +134,7 @@ def generate_notebooks_toctree(app: Sphinx):
     os.makedirs(notebooks_dir, exist_ok=True)
     output_file = notebooks_dir / "notebooks_toctree.rst"
 
-    notebooks = sorted(f for f in os.listdir(notebooks_dir) if f.endswith(".ipynb"))
+    notebooks = sorted(f for f in notebooks_dir.iterdir() if f.endswith(".ipynb"))
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(".. toctree::\n")
