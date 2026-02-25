@@ -135,12 +135,13 @@ def generate_notebooks_toctree(app: Sphinx):
     output_file = notebooks_dir / "notebooks_toctree.rst"
 
     notebooks = sorted(f for f in notebooks_dir.iterdir() if f.endswith(".ipynb"))
-
+    prefix = """\.. toctree::
+   :maxdepth: 1
+   :caption: Notebooks:
+   
+"""
     with open(output_file, "w", encoding="utf-8") as f:
-        f.write(".. toctree::\n")
-        f.write("   :maxdepth: 1\n")
-        f.write("   :caption: Notebooks:\n\n")
-
+        f.write(prefix)
         for nb in notebooks:
             f.write(f"   notebooks/{nb}\n")
 
