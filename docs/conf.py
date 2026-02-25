@@ -109,8 +109,9 @@ def copy_requirements_providers(app: Sphinx):
     Copy requirements_providers/*.txt into docs/requirements_providers
     so Sphinx can access them.
     """
-    src_dir = (Path(app.srcdir) / "../requirements_providers").absolute()
-    dest_dir = Path(app.srcdir) / "requirements_providers"
+    app_dir = Path(app.srcdir).absolute()
+    src_dir = app_dir / "../requirements_providers"
+    dest_dir = app_dir / "requirements_providers"
 
     os.makedirs(dest_dir, exist_ok=True)
 
