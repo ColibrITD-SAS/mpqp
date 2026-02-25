@@ -113,7 +113,7 @@ def copy_requirements_providers(app: Sphinx):
     src_dir = app_dir / "../requirements_providers"
     dest_dir = app_dir / "requirements_providers"
 
-    os.makedirs(dest_dir, exist_ok=True)
+    dest_dir.mkdir(exist_ok=True)
 
     if not os.path.exists(src_dir):
         raise FileNotFoundError(
