@@ -1382,8 +1382,8 @@ class PRX(RotationGate, SingleQubitGate):
         return gates.PRx
 
     def __init__(self, theta: Expr | float, phi: Expr | float, target: int):
-        self.target = [target]
-        super().__init__([theta, phi], self.target)
+        self.targets = [target]
+        super().__init__([theta, phi], self.targets)
 
     def to_canonical_matrix(self):
         theta, phi = self.parameters[0], self.parameters[1]
