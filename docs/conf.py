@@ -100,7 +100,7 @@ def copy_notebooks(app: Sphinx):
         raise FileNotFoundError(f"Source notebooks directory not found: {src_dir}")
 
     for nb in src_dir.iterdir():
-        if nb.endswith(".ipynb"):
+        if nb.suffix == ".ipynb":
             shutil.copy2(src_dir / nb, dest_dir)
 
 
@@ -121,7 +121,7 @@ def copy_requirements_providers(app: Sphinx):
         )
 
     for fname in src_dir.iterdir():
-        if fname.endswith(".txt"):
+        if fname.suffix == ".txt":
             shutil.copy2(src_dir / fname, dest_dir / fname)
 
 
@@ -131,11 +131,11 @@ def generate_notebooks_toctree(app: Sphinx):
     found in notebooks/.
     """
     notebooks_dir = Path(app.srcdir) / "notebooks"
-    notebooks_dir.makedir(exist_ok=True)
+    notebooks_dir.mkdir(exist_ok=True)
     output_file = notebooks_dir / "notebooks_toctree.rst"
 
-    notebooks = sorted(f for f in notebooks_dir.iterdir() if f.endswith(".ipynb"))
-    prefix = """\.. toctree::
+    notebooks = sorted(f for f in notebooks_dir.iterdir() if f.suffix == ".ipynb")
+    prefix = """\\.. toctree::
    :maxdepth: 1
    :caption: Notebooks:
    
@@ -401,7 +401,9 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements["preamble"] += r"""
+latex_elements[
+    "preamble"
+] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{
