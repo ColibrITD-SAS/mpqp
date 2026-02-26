@@ -1470,7 +1470,7 @@ class QCircuit:
                     self.noises,
                     self.nb_qubits,
                 )
-                
+
             return BracketCircuit().add_verbatim_box(braket_circuit)
         elif language == Language.CIRQ:
             from cirq.circuits.circuit import Circuit as CirqCircuit
