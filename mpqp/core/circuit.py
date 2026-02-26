@@ -1440,6 +1440,7 @@ class QCircuit:
 
             braket_circuit = BracketCircuit()
             for instruction in circuit.instructions:
+                targets = [1 + target for target in instruction.targets]
                 if isinstance(instruction, (Barrier, Breakpoint)):
                     continue
                 if isinstance(instruction, Measure):
@@ -1448,17 +1449,18 @@ class QCircuit:
                             bracket_pre_measure = pre_measure.to_other_language(
                                 Language.BRAKET
                             )
-                            braket_circuit.add(bracket_pre_measure, instruction.targets)
+                            braket_circuit.add(bracket_pre_measure, targets)
                     if not skip_measurements:
                         if isinstance(instruction, BasisMeasure):
-                            braket_circuit.measure(instruction.targets)
+                            braket_circuit.measure(targets)
                     continue
                 braket_instr = instruction.to_other_language(Language.BRAKET)
                 try:
-                    target = instruction.targets
                     if isinstance(instruction, ControlledGate):
-                        target = instruction.controls + target
-                    braket_circuit.add_instruction(braket_instr, target=target)
+                        targets = [
+                            control + 1 for control in instruction.controls
+                        ] + targets
+                    braket_circuit.add_instruction(braket_instr, target=targets)
                 except Exception as e:
                     raise ValueError(
                         f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
@@ -1470,7 +1472,7 @@ class QCircuit:
                     self.noises,
                     self.nb_qubits,
                 )
-                
+
             return BracketCircuit().add_verbatim_box(braket_circuit)
         elif language == Language.CIRQ:
             from cirq.circuits.circuit import Circuit as CirqCircuit
