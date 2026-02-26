@@ -1312,7 +1312,9 @@ class QCircuit:
                             elif isinstance(instruction, Barrier):
                                 qargs = range(self.nb_qubits)
                             else:
-                                raise ValueError(f"Instruction not handled: {instruction}")
+                                raise ValueError(
+                                    f"Instruction not handled: {instruction}"
+                                )
 
                             if TYPE_CHECKING:
                                 assert not isinstance(inst, Operator)
