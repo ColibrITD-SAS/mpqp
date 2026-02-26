@@ -1462,14 +1462,14 @@ class QCircuit:
                         f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
                     )
 
-            if len(self.noises) == 0:
-                return braket_circuit
-
-            return apply_noise_to_braket_circuit(
-                braket_circuit,
-                self.noises,
-                self.nb_qubits,
-            )
+            if len(self.noises) != 0:
+                braket_circuit = apply_noise_to_braket_circuit(
+                    braket_circuit,
+                    self.noises,
+                    self.nb_qubits,
+                )
+                
+            return BracketCircuit().add_verbatim_box(braket_circuit)
         elif language == Language.CIRQ:
             from cirq.circuits.circuit import Circuit as CirqCircuit
             from cirq.ops.identity import I
