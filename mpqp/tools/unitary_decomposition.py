@@ -1,6 +1,6 @@
 """This module regroups functions used for decomposition of arbitrary
 unitary operator into elementary gates regrouped in a quantum circuit."""
-
+from __future__ import annotations
 import math
 from typing import Union
 

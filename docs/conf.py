@@ -51,6 +51,19 @@ autodoc_type_aliases = {
     "Measure": "Measure",
     "Breakpoint": "Breakpoint",
     "PauliStringMonomial": "PauliStringMonomial",
+    "PauliStringAtom": "PauliStringAtom",
+    "Job": "Job",
+    "Result": "Result",
+    "BatchResult": "BatchResult",
+    "NoiseModel": "NoiseModel",
+    "AnswerNode": "AnswerNode",
+    "Qubo": "Qubo",
+    "Instruction": "Instruction",
+    "Sample": "Sample",
+    "Instr": "Instr",
+    "UserGate": "UserGate",
+    "SingleQubitGate": "SingleQubitGate",
+    "CustomGate": "CustomGate",
     "npt.NDArray[np.complex128]": "np.array[np.complex128]",
 }
 autodoc_mock_imports = ["braket.circuits.measure"]
@@ -342,7 +355,9 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements["preamble"] += r"""
+latex_elements[
+    "preamble"
+] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{

@@ -26,7 +26,7 @@ performing a hard import of standard gates and other included file is
 sufficient. However, note that a ``Program`` cannot be used to retrieve the
 statevector and expectation value in Braket.
 """
-
+from __future__ import annotations
 import io
 import warnings
 from logging import StreamHandler, getLogger

@@ -7,7 +7,7 @@ together with optional actions and follow up question.
 
 To run your choice tree, just run :func:`run_choice_tree` on your root question.
 """
-
+from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Callable, Iterable, Optional, TypeVar
 

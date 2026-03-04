@@ -21,7 +21,7 @@ For more information about handling Remote devices, please refer to the `Remote 
    :widths: 7, 25, 6, 7, 10, 10, 15
    :header-rows: 1
 """
-
+from __future__ import annotations
 from abc import abstractmethod
 from enum import Enum, auto
 
