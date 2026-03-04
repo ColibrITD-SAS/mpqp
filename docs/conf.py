@@ -120,9 +120,13 @@ def copy_requirements_providers(app: Sphinx):
             f"Source requirements_providers directory not found: {src_dir}"
         )
 
-    for fname in src_dir.iterdir():
-        if fname.suffix == ".txt":
-            shutil.copy2(src_dir / fname, dest_dir / fname)
+    for src_file in src_dir.glob("*.txt"):
+        dest_file = dest_dir / src_file.name
+
+        if dest_file.exists():
+            dest_file.unlink()
+
+        shutil.copy2(src_file, dest_file)
 
 
 def generate_notebooks_toctree(app: Sphinx):
@@ -401,7 +405,9 @@ class CustomLatexFormatter(LatexFormatter):  # type: ignore
 
 PygmentsBridge.latex_formatter = CustomLatexFormatter
 
-latex_elements["preamble"] += r"""
+latex_elements[
+    "preamble"
+] += r"""
 % One-column index
 \makeatletter
 \renewenvironment{theindex}{

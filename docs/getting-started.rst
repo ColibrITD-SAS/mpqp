@@ -24,14 +24,17 @@ run instead:
 
    $ pip install -U mpqp
 
+.. note::
+    To keep the installation lightweight and avoid installing unnecessary
+    dependencies, each provider is distributed as a **separate pip extra**.
+    By default, only the core functionalities of ``mpqp`` and qiskit local
+    simulation are installed, which means that you can create and manipulate circuits, 
+    but you won't be able to run them on any backend.
+
 Add more providers
 --------------------------
 
 ``mpqp`` provides integrations with several quantum SDKs and execution backends.
-
-To keep the installation lightweight and avoid installing unnecessary
-dependencies, each provider is distributed as a **separate pip extra**.
-
 
 - **Installing all providers**:
 
