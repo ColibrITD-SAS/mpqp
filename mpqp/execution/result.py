@@ -804,8 +804,9 @@ class BatchResult:
                 plots.
 
         Example:
-            >>> circuit = QCircuit([H(0),H(1),H(2)])
-            >>> run(circuit, IBMDevice.AER_SIMULATOR).plot()
+            >>> circuit = QCircuit([H(0),H(1),H(2), BasisMeasure()])
+            >>> circuit2 = QCircuit([H(0),X(1),H(2), BasisMeasure()])
+            >>> run([circuit,circuit2], IBMDevice.AER_SIMULATOR).plot()
         """
         from matplotlib import pyplot as plt
 
