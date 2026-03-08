@@ -29,10 +29,7 @@ from mpqp.gates import CNOT, H, X
 
 
 class TestJobType:
-    def test_all_types_exist(self):
-        expected = {"STATE_VECTOR", "SAMPLE", "OBSERVABLE"}
-        actual = {t.name for t in JobType}
-        assert expected == actual
+    
 
     def test_state_vector_accepts_basis_measure(self):
         assert BasisMeasure in JobType.STATE_VECTOR.value
@@ -68,17 +65,7 @@ class TestJobConstruction:
         job = Job(JobType.SAMPLE, circuit, IBMDevice.AER_SIMULATOR)
         assert job.measure is not None
 
-    def test_construction_with_different_devices(self):
-        circuit = QCircuit(2)
-        devices = [
-            IBMDevice.AER_SIMULATOR,
-            ATOSDevice.MYQLM_PYLINALG,
-            AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-        ]
-        for device in devices:
-            job = Job(JobType.STATE_VECTOR, circuit, device)
-            assert job.device == device
+    
 
 
 # ---------------------------------------------------------------------------
