@@ -93,10 +93,10 @@ class Instruction(SimpleClassReprABC):
         """
         pass
 
-    def __eq__(self, value: object) -> bool:
-        if not isinstance(value, type(self)):
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
             return False
-        return self.to_dict() == value.to_dict()
+        return self.to_dict() == other.to_dict()
 
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
