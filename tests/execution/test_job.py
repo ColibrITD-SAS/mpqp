@@ -132,7 +132,9 @@ class TestJobReprAndDict:
     def test_repr(self):
         circuit = QCircuit(2)
         job = Job(JobType.STATE_VECTOR, circuit, IBMDevice.AER_SIMULATOR)
-        expected = f"Job({JobType.STATE_VECTOR}, {repr(circuit)}, {IBMDevice.AER_SIMULATOR})"
+        expected = (
+            f"Job({JobType.STATE_VECTOR}, {repr(circuit)}, {IBMDevice.AER_SIMULATOR})"
+        )
         assert repr(job) == expected
 
     def test_to_dict(self):
