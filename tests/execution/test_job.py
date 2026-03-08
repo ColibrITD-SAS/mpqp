@@ -29,7 +29,6 @@ from mpqp.gates import CNOT, H, X
 
 
 class TestJobType:
-    
 
     def test_state_vector_accepts_basis_measure(self):
         assert BasisMeasure in JobType.STATE_VECTOR.value
@@ -64,8 +63,6 @@ class TestJobConstruction:
         circuit = QCircuit([H(0), CNOT(0, 1), measure])
         job = Job(JobType.SAMPLE, circuit, IBMDevice.AER_SIMULATOR)
         assert job.measure is not None
-
-    
 
 
 # ---------------------------------------------------------------------------
