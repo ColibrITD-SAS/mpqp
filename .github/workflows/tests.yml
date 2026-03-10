@@ -29,7 +29,7 @@ on:
         default: false
         type: boolean
       providers:
-        description: "Providers to enable (space-separated) e.g., 'qiskit cirq myqlm braket')"
+        description: "Providers to enable. Select 'all' or choose a specific provider."
         required: false
         default: "all"
         type: choice

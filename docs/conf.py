@@ -139,7 +139,7 @@ def generate_notebooks_toctree(app: Sphinx):
     output_file = notebooks_dir / "notebooks_toctree.rst"
 
     notebooks = sorted(f for f in notebooks_dir.iterdir() if f.suffix == ".ipynb")
-    prefix = """\\.. toctree::
+    prefix = """.. toctree::
    :maxdepth: 1
    :caption: Notebooks:
    
@@ -147,7 +147,7 @@ def generate_notebooks_toctree(app: Sphinx):
     with open(output_file, "w", encoding="utf-8") as f:
         f.write(prefix)
         for nb in notebooks:
-            f.write(f"   notebooks/{nb}\n")
+            f.write(f"   notebooks/{nb.stem}\n")
 
 
 # The suffix of source filenames.
