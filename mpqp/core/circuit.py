@@ -1460,7 +1460,8 @@ class QCircuit:
                         targets = [
                             control + 1 for control in instruction.controls
                         ] + targets
-                    braket_circuit.add_instruction(braket_instr, target=targets)
+                    br = BracketCircuit().add_instruction(braket_instr, target=targets)
+                    braket_circuit.add_verbatim_box(br)
                 except Exception as e:
                     raise ValueError(
                         f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
@@ -1473,7 +1474,7 @@ class QCircuit:
                     self.nb_qubits,
                 )
 
-            return BracketCircuit().add_verbatim_box(braket_circuit)
+            return braket_circuit
         elif language == Language.CIRQ:
             from cirq.circuits.circuit import Circuit as CirqCircuit
             from cirq.ops.identity import I
