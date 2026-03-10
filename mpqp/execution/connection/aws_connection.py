@@ -393,7 +393,8 @@ def get_braket_device(
         else:
             return LocalSimulator()
 
-    import pkg_resources
+    from importlib.metadata import PackageNotFoundError, version
+
     from botocore.exceptions import NoRegionError
     from braket.aws import AwsDevice, AwsSession
 
@@ -402,7 +403,12 @@ def get_braket_device(
 
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
-        mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
+
+        try:
+            mpqp_version = version("mpqp")
+        except PackageNotFoundError:
+            mpqp_version = "0.0.0+unknown"
+
         aws_session.add_braket_user_agent(
             user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
         )
@@ -425,7 +431,8 @@ def get_braket_device(
         if actions is not None:
             supported = [getattr(k, "value", str(k)) for k in actions.keys()]
             supports_gate_model = any(
-                ("openqasm" in action.lower()) or ("jaqcd" in action.lower()) for action in supported
+                ("openqasm" in action.lower()) or ("jaqcd" in action.lower())
+                for action in supported
             )
             if not supports_gate_model:
                 raise DeviceJobIncompatibleError(
