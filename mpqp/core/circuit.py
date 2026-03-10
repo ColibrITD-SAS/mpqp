@@ -1440,7 +1440,7 @@ class QCircuit:
 
             braket_circuit = BracketCircuit()
             for instruction in circuit.instructions:
-                targets = [1 + target for target in instruction.targets]
+                targets = [target for target in instruction.targets]
                 if isinstance(instruction, (Barrier, Breakpoint)):
                     continue
                 if isinstance(instruction, Measure):
@@ -1458,7 +1458,7 @@ class QCircuit:
                 try:
                     if isinstance(instruction, ControlledGate):
                         targets = [
-                            control + 1 for control in instruction.controls
+                            control for control in instruction.controls
                         ] + targets
                     br = BracketCircuit().add_instruction(braket_instr, target=targets)
                     braket_circuit.add_verbatim_box(br)
