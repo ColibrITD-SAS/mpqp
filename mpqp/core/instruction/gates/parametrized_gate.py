@@ -63,9 +63,19 @@ class ParametrizedGate(Gate, ABC):
         concrete_gate.definition = concrete_gate.definition.subs(
             values, remove_symbolic, **options
         )
-        caster = lambda v: float(v) if remove_symbolic else v
+
+        def caster(v: Expr | float) -> float:
+            if isinstance(v, Expr) and len(v.free_symbols) == 0:
+                return float(v.evalf())  # pyright: ignore[reportArgumentType]
+            else:
+                return v  # pyright: ignore[reportReturnType]
+
         concrete_gate.parameters = [
-            caster(param.subs(values)) if isinstance(param, Expr) else param
+            (
+                caster(param.subs(values))  # pyright: ignore[reportArgumentType]
+                if isinstance(param, Expr)
+                else param
+            )
             for param in self.parameters
         ]
 

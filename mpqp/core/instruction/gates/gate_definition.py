@@ -224,7 +224,6 @@ class UnitaryMatrix(GateDefinition):
             or not any(isinstance(val, Expr) for _, val in np.ndenumerate(matrix))
             else object
         )
-
         return UnitaryMatrix(np.vectorize(mapping, otypes=[otype])(matrix))
 
     def __repr__(self) -> str:
