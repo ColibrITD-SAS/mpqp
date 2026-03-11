@@ -45,9 +45,13 @@ def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
              └─┘
 
     """
-    from qat.interop.openqasm import OqasmParser
+    import warnings
 
-    parser = OqasmParser(gates={"p": "PH", "u": "U"})  # requires myqlm-interop-1.9.3
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from qat.interop.openqasm import OqasmParser
+
+    parser = OqasmParser(gates={"p": "PH", "u": "U"})
 
     # We replace 'sdg' for S_dagger gate by 'u1(pi/2)', because of problem on myqlm side
     pattern = re.compile(r'(?<!gate\s)sdg\s+(\S+)\s*;')
