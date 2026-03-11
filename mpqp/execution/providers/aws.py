@@ -519,7 +519,7 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
         AWSBraketRemoteExecutionError: When the status of the task is unknown.
     """
     from braket.aws import AwsQuantumTask
-    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+    from braket.tasks import GateModelQuantumTaskResult
 
     task: QuantumTask = AwsQuantumTask(task_arn)
     # catch an error if the id is not correct (wrong ID, wrong region, ...) ?
