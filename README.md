@@ -1,8 +1,10 @@
-![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp?logo=openaccess&logoColor=white)
+![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp?logo=openaccess&logoColor=white&color=97CA00)
 ![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/tests.yml?branch=dev&label=tests&logo=pytest&logoColor=white)
 ![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc&logo=read-the-docs&logoColor=white)
 ![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy&logo=pypi&logoColor=white)
+![release badge](https://img.shields.io/github/release/ColibrITD-SAS/mpqp?logo=github&color=blue)
 ![github stars badge](https://img.shields.io/github/stars/ColibrITD-SAS/mpqp?logo=github)
+![python versions badge](https://img.shields.io/pypi/pyversions/mpqp?label=python&color=blue)
 
 ![[alt:mpqp logo]](resources/dark-logo.svg)
 
@@ -61,9 +63,9 @@ print(circ)
 #             └───┘  └───┘
 print(run(circ, IBMDevice.AER_SIMULATOR_STATEVECTOR))
 # Result: IBMDevice, AER_SIMULATOR_STATEVECTOR
-#  State vector: [0.-0.j  0.+0.5j 0.-0.5j 0.+0.j  0.-0.j  0.+0.5j 0.-0.5j 0.+0.j ]
-#  Probabilities: [0.   0.25 0.25 0.   0.   0.25 0.25 0.  ]
-#  Number of qubits: 3
+#   State vector: [0, 0.5j, -0.5j, 0, 0, 0.5j, -0.5j, 0]
+#   Probabilities: [0, 0.25, 0.25, 0, 0, 0.25, 0.25, 0]
+#   Number of qubits: 3
 ```
 
 More details are available in our [documentation](https://mpqpdoc.colibri-quantum.com).
@@ -83,6 +85,12 @@ More details are available in our [documentation](https://mpqpdoc.colibri-quantu
 </td>
 <td style="text-align:center">
 <img src="https://github.com/JulienCalistoTD.png" width="60px;"/><br/><sub><a href="https://github.com/JulienCalistoTD">JulienCalisto</a></sub>
+</td>
+<td style="text-align:center">
+<img src="https://github.com/MathieuG-Colibri.png" width="60px;"/><br/><sub><a href="https://github.com/MathieuG-Colibri">Mathieu Gras</a></sub>
+</td>
+<td style="text-align:center">
+<img src="https://github.com/ThomasB-Colibri.png" width="60px;"/><br/><sub><a href="https://github.com/ThomasB-Colibri">Thomas Benzino</a></sub>
 </td>
 <td style="text-align:center">
 <img src="https://github.com/ah4dev.png" width="60px;"/><br /><sub><a href="https://github.com/ah4dev">Ahmed Bejaoui</a></sub>
