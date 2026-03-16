@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
+from typing import Any, Callable, Collection, Optional, Sequence, TypeVar, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -14,8 +14,9 @@ if TYPE_CHECKING:
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
 from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.job import ExecutionMode
 from mpqp.execution.runner import run
-from mpqp.execution.vqa.optimizer import Optimizer
+from mpqp.execution.vqa.optimizer import Optimizer, run_optimizer
 
 T1 = TypeVar("T1")
 T2 = TypeVar("T2")
@@ -41,7 +42,7 @@ OptimizerCallback = Union[
 def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
     """Does like zip, but with a dictionary instead of a list of tuples"""
     if len(l1) != len(l2):
-        ValueError(
+        raise ValueError(
             f"Length of the two collections are not equal ({len(l1)} and {len(l2)})."
         )
     return {e1: e2 for e1, e2 in zip(l1, l2)}
@@ -55,6 +56,7 @@ def minimize(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
+    mode: ExecutionMode = ExecutionMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, in order to
     minimize the measured expectation value of observables associated with the given circuit.
@@ -122,30 +124,19 @@ def minimize(
         (8.881784197001252e-16, array([0., 0.]))
 
     """
-    if isinstance(optimizable, QCircuit):
-        if device is None:
-            raise ValueError("A device is needed to optimize a circuit")
-        optimizer = _minimize_remote if device.is_remote() else _minimize_local
-        return optimizer(
-            optimizable,
-            method,
-            device,
-            init_params,
-            nb_params,
-            optimizer_options,
-            callback,
-        )
-    else:
-        # TODO: find a way to know if the job is remote or local from the function
-        return _minimize_local(
-            optimizable,
-            method,
-            device,
-            init_params,
-            nb_params,
-            optimizer_options,
-            callback,
-        )
+    if device is None:
+        raise ValueError("A device is needed to optimize a circuit")
+    optimizer = _minimize_remote if device.is_remote() else _minimize_local
+    return optimizer(
+        optimizable,
+        method,
+        device,
+        init_params,
+        nb_params,
+        optimizer_options,
+        callback,
+        mode,
+    )
 
 
 def _minimize_remote(
@@ -156,6 +147,7 @@ def _minimize_remote(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
+    mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -199,6 +191,7 @@ def _minimize_local(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
+    mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -233,11 +226,23 @@ def _minimize_local(
         if device is None:
             raise ValueError("A device is needed to optimize a circuit")
         return _minimize_local_circ(
-            optimizable, device, method, init_params, optimizer_options, callback
+            optimizable,
+            device,
+            method,
+            init_params,
+            optimizer_options,
+            callback,
+            mode,
         )
     else:
         return _minimize_local_func(
-            optimizable, method, init_params, nb_params, optimizer_options, callback
+            optimizable,
+            method,
+            init_params,
+            nb_params,
+            optimizer_options,
+            callback,
+            mode,
         )
 
 
@@ -274,6 +279,7 @@ def _minimize_local_circ(
     Returns:
         The optimal value reached and the parameters used to reach this value.
     """
+    # TODO: rework all this, minimize_local shouldn't have been touched at all in principle, only the remote one
     # The sympy `free_symbols` method returns in fact sets of Basic, which
     # are theoretically different from Expr, but in our case the difference
     # is not relevant.
@@ -284,30 +290,70 @@ def _minimize_local_circ(
 
     if not isinstance(circ.measurements[0], ExpectationMeasure):
         raise ValueError("Expected an ExpectationMeasure to optimize the circuit.")
-    else:
-        if len(circ.measurements[0].observables) > 1:
-            raise ValueError(
-                "Expected only one observable in the ExpectationMeasure but got"
-                f" {len(circ.measurements[0].observables)}"
-            )
 
-    def eval_circ(params: OptimizerInput):
-        # pyright is bad with abstract numeric types:
-        # "float" is incompatible with "Complex"
-        from numbers import Complex
-
-        params_fixed_type: Collection[Complex] = (
-            params  # pyright: ignore[reportAssignmentType]
+    if len(circ.measurements[0].observables) > 1:
+        raise ValueError(
+            "Expected only one observable in the ExpectationMeasure but got"
+            f" {len(circ.measurements[0].observables)}"
         )
 
-        values: dict[Expr | str, Complex] = _maps(variables, params_fixed_type)
-        result = run(circ, device, values)
-        if TYPE_CHECKING:
-            assert isinstance(result.expectation_values, float)
-        return result.expectation_values
+    variables = sorted(circ.variables(), key=str)
+
+    exec_mode = mode or ExecutionMode.JOB
+    if exec_mode == ExecutionMode.BATCH and not (
+        isinstance(method, Optimizer) and method == Optimizer.CMAES
+    ):
+        raise ValueError("Batch mode is supported with CMAES optimizer ")
+
+    single_mode = (
+        ExecutionMode.SESSION
+        if exec_mode == ExecutionMode.SESSION
+        else ExecutionMode.JOB
+    )
+
+    def eval_circ(params: OptimizerInput) -> float:
+        params_fixed = [complex(x) for x in params]
+        values = _maps(variables, params_fixed)
+        res = run(circ, device, values, mode=single_mode)
+        return float(res.expectation_values)
+
+    batch_eval_fn: Optional[
+        Callable[[Sequence[npt.NDArray[np.float_]]], Sequence[float]]
+    ] = None
+
+    if (
+        isinstance(method, Optimizer)
+        and method == Optimizer.CMAES
+        and exec_mode == ExecutionMode.BATCH
+    ):
+
+        def _batch_eval(
+            candidates: Sequence[npt.NDArray[np.float_]],
+        ) -> Sequence[float]:
+            values_list = [
+                _maps(variables, [complex(float(x)) for x in cand])
+                for cand in candidates
+            ]
+            batch_res = run(
+                circ,
+                device,
+                values=values_list,
+                mode=ExecutionMode.BATCH,
+                display_breakpoints=False,
+            )
+
+            return [float(res.expectation_values) for res in batch_res]
+
+        batch_eval_fn = _batch_eval
 
     return _minimize_local_func(
-        eval_circ, method, init_params, len(variables), optimizer_options, callback
+        eval_circ,
+        method,
+        init_params,
+        len(variables),
+        optimizer_options,
+        callback,
+        batch_eval=batch_eval_fn,
     )
 
 
@@ -318,7 +364,11 @@ def _minimize_local_func(
     nb_params: Optional[int] = None,
     optimizer_options: Optional[OptimizerOptions] = None,
     callback: Optional[OptimizerCallback] = None,
+    batch_eval: Optional[
+        Callable[[Sequence[npt.NDArray[np.float_]]], Sequence[float]]
+    ] = None,
 ) -> tuple[float, OptimizerInput]:
+    # TODO: rework all this, minimize_local shouldn't have been touched at all in principle, only the remote one
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
     observables. Note that this means that the circuit should contain an
@@ -356,14 +406,30 @@ def _minimize_local_func(
         else:
             init_params = [0.0] * nb_params
 
+    def _optimizer_callback(x: OptimizerInput) -> None:
+        if callback is None:
+            return
+
+        if isinstance(x, OptimizeResult):
+            callback(x)
+            return
+
+        try:
+            callback(OptimizeResult(x=np.array(x, dtype=float)))
+        except Exception:
+            callback(x)
+
     if isinstance(method, Optimizer):
-        res: OptimizeResult = scipy_minimize(
+        best_value, best_params = run_optimizer(
             eval_func,
-            x0=np.array(init_params),
-            method=method.name.lower(),
-            options=optimizer_options,
-            callback=callback,
+            method,
+            init_params,
+            optimizer_options,
+            _optimizer_callback if callback is not None else None,
+            batch_eval=batch_eval,
         )
-        return float(res.fun), res.x
-    else:
-        return method(eval_func, init_params, optimizer_options)
+        return best_value, best_params
+
+    best_value, best_params = method(eval_func, init_params, optimizer_options)
+
+    return float(best_value), np.asarray(best_params, dtype=float)

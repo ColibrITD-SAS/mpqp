@@ -1,5 +1,5 @@
 from getpass import getpass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from termcolor import colored
 
@@ -9,10 +9,11 @@ from mpqp.tools.errors import IBMRemoteExecutionError
 
 if TYPE_CHECKING:
     from qiskit.providers.backend import BackendV2
-    from qiskit_ibm_runtime import QiskitRuntimeService
+    from qiskit_ibm_runtime import QiskitRuntimeService, Session
 
 
 Runtime_Service = None
+_ibm_sessions: dict[str, "Session"] = {}
 
 
 def config_ibm_account(token: str):
@@ -208,3 +209,49 @@ def get_all_job_ids() -> list[str]:
     if get_env_variable("IBM_CONFIGURED") == "True":
         return [job.job_id() for job in get_QiskitRuntimeService().jobs(limit=None)]
     return []
+
+
+def get_or_create_ibm_session(
+    backend: "BackendV2", max_time: Optional[int] = None
+) -> "Session":
+    """Get an active IBM Runtime session for the given backend.
+    If a session exists and is valid, reuse it. Otherwise, create a new one.
+    """
+    from qiskit_ibm_runtime import Session
+    from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError, IBMRuntimeError
+
+    backend_name = backend.name
+    if backend_name in _ibm_sessions:
+        session = _ibm_sessions[backend_name]
+        try:
+            status = session.status()
+        except (IBMNotAuthorizedError, IBMRuntimeError):
+            status = "Closed"
+
+        if status not in ("Closed", None):
+            return session
+
+    new_session = Session(backend=backend, max_time=max_time)
+    _ibm_sessions[backend_name] = new_session
+    return new_session
+
+
+def close_ibm_session(backend: "BackendV2") -> None:
+    """Close the currently active session, if one exists."""
+
+    from qiskit_ibm_runtime.exceptions import IBMNotAuthorizedError, IBMRuntimeError
+
+    backend_name = backend.name
+    if backend_name not in _ibm_sessions:
+        return
+
+    session = _ibm_sessions[backend_name]
+    try:
+        session.close()
+    except (IBMNotAuthorizedError, IBMRuntimeError) as err:
+        raise IBMRemoteExecutionError(
+            f"Failed to close IBM session for backend '{backend_name}'. "
+            "Session was not removed; you can retry.\nTrace: " + str(err)
+        )
+    else:
+        del _ibm_sessions[backend_name]
