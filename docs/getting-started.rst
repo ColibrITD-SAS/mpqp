@@ -49,15 +49,6 @@ dependencies, each provider is distributed as a **separate pip extra**.
 .. literalinclude:: requirements_providers/qiskit.txt
    :language: text
 
-- **Azure Quantum**:
-
-    .. code-block:: console
-
-        $ pip install mpqp["azure"]
-
-.. literalinclude:: requirements_providers/azure.txt
-   :language: text
-
 - **Amazon Braket**:
 
     .. code-block:: console
@@ -67,16 +58,6 @@ dependencies, each provider is distributed as a **separate pip extra**.
 .. literalinclude:: requirements_providers/braket.txt
    :language: text
 
-- **myQLM**:
-
-    .. code-block:: console
-
-        $ pip install mpqp["myqlm"]
-
-.. literalinclude:: requirements_providers/myqlm.txt
-   :language: text
-
-
 - **Cirq**:
 
     .. code-block:: console
@@ -84,6 +65,24 @@ dependencies, each provider is distributed as a **separate pip extra**.
         $ pip install mpqp["cirq"]
 
 .. literalinclude:: requirements_providers/cirq.txt
+   :language: text
+
+- **Azure Quantum**:
+
+    .. code-block:: console
+
+        $ pip install mpqp["azure"]
+
+.. literalinclude:: requirements_providers/azure.txt
+   :language: text
+
+- **myQLM**:
+
+    .. code-block:: console
+
+        $ pip install mpqp["myqlm"]
+
+.. literalinclude:: requirements_providers/myqlm.txt
    :language: text
 
 
