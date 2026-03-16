@@ -2,6 +2,7 @@
 build/
 docs/html/
 out/
+mpqp/_version.py
 
 # python
 *.egg-info/
