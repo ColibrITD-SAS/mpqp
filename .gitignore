@@ -2,7 +2,7 @@
 build/
 docs/html/
 out/
-mpqp/_version.py
+mpqp/_setuptools_scm_version.py
 
 # python
 *.egg-info/

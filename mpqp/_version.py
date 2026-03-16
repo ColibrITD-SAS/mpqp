@@ -9,4 +9,9 @@ from importlib.metadata import PackageNotFoundError, version
 try:
     __version__ = version("mpqp")
 except PackageNotFoundError:
-    __version__ = "0.0.0+unknown"
+    try:
+        from _setuptools_scm_version import (  # pyright: ignore[reportMissingImports]
+            __version__,
+        )
+    except ModuleNotFoundError:
+        __version__ = "0.0.0+unknown"
