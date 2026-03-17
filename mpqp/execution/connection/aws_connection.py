@@ -366,6 +366,7 @@ def get_braket_device(
     Args:
         device: AWSDevice element describing which remote/local AwsDevice we want.
         is_noisy: If the expected device is noisy or not.
+        is_gate_model: If the expected device is gate-model or not.
 
     Raises:
         AWSBraketRemoteExecutionError: If the device or the region could not be
@@ -393,10 +394,10 @@ def get_braket_device(
         else:
             return LocalSimulator()
 
-    from importlib.metadata import PackageNotFoundError, version
-
     from botocore.exceptions import NoRegionError
     from braket.aws import AwsDevice, AwsSession
+
+    import mpqp
 
     try:
         import boto3
@@ -404,10 +405,7 @@ def get_braket_device(
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
 
-        try:
-            mpqp_version = version("mpqp")
-        except PackageNotFoundError:
-            mpqp_version = "0.0.0+unknown"
+        mpqp_version = getattr(mpqp, "__version__", "0.0.0+unknown")
 
         aws_session.add_braket_user_agent(
             user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
