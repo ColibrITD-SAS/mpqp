@@ -129,13 +129,15 @@ def run_braket(job: Job) -> Result:
         return extract_result(res, job, job.device)
 
     except DeviceJobIncompatibleError as e:
-        warnings.warn(str(e), DeviceJobIncompatibleWarning, stacklevel=5)
+        warnings.warn(str(e), DeviceJobIncompatibleWarning, stacklevel=1)
 
         job.status = JobStatus.ERROR
+        job.status_message = "Job execution failed. See warning for details."
+
         return Result(
             job,
             data=None,
-            errors="Unsupported Braket backend for QCircuit (see warning).",
+            errors=None,
             shots=0,
         )
 

@@ -289,7 +289,7 @@ class Result:
         self,
         job: Job,
         data: float | dict["str", float] | StateVector | list[Sample] | None,
-        errors: Optional[float | dict[Any, Any] | str] = None,
+        errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
     ):
         self.job = job
@@ -464,7 +464,7 @@ class Result:
         header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
 
         if self.job.status == JobStatus.ERROR:
-            return f"{header}\n  Error: {self.error}"
+            return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
 
         if self.job.job_type == JobType.SAMPLE:
             measures = self.job.circuit.measurements
