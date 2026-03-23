@@ -15,25 +15,28 @@ if TYPE_CHECKING:
 Runtime_Service = None
 
 
-def config_ibm_account(token: str, channel: str = "ibm_quantum"):
+def config_ibm_account(token: str, channel: str = "ibm_quantum_platform"):
     """Configure and save locally IBM Quantum account's information.
 
     Args:
-        token: IBM Quantum API token.
-        channel: The channel to use for the account (default is "ibm_quantum").
+        token: IBM Quantum API token (API key).
+        channel: The channel to use for the account (default is "ibm_quantum_platform").
     Raises:
         IBMRemoteExecutionError: If the account could not be saved.
     """
     from qiskit_ibm_runtime import QiskitRuntimeService
 
+    channel = channel.strip()
+
     try:
         QiskitRuntimeService.save_account(
-            channel=channel,
-            token=token,
-            overwrite=True,  # pyright: ignore[reportArgumentType]
+            channel=channel,  # pyright: ignore[reportArgumentType]
+            token=token.strip(),
+            overwrite=True,
+            set_as_default=True,
         )
         save_env_variable("IBM_CONFIGURED", "True")
-        save_env_variable("IBM_TOKEN", token)
+        save_env_variable("IBM_TOKEN", token.strip())
         save_env_variable("IBM_CHANNEL", channel)
     except Exception as err:
         # if an error occurred, we put False in the mpqp config file
@@ -44,7 +47,7 @@ def config_ibm_account(token: str, channel: str = "ibm_quantum"):
 
 
 def setup_ibm_account():
-    """Setups and updates the IBM Quantum account using the existing
+    """Set up and update the IBM Quantum account using the existing
     configuration (or by asking for the token if not already configured)."""
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
@@ -55,24 +58,30 @@ def setup_ibm_account():
         if decision.lower().strip() != "y":
             return "Canceled.", []
 
-    token = getpass("Enter your IBMQ token (hidden): ")
+    DEFAULT_CHANNEL = "ibm_quantum_platform"
+    channel = input(f"Enter the channel (default {DEFAULT_CHANNEL}): ").strip()
+    if channel == "":
+        channel = DEFAULT_CHANNEL
+        print(colored(f"set to {DEFAULT_CHANNEL}", "yellow"))
+
+    if channel not in ("ibm_quantum_platform", "ibm_cloud"):
+        print(
+            colored(
+                "Invalid channel. Use 'ibm_quantum_platform' or 'ibm_cloud'.", "red"
+            )
+        )
+        getpass("Press 'Enter' to continue")
+        return "", []
+
+    token = getpass("Enter your IBM Quantum / IBM Cloud API key (hidden): ").strip()
     if token == "":
         print(colored("Empty credentials", "red"))
         getpass("Press 'Enter' to continue")
         return "", []
+
     old_token = get_env_variable("IBM_TOKEN")
-
-    from qiskit_ibm_runtime.accounts.management import (
-        _DEFAULT_CHANNEL_TYPE,
-    )  # pyright: ignore[ reportPrivateUsage]
-
-    channel = input(f"Enter the channel (default {_DEFAULT_CHANNEL_TYPE}): ")
-    if channel == "":
-        channel = _DEFAULT_CHANNEL_TYPE
-        print(colored(f"set to {_DEFAULT_CHANNEL_TYPE}", "yellow"))
     old_channel = get_env_variable("IBM_CHANNEL")
 
-    assert channel is not None
     config_ibm_account(token, channel)
     if test_connection():
         return "IBMQ account correctly configured", []
@@ -86,7 +95,7 @@ def setup_ibm_account():
 
 
 def test_connection() -> bool:
-    """Tests if the connection to the provider works.
+    """Test if the connection to the provider works.
 
     Returns:
         ``False`` if login failed.
@@ -107,7 +116,7 @@ def test_connection() -> bool:
 
 
 def get_QiskitRuntimeService() -> "QiskitRuntimeService":
-    """Returns the QiskitRuntimeService needed for remote connection and
+    """Return the QiskitRuntimeService needed for remote connection and
     execution.
 
     Raises:
@@ -143,7 +152,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
 
 
 def get_active_account_info() -> str:
-    """Returns the information concerning the active IBM Quantum account.
+    """Return the information concerning the active IBM Quantum account.
 
     Returns:
         The description containing the account information.
@@ -168,7 +177,7 @@ def get_active_account_info() -> str:
 
 
 def delete_ibm_account():
-    """Deletes the locally stored IBM Quantum account configuration."""
+    """Delete the locally stored IBM Quantum account configuration."""
     from qiskit_ibm_runtime import QiskitRuntimeService
 
     global Runtime_Service
@@ -200,7 +209,7 @@ def delete_ibm_account():
 
 
 def get_backend(device: IBMDevice) -> "BackendV2":
-    """Retrieves the corresponding ``qiskit`` remote device.
+    """Retrieve the corresponding ``qiskit`` remote device.
 
     Args:
         device: The device to get from the qiskit Runtime service.
@@ -238,7 +247,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
 
 
 def get_all_job_ids() -> list[str]:
-    """Retrieves all the job ids of this account.
+    """Retrieve all the job ids of this account.
 
     Returns:
         The list of job ids.
