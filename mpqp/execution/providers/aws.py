@@ -189,7 +189,9 @@ def run_braket_observable(job: Job):
                 cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
                 local_result = device.run(
-                    cirq, shots=0, inputs=None, disable_qubit_rewiring=True
+                    cirq,
+                    shots=0,
+                    inputs=None,  # disable_qubit_rewiring=True
                 ).result()
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)
@@ -202,7 +204,7 @@ def run_braket_observable(job: Job):
                     transpiled_circuit + pre_measure,
                     shots=job.measure.shots,
                     inputs=None,
-                    disable_qubit_rewiring=True,
+                    # disable_qubit_rewiring=True,
                 )
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
@@ -396,6 +398,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         job.status = JobStatus.RUNNING
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
+        print(braket_circuit)
         task = device.run(
             braket_circuit,
             shots=job.measure.shots,
@@ -419,11 +422,12 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
+
         task = device.run(
             braket_circuit,
             shots=job.measure.shots,
             inputs=None,
-            disable_qubit_rewiring=True,
+            # disable_qubit_rewiring=True,
         )
 
     else:

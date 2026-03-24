@@ -1394,6 +1394,9 @@ class PRX(RotationGate, SingleQubitGate):
 
         return rz_plus @ rx @ rz_minus
 
+    def __repr__(self):
+        return f"PRX({self.parameters[0]}, {self.parameters[1]}, {self.targets[0]})"
+
     def to_other_language(
         self,
         language: Language = Language.QISKIT,

@@ -47,6 +47,7 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.native_gates import PRX
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -1419,14 +1420,7 @@ class QCircuit:
                     if isinstance(inst, Gate)
                 )
             )
-            circuit = QCircuit(
-                [
-                    Id(qubit)
-                    for qubit in range(self.nb_qubits)
-                    if qubit not in used_qubits
-                ],
-                nb_qubits=self.nb_qubits,
-            ) + deepcopy(self)
+            circuit = self
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
@@ -1472,8 +1466,7 @@ class QCircuit:
                     self.noises,
                     self.nb_qubits,
                 )
-
-            return BracketCircuit().add_verbatim_box(braket_circuit)
+            return braket_circuit
         elif language == Language.CIRQ:
             from cirq.circuits.circuit import Circuit as CirqCircuit
             from cirq.ops.identity import I
