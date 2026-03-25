@@ -10,6 +10,7 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
+    PRX,
     TOF,
     CRk,
     P,
@@ -176,6 +177,12 @@ def random_gate(
                 )
             elif issubclass(gate_class, Rk):
                 return Rk(int(rng.integers(1, 10)), target)
+            elif issubclass(gate_class, PRX):
+                return gate_class(
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    target,
+                )
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))

@@ -1440,21 +1440,9 @@ class PRX(RotationGate, SingleQubitGate):
 
             return MatrixGate(self.to_matrix())
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            target = self.targets[0]
 
-            instruction_str = self.qasm2_gate
-            instruction_str += (
-                "("
-                + ",".join(float_to_qasm_str(float(param)) for param in self.parameters)
-                + ")"
-            )
-
-            qubits = ""
-            if isinstance(self, ControlledGate):
-                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
-            qubits += ",".join([f"q[{j}]" for j in self.targets])
-
-            return instruction_str + " " + qubits + ";"
+            return f"rz({self.parameters[0]}) q[{target}];\nrx({self.parameters[1]}) q[{target}];\nrz(-{self.parameters[0]}) q[{target}];"
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 

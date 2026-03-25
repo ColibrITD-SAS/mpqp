@@ -44,10 +44,9 @@ import numpy.typing as npt
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.gates import ControlledGate, CRk, Gate, Id
+from mpqp.core.instruction.gates import ControlledGate, CRk, Gate
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.native_gates import PRX
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -1406,21 +1405,13 @@ class QCircuit:
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=True,
             )
+            print(qasm2_code)
             from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
 
             myqlm_circuit = qasm2_to_myqlm_Circuit(qasm2_code)
             return myqlm_circuit
 
         elif language == Language.BRAKET:
-            # filling the circuit with identity gates when some qubits don't have any instruction
-            used_qubits = set().union(
-                *(
-                    inst.connections()
-                    for inst in self.instructions
-                    if isinstance(inst, Gate)
-                )
-            )
-            circuit = self
 
             from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
 
@@ -1433,7 +1424,7 @@ class QCircuit:
             from braket.circuits import Circuit as BracketCircuit
 
             braket_circuit = BracketCircuit()
-            for instruction in circuit.instructions:
+            for instruction in self.instructions:
                 targets = [target for target in instruction.targets]
                 if isinstance(instruction, (Barrier, Breakpoint)):
                     continue

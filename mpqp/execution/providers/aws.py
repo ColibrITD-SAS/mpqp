@@ -260,11 +260,12 @@ def run_braket_observable(job: Job):
                     observable=braket_obs, target=job.measure.targets
                 )
                 job.status = JobStatus.RUNNING
+                # TODO: handle disable_qubit_rewiring, linked to verbatim box but crashes when not in use.
                 local_result = device.run(
                     copy,
                     shots=job.measure.shots,
                     inputs=None,
-                    disable_qubit_rewiring=True,
+                    # disable_qubit_rewiring=True,
                 ).result()
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 results.update({f"observable_{i}": local_result.values[0].real})
@@ -299,7 +300,7 @@ def run_braket_observable(job: Job):
                 program_set,
                 shots=program_set.total_executables * job.measure.shots,
                 inputs=None,
-                disable_qubit_rewiring=True,
+                # disable_qubit_rewiring=True,
             ).result()
             assert isinstance(local_result, ProgramSetQuantumTaskResult)
             for res in local_result:
@@ -389,7 +390,9 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
         task = device.run(
-            braket_circuit, shots=0, inputs=None, disable_qubit_rewiring=True
+            braket_circuit,
+            shots=0,
+            inputs=None,  # disable_qubit_rewiring=True
         )
 
     elif job.job_type == JobType.SAMPLE:
@@ -398,12 +401,11 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         job.status = JobStatus.RUNNING
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        print(braket_circuit)
         task = device.run(
             braket_circuit,
             shots=job.measure.shots,
             inputs=None,
-            disable_qubit_rewiring=True,
+            # disable_qubit_rewiring=True,
         )
 
     elif job.job_type == JobType.OBSERVABLE:

@@ -24,7 +24,6 @@ from mpqp.core.instruction.measurement.pauli_string import (
 )
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
@@ -489,12 +488,6 @@ class ExpectationMeasure(Measure):
         if len(self.targets) == 0:
             self._pre_measure: list[Gate] = []
             return
-
-        if self.nb_qubits != self.observables[0].nb_qubits:
-            raise NumberQubitsError(
-                f"Target size {self.nb_qubits} doesn't match observable size "
-                f"{self.observables[0].nb_qubits}."
-            )
 
         self._pre_measure: list[Gate] = []
         """List of Gates added before the expectation measurement to correctly swap
