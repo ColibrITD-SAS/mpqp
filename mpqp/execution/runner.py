@@ -81,36 +81,41 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     tweaked_observables = []
     n_before = measure.rearranged_targets[0]
     n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
-    targets = np.sort(measure.targets)
-    continuous = all(targets[i + 1] == targets[i] + 1 for i in range(len(targets) - 1))
+    # targets = np.sort(measure.targets)
+    # continuous = all(targets[i + 1] == targets[i] + 1 for i in range(len(targets) - 1))
     for obs in measure.observables:
         if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
             from mpqp.measures import pI
 
-            if continuous:
-                if n_before <= 0:
-                    pauli = obs.pauli_string @ pI(n_after - 1)
-                elif n_after <= 0:
-                    pauli = pI(n_before - 1) @ obs.pauli_string
-                else:
-                    pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
-            else:
-                if targets[0] == 0:
-                    pauli = obs.pauli_string.monomials[0].atoms[0]
-                    added = 1
-                else:
-                    pauli = pI
-                    added = 0
-                for i in range(1, circuit.nb_qubits):
-                    if added < len(targets) and i == targets[added]:
-                        # TODO: handle complex pauli strings with multiple monomials
-                        # pY @ pX + pX @ pY [0,2] == pY @ pI @ pX + pX @ pI @ pY [0,1,2]
-                        pauli = pauli @ obs.pauli_string.monomials[0].atoms[added]
-                        added += 1
-                    else:
-                        pauli = pauli @ pI
+            pauli = obs.pauli_string
+            if n_before > 0:
+                pauli = pI(n_before - 1) @ pauli
+            if n_after > 0:
+                pauli = pauli @ pI(n_after - 1)
+            # if continuous:
+            #     if n_before <= 0:
+            #         pauli = obs.pauli_string @ pI(n_after - 1)
+            #     elif n_after <= 0:
+            #         pauli = pI(n_before - 1) @ obs.pauli_string
+            #     else:
+            #         pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
+            # else:
+            #     if targets[0] == 0:
+            #         pauli = obs.pauli_string.monomials[0].atoms[0]
+            #         added = 1
+            #     else:
+            #         pauli = pI
+            #         added = 0
+            #     for i in range(1, circuit.nb_qubits):
+            #         if added < len(targets) and i == targets[added]:
+            #             # TODO: handle complex pauli strings with multiple monomials
+            #             # pY @ pX + pX @ pY [0,2] == pY @ pI @ pX + pX @ pI @ pY [0,1,2]
+            #             pauli = pauli @ obs.pauli_string.monomials[0].atoms[added]
+            #             added += 1
+            #         else:
+            #             pauli = pauli @ pI
 
-            tweaked_observables.append(Observable(pauli))
+            tweaked_observables.append(Observable(pauli, label=obs.label))
         else:
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
@@ -129,6 +134,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         measure.commuting_type,
         measure.grouping_method,
         optimize_measurement=measure.optimize_measurement,
+        optim_diagonal=measure.optim_diagonal,
     )
     return tweaked_measure
 
@@ -169,9 +175,13 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            m = adjust_measure(measurement, circuit)
             c = circuit.without_measurements(deep_copy=False)
+            for gate in measurement.pre_measure:
+                c.add(gate)
+
+            m = adjust_measure(measurement, circuit)
             c.add(m)
+
             job = Job(
                 JobType.OBSERVABLE,
                 c,
