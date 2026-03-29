@@ -55,14 +55,16 @@ if TYPE_CHECKING:
 
 
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
+    # TODO: to enhance docs
+
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
     this function to match the expected behavior.
 
     In order to do this, we add identity measures on the qubits not targeted by
-    the measure. In addition to this, some swaps are automatically added so the
-    the qubits measured are ordered and contiguous (though this is done in
-    :func:`generate_job`)
+    the measure. pauli observables are directly embeded on their target qubits,
+    while matrix observables are padded with identity matrices when the targets
+    are ordered and contiguous, otherwise are embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
@@ -78,54 +80,59 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     if measure.targets == list(range(circuit.nb_qubits)):
         return measure
 
-    tweaked_observables = []
-    n_before = measure.rearranged_targets[0]
-    n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
-    # targets = np.sort(measure.targets)
-    # continuous = all(targets[i + 1] == targets[i] + 1 for i in range(len(targets) - 1))
+    nb_qubits = circuit.nb_qubits
+    targets = measure.targets
+
+    targets_is_ordered = all(
+        [targets[i] > targets[i - 1] for i in range(1, len(targets))]
+    )
+    targets_is_contiguous = (
+        len(targets) > 0
+        and targets is targets_is_ordered
+        and (targets[-1] - targets[0] + 1 == len(targets))
+    )
+
+    tweaked_observables: list[Observable] = []
+
     for obs in measure.observables:
-        if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-            from mpqp.measures import pI
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliString,
+            PauliStringMonomial,
+        )
+        from mpqp.measures import pI
 
-            pauli = obs.pauli_string
-            if n_before > 0:
-                pauli = pI(n_before - 1) @ pauli
-            if n_after > 0:
-                pauli = pauli @ pI(n_after - 1)
-            # if continuous:
-            #     if n_before <= 0:
-            #         pauli = obs.pauli_string @ pI(n_after - 1)
-            #     elif n_after <= 0:
-            #         pauli = pI(n_before - 1) @ obs.pauli_string
-            #     else:
-            #         pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
-            # else:
-            #     if targets[0] == 0:
-            #         pauli = obs.pauli_string.monomials[0].atoms[0]
-            #         added = 1
-            #     else:
-            #         pauli = pI
-            #         added = 0
-            #     for i in range(1, circuit.nb_qubits):
-            #         if added < len(targets) and i == targets[added]:
-            #             # TODO: handle complex pauli strings with multiple monomials
-            #             # pY @ pX + pX @ pY [0,2] == pY @ pI @ pX + pX @ pI @ pY [0,1,2]
-            #             pauli = pauli @ obs.pauli_string.monomials[0].atoms[added]
-            #             added += 1
-            #         else:
-            #             pauli = pauli @ pI
+        if (
+            obs._pauli_string is None and targets_is_contiguous
+        ):  # pyright: ignore[reportPrivateUsage]
+            n_before = targets[0]
+            n_after = nb_qubits - targets[-1] - 1
 
-            tweaked_observables.append(Observable(pauli, label=obs.label))
-        else:
+            full_matrix = obs.matrix
+
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
-            tweaked_observables.append(
-                Observable(
-                    np.kron(
-                        np.kron(Id_before, obs.matrix), Id_after
-                    )  # pyright: ignore[reportArgumentType]
-                )
-            )
+
+            if n_before > 0:
+                full_matrix = np.kron(Id_before, full_matrix)
+
+            if n_after > 0:
+                full_matrix = np.kron(full_matrix, Id_after)
+
+            tweaked_observables.append(Observable(full_matrix, label=obs.label))
+            continue
+
+        pauli = obs.pauli_string
+        embedded = PauliString()
+
+        for mono in pauli.monomials:
+            full_register = [pI] * nb_qubits
+
+            for local_idx, target in enumerate(targets):
+                full_register[target] = mono.atoms[local_idx]
+
+            embedded += PauliStringMonomial(mono.coef, full_register)
+
+        tweaked_observables.append(Observable(embedded.simplify(), label=obs.label))
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
@@ -133,6 +140,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
+        label=measure.label,
         optimize_measurement=measure.optimize_measurement,
         optim_diagonal=measure.optim_diagonal,
     )
@@ -175,13 +183,9 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            c = circuit.without_measurements(deep_copy=False)
-            for gate in measurement.pre_measure:
-                c.add(gate)
-
             m = adjust_measure(measurement, circuit)
+            c = circuit.without_measurements(deep_copy=False)
             c.add(m)
-
             job = Job(
                 JobType.OBSERVABLE,
                 c,

@@ -470,7 +470,7 @@ class ExpectationMeasure(Measure):
             self.observables.append(new_obs)
 
         if targets is None:
-            self.targets = list(range(observable[0].nb_qubits))
+            self.targets = list(range(self.observables[0].nb_qubits))
         self._check_targets_order()
 
     @property
@@ -485,41 +485,11 @@ class ExpectationMeasure(Measure):
         """Ensures target qubits are ordered and contiguous, rearranging them if
         necessary (private)."""
 
-        if len(self.targets) == 0:
-            self._pre_measure: list[Gate] = []
-            return
-
+        self.rearranged_targets = list(self.targets)
         self._pre_measure: list[Gate] = []
-        """List of Gates added before the expectation measurement to correctly swap
-        target qubits when their are not ordered or contiguous."""
-        targets_is_ordered = all(
-            [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
-        )
-        tweaked_tgt = copy.copy(self.targets)
-        if (
-            max(tweaked_tgt) - min(tweaked_tgt) + 1 != len(tweaked_tgt)
-            or not targets_is_ordered
-        ):
-            warn(
-                "Non contiguous or non sorted observable target will introduce "
-                "additional CNOTs."
-            )
 
-            for t_index, target in enumerate(tweaked_tgt):  # sort the targets
-                min_index = tweaked_tgt.index(min(tweaked_tgt[t_index:]))
-                if t_index != min_index:
-                    self._pre_measure.append(SWAP(target, tweaked_tgt[min_index]))
-                    tweaked_tgt[t_index] = tweaked_tgt[min_index]
-                    tweaked_tgt[min_index] = target
-            for t_index, target in enumerate(tweaked_tgt):  # compact the targets
-                if t_index == 0:
-                    continue
-                if target != tweaked_tgt[t_index - 1] + 1:
-                    self._pre_measure.append(SWAP(target, tweaked_tgt[t_index - 1] + 1))
-                    tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
-        self.rearranged_targets = tweaked_tgt
-        """Adjusted list of target qubits when they are not initially sorted and
-        contiguous."""
+
+
 
     @property
     def pre_measure(self) -> list[Gate]:
