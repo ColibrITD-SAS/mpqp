@@ -488,9 +488,6 @@ class ExpectationMeasure(Measure):
         self.rearranged_targets = list(self.targets)
         self._pre_measure: list[Gate] = []
 
-
-
-
     @property
     def pre_measure(self) -> list[Gate]:
         return self._pre_measure
