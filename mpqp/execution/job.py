@@ -34,6 +34,23 @@ from .connection.qlm_connection import get_QLMaaSConnection
 from .devices import ATOSDevice, AvailableDevice, AWSDevice, AZUREDevice, IBMDevice
 
 
+class ExecutionMode(Enum):
+    """Execution mode for remote backends.
+    It controls how jobs are submitted (single job, batch and session).
+    """
+
+    JOB = auto()
+    """Runs will be run individually, one connection per execution."""
+    BATCH = auto()
+    """If possible, some run will be executed in batch, i.e. in parallel. Tends
+    to be faster than the job mode without major cost increase."""
+    SESSION = auto()
+    """A session will be open, and the entire process will be executed without
+    any queuing needed after the first one. The QPU is reserved for the duration
+    of the process, making this much more expensive, but also orders of
+    magnitude faster."""
+
+
 class JobStatus(MessageEnum):
     """Possible states of a Job."""
 
@@ -406,4 +423,5 @@ def get_azure_job_status(job_id: str) -> JobStatus:
     elif status == "executing":
         return JobStatus.RUNNING
     else:
+        raise ValueError(f"Unexpected azure job status: {status}")
         raise ValueError(f"Unexpected azure job status: {status}")

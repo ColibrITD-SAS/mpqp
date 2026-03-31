@@ -1,12 +1,24 @@
 from __future__ import annotations
 
 from functools import partial
-from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    Optional,
+    Sequence,
+    TypeVar,
+    Union,
+)
 
 import numpy as np
 import numpy.typing as npt
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
+
+from mpqp.execution.result import Result
+from mpqp.tools.generics import OneOrMany
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -14,6 +26,7 @@ if TYPE_CHECKING:
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
 from mpqp.execution.devices import AvailableDevice
+from mpqp.execution.job import ExecutionMode
 from mpqp.execution.runner import run
 from mpqp.execution.vqa.optimizer import Optimizer
 
@@ -30,44 +43,40 @@ OptimizerCallback = Union[
     Callable[[OptimizeResult], None],
     Callable[[Union[list[float], npt.NDArray[np.float64], tuple[float, ...]]], None],
 ]
-
+EvaluationFunc = Callable[[Sequence[Result]], float]
 
 # TODO: all those functions with almost or exactly the same signature look like
 #  a code smell to me.
 
 # TODO: test the minimizer options
 
-
-def _maps(l1: Collection[T1], l2: Collection[T2]) -> dict[T1, T2]:
-    """Does like zip, but with a dictionary instead of a list of tuples"""
-    if len(l1) != len(l2):
-        ValueError(
-            f"Length of the two collections are not equal ({len(l1)} and {len(l2)})."
-        )
-    return {e1: e2 for e1, e2 in zip(l1, l2)}
+# TODO: update doc with new arguments
 
 
 def minimize(
-    optimizable: QCircuit | OptimizableFunc,
+    optimizable: OneOrMany[QCircuit] | OptimizableFunc,
     method: Optimizer | OptimizerCallable,
     device: Optional[AvailableDevice] = None,
+    cost_function: Optional[EvaluationFunc] = None,
     init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
     optimizer_options: Optional[dict[str, Any]] = None,
     callback: Optional[OptimizerCallback] = None,
+    mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> tuple[float, OptimizerInput]:
-    """This function runs an optimization on the parameters of the circuit, in order to
-    minimize the measured expectation value of observables associated with the given circuit.
-    Note that this means that the latter should contain an ``ExpectationMeasure``.
+    """This function runs an optimization on the parameters of the circuit, in
+    order to minimize the measured expectation value of observables associated
+    with the given circuit. Note that this means that the latter should contain
+    an :class:`mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure`.
 
     Args:
         optimizable: Either the circuit, containing symbols and an expectation
             measure, or the evaluation function.
         method: The method used to optimize most of those methods come from
             ``scipy``. If the choices offered in this package are not
-            covering your needs, you can define your own optimizer. This should be
-            a function taking as input a function representing the circuit, with
-            as many inputs as the circuit has parameters, and any optional
+            covering your needs, you can define your own optimizer. This should
+            be a function taking as input a function representing the circuit,
+            with as many inputs as the circuit has parameters, and any optional
             initialization parameters, and returning the optimal value reached
             and the parameters used to reach this value.
         device: The device on which the circuit should be run.
@@ -124,7 +133,9 @@ def minimize(
     """
     if isinstance(optimizable, QCircuit):
         if device is None:
-            raise ValueError("A device is needed to optimize a circuit")
+            raise ValueError("A device is needed to optimize a circuit.")
+        # TODO: in case of remote take into account the job mode
+        # TODO: enable the usage of the cost function here too
         optimizer = _minimize_remote if device.is_remote() else _minimize_local
         return optimizer(
             optimizable,
@@ -135,17 +146,26 @@ def minimize(
             optimizer_options,
             callback,
         )
-    else:
-        # TODO: find a way to know if the job is remote or local from the function
-        return _minimize_local(
-            optimizable,
-            method,
-            device,
-            init_params,
-            nb_params,
-            optimizer_options,
-            callback,
-        )
+    if isinstance(optimizable, Sequence):
+        if device is None:
+            raise ValueError("A device is needed to optimize circuits.")
+        if cost_function is None:
+            raise ValueError(
+                "In order to optimize over several circuits, a `cost_function` "
+                "is necessary to turn the results into a single value."
+            )
+        # TODO
+        raise NotImplementedError()
+    # TODO: find a way to know if the job is remote or local from the function
+    return _minimize_local(
+        optimizable,
+        method,
+        device,
+        init_params,
+        nb_params,
+        optimizer_options,
+        callback,
+    )
 
 
 def _minimize_remote(
@@ -300,7 +320,7 @@ def _minimize_local_circ(
             params  # pyright: ignore[reportAssignmentType]
         )
 
-        values: dict[Expr | str, Complex] = _maps(variables, params_fixed_type)
+        values: dict[Expr | str, Complex] = dict(zip(variables, params_fixed_type))
         result = run(circ, device, values)
         if TYPE_CHECKING:
             assert isinstance(result.expectation_values, float)
