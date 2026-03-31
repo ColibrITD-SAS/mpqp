@@ -29,7 +29,7 @@ run instead:
     dependencies, each provider is distributed as a **separate pip extra**.
     By default, only the core functionalities of ``mpqp`` and qiskit local
     simulation are installed, which means that you can create and manipulate circuits, 
-    but you won't be able to run them on any backend.
+    but you won't be able to run them on any backend but IBM's qiskit aer backends.
 
 Add more providers
 --------------------------
