@@ -46,19 +46,3 @@ Results
 -------
 
 .. automodule:: mpqp.execution.result
-    :exclude-members: Result, BatchResult
-
-.. autoclass:: mpqp.execution.result.Result
-    :exclude-members: plot
-
-    .. automethod:: plot
-
-        .. image:: resources/output_plot_example_single.png
-
-
-.. autoclass:: mpqp.execution.result.BatchResult
-    :exclude-members: plot
-
-    .. automethod:: plot
-
-        .. image:: resources/output_plot_example_batch.png
