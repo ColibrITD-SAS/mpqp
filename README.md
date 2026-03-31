@@ -27,7 +27,7 @@ On this page, you will find:
 
 ## Install
 
-For now, we support python versions 3.9 to 3.11, and every major OS (Windows,
+For now, we support python versions 3.10 to 3.13, and every major OS (Windows,
 Linux and MacOS). We are dependant on the SDKs we support to enable various
 python versions and OS support, for instance, MPQP was validated on Ubuntu LTS
 20.04, while Ubuntu 18.04 is not supported because myQLM does not support it.

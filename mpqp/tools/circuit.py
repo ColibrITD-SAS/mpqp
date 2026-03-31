@@ -34,7 +34,7 @@ from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
-    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
+    from qiskit._accelerate.circuit import CircuitInstruction
 
 
 def random_circuit(
@@ -175,7 +175,7 @@ def random_gate(
                     target,
                 )
             elif issubclass(gate_class, Rk):
-                return Rk(rng.integers(1, 10), target)
+                return Rk(int(rng.integers(1, 10)), target)
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))
@@ -190,7 +190,7 @@ def random_gate(
             if TYPE_CHECKING:
                 assert issubclass(gate_class, CRk)
             return gate_class(
-                rng.integers(1, 10),
+                int(rng.integers(1, 10)),
                 control,
                 target,
             )
@@ -294,7 +294,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
 
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int
+    custom_unitary: "CircuitInstruction", nb_qubits: int, targets: list[int]
 ) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
@@ -317,19 +317,28 @@ def replace_custom_gate(
     """
     from qiskit import QuantumCircuit, transpile
     from qiskit.exceptions import QiskitError
+    from qiskit.circuit.library import UnitaryGate
 
     transpilation_circuit = QuantumCircuit(nb_qubits)
     transpilation_circuit.append(custom_unitary)
     try:
-        transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+        transpiled = transpile(
+            transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
+        )
     except QiskitError as e:
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
         # matrix by the closest unitary
         if "TwoQubitWeylDecomposition" in str(e):
-            custom_unitary.operation.params[0] = closest_unitary(
-                custom_unitary.operation.params[0]
+            custom_closest_unitary = UnitaryGate(closest_unitary(custom_unitary.matrix))
+            transpilation_circuit = QuantumCircuit(nb_qubits)
+            transpilation_circuit.unitary(
+                custom_closest_unitary, list(reversed(targets))
             )
-            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+            transpiled = transpile(
+                transpilation_circuit,
+                basis_gates=['u1', 'u2', 'u3', 'cx'],
+                optimization_level=0,
+            )
         else:
             raise e
     return transpiled, transpiled.global_phase

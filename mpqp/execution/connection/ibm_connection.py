@@ -27,9 +27,7 @@ def config_ibm_account(token: str):
     from qiskit_ibm_runtime import QiskitRuntimeService
 
     try:
-        QiskitRuntimeService.save_account(
-            channel="ibm_quantum", token=token, overwrite=True
-        )
+        QiskitRuntimeService.save_account(token=token, overwrite=True)
         save_env_variable("IBM_CONFIGURED", "True")
         save_env_variable("IBM_TOKEN", token)
     except Exception as err:
@@ -81,7 +79,7 @@ def test_connection() -> bool:
 
     global Runtime_Service
     try:
-        Runtime_Service = QiskitRuntimeService(channel="ibm_quantum")
+        Runtime_Service = QiskitRuntimeService()
     except IBMNotAuthorizedError as err:
         if "Login failed" in str(err):
             print(colored("Wrong credentials", "red"))
@@ -118,7 +116,7 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
                 "Error when instantiating QiskitRuntimeService. No IBM account configured."
             )
         try:
-            Runtime_Service = QiskitRuntimeService(channel="ibm_quantum")
+            Runtime_Service = QiskitRuntimeService()
         except Exception as err:
             raise IBMRemoteExecutionError(
                 "Error when instantiating QiskitRuntimeService (probably wrong token saved "
