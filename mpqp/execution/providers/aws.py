@@ -22,7 +22,6 @@ if TYPE_CHECKING:
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
-
 def apply_noise_to_braket_circuit(
     braket_circuit: "Circuit",
     noises: list[NoiseModel],
@@ -208,7 +207,8 @@ def run_braket_observable(job: Job):
                 )
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
-                length = 2**job.circuit.nb_qubits
+                a = len(list(result.measurement_probabilities.keys())[0])
+                length = 2**a
                 sorted_values: list[float] = []
                 for i in range(length):
                     binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
@@ -284,6 +284,7 @@ def run_braket_observable(job: Job):
                 ProgramSetQuantumTaskResult,
             )
 
+            print(braket_sum)
             copy = deepcopy(transpiled_circuit)
             program_set = ProgramSet(
                 CircuitBinding(

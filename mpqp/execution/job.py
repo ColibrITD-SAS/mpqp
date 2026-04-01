@@ -125,6 +125,7 @@ class Job:
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
+        self.old_obs = None
 
     @property
     def measure(self) -> Optional[Measure]:

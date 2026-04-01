@@ -88,12 +88,14 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     )
     targets_is_contiguous = (
         len(targets) > 0
-        and targets is targets_is_ordered
+        and targets_is_ordered
         and (targets[-1] - targets[0] + 1 == len(targets))
     )
 
     tweaked_observables: list[Observable] = []
+    from copy import deepcopy
 
+    old_obs = deepcopy(measure)
     for obs in measure.observables:
         from mpqp.core.instruction.measurement.pauli_string import (
             PauliString,
@@ -144,7 +146,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         optimize_measurement=measure.optimize_measurement,
         optim_diagonal=measure.optim_diagonal,
     )
-    return tweaked_measure
+    return tweaked_measure, old_obs
 
 
 def generate_job(
@@ -183,14 +185,21 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements(deep_copy=False)
-            c.add(m)
-            job = Job(
-                JobType.OBSERVABLE,
-                c,
-                device,
-            )
+            if measurement.optimize_measurement and isinstance(device, AWSDevice):
+                job = Job(
+                    JobType.OBSERVABLE,
+                    circuit,
+                    device,
+                )
+            else:
+                m = adjust_measure(measurement, circuit)
+                c = circuit.without_measurements(deep_copy=False)
+                c.add(m)
+                job = Job(
+                    JobType.OBSERVABLE,
+                    c,
+                    device,
+                )
         else:
             raise NotImplementedError(
                 f"Measurement type {type(measurement)} not handled"

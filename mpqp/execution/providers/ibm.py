@@ -95,9 +95,7 @@ def compute_expectation_value(
             "Cannot compute expectation value if measure used in job is not of "
             "type ExpectationMeasure"
         )
-
     nb_shots = job.measure.shots
-
     qiskit_observables: list[SparsePauliOp] = []
     for obs in job.measure.observables:
         if obs.pre_transpiled is None:
@@ -107,7 +105,9 @@ def compute_expectation_value(
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
-
+    qiskit_observables = [
+        obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
+    ]
     if isinstance(job.device, StaticIBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
 
@@ -119,7 +119,6 @@ def compute_expectation_value(
 
         if TYPE_CHECKING:
             assert isinstance(ibm_circuit, QuantumCircuit)
-
         qiskit_observables = [
             obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
         ]
@@ -643,7 +642,6 @@ def extract_result(
         # res_data is a DataBin, which means all typechecking is out of the
         # windows for this specific object
         res_data = result[0].data
-
         if hasattr(res_data, "evs"):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)

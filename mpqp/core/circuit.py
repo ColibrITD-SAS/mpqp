@@ -1405,7 +1405,6 @@ class QCircuit:
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=True,
             )
-            print(qasm2_code)
             from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
 
             myqlm_circuit = qasm2_to_myqlm_Circuit(qasm2_code)
