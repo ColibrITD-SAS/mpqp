@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
+
 def apply_noise_to_braket_circuit(
     braket_circuit: "Circuit",
     noises: list[NoiseModel],
