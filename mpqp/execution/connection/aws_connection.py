@@ -404,11 +404,8 @@ def get_braket_device(
 
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
-
-        mpqp_version = getattr(mpqp, "__version__", "0.0.0+unknown")
-
         aws_session.add_braket_user_agent(
-            user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
+            user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp.__version__
         )
         braket_device = AwsDevice(device.get_arn(), aws_session=aws_session)
 
