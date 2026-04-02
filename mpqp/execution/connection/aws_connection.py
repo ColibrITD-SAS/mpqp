@@ -366,7 +366,7 @@ def get_braket_device(
     Args:
         device: AWSDevice element describing which remote/local AwsDevice we want.
         is_noisy: If the expected device is noisy or not.
-        is_gate_model: If the expected device is gate-model or not.
+        is_gate_model: If the expected device supports gate-based circuits or not.
 
     Raises:
         AWSBraketRemoteExecutionError: If the device or the region could not be
