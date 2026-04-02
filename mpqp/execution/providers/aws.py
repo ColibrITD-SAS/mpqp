@@ -137,7 +137,6 @@ def run_braket(job: Job) -> Result:
         return Result(
             job,
             data=None,
-            errors=None,
             shots=0,
         )
 
