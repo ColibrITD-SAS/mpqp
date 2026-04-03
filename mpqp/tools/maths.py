@@ -316,16 +316,16 @@ def rand_clifford_matrix(
 
     Examples:
         >>> pprint(rand_clifford_matrix(2))
-        [[-0.5 , 0.5  , 0.5j , -0.5j],
-         [-0.5j, -0.5j, 0.5  , 0.5  ],
-         [-0.5j, -0.5j, -0.5 , -0.5 ],
-         [-0.5 , 0.5  , -0.5j, 0.5j ]]
+        [[0.5 , -0.5j, -0.5 , -0.5j],
+         [0.5j, 0.5  , 0.5j , -0.5 ],
+         [0.5j, -0.5 , -0.5j, -0.5 ],
+         [0.5 , 0.5j , 0.5  , -0.5j]]
 
         >>> pprint(rand_clifford_matrix(2, seed=123))
-        [[0.70711j, 0        , -0.70711j, 0        ],
-         [0       , -0.70711j, 0        , -0.70711j],
-         [0       , 0.70711j , 0        , -0.70711j],
-         [0.70711j, 0        , 0.70711j , 0        ]]
+        [[0.70711  , 0       , 0.70711 , 0        ],
+         [0        , -0.70711, 0       , -0.70711 ],
+         [-0.70711j, 0       , 0.70711j, 0        ],
+         [0        , 0.70711j, 0       , -0.70711j]]
 
     """
     from qiskit.quantum_info import random_clifford
@@ -408,7 +408,9 @@ def rand_product_local_unitaries(
     """
     rng = np.random.default_rng(seed)
 
-    return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
+    return reduce(
+        np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)]
+    )  # pyright: ignore[reportReturnType]
 
 
 def rand_unitary_matrix(size: int) -> Matrix:

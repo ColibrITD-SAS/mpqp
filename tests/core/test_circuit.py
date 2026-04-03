@@ -191,39 +191,39 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
 def list_cirq_funky_circuits() -> list[cirq_Circuit | Moment]:
     import cirq
 
-    q0, q1, q2 = cirq.LineQubit.range(3)  # type: ignore[reportPrivateImportUsage]
+    q0, q1, q2 = cirq.LineQubit.range(3)
 
-    cirq_circuit_1 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1 = cirq.Circuit()
 
-    cirq_circuit_1.append(cirq.X(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.Y(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.Z(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.H(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.S(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.S(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.T(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.T(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.X(q0))
+    cirq_circuit_1.append(cirq.Y(q0))
+    cirq_circuit_1.append(cirq.Z(q0))
+    cirq_circuit_1.append(cirq.H(q0))
+    cirq_circuit_1.append(cirq.S(q0))
+    cirq_circuit_1.append(cirq.S(q0) ** -1)
+    cirq_circuit_1.append(cirq.T(q0))
+    cirq_circuit_1.append(cirq.T(q0) ** -1)
+    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))
+    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))
+    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))
 
-    cirq_circuit_1.append(cirq.CX(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.CZ(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.SWAP(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CX(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))
+    cirq_circuit_1.append(cirq.CZ(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))
+    cirq_circuit_1.append(cirq.SWAP(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))
 
-    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))
+    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))
 
-    qubit = cirq.LineQubit(0)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2.append(cirq.H(qubit))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2.append(cirq.measure(qubit))  # type: ignore[reportPrivateImportUsage]
+    qubit = cirq.LineQubit(0)
+    cirq_circuit_2 = cirq.Circuit()
+    cirq_circuit_2.append(cirq.H(qubit))
+    cirq_circuit_2.append(cirq.measure(qubit))
 
-    q0, q1 = cirq.LineQubit.range(2)  # type: ignore[reportPrivateImportUsage]
-    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])  # type: ignore[reportPrivateImportUsage]
+    q0, q1 = cirq.LineQubit.range(2)
+    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])
 
     return [cirq_circuit_1, cirq_circuit_2, moment]
 
@@ -511,10 +511,10 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
             QiskitCircuit,
             (
                 "[CircuitInstruction(operation=Instruction(name='x', num_qubits=1,"
-                " num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2, 'q'), 1),),"
+                " num_clbits=0, params=[]), qubits=(<Qubit register=(2, \"q\"), index=0>,),"
                 " clbits=()), CircuitInstruction(operation=Instruction(name='cx',"
-                " num_qubits=2, num_clbits=0, params=[]), qubits=(Qubit(QuantumRegister(2,"
-                " 'q'), 1), Qubit(QuantumRegister(2, 'q'), 0)), clbits=())]"
+                " num_qubits=2, num_clbits=0, params=[]), qubits=(<Qubit register=(2,"
+                " \"q\"), index=0>, <Qubit register=(2, \"q\"), index=1>), clbits=())]"
             ),
         ),
     ],
@@ -588,7 +588,7 @@ def test_to_other_language_braket(
 
 def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
     from qiskit import ClassicalRegister, QuantumRegister
-    from qiskit.circuit.library import RC3XGate
+    from qiskit.circuit.library import RC3XGate, RZZGate
 
     qreg_q = QuantumRegister(4, 'q')
     creg_c = ClassicalRegister(4, 'c')
@@ -620,7 +620,8 @@ def _create_large_circuits_for_tests() -> tuple[QiskitCircuit, QiskitCircuit]:
     circuit.id(qreg_q[3])
 
     circuit_2 = QiskitCircuit(qreg_q, creg_c)
-    circuit_2.rzz(np.pi / 2, qreg_q[1], qreg_q[2]).c_if(creg_c, 0)
+    with circuit_2.if_test((creg_c, 0)):
+        circuit_2.append(RZZGate(np.pi / 2), [qreg_q[1], qreg_q[2]])
 
     return circuit, circuit_2
 
@@ -641,9 +642,8 @@ def test_from_qiskit(circuit: QiskitCircuit, expected_output: Optional[str]):
 
     if not isinstance(expected_output, str):
         qcircuit = QCircuit.from_other_language(circuit)
-        matrix = Operator(circuit.reverse_bits()).data
-        assert matrix_eq(
-            matrix, qcircuit.to_matrix()  # pyright: ignore[reportArgumentType]
+        assert Operator(circuit).equiv(
+            Operator(qcircuit.to_other_language(Language.QISKIT))
         )
     else:
         with pytest.raises(ValueError, match=expected_output):

@@ -5,6 +5,10 @@ from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.languages import Language
 
+try:
+    from ._version import __version__
+except ImportError:
+    __version__ = "0.0.0+unknown"
 from .execution import (
     BatchResult,
     Job,

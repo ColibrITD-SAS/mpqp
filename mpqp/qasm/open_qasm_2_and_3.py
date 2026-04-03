@@ -886,7 +886,7 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
     return qasm_code
 
 
-def remove_include_and_comment(qasm_code: str) -> str:
+def remove_include_and_comment(qasm_code: str) -> tuple[str, float]:
     r"""
     Removes lines that start with 'include' or comments (starting with '\\')
     from a given OpenQASM code string.
@@ -901,20 +901,27 @@ def remove_include_and_comment(qasm_code: str) -> str:
         >>> qasm_code = '''include "stdgates.inc";
         ... qreg q[2];
         ... // This is a comment
+        ... // gphase: 1.57
         ... H q[0];'''
-        >>> print(remove_include_and_comment(qasm_code))
+        >>> qasm, gphase = remove_include_and_comment(qasm_code)
+        >>> print(qasm)
         qreg q[2];
         H q[0];
+        >>> gphase
+        1.57
 
     """
     replaced_code = []
+    gphase = 0.00
     for line in qasm_code.split("\n"):
         line = line.lstrip()
-        if line.startswith("include") or line.startswith("//"):
+        if line.startswith("// gphase:") or line.startswith("//gphase:"):
+            gphase += float(line.split(":")[1].strip())
+        elif line.startswith("include") or line.startswith("//"):
             pass
         else:
             replaced_code.append(line)
-    return "\n".join(replaced_code)
+    return "\n".join(replaced_code), gphase
 
 
 def parse_gphase_instruction(
@@ -948,7 +955,13 @@ def parse_gphase_instruction(
 
             arg_expr = instr[start : i - 1].strip()
             try:
-                val = float(sympify(arg_expr).evalf(subs={"pi": np.pi}))
+                val = float(
+                    sympify(
+                        arg_expr
+                    ).evalf(  # pyright: ignore[reportAttributeAccessIssue]
+                        subs={"pi": np.pi}
+                    )
+                )
                 values.append(val)
             except ValueError:
                 if instr_match:
@@ -970,6 +983,7 @@ def convert_instruction_3_to_2(
     path_to_main: Optional[str] = None,
     gphase: float = 0.0,
     language: Language = Language.QASM3,
+    remove_measure: bool = False,
 ) -> tuple[str, str, float]:
     r"""Some instructions changed name from QASM 2 to QASM 3, also the way to
     import files changed slightly. This function operates those changes on a
@@ -1047,8 +1061,8 @@ def convert_instruction_3_to_2(
                 ):
                     with open(f"{path_to_main}/{path}", "r") as f:
                         child = Node(path, parent=included_tree_current)
-                        converted_content, gphase = open_qasm_3_to_2(
-                            f.read(), child, path_to_main, defined_gates, gphase
+                        converted_content = open_qasm_3_to_2(
+                            f.read(), child, path_to_main, defined_gates
                         )
                     new_path = splitext(path)[0] + "_converted" + splitext(path)[1]
                     with open(f"{path_to_main}/{new_path}", "w") as f:
@@ -1067,7 +1081,7 @@ def convert_instruction_3_to_2(
         m = re.match(
             r"\s*([\w\d_]+)(\[.*?\])?\s*=\s*measure\s*([\w\d_]+)(\[.*?\])?\s*", instr
         )
-        if m:
+        if not remove_measure and m:
             c, nb_c, q, nb_q = m.groups()
             if nb_c and nb_q:
                 instructions_code += f"measure {q}{nb_q} -> {c}{nb_c};\n"
@@ -1111,6 +1125,8 @@ def convert_instruction_3_to_2(
                     defined_gates,
                     path_to_main,
                     gphase,
+                    language,
+                    remove_measure,
                 )
                 g_string += " " * 4 + i_code  # Add indentation to body instructions
                 header_code += h_code
@@ -1130,6 +1146,8 @@ def convert_instruction_3_to_2(
                 defined_gates,
                 path_to_main,
                 gphase,
+                language,
+                remove_measure,
             )
             instructions_code += if_statement + " " + i_code
             header_code += h_code
@@ -1139,8 +1157,12 @@ def convert_instruction_3_to_2(
         if instr_match:
             gphase = parse_gphase_instruction(gphase, instr, instr_match)
     elif language == Language.BRAKET and instr_name == "pragma":
-        pass
+        from mpqp.qasm.qasm_to_braket import braket_custom_gates_to_mpqp
 
+        custom_gate = braket_custom_gates_to_mpqp(instr)
+        instructions_code += (
+            "#pragma mpqp" + repr(custom_gate).replace('\n', ' ') + "\n"
+        )
     else:
         gate = instr.split()[0].split("(")[0]
         if gate not in defined_gates:
@@ -1188,7 +1210,8 @@ def open_qasm_3_to_2(
     defined_gates: Optional[set[str]] = None,
     gphase: float = 0.0,
     language: Language = Language.QASM3,
-) -> tuple[str, float]:
+    remove_measure: bool = False,
+) -> str:
     """Converts an OpenQASM 3.0 code back to OpenQASM 2.0.
 
     This function will also recursively go through the imported files to
@@ -1217,7 +1240,7 @@ def open_qasm_3_to_2(
         ... c[0] = measure q[0];
         ... c[1] = measure q[1];
         ... '''
-        >>> qasm_2, gphase = open_qasm_3_to_2(qasm3_str)
+        >>> qasm_2 = open_qasm_3_to_2(qasm3_str)
         >>> print(qasm_2)  # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
         include "qelib1.inc";
@@ -1274,13 +1297,14 @@ def open_qasm_3_to_2(
             path_to_file,
             gphase,
             language,
+            remove_measure,
         )
         header_code += h_code
         instructions_code += i_code
-    gphase_code = f"// gphase {gphase}\n" if gphase != 0 else ""
+    gphase_code = f"// gphase:{gphase}\n" if gphase != 0 else ""
     target_code = header_code + gphase_code + instructions_code
 
-    return target_code, gphase
+    return target_code
 
 
 def parse_openqasm_3_file(code: str) -> list[str]:
@@ -1298,6 +1322,7 @@ def parse_openqasm_3_file(code: str) -> list[str]:
     cleaned_code = re.sub(r"//.*?$|/\*.*?\*/", "", code, flags=re.DOTALL | re.MULTILINE)
 
     cleaned_code = cleaned_code.replace("\t", " ").strip()
+    cleaned_code = re.sub(r"(#pragma[^\n]*)", r"\1;", cleaned_code)
 
     gate_matches = list(re.finditer(r"gate .*?}", cleaned_code, re.DOTALL))
 
@@ -1326,7 +1351,7 @@ def parse_openqasm_3_file(code: str) -> list[str]:
     return list(filter(lambda i: i.strip() != "", instructions))
 
 
-def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
+def open_qasm_file_conversion_3_to_2(path: str) -> str:
     """Converts an OpenQASM code in a file from version 3.0 and 2.0.
 
     This function is a shorthand to initialize :func:`open_qasm_3_to_2` with the
@@ -1355,7 +1380,7 @@ def open_qasm_file_conversion_3_to_2(path: str) -> tuple[str, float]:
         gate3 q[0], q[1];
         c[0] = measure q[0];
         c[1] = measure q[1];
-        >>> qasm_2, gphase = open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")
+        >>> qasm_2 = open_qasm_file_conversion_3_to_2(example_dir + "main_converted.qasm")
         >>> print(qasm_2) # doctest: +NORMALIZE_WHITESPACE
         OPENQASM 2.0;
         include 'include1_converted_converted.qasm';

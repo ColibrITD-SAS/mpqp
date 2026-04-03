@@ -183,7 +183,7 @@ def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
     job_data = result.data()
     return [
         Sample(
-            bin_str="".join(map(str, state)),
+            bin_str="".join(map(str, state))[::-1],
             nb_qubits=job.circuit.nb_qubits,
             count=int(count),
         )
