@@ -1,14 +1,21 @@
 from __future__ import annotations
 
+import sys
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    "--long-local" not in sys.argv and "--long" not in sys.argv,
+    reason="local_storage not tested in short tests",
+)
+
 import inspect
 import os
 from copy import deepcopy
-import sys
 from types import TracebackType
 from typing import Optional, Type
 
 import numpy as np
-import pytest
 
 from mpqp import *
 from mpqp.environment.env_manager import get_env_variable, save_env_variable
@@ -144,7 +151,7 @@ class DBRunner:  # TODO: should be merge the two DbRunners ?
         save_env_variable("DB_PATH", self.save_local_storage)
 
 
-def run_get_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
+def test_get_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
     with DBRunner():
         jobs = get_all_jobs()
 
@@ -152,7 +159,7 @@ def run_get_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
             assert mock_local_storage_job["job"] == job
 
 
-def run_fetch_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
+def test_fetch_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
     with DBRunner():
         jobs = fetch_all_jobs()
 
@@ -160,7 +167,7 @@ def run_fetch_all_jobs(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
             assert mock_local_storage_job["job_local_storage"] == job
 
 
-def run_get_all_results(mock_local_storage_results: list[dict[str, DictDB | Result]]):
+def test_get_all_results(mock_local_storage_results: list[dict[str, DictDB | Result]]):
     with DBRunner():
         results = get_all_results()
 
@@ -170,7 +177,7 @@ def run_get_all_results(mock_local_storage_results: list[dict[str, DictDB | Resu
             assert result == mock_local_storage_result["result"]
 
 
-def run_fetch_all_results(
+def test_fetch_all_results(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -182,7 +189,7 @@ def run_fetch_all_results(
             assert result == mock_local_storage_result["result_local_storage"]
 
 
-def run_fetch_jobs_with_job(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
+def test_fetch_jobs_with_job(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
     with DBRunner():
         job = mock_local_storage_jobs[0]['job']
         expected_job = mock_local_storage_jobs[0]['job_local_storage']
@@ -196,7 +203,7 @@ def run_fetch_jobs_with_job(mock_local_storage_jobs: list[dict[str, DictDB | Job
             assert fetched_job == expected_job
 
 
-def run_get_job_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
+def test_get_job_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
     with DBRunner():
         job_id = 1
         fetched_jobs = get_jobs_with_id(job_id)
@@ -212,7 +219,7 @@ def run_get_job_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
             assert fetched_job == expected_job
 
 
-def run_fetch_jobs_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
+def test_fetch_jobs_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
     with DBRunner():
         job_id = 1
         fetched_jobs = fetch_jobs_with_id(job_id)
@@ -228,7 +235,7 @@ def run_fetch_jobs_with_id(mock_local_storage_jobs: list[dict[str, DictDB | Job]
             assert fetched_job == expected_job
 
 
-def run_get_results_with_result(
+def test_get_results_with_result(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -240,7 +247,7 @@ def run_get_results_with_result(
             assert fetched_result == result
 
 
-def run_fetch_results_with_result(
+def test_fetch_results_with_result(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -263,7 +270,7 @@ def run_fetch_results_with_result(
             assert filtered_fetched == filtered_expected
 
 
-def run_get_results_with_job_id(
+def test_get_results_with_job_id(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -281,7 +288,7 @@ def run_get_results_with_job_id(
             assert fetched_result == expected_result
 
 
-def run_fetch_results_with_job_id(
+def test_fetch_results_with_job_id(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -299,7 +306,7 @@ def run_fetch_results_with_job_id(
             assert fetched_result == expected_result
 
 
-def run_get_result_with_id(
+def test_get_result_with_id(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -317,7 +324,7 @@ def run_get_result_with_id(
             assert fetched_result == expected_result
 
 
-def run_fetch_results_with_id(
+def test_fetch_results_with_id(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -338,7 +345,7 @@ def run_fetch_results_with_id(
             assert fetched_result == expected_result
 
 
-def run_fetch_results_with_job(
+def test_fetch_results_with_job(
     mock_local_storage_jobs: list[dict[str, DictDB | Job]],
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
@@ -358,7 +365,7 @@ def run_fetch_results_with_job(
             assert fetched_result == expected_result
 
 
-def run_get_results_with_result_and_job(
+def test_get_results_with_result_and_job(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -370,7 +377,7 @@ def run_get_results_with_result_and_job(
             assert fetched_result == result
 
 
-def run_fetch_results_with_result_and_job(
+def test_fetch_results_with_result_and_job(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -383,7 +390,7 @@ def run_fetch_results_with_result_and_job(
             assert fetched_result == expected_result
 
 
-def run_get_jobs_with_result(
+def test_get_jobs_with_result(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
     mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
@@ -406,7 +413,7 @@ def run_get_jobs_with_result(
             assert fetched_job == expected_job
 
 
-def run_fetch_jobs_with_result(
+def test_fetch_jobs_with_result(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
     mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
@@ -431,7 +438,7 @@ def run_fetch_jobs_with_result(
             assert fetched_job == expected_job
 
 
-def run_get_jobs_with_job(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
+def test_get_jobs_with_job(mock_local_storage_jobs: list[dict[str, DictDB | Job]]):
     with DBRunner():
         job = mock_local_storage_jobs[0]['job']
         assert isinstance(job, Job)
@@ -441,7 +448,7 @@ def run_get_jobs_with_job(mock_local_storage_jobs: list[dict[str, DictDB | Job]]
             assert fetched_job == job
 
 
-def run_local_storage_to_mpqp(
+def test_local_storage_to_mpqp(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
     mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
@@ -478,7 +485,7 @@ def circuits_type():
     ]
 
 
-def run_local_storage_insert(circuits_type: list[QCircuit]):
+def test_local_storage_insert(circuits_type: list[QCircuit]):
     with DBRunner():
         for circuit in circuits_type:
             results = run(circuit, IBMDevice.AER_SIMULATOR)
@@ -489,7 +496,7 @@ def run_local_storage_insert(circuits_type: list[QCircuit]):
                 assert results == get_results_with_id(id)[0]
 
 
-def run_insert_job(circuits_type: list[QCircuit]):
+def test_insert_job(circuits_type: list[QCircuit]):
     with DBRunner():
         for circuit in circuits_type:
             results = run(circuit, IBMDevice.AER_SIMULATOR)
@@ -500,7 +507,7 @@ def run_insert_job(circuits_type: list[QCircuit]):
                 assert results.job == get_jobs_with_id(id)[0]
 
 
-def run_remove_all_with_job_id():
+def test_remove_all_with_job_id():
     with DBRunner():
         remove_all_with_job_id(1)
         jobs = fetch_jobs_with_id(1)
@@ -509,14 +516,14 @@ def run_remove_all_with_job_id():
         assert len(results) == 0
 
 
-def run_remove_jobs_with_id():
+def test_remove_jobs_with_id():
     with DBRunner():
         remove_jobs_with_id(1)
         jobs = fetch_jobs_with_id(1)
         assert len(jobs) == 0
 
 
-def run_remove_jobs_with_jobs_local_storage(
+def test_remove_jobs_with_jobs_local_storage(
     mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
     with DBRunner():
@@ -528,14 +535,14 @@ def run_remove_jobs_with_jobs_local_storage(
             assert job != job_local_storage
 
 
-def run_remove_results_with_id():
+def test_remove_results_with_id():
     with DBRunner():
         remove_results_with_id(1)
         results = fetch_results_with_id(1)
         assert len(results) == 0
 
 
-def run_remove_results_with_result(
+def test_remove_results_with_result(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -547,7 +554,7 @@ def run_remove_results_with_result(
             assert r != result
 
 
-def run_remove_results_with_job(
+def test_remove_results_with_job(
     mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
     with DBRunner():
@@ -561,7 +568,7 @@ def run_remove_results_with_job(
             assert r['job_id'] != job_local_storage['id']
 
 
-def run_remove_results_with_job_id(
+def test_remove_results_with_job_id(
     mock_local_storage_jobs: list[dict[str, DictDB | Job]],
 ):
     with DBRunner():
@@ -573,7 +580,7 @@ def run_remove_results_with_job_id(
             assert r['job_id'] != job_local_storage['id']
 
 
-def run_remove_results_with_results_local_storage(
+def test_remove_results_with_results_local_storage(
     mock_local_storage_results: list[dict[str, DictDB | Result]],
 ):
     with DBRunner():
@@ -583,38 +590,3 @@ def run_remove_results_with_results_local_storage(
         results = fetch_all_results()
         for r in results:
             assert r != result_local_storage
-
-
-if "--long-local" in sys.argv or "--long" in sys.argv:
-    test_get_all_jobs = run_get_all_jobs
-    test_fetch_all_jobs = run_fetch_all_jobs
-    test_get_all_results = run_get_all_results
-    test_fetch_all_results = run_fetch_all_results
-    test_fetch_jobs_with_job = run_fetch_jobs_with_job
-    test_get_job_with_id = run_get_job_with_id
-    test_fetch_jobs_with_id = run_fetch_jobs_with_id
-    test_get_results_with_result = run_get_results_with_result
-    test_fetch_results_with_result = run_fetch_results_with_result
-    test_get_results_with_job_id = run_get_results_with_job_id
-    test_fetch_results_with_job_id = run_fetch_results_with_job_id
-    test_get_result_with_id = run_get_result_with_id
-    test_fetch_results_with_id = run_fetch_results_with_id
-    test_fetch_results_with_job = run_fetch_results_with_job
-    test_get_results_with_result_and_job = run_get_results_with_result_and_job
-    test_fetch_results_with_result_and_job = run_fetch_results_with_result_and_job
-    test_get_jobs_with_result = run_get_jobs_with_result
-    test_fetch_jobs_with_result = run_fetch_jobs_with_result
-    test_get_jobs_with_job = run_get_jobs_with_job
-    test_local_storage_to_mpqp = run_local_storage_to_mpqp
-    test_local_storage_insert = run_local_storage_insert
-    test_insert_job = run_insert_job
-    test_remove_all_with_job_id = run_remove_all_with_job_id
-    test_remove_jobs_with_id = run_remove_jobs_with_id
-    test_remove_jobs_with_jobs_local_storage = run_remove_jobs_with_jobs_local_storage
-    test_remove_results_with_id = run_remove_results_with_id
-    test_remove_results_with_result = run_remove_results_with_result
-    test_remove_results_with_job = run_remove_results_with_job
-    test_remove_results_with_job_id = run_remove_results_with_job_id
-    test_remove_results_with_results_local_storage = (
-        run_remove_results_with_results_local_storage
-    )

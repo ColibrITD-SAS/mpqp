@@ -52,11 +52,14 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     Returns:
         QCircuit object representing the parsed MyQLM circuit.
 
+    note:
+        This function requires the MyQLM provider to run.
+
     Raises:
         SyntaxError: If the input circuit contains gates that are not handled or that have syntax error.
 
     Example:
-        >>> from qat.lang.AQASM import Program, H, CNOT
+        >>> from qat.lang.AQASM import Program, H, CNOT # doctest: +FUNC_NEED_MYQLM
         >>> prog = Program()
         >>> qbits = prog.qalloc(2)
         >>> _ = H(qbits[0])

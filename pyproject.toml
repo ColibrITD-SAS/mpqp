@@ -1,11 +1,11 @@
 [build-system]
 requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
- 
 
 [tool.setuptools_scm]
 version_scheme = "post-release"
 local_scheme = "no-local-version"
+version_file = "mpqp/_setuptools_scm_version.py"
 
 [tool.isort]
 multi_line_output = 3
@@ -17,3 +17,12 @@ profile = "black"
 [tool.black]
 line-length = 88
 skip-string-normalization = true
+
+[tool.pyright]
+typeCheckingMode = "basic"
+exclude = [
+  "**/node_modules",
+  "**/__pycache__",
+  "**/.conda",
+  "**/.venv"
+]

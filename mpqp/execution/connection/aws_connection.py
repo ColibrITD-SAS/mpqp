@@ -197,6 +197,7 @@ def configure_account_iam() -> tuple[str, list[Any]]:
 
     save_env_variable("BRAKET_AUTH_METHOD", "IAM")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
     return "IAM configuration successful.", []
 
 
@@ -282,7 +283,21 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         save_env_variable("BRAKET_CONFIGURED", "False")
         return "Failed to retrieve SSO credentials.", []
 
+    import os
+
     import boto3
+
+    configured_region = os.environ.get("AWS_DEFAULT_REGION")
+    other_region = sso_credentials["region"]
+
+    if configured_region and configured_region != other_region:
+        save_env_variable("BRAKET_CONFIGURED", "False")
+        return (
+            f"Failed: SSO token is region-based.\n"
+            "Once a token is configured for a specific region, it becomes bound to that region."
+            "However, once authenticated, you can still access devices and services in other regions.",
+            [],
+        )
 
     session = boto3.Session(
         aws_access_key_id=sso_credentials["access_key_id"],
@@ -307,8 +322,11 @@ def configure_account_sso() -> tuple[str, list[Any]]:
         region=sso_credentials["region"],
     )
 
+    os.environ["AWS_DEFAULT_REGION"] = sso_credentials["region"]
+
     save_env_variable("BRAKET_AUTH_METHOD", "SSO")
     save_env_variable("BRAKET_CONFIGURED", "True")
+
     return "SSO configuration successful.", []
 
 
@@ -388,19 +406,24 @@ def get_aws_braket_account_info() -> str:
     return result
 
 
-def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevice":
+def get_braket_device(
+    device: AWSDevice,
+    is_noisy: bool = False,
+    is_gate_model: bool = True,
+) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
     Args:
         device: AWSDevice element describing which remote/local AwsDevice we want.
         is_noisy: If the expected device is noisy or not.
+        is_gate_model: If the expected device supports gate-based circuits or not.
 
     Raises:
         AWSBraketRemoteExecutionError: If the device or the region could not be
             retrieved.
 
     Example:
-        >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_2)
+        >>> device = get_braket_device(AWSDevice.RIGETTI_ANKAA_3)
         >>> device.properties.action['braket.ir.openqasm.program'].supportedResultTypes
         [ResultType(name='Sample', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
          ResultType(name='Expectation', observables=['x', 'y', 'z', 'h', 'i'], minShots=10, maxShots=50000),
@@ -410,26 +433,32 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
     """
     from braket.devices import LocalSimulator
 
+    from mpqp.tools.errors import (
+        AWSBraketRemoteExecutionError,
+        DeviceJobIncompatibleError,
+    )
+
     if not device.is_remote():
         if is_noisy:
             return LocalSimulator("braket_dm")
         else:
             return LocalSimulator()
 
-    import pkg_resources
     from botocore.exceptions import NoRegionError
     from braket.aws import AwsDevice, AwsSession
+
+    import mpqp
 
     try:
         import boto3
 
         braket_client = boto3.client("braket", region_name=device.get_region())
         aws_session = AwsSession(braket_client=braket_client)
-        mpqp_version = pkg_resources.get_distribution("mpqp").version[:3]
         aws_session.add_braket_user_agent(
-            user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp_version
+            user_agent="APN/1.0 ColibriTD/1.0 MPQP/" + mpqp.__version__
         )
-        return AwsDevice(device.get_arn(), aws_session=aws_session)
+        braket_device = AwsDevice(device.get_arn(), aws_session=aws_session)
+
     except ValueError as ve:
         raise AWSBraketRemoteExecutionError(
             "Failed to retrieve remote AWS device. Please check the arn, or if the "
@@ -441,6 +470,23 @@ def get_braket_device(device: AWSDevice, is_noisy: bool = False) -> "BraketDevic
             "configured correctly your AWS account with 'setup_connections.py' script."
             "\nTrace: " + str(err)
         )
+
+    if is_gate_model:
+        actions = getattr(getattr(braket_device, "properties", None), "action", None)
+        if actions is not None:
+            supported = [getattr(k, "value", str(k)) for k in actions.keys()]
+            supports_gate_model = any(
+                ("openqasm" in action.lower()) or ("jaqcd" in action.lower())
+                for action in supported
+            )
+            if not supports_gate_model:
+                raise DeviceJobIncompatibleError(
+                    f"{device.name} does not support gate-model workloads. "
+                    f"Supported Braket action types: {supported}. "
+                    "This is an AHS device, which cannot run MPQP QCircuit."
+                )
+
+    return braket_device
 
 
 def get_all_task_ids() -> list[str]:

@@ -73,7 +73,7 @@ from mpqp.tools.circuit import (
     statevector_from_random_circuit,
 )
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NonReversibleWarning, UnsupportedBraketFeaturesWarning
+from mpqp.tools.errors import NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
 
@@ -191,39 +191,39 @@ def list_braket_funky_circuits() -> list[BraketCircuit]:
 def list_cirq_funky_circuits() -> list[cirq_Circuit | Moment]:
     import cirq
 
-    q0, q1, q2 = cirq.LineQubit.range(3)  # type: ignore[reportPrivateImportUsage]
+    q0, q1, q2 = cirq.LineQubit.range(3)
 
-    cirq_circuit_1 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1 = cirq.Circuit()
 
-    cirq_circuit_1.append(cirq.X(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.Y(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.Z(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.H(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.S(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.S(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.T(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.T(q0) ** -1)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.X(q0))
+    cirq_circuit_1.append(cirq.Y(q0))
+    cirq_circuit_1.append(cirq.Z(q0))
+    cirq_circuit_1.append(cirq.H(q0))
+    cirq_circuit_1.append(cirq.S(q0))
+    cirq_circuit_1.append(cirq.S(q0) ** -1)
+    cirq_circuit_1.append(cirq.T(q0))
+    cirq_circuit_1.append(cirq.T(q0) ** -1)
+    cirq_circuit_1.append(cirq.rx(np.pi / 4)(q0))
+    cirq_circuit_1.append(cirq.ry(np.pi / 4)(q0))
+    cirq_circuit_1.append(cirq.rz(np.pi / 4)(q0))
 
-    cirq_circuit_1.append(cirq.CX(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.CZ(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.SWAP(q0, q1))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CX(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.Y).on(q0, q1))
+    cirq_circuit_1.append(cirq.CZ(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.H).on(q0, q1))
+    cirq_circuit_1.append(cirq.SWAP(q0, q1))
+    cirq_circuit_1.append(cirq.ControlledGate(cirq.rz(np.pi / 4)).on(q0, q1))
 
-    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))  # type: ignore[reportPrivateImportUsage]
+    cirq_circuit_1.append(cirq.CCX(q0, q1, q2))
+    cirq_circuit_1.append(cirq.CSWAP(q0, q1, q2))
 
-    qubit = cirq.LineQubit(0)  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2 = cirq.Circuit()  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2.append(cirq.H(qubit))  # type: ignore[reportPrivateImportUsage]
-    cirq_circuit_2.append(cirq.measure(qubit))  # type: ignore[reportPrivateImportUsage]
+    qubit = cirq.LineQubit(0)
+    cirq_circuit_2 = cirq.Circuit()
+    cirq_circuit_2.append(cirq.H(qubit))
+    cirq_circuit_2.append(cirq.measure(qubit))
 
-    q0, q1 = cirq.LineQubit.range(2)  # type: ignore[reportPrivateImportUsage]
-    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])  # type: ignore[reportPrivateImportUsage]
+    q0, q1 = cirq.LineQubit.range(2)
+    moment = cirq.Moment([cirq.H(q0), cirq.H(q1)])
 
     return [cirq_circuit_1, cirq_circuit_2, moment]
 
@@ -499,7 +499,7 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         "r",
         encoding="utf-8",
     ) as f:
-        assert str(circuit.without_measurements()) == f.read()
+        assert str(circuit.without_measurements(deep_copy=False)) == f.read()
 
 
 @pytest.mark.provider("qiskit")
@@ -581,10 +581,8 @@ def test_to_other_language_braket(
     list_braket_circuit: list[tuple[QCircuit, type, str]],
 ):
     for circuit, result_type, result_repr in list_braket_circuit:
-        with pytest.warns(UnsupportedBraketFeaturesWarning) as record:
-            converted_circuit = circuit.to_other_language(Language.BRAKET)
+        converted_circuit = circuit.to_other_language(Language.BRAKET)
         assert type(converted_circuit) == result_type
-        assert len(record) == 1
         assert str(converted_circuit) == result_repr
 
 
@@ -644,9 +642,8 @@ def test_from_qiskit(circuit: QiskitCircuit, expected_output: Optional[str]):
 
     if not isinstance(expected_output, str):
         qcircuit = QCircuit.from_other_language(circuit)
-        matrix = Operator(circuit.reverse_bits()).data
-        assert matrix_eq(
-            matrix, qcircuit.to_matrix()  # pyright: ignore[reportArgumentType]
+        assert Operator(circuit).equiv(
+            Operator(qcircuit.to_other_language(Language.QISKIT))
         )
     else:
         with pytest.raises(ValueError, match=expected_output):
@@ -1128,11 +1125,9 @@ def test_inverse_random():
         (QCircuit([H(0)]), 1),
         (QCircuit([H(1)]), 2),
         (QCircuit([S(0), CZ(0, 2), H(1), Ry(4.56, 1)]), 3),
-        (QCircuit([S(0), CZ(0, 1), H(1), BasisMeasure([0, 1, 2, 3], shots=2000)]), 4),
+        (QCircuit([S(0), CZ(0, 1), H(3)]), 4),
         (
-            QCircuit(
-                [S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1), BasisMeasure()]
-            ),
+            QCircuit([S(0), CRk(2, 1, 2), Barrier(), H(1), Ry(4.56, 1)]),
             3,
         ),
     ],

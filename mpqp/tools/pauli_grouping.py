@@ -55,6 +55,7 @@ def pauli_grouping_greedy(
         [[pI@pX@pX, pY@pY@pZ, pI@pI@pI], [-3*pZ@pY@pX, -1*pZ@pZ@pY], [pY@pX@pY], [2*pX@pX@pY]]
     """
     groups: list[list[PauliStringMonomial]] = []
+
     for monomial in monomials:
         added = False
         for group in groups:
@@ -81,7 +82,7 @@ def pauli_monomial_eigenvalues(monom: PauliStringMonomial) -> npt.NDArray[np.flo
     result = np.array([1], dtype=np.float64)
     for atom in monom.atoms:
         result = np.kron(result, atom.eigen_values)
-    return result
+    return result  # pyright: ignore[reportReturnType]
 
 
 def full_commutation_pauli_grouping_ibm_clique(monomials: list[PauliStringMonomial]):

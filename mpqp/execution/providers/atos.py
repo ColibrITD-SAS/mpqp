@@ -252,10 +252,10 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
     result = []
     for obs in job.measure.observables:
-        if obs.transpile is None:
+        if obs.pre_transpiled is None:
             qlm_obs = obs.to_other_language(Language.MY_QLM)
         else:
-            qlm_obs = obs.transpile
+            qlm_obs = obs.pre_transpiled
         result.append(
             myqlm_circuit.to_job(
                 job_type="OBS",
@@ -567,9 +567,11 @@ def extract_sample_result(
 
     # we here take the average of errors over all samples
     error = mean([sample.err for sample in myqlm_result])
+    if TYPE_CHECKING:
+        assert job.measure is not None
     samples = [
         Sample(
-            nb_qubits,
+            job.measure.nb_qubits,
             index=sample.state.int,
             probability=sample.probability,
             bin_str=sample.state.bitstring,

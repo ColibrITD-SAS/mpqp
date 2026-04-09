@@ -890,7 +890,6 @@ def test_sample_counts_in_trust_interval(
     qasm3: str, expected: tuple[list[Instruction], float]
 ):
     qasm_2 = open_qasm_3_to_2(qasm3)
-    print(qasm_2)
 
     circuit = qasm2_parse(qasm_2)
     instructions, expected_gphase = expected
@@ -901,13 +900,10 @@ def test_sample_counts_in_trust_interval(
     expected_amplitudes = amplitude(expected_circuit) * exp(expected_gphase * 1j)
     result = run(circuit, IBMDevice.AER_SIMULATOR)
     assert isinstance(result, Result)
-    print("result_amplitudes: " + str(result.amplitudes))
-    print("expected_amplitudes: " + str(expected_amplitudes))
     counts = result.amplitudes
     # check if the true value is inside the trust interval
     for i in range(len(counts)):
         trust_interval = err_rate_percentage * expected_amplitudes[i]
-        print(trust_interval)
         assert (
             counts[i] - trust_interval
             <= expected_amplitudes[i]

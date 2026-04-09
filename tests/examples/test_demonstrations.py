@@ -1,5 +1,4 @@
 from typing import Any, Callable
-
 import numpy as np
 import pytest
 
@@ -15,7 +14,7 @@ from mpqp import (
     QCircuit,
     run,
 )
-from mpqp.execution import AvailableDevice
+from mpqp.execution.devices import AvailableDevice
 from mpqp.gates import *
 from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
@@ -292,8 +291,8 @@ def test_aws_qasm_executions():
     c[0] = measure q[0];
     c[1] = measure q[1];"""
 
-    runner = lambda: qasm3_to_braket_Circuit(qasm_str)
-    circuit = warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    with pytest.warns(UnsupportedBraketFeaturesWarning):
+        circuit = qasm3_to_braket_Circuit(qasm_str)
     device.run(circuit, shots=100).result()
 
 
@@ -321,9 +320,7 @@ def test_aws_mpqp_executions():
     # Add measurement
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
-    runner = lambda: run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
-
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
     #####################################################
 
@@ -347,10 +344,7 @@ def test_aws_mpqp_executions():
     circuit.add(ExpectationMeasure(obs, shots=0))
 
     # Running the computation on myQLM and on Braket simulator, then retrieving the results
-    runner = lambda: run(
-        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
-    )
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 
     #####################################################
 
@@ -360,10 +354,7 @@ def test_aws_mpqp_executions():
     )
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    runner = lambda: run(
-        circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG]
-    )
-    warn_guard(AWSDevice.BRAKET_LOCAL_SIMULATOR, runner)
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
 
 
 @pytest.mark.provider("qiskit")

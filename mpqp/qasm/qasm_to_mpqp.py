@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from venv import logger
 
+import numpy as np
 from ply.lex import lex
 
 if TYPE_CHECKING:
@@ -107,6 +108,8 @@ def _TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
         return _TokenBarrier(circuit, tokens, idx)
     elif token.type == 'ID':
         return _TokenGate(circuit, tokens, idx)
+    elif token.type == 'PRAGMA_MPQP':
+        return _TokenCustom(circuit, tokens, idx)
     else:
         raise SyntaxError(f"Invalid token: {idx} {token.type}")
 
@@ -314,6 +317,18 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
         elif tokens[idx].type == 'RPAREN':
             open_paren -= 1
             expr += ")"
+        elif tokens[idx].type == 'ID' and tokens[idx].value == 'e':
+            expr += 'e'
+            idx += 1
+
+            if tokens[idx].type in ('PLUS', 'MINUS'):
+                expr += tokens[idx].value
+                idx += 1
+
+            if tokens[idx].type not in ('INTN', 'REALN'):
+                raise SyntaxError("Invalid scientific notation")
+
+            expr += str(tokens[idx].value)
         elif check_num_expr(tokens[idx].type):
             raise SyntaxError(f"not a nb or expr: {idx}, {tokens[idx]}")
         elif tokens[idx].type == 'PI':
@@ -364,6 +379,33 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     target = tokens[idx + 2].value
     circuit.add(U(theta, phi, lbda, target))
     return idx + 5
+
+
+def _TokenCustom(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+    raw = tokens[idx].value.strip()
+
+    if not raw.startswith("#pragma mpqp"):
+        raise SyntaxError(f"Unknown pragma: {raw}")
+
+    expr = raw[len("#pragma mpqp") :].strip()
+
+    safe_globals = {
+        "__builtins__": {},
+    }
+
+    safe_locals = {
+        "CustomGate": CustomGate,
+        "array": np.array,
+        "np": np,
+    }
+
+    try:
+        gate = eval(expr, safe_globals, safe_locals)
+    except Exception as e:
+        raise SyntaxError(f"Custom gate eval failed: {expr}") from e
+
+    circuit.add(gate)
+    return idx + 1
 
 
 def parse_qasm2_gates(code: str) -> tuple[str, float]:

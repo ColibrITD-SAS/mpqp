@@ -91,7 +91,11 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
             tweaked_observables.append(
-                Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+                Observable(
+                    np.kron(
+                        np.kron(Id_before, obs.matrix), Id_after
+                    )  # pyright: ignore[reportArgumentType]
+                )
             )
 
     tweaked_measure = ExpectationMeasure(
@@ -142,7 +146,7 @@ def generate_job(
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
             m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements()
+            c = circuit.without_measurements(deep_copy=False)
             c.add(m)
             job = Job(
                 JobType.OBSERVABLE,
@@ -170,7 +174,7 @@ def _run_diagonal_observables(
     values: "Optional[dict[Expr | str, Complex]]" = None,
 ) -> Result:
 
-    adapted_circuit = circuit.without_measurements()
+    adapted_circuit = circuit.without_measurements(deep_copy=False)
     adapted_circuit.add(BasisMeasure(exp_measure.targets, shots=exp_measure.shots))
 
     result = _run_single(adapted_circuit, device, values, False)
@@ -409,7 +413,7 @@ def run(
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
+    values: Optional[dict[Expr | str, Complex]] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve

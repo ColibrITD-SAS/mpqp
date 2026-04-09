@@ -100,10 +100,10 @@ def compute_expectation_value(
 
     qiskit_observables: list[SparsePauliOp] = []
     for obs in job.measure.observables:
-        if obs.transpile is None:
+        if obs.pre_transpiled is None:
             translated = obs.to_other_language(Language.QISKIT)
         else:
-            translated = obs.transpile
+            translated = obs.pre_transpiled
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
@@ -535,12 +535,11 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     check_job_compatibility(job)
 
-    service = get_QiskitRuntimeService()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     job.device = IBMDevice(backend.name)
-    session = Session(service=service, backend=backend)
+    session = Session(backend=backend)
 
     if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
@@ -557,8 +556,8 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
-                if obs.transpile is None
-                else obs.transpile
+                if obs.pre_transpiled is None
+                else obs.pre_transpiled
             )
             for obs in meas.observables
         ]
@@ -566,10 +565,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
         qiskit_observables = [
-            obs.apply_layout(  # pyright: ignore[reportAttributeAccessIssue]
-                qiskit_circ.layout
-            )
-            for obs in qiskit_observables
+            obs.apply_layout(qiskit_circ.layout) for obs in qiskit_observables
         ]
 
         # We have to disable all the twirling options and set manually the number of circuits and shots per circuits
@@ -774,6 +770,7 @@ def extract_result(
                 elif "counts" in job_data:
                     job_type = JobType.SAMPLE
                     nb_qubits = len(list(result.get_counts())[0])
+                    assert result.results is not None
                     shots = result.results[0].shots
                     job = Job(
                         job_type,

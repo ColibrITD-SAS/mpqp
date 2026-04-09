@@ -227,7 +227,7 @@ y q[1];
 measure q[0] -> c[0];""",
         ),
         (
-            [X(0), BasisMeasure([0]), Y(0)],
+            [X(0), Y(0), BasisMeasure([0])],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];
@@ -263,12 +263,12 @@ def test_mpqp_to_qasm_gate(instructions: list[Instruction], qasm_expectation: st
         ]
     ],
 )
-def test_mpqp_to_qasm_custom_gate(instructions: list[Instruction]):
+def test_mpqp_to_and_from_qasm_custom_gate(instructions: list[Instruction]):
     circuit = QCircuit(instructions)
 
     str_circuit = circuit.to_other_language(Language.QASM2)
     mpqp_qasm = QCircuit.from_other_language(str_circuit)
-    assert np.isclose(circuit.to_matrix(), mpqp_qasm.to_matrix()).all()
+    assert np.allclose(circuit.to_matrix(), mpqp_qasm.to_matrix())
 
 
 @pytest.mark.parametrize(
@@ -285,7 +285,7 @@ x q[0],q[1];
 measure q -> c;""",
         ),
         (
-            [X(0), BasisMeasure([0]), Y(0)],
+            [X(0), Y(0), BasisMeasure([0])],
             """OPENQASM 2.0;
 include "qelib1.inc";
 qreg q[1];

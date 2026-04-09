@@ -1,4 +1,6 @@
 ![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp?logo=openaccess&logoColor=white)
+[![GitHub release](https://img.shields.io/github/v/release/ColibrITD-SAS/mpqp.svg)](https://github.com/ColibrITD-SAS/mpqp/releases/latest)
+![PyPI - Python Version](https://img.shields.io/pypi/pyversions/mpqp)
 ![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/tests.yml?branch=dev&label=tests&logo=pytest&logoColor=white)
 ![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc&logo=read-the-docs&logoColor=white)
 ![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy&logo=pypi&logoColor=white)
@@ -25,7 +27,7 @@ On this page, you will find:
 
 ## Install
 
-For now, we support python versions 3.10 to 3.12, and every major OS (Windows,
+For now, we support python versions 3.10 to 3.13, and every major OS (Windows,
 Linux and MacOS). We are dependant on the SDKs we support to enable various
 python versions and OS support, for instance, MPQP was validated on Ubuntu LTS
 20.04, while Ubuntu 18.04 is not supported because myQLM does not support it.

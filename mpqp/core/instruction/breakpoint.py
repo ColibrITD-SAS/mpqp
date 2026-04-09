@@ -12,7 +12,7 @@ from mpqp.core.instruction import Instruction
 from mpqp.core.languages import Language
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
 
 class Breakpoint(Instruction):
