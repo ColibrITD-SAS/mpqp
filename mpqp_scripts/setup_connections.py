@@ -76,7 +76,6 @@ def delete_config():
         delete_aws_braket_account()
         delete_ionq_account()
         delete_azure_account()
-        delete_azure_account()
 
         return "All accounts deleted", []
 
