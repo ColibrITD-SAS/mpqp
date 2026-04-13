@@ -42,7 +42,7 @@ setup(
         "sdk",
     ],
     url="https://colibritd.com",
-    python_requires=">=3.10,<=3.13",
+    python_requires=">=3.10,<=3.13.*",
     install_requires=["wheel"] + requirements,
     extras_require=extras,
     packages=find_packages(include=["mpqp*"]),
