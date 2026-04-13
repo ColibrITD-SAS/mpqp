@@ -65,7 +65,7 @@ class ParametrizedGate(Gate, ABC):
         )
 
         def caster(v: Expr | float) -> float:
-            if isinstance(v, Expr) and len(v.free_symbols) == 0:
+            if isinstance(v, Expr) and (v.is_Float or v.is_Integer):
                 return float(v.evalf())  # pyright: ignore[reportArgumentType]
             else:
                 return v  # pyright: ignore[reportReturnType]
