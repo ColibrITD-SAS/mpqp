@@ -71,7 +71,7 @@ def setup_ibm_account():
     if channel not in OTHER_CHANNELS.union{DEFAULT_CHANNEL}:
         print(
             colored(
-                "Invalid channel. Use 'ibm_quantum_platform' or 'ibm_cloud'.", "red"
+                f"Invalid channel. Use one of {OTHER_CHANNELS.union{DEFAULT_CHANNEL}}.", "red"
             )
         )
         getpass("Press 'Enter' to continue")
