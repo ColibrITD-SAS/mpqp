@@ -59,7 +59,11 @@ def setup_ibm_account():
             return "Canceled.", []
 
     DEFAULT_CHANNEL = "ibm_quantum_platform"
-    channel = input(f"Enter the channel (default {DEFAULT_CHANNEL}): ").strip()
+    OTHER_CHANNELS = {"ibm_cloud"}
+    channel = input(
+        f"Enter the channel ({colored(DEFAULT_CHANNEL, attrs=["underline"])}, "
+        f"{', '.join(OTHER_CHANNELS)}): "
+    ).strip()
     if channel == "":
         channel = DEFAULT_CHANNEL
         print(colored(f"set to {DEFAULT_CHANNEL}", "yellow"))
