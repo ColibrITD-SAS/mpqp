@@ -86,7 +86,7 @@ def delete_config():
         return "All accounts deleted", []
 
     delete_tree = QuestionNode(
-        "Select provider to delete configuration:",
+        "Select provider configuration to delete:",
         [
             AnswerNode("IBM", delete_ibm_account),
             AnswerNode("QLM", delete_qlm_account),
@@ -123,7 +123,7 @@ def main_setup():
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Azure", config_azure_account),
             AnswerNode("Recap", print_config_info),
-            AnswerNode("Delete configuration", delete_config),
+            AnswerNode("Delete a configuration", delete_config),
         ],
         leaf_loop_to_here=True,
     )
