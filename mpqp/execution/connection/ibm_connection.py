@@ -68,10 +68,10 @@ def setup_ibm_account():
         channel = DEFAULT_CHANNEL
         print(colored(f"set to {DEFAULT_CHANNEL}", "yellow"))
 
-    if channel not in OTHER_CHANNELS.union{DEFAULT_CHANNEL}:
+    if channel not in OTHER_CHANNELS.union(DEFAULT_CHANNEL):
         print(
             colored(
-                f"Invalid channel. Use one of {OTHER_CHANNELS.union{DEFAULT_CHANNEL}}.", "red"
+                f"Invalid channel. Use one of {OTHER_CHANNELS.union(DEFAULT_CHANNEL)}.", "red"
             )
         )
         getpass("Press 'Enter' to continue")
