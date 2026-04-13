@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from functools import partial
 from typing import (
     TYPE_CHECKING,
@@ -53,21 +54,28 @@ EvaluationFunc = Callable[[Sequence[Result]], float]
 # TODO: update doc with new arguments
 
 
+@dataclass
+class OptimizerData:
+    method: Optimizer | OptimizerCallable
+    init_params: Optional[OptimizerInput] = None
+    optimizer_options: Optional[dict[str, Any]] = None
+    callback: Optional[OptimizerCallback] = None
+
+
 def minimize(
     optimizable: OneOrMany[QCircuit] | OptimizableFunc,
-    method: Optimizer | OptimizerCallable,
+    optimizer_data: OptimizerData,
     device: Optional[AvailableDevice] = None,
     cost_function: Optional[EvaluationFunc] = None,
-    init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
-    optimizer_options: Optional[dict[str, Any]] = None,
-    callback: Optional[OptimizerCallback] = None,
     mode: Optional[ExecutionMode] = ExecutionMode.JOB,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, in
     order to minimize the measured expectation value of observables associated
     with the given circuit. Note that this means that the latter should contain
     an :class:`mpqp.core.instruction.measurement.expectation_value.ExpectationMeasure`.
+
+    TODO: update doc
 
     Args:
         optimizable: Either the circuit, containing symbols and an expectation
@@ -139,12 +147,9 @@ def minimize(
         optimizer = _minimize_remote if device.is_remote() else _minimize_local
         return optimizer(
             optimizable,
-            method,
+            optimizer_data,
             device,
-            init_params,
             nb_params,
-            optimizer_options,
-            callback,
         )
     if isinstance(optimizable, Sequence):
         if device is None:
@@ -159,23 +164,17 @@ def minimize(
     # TODO: find a way to know if the job is remote or local from the function
     return _minimize_local(
         optimizable,
-        method,
+        optimizer_data,
         device,
-        init_params,
         nb_params,
-        optimizer_options,
-        callback,
     )
 
 
 def _minimize_remote(
     optimizable: QCircuit | OptimizableFunc,
-    method: Optimizer | OptimizerCallable,
+    optimizer_data: OptimizerData,
     device: Optional[AvailableDevice] = None,
-    init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
-    optimizer_options: Optional[dict[str, Any]] = None,
-    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -213,12 +212,9 @@ def _minimize_remote(
 
 def _minimize_local(
     optimizable: QCircuit | OptimizableFunc,
-    method: Optimizer | OptimizerCallable,
+    optimizer_data: OptimizerData,
     device: Optional[AvailableDevice] = None,
-    init_params: Optional[OptimizerInput] = None,
     nb_params: Optional[int] = None,
-    optimizer_options: Optional[dict[str, Any]] = None,
-    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -252,22 +248,15 @@ def _minimize_local(
     if isinstance(optimizable, QCircuit):
         if device is None:
             raise ValueError("A device is needed to optimize a circuit")
-        return _minimize_local_circ(
-            optimizable, device, method, init_params, optimizer_options, callback
-        )
+        return _minimize_local_circ(optimizable, device, optimizer_data)
     else:
-        return _minimize_local_func(
-            optimizable, method, init_params, nb_params, optimizer_options, callback
-        )
+        return _minimize_local_func(optimizable, optimizer_data, nb_params)
 
 
 def _minimize_local_circ(
     circ: QCircuit,
     device: AvailableDevice,
-    method: Optimizer | OptimizerCallable,
-    init_params: Optional[OptimizerInput] = None,
-    optimizer_options: Optional[dict[str, Any]] = None,
-    callback: Optional[OptimizerCallback] = None,
+    optimizer_data: OptimizerData,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by its
@@ -320,24 +309,18 @@ def _minimize_local_circ(
             params  # pyright: ignore[reportAssignmentType]
         )
 
-        values: dict[Expr | str, Complex] = dict(zip(variables, params_fixed_type))
-        result = run(circ, device, values)
+        result = run(circ, device, dict(zip(variables, params_fixed_type)))
         if TYPE_CHECKING:
             assert isinstance(result.expectation_values, float)
         return result.expectation_values
 
-    return _minimize_local_func(
-        eval_circ, method, init_params, len(variables), optimizer_options, callback
-    )
+    return _minimize_local_func(eval_circ, optimizer_data, len(variables))
 
 
 def _minimize_local_func(
     eval_func: OptimizableFunc,
-    method: Optimizer | OptimizerCallable,
-    init_params: Optional[OptimizerInput] = None,
+    optimizer_data: OptimizerData,
     nb_params: Optional[int] = None,
-    optimizer_options: Optional[OptimizerOptions] = None,
-    callback: Optional[OptimizerCallback] = None,
 ) -> tuple[float, OptimizerInput]:
     """This function runs an optimization on the parameters of the circuit, to
     minimize the expectation value of the measure of the circuit by it's
@@ -367,23 +350,145 @@ def _minimize_local_func(
     Returns:
         The optimal value reached and the parameters used to reach this value.
     """
-    if init_params is None:
+    if optimizer_data.init_params is None:
         if nb_params is None:
             raise ValueError(
                 "Please provide either a set of initialization parameters or "
                 "the number of parameters expected by the function."
             )
-        else:
-            init_params = [0.0] * nb_params
+        optimizer_data.init_params = [0.0] * nb_params
 
-    if isinstance(method, Optimizer):
-        res: OptimizeResult = scipy_minimize(
+    if isinstance(optimizer_data.method, Optimizer):
+        res = scipy_minimize(
             eval_func,
-            x0=np.array(init_params),
-            method=method.name.lower(),
-            options=optimizer_options,
-            callback=callback,
+            x0=np.array(optimizer_data.init_params),
+            method=optimizer_data.method.name.lower(),
+            options=optimizer_data.optimizer_options,
+            callback=optimizer_data.callback,
         )
+        if TYPE_CHECKING:
+            assert isinstance(res, OptimizeResult)
         return float(res.fun), res.x
     else:
-        return method(eval_func, init_params, optimizer_options)
+        return optimizer_data.method(
+            eval_func, optimizer_data.init_params, optimizer_data.optimizer_options
+        )
+
+
+if __name__ == "__main__":
+    # testing a all the possible combinations
+    from sympy import symbols
+
+    from mpqp import IBMDevice, Observable, Rx, Ry, pX, pZ
+
+    try:
+        print(
+            minimize(
+                QCircuit([Rx(symbols("theta"), 0), ExpectationMeasure(Observable(pZ))]),
+                OptimizerData(Optimizer.BFGS),
+            )
+        )  # should error because no device & optimizable is a circuit
+    except Exception as e:
+        print(e)
+
+    print(
+        minimize(
+            QCircuit([Rx(symbols("theta"), 0), ExpectationMeasure(Observable(pZ))]),
+            OptimizerData(Optimizer.BFGS),
+            device=IBMDevice.AER_SIMULATOR,
+        )
+    )
+
+    try:
+        print(
+            minimize(
+                QCircuit(
+                    [
+                        Rx(symbols("theta"), 0),
+                        ExpectationMeasure([Observable(pZ), Observable(pX)]),
+                    ]
+                ),
+                OptimizerData(Optimizer.BFGS),
+                device=IBMDevice.AER_SIMULATOR,
+            )
+        )  # should error because two observables but no way to know what to do with it (no CF)
+    except Exception as e:
+        print(e)
+
+    print(
+        minimize(
+            QCircuit(
+                [
+                    Rx(symbols("theta"), 0),
+                    ExpectationMeasure([Observable(pZ), Observable(pX)]),
+                ]
+            ),
+            OptimizerData(Optimizer.BFGS),
+            device=IBMDevice.AER_SIMULATOR,
+            cost_function=lambda rs: (
+                rs[0].expectation_values ** 2  # type: ignore
+                + rs[1].expectation_values ** 2  # type: ignore
+            ),
+        )
+    )
+
+    print(
+        minimize(
+            [
+                QCircuit(
+                    [Rx(symbols("theta0"), 0), ExpectationMeasure([Observable(pZ)])]
+                ),
+                QCircuit(
+                    [Ry(symbols("theta1"), 0), ExpectationMeasure([Observable(pX)])]
+                ),
+            ],
+            OptimizerData(Optimizer.BFGS),
+            device=IBMDevice.AER_SIMULATOR,
+            cost_function=lambda rs: (
+                rs[0].expectation_values ** 2  # type: ignore
+                + rs[1].expectation_values ** 2  # type: ignore
+            ),
+        )
+    )
+
+    print(
+        minimize(
+            QCircuit([Rx(symbols("theta0"), 0), ExpectationMeasure([Observable(pZ)])]),
+            OptimizerData(Optimizer.BFGS),
+            device=IBMDevice.AER_SIMULATOR,
+            mode=ExecutionMode.SESSION,
+        )
+    )  # should raise a warning because local device + session mode
+
+    print(
+        minimize(
+            QCircuit([Rx(symbols("theta"), 0), ExpectationMeasure(Observable(pZ))]),
+            OptimizerData(Optimizer.BFGS),
+            device=IBMDevice.IBM_LEAST_BUSY,
+        )
+    )
+
+    print(
+        minimize(
+            QCircuit([Rx(symbols("theta"), 0), ExpectationMeasure(Observable(pZ))]),
+            OptimizerData(Optimizer.BFGS),
+            device=IBMDevice.IBM_LEAST_BUSY,
+        )
+    )
+
+    try:
+        print(
+            minimize(
+                QCircuit(
+                    [
+                        Rx(symbols("theta"), 0),
+                        ExpectationMeasure([Observable(pZ), Observable(pX)]),
+                    ]
+                ),
+                OptimizerData(Optimizer.BFGS),
+                device=IBMDevice.IBM_LEAST_BUSY,
+                mode=ExecutionMode.SESSION,
+            )  # should error because two observables but no way to know what to do with it (no CF)
+        )
+    except Exception as e:
+        print(e)
