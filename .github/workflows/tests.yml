@@ -59,7 +59,7 @@ jobs:
       - name: Install python dependencies
         run: |
           pip install --upgrade pip
-         pip install ".[${{ matrix.provider }}]"
+          pip install ".[${{ matrix.provider }}]"
           pip install -r requirements-dev.txt
       - name: Install os specific dependencies
         if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}

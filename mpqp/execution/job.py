@@ -142,6 +142,9 @@ class Job:
         while before it is set to the right value (For instance, a job
         submission can require handshake protocols to conclude before
         attributing an id to the job)."""
+        self.status_message: Optional[str] = None
+        """Optional message associated with the current job status, especially
+        for execution errors."""
 
     @property
     def measure(self) -> Optional[Measure]:
@@ -205,6 +208,7 @@ class Job:
             "measure": self.measure,
             "id": self.id,
             "status": self.status,
+            "status_message": self.status_message,
         }
 
     @staticmethod
