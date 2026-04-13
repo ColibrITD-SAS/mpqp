@@ -40,14 +40,14 @@ Add more providers
 
     .. code-block:: console
 
-        $ pip install mpqp["all"]
+        $ pip install mpqp[all]
 
 
 - **Qiskit**:
 
     .. code-block:: console
 
-        $ pip install mpqp["qiskit"]
+        $ pip install mpqp[qiskit]
 
 .. literalinclude:: requirements_providers/qiskit.txt
    :language: text
@@ -56,7 +56,7 @@ Add more providers
 
     .. code-block:: console
 
-        $ pip install mpqp["braket"]
+        $ pip install mpqp[braket]
 
 .. literalinclude:: requirements_providers/braket.txt
    :language: text
@@ -65,7 +65,7 @@ Add more providers
 
     .. code-block:: console
         
-        $ pip install mpqp["cirq"]
+        $ pip install mpqp[cirq]
 
 .. literalinclude:: requirements_providers/cirq.txt
    :language: text
@@ -74,7 +74,7 @@ Add more providers
 
     .. code-block:: console
 
-        $ pip install mpqp["azure"]
+        $ pip install mpqp[azure]
 
 .. literalinclude:: requirements_providers/azure.txt
    :language: text
@@ -83,7 +83,7 @@ Add more providers
 
     .. code-block:: console
 
-        $ pip install mpqp["myqlm"]
+        $ pip install mpqp[myqlm]
 
 .. literalinclude:: requirements_providers/myqlm.txt
    :language: text
@@ -93,7 +93,7 @@ You can also combine extras, for example, to install both Qiskit and Braket supp
 
     .. code-block:: console
 
-        $ pip install mpqp["qiskit", "braket"]
+        $ pip install mpqp[qiskit,braket]
 
 .. note::
     For Mac users, additional steps are required before installation, 
