@@ -61,7 +61,7 @@ def setup_ibm_account():
     DEFAULT_CHANNEL = "ibm_quantum_platform"
     OTHER_CHANNELS = {"ibm_cloud"}
     channel = input(
-        f"Enter the channel ({colored(DEFAULT_CHANNEL, attrs=["underline"])}, "
+        f"Enter the channel ({colored(DEFAULT_CHANNEL, attrs=['underline'])}, "
         f"{', '.join(OTHER_CHANNELS)}): "
     ).strip()
     if channel == "":
