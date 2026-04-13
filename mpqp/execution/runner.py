@@ -93,9 +93,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     )
 
     tweaked_observables: list[Observable] = []
-    from copy import deepcopy
 
-    old_obs = deepcopy(measure)
     for obs in measure.observables:
         from mpqp.core.instruction.measurement.pauli_string import (
             PauliString,
@@ -146,7 +144,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         optimize_measurement=measure.optimize_measurement,
         optim_diagonal=measure.optim_diagonal,
     )
-    return tweaked_measure, old_obs
+    return tweaked_measure
 
 
 def generate_job(
@@ -307,7 +305,6 @@ def _run_single(
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
                 return _run_diagonal_observables(circuit, measure, device, job, values)
-    # elif all(isinstance(inst, ExpectationMeasure) for inst in circuit.measurements):
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():

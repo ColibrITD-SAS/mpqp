@@ -29,5 +29,6 @@ from .native_gates import (
     X,
     Y,
     Z,
+    ComposedGate,
 )
 from .parametrized_gate import ParametrizedGate

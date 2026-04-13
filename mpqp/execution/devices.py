@@ -23,10 +23,15 @@ For more information about handling Remote devices, please refer to the `Remote 
 """
 
 from abc import abstractmethod
+from copy import deepcopy
 from enum import Enum, auto
+from typing import Optional
+import warnings
 
 from mpqp.core.instruction.gates import Gate
 from mpqp.environment.env_manager import get_env_variable
+
+from mpqp.core.instruction.gates.native_gates import *
 
 
 class AvailableDevice(Enum):
@@ -89,7 +94,7 @@ class AvailableDevice(Enum):
     def supports_observable_ideal(self) -> bool:
         pass
 
-    def incompatible_gate(self) -> set[type[Gate]]:
+    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
         return set()
 
 
@@ -187,13 +192,22 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 
-    def incompatible_gate(self) -> set[type[Gate]]:
-        from mpqp.core.instruction.gates import TOF, CRk, P, Rk, Rx, Ry, Rz, T, U
+    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
 
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
-            return {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}
+            warnings.warn(
+                UserWarning(
+                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                )
+            )
+            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
-            return {Rx, Rz}
+            warnings.warn(
+                UserWarning(
+                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                )
+            )
+            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         else:
             return set()
 
@@ -359,6 +373,69 @@ class AWSDevice(AvailableDevice):
             return "us-east-1"
         else:
             return get_env_variable("AWS_DEFAULT_REGION")
+
+    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
+        """List of compatible gates with the devices that can be found in MPQP.
+        Lists pulled from here: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html#braket-qpu-partner-iqm
+        """
+        if self == AWSDevice.IQM_GARNET or self == AWSDevice.IQM_EMERALD:
+            if verbatim:  # authorized: cz, prx
+                return set([CZ, PRX])
+            else:
+                """authorized gates from doc:
+                "ccnot", "cnot",
+                "cphaseshift", "cphaseshift00", "cphaseshift01", "cphaseshift10", "phaseshift"
+                "cswap", "swap", "iswap", "pswap",
+                "ecr", "cy", "cz", "xy", "xx", "yy", "zz", "h", "i", "rx", "ry", "rz", "s", "si", "t", "ti", "v", "vi", "x", "y", "z"
+                """
+                return set(
+                    [
+                        TOF,
+                        CNOT,
+                        SWAP,
+                        CZ,
+                        H,
+                        Id,
+                        Rx,
+                        Ry,
+                        Rz,
+                        S,
+                        T,
+                        X,
+                        Y,
+                        Z,
+                    ]
+                )
+
+        elif self == AWSDevice.RIGETTI_ANKAA_3:
+            if verbatim:  # 'rx', 'rz', 'iswap'
+                return {Rz, Rx}
+                # TODO: add (ISWAP) to the set
+            else:
+                """
+                'cz', 'xy', 'ccnot', 'cnot',
+                'cphaseshift', 'cphaseshift00', 'cphaseshift01', 'cphaseshift10',
+                'cswap', 'h', 'i', 'iswap', 'phaseshift', 'pswap',
+                'rx', 'ry', 'rz', 's', 'si', 'swap', 't', 'ti', 'x', 'y', 'z'
+                """
+                authorized = [
+                    TOF,
+                    CNOT,
+                    CZ,
+                    H,
+                    Id,
+                    Rx,
+                    Ry,
+                    Rz,
+                    S,
+                    T,
+                    X,
+                    Y,
+                    Z,
+                ]
+                return set(authorized)
+
+        return set()
 
     @staticmethod
     def from_arn(arn: str):

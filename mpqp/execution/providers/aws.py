@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
 
+
 def apply_noise_to_braket_circuit(
     braket_circuit: "Circuit",
     noises: list[NoiseModel],
@@ -163,11 +164,14 @@ def run_braket_observable(job: Job):
 
         if job.measure.pre_transpiled is None:
             grouping = job.measure.get_pauli_grouping()
+            pre_measure = [
+                QCircuit(find_qubitwise_rotations(group)) for group in grouping
+            ]
+            for circuit in pre_measure:
+                for instr in circuit.instructions:
+                    instr.targets[0] = job.measure.targets[instr.targets[0]]
             transpiled_pre_measures = [
-                QCircuit(find_qubitwise_rotations(group)).to_other_language(
-                    Language.BRAKET
-                )
-                for group in grouping
+                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
             ]
             eigenvalues = [
                 {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
@@ -284,7 +288,6 @@ def run_braket_observable(job: Job):
                 ProgramSetQuantumTaskResult,
             )
 
-            print(braket_sum)
             copy = deepcopy(transpiled_circuit)
             program_set = ProgramSet(
                 CircuitBinding(

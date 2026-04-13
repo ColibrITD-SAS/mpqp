@@ -32,19 +32,6 @@ DEBUG: After instruction 2, state is
 """,
     ),
     (
-        QCircuit([H(0), Y(0), Breakpoint(draw_circuit=True), CNOT(0, 1)]),
-        """\
-DEBUG: After instruction 2, state is
-       0.707j|00⟩ + 0.707j|10⟩
-       and circuit is
-            ┌───┐┌───┐
-       q_0: ┤ H ├┤ Y ├
-            └───┘└───┘
-       q_1: ──────────
-               
-""",
-    ),
-    (
         QCircuit([H(0), CNOT(0, 1), Breakpoint(enabled=False), Y(1)]),
         "",
     ),

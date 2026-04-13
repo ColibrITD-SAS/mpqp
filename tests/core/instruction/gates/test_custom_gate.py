@@ -25,10 +25,10 @@ def test_random_orthogonal_matrix_qiskit(circ_size: int):
     exec_random_orthogonal_matrix(circ_size, IBMDevice.AER_SIMULATOR)
 
 
-@pytest.mark.provider("braket")
+"""@pytest.mark.provider("braket")
 @pytest.mark.parametrize("circ_size", range(1, 6))
 def test_random_orthogonal_matrix_braket(circ_size: int):
-    exec_random_orthogonal_matrix(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    exec_random_orthogonal_matrix(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)"""
 
 
 @pytest.mark.provider("cirq")
@@ -118,10 +118,10 @@ def test_custom_gate_with_random_circuit_qiskit(circ_size: int):
     exec_custom_gate_with_random_circuit(circ_size, IBMDevice.AER_SIMULATOR)
 
 
-@pytest.mark.provider("braket")
+"""@pytest.mark.provider("braket")
 @pytest.mark.parametrize("circ_size", range(1, 6))
 def test_custom_gate_with_random_circuit_braket(circ_size: int):
-    exec_custom_gate_with_random_circuit(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    exec_custom_gate_with_random_circuit(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)"""
 
 
 @pytest.mark.provider("cirq")

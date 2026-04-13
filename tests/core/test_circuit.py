@@ -535,7 +535,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -543,12 +544,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -556,14 +559,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -571,7 +576,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 
@@ -761,8 +767,8 @@ def test_from_cirq(list_random_cirq_circuit: list[cirq_Circuit]):
     "circuit",
     [
         QCircuit([H(0), CNOT(0, 1)]),
-        random_circuit(None, 2),
-        random_circuit(None, 10),
+        random_circuit(None, 2, use_all_qubits=True),
+        random_circuit(None, 10, use_all_qubits=True),
     ],
 )
 def test_from_braket(circuit: QCircuit):

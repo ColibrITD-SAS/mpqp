@@ -44,9 +44,10 @@ import numpy.typing as npt
 from mpqp.core.instruction import Instruction
 from mpqp.core.instruction.barrier import Barrier
 from mpqp.core.instruction.breakpoint import Breakpoint
-from mpqp.core.instruction.gates import ControlledGate, CRk, Gate
+from mpqp.core.instruction.gates import ControlledGate, Gate
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.native_gates import ComposedGate
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -1255,149 +1256,9 @@ class QCircuit:
         """
         self._generated_g_phase = 0
         if language == Language.QISKIT:
-            from qiskit.circuit import Operation, QuantumCircuit
-            from qiskit.circuit.quantumcircuit import CircuitInstruction
-            from qiskit.quantum_info import Operator
+            from mpqp.tools.circuit import mpqp_to_qiskit
 
-            # to avoid defining twice the same parameter, we keep trace of the
-            # added parameters, and we use those instead of new ones when they
-            # are used more than once
-            qiskit_parameters = set()
-            if self.nb_cbits == 0:
-                new_circ = QuantumCircuit(self.nb_qubits)
-            else:
-                new_circ = QuantumCircuit(self.nb_qubits, self.nb_cbits)
-
-            if self.label is not None:
-                new_circ.name = self.label
-
-            for instruction in self.instructions:
-                if isinstance(instruction, (Measure, Breakpoint)):
-                    continue
-                options = (
-                    {"printing": printing}
-                    if isinstance(instruction, CustomGate)
-                    else {}
-                )
-                qiskit_inst = instruction.to_other_language(
-                    language, qiskit_parameters, **options
-                )
-                if isinstance(qiskit_inst, list):
-                    for inst in qiskit_inst:
-                        if TYPE_CHECKING:
-                            assert isinstance(
-                                inst, (CircuitInstruction, Operation, Operator)
-                            )
-                        cargs = []
-                        if isinstance(instruction, CustomGate):
-                            if TYPE_CHECKING:
-                                assert isinstance(inst, Operator)
-                            if printing and len(instruction.free_symbols) > 0:
-                                new_circ.append(
-                                    inst, list(reversed(instruction.targets))
-                                )
-                            else:
-                                new_circ.unitary(
-                                    inst,
-                                    list(reversed(instruction.targets)),
-                                    instruction.label,
-                                )
-                        else:
-                            if isinstance(instruction, ControlledGate):
-                                qargs = list(reversed(instruction.controls)) + list(
-                                    reversed(instruction.targets)
-                                )
-                            elif isinstance(instruction, Gate):
-                                qargs = list(reversed(instruction.targets))
-                            elif isinstance(instruction, Barrier):
-                                qargs = range(self.nb_qubits)
-                            else:
-                                raise ValueError(
-                                    f"Instruction not handled: {instruction}"
-                                )
-
-                            if TYPE_CHECKING:
-                                assert not isinstance(inst, Operator)
-                            new_circ.append(
-                                inst,
-                                list(qargs),
-                                cargs,
-                            )
-                else:
-                    if TYPE_CHECKING:
-                        assert isinstance(
-                            qiskit_inst, (CircuitInstruction, Operation, Operator)
-                        )
-                    cargs = []
-
-                    if isinstance(instruction, CustomGate):
-                        if TYPE_CHECKING:
-                            assert isinstance(qiskit_inst, Operator)
-                        if printing and len(instruction.free_symbols) > 0:
-                            new_circ.append(
-                                qiskit_inst, list(reversed(instruction.targets))
-                            )
-                        else:
-                            new_circ.unitary(
-                                qiskit_inst,
-                                list(reversed(instruction.targets)),
-                                instruction.label,
-                            )
-                    else:
-                        if isinstance(instruction, ControlledGate):
-                            qargs = list(reversed(instruction.controls)) + list(
-                                reversed(instruction.targets)
-                            )
-                        elif isinstance(instruction, Gate):
-                            qargs = list(reversed(instruction.targets))
-                        elif isinstance(instruction, Barrier):
-                            qargs = range(self.nb_qubits)
-                        else:
-                            raise ValueError(f"Instruction not handled: {instruction}")
-
-                        if TYPE_CHECKING:
-                            assert not isinstance(qiskit_inst, Operator)
-                        new_circ.append(
-                            qiskit_inst,
-                            list(qargs),
-                            cargs,
-                        )
-
-            for measurement in self.measurements:
-                if not skip_pre_measure:
-
-                    for pre_measure in measurement.pre_measure:
-                        cargs = []
-                        qiskit_pre_measure = pre_measure.to_other_language(
-                            language, qiskit_parameters
-                        )
-                        new_circ.append(
-                            qiskit_pre_measure,
-                            list(reversed(pre_measure.targets)),
-                            cargs=cargs,
-                        )
-                if not skip_measurements:
-                    if isinstance(measurement, ExpectationMeasure):
-                        continue
-                    qiskit_inst = measurement.to_other_language(
-                        language, qiskit_parameters
-                    )
-                    if isinstance(measurement, BasisMeasure):
-                        if TYPE_CHECKING:
-                            assert measurement.c_targets is not None
-                    else:
-                        raise ValueError(f"measurement not handled: {measurement}")
-
-                    if TYPE_CHECKING:
-                        assert not isinstance(qiskit_inst, Operator)
-                    new_circ.append(
-                        qiskit_inst,
-                        [measurement.targets],
-                        [measurement.c_targets],
-                    )
-
-            new_circ.global_phase += self.input_g_phase + self._generated_g_phase
-            return new_circ
+            return mpqp_to_qiskit(self, skip_pre_measure, skip_measurements, printing)
 
         elif language == Language.MY_QLM:
             qasm2_code = self.to_other_language(
@@ -1411,143 +1272,14 @@ class QCircuit:
             return myqlm_circuit
 
         elif language == Language.BRAKET:
+            from mpqp.tools.circuit import mpqp_to_braket
 
-            from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+            return mpqp_to_braket(self, skip_pre_measure)
 
-            if len(self.noises) != 0:
-                if any(isinstance(instr, CRk) for instr in self.instructions):
-                    raise NotImplementedError(
-                        "Cannot simulate noisy circuit with CRk gate due to "
-                        "an error on AWS Braket side."
-                    )
-            from braket.circuits import Circuit as BracketCircuit
-
-            braket_circuit = BracketCircuit()
-            for instruction in self.instructions:
-                targets = [target for target in instruction.targets]
-                if isinstance(instruction, (Barrier, Breakpoint)):
-                    continue
-                if isinstance(instruction, Measure):
-                    if not skip_pre_measure:
-                        for pre_measure in instruction.pre_measure:
-                            bracket_pre_measure = pre_measure.to_other_language(
-                                Language.BRAKET
-                            )
-                            braket_circuit.add(bracket_pre_measure, targets)
-                    if not skip_measurements:
-                        if isinstance(instruction, BasisMeasure):
-                            braket_circuit.measure(targets)
-                    continue
-                braket_instr = instruction.to_other_language(Language.BRAKET)
-                try:
-                    if isinstance(instruction, ControlledGate):
-                        targets = [
-                            control for control in instruction.controls
-                        ] + targets
-                    braket_circuit.add_instruction(braket_instr, target=targets)
-                except Exception as e:
-                    raise ValueError(
-                        f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
-                    )
-
-            if len(self.noises) != 0:
-                braket_circuit = apply_noise_to_braket_circuit(
-                    braket_circuit,
-                    self.noises,
-                    self.nb_qubits,
-                )
-            return braket_circuit
         elif language == Language.CIRQ:
-            from cirq.circuits.circuit import Circuit as CirqCircuit
-            from cirq.ops.identity import I
-            from cirq.ops.named_qubit import NamedQubit
+            from mpqp.tools.circuit import mpqp_to_cirq
 
-            cirq_qubits = [NamedQubit(f"q_{i}") for i in range(self.nb_qubits)]
-            cirq_circuit = CirqCircuit()
-
-            for qubit in cirq_qubits:
-                cirq_circuit.append(I(qubit))
-
-            for instruction in self.instructions:
-                if not skip_pre_measure:
-                    if isinstance(instruction, Measure):
-                        for pre_measure in instruction.pre_measure:
-                            if isinstance(
-                                pre_measure, (CustomGate, CustomControlledGate)
-                            ):
-                                qasm2_code, gphase = pre_measure.to_other_language(
-                                    Language.QASM2
-                                )  # pyright: ignore[reportGeneralTypeIssues]
-                                if TYPE_CHECKING:
-                                    assert isinstance(qasm2_code, str)
-                                from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-
-                                qasm2_code = qasm_str = (
-                                    "OPENQASM 2.0;"
-                                    + "\ninclude \"qelib1.inc\";"
-                                    + f"\nqreg q[{self.nb_qubits}];\n"
-                                    + qasm2_code
-                                )
-                                custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
-                                cirq_circuit += custom_cirq_circuit
-                                # TODO: handle gphase in the circuit
-                                self._generated_g_phase += gphase
-                            else:
-                                cirq_pre_measure = pre_measure.to_other_language(
-                                    Language.CIRQ
-                                )
-                                targets = []
-                                for target in pre_measure.targets:
-                                    targets.append(cirq_qubits[target])
-                                cirq_circuit.append(cirq_pre_measure.on(*targets))
-
-                if isinstance(instruction, (ExpectationMeasure, Barrier, Breakpoint)):
-                    continue
-                elif isinstance(instruction, (CustomGate, CustomControlledGate)):
-                    qasm2_code, gphase = instruction.to_other_language(
-                        Language.QASM2
-                    )  # pyright: ignore[reportGeneralTypeIssues]
-                    if TYPE_CHECKING:
-                        assert isinstance(qasm2_code, str)
-                    from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-
-                    qasm2_code = qasm_str = (
-                        "OPENQASM 2.0;"
-                        + "\ninclude \"qelib1.inc\";"
-                        + f"\nqreg q[{self.nb_qubits}];\n"
-                        + qasm2_code
-                    )
-                    custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
-                    cirq_circuit += custom_cirq_circuit
-                    # TODO: handle gphase in the circuit
-                    self._generated_g_phase += gphase
-                elif isinstance(instruction, ControlledGate):
-                    targets = []
-                    for target in instruction.targets:
-                        targets.append(cirq_qubits[target])
-                    controls = []
-                    for control in instruction.controls:
-                        controls.append(cirq_qubits[control])
-                    cirq_instruction = instruction.to_other_language(Language.CIRQ)
-                    cirq_circuit.append(cirq_instruction.on(*controls, *targets))
-                else:
-                    if skip_measurements and isinstance(instruction, Measure):
-                        continue
-                    targets = []
-                    for target in instruction.targets:
-                        targets.append(cirq_qubits[target])
-                    cirq_instruction = instruction.to_other_language(Language.CIRQ)
-                    cirq_circuit.append(cirq_instruction.on(*targets))
-
-            if self.noises:
-                from mpqp.execution.providers.google import apply_noise_to_cirq_circuit
-
-                return apply_noise_to_cirq_circuit(
-                    cirq_circuit,
-                    self.noises,
-                )
-
-            return cirq_circuit
+            return mpqp_to_cirq(self, skip_pre_measure, skip_measurements)
 
         elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
@@ -1683,17 +1415,29 @@ class QCircuit:
 
         skip_measurements = False
 
+        # Checks if all the gates or its direct decomposition are available on the device.
+        authorized_gates = device.compatible_gate()
+        if authorized_gates != set():
+            for instr in self.instructions:
+                if not isinstance(instr, Gate):
+                    continue
+                if not type(instr) in authorized_gates:
+                    if isinstance(instr, ComposedGate):
+                        if not all(
+                            isinstance(gate, tuple(device.compatible_gate()))
+                            for gate in instr.decompose()
+                        ):
+                            raise ValueError(
+                                f"Gate: {type(instr)} and its decomposition is not available on {device}.\n\nThis device\'s compatible gates are: {authorized_gates}."
+                            )
+                    else:
+                        raise ValueError(
+                            f"Gate: {type(instr)} is not available on {device}.\n\nThis device\'s compatible gates are: {authorized_gates}."
+                        )
+
         if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
             if job_type == JobType.STATE_VECTOR:
                 skip_measurements = True
-
-            if any(
-                isinstance(i, tuple(device.incompatible_gate()))
-                for i in self.instructions
-            ):
-                raise ValueError(
-                    f"Gate(s) {', '.join(map(str, device.incompatible_gate()))} cannot be simulated on {device}."
-                )
             if (
                 isinstance(device, StaticIBMSimulatedDevice)
                 and device.value().num_qubits < self.nb_qubits
@@ -1702,10 +1446,13 @@ class QCircuit:
                     f"Number of qubits of the circuit ({self.nb_qubits}) is higher "
                     f"than the one of the IBMSimulatedDevice ({device.value().num_qubits})."
                 )
-            qiskit_circuit = self.to_other_language(
-                Language.QISKIT,
+            from mpqp.tools.circuit import mpqp_to_qiskit
+
+            qiskit_circuit = mpqp_to_qiskit(
+                self,
                 skip_pre_measure,
                 skip_measurements,
+                authorized_gates=device.compatible_gate(),
             )
             if TYPE_CHECKING:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
@@ -1835,12 +1582,17 @@ class QCircuit:
         elif isinstance(device, AWSDevice):
             if job_type == JobType.STATE_VECTOR:
                 skip_measurements = True
+            if device == AWSDevice.IQM_EMERALD or device == AWSDevice.IQM_GARNET:
+                for instr in self.instructions:
+                    for i in range(len(instr.targets)):
+                        instr.targets[i] += 1
 
             aws_circuit = self.to_other_language(
                 Language.BRAKET,
                 skip_pre_measure,
                 skip_measurements,
             )
+
             return aws_circuit
         elif isinstance(device, ATOSDevice):
             circuit = self.to_other_language(
