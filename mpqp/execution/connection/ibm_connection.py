@@ -48,7 +48,14 @@ def config_ibm_account(token: str, channel: str = "ibm_quantum_platform"):
 
 def setup_ibm_account():
     """Set up and update the IBM Quantum account using the existing
-    configuration (or by asking for the token if not already configured)."""
+    configuration (or by asking for the token if not already configured).
+
+    Note:
+      - The credential you enter here is an IBM Cloud API key.
+      - The same IBM Cloud API key is used for both channels:
+        * "ibm_quantum_platform"
+        * "ibm_cloud"
+    """
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
     if was_configured:
@@ -73,7 +80,7 @@ def setup_ibm_account():
         getpass("Press 'Enter' to continue")
         return "", []
 
-    token = getpass("Enter your IBM Quantum / IBM Cloud API key (hidden): ").strip()
+    token = getpass("Enter your IBM Cloud API key (hidden): ").strip()
     if token == "":
         print(colored("Empty credentials", "red"))
         getpass("Press 'Enter' to continue")
