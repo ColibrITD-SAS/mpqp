@@ -53,8 +53,9 @@ def setup_ibm_account():
     Note:
       - The credential you enter here is an IBM Cloud API key.
       - The same IBM Cloud API key is used for both channels:
-        * "ibm_quantum_platform"
-        * "ibm_cloud"
+        ``ibm_quantum_platform``
+        ``ibm_cloud``
+
     """
     was_configured = get_env_variable("IBM_CONFIGURED") == "True"
 
