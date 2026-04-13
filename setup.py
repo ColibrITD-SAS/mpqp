@@ -34,7 +34,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="GPL-3.0-or-later",
-    author="MPQP Development Team",
+    author="ColibriTD",
     author_email="quantum@colibritd.com",
     keywords=[
         "mpqp",
@@ -75,5 +75,4 @@ setup(
         "Intended Audience :: Science/Research",
     ],
     package_data={"mpqp.qasm.header_codes": ["*.qasm", "*.inc"]},
-    python_requires=">=3.10,<3.14",
 )
