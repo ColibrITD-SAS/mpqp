@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from sympy import Expr
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
