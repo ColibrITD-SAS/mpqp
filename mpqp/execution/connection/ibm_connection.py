@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 Runtime_Service = None
 
 
-def config_ibm_account(token: str, channel: str = "ibm_quantum_platform"):
+def config_ibm_account(token: str, channel: str):
     """Configure and save locally IBM Quantum account's information.
 
     Args:
