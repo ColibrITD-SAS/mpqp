@@ -75,4 +75,5 @@ setup(
         "Intended Audience :: Science/Research",
     ],
     package_data={"mpqp.qasm.header_codes": ["*.qasm", "*.inc"]},
+    python_requires=">=3.10,<3.14",
 )

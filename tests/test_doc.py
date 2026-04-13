@@ -259,16 +259,17 @@ def run_doctest(
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
 ):
-
     active_providers = request.config.getoption("--providers")
-    skip_provider_flags = {}
-    if active_providers is not None:
-        for name, flag in PROVIDER_FLAGS.items():
-            if (
-                len(active_providers) == 0  # pyright: ignore[reportArgumentType]
-                or name not in active_providers  # pyright: ignore[reportOperatorIssue]
-            ):
-                skip_provider_flags[name] = flag
+    if isinstance(active_providers, str):
+        active_providers = [active_providers]
+    elif not isinstance(active_providers, list):
+        active_providers = []
+
+    skip_provider_flags: dict[str, int] = {}
+
+    for name, flag in PROVIDER_FLAGS.items():
+        if not active_providers or name not in active_providers:
+            skip_provider_flags[name] = flag
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)

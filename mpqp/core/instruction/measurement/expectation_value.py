@@ -34,7 +34,7 @@ if TYPE_CHECKING:
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from qat.core.wrappers.observable import Observable as QLMObservable
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
 
@@ -320,7 +320,7 @@ class Observable:
             >>> obs = Observable([0.7, -1, 1, 1])
             >>> obs_qiskit = obs.to_other_language(Language.QISKIT)
             >>> obs_qiskit.to_list()  # doctest: +NORMALIZE_WHITESPACE
-            [('II', (0.425+0j)), ('IZ', (0.425+0j)), ('ZI', (-0.575+0j)), ('ZZ', (0.425+0j))]
+            [('II', (0.425+0j)), ('IZ', (-0.575+0j)), ('ZI', (0.425+0j)), ('ZZ', (0.425+0j))]
 
         """
         # TODO: use PauliString instead of matrix
@@ -330,7 +330,9 @@ class Observable:
             if self._pauli_string:
                 return self.pauli_string.to_other_language(Language.QISKIT)
             else:
-                return SparsePauliOp.from_operator(Operator(self.matrix))
+                return SparsePauliOp.from_operator(
+                    Operator(self.matrix).reverse_qargs()
+                )
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Observable as QLMObservable
 
@@ -467,6 +469,9 @@ class ExpectationMeasure(Measure):
 
                 label_counter += 1
             self.observables.append(new_obs)
+
+        if targets is None:
+            self.targets = list(range(observable[0].nb_qubits))
         self._check_targets_order()
 
     @property
