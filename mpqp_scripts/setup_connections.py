@@ -86,7 +86,7 @@ def delete_config():
         return "All accounts deleted", []
 
     delete_tree = QuestionNode(
-        "Select provider to delete configuration:",
+        "Select provider configuration to delete:",
         [
             AnswerNode("IBM", delete_ibm_account),
             AnswerNode("QLM", delete_qlm_account),
