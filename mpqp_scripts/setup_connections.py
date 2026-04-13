@@ -63,6 +63,7 @@ def print_config_info():
 
 def delete_config():
     """Delete stored credentials for a selected provider."""
+    from mpqp.environment.env_manager import get_env_variable
     from mpqp.execution.connection.aws_connection import delete_aws_braket_account
     from mpqp.execution.connection.azure_connection import delete_azure_account
     from mpqp.execution.connection.ibm_connection import delete_ibm_account
@@ -71,11 +72,16 @@ def delete_config():
     from mpqp.tools.choice_tree import AnswerNode, QuestionNode, run_choice_tree
 
     def delete_all():
-        delete_ibm_account()
-        delete_qlm_account()
-        delete_aws_braket_account()
-        delete_ionq_account()
-        delete_azure_account()
+        if get_env_variable("IBM_CONFIGURED") == "True":
+            delete_ibm_account()
+        if get_env_variable("QLM_CONFIGURED") == "True":
+            delete_qlm_account()
+        if get_env_variable("AWS_CONFIGURED") == "True":
+            delete_aws_braket_account()
+        if get_env_variable("IONQ_CONFIGURED") == "True":
+            delete_ionq_account()
+        if get_env_variable("AZURE_CONFIGURED") == "True":
+            delete_azure_account()
 
         return "All accounts deleted", []
 
