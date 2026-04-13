@@ -68,7 +68,7 @@ def setup_ibm_account():
         channel = DEFAULT_CHANNEL
         print(colored(f"set to {DEFAULT_CHANNEL}", "yellow"))
 
-    if channel not in ("ibm_quantum_platform", "ibm_cloud"):
+    if channel not in OTHER_CHANNELS.union{DEFAULT_CHANNEL}:
         print(
             colored(
                 "Invalid channel. Use 'ibm_quantum_platform' or 'ibm_cloud'.", "red"
