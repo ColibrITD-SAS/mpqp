@@ -1284,11 +1284,11 @@ class PauliStringMonomial(PauliString):
                 "Z": Braket_Z,
             }
             braket_sum = None
-            for target, atom in enumerate(self.atoms):
+            for atom in self.atoms:
                 braket_sum = (
-                    braket_sum @ pauli_gate_map[atom.label](target)
+                    braket_sum @ pauli_gate_map[atom.label]()
                     if braket_sum
-                    else pauli_gate_map[atom.label](target)
+                    else pauli_gate_map[atom.label]()
                 )
             if braket_sum is None:
                 raise ValueError("Pauli monomial cannot be empty.")

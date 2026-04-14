@@ -24,12 +24,12 @@ def fetch_all_jobs() -> list[DictDB]:
         >>> jobs = fetch_all_jobs()
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': '...', 'created_at': '...'}
+        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': '...', 'created_at': '...'}
+        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': '...', 'created_at': '...'}
+        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': '...', 'created_at': '...'}
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': '...', 'created_at': '...'}
+        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': '...', 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -240,7 +240,7 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
         >>> jobs = fetch_jobs_with_job(job)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': '...', 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -306,7 +306,7 @@ def fetch_jobs_with_result_and_job(
         >>> jobs = fetch_jobs_with_result_and_job(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': '...', 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -385,8 +385,8 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
         >>> jobs = fetch_jobs_with_result(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': '...', 'created_at': '...'}
+        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': '...', 'created_at': '...'}
 
 
     """

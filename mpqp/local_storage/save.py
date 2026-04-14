@@ -47,15 +47,15 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int]:
                     cursor.execute(
                         '''
                         INSERT INTO jobs (type, circuit, device, measure, remote_id, status)
-                        VALUES (?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?)
                     ''',
                         (
                             job.job_type.name,
                             circuit_json,
                             str(job.device),
                             measure_json,
-                            str(job.id),
-                            str(job.status),
+                            str(job.id) if job.id is not None else None,
+                            str(job.status) if job.status is not None else None,
                         ),
                     )
                     id = cursor.lastrowid
@@ -71,14 +71,16 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int]:
 
                 cursor.execute(
                     '''
-                    INSERT INTO jobs (type, circuit, device, measure)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO jobs (type, circuit, device, measure, remote_id, status)
+                    VALUES (?, ?, ?, ?, ?, ?)
                 ''',
                     (
                         jobs.job_type.name,
                         circuit_json,
                         str(jobs.device),
                         measure_json,
+                        str(jobs.id) if jobs.id is not None else None,
+                        str(jobs.status) if jobs.status is not None else None,
                     ),
                 )
                 id = cursor.lastrowid
