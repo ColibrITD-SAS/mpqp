@@ -91,7 +91,11 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
             tweaked_observables.append(
-                Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+                Observable(
+                    np.kron(
+                        np.kron(Id_before, obs.matrix), Id_after
+                    )  # pyright: ignore[reportArgumentType]
+                )
             )
 
     tweaked_measure = ExpectationMeasure(
@@ -126,7 +130,7 @@ def generate_job(
         The Job containing information about the execution of the circuit.
     """
     if values is not None:
-        circuit = circuit.subs(values, True)
+        circuit = circuit.subs(values)
 
     m_list = circuit.measurements
     nb_meas = len(m_list)

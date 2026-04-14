@@ -156,7 +156,7 @@ class NoiseModel(ABC):
             for ops in product(
                 *[K if t in targets else [pI.matrix] for t in range(size)]
             )
-        ]
+        ]  # pyright: ignore[reportReturnType]
 
     @abstractmethod
     def to_other_language(

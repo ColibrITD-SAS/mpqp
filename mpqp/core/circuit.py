@@ -825,18 +825,14 @@ class QCircuit:
              [0.70711, 0      , -0.70711, 0       ]]
 
         """
-        from qiskit import QuantumCircuit
         from qiskit.quantum_info.operators import Operator
 
-        qiskit_circuit = self.to_other_language(Language.QISKIT)
+        qiskit_circuit = self.to_other_language(Language.QISKIT).reverse_bits()
         if TYPE_CHECKING:
             assert isinstance(qiskit_circuit, QuantumCircuit)
         matrix = Operator.from_circuit(qiskit_circuit).to_matrix()
         if TYPE_CHECKING:
             assert isinstance(matrix, np.ndarray)
-        gphase = self.input_g_phase + self._generated_g_phase
-        if gphase != 0:
-            matrix *= np.exp(1j * gphase)
         return matrix
 
     def inverse(self) -> QCircuit:
@@ -963,7 +959,7 @@ class QCircuit:
         qiskit_circuit.append(
             StatePreparation(Statevector(normalize(state))), range(size)
         )
-        circ, phase = replace_custom_gate(qiskit_circuit[0], size)
+        circ, phase = replace_custom_gate(qiskit_circuit[0], size, list(range(size)))
         cls = QCircuit.from_other_language(circ.reverse_bits())
         cls.input_g_phase = phase
         return cls
@@ -1295,20 +1291,23 @@ class QCircuit:
                 if isinstance(instruction, CustomGate):
                     if TYPE_CHECKING:
                         assert isinstance(qiskit_inst, Operator)
-                    qargs = [self.nb_qubits - 1 - q for q in instruction.targets]
                     if printing and len(instruction.free_symbols) > 0:
-                        new_circ.append(qiskit_inst, list(reversed(qargs)))
+                        new_circ.append(
+                            qiskit_inst, list(reversed(instruction.targets))
+                        )
                     else:
                         new_circ.unitary(
                             qiskit_inst,
-                            list(reversed(qargs)),
+                            list(reversed(instruction.targets)),
                             instruction.label,
                         )
                 else:
                     if isinstance(instruction, ControlledGate):
-                        qargs = instruction.targets + instruction.controls
+                        qargs = list(reversed(instruction.controls)) + list(
+                            reversed(instruction.targets)
+                        )
                     elif isinstance(instruction, Gate):
-                        qargs = instruction.targets
+                        qargs = list(reversed(instruction.targets))
                     elif isinstance(instruction, Barrier):
                         qargs = range(self.nb_qubits)
                     else:
@@ -1316,10 +1315,9 @@ class QCircuit:
 
                     if TYPE_CHECKING:
                         assert not isinstance(qiskit_inst, Operator)
-                    qargs = [self.nb_qubits - 1 - q for q in qargs]
                     new_circ.append(
                         qiskit_inst,
-                        list(reversed(qargs)),
+                        list(qargs),
                         cargs,
                     )
 
@@ -1333,7 +1331,7 @@ class QCircuit:
                         )
                         new_circ.append(
                             qiskit_pre_measure,
-                            pre_measure.targets,
+                            list(reversed(pre_measure.targets)),
                             cargs=cargs,
                         )
                 if not skip_measurements:
@@ -1345,10 +1343,6 @@ class QCircuit:
                     if isinstance(measurement, BasisMeasure):
                         if TYPE_CHECKING:
                             assert measurement.c_targets is not None
-                        qargs = [[self.nb_qubits - 1 - q for q in measurement.targets]]
-                        cargs = [
-                            [self.nb_qubits - 1 - q for q in measurement.c_targets]
-                        ]
                     else:
                         raise ValueError(f"measurement not handled: {measurement}")
 
@@ -1356,10 +1350,11 @@ class QCircuit:
                         assert not isinstance(qiskit_inst, Operator)
                     new_circ.append(
                         qiskit_inst,
-                        list(reversed(qargs)),
-                        cargs,
+                        [measurement.targets],
+                        [measurement.c_targets],
                     )
 
+            new_circ.global_phase += self.input_g_phase + self._generated_g_phase
             return new_circ
 
         elif language == Language.MY_QLM:
@@ -1941,13 +1936,9 @@ class QCircuit:
                 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
                 qasm3_code = qasm3.dumps(qcircuit)
-                qasm2_code, phase = open_qasm_3_to_2(
-                    str(qasm3_code), language=Language.QISKIT
-                )
+                qasm2_code = open_qasm_3_to_2(str(qasm3_code), language=Language.QISKIT)
 
                 qc = qasm2_parse(qasm2_code)
-                qc.input_g_phase = phase
-
                 return qc
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -1973,27 +1964,29 @@ class QCircuit:
                 from braket.ir.openqasm.program_v1 import Program
 
                 from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
-                from mpqp.qasm.qasm_to_braket import (
-                    braket_custom_gates_to_mpqp,
-                    braket_noise_to_mpqp,
-                )
+                from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
                 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 
+                remove_measure = True
+                for instr in qcircuit.instructions:
+                    if instr.operator.name == "Measure":
+                        remove_measure = False
+                        break
+
                 qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
+
                 if TYPE_CHECKING:
                     assert isinstance(qasm3_code, Program)
+                noises, qasm3_code = braket_noise_to_mpqp(qasm3_code.source)
 
-                custom_gates = braket_custom_gates_to_mpqp(qasm3_code.source)
-                noises = braket_noise_to_mpqp(qasm3_code.source)
-
-                qasm2_code, phase = open_qasm_3_to_2(
-                    str(qasm3_code.source), language=Language.BRAKET
+                qasm2_code = open_qasm_3_to_2(
+                    qasm3_code,
+                    language=Language.BRAKET,
+                    remove_measure=remove_measure,
                 )
+
                 qc = qasm2_parse(qasm2_code)
-                qc.input_g_phase = phase
-                qc = qc.without_measurements(deep_copy=False)
-                if len(custom_gates) != 0:
-                    qc.add(custom_gates)
+                # qc.input_g_phase = phase
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc
@@ -2022,16 +2015,15 @@ class QCircuit:
 
                         qasm2_code, gphase = parse_qasm2_gates(qcircuit)
                         qc = qasm2_parse(qasm2_code)
-                        qc.input_g_phase = gphase
+                        qc.input_g_phase += gphase
 
                         return qc
 
                     elif line.startswith("OPENQASM 3.0"):
                         from mpqp.qasm import open_qasm_3_to_2
 
-                        qasm2_code, phase = open_qasm_3_to_2(qcircuit)
+                        qasm2_code = open_qasm_3_to_2(qcircuit)
                         qc = qasm2_parse(qasm2_code)
-                        qc.input_g_phase = phase
 
                         return qc
                     break
@@ -2109,15 +2101,13 @@ class QCircuit:
         for noise in self.noises:
             print(noise.info())
 
-        qiskit_circuit = self.to_other_language(Language.QISKIT).reverse_bits()
+        qiskit_circuit = self.to_other_language(Language.QISKIT)
         if TYPE_CHECKING:
             assert isinstance(qiskit_circuit, QuantumCircuit)
         print(qiskit_circuit.draw(output="text", fold=0))
 
     def __str__(self) -> str:
-        qiskit_circ = self.to_other_language(
-            Language.QISKIT, printing=True
-        ).reverse_bits()
+        qiskit_circ = self.to_other_language(Language.QISKIT, printing=True)
         if TYPE_CHECKING:
             from qiskit import QuantumCircuit
 

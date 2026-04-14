@@ -206,7 +206,11 @@ class UnitaryMatrix(GateDefinition):
             # the types in sympy are relatively badly handled
             # Argument of type "Unknown | Basic | Expr" cannot be assigned to parameter "v" of type "Expr | Complex"
             return (
-                caster(val.subs(values))  # pyright: ignore[reportArgumentType]
+                caster(
+                    val.subs(
+                        values  # pyright: ignore[reportArgumentType, reportCallIssue]
+                    )
+                )
                 if isinstance(val, Expr)
                 else val
             )

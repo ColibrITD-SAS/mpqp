@@ -4,7 +4,6 @@ import pytest
 from mpqp import Barrier, BasisMeasure, Instruction, Language, QCircuit
 from mpqp.gates import *
 from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
 from mpqp.tools.circuit import random_circuit
 from mpqp.tools.display import format_element_str
 
@@ -264,19 +263,12 @@ def test_mpqp_to_qasm_gate(instructions: list[Instruction], qasm_expectation: st
         ]
     ],
 )
-def test_mpqp_to_qasm_custom_gate(instructions: list[Instruction]):
+def test_mpqp_to_and_from_qasm_custom_gate(instructions: list[Instruction]):
     circuit = QCircuit(instructions)
-    from qiskit import QuantumCircuit, qasm2
 
-    qiskit_circuit = circuit.to_other_language(Language.QISKIT)
-    assert isinstance(qiskit_circuit, QuantumCircuit)
-    str_qiskit_circuit = remove_user_gates(qasm2.dumps(qiskit_circuit), True)
     str_circuit = circuit.to_other_language(Language.QASM2)
-    assert isinstance(str_circuit, str)
-    for i in str_circuit:
-        assert i in str_qiskit_circuit
-    for i in str_qiskit_circuit:
-        assert i in str_circuit
+    mpqp_qasm = QCircuit.from_other_language(str_circuit)
+    assert np.allclose(circuit.to_matrix(), mpqp_qasm.to_matrix())
 
 
 @pytest.mark.parametrize(
@@ -525,7 +517,7 @@ def test_random_mpqp_to_qasm():
         qcircuit = random_circuit(nb_qubits=6, nb_gates=20)
         from qiskit import QuantumCircuit, qasm2
 
-        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT).reverse_bits()
+        qiskit_circuit = qcircuit.to_other_language(Language.QISKIT)
         assert isinstance(qiskit_circuit, QuantumCircuit)
         qiskit_qasm = normalize_string(qasm2.dumps(qiskit_circuit))
         mpqp_qasm = qcircuit.to_other_language(Language.QASM2)

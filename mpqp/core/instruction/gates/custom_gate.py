@@ -15,7 +15,7 @@ from sympy import Expr
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from mpqp.core.circuit import QCircuit
     from sympy import Basic
 
@@ -171,16 +171,19 @@ class CustomGate(Gate):
             qiskit_circ = QuantumCircuit(nb_qubits)
             instr = self.to_other_language(Language.QISKIT)
             if TYPE_CHECKING:
-                from qiskit.quantum_info.operators import Operator as QiskitOperator
+                from qiskit.circuit.library import UnitaryGate
 
-                assert isinstance(instr, QiskitOperator)
+                assert isinstance(instr, UnitaryGate)
+
             qiskit_circ.unitary(
                 instr,
-                list(reversed(self.targets)),  # dang qiskit qubits order
+                list(reversed(self.targets)),
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(qiskit_circ.data[0], nb_qubits)
+            circuit, gphase = replace_custom_gate(
+                qiskit_circ.data[0], nb_qubits, self.targets
+            )
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()
@@ -212,6 +215,7 @@ class CustomGate(Gate):
             >>> U = np.array([[0,1], [1,0]])
             >>> gate = CustomGate(U, [0])
             >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+            global phase: π/2
                ┌─────────┐┌───────┐┌──────────┐
             q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
                └─────────┘└───────┘└──────────┘

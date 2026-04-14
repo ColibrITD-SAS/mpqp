@@ -142,7 +142,7 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
     return circuit
 
 
-def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
+def braket_noise_to_mpqp(qasm3_code: str) -> tuple[list[NoiseModel], str]:
     """
     Parse braket's qasm3 pragmas into mpqp's Noise Models.
 
@@ -150,7 +150,7 @@ def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
         qasm3_code: The OpenQASM3 string containing the noise information.
 
     Returns:
-        A list of MPQP Noise models contained in the qasm3 string.
+        A tuple of list of MPQP Noise models and cleaned qasm3 string without noise pragmas.
 
     Example:
         >>> qasm_code = '''
@@ -159,8 +159,13 @@ def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
         ... h q[0];
         ... #pragma braket noise phase_damping(0.1) q[0]
         ... '''
-        >>> print(braket_noise_to_mpqp(qasm_code)) # doctest: +NORMALIZE_WHITESPACE
+        >>> noise, clean_qasm = braket_noise_to_mpqp(qasm_code)
+        >>> print(noise) # doctest: +NORMALIZE_WHITESPACE
         [PhaseDamping(0.1, [0])]
+        >>> print(clean_qasm) # doctest: +NORMALIZE_WHITESPACE
+        OPENQASM 3.0;
+        qubit[2] q;
+        h q[0];
 
     """
     from mpqp.noise import (
@@ -172,6 +177,8 @@ def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
     )
 
     noises = []
+    cleaned_lines = []
+
     for line in qasm3_code.split("\n"):
         if "depolarizing" in line or "two_qubit_depolarizing" in line:
             noises.append(NoiseModel.from_other_language(line, Depolarizing))
@@ -193,39 +200,41 @@ def braket_noise_to_mpqp(qasm3_code: str) -> list[NoiseModel]:
                 raise NotImplementedError(
                     f"Error: {noise_model.group(1)} is not supported."
                 )
+        else:
+            cleaned_lines.append(line)
 
-    return noises
+    cleaned_qasm = "\n".join(cleaned_lines)
+    return noises, cleaned_qasm
 
 
-def braket_custom_gates_to_mpqp(qasm3_code: str) -> list[CustomGate]:
+def braket_custom_gates_to_mpqp(qasm3_code: str) -> CustomGate:
     """
     Parse braket's qasm3 pragmas into mpqp's Custom Gate.
 
     Args:
-        qasm3_code: The OpenQASM3 string containing the noise information.
+        qasm3_code: The OpenQASM3 string containing the instruction information.
 
     Returns:
-        A list of MPQP Custom Gate contained in the qasm3 string.
+        A MPQP Custom Gate contained in the qasm3 string.
 
     Example:
-        >>> qasm_code = '''OPENQASM 3.0;
-        ... bit[1] b;
-        ... qubit[1] q;
-        ... #pragma braket unitary([[0, 1.0], [1.0, 0]]) q[0]
-        ... b[0] = measure q[0];
-        ... '''
-        >>> print(braket_custom_gates_to_mpqp(qasm_code)) # doctest: +NORMALIZE_WHITESPACE
-        [CustomGate(array([[0., 1.], [1., 0.]]), [0])]
+        >>> qasm_code = '''#pragma braket unitary([[0, 1.0], [1.0, 0]]) q[0]'''
+        >>> print(repr(braket_custom_gates_to_mpqp(qasm_code))) # doctest: +NORMALIZE_WHITESPACE
+        CustomGate(array([[0., 1.], [1., 0.]]), [0])
     """
     import ast
     import re
 
     import numpy as np
 
-    custom_gates = []
-    for line in qasm3_code.split("\n"):
-        if "braket unitary" in line:
-            matrix = np.array(ast.literal_eval(line[line.find('[') : line.rfind(')')]))
-            indices = [int(i) for i in re.findall(r"q\[(\d+)\]", line)]
-            custom_gates.append(CustomGate(matrix, indices))
-    return custom_gates
+    if "braket unitary" in qasm3_code:
+        matrix = np.array(
+            ast.literal_eval(qasm3_code[qasm3_code.find('[') : qasm3_code.rfind(')')])
+        )
+        indices = [int(i) for i in re.findall(r"q\[(\d+)\]", qasm3_code)]
+
+        return CustomGate(matrix, indices)
+    else:
+        raise NotImplementedError(
+            "Only #pragma braket unitary is supported for the moment."
+        )

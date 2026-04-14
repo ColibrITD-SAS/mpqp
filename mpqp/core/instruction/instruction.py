@@ -5,12 +5,11 @@ from __future__ import annotations
 from abc import abstractmethod
 from copy import deepcopy
 from numbers import Complex
-from pickle import dumps
 from typing import TYPE_CHECKING, Any, Optional
 
 if TYPE_CHECKING:
     from sympy import Expr
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
@@ -94,8 +93,10 @@ class Instruction(SimpleClassReprABC):
         """
         pass
 
-    def __eq__(self, value: object) -> bool:
-        return dumps(self) == dumps(value)
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return self.to_dict() == other.to_dict()
 
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit

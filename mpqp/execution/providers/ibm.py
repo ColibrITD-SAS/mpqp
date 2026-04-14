@@ -509,12 +509,11 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     check_job_compatibility(job)
 
-    service = get_QiskitRuntimeService()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     job.device = IBMDevice(backend.name)
-    session = Session(service=service, backend=backend)
+    session = Session(backend=backend)
 
     if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
@@ -675,7 +674,7 @@ def extract_result(
             counts = counts.get_counts() if counts else {}
             data = [
                 Sample(
-                    bin_str=item,
+                    bin_str=item[::-1],
                     count=counts[item],
                     nb_qubits=job.circuit.nb_qubits,
                 )
@@ -717,17 +716,18 @@ def extract_result(
             shots = result.metadata[0]["shots"] if "shots" in result.metadata[0] else 0
 
             for i in range(len(result.values)):
+                qiskit_order = len(result.values) - i - 1
                 label = (
                     job.measure.observables[i].label
                     if isinstance(job.measure, ExpectationMeasure)
                     else f"ibm_obs_{i}"
                 )
                 variance = (
-                    result.metadata[i]["variance"]
-                    if "variance" in result.metadata[i]
+                    result.metadata[qiskit_order]["variance"]
+                    if "variance" in result.metadata[qiskit_order]
                     else None
                 )
-                exp_values_dict[label] = result.values[i]
+                exp_values_dict[label] = result.values[qiskit_order]
                 errors_dict[label] = variance
 
             return Result(job, exp_values_dict, errors_dict, shots)
@@ -744,6 +744,7 @@ def extract_result(
                 elif "counts" in job_data:
                     job_type = JobType.SAMPLE
                     nb_qubits = len(list(result.get_counts())[0])
+                    assert result.results is not None
                     shots = result.results[0].shots
                     job = Job(
                         job_type,
@@ -765,12 +766,12 @@ def extract_result(
                         )
 
             if job.job_type == JobType.STATE_VECTOR:
-                vector = np.array(result.get_statevector())
+                vector = np.array(result.get_statevector().reverse_qargs())  # type: ignore[reportUnnecessaryIsInstance]
                 state_vector = StateVector(
-                    vector,  # pyright: ignore[reportArgumentType]
+                    vector,
                     job.circuit.nb_qubits,
                 )
-                return Result(job, state_vector, 0, 0)
+                return Result(job, state_vector, 0, 0, False)
             elif job.job_type == JobType.SAMPLE:
                 if TYPE_CHECKING:
                     assert job.measure is not None
@@ -801,7 +802,7 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     Returns:
         The result (or batch of result) converted to our format.
     """
-    from qiskit.providers import BackendV1, BackendV2
+    from qiskit.providers import BackendV2
 
     connector = get_QiskitRuntimeService()
     ibm_job = (
@@ -825,7 +826,7 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     result = ibm_job.result()
     backend = ibm_job.backend()
     if TYPE_CHECKING:
-        assert isinstance(backend, (BackendV1, BackendV2))
+        assert isinstance(backend, BackendV2)
     ibm_device = IBMDevice(backend.name)
 
     return extract_result(result, None, ibm_device)
@@ -846,7 +847,7 @@ def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
     job_data = result.data()
     return [
         Sample(
-            bin_str=item,
+            bin_str=item[::-1],
             count=counts[item],
             nb_qubits=job.circuit.nb_qubits,
             probability=(
