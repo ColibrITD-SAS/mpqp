@@ -1,5 +1,5 @@
 from getpass import getpass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from termcolor import colored
 
@@ -128,7 +128,9 @@ def test_connection() -> bool:
     return True
 
 
-def get_QiskitRuntimeService() -> "QiskitRuntimeService":
+def get_QiskitRuntimeService(
+    device: Optional[IBMDevice] = None,
+) -> "QiskitRuntimeService":
     """Return the QiskitRuntimeService needed for remote connection and
     execution.
 
@@ -155,7 +157,9 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
                 "Error when instantiating QiskitRuntimeService. No IBM account configured."
             )
         try:
-            Runtime_Service = QiskitRuntimeService()
+            Runtime_Service = QiskitRuntimeService(
+                instance=None if device is None else device.instance
+            )
         except Exception as err:
             raise IBMRemoteExecutionError(
                 "Error when instantiating QiskitRuntimeService (probably wrong token saved "
@@ -245,7 +249,7 @@ def get_backend(device: IBMDevice) -> "BackendV2":
         raise ValueError("Expected a remote IBM device but got a local simulator.")
     from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
-    service = get_QiskitRuntimeService()
+    service = get_QiskitRuntimeService(device)
 
     try:
         if device == IBMDevice.IBM_LEAST_BUSY:
@@ -276,4 +280,5 @@ def get_all_job_ids() -> list[str]:
     """
     if get_env_variable("IBM_CONFIGURED") == "True":
         return [job.job_id() for job in get_QiskitRuntimeService().jobs(limit=None)]
+    return []
     return []

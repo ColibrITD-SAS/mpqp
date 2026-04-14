@@ -24,6 +24,7 @@ For more information about handling Remote devices, please refer to the `Remote 
 
 from abc import abstractmethod
 from enum import Enum, auto
+from typing import Any, Optional
 
 from mpqp.core.instruction.gates import Gate
 from mpqp.environment.env_manager import get_env_variable
@@ -96,6 +97,16 @@ class AvailableDevice(Enum):
 class IBMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by IBM Quantum.
 
+    In case you want to run your job with a specific instance, you can also set
+    the instance directly as such:
+
+    .. code-block:: python
+
+        c = QCircuit(...)
+        device = IBMDevice.IBM_AACHEN
+        device.instance = "aBc1dEf2..."
+        run(c, device)
+
     Warning:
         Since previous versions, many devices have been disabled by IBM. This may
         affect your code. We are currently investigating this issue to check if a
@@ -115,6 +126,7 @@ class IBMDevice(AvailableDevice):
     IBM_KYIV = "ibm_kyiv"
 
     IBM_FEZ = "ibm_fez"
+    IBM_AACHEN = "ibm_aachen"
     IBM_RENSSELAER = "ibm_rensselaer"
     IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
@@ -136,6 +148,12 @@ class IBMDevice(AvailableDevice):
     IBM_PEEKSKILL = "ibm_peekskill"
 
     IBM_LEAST_BUSY = "ibm_least_busy"
+
+    instance: Optional[str]
+
+    def __init__(self, *args: Any, **kwargs: dict[Any, Any]) -> None:
+        super().__init__()
+        self.instance = None
 
     def is_remote(self) -> bool:
         return self.name.startswith("IBM")
