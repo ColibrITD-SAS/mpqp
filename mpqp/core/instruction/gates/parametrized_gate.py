@@ -57,18 +57,17 @@ class ParametrizedGate(Gate, ABC):
         from sympy import Expr
 
         concrete_gate = deepcopy(self)
-        options = getattr(self, "native_gate_options", {})
-        concrete_gate.definition = concrete_gate.definition.subs(values, **options)
+        concrete_gate.definition = concrete_gate.definition.subs(values)
 
-        def caster(v: Expr | float) -> float:
-            if isinstance(v, Expr) and (v.is_Float or v.is_Integer):
+        def caster(v: Expr | float) -> Expr | float:
+            if isinstance(v, Expr) and v.is_Number:
                 return float(v.evalf())  # pyright: ignore[reportArgumentType]
             else:
-                return v  # pyright: ignore[reportReturnType]
+                return v
 
         concrete_gate.parameters = [
             (
-                caster(param.subs(values))  # pyright: ignore[reportArgumentType]
+                caster(param.subs(values))  # pyright: ignore
                 if isinstance(param, Expr)
                 else param
             )
