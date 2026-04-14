@@ -53,6 +53,7 @@ setup(
         ]
     },
     project_urls={
+        "Company": "https://colibritd.com",
         "Repository": "https://github.com/ColibrITD-SAS/mpqp",
         "Documentation": "https://mpqpdoc.colibri-quantum.com/",
         "License": "https://github.com/ColibrITD-SAS/mpqp/blob/main/LICENSE",
