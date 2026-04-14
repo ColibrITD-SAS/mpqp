@@ -267,9 +267,7 @@ class Observable:
 
         return not np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
 
-    def subs(
-        self, values: dict[Expr | str, Real], remove_symbolic: bool = False
-    ) -> Observable:
+    def subs(self, values: dict[Expr | str, Real]) -> Observable:
         """3M-TODO"""
         ...
 

@@ -138,9 +138,7 @@ class Instruction(SimpleClassReprABC):
             else set(self.targets)
         )
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> Instruction:
+    def subs(self, values: dict[Expr | str, Complex]) -> Instruction:
         r"""Substitutes the parameters of the instruction with complex values.
         Optionally, also removes all symbolic variables such as `\pi` (needed for
         circuit execution, for example).
@@ -150,8 +148,6 @@ class Instruction(SimpleClassReprABC):
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: Whether symbolic values should be replaced by their
-                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.

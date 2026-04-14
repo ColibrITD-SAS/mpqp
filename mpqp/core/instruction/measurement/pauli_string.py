@@ -266,9 +266,7 @@ class PauliString:
 
         return self.to_dict() == other.to_dict()
 
-    def subs(
-        self, values: dict[Expr | str, Real], remove_symbolic: bool = True
-    ) -> PauliString:
+    def subs(self, values: dict[Expr | str, Real]) -> PauliString:
         r"""Substitute the coef of the pauli sting with values for each of the
         specified coef. Optionally also remove all symbolic variables such
         as `\pi` (needed for example for circuit execution).
@@ -278,8 +276,6 @@ class PauliString:
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: Whether symbolic values should be replaced by their
-                numeric counterparts.
 
         Returns:
             The pauli sting with the replaced parameters.
@@ -295,7 +291,7 @@ class PauliString:
         """
         new_pauli_string = PauliString()
         for monomial in self.monomials:
-            substituted_monomial = monomial.subs(values, remove_symbolic)
+            substituted_monomial = monomial.subs(values)
             new_pauli_string += substituted_monomial
         return new_pauli_string
 
@@ -1180,9 +1176,7 @@ class PauliStringMonomial(PauliString):
                 f"This type of commutingType {method} is not implemented yet."
             )
 
-    def subs(
-        self, values: dict[Expr | str, Real], remove_symbolic: bool = True
-    ) -> PauliStringMonomial:
+    def subs(self, values: dict[Expr | str, Real]) -> PauliStringMonomial:
         r"""Substitutes the parameters of the instruction with complex values.
         Optionally, also removes all symbolic variables such as `\pi` (needed for
         circuit execution, for example).
@@ -1192,8 +1186,6 @@ class PauliStringMonomial(PauliString):
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: Whether symbolic values should be replaced by their
-                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.
@@ -1211,7 +1203,7 @@ class PauliStringMonomial(PauliString):
         )
 
         new_monomial = deepcopy(self)
-        caster = lambda v: _unpack_expr(v) if remove_symbolic else v
+        caster = lambda v: _unpack_expr(v) if isinstance(v, Expr) else v
         if isinstance(new_monomial.coef, Expr):
             new_coef: "Coef" = caster(new_monomial.coef.subs(values))
             new_monomial.coef = new_coef
