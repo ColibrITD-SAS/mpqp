@@ -71,25 +71,20 @@ def create_test_local_storage(providers: Optional[list[str]] = None) -> None:
             IBMDevice.AER_SIMULATOR
         ]  # AER_SIMULATOR is always available, so we can be sure that the tests will run even if no provider is selected
     else:
+        device_map = {
+            "cirq": GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            "qiskit": IBMDevice.AER_SIMULATOR,
+            "braket": AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            "myqlm": ATOSDevice.MYQLM_CLINALG,
+        }
         for provider in providers:
             if provider == "all":
-                devices = [
-                    IBMDevice.AER_SIMULATOR,
-                    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-                    AWSDevice.BRAKET_LOCAL_SIMULATOR,
-                    ATOSDevice.MYQLM_CLINALG,
-                ]
+                devices = list(device_map.values())
                 break
-            elif provider == "cirq":
-                devices.append(GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
-            elif provider == "qiskit":
-                devices.append(IBMDevice.AER_SIMULATOR)
-            elif provider == "azure":
+            if provider == "azure":
                 continue
-            elif provider == "braket":
-                devices.append(AWSDevice.BRAKET_LOCAL_SIMULATOR)
-            elif provider == "myqlm":
-                devices.append(ATOSDevice.MYQLM_CLINALG)
+            if provider in device_map:
+                devices.append(device_map[provider])
             else:
                 raise ValueError(f"Unknown provider: {provider}")
 
