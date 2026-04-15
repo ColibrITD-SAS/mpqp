@@ -538,7 +538,9 @@ def pauli_strings_in_all_languages() -> list[
 def test_from_other_language_cirq(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -560,7 +562,9 @@ def test_from_other_language_cirq(
 def test_from_other_language_braket(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -577,7 +581,9 @@ def test_from_other_language_braket(
 def test_from_other_language_qiskit(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -594,7 +600,9 @@ def test_from_other_language_qiskit(
 def test_from_other_language_my_qlm(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -611,7 +619,9 @@ def test_from_other_language_my_qlm(
 def test_to_other_language_cirq(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -632,7 +642,9 @@ def test_to_other_language_cirq(
 def test_to_other_language_braket(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -653,7 +665,9 @@ def test_to_other_language_braket(
 def test_to_other_language_qiskit(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -674,7 +688,9 @@ def test_to_other_language_qiskit(
 def test_to_other_language_my_qlm(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -695,7 +711,9 @@ def test_to_other_language_my_qlm(
 def test_to_from_other_language_cirq(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -721,7 +739,9 @@ def test_to_from_other_language_cirq(
 def test_to_from_other_language_braket(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -747,7 +767,9 @@ def test_to_from_other_language_braket(
 def test_to_from_other_language_qiskit(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
@@ -773,7 +795,9 @@ def test_to_from_other_language_qiskit(
 def test_to_from_other_language_my_qlm(
     pauli_strings: dict[
         Optional[Language],
-        Callable[[], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]],
+        Callable[
+            [], Union["PauliSum", "BraketSum", "SparsePauliOp", "Term", PauliString]
+        ],
     ],
 ):
     assert (
