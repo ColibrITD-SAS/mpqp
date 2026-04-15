@@ -59,27 +59,53 @@ from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import DictDB, setup_local_storage
 
 
-def create_test_local_storage():
+def create_test_local_storage(providers: Optional[list[str]] = None) -> None:
+    if providers is None:
+        providers = ["all"]
     save_local_storage = get_env_variable("DB_PATH")
     setup_local_storage("tests/local_storage/test_local_storage.db")
     clear_local_storage()
+    devices = []
+    if len(providers) == 0:
+        devices = [
+            IBMDevice.AER_SIMULATOR
+        ]  # AER_SIMULATOR is always available, so we can be sure that the tests will run even if no provider is selected
+    else:
+        for provider in providers:
+            if provider == "all":
+                devices = [
+                    IBMDevice.AER_SIMULATOR,
+                    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+                    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+                    ATOSDevice.MYQLM_CLINALG,
+                ]
+                break
+            elif provider == "cirq":
+                devices.append(GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+            elif provider == "qiskit":
+                devices.append(IBMDevice.AER_SIMULATOR)
+            elif provider == "azure":
+                continue
+            elif provider == "braket":
+                devices.append(AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            elif provider == "myqlm":
+                devices.append(ATOSDevice.MYQLM_CLINALG)
+            else:
+                raise ValueError(f"Unknown provider: {provider}")
+
     c = QCircuit([H(0), CNOT(0, 1), BasisMeasure()], label="H CX BM")
-    result = run(c, device=IBMDevice.AER_SIMULATOR)
+    result = run(c, device=devices)
     insert_results(result)
-    result2 = run(
-        c, device=[IBMDevice.AER_SIMULATOR, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
-    )
+    result2 = run(c, device=devices)
     insert_results(result2)
 
     c = QCircuit([H(0), BasisMeasure()], label="H BM")
-    result3 = run(
-        c, device=[IBMDevice.AER_SIMULATOR, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
-    )
+    result3 = run(c, device=devices)
     insert_results(result3)
 
     c1 = QCircuit([], nb_qubits=2)
     c2 = QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id")
-    result12 = run([c1, c2], device=IBMDevice.AER_SIMULATOR)
+    result12 = run([c1, c2], device=devices)
     insert_results(result12)
     save_env_variable("DB_PATH", save_local_storage)
 
@@ -257,7 +283,7 @@ def test_fetch_results_with_result(
         expected_result = mock_local_storage_results[0]['result_local_storage']
         assert isinstance(expected_result, dict)
 
-        excluded_keys = {'created_at', 'id'}
+        excluded_keys = {'created_at', 'job_id'}
 
         for fetched_result in fetched_results:
             filtered_fetched = {
