@@ -70,7 +70,7 @@ jobs:
       - name: Run tests
         run: |
           if [[ "${{ github.event.inputs.long }}" == "true" || "${{ github.ref_name }}" == "main" || "${{ github.base_ref }}" == "main" ]]; then
-            python -m pytest --long-local 
+            python -m pytest --long-local --providers ${{ matrix.provider }}
           else
             python -m pytest --providers ${{ matrix.provider }}
           fi
