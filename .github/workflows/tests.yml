@@ -45,7 +45,7 @@ jobs:
     strategy:
       matrix: 
         python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11", "3.12", "3.13"]') }}
-        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || (github.ref_name == 'main' && '["all", "qiskit", "cirq", "braket", "myqlm"]' || '["all"]')) }}
+        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || ((github.ref_name == 'main' || github.base_ref == 'main') && '["all", "qiskit", "cirq", "braket", "myqlm"]' || '["all"]')) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -62,14 +62,14 @@ jobs:
           pip install ".[${{ matrix.provider }}]"
           pip install -r requirements-dev.txt
       - name: Install os specific dependencies
-        if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' }}
+        if: ${{ github.event.inputs.long == 'true' || github.ref_name == 'main' || github.base_ref == 'main'}}
         run: |
           sudo apt-get update
           sudo apt install -y poppler-utils
           sudo apt-get install -y texlive-latex-base texlive-pictures texlive-latex-extra
       - name: Run tests
         run: |
-          if [[ "${{ github.event.inputs.long }}" == "true" || "${{ github.ref_name }}" == "main" ]]; then
+          if [[ "${{ github.event.inputs.long }}" == "true" || "${{ github.ref_name }}" == "main" || "${{ github.base_ref }}" == "main" ]]; then
             python -m pytest --long-local 
           else
             python -m pytest --providers ${{ matrix.provider }}
