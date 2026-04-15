@@ -1495,7 +1495,13 @@ class QCircuit:
                     for target in instruction.targets:
                         targets.append(cirq_qubits[target])
                     cirq_instruction = instruction.to_other_language(Language.CIRQ)
-                    cirq_circuit.append(cirq_instruction.on(*targets))
+                    if TYPE_CHECKING:
+                        assert cirq_instruction
+                    cirq_circuit.append(
+                        cirq_instruction.on(  # pyright: ignore[reportAttributeAccessIssue]
+                            *targets
+                        )
+                    )
 
             if self.noises:
                 from mpqp.execution.providers.google import apply_noise_to_cirq_circuit
