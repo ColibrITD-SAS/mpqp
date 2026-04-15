@@ -225,9 +225,7 @@ class CustomGate(Gate):
 
         return quantum_shannon_decomposition(self.matrix)
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> CustomGate:
+    def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
         res = copy(self)
-        res.definition = res.definition.subs(values, remove_symbolic)
+        res.definition = res.definition.subs(values)
         return res

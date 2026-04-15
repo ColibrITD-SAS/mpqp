@@ -47,6 +47,7 @@ code transformations. Key functionalities include:
 
 """
 
+from __future__ import annotations
 import os
 import re
 from enum import Enum, auto

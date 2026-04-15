@@ -130,7 +130,7 @@ def generate_job(
         The Job containing information about the execution of the circuit.
     """
     if values is not None:
-        circuit = circuit.subs(values, True)
+        circuit = circuit.subs(values)
 
     m_list = circuit.measurements
     nb_meas = len(m_list)

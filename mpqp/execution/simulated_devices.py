@@ -5,6 +5,8 @@ mother class of all noisy devices reproducing real hardware for several provider
 For the moment, only IBM simulated devices are available (so called `FakeBackend`), but the structure is ready to allow
 other simulated devices (QLM has this feature for instance."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
 from mpqp.environment.var_cache import (

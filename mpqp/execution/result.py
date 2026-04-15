@@ -543,6 +543,12 @@ class Result:
         Args:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
+
+        Example:
+            >>> circuit = QCircuit([H(0),H(1),H(2)])
+            >>> run(circuit, IBMDevice.AER_SIMULATOR).plot()
+
+        .. image:: ../docs/resources/output_plot_example_single.png
         """
         from matplotlib import pyplot as plt
 
@@ -809,6 +815,13 @@ class BatchResult:
         Args:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
+
+        Example:
+            >>> circuit = QCircuit([H(0),H(1),H(2), BasisMeasure()])
+            >>> circuit2 = QCircuit([H(0),X(1),H(2), BasisMeasure()])
+            >>> run([circuit,circuit2], IBMDevice.AER_SIMULATOR).plot()
+
+        .. image:: ../docs/resources/output_plot_example_batch.png
         """
         from matplotlib import pyplot as plt
 
