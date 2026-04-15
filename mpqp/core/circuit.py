@@ -1473,28 +1473,11 @@ class QCircuit:
                                 for target in pre_measure.targets:
                                     targets.append(cirq_qubits[target])
                                 cirq_circuit.append(cirq_pre_measure.on(*targets))
-
                 if isinstance(instruction, (ExpectationMeasure, Barrier, Breakpoint)):
                     continue
-                elif isinstance(instruction, (CustomGate, CustomControlledGate)):
-                    qasm2_code, gphase = instruction.to_other_language(
-                        Language.QASM2
-                    )  # pyright: ignore[reportGeneralTypeIssues]
-                    if TYPE_CHECKING:
-                        assert isinstance(qasm2_code, str)
-                    from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-
-                    qasm2_code = qasm_str = (
-                        "OPENQASM 2.0;"
-                        + "\ninclude \"qelib1.inc\";"
-                        + f"\nqreg q[{self.nb_qubits}];\n"
-                        + qasm2_code
-                    )
-                    custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
-                    cirq_circuit += custom_cirq_circuit
-                    # TODO: handle gphase in the circuit
-                    self._generated_g_phase += gphase
-                elif isinstance(instruction, ControlledGate):
+                elif isinstance(instruction, ControlledGate) and not isinstance(
+                    instruction, CustomControlledGate
+                ):
                     targets = []
                     for target in instruction.targets:
                         targets.append(cirq_qubits[target])
@@ -1507,6 +1490,8 @@ class QCircuit:
                     if skip_measurements and isinstance(instruction, Measure):
                         continue
                     targets = []
+                    if isinstance(instruction, CustomControlledGate):
+                        instruction = instruction.to_custom_gate()
                     for target in instruction.targets:
                         targets.append(cirq_qubits[target])
                     cirq_instruction = instruction.to_other_language(Language.CIRQ)
