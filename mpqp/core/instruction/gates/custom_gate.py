@@ -161,6 +161,34 @@ class CustomGate(Gate):
                     operator=BraketUnitary(self.definition.matrix),
                     target=self.targets,
                 )
+        elif language == Language.CIRQ:
+            from cirq import Gate as cirqGate
+
+            # TODO: find clean way of initiating this class once
+            # Cost is negli
+            class cirqCustomGate(cirqGate):
+                def __init__(self, matrix: Matrix, label: str | None):
+                    import numpy as np
+
+                    self.matrix = matrix
+                    self.label = label
+                    self._nb_qubits = int(np.log2(len(matrix)))
+                    super(cirqCustomGate, self)
+
+                def _num_qubits_(self) -> int:
+                    return self._nb_qubits
+
+                def _unitary_(self) -> Matrix:
+                    return self.matrix
+
+                def _circuit_diagram_info_(self, args: list[float]) -> str | list[str]:
+                    # we keep args for later implementation
+                    if self.label:
+                        return [self.label] * self._nb_qubits
+                    return ["CustomGate"] * self._nb_qubits
+
+            return cirqCustomGate(self.matrix, self.label)
+
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 
