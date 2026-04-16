@@ -581,7 +581,7 @@ def test_from_other_language_qiskit(
     ],
 ):
     assert (
-        PauliString.from_other_language(pauli_strings[Language.BRAKET]())
+        PauliString.from_other_language(pauli_strings[Language.QISKIT]())
         == pauli_strings[None]()
     )
 
