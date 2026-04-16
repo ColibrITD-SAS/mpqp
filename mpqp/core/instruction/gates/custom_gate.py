@@ -205,7 +205,7 @@ class CustomGate(Gate):
 
             qiskit_circ.unitary(
                 instr,
-                list(reversed(self.targets)),
+                self.targets,
                 self.label,
             )
 
