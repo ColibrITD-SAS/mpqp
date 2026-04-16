@@ -164,8 +164,8 @@ class CustomGate(Gate):
         elif language == Language.CIRQ:
             from cirq import Gate as cirqGate
 
-            self.label
-
+            # TODO: find clean way of initiating this class once
+            # Cost is negli
             class cirqCustomGate(cirqGate):
                 def __init__(self, matrix: Matrix, label: str | None):
                     import numpy as np
