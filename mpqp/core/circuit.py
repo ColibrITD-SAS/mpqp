@@ -1710,24 +1710,35 @@ class QCircuit:
                         try:
                             qiskit_circuit = transpile(qiskit_circuit, backend_sim)
                         except Exception as e:
-                            if 'HighLevelSynthesis is unable to synthesize "measure"' in str(e):
+                            if (
+                                'HighLevelSynthesis is unable to synthesize "measure"'
+                                in str(e)
+                            ):
                                 # TODO: remove this workaround when the issue is fixed on qiskit side
-                                
+
                                 from qiskit import ClassicalRegister
 
-                                qc = qiskit_circuit.remove_final_measurements(inplace=False)
+                                qc = qiskit_circuit.remove_final_measurements(
+                                    inplace=False
+                                )
                                 qc = transpile(qc, backend_sim)
                                 if qiskit_circuit.num_clbits > 0:
-                                    qc.add_register(ClassicalRegister(qiskit_circuit.num_clbits))
+                                    qc.add_register(
+                                        ClassicalRegister(qiskit_circuit.num_clbits)
+                                    )
                                 for instr, qargs, cargs in qiskit_circuit.data:
                                     if instr.name == "measure":
-                                        q_index = qiskit_circuit.find_bit(qargs[0]).index
-                                        c_index = qiskit_circuit.find_bit(cargs[0]).index
+                                        q_index = qiskit_circuit.find_bit(
+                                            qargs[0]
+                                        ).index
+                                        c_index = qiskit_circuit.find_bit(
+                                            cargs[0]
+                                        ).index
                                         qc.measure(q_index, c_index)
                                 qiskit_circuit = qc
                             else:
                                 raise e
-                        
+
                     elif job_type == JobType.OBSERVABLE:
                         if isinstance(device, StaticIBMSimulatedDevice):
                             from qiskit.transpiler.preset_passmanagers import (
