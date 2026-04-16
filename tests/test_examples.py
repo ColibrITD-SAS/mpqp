@@ -67,7 +67,16 @@ def generate_tests_for_python_scripts():
         globals()[test_name] = make_test_func(py_file)
 
 
-if "--long-local" in sys.argv or "--long" in sys.argv:
+def providers_is_all():
+    if "--providers" not in sys.argv:
+        return True
+    idx = sys.argv.index("--providers") + 1
+    if idx >= len(sys.argv):
+        return False
+    return sys.argv[idx] == "all"
+
+
+if ("--long-local" in sys.argv or "--long" in sys.argv) and providers_is_all():
     env = os.environ.copy()
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     venv_path = os.environ.get('VIRTUAL_ENV')
