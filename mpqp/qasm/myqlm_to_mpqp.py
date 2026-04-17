@@ -59,14 +59,14 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
         SyntaxError: If the input circuit contains gates that are not handled or that have syntax error.
 
     Example:
-        >>> from qat.lang.AQASM import Program, H, CNOT # doctest: +FUNC_NEED_MYQLM
-        >>> prog = Program()
-        >>> qbits = prog.qalloc(2)
-        >>> _ = H(qbits[0])
-        >>> _ = CNOT(qbits[0], qbits[1])
-        >>> myqlm_circuit = prog.to_circ()
-        >>> qcircuit = from_myqlm_to_mpqp(myqlm_circuit)
-        >>> print(qcircuit) # doctest: +NORMALIZE_WHITESPACE
+        >>> from qat.lang.AQASM import Program, H, CNOT # doctest: +MYQLM
+        >>> prog = Program() # doctest: +MYQLM
+        >>> qbits = prog.qalloc(2) # doctest: +MYQLM
+        >>> _ = H(qbits[0]) # doctest: +MYQLM
+        >>> _ = CNOT(qbits[0], qbits[1]) # doctest: +MYQLM
+        >>> myqlm_circuit = prog.to_circ() # doctest: +MYQLM
+        >>> qcircuit = from_myqlm_to_mpqp(myqlm_circuit) # doctest: +MYQLM
+        >>> print(qcircuit) # doctest: +NORMALIZE_WHITESPACE # doctest: +MYQLM
              ┌───┐
         q_0: ┤ H ├──■──
              └───┘┌─┴─┐

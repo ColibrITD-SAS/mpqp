@@ -292,8 +292,9 @@ def run_doctest(
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
+            # TODO: Check for +FUNC_NEED_ flags 
             and all(
-                f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring
+                f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring 
                 for keyword in skip_provider_flags.keys()
             )
         ):
