@@ -30,7 +30,7 @@ extras["all"] = sorted(set(all_extras))
 setup(
     name="mpqp",
     use_scm_version=True,
-    setup_requires=["setuptools_scm"],
+    setup_requires=["setuptools_scm", "vcs_versioning"],
     description="Facilitate quantum algorithm development and execution, regardless of the hardware, with MPQP",
     long_description=long_description,
     long_description_content_type="text/markdown",
