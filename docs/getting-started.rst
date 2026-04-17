@@ -7,22 +7,93 @@ Installation
 .. TODO: grab the compatibility matrix from MyQLM and relax our requirements 
 .. when possible, test on many different configurations (tox or other ?)
 
-For now, we support Python versions 3.9 to 3.11, and all of Windows, Linux and 
+For now, we support Python versions 3.10 to 3.13, and all of Windows, Linux and 
 MacOS (specifically, Linux was validated on Ubuntu LTS 20.04, while Ubuntu 18.04 
 is not supported, so your milage may vary).
 
-To install mpqp, you can run in a terminal
+To install mpqp, you can run in a terminal:
 
 .. code-block:: console
 
    $ pip install mpqp
 
-And if you have already a previous version and want to update to the latest
-version, run instead
+If you have already a previous version and want to update to the latest version,
+run instead:
 
 .. code-block:: console
 
    $ pip install -U mpqp
+
+.. note::
+    To keep the installation lightweight and avoid installing unnecessary
+    dependencies, each provider is distributed as a **separate pip extra**.
+    By default, only the core functionalities of ``mpqp`` and qiskit local
+    simulation are installed, which means that you can create and manipulate circuits, 
+    but you won't be able to run them on any backend but IBM's qiskit aer backends.
+
+Add more providers
+--------------------------
+
+``mpqp`` provides integrations with several quantum SDKs and execution backends.
+
+- **Installing all providers**:
+
+    .. code-block:: console
+
+        $ pip install mpqp[all]
+
+
+- **Qiskit**:
+
+    .. code-block:: console
+
+        $ pip install mpqp[qiskit]
+
+.. literalinclude:: requirements_providers/qiskit.txt
+   :language: text
+
+- **Amazon Braket**:
+
+    .. code-block:: console
+
+        $ pip install mpqp[braket]
+
+.. literalinclude:: requirements_providers/braket.txt
+   :language: text
+
+- **Cirq**:
+
+    .. code-block:: console
+        
+        $ pip install mpqp[cirq]
+
+.. literalinclude:: requirements_providers/cirq.txt
+   :language: text
+
+- **Azure Quantum**:
+
+    .. code-block:: console
+
+        $ pip install mpqp[azure]
+
+.. literalinclude:: requirements_providers/azure.txt
+   :language: text
+
+- **myQLM**:
+
+    .. code-block:: console
+
+        $ pip install mpqp[myqlm]
+
+.. literalinclude:: requirements_providers/myqlm.txt
+   :language: text
+
+
+You can also combine extras, for example, to install both Qiskit and Braket support:
+
+    .. code-block:: console
+
+        $ pip install mpqp[qiskit,braket]
 
 .. note::
     For Mac users, additional steps are required before installation, 
@@ -36,7 +107,7 @@ version, run instead
         $ curl -L https://raw.githubusercontent.com/ColibrITD-SAS/mpqp/main/mac-install.sh | bash -s -- <your-python-bin>
         
     where ``<your-python-bin>`` is the binary you use to invoke python. For instance, it could
-    be ``python``, ``python3``, or ``python3.9``.
+    be ``python``, ``python3``, or ``python3.10``.
 
 .. warning::
     The migration from ``qiskit`` version ``0.x`` to ``1.x`` caused a few issues. 
@@ -67,10 +138,7 @@ with a list of :class:`~mpqp.core.instruction.instruction.Instruction`
 
 .. code-block:: python
 
-    >>> from mpqp import QCircuit
-    >>> from mpqp.gates import X, CNOT
-    >>> from mpqp.measures import BasisMeasure
-    >>> from mpqp.execution import run, IBMDevice
+    >>> from mpqp import QCircuit, X, CNOT, BasisMeasure, run, IBMDevice
     >>> circuit = QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)])
     >>> print(circuit)
          ┌───┐     ┌─┐

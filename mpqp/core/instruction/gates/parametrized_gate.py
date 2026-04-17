@@ -16,8 +16,6 @@ from typing import TYPE_CHECKING, Optional
 if TYPE_CHECKING:
     from sympy import Expr
 
-from typeguard import typechecked
-
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import GateDefinition
 
@@ -29,7 +27,6 @@ from mpqp.core.instruction.gates.gate_definition import GateDefinition
 #  definition but this solution looks like a conception problem...
 
 
-@typechecked
 class ParametrizedGate(Gate, ABC):
     """Abstract class to factorize behavior of parametrized gate.
 
@@ -56,19 +53,24 @@ class ParametrizedGate(Gate, ABC):
         self.parameters = parameters
         """See parameter description."""
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> ParametrizedGate:
+    def subs(self, values: dict[Expr | str, Complex]) -> ParametrizedGate:
         from sympy import Expr
 
         concrete_gate = deepcopy(self)
-        options = getattr(self, "native_gate_options", {})
-        concrete_gate.definition = concrete_gate.definition.subs(
-            values, remove_symbolic, **options
-        )
-        caster = lambda v: float(v) if remove_symbolic else v
+        concrete_gate.definition = concrete_gate.definition.subs(values)
+
+        def caster(v: Expr | float) -> Expr | float:
+            if isinstance(v, Expr) and v.is_Number:
+                return float(v.evalf())  # pyright: ignore[reportArgumentType]
+            else:
+                return v
+
         concrete_gate.parameters = [
-            caster(param.subs(values)) if isinstance(param, Expr) else param
+            (
+                caster(param.subs(values))  # pyright: ignore
+                if isinstance(param, Expr)
+                else param
+            )
             for param in self.parameters
         ]
 

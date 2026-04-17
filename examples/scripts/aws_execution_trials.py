@@ -1,7 +1,7 @@
 import numpy as np
 from braket.devices import LocalSimulator
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.core.instruction.measurement import ExpectationMeasure, Observable
 from mpqp.execution import run
 from mpqp.execution.devices import ATOSDevice, AWSDevice

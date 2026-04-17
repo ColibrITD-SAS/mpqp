@@ -140,6 +140,16 @@ Observable decomposition
 
 .. automodule:: mpqp.tools.obs_decomposition
 
+Pauli Grouping
+--------------
+
+.. code-block:: python
+    :class: import
+
+    from mpqp.tools.pauli_grouping import *
+    
+.. automodule:: mpqp.tools.pauli_grouping
+
 Unitary decomposition
 ---------------------
 

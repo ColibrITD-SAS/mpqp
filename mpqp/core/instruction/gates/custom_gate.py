@@ -6,22 +6,24 @@ and executed transparently."""
 
 from __future__ import annotations
 
+from copy import copy
+from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
 
-from typeguard import typechecked
+from sympy import Expr
 
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from mpqp.core.circuit import QCircuit
+    from sympy import Basic
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.languages import Language
 
 
-@typechecked
 class CustomGate(Gate):
     """Custom gates allow you to define your own unitary gates.
 
@@ -75,6 +77,15 @@ class CustomGate(Gate):
         # TODO: move this to `to_canonical_matrix` and check for the usages
         return self.definition.matrix
 
+    @property
+    def free_symbols(self) -> "set[Basic]":
+        from sympy import Expr
+
+        return set.union(
+            set(),
+            *[e.free_symbols for e in self.matrix.flatten() if isinstance(e, Expr)],
+        )
+
     def to_matrix(self, desired_gate_size: int = 0):
         return self.matrix
 
@@ -88,7 +99,7 @@ class CustomGate(Gate):
         printing: bool = False,
     ):
         if language == Language.QISKIT:
-            from qiskit.quantum_info.operators import Operator as QiskitOperator
+            from qiskit.circuit.library import UnitaryGate
             from sympy import Expr
 
             if qiskit_parameters is None:
@@ -123,7 +134,61 @@ class CustomGate(Gate):
                     # list of inputs
                     dummy_circuit.rx(param, 0)
                 return dummy_circuit.to_gate(label="CustomGate")
-            return QiskitOperator(self.matrix)
+            return UnitaryGate(self.matrix)
+        elif language == Language.BRAKET:
+            from sympy import Expr
+
+            gate_symbols = set().union(
+                *(
+                    elt.free_symbols
+                    for elt in self.matrix.flatten()
+                    if isinstance(elt, Expr)
+                )
+            )
+
+            if len(gate_symbols) > 0:
+                if not printing:
+                    raise ValueError(
+                        "Custom gates defined with symbolic variables cannot be "
+                        "exported to Braket for now (only numerical matrices are supported)."
+                    )
+                return None
+            else:
+                from braket.circuits import Instruction as BraketInstruction
+                from braket.circuits.gates import Unitary as BraketUnitary
+
+                return BraketInstruction(
+                    operator=BraketUnitary(self.definition.matrix),
+                    target=self.targets,
+                )
+        elif language == Language.CIRQ:
+            from cirq import Gate as cirqGate
+
+            # TODO: find clean way of initiating this class once
+            # Cost is negli
+            class cirqCustomGate(cirqGate):
+                def __init__(self, matrix: Matrix, label: str | None):
+                    import numpy as np
+
+                    self.matrix = matrix
+                    self.label = label
+                    self._nb_qubits = int(np.log2(len(matrix)))
+                    super(cirqCustomGate, self)
+
+                def _num_qubits_(self) -> int:
+                    return self._nb_qubits
+
+                def _unitary_(self) -> Matrix:
+                    return self.matrix
+
+                def _circuit_diagram_info_(self, args: list[float]) -> str | list[str]:
+                    # we keep args for later implementation
+                    if self.label:
+                        return [self.label] * self._nb_qubits
+                    return ["CustomGate"] * self._nb_qubits
+
+            return cirqCustomGate(self.matrix, self.label)
+
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 
@@ -134,16 +199,19 @@ class CustomGate(Gate):
             qiskit_circ = QuantumCircuit(nb_qubits)
             instr = self.to_other_language(Language.QISKIT)
             if TYPE_CHECKING:
-                from qiskit.quantum_info.operators import Operator as QiskitOperator
+                from qiskit.circuit.library import UnitaryGate
 
-                assert isinstance(instr, QiskitOperator)
+                assert isinstance(instr, UnitaryGate)
+
             qiskit_circ.unitary(
                 instr,
-                list(reversed(self.targets)),  # dang qiskit qubits order
+                list(reversed(self.targets)),
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(qiskit_circ.data[0], nb_qubits)
+            circuit, gphase = replace_custom_gate(
+                qiskit_circ.data[0], nb_qubits, self.targets
+            )
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()
@@ -175,6 +243,7 @@ class CustomGate(Gate):
             >>> U = np.array([[0,1], [1,0]])
             >>> gate = CustomGate(U, [0])
             >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+            global phase: π/2
                ┌─────────┐┌───────┐┌──────────┐
             q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
                └─────────┘└───────┘└──────────┘
@@ -183,3 +252,8 @@ class CustomGate(Gate):
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
         return quantum_shannon_decomposition(self.matrix)
+
+    def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
+        res = copy(self)
+        res.definition = res.definition.subs(values)
+        return res

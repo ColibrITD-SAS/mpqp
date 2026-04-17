@@ -5,9 +5,6 @@ from typing import TYPE_CHECKING, Optional, Sequence
 import numpy as np
 import numpy.typing as npt
 from numpy.random import Generator
-from qiskit import QuantumCircuit
-from qiskit.circuit.quantumcircuitdata import CircuitInstruction
-from typeguard import typechecked
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
@@ -37,10 +34,9 @@ from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
     from qiskit import QuantumCircuit
-    from qiskit.circuit.quantumcircuitdata import CircuitInstruction
+    from qiskit._accelerate.circuit import CircuitInstruction
 
 
-@typechecked
 def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -113,7 +109,7 @@ def statevector_from_random_circuit(
         >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
         [0.70710678+0.j  0. -0.j  0.26893257-0.65396886j  0. -0.j ]
     """
-    from mpqp.execution import run, IBMDevice, Result
+    from mpqp.execution import IBMDevice, Result, run
 
     mpqp_circ = random_circuit(None, nb_qubits, None, seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
@@ -122,7 +118,6 @@ def statevector_from_random_circuit(
     return res.state_vector.vector
 
 
-@typechecked
 def random_gate(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
@@ -180,7 +175,7 @@ def random_gate(
                     target,
                 )
             elif issubclass(gate_class, Rk):
-                return Rk(rng.integers(1, 10), target)
+                return Rk(int(rng.integers(1, 10)), target)
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))
@@ -195,7 +190,7 @@ def random_gate(
             if TYPE_CHECKING:
                 assert issubclass(gate_class, CRk)
             return gate_class(
-                rng.integers(1, 10),
+                int(rng.integers(1, 10)),
                 control,
                 target,
             )
@@ -253,7 +248,6 @@ def random_noise(
         raise NotImplementedError(f"{noise} model not implemented")
 
 
-@typechecked
 def compute_expected_matrix(qcircuit: QCircuit):
     """
     Computes the expected matrix resulting from applying single-qubit gates
@@ -299,10 +293,9 @@ def compute_expected_matrix(qcircuit: QCircuit):
     return np.vectorize(N)(result_matrix).astype(complex)
 
 
-@typechecked
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int  # type: ignore[reportInvalidTypeForm]
-) -> tuple["QuantumCircuit", float]:
+    custom_unitary: "CircuitInstruction", nb_qubits: int, targets: list[int]
+) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
 
@@ -324,19 +317,28 @@ def replace_custom_gate(
     """
     from qiskit import QuantumCircuit, transpile
     from qiskit.exceptions import QiskitError
+    from qiskit.circuit.library import UnitaryGate
 
     transpilation_circuit = QuantumCircuit(nb_qubits)
     transpilation_circuit.append(custom_unitary)
     try:
-        transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+        transpiled = transpile(
+            transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
+        )
     except QiskitError as e:
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
         # matrix by the closest unitary
         if "TwoQubitWeylDecomposition" in str(e):
-            custom_unitary.operation.params[0] = closest_unitary(
-                custom_unitary.operation.params[0]
+            custom_closest_unitary = UnitaryGate(closest_unitary(custom_unitary.matrix))
+            transpilation_circuit = QuantumCircuit(nb_qubits)
+            transpilation_circuit.unitary(
+                custom_closest_unitary, list(reversed(targets))
             )
-            transpiled = transpile(transpilation_circuit, basis_gates=['u', 'cx'])
+            transpiled = transpile(
+                transpilation_circuit,
+                basis_gates=['u1', 'u2', 'u3', 'cx'],
+                optimization_level=0,
+            )
         else:
             raise e
     return transpiled, transpiled.global_phase

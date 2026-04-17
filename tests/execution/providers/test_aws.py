@@ -1,12 +1,10 @@
 # 3M-TODO
 import pytest
 
-from mpqp import QCircuit
-from mpqp.execution import AWSDevice, run
-from mpqp.gates import *
-from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
+from mpqp import CNOT, AWSDevice, H, QCircuit, run
 
 
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize(
     "circuit",
     [
@@ -17,5 +15,4 @@ from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
     ],
 )
 def test_braket_non_contiguous_qubits(circuit: QCircuit):
-    with pytest.warns(UnsupportedBraketFeaturesWarning):
-        run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)

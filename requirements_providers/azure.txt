@@ -1,0 +1,2 @@
+azure-quantum==3.6.1
+azure-quantum[qiskit]

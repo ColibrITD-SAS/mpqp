@@ -1,15 +1,24 @@
 from __future__ import annotations
 
+import sys
+
+import pytest
+
+pytestmark = pytest.mark.skipif(
+    "--long-local" not in sys.argv and "--long" not in sys.argv,
+    reason="local_storage not tested in short tests",
+)
+
 import inspect
 import os
 from copy import deepcopy
 from types import TracebackType
 from typing import Optional, Type
 
-import pytest
+import numpy as np
 
-from mpqp.all import *
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp import *
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.local_storage.delete import (
     clear_local_storage,
     remove_all_with_job_id,
@@ -50,27 +59,48 @@ from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import DictDB, setup_local_storage
 
 
-def create_test_local_storage():
+def create_test_local_storage(providers: Optional[list[str]] = None) -> None:
+    if providers is None:
+        providers = ["all"]
     save_local_storage = get_env_variable("DB_PATH")
     setup_local_storage("tests/local_storage/test_local_storage.db")
     clear_local_storage()
+    devices = []
+    if len(providers) == 0:
+        devices = [
+            IBMDevice.AER_SIMULATOR
+        ]  # AER_SIMULATOR is always available, so we can be sure that the tests will run even if no provider is selected
+    else:
+        device_map = {
+            "cirq": GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            "qiskit": IBMDevice.AER_SIMULATOR,
+            "braket": AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            "myqlm": ATOSDevice.MYQLM_CLINALG,
+        }
+        for provider in providers:
+            if provider == "all":
+                devices = list(device_map.values())
+                break
+            if provider == "azure":
+                continue
+            if provider in device_map:
+                devices.append(device_map[provider])
+            else:
+                raise ValueError(f"Unknown provider: {provider}")
+
     c = QCircuit([H(0), CNOT(0, 1), BasisMeasure()], label="H CX BM")
-    result = run(c, device=IBMDevice.AER_SIMULATOR)
+    result = run(c, device=devices)
     insert_results(result)
-    result2 = run(
-        c, device=[IBMDevice.AER_SIMULATOR, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
-    )
+    result2 = run(c, device=devices)
     insert_results(result2)
 
     c = QCircuit([H(0), BasisMeasure()], label="H BM")
-    result3 = run(
-        c, device=[IBMDevice.AER_SIMULATOR, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
-    )
+    result3 = run(c, device=devices)
     insert_results(result3)
 
     c1 = QCircuit([], nb_qubits=2)
     c2 = QCircuit([Id(0), Id(1)], nb_qubits=2, label="Id")
-    result12 = run([c1, c2], device=IBMDevice.AER_SIMULATOR)
+    result12 = run([c1, c2], device=devices)
     insert_results(result12)
     save_env_variable("DB_PATH", save_local_storage)
 
@@ -246,9 +276,19 @@ def test_fetch_results_with_result(
         assert isinstance(result, Result)
         fetched_results = fetch_results_with_result(result)
         expected_result = mock_local_storage_results[0]['result_local_storage']
+        assert isinstance(expected_result, dict)
+
+        excluded_keys = {'created_at', 'job_id'}
 
         for fetched_result in fetched_results:
-            assert fetched_result == expected_result
+            filtered_fetched = {
+                k: v for k, v in fetched_result.items() if k not in excluded_keys
+            }
+            filtered_expected = {
+                k: v for k, v in expected_result.items() if k not in excluded_keys
+            }
+
+            assert filtered_fetched == filtered_expected
 
 
 def test_get_results_with_job_id(

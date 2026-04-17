@@ -9,7 +9,6 @@ from warnings import warn
 import numpy as np
 import numpy.typing as npt
 from scipy.linalg import fractional_matrix_power
-from typeguard import typechecked
 
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
@@ -17,7 +16,6 @@ from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import matrix_eq
 
 
-@typechecked
 class Gate(Instruction, ABC):
     """Represent a unitary operator acting on qubit(s).
 
@@ -204,6 +202,16 @@ class Gate(Instruction, ABC):
         """
         result = {}
         for attr_name in dir(self):
+            if attr_name == "cirq_gate":
+                try:
+                    import cirq  # pyright: ignore[reportUnusedImport]
+                except ImportError:
+                    continue
+            if attr_name == "braket_gate":
+                try:
+                    import braket  # pyright: ignore[reportUnusedImport]
+                except ImportError:
+                    continue
             if (
                 attr_name not in {'_abc_impl'}
                 and not attr_name.startswith("__")
@@ -251,7 +259,7 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex64] = fractional_matrix_power(
+        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
             self.to_matrix(), exponent
         )
 
@@ -306,7 +314,11 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         l1 = "g1" if self.label is None else self.label
         l2 = "g2" if self.label is None else self.label
 
-        return CustomGate(matrix=gd, targets=targets, label=f"{l1}⊗{l2}")
+        return CustomGate(
+            matrix=gd,  # pyright: ignore[reportArgumentType]
+            targets=targets,
+            label=f"{l1}⊗{l2}",
+        )
 
     def _mandatory_label(self, postfix: str = ""):
         return "g" + postfix if self.label is None else self.label
@@ -461,7 +473,6 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         return self.minus(other)
 
 
-@typechecked
 class InvolutionGate(Gate, ABC):
     """Gate who's inverse is itself.
 
@@ -474,7 +485,6 @@ class InvolutionGate(Gate, ABC):
         return deepcopy(self)
 
 
-@typechecked
 class SingleQubitGate(Gate, ABC):
     """Abstract class for gates operating on a single qubit.
 

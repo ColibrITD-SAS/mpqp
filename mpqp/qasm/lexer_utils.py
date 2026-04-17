@@ -31,6 +31,7 @@ tokens = (
     'COMMA',
     'SEMICOLON',
     'ID',
+    'PRAGMA_MPQP',
 )
 
 # Reserved words
@@ -108,9 +109,9 @@ t_COMMA = r','
 t_SEMICOLON = r';'
 t_MINUS = r'-'
 t_DIV = r'/'
+t_PRAGMA_MPQP = r'\#pragma\s+mpqp[^\n]*'
 
 from mpqp.gates import *
-
 
 single_qubits_gate_qasm = {
     "h": H,

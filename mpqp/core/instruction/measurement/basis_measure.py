@@ -5,11 +5,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Optional
 
-from typeguard import typechecked
-
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
-    from mpqp import QCircuit
+    from qiskit._accelerate.circuit import Parameter
+    from mpqp.core.instruction.gates import Gate
 
 from mpqp.core.languages import Language
 
@@ -17,7 +15,6 @@ from .basis import Basis, ComputationalBasis, VariableSizeBasis
 from .measure import Measure
 
 
-@typechecked
 class BasisMeasure(Measure):
     """Class representing a measure of one or several qubits in a specific
     basis.
@@ -135,8 +132,10 @@ class BasisMeasure(Measure):
             raise NotImplementedError(f"{language} is not supported")
 
     @property
-    def pre_measure(self) -> QCircuit:
-        return self.basis.to_computational()
+    def pre_measure(self) -> list[Gate]:
+        if isinstance(self.basis, ComputationalBasis):
+            return []
+        return [self.basis.to_instruction()]
 
     def __repr__(self) -> str:
         components = []

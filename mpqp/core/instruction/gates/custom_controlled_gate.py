@@ -5,7 +5,7 @@ from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.languages import Language
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
     from mpqp.core.instruction.gates.gate import Gate
 
@@ -72,6 +72,14 @@ class CustomControlledGate(ControlledGate):
     def inverse(self) -> "CustomControlledGate":
         return CustomControlledGate(self.controls, self.non_controlled_gate.inverse())
 
+    def to_custom_gate(self) -> CustomGate:
+        "returns the CustomGate equivalent of this gate."
+        import numpy as np
+
+        targets = list(np.sort(self.targets + self.controls))
+
+        return CustomGate(self.to_matrix(), targets)
+
     def to_other_language(
         self,
         language: Language = Language.QISKIT,
@@ -86,12 +94,6 @@ class CustomControlledGate(ControlledGate):
             gate = gate.control(len(self.controls))
             return gate
         elif language == Language.QASM2:
-            from qiskit import QuantumCircuit, qasm2
-
-            nb_qubits = max(max(self.targets), max(self.controls)) + 1
-
-            qiskit_circ = QuantumCircuit(nb_qubits)
-
             if isinstance(self.non_controlled_gate, CustomGate):
                 targets = self.targets + self.controls
                 targets.sort()
@@ -99,11 +101,15 @@ class CustomControlledGate(ControlledGate):
 
                 return gate.to_other_language(Language.QASM2)
 
-            else:
-                qiskit_circ.append(
-                    self.to_other_language(Language.QISKIT),
-                    self.controls + self.targets,
-                )
+            from qiskit import QuantumCircuit, qasm2
+
+            nb_qubits = max(max(self.targets), max(self.controls)) + 1
+            qiskit_circ = QuantumCircuit(nb_qubits)
+            qiskit_circ.append(
+                self.to_other_language(Language.QISKIT),
+                self.controls + self.targets,
+            )
+
             qasm_str = qasm2.dumps(qiskit_circ)
             qasm_lines = qasm_str.splitlines()
             if isinstance(self.non_controlled_gate, CustomGate):

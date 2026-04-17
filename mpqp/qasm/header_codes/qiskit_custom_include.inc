@@ -83,13 +83,13 @@ gate u2(theta, phi) a {
 }
  
 gate cu(theta,phi,lambda,gamma) c, t {
-    u(0, 0, gamma) c;
-    u(0, 0, lambda/2 + phi/2) c;
-    u(0, 0, lambda/2 - phi/2) t;
+    u3(0, 0, gamma) c;
+    u3(0, 0, lambda/2 + phi/2) c;
+    u3(0, 0, lambda/2 - phi/2) t;
     cx c,t;
-    u(-theta/2,0,-phi/2 - lambda/2) t;
+    u3(-theta/2,0,-phi/2 - lambda/2) t;
     cx c,t;
-    u(theta/2,phi,0) t;
+    u3(theta/2,phi,0) t;
 }
 
 gate cu1(lambda) a, b {

@@ -21,14 +21,11 @@ from typing import TYPE_CHECKING, Optional
 
 if TYPE_CHECKING:
     from sympy import Expr
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
+    from braket.circuits import FreeParameter
 
 import numpy as np
 import numpy.typing as npt
-
-# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
-# this file :/
-from typeguard import typechecked
 
 from mpqp.core.instruction.gates.controlled_gate import ControlledGate
 from mpqp.core.instruction.gates.gate import Gate, InvolutionGate, SingleQubitGate
@@ -38,10 +35,13 @@ from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
 from mpqp.tools.maths import cos, exp, sin
 
+# pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
+# this file :/
+
+
 # from sympy import Expr, pi
 
 
-@typechecked
 def _qiskit_parameter_adder(
     param: Expr | float, qiskit_parameters: set["Parameter"]
 ) -> "Parameter | float | int":
@@ -85,7 +85,22 @@ def _qiskit_parameter_adder(
     return qiskit_param
 
 
-@typechecked
+def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
+    from sympy import Expr
+    from braket.circuits import FreeParameter
+
+    if isinstance(val, Expr):
+        if val.free_symbols:
+            return FreeParameter(str(val))  # note: Braket won't parse expressions
+        else:
+            try:
+                return float(val.evalf())
+            except Exception as e:
+                raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
+    else:
+        return float(val)
+
+
 class NativeGate(Gate, SimpleClassReprABC):
     """The standard on which we rely, OpenQASM, comes with a set of gates
     supported by default. More complicated gates can be defined by the user.
@@ -111,10 +126,9 @@ class NativeGate(Gate, SimpleClassReprABC):
         """Keyword(s) corresponding to the gate in ``QASM2``."""
         return cls.qiskit_string
 
-    native_gate_options = {"disable_symbol_warn": True}
-
     if TYPE_CHECKING:
         from braket.circuits import gates
+        from cirq.ops.raw_types import Gate
         from qiskit.circuit.library import (
             CCXGate,
             CPhaseGate,
@@ -133,7 +147,6 @@ class NativeGate(Gate, SimpleClassReprABC):
             YGate,
             ZGate,
         )
-        from cirq.ops.raw_types import Gate
 
     @classproperty
     @abstractmethod
@@ -192,7 +205,6 @@ class NativeGate(Gate, SimpleClassReprABC):
         pass
 
 
-@typechecked
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """Many gates can be classified as a simple rotation gate, around a specific
     axis (and potentially with a control qubit). All those gates have in common
@@ -207,9 +219,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
 
     def __init__(self, theta: Expr | float, target: int):
         self.parameters = [theta]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(
             self, definition, [target], [self.theta], type(self).__name__.capitalize()
         )
@@ -227,24 +237,25 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
-        if qiskit_parameters is None:
-            qiskit_parameters = set()
+
         try:
             theta = float(self.theta)
         except:
             theta = self.theta
         if language == Language.QISKIT:
+            if qiskit_parameters is None:
+                qiskit_parameters = set()
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
-            from sympy import Expr
+            from braket.circuits import Instruction
 
-            # TODO: handle symbolic parameters for Braket
-            if isinstance(theta, Expr):
-                raise NotImplementedError(
-                    "Symbolic expressions are not yet supported for braket "
-                    "export, this feature is coming very soon!"
-                )
-            return self.braket_gate(theta)
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(
+                operator=self.braket_gate(_sympy_to_braket_param(theta)),
+                target=connection,
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate(theta)
         if language == Language.QASM2:
@@ -270,7 +281,6 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.__class__(-self.parameters[0], self.targets[0])
 
 
-@typechecked
 class NoParameterGate(NativeGate, SimpleClassReprABC):
     """Abstract class describing native gates that do not depend on parameters.
 
@@ -350,7 +360,12 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         if language == Language.QISKIT:
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            return self.braket_gate()
+            from braket.circuits import Instruction
+
+            connection = self.targets
+            if isinstance(self, ControlledGate):
+                connection += self.controls
+            return Instruction(operator=self.braket_gate(), target=connection)
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -358,8 +373,8 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
 
             qubits = ""
             if isinstance(self, ControlledGate):
-                qubits = ",".join([f"q[{j}]" for j in self.controls]) + ","
-            qubits += ",".join([f"q[{j}]" for j in self.targets])
+                qubits = ",".join([f"q[{j}]" for j in reversed(self.controls)]) + ","
+            qubits += ",".join([f"q[{j}]" for j in reversed(self.targets)])
 
             return instruction_str + " " + qubits + ";"
         else:
@@ -369,7 +384,6 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         return self.matrix
 
 
-@typechecked
 class OneQubitNoParamGate(SingleQubitGate, NoParameterGate, SimpleClassReprABC):
     """Abstract Class describing one-qubit native gates that do not depend on
     parameters.
@@ -435,7 +449,9 @@ class Id(OneQubitNoParamGate, InvolutionGate):
                 return self.qiskit_gate(label=self.label)
             return self.qiskit_gate()
         elif language == Language.BRAKET:
-            return self.braket_gate()
+            from braket.circuits import Instruction
+
+            return Instruction(operator=self.braket_gate(), target=self.targets)
         elif language == Language.CIRQ:
             return self.cirq_gate
         elif language == Language.QASM2:
@@ -651,14 +667,12 @@ class P(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self) -> Matrix:
-        return np.array(  # pyright: ignore[reportCallIssue]
+        return np.array(
             [
                 [1, 0],
                 [
                     0,
-                    exp(
-                        self.parameters[0] * 1j  # pyright: ignore[reportOperatorIssue]
-                    ),
+                    exp(self.parameters[0] * 1j),
                 ],
             ]
         )
@@ -707,13 +721,11 @@ class CP(RotationGate, ControlledGate):
     def __init__(self, theta: Expr | float, control: int, target: int):
         self.parameters = [theta]
         ControlledGate.__init__(self, [control], [target], P(theta, target), "CP")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [theta], "CP")
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def __repr__(self) -> str:
@@ -959,10 +971,13 @@ class SWAP(InvolutionGate, NoParameterGate):
             swap_matrix[swapped_index, i] = 1
 
         if desired_gate_size != 0:
-            swap_matrix = np.kron(np.eye(2**min_nb_qubits), swap_matrix)
-            swap_matrix = np.kron(
-                swap_matrix, np.eye(2 ** (desired_gate_size - max_qubits))
-            )
+            swap_matrix: npt.NDArray[np.complex128] = np.kron(
+                np.eye(2**min_nb_qubits), swap_matrix
+            ).astype(np.complex128)
+            swap_matrix: npt.NDArray[np.complex128] = np.kron(
+                swap_matrix,
+                np.eye(2 ** (desired_gate_size - max_qubits)),
+            ).astype(np.complex128)
         return swap_matrix
 
 
@@ -999,7 +1014,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
     @classproperty
     def cirq_gate(cls):
         from cirq.circuits.qasm_output import QasmUGate
-        from cirq.ops.common_gates import ry as cirq_ry, rz as cirq_rz
+        from cirq.ops.common_gates import ry as cirq_ry
+        from cirq.ops.common_gates import rz as cirq_rz
         from cirq.ops.global_phase_op import GlobalPhaseGate
         from cirq.ops.raw_types import Qid
 
@@ -1032,7 +1048,12 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         return CirqUGate
 
     qlm_aqasm_keyword = "U"
-    qiskit_string = "u"
+    qiskit_string = "u3"
+
+    @classproperty
+    def qasm2_gate(cls) -> str:
+        """Keyword(s) corresponding to the gate in ``QASM2``."""
+        return "u3"
 
     def __init__(
         self,
@@ -1042,9 +1063,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         target: int,
     ):
         self.parameters = [theta, phi, gamma]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [theta, phi, gamma], "U")
 
     @property
@@ -1078,20 +1097,16 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 lam=_qiskit_parameter_adder(self.gamma, qiskit_parameters),
             )
         elif language == Language.BRAKET:
-            from sympy import Expr
+            from braket.circuits import Instruction
 
-            # TODO handle symbolic parameters
-            if (
-                isinstance(self.theta, Expr)
-                or isinstance(self.phi, Expr)
-                or isinstance(self.gamma, Expr)
-            ):
-                raise NotImplementedError(
-                    "Symbolic expressions are not yet supported for braket "
-                    "export, this feature is coming very soon!"
-                )
-
-            return self.braket_gate(self.theta, self.phi, self.gamma)
+            return Instruction(
+                operator=self.braket_gate(
+                    _sympy_to_braket_param(self.theta),
+                    _sympy_to_braket_param(self.phi),
+                    _sympy_to_braket_param(self.gamma),
+                ),
+                target=self.targets,
+            )
         elif language == Language.CIRQ:
             return self.cirq_gate(self.theta, self.phi, self.gamma)
         elif language == Language.QASM2:
@@ -1111,15 +1126,15 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         c, s, eg, ep = (
-            cos(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
-            sin(self.theta / 2),  # pyright: ignore[reportOperatorIssue]
-            exp(self.gamma * 1j),  # pyright: ignore[reportOperatorIssue]
-            exp(self.phi * 1j),  # pyright: ignore[reportOperatorIssue]
+            cos(self.theta / 2),
+            sin(self.theta / 2),
+            exp(self.gamma * 1j),
+            exp(self.phi * 1j),
         )
-        return np.array(  # pyright: ignore[reportCallIssue]
+        return np.array(
             [
-                [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
-                [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
+                [c, -eg * s],
+                [ep * s, eg * ep * c],
             ]
         )
 
@@ -1168,11 +1183,9 @@ class Rx(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array(  # pyright: ignore[reportCallIssue]
-            [[c, -1j * s], [-1j * s, c]]  # pyright: ignore[reportOperatorIssue]
-        )
+        c = cos(self.parameters[0] / 2)
+        s = sin(self.parameters[0] / 2)
+        return np.array([[c, -1j * s], [-1j * s, c]])
 
 
 class Ry(RotationGate, SingleQubitGate):
@@ -1216,8 +1229,8 @@ class Ry(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        c = cos(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        s = sin(self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
+        c = cos(self.parameters[0] / 2)
+        s = sin(self.parameters[0] / 2)
         return np.array([[c, -s], [s, c]])
 
 
@@ -1262,10 +1275,8 @@ class Rz(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        e = exp(-1j * self.parameters[0] / 2)  # pyright: ignore[reportOperatorIssue]
-        return np.array(  # pyright: ignore[reportCallIssue]
-            [[e, 0], [0, 1 / e]]  # pyright: ignore[reportOperatorIssue]
-        )
+        e = exp(-1j * self.parameters[0] / 2)
+        return np.array([[e, 0], [0, 1 / e]])
 
 
 class Rk(RotationGate, SingleQubitGate):
@@ -1311,9 +1322,7 @@ class Rk(RotationGate, SingleQubitGate):
 
     def __init__(self, k: Expr | int, target: int):
         self.parameters = [k]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk")
 
     @property
@@ -1323,7 +1332,7 @@ class Rk(RotationGate, SingleQubitGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
+        return p / 2 ** (self.k - 1)
 
     @property
     def k(self) -> Expr | int:
@@ -1331,7 +1340,7 @@ class Rk(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0], [0, e]])
 
     def __repr__(self):
@@ -1399,9 +1408,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
     def __init__(self, k: Expr | int, target: int):
         self.parameters = [k]
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [self.k], "Rk†")
 
     @property
@@ -1412,7 +1419,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
         # TODO study the relevance of having pi from sympy
         p = np.pi if isinstance(self.k, Integral) else pi
-        return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
+        return -(p / 2 ** (self.k - 1))
 
     @property
     def k(self) -> Expr | float:
@@ -1420,7 +1427,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0], [0, e]])
 
     def to_other_language(
@@ -1594,8 +1601,8 @@ class CRk(RotationGate, ControlledGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
         from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
         return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
@@ -1606,9 +1613,7 @@ class CRk(RotationGate, ControlledGate):
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk(k, target), "CRk")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [k], "CRk")
 
     @property
@@ -1618,7 +1623,7 @@ class CRk(RotationGate, ControlledGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)  # pyright: ignore[reportOperatorIssue]
+        return p / 2 ** (self.k - 1)
 
     @property
     def k(self) -> Expr | float:
@@ -1626,7 +1631,7 @@ class CRk(RotationGate, ControlledGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def to_other_language(
@@ -1694,8 +1699,8 @@ class CRk_dagger(RotationGate, ControlledGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
         from cirq.ops.common_gates import ZPowGate
+        from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
         return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
 
@@ -1706,9 +1711,7 @@ class CRk_dagger(RotationGate, ControlledGate):
     def __init__(self, k: Expr | int, control: int, target: int):
         self.parameters = [k]
         ControlledGate.__init__(self, [control], [target], Rk_dagger(k, target), "CRk†")
-        definition = UnitaryMatrix(
-            self.to_canonical_matrix(), **self.native_gate_options
-        )
+        definition = UnitaryMatrix(self.to_canonical_matrix())
         ParametrizedGate.__init__(self, definition, [target], [k], "CRk†")
 
     @property
@@ -1718,7 +1721,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return -(p / 2 ** (self.k - 1))  # pyright: ignore[reportOperatorIssue]
+        return -(p / 2 ** (self.k - 1))
 
     @property
     def k(self) -> Expr | int:
@@ -1726,7 +1729,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)  # pyright: ignore[reportOperatorIssue]
+        e = exp(self.theta * 1j)
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def __repr__(self) -> str:

@@ -4,22 +4,26 @@ import numpy as np
 import pytest
 from numpy import pi
 
-from mpqp import QCircuit
-from mpqp.core.instruction import Observable
-from mpqp.execution import (
+from mpqp import (
+    CNOT,
     ATOSDevice,
+    AWSDevice,
+    BasisMeasure,
+    ExpectationMeasure,
     GOOGLEDevice,
+    H,
+    IBMDevice,
     Job,
     JobType,
+    Observable,
+    QCircuit,
     Result,
+    Rx,
     Sample,
     StateVector,
     run,
 )
-from mpqp.execution.devices import AWSDevice, IBMDevice
-from mpqp.execution.result import BatchResult
-from mpqp.gates import *
-from mpqp.measures import BasisMeasure, ExpectationMeasure
+from mpqp.execution.devices import AvailableDevice
 
 
 @pytest.mark.parametrize(
@@ -44,7 +48,7 @@ def test_result_wrong_type(job_type: JobType, data: float | StateVector | list[S
 @pytest.mark.parametrize(
     "job_type, data",
     [
-        (JobType.STATE_VECTOR, StateVector(np.ones(4, dtype=np.complex64) / 2)),
+        (JobType.STATE_VECTOR, StateVector(np.ones(4, dtype=np.complex128) / 2)),
         (JobType.OBSERVABLE, 0.4),
         (
             JobType.SAMPLE,
@@ -56,8 +60,8 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
     size = 3
     c = QCircuit(size)
     c.add(Rx(pi / 2, 1))
-    measure = BasisMeasure(list(range(size))) if job_type == JobType.SAMPLE else None
-    j = Job(job_type, c, IBMDevice.AER_SIMULATOR, measure)
+    c.add(BasisMeasure(list(range(size)))) if job_type == JobType.SAMPLE else None
+    j = Job(job_type, c, IBMDevice.AER_SIMULATOR)
     if job_type == JobType.SAMPLE:
         assert isinstance(data, list)
         assert all(sample.count is not None for sample in data)
@@ -78,7 +82,7 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                     QCircuit(2),
                     IBMDevice.AER_SIMULATOR_STATEVECTOR,
                 ),
-                StateVector(np.ones(4, dtype=np.complex64) / 2),
+                StateVector(np.ones(4, dtype=np.complex128) / 2),
             ),
             """Result: IBMDevice, AER_SIMULATOR_STATEVECTOR
   State vector: [0.5, 0.5, 0.5, 0.5]
@@ -91,7 +95,6 @@ def test_result_right_type(job_type: JobType, data: float | StateVector | list[S
                     JobType.SAMPLE,
                     QCircuit([BasisMeasure([0, 1])]),
                     IBMDevice.AER_SIMULATOR,
-                    measure=BasisMeasure([0, 1]),
                 ),
                 [
                     Sample(2, index=0, count=135),
@@ -123,33 +126,111 @@ def test_result_str(result: Result, expected_string: str):
     assert str(result) == expected_string
 
 
-state_vector_devices = [
-    IBMDevice.AER_SIMULATOR_STATEVECTOR,
-    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-    ATOSDevice.MYQLM_CLINALG,
-    ATOSDevice.MYQLM_PYLINALG,
-    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+state_vector_devices_qiskit: list[AvailableDevice] = [
+    device
+    for device in IBMDevice
+    if not device.is_remote() and device.supports_state_vector()
 ]
 
-sampling_devices = [
-    GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
-    IBMDevice.AER_SIMULATOR,
-    ATOSDevice.MYQLM_CLINALG,
-    ATOSDevice.MYQLM_PYLINALG,
-    AWSDevice.BRAKET_LOCAL_SIMULATOR,
+state_vector_devices_cirq: list[AvailableDevice] = [
+    device
+    for device in GOOGLEDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+state_vector_devices_braket: list[AvailableDevice] = [
+    device
+    for device in AWSDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+state_vector_devices_myqlm: list[AvailableDevice] = [
+    device
+    for device in ATOSDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
+sampling_devices_qiskit: list[AvailableDevice] = [
+    device
+    for device in IBMDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_cirq: list[AvailableDevice] = [
+    device
+    for device in GOOGLEDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_braket: list[AvailableDevice] = [
+    device
+    for device in AWSDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_myqlm: list[AvailableDevice] = [
+    device
+    for device in ATOSDevice
+    if not device.is_remote() and device.supports_samples()
 ]
 
 
-def test_sample_nb_shot_handle():
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("device", sampling_devices_qiskit)
+def test_sample_nb_shot_handle_qiskit(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("device", sampling_devices_braket)
+def test_sample_nb_shot_handle_braket(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("device", sampling_devices_cirq)
+def test_sample_nb_shot_handle_cirq(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("device", sampling_devices_myqlm)
+def test_sample_nb_shot_handle_myqlm(device: AvailableDevice):
+    exec_sample_nb_shot_handle(device)
+
+
+def exec_sample_nb_shot_handle(device: AvailableDevice):
     circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure(shots=1024)])
-    batch = run(circuit, sampling_devices, translation_warning=False)
-    assert isinstance(batch, BatchResult)
-    for result in batch:
-        assert result.error != 0.0
-        assert result.shots == 1024
+    result = run(circuit, device)
+    assert result.error != 0.0
+    assert result.shots == 1024
 
 
-def test_state_vector_nb_shot_handle():
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize("device", state_vector_devices_qiskit)
+def test_state_vector_nb_shot_handle_qiskit(device: AvailableDevice):
+    exec_state_vector_nb_shot_handle(device)
+
+
+@pytest.mark.provider("braket")
+@pytest.mark.parametrize("device", state_vector_devices_braket)
+def test_state_vector_nb_shot_handle_braket(device: AvailableDevice):
+    exec_state_vector_nb_shot_handle(device)
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("device", state_vector_devices_cirq)
+def test_state_vector_nb_shot_handle_cirq(device: AvailableDevice):
+    exec_state_vector_nb_shot_handle(device)
+
+
+@pytest.mark.provider("myqlm")
+@pytest.mark.parametrize("device", state_vector_devices_myqlm)
+def test_state_vector_nb_shot_handle_myqlm(device: AvailableDevice):
+    exec_state_vector_nb_shot_handle(device)
+
+
+def exec_state_vector_nb_shot_handle(device: AvailableDevice):
     circuit = QCircuit(
         [
             H(0),
@@ -169,8 +250,6 @@ def test_state_vector_nb_shot_handle():
             ),
         ]
     )
-    batch = run(circuit, sampling_devices, translation_warning=False)
-    assert isinstance(batch, BatchResult)
-    for result in batch:
-        assert result.error != 0.0
-        assert result.shots == 1024
+    result = run(circuit, device)
+    assert result.error != 0.0
+    assert result.shots == 1024

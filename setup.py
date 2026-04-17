@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from setuptools import find_packages, setup
 
 with open("README.md", "r", encoding="utf-8") as f:
@@ -14,19 +16,35 @@ long_description = long_description.replace(
 with open("requirements.txt", "r") as f:
     requirements = f.readlines()
 
+providers_dir = Path("requirements_providers")
+extras = {}
+all_extras = []
+for f in providers_dir.glob("*.txt"):
+    provider_name = f.stem
+    with open(f, "r", encoding="utf-8") as fh:
+        extra = [line.strip() for line in fh if line.strip()]
+        extras[provider_name] = extra
+        all_extras.extend(extra)
+extras["all"] = sorted(set(all_extras))
 
 setup(
     name="mpqp",
     use_scm_version=True,
-    setup_requires=["setuptools_scm"],
     description="Facilitate quantum algorithm development and execution, regardless of the hardware, with MPQP",
     long_description=long_description,
     long_description_content_type="text/markdown",
     license="GPL-3.0-or-later",
     author="ColibriTD",
     author_email="quantum@colibritd.com",
+    keywords=[
+        "mpqp",
+        "quantum programming language",
+        "sdk",
+    ],
     url="https://colibritd.com",
+    python_requires=">=3.10,<3.14",
     install_requires=["wheel"] + requirements,
+    extras_require=extras,
     packages=find_packages(include=["mpqp*"]),
     entry_points={
         "console_scripts": [
@@ -39,9 +57,23 @@ setup(
         "Documentation": "https://mpqpdoc.colibri-quantum.com/",
         "License": "https://github.com/ColibrITD-SAS/mpqp/blob/main/LICENSE",
         "Company": "https://colibritd.com",
+        "Issues": "https://github.com/ColibrITD-SAS/mpqp/issues",
+        "Changelog": "https://mpqpdoc.colibri-quantum.com/changelog",
     },
     classifiers=[
+        "Topic :: Scientific/Engineering :: Quantum Computing",
+        "Topic :: Software Development :: Libraries :: Python Modules",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+        "Programming Language :: Python :: 3 :: Only",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Operating System :: MacOS",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: POSIX :: Linux",
+        "Intended Audience :: Developers",
+        "Intended Audience :: Science/Research",
     ],
     package_data={"mpqp.qasm.header_codes": ["*.qasm", "*.inc"]},
 )

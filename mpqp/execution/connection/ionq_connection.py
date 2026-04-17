@@ -2,7 +2,7 @@ from typing import Optional
 
 from termcolor import colored
 
-from mpqp.execution.connection.env_manager import config_key, get_env_variable
+from mpqp.environment.env_manager import config_key, get_env_variable
 
 
 def config_ionq_key():
@@ -13,7 +13,7 @@ def config_ionq_key():
         list (used to conform to the protocol needed by the functions calling
         this one).
     """
-    return config_key("IONQ_API_KEY", "IONQ", test_ionq_connection)
+    return config_key("IONQ_TOKEN", "IONQ", test_ionq_connection)
 
 
 def test_ionq_connection(key: Optional[str] = None) -> bool:
@@ -37,19 +37,39 @@ def test_ionq_connection(key: Optional[str] = None) -> bool:
         return False
 
 
+def delete_ionq_account():
+    decision = input(
+        colored(
+            "This will delete the local IonQ API key configuration. Continue? [y/N] ",
+            "yellow",
+        )
+    )
+    if decision.lower().strip() != "y":
+        return "Canceled.", []
+
+    from mpqp.environment.env_manager import save_env_variable
+
+    save_env_variable("IONQ_TOKEN", "")
+    save_env_variable("IONQ_CONFIGURED", "False")
+
+    print(colored("IonQ account deleted.", "green"))
+    input("Press 'Enter' to continue")
+    return "IonQ account deleted.", []
+
+
 def get_ionq_account_info() -> str:
     """Get the IonQ API key from the environment variables.
 
     Returns:
         str: A string containing the IonQ API key.
     """
-    ionq_api_key = get_env_variable("IONQ_API_KEY")
-    if ionq_api_key == "":
+    IONQ_TOKEN = get_env_variable("IONQ_TOKEN")
+    if IONQ_TOKEN == "":
         return "Account not configured"
     else:
-        display = ionq_api_key[:5] + "*****"
+        display = IONQ_TOKEN[:5] + "*****"
 
-    return "   IONQ_API_KEY: " + display
+    return "   IONQ_TOKEN: " + display
 
 
 def get_ionq_job_ids() -> list[str]:
@@ -59,7 +79,7 @@ def get_ionq_job_ids() -> list[str]:
         A list of job IDs.
     """
     ionq_job_ids = []
-    if get_env_variable("IONQ_API_KEY_CONFIGURED") == "True":
+    if get_env_variable("IONQ_CONFIGURED") == "True":
         import cirq_ionq as ionq
 
         service = ionq.Service()

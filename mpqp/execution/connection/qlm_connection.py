@@ -5,9 +5,8 @@ from getpass import getpass
 from typing import Any
 
 from termcolor import colored
-from typeguard import typechecked
 
-from mpqp.execution.connection.env_manager import (
+from mpqp.environment.env_manager import (
     MPQP_ENV,
     get_env_variable,
     load_env_variables,
@@ -18,7 +17,6 @@ from mpqp.tools.errors import QLMRemoteExecutionError
 QLM_connection = None
 
 
-@typechecked
 def config_qlm_account(username: str, password: str, global_config: bool) -> bool:
     """Configures and saves locally QLM account's information.
 
@@ -53,12 +51,10 @@ def config_qlm_account(username: str, password: str, global_config: bool) -> boo
         if global_config:
             print("we are in the global part")
             with open(netrc_path, "w") as file:
-                file.write(
-                    f"""\
+                file.write(f"""\
 machine qlm35e.neasqc.eu
 login {username}
-password {password}"""
-                )
+password {password}""")
             # Set the permissions to read and right for user only
             os.chmod(netrc_path, 0o600)
         else:
@@ -150,6 +146,41 @@ def get_all_job_ids() -> list[str]:
         connection = get_QLMaaSConnection()
         return [job_info.id for job_info in connection.get_jobs_info()]
     return []
+
+
+def delete_qlm_account() -> tuple[str, list[Any]]:
+    """Deletes the locally stored QLM account configuration."""
+    global QLM_connection
+
+    decision = input(
+        colored(
+            "This will delete the local QLM account configuration. Continue? [y/N] ",
+            "yellow",
+        )
+    )
+    if decision.lower().strip() != "y":
+        return "Canceled.", []
+
+    netrc_path = os.path.expanduser("~") + "/.netrc"
+    try:
+        if os.path.exists(netrc_path):
+            remove_decision = input(
+                "'~/.netrc' exists. Do you want to remove it? [y/N] "
+            )
+            if remove_decision.lower().strip() == "y":
+                os.remove(netrc_path)
+    except Exception as err:
+        print(colored(f"Could not remove ~/.netrc: {err}", "red"))
+
+    save_env_variable("QLM_USER", "")
+    save_env_variable("QLM_PASSWD", "")
+    save_env_variable("QLM_CONFIGURED", "False")
+
+    QLM_connection = None
+
+    print(colored("QLM account deleted.", "green"))
+    input("Press 'Enter' to continue")
+    return "QLM account deleted", []
 
 
 def get_QLMaaSConnection():

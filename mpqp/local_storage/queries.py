@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 
-from mpqp.execution.connection.env_manager import get_env_variable
+from mpqp.environment.env_manager import get_env_variable
 from mpqp.execution.job import Job
 from mpqp.execution.result import BatchResult, Result
 from mpqp.local_storage.setup import DictDB, ensure_local_storage
@@ -24,12 +24,22 @@ def fetch_all_jobs() -> list[DictDB]:
         >>> jobs = fetch_all_jobs()
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0, 1], c_targets=[0, 1])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure([0], c_targets=[0])"', 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 1, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 2, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 3, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'AWSDevice.BRAKET_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 4, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'ATOSDevice.MYQLM_CLINALG', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 5, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 6, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 7, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'AWSDevice.BRAKET_LOCAL_SIMULATOR', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 8, 'type': 'SAMPLE', 'circuit': '"QCircuit(...)"', 'device': 'ATOSDevice.MYQLM_CLINALG', 'measure': '"BasisMeasure()"', 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 9, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 10, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 11, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'AWSDevice.BRAKET_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 12, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'ATOSDevice.MYQLM_CLINALG', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 13, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 14, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 15, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'AWSDevice.BRAKET_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 16, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'ATOSDevice.MYQLM_CLINALG', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -61,12 +71,25 @@ def fetch_all_results() -> list[DictDB]:
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
         result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 2, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 3, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 4, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 5, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 7, 'job_id': 6, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 2, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 3, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 4, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...'}
+        result: {'id': 5, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 6, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 7, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 8, 'job_id': 4, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...'}
+        result: {'id': 9, 'job_id': 5, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 10, 'job_id': 6, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 11, 'job_id': 7, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 12, 'job_id': 8, 'data': '"[Sample(...), Sample(...)]"', 'error': '...', 'shots': 1024, 'created_at': '...'}
+        result: {'id': 13, 'job_id': 9, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '...', 'shots': 0, 'created_at': '...'}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 15, 'job_id': 11, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 16, 'job_id': 12, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 17, 'job_id': 13, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 18, 'job_id': 14, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 19, 'job_id': 15, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 20, 'job_id': 16, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -101,8 +124,8 @@ def fetch_results_with_id(result_id: int | list[int]) -> list[DictDB]:
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
         result: {'id': 1, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 2, 'job_id': 1, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
-        result: {'id': 3, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 2, 'job_id': 2, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
+        result: {'id': 3, 'job_id': 3, 'data': '"[Sample(...), Sample(...)]"', 'error': None, 'shots': 1024, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -192,7 +215,7 @@ def fetch_results_with_job_id(job_id: int | list[int]) -> list[DictDB]:
         >>> for result in results:
         ...    print("result_id:", result['id'], ", job_id:", result['job_id'])
         result_id: 1 , job_id: 1
-        result_id: 2 , job_id: 1
+        result_id: 5 , job_id: 1
     """
     from sqlite3 import Row, connect
 
@@ -240,7 +263,7 @@ def fetch_jobs_with_job(job: Job | list[Job]) -> list[DictDB]:
         >>> jobs = fetch_jobs_with_job(job)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 10, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -306,7 +329,7 @@ def fetch_jobs_with_result_and_job(
         >>> jobs = fetch_jobs_with_result_and_job(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 10, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -335,12 +358,10 @@ def fetch_jobs_with_result_and_job(
                     json.dumps(repr(res.job.measure)) if res.job.measure else None
                 )
 
-                job_filters.append(
-                    """
+                job_filters.append("""
                     (results.data is ? AND results.error is ? AND results.shots is ? 
                     AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """
-                )
+                """)
                 params.extend(
                     [
                         data_json,
@@ -387,9 +408,14 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
         >>> jobs = fetch_jobs_with_result(result)
         >>> for job in jobs:
         ...    print("job:", job) # doctest: +ELLIPSIS
-        job: {'id': 5, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
-        job: {'id': 6, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
-
+        job: {'id': 9, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 10, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 11, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'AWSDevice.BRAKET_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 12, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'ATOSDevice.MYQLM_CLINALG', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 13, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'GOOGLEDevice.CIRQ_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 14, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'IBMDevice.AER_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 15, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'AWSDevice.BRAKET_LOCAL_SIMULATOR', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
+        job: {'id': 16, 'type': 'STATE_VECTOR', 'circuit': '"QCircuit(...)"', 'device': 'ATOSDevice.MYQLM_CLINALG', 'measure': None, 'remote_id': None, 'status': None, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -413,11 +439,9 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
                     json.dumps(repr(res.error)) if res.error is not None else None
                 )
 
-                job_filters.append(
-                    """
+                job_filters.append("""
                     (results.data is ? AND results.error is ? AND results.shots is ?)
-                """
-                )
+                """)
                 params.extend(
                     [
                         data_json,
@@ -469,7 +493,7 @@ def fetch_results_with_result_and_job(
         >>> results = fetch_results_with_result_and_job(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -497,12 +521,10 @@ def fetch_results_with_result_and_job(
                     json.dumps(repr(res.job.measure)) if res.job.measure else None
                 )
 
-                result_filters.append(
-                    """
+                result_filters.append("""
                     (results.data is ? AND results.error is ? AND results.shots is ? 
                     AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """
-                )
+                """)
                 params.extend(
                     [
                         data_json,
@@ -550,7 +572,7 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
         >>> results = fetch_results_with_job(job)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -571,11 +593,9 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
                 circuit_json = json.dumps(repr(job.circuit))
                 measure_json = json.dumps(repr(job.measure)) if job.measure else None
 
-                result_filters.append(
-                    """
+                result_filters.append("""
                     (jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """
-                )
+                """)
                 params.extend(
                     [
                         job.job_type.name,
@@ -621,8 +641,14 @@ def fetch_results_with_result(
         >>> results = fetch_results_with_result(result)
         >>> for result in results:
         ...    print("result:", result) # doctest: +ELLIPSIS
-        result: {'id': 6, 'job_id': 5, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
-        result: {'id': 7, 'job_id': 6, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 13, 'job_id': 9, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 14, 'job_id': 10, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 15, 'job_id': 11, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 16, 'job_id': 12, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 17, 'job_id': 13, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 18, 'job_id': 14, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 19, 'job_id': 15, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
+        result: {'id': 20, 'job_id': 16, 'data': '"StateVector([1, 0, 0, 0])"', 'error': '"0"', 'shots': 0, 'created_at': '...'}
 
     """
     from sqlite3 import Row, connect
@@ -647,11 +673,9 @@ def fetch_results_with_result(
                     json.dumps(repr(res.error)) if res.error is not None else None
                 )
 
-                result_filters.append(
-                    """
+                result_filters.append("""
                     (results.data is ? AND results.error is ? AND results.shots is ?)
-                """
-                )
+                """)
                 params.extend([data_json, error_json, res.shots])
 
             query = f"""

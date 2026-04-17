@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import TYPE_CHECKING, List, Tuple
 
 import numpy as np
-from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
 
-from mpqp import QCircuit
+from mpqp.core import QCircuit
 from mpqp.gates import *
+
+if TYPE_CHECKING:
+    from qat.core.wrappers.circuit import Circuit as my_QLM_Circuit
+
 
 MyQLM_Gate = Tuple[str, List[int], List[int]]
 
@@ -49,18 +52,21 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
     Returns:
         QCircuit object representing the parsed MyQLM circuit.
 
+    note:
+        This function requires the MyQLM provider to run.
+
     Raises:
         SyntaxError: If the input circuit contains gates that are not handled or that have syntax error.
 
     Example:
-        >>> from qat.lang.AQASM import Program, H, CNOT
-        >>> prog = Program()
-        >>> qbits = prog.qalloc(2)
-        >>> _ = H(qbits[0])
-        >>> _ = CNOT(qbits[0], qbits[1])
-        >>> myqlm_circuit = prog.to_circ()
-        >>> qcircuit = from_myqlm_to_mpqp(myqlm_circuit)
-        >>> print(qcircuit) # doctest: +NORMALIZE_WHITESPACE
+        >>> from qat.lang.AQASM import Program, H, CNOT # doctest: +MYQLM
+        >>> prog = Program() # doctest: +MYQLM
+        >>> qbits = prog.qalloc(2) # doctest: +MYQLM
+        >>> _ = H(qbits[0]) # doctest: +MYQLM
+        >>> _ = CNOT(qbits[0], qbits[1]) # doctest: +MYQLM
+        >>> myqlm_circuit = prog.to_circ() # doctest: +MYQLM
+        >>> qcircuit = from_myqlm_to_mpqp(myqlm_circuit) # doctest: +MYQLM
+        >>> print(qcircuit) # doctest: +NORMALIZE_WHITESPACE, +MYQLM
              ┌───┐
         q_0: ┤ H ├──■──
              └───┘┌─┴─┐
@@ -94,6 +100,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
         'CSIGN': CZ,
         'SWAP': SWAP,
         'U': U,
+        'U3': U,
         'U1': P,
         'ISWAP': None,
         'SQRTSWAP': None,

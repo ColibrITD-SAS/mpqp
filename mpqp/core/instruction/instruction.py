@@ -5,20 +5,16 @@ from __future__ import annotations
 from abc import abstractmethod
 from copy import deepcopy
 from numbers import Complex
-from pickle import dumps
 from typing import TYPE_CHECKING, Any, Optional
-
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from sympy import Expr
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
 from mpqp.core.languages import Language
 from mpqp.tools.generics import SimpleClassReprABC, flatten
 
 
-@typechecked
 class Instruction(SimpleClassReprABC):
     """Abstract class defining an instruction of a quantum circuit.
 
@@ -97,8 +93,10 @@ class Instruction(SimpleClassReprABC):
         """
         pass
 
-    def __eq__(self, value: object) -> bool:
-        return dumps(self) == dumps(value)
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, type(self)):
+            return False
+        return self.to_dict() == other.to_dict()
 
     def __str__(self) -> str:
         from mpqp.core.circuit import QCircuit
@@ -141,9 +139,7 @@ class Instruction(SimpleClassReprABC):
             else set(self.targets)
         )
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> Instruction:
+    def subs(self, values: dict[Expr | str, Complex]) -> Instruction:
         r"""Substitutes the parameters of the instruction with complex values.
         Optionally, also removes all symbolic variables such as `\pi` (needed for
         circuit execution, for example).
@@ -153,8 +149,6 @@ class Instruction(SimpleClassReprABC):
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: Whether symbolic values should be replaced by their
-                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.

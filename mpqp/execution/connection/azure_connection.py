@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 
 from termcolor import colored
 
-from mpqp.execution.connection.env_manager import get_env_variable, save_env_variable
+from mpqp.environment.env_manager import get_env_variable, save_env_variable
 
 if TYPE_CHECKING:
     from azure.quantum import Workspace
@@ -79,6 +79,26 @@ def get_azure_account_info() -> str:
     azure_location = get_env_variable("AZURE_LOCATION")
 
     return "   AZURE_RESOURCE_ID: " + display + "\n   AZURE_LOCATION: " + azure_location
+
+
+def delete_azure_account():
+    """Deletes the locally stored Azure Quantum account configuration."""
+    decision = input(
+        colored(
+            "This will delete the local Azure Quantum configuration. Continue? [y/N] ",
+            "yellow",
+        )
+    )
+    if decision.lower().strip() != "y":
+        return "Canceled.", []
+
+    save_env_variable("AZURE_RESOURCE_ID", "")
+    save_env_variable("AZURE_LOCATION", "")
+    save_env_variable("AZURE_CONFIGURED", "False")
+
+    print(colored("Azure Quantum account deleted.", "green"))
+    input("Press 'Enter' to continue")
+    return "Azure account deleted.", []
 
 
 def test_connection(resource_id: str, Location: str) -> bool:

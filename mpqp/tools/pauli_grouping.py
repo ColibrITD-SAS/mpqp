@@ -1,3 +1,4 @@
+from __future__ import annotations
 import numpy as np
 import numpy.typing as npt
 
@@ -19,10 +20,10 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
     """
     result = []
     for i, atoms in enumerate(group[0].atoms):
-        if atoms.name == "I":
+        if atoms.label == "I":
             all_identity = True
             for monomial in group:
-                all_identity &= monomial.atoms[i].name == "I"
+                all_identity &= monomial.atoms[i].label == "I"
                 if not all_identity:
                     for base in monomial.atoms[i].get_basis_change():
                         result.append(base(i))
@@ -33,7 +34,9 @@ def find_qubitwise_rotations(group: list[PauliStringMonomial]) -> list[Instructi
     return result
 
 
-def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingTypes):
+def pauli_grouping_greedy(
+    monomials: list[PauliStringMonomial], type: CommutingTypes
+) -> list[list[PauliStringMonomial]]:
     """Regroups the Pauli operators in parameters into groups of
     mutual commuting Pauli operators using a greedy approach.
 
@@ -46,11 +49,14 @@ def pauli_grouping_greedy(monomials: list[PauliStringMonomial], type: CommutingT
 
 
     Examples:
-        >>> from mpqp.measures import I, X, Y, Z
-        >>> pauli_grouping_greedy([I@X@X, Y@Y@Z, I@I@I, -3*Z@Y@X, Y@X@Y, -Z@Z@Y, 2*X@X@Y], CommutingTypes.FULL )
-        [[I@X@X, Y@Y@Z, I@I@I], [-3*Z@Y@X, -1*Z@Z@Y], [Y@X@Y], [2*X@X@Y]]
+        >>> pauli_grouping_greedy(
+        ...     [pI@pX@pX, pY@pY@pZ, pI@pI@pI, -3*pZ@pY@pX, pY@pX@pY, -pZ@pZ@pY, 2*pX@pX@pY],
+        ...     CommutingTypes.FULL,
+        ... )
+        [[pI@pX@pX, pY@pY@pZ, pI@pI@pI], [-3*pZ@pY@pX, -1*pZ@pZ@pY], [pY@pX@pY], [2*pX@pX@pY]]
     """
     groups: list[list[PauliStringMonomial]] = []
+
     for monomial in monomials:
         added = False
         for group in groups:
@@ -77,7 +83,7 @@ def pauli_monomial_eigenvalues(monom: PauliStringMonomial) -> npt.NDArray[np.flo
     result = np.array([1], dtype=np.float64)
     for atom in monom.atoms:
         result = np.kron(result, atom.eigen_values)
-    return result
+    return result  # pyright: ignore[reportReturnType]
 
 
 def full_commutation_pauli_grouping_ibm_clique(monomials: list[PauliStringMonomial]):

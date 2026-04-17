@@ -28,16 +28,14 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from typeguard import typechecked
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.execution import Job, JobType
+from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
 
 
-@typechecked
 class StateVector:
     """Class representing the state vector of a multi-qubit quantum system.
 
@@ -72,8 +70,10 @@ class StateVector:
             int(math.log(len(vector), 2)) if nb_qubits is None else nb_qubits
         )
         """See parameter description."""
-        self.probabilities = (
-            abs(self.vector) ** 2 if probabilities is None else np.array(probabilities)
+        self.probabilities: npt.NDArray[np.float64] = (
+            (abs(self.vector) ** 2).astype(np.float64)
+            if probabilities is None
+            else np.array(probabilities, dtype=np.float64)
         )
         """See parameter description."""
 
@@ -122,7 +122,6 @@ class StateVector:
         return True
 
 
-@typechecked
 class Sample:
     """A sample is a partial result of job job with type ``SAMPLE``. It contains
     the count (and potentially the associated probability) for a given basis
@@ -230,7 +229,6 @@ class Sample:
             return False
 
 
-@typechecked
 class Result:
     """Result associated to a submitted job.
 
@@ -257,7 +255,7 @@ class Result:
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
-        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex64) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(Result(job, StateVector(np.array([1, 1, 1, -1], dtype=np.complex128) / 2, 2), 0, 0)) # doctest: +NORMALIZE_WHITESPACE
         Result: ATOSDevice, MYQLM_CLINALG
           State vector: [0.5, 0.5, 0.5, -0.5]
           Probabilities: [0.25, 0.25, 0.25, 0.25]
@@ -266,7 +264,6 @@ class Result:
         ...     JobType.SAMPLE,
         ...     QCircuit([BasisMeasure([0, 1], shots=1000)]),
         ...     ATOSDevice.MYQLM_CLINALG,
-        ...     BasisMeasure([0, 1], shots=1000),
         ... )
         >>> print(Result(job, [
         ...     Sample(2, index=0, count=250),
@@ -293,9 +290,10 @@ class Result:
     def __init__(
         self,
         job: Job,
-        data: float | dict["str", float] | StateVector | list[Sample],
+        data: float | dict["str", float] | StateVector | list[Sample] | None,
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
+        g_phase_handling: bool = True,
     ):
         self.job = job
         """See parameter description."""
@@ -309,6 +307,11 @@ class Result:
         self.error = errors
         """See parameter description."""
         self._data = data
+
+        if data is None:
+            if job.status != JobStatus.ERROR:
+                raise TypeError("Result data cannot be None unless job.status == ERROR")
+            return
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
@@ -327,9 +330,13 @@ class Result:
                 )
             else:
                 self._state_vector = data
-                if job.circuit.gphase != 0:
+                gphase = (
+                    job.circuit.input_g_phase
+                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage]
+                )
+                if g_phase_handling and gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
-                    self._state_vector.vector *= np.exp(1j * job.circuit.gphase)
+                    self._state_vector.vector *= np.exp(1j * gphase)
                 self._probabilities = data.probabilities
         elif job.job_type == JobType.SAMPLE:
             if not isinstance(data, list):
@@ -459,6 +466,9 @@ class Result:
         label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
         header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
 
+        if self.job.status == JobStatus.ERROR:
+            return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
+
         if self.job.job_type == JobType.SAMPLE:
             measures = self.job.circuit.measurements
             if not len(measures) == 1:
@@ -533,6 +543,12 @@ class Result:
         Args:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
+
+        Example:
+            >>> circuit = QCircuit([H(0),H(1),H(2), BasisMeasure()])
+            >>> run(circuit, IBMDevice.AER_SIMULATOR).plot()
+
+        .. image:: ../docs/resources/output_plot_example_single.png
         """
         from matplotlib import pyplot as plt
 
@@ -602,13 +618,26 @@ class Result:
         Example:
             >>> for result in Result.load_all(): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
-            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG), StateVector([1, 0, 0, 0]), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+            Result(Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG), StateVector([1, 0, 0, 0]), 0, 0)
 
         """
         from mpqp.local_storage.load import get_all_results
@@ -626,7 +655,7 @@ class Result:
 
         Example:
             >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
 
         """
         from mpqp.local_storage.load import get_results_with_id
@@ -645,8 +674,8 @@ class Result:
         Example:
             >>> for result in Result.load_by_local_job_id(1): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
 
         """
         from mpqp.local_storage.load import get_results_with_job_id
@@ -690,22 +719,18 @@ class Result:
         Example:
             >>> for result in Result.load_all(): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
-            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
+            ...
             >>> Result.delete_by_local_id(1)
             >>> for result in Result.load_all(): # doctest: +ELLIPSIS
             ...     print(repr(result))
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
-            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
-            Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
+            ...
 
         """
         from mpqp.local_storage.delete import remove_results_with_id
@@ -713,7 +738,6 @@ class Result:
         remove_results_with_id(result_id)
 
 
-@typechecked
 class BatchResult:
     """Class used to handle several Result instances.
 
@@ -733,7 +757,6 @@ class BatchResult:
         ...         JobType.SAMPLE,
         ...         QCircuit([BasisMeasure([0,1],shots=500)], label="Sample circuit"),
         ...         ATOSDevice.MYQLM_PYLINALG,
-        ...         BasisMeasure([0,1],shots=500)
         ...     ),
         ...     [Sample(2, index=0, count=250), Sample(2, index=3, count=250)],
         ...     0.034,
@@ -801,6 +824,13 @@ class BatchResult:
         Args:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
+
+        Example:
+            >>> circuit = QCircuit([H(0),H(1),H(2), BasisMeasure()])
+            >>> circuit2 = QCircuit([H(0),X(1),H(2), BasisMeasure()])
+            >>> run([circuit,circuit2], IBMDevice.AER_SIMULATOR).plot()
+
+        .. image:: ../docs/resources/output_plot_example_batch.png
         """
         from matplotlib import pyplot as plt
 
@@ -828,7 +858,7 @@ class BatchResult:
 
         Example:
             >>> Result.load_by_local_id(1) # doctest: +ELLIPSIS
-            Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR, BasisMeasure(...), [Sample(...), Sample(...)], None, 1024)
+            Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
 
         """
         from mpqp.local_storage.load import get_results_with_id

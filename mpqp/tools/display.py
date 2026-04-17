@@ -10,12 +10,9 @@ import numpy.typing as npt
 if TYPE_CHECKING:
     from sympy import Expr, Basic
 
-from typeguard import typechecked
-
 from .generics import Matrix
 
 
-@typechecked
 def state_vector_ket_shape(sv: npt.NDArray[np.complex128]) -> str:
     """Formats a state vector into its ket format."""
     if len(sv.shape) != 1:
@@ -32,8 +29,7 @@ def state_vector_ket_shape(sv: npt.NDArray[np.complex128]) -> str:
     )[2:]
 
 
-@typechecked
-def with_sign(val: Union[np.complex64, np.complex128]) -> str:
+def with_sign(val: np.complex128) -> str:
     """Sometimes, we want values under a specific format, in particular
     ``<sign> <value>``. Where value is as simple as possible (*e.g.* no period
     or no imaginary part if there is no need).
@@ -57,34 +53,33 @@ def with_sign(val: Union[np.complex64, np.complex128]) -> str:
     return "+ " + str_rounded
 
 
-@typechecked
 def _remove_null_imag(
-    val: np.complex64 | np.complex128,
-) -> np.complex64 | np.complex128 | np.float32 | int:
+    val: np.complex128,
+) -> np.complex128 | np.float64 | int:
     val = np.round(val, 3)
     if val.imag != 0:
         return val
     return _remove_unnecessary_decimals(val.real)
 
 
-@typechecked
 def _remove_unnecessary_decimals(
-    val: np.float32 | np.float64 | int,
-) -> np.float32 | int:
-    val = np.float32(val)
+    val: np.float64 | int,
+) -> np.float64 | int:
+    val = np.float64(val)
     if val.is_integer():
         return int(val)
     return val
 
 
-@typechecked
 def _unpack_expr(expr: Expr | Basic):
     if str(expr).startswith("Expr"):
         return _unpack_expr(expr.args[0])
     return expr
 
 
-def format_element(element: Union[Real, int, float, complex, Expr], round: int = 10):
+def format_element(
+    element: Union[Real, int, float, complex, Expr, Basic], precision: int = 10
+):
     """
     Formats a numeric or symbolic element for cleaner representation. Rounds the real and
     imaginary parts of a number to a specified number of decimal places, formats whole
@@ -92,15 +87,15 @@ def format_element(element: Union[Real, int, float, complex, Expr], round: int =
 
     Args:
         element: The element to format, which can be an integer, float, complex number, or symbolic expression.
-        round: The number of decimal places to round to for real and imaginary parts.
+        precision: The number of decimal places to round to for real and imaginary parts.
 
     Returns:
         The formatted element without converting it to a string.
 
     Example:
-        >>> type(format_element(3.456789, round=4))
+        >>> type(format_element(3.456789, 4))
         <class 'float'>
-        >>> type(format_element(1+2j, round=2))
+        >>> type(format_element(1+2j, 2))
         <class 'complex'>
         >>> type(format_element(3+0j))
         <class 'int'>
@@ -114,21 +109,31 @@ def format_element(element: Union[Real, int, float, complex, Expr], round: int =
         <class 'int'>
 
     """
-    from sympy import Expr
+    from sympy import Basic, Expr
 
-    if isinstance(element, Expr):
-        if element.is_Float:
-            return float(element)
-        elif element.is_Integer:
+    if isinstance(element, (Expr, Basic)):
+        element = _unpack_expr(element.simplify())
+
+        from sympy import Float, Integer
+
+        if isinstance(element, Integer):
             return int(element)
-        return _unpack_expr(element.simplify())
+        elif isinstance(element, Float):
+            return round(float(element), precision)
+        elif element.is_number:
+            try:
+                elt = float(element)  # pyright: ignore[reportArgumentType]
+                return round(elt, precision)
+            except Exception:
+                pass
+        return element
 
-    real_part = float(np.round(np.real(complex(element)), round))
-    imag_part = float(np.round(np.imag(element), round))
+    real_part = float(np.round(np.real(complex(element)), precision))
+    imag_part = float(np.round(np.imag(element), precision))
 
-    if abs(real_part - int(real_part)) < 10 ** (-round):
+    if abs(real_part - int(real_part)) < 10 ** (-precision):
         real_part = int(real_part)
-    if abs(imag_part - int(imag_part)) < 10 ** (-round):
+    if abs(imag_part - int(imag_part)) < 10 ** (-precision):
         imag_part = int(imag_part)
 
     if real_part == 0 and imag_part != 0:
@@ -139,7 +144,6 @@ def format_element(element: Union[Real, int, float, complex, Expr], round: int =
     return real_part + imag_part * 1j
 
 
-@typechecked
 def format_element_str(
     element: Union[int, float, complex | Expr], round: int = 5
 ) -> str:
@@ -199,9 +203,10 @@ def format_element_str(
     return f"{str(real_part)}{str(imag_part)}"
 
 
-@typechecked
 def clean_1D_array(
-    array: list[Complex] | npt.NDArray[np.complex128 | np.float64 | np.int32],
+    array: (
+        list[Complex] | npt.NDArray[np.complex128 | np.float64 | np.float32 | np.int32]
+    ),
     round: int = 5,
 ) -> str:
     """Cleans and formats elements of a one dimensional array. This function
@@ -250,8 +255,7 @@ def clean_1D_array(
     )
 
 
-@typechecked
-def clean_number_repr(number: Union[complex, np.complex64], round: int = 7):
+def clean_number_repr(number: Union[complex, np.complex128], round: int = 7):
     """Cleans and formats a number. This function rounds the parts of
     complex numbers and formats them as integers if appropriate. It returns a
     string representation of the number.
@@ -293,8 +297,9 @@ def clean_number_repr(number: Union[complex, np.complex64], round: int = 7):
     return f"{str(real_part)}{str(imag_part)}"
 
 
-@typechecked
-def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
+def clean_matrix(
+    matrix: Matrix, round: int = 5, align: bool = True, max_display_size: int = 0
+):
     """Cleans and formats elements of a 2D matrix. This function rounds the
     parts of the numbers in the matrix and formats them as integers if
     appropriate. It returns a string representation of the cleaned matrix.
@@ -303,23 +308,49 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
         matrix: An 2d array containing numeric elements.
         round: The number of decimal places to round the real and imaginary parts.
         align: Whether to align the elements for a cleaner output.
+        max_display_size: If greater that 0, the displayed matrix will show
+            ellipsis for indexes other the given size.
 
     Returns:
         A string representation of the cleaned matrix.
 
     Examples:
-        >>> print(clean_matrix(np.array([[1.234567895546, 2.3456789645645, 3.45678945645],
-        ... [1+5j, 0+1j, 5.],
-        ... [1.223123425+0.95113462364j, 2.0, 3.0]])))
+        >>> print(clean_matrix(np.array([
+        ...     [              1.234567895546, 2.3456789645645, 3.45678945645],
+        ...     [                      1 + 5j,          0 + 1j,           5.0],
+        ...     [1.223123425 + 0.95113462364j,             2.0,           3.0],
+        ... ])))
         [[1.23457         , 2.34568, 3.45679],
          [1+5j            , 1j     , 5      ],
          [1.22312+0.95113j, 2      , 3      ]]
 
     """
+    y_ellipsis = False
+    x_ellipsis = False
+    truncated_matrix = np.array(matrix)
+
+    if max_display_size > 0:
+        if truncated_matrix.shape[0] > max_display_size:
+            truncated_matrix = truncated_matrix[:max_display_size, :]
+            y_ellipsis = True
+        if truncated_matrix.shape[1] > max_display_size:
+            truncated_matrix = truncated_matrix[:, :max_display_size]
+            x_ellipsis = True
 
     formatted_matrix = [
-        [format_element_str(element, round) for element in row] for row in matrix
+        [format_element_str(element, round) for element in row]
+        for row in truncated_matrix
     ]
+    if y_ellipsis:
+        for line in formatted_matrix:
+            line.append(" ")
+        formatted_matrix[0][-1] = "…"
+    if x_ellipsis:
+        # width of vertical ellipsis "︙" seems inconsistent between mono fonts
+        formatted_matrix.append([" "] * len(formatted_matrix[0]))
+        formatted_matrix[-1][0] = "…"
+    if y_ellipsis and x_ellipsis:
+        formatted_matrix[-1][-1] = "⋱"
     if align:
         max_lengths = [
             max(len(row[i]) for row in formatted_matrix)
@@ -338,9 +369,8 @@ def clean_matrix(matrix: Matrix, round: int = 5, align: bool = True):
     )
 
 
-@typechecked
 def pprint(
-    matrix: Matrix | list[Complex] | npt.NDArray[np.complex64 | np.float32 | np.int32],
+    matrix: Matrix | list[Complex] | npt.NDArray[np.complex128 | np.float32 | np.int32],
     round: int = 5,
     align: bool = True,
 ):
@@ -386,7 +416,6 @@ def pprint(
             )
 
 
-@typechecked
 def one_lined_repr(obj: object):
     """One-liner returning a representation of the given object by removing
     extra whitespace.

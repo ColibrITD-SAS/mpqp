@@ -3,20 +3,17 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from numbers import Complex
 from typing import TYPE_CHECKING
-from warnings import warn
 
 if TYPE_CHECKING:
     from sympy import Expr
 
 import numpy as np
-from typeguard import typechecked
 
-from mpqp.tools.display import one_lined_repr
+from mpqp.tools.display import clean_matrix, one_lined_repr
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_power_of_two, is_unitary, matrix_eq
 
 
-@typechecked
 class GateDefinition(ABC):
     """Abstract class used to handle the definition of a Gate.
 
@@ -56,8 +53,6 @@ class GateDefinition(ABC):
     def subs(
         self,
         values: dict[Expr | str, Complex],
-        remove_symbolic: bool = False,
-        disable_symbol_warn: bool = False,
     ) -> GateDefinition:
         pass
 
@@ -149,14 +144,11 @@ class GateDefinition(ABC):
         return result
 
 
-@typechecked
 class UnitaryMatrix(GateDefinition):
     """Definition of a gate using its matrix.
 
     Args:
         definition: Matrix defining the unitary gate.
-        disable_symbol_warn: Boolean used to enable/disable warning concerning
-            unitary checking with symbolic variables.
 
     Raises:
         ValueError: Matrices defining gates have to be unitary.
@@ -164,25 +156,11 @@ class UnitaryMatrix(GateDefinition):
             dimensions that are power of two.
     """
 
-    def __init__(self, definition: Matrix, disable_symbol_warn: bool = False):
-
-        numeric = True
-        for _, elt in np.ndenumerate(definition):
-            # 3M-TODO: can we improve this situation ?
-            try:
-                complex(elt)
-            except TypeError:
-                if not disable_symbol_warn:
-                    warn(
-                        "Cannot ensure that a operator defined with symbolic "
-                        "variables is unitary."
-                    )
-                numeric = False
-                break
-        if numeric and not is_unitary(definition):
+    def __init__(self, definition: Matrix):
+        if not is_unitary(definition, fuzzy=True):
             raise ValueError(
                 "Matrices defining gates have to be unitary. It is not the case"
-                f" for\n{definition}"
+                f" for\n{clean_matrix(definition, max_display_size=8)}"
             )
         if not is_power_of_two(definition.shape[0]):
             raise ValueError(
@@ -208,25 +186,12 @@ class UnitaryMatrix(GateDefinition):
     def subs(
         self,
         values: dict[Expr | str, Complex],
-        remove_symbolic: bool = False,
-        disable_symbol_warn: bool = False,
     ):
         """Substitute some symbolic variables in the definition by complex values.
 
         Args:
             values: Mapping between the symbolic variables and their complex
                 attributions.
-            remove_symbolic: Some values such as pi are kept symbolic during
-                circuit manipulation for better precision, but must be replaced
-                by their complex counterpart for circuit execution, this
-                arguments fills that role. Defaults to False.
-            disable_symbol_warn: This method returns a :class:`UnitaryMatrix`,
-                which raises a warning in case the matrix used to build it has
-                symbolic variables. This is because this class performs
-                verifications on the matrix to ensure it is indeed unitary, but
-                those verifications cannot be done on symbolic variables. This
-                argument disables this check because in some contexts, it is
-                undesired. Defaults to False.
         """
         from sympy import Expr
 
@@ -235,13 +200,17 @@ class UnitaryMatrix(GateDefinition):
                 # problem between pyright and abstract numeric types ?
                 # "complex" cannot be assigned to return type "Complex"
                 return (
-                    complex(v) if remove_symbolic else v
+                    complex(v) if isinstance(v, Expr) and v.is_constant() else v
                 )  # pyright: ignore[reportReturnType]
 
             # the types in sympy are relatively badly handled
             # Argument of type "Unknown | Basic | Expr" cannot be assigned to parameter "v" of type "Expr | Complex"
             return (
-                caster(val.subs(values))  # pyright: ignore[reportArgumentType]
+                caster(
+                    val.subs(
+                        values  # pyright: ignore[reportArgumentType, reportCallIssue]
+                    )
+                )
                 if isinstance(val, Expr)
                 else val
             )
@@ -249,14 +218,10 @@ class UnitaryMatrix(GateDefinition):
         matrix = self.to_matrix()
         otype = (
             complex
-            if remove_symbolic
-            or not any(isinstance(val, Expr) for _, val in np.ndenumerate(matrix))
+            if not any(isinstance(val, Expr) for _, val in np.ndenumerate(matrix))
             else object
         )
-
-        return UnitaryMatrix(
-            np.vectorize(mapping, otypes=[otype])(matrix), disable_symbol_warn
-        )
+        return UnitaryMatrix(np.vectorize(mapping, otypes=[otype])(matrix))
 
     def __repr__(self) -> str:
         return f"UnitaryMatrix({one_lined_repr(self.matrix)})"
