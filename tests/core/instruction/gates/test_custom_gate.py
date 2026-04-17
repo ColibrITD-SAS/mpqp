@@ -1,4 +1,3 @@
-import random
 from functools import reduce
 
 import numpy as np
@@ -44,8 +43,12 @@ def test_random_orthogonal_matrix_myqlm(circ_size: int):
 
 
 def exec_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
-    gate_size = random.randint(1, circ_size)
-    targets_start = random.randint(0, circ_size - gate_size)
+    if circ_size == 1:
+        gate_size = 1
+        targets_start = 0
+    else:
+        gate_size = np.random.randint(1, circ_size)
+        targets_start = np.random.randint(0, circ_size - gate_size)
     m = rand_orthogonal_matrix(2**gate_size)
     c = QCircuit(
         [CustomGate(m, list(range(targets_start, targets_start + gate_size)))],

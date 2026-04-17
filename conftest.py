@@ -45,8 +45,16 @@ def pytest_configure(config: Any):
     ):
         from tests.local_storage.test_local_storage import create_test_local_storage
 
+        providers = config.getoption("--providers")
+        if TYPE_CHECKING:
+            assert isinstance(providers, list) or isinstance(providers, type(None))
+        if providers is None:
+            providers = ["all"]
+        elif not providers:
+            providers = []
+
         print("Creating local storage for tests")
-        create_test_local_storage()
+        create_test_local_storage(providers)
 
 
 @pytest.fixture(autouse=True)
