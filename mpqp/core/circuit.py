@@ -1711,11 +1711,16 @@ class QCircuit:
                             qiskit_circuit = transpile(qiskit_circuit, backend_sim)
                         except Exception as e:
                             if 'HighLevelSynthesis is unable to synthesize "measure"' in str(e):
-                                # TODO: remove this workaround when the issue is fixed on qiskit side
+                                # TODO: We use this workaround for old backend that do not support measure in their synthesis.
+                                # ['FakeAlmadenV2','FakeArmonkV2','FakeBurlingtonV2','FakeCambridgeV2',
+                                # 'FakeEssexV2','FakeJohannesburgV2','FakeLondonV2','FakePoughkeepsieV2',
+                                # 'FakeRochesterV2','FakeSingaporeV2']
                                 
                                 from qiskit import ClassicalRegister
 
                                 qc = qiskit_circuit.remove_final_measurements(inplace=False)
+                                if TYPE_CHECKING:
+                                    assert qc is not None
                                 qc = transpile(qc, backend_sim)
                                 if qiskit_circuit.num_clbits > 0:
                                     qc.add_register(ClassicalRegister(qiskit_circuit.num_clbits))
