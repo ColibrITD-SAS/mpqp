@@ -66,7 +66,7 @@ def from_myqlm_to_mpqp(circuit: my_QLM_Circuit) -> QCircuit:
         >>> _ = CNOT(qbits[0], qbits[1]) # doctest: +MYQLM
         >>> myqlm_circuit = prog.to_circ() # doctest: +MYQLM
         >>> qcircuit = from_myqlm_to_mpqp(myqlm_circuit) # doctest: +MYQLM
-        >>> print(qcircuit) # doctest: +NORMALIZE_WHITESPACE # doctest: +MYQLM
+        >>> print(qcircuit) # doctest: +NORMALIZE_WHITESPACE, +MYQLM
              ┌───┐
         q_0: ┤ H ├──■──
              └───┘┌─┴─┐
