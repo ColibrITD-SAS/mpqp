@@ -67,7 +67,7 @@ def generate_tests_for_python_scripts():
         globals()[test_name] = make_test_func(py_file)
 
 
-def providers_is_all():
+def is_all_providers_selected():
     if "--providers" not in sys.argv:
         return True
     idx = sys.argv.index("--providers") + 1
@@ -76,7 +76,7 @@ def providers_is_all():
     return sys.argv[idx] == "all"
 
 
-if ("--long-local" in sys.argv or "--long" in sys.argv) and providers_is_all():
+if ("--long-local" in sys.argv or "--long" in sys.argv) and is_all_providers_selected():
     env = os.environ.copy()
     project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
     venv_path = os.environ.get('VIRTUAL_ENV')
