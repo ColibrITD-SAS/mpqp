@@ -30,6 +30,7 @@ extras["all"] = sorted(set(all_extras))
 setup(
     name="mpqp",
     use_scm_version=True,
+    setup_requires=["setuptools_scm"],
     description="Facilitate quantum algorithm development and execution, regardless of the hardware, with MPQP",
     long_description=long_description,
     long_description_content_type="text/markdown",
@@ -63,7 +64,6 @@ setup(
     classifiers=[
         "Topic :: Scientific/Engineering :: Quantum Computing",
         "Topic :: Software Development :: Libraries :: Python Modules",
-        "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
