@@ -1,7 +1,6 @@
 import sys
 from typing import Any, Optional
 
-
 if "cirq" in sys.modules:  # if cirq is imported instanciate the following classes
 
     from cirq import Gate as cirqGate
