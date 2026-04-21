@@ -117,12 +117,12 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [-0.19171809+0.46178369j -0.19171809+0.46178369j -0.19171809+0.46178369j -0.19171809+0.46178369j]
+        >>> pprint(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
+        [0.70711, 0, 0.26893-0.65397j, 0]
     """
     from mpqp.execution import IBMDevice, Result, run
 
-    mpqp_circ = random_circuit(None, nb_qubits, None, seed)
+    mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
         assert isinstance(res, Result)
@@ -524,7 +524,10 @@ def mpqp_to_qiskit(
                 [measurement.c_targets],
             )
 
-    new_circ.global_phase += circuit.input_g_phase + circuit._generated_g_phase
+    new_circ.global_phase += (
+        circuit.input_g_phase
+        + circuit._generated_g_phase  # type: ignore[reporPrivateUsage]
+    )
     return new_circ
 
 
@@ -650,7 +653,7 @@ def mpqp_to_cirq(
                         custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
                         cirq_circuit += custom_cirq_circuit
                         # TODO: handle gphase in the circuit
-                        circuit._generated_g_phase += gphase
+                        circuit._generated_g_phase += gphase  # type: ignore[reporPrivateUsage]
                     else:
                         cirq_pre_measure = pre_measure.to_other_language(Language.CIRQ)
                         targets = []
@@ -672,25 +675,9 @@ def mpqp_to_cirq(
         for gate in gates:
             if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
                 continue
-            elif isinstance(gate, (CustomGate, CustomControlledGate)):
-                qasm2_code, gphase = gate.to_other_language(
-                    Language.QASM2
-                )  # pyright: ignore[reportGeneralTypeIssues]
-                if TYPE_CHECKING:
-                    assert isinstance(qasm2_code, str)
-                from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
-
-                qasm2_code = (
-                    "OPENQASM 2.0;"
-                    + "\ninclude \"qelib1.inc\";"
-                    + f"\nqreg q[{circuit.nb_qubits}];\n"
-                    + qasm2_code
-                )
-                custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
-                cirq_circuit += custom_cirq_circuit
-                # TODO: handle gphase in the circuit
-                circuit._generated_g_phase += gphase
-            elif isinstance(gate, ControlledGate):
+            elif isinstance(gate, ControlledGate) and not isinstance(
+                instruction, CustomControlledGate
+            ):
                 targets = []
                 for target in gate.targets:
                     targets.append(cirq_qubits[target])
@@ -702,15 +689,15 @@ def mpqp_to_cirq(
             else:
                 if skip_measurements and isinstance(gate, Measure):
                     continue
+                if isinstance(instruction, CustomControlledGate):
+                    instruction = instruction.to_custom_gate()
                 targets = []
                 for target in gate.targets:
                     targets.append(cirq_qubits[target])
                 cirq_instruction = gate.to_other_language(Language.CIRQ)
-                if isinstance(cirq_instruction, list):
-                    for inst in cirq_instruction:
-                        cirq_circuit.append(inst.on(*targets))
-                else:
-                    cirq_circuit.append(cirq_instruction.on(*targets))
+                if TYPE_CHECKING:
+                    assert cirq_instruction
+                cirq_circuit.append(cirq_instruction.on(*targets))
 
     if circuit.noises:
         from mpqp.execution.providers.google import apply_noise_to_cirq_circuit

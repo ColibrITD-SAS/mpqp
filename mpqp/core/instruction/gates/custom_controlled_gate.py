@@ -72,6 +72,14 @@ class CustomControlledGate(ControlledGate):
     def inverse(self) -> "CustomControlledGate":
         return CustomControlledGate(self.controls, self.non_controlled_gate.inverse())
 
+    def to_custom_gate(self) -> CustomGate:
+        "returns the CustomGate equivalent of this gate."
+        import numpy as np
+
+        targets = list(np.sort(self.targets + self.controls))
+
+        return CustomGate(self.to_matrix(), targets)
+
     def to_other_language(
         self,
         language: Language = Language.QISKIT,

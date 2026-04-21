@@ -5,7 +5,6 @@ from venv import logger
 
 import numpy as np
 from ply.lex import lex
-from pytest import param
 
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
@@ -363,7 +362,11 @@ def _Gate_one_parametrized(
     if one_parametrized_gate_qasm[gate_str] == PRX:
         circuit.add(PRX(parameter[0], parameter[1], target))
     else:
-        circuit.add(one_parametrized_gate_qasm[gate_str](parameter[0], target))
+        circuit.add(
+            one_parametrized_gate_qasm[gate_str](
+                parameter[0], target
+            )  # pyright: ignore[reportCallIssue]
+        )
     return idx + 5
 
 

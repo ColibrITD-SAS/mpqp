@@ -1296,10 +1296,7 @@ class QCircuit:
             from mpqp.tools.circuit import mpqp_to_cirq
 
             return mpqp_to_cirq(
-                self,
-                skip_pre_measure,
-                skip_measurements,
-                authorized_gates=authorized_gates,
+                self, skip_pre_measure, skip_measurements, authorized_gates
             )
 
         elif language == Language.QASM2:
@@ -1833,9 +1830,7 @@ class QCircuit:
             f"Error: {type(qcircuit)} is not supported, or sdk not installed."
         )
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> QCircuit:
+    def subs(self, values: dict[Expr | str, Complex]) -> QCircuit:
         r"""Substitute the parameters of the circuit with values for each of the
         specified parameters. Optionally also remove all symbolic variables such
         as `\pi` (needed for example for circuit execution).
@@ -1845,8 +1840,6 @@ class QCircuit:
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: Whether symbolic values should be replaced by their
-                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.
@@ -1880,9 +1873,7 @@ class QCircuit:
 
         """
         new_circuit = deepcopy(self)
-        new_circuit.instructions = [
-            inst.subs(values, remove_symbolic) for inst in self.instructions
-        ]
+        new_circuit.instructions = [inst.subs(values) for inst in self.instructions]
         return new_circuit
 
     def pretty_print(self):

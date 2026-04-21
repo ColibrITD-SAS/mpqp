@@ -9,12 +9,10 @@ import copy
 from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
 from typing_extensions import Never
-from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
 
-from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
@@ -266,9 +264,7 @@ class Observable:
 
         return not np.any(self.matrix.dot(obs.matrix) - obs.matrix.dot(self.matrix))
 
-    def subs(
-        self, values: dict[Expr | str, Real], remove_symbolic: bool = False
-    ) -> Observable:
+    def subs(self, values: dict[Expr | str, Real]) -> Observable:
         """3M-TODO"""
         ...
 

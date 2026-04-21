@@ -4,6 +4,7 @@ us to complete the missing gates by linking them to already defined ones. We
 call the function :func:`qasm2_to_myqlm_Circuit` to generate the circuit from
 the qasm code."""
 
+from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 
@@ -44,9 +45,13 @@ def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
              └─┘
 
     """
-    from qat.interop.openqasm import OqasmParser
+    import warnings
 
-    parser = OqasmParser(gates={"p": "PH", "u": "U"})  # requires myqlm-interop-1.9.3
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        from qat.interop.openqasm import OqasmParser
+
+    parser = OqasmParser(gates={"p": "PH", "u": "U"})
 
     # We replace 'sdg' for S_dagger gate by 'u1(pi/2)', because of problem on myqlm side
     pattern = re.compile(r'(?<!gate\s)sdg\s+(\S+)\s*;')

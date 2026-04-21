@@ -52,6 +52,19 @@ autodoc_type_aliases = {
     "Measure": "Measure",
     "Breakpoint": "Breakpoint",
     "PauliStringMonomial": "PauliStringMonomial",
+    "PauliStringAtom": "PauliStringAtom",
+    "Job": "Job",
+    "Result": "Result",
+    "BatchResult": "BatchResult",
+    "NoiseModel": "NoiseModel",
+    "AnswerNode": "AnswerNode",
+    "Qubo": "Qubo",
+    "Instruction": "Instruction",
+    "Sample": "Sample",
+    "Instr": "Instr",
+    "UserGate": "UserGate",
+    "SingleQubitGate": "SingleQubitGate",
+    "CustomGate": "CustomGate",
     "npt.NDArray[np.complex128]": "np.array[np.complex128]",
 }
 autodoc_mock_imports = ["braket.circuits.measure"]
@@ -90,16 +103,17 @@ nbsphinx_prolog = r"""
 
 
 def copy_notebooks(app: Sphinx):
-    src_dir = (Path(app.srcdir) / "../examples/notebooks").absolute()
-    dest_dir = Path(app.srcdir) / "notebooks"
+    app_dir = Path(app.srcdir).absolute()
+    src_dir = app_dir / "../examples/notebooks"
+    dest_dir = app_dir / "notebooks"
 
-    os.makedirs(dest_dir, exist_ok=True)
+    dest_dir.mkdir(exist_ok=True)
 
-    if not os.path.exists(src_dir):
+    if not src_dir.exists():
         raise FileNotFoundError(f"Source notebooks directory not found: {src_dir}")
 
-    for nb in os.listdir(src_dir):
-        if nb.endswith(".ipynb"):
+    for nb in src_dir.iterdir():
+        if nb.suffix == ".ipynb":
             shutil.copy2(src_dir / nb, dest_dir)
 
 
@@ -108,19 +122,24 @@ def copy_requirements_providers(app: Sphinx):
     Copy requirements_providers/*.txt into docs/requirements_providers
     so Sphinx can access them.
     """
-    src_dir = (Path(app.srcdir) / "../requirements_providers").absolute()
-    dest_dir = Path(app.srcdir) / "requirements_providers"
+    app_dir = Path(app.srcdir).absolute()
+    src_dir = app_dir / "../requirements_providers"
+    dest_dir = app_dir / "requirements_providers"
 
-    os.makedirs(dest_dir, exist_ok=True)
+    dest_dir.mkdir(exist_ok=True)
 
-    if not os.path.exists(src_dir):
+    if not src_dir.exists():
         raise FileNotFoundError(
             f"Source requirements_providers directory not found: {src_dir}"
         )
 
-    for fname in os.listdir(src_dir):
-        if fname.endswith(".txt"):
-            shutil.copy2(src_dir / fname, dest_dir / fname)
+    for src_file in src_dir.glob("*.txt"):
+        dest_file = dest_dir / src_file.name
+
+        if dest_file.exists():
+            dest_file.unlink()
+
+        shutil.copy2(src_file, dest_file)
 
 
 def generate_notebooks_toctree(app: Sphinx):
@@ -129,18 +148,19 @@ def generate_notebooks_toctree(app: Sphinx):
     found in notebooks/.
     """
     notebooks_dir = Path(app.srcdir) / "notebooks"
-    os.makedirs(notebooks_dir, exist_ok=True)
+    notebooks_dir.mkdir(exist_ok=True)
     output_file = notebooks_dir / "notebooks_toctree.rst"
 
-    notebooks = sorted(f for f in os.listdir(notebooks_dir) if f.endswith(".ipynb"))
-
+    notebooks = sorted(f for f in notebooks_dir.iterdir() if f.suffix == ".ipynb")
+    prefix = """.. toctree::
+   :maxdepth: 1
+   :caption: Notebooks:
+   
+"""
     with open(output_file, "w", encoding="utf-8") as f:
-        f.write(".. toctree::\n")
-        f.write("   :maxdepth: 1\n")
-        f.write("   :caption: Notebooks:\n\n")
-
+        f.write(prefix)
         for nb in notebooks:
-            f.write(f"   notebooks/{nb}\n")
+            f.write(f"   notebooks/{nb.stem}\n")
 
 
 # The suffix of source filenames.

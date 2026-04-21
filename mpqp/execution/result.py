@@ -30,7 +30,7 @@ import numpy as np
 import numpy.typing as npt
 
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
-from mpqp.execution import Job, JobType
+from mpqp.execution import Job, JobStatus, JobType
 from mpqp.execution.devices import AvailableDevice
 from mpqp.tools.display import clean_1D_array, clean_number_repr
 from mpqp.tools.errors import ResultAttributeError
@@ -290,7 +290,7 @@ class Result:
     def __init__(
         self,
         job: Job,
-        data: float | dict["str", float] | StateVector | list[Sample],
+        data: float | dict["str", float] | StateVector | list[Sample] | None,
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
         g_phase_handling: bool = True,
@@ -307,6 +307,11 @@ class Result:
         self.error = errors
         """See parameter description."""
         self._data = data
+
+        if data is None:
+            if job.status != JobStatus.ERROR:
+                raise TypeError("Result data cannot be None unless job.status == ERROR")
+            return
 
         # depending on the type of job, fills the result info from the data in parameter
         if job.job_type == JobType.OBSERVABLE:
@@ -476,6 +481,9 @@ class Result:
         label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
         header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
 
+        if self.job.status == JobStatus.ERROR:
+            return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
+
         if self.job.job_type == JobType.SAMPLE:
             measures = self.job.circuit.measurements
             if not len(measures) == 1:
@@ -550,6 +558,12 @@ class Result:
         Args:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
+
+        Example:
+            >>> circuit = QCircuit([H(0),H(1),H(2)])
+            >>> run(circuit, IBMDevice.AER_SIMULATOR).plot()
+
+        .. image:: ../docs/resources/output_plot_example_single.png
         """
         from matplotlib import pyplot as plt
 
@@ -816,6 +830,13 @@ class BatchResult:
         Args:
             show: ``plt.show()`` is only executed if ``show``, useful to batch
                 plots.
+
+        Example:
+            >>> circuit = QCircuit([H(0),H(1),H(2), BasisMeasure()])
+            >>> circuit2 = QCircuit([H(0),X(1),H(2), BasisMeasure()])
+            >>> run([circuit,circuit2], IBMDevice.AER_SIMULATOR).plot()
+
+        .. image:: ../docs/resources/output_plot_example_batch.png
         """
         from matplotlib import pyplot as plt
 

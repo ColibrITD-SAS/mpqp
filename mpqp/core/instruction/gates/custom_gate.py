@@ -160,6 +160,12 @@ class CustomGate(Gate):
                     operator=BraketUnitary(self.definition.matrix),
                     target=self.targets,
                 )
+        elif language == Language.CIRQ:
+            from cirq import Gate as cirqGate  # pyright: ignore[reportUnusedImport]
+            from mpqp.tools.cirq import cirqCustomGate
+
+            return cirqCustomGate(self.matrix, self.label)
+
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 
@@ -224,9 +230,7 @@ class CustomGate(Gate):
 
         return quantum_shannon_decomposition(self.matrix)
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> CustomGate:
+    def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
         res = copy(self)
-        res.definition = res.definition.subs(values, remove_symbolic)
+        res.definition = res.definition.subs(values)
         return res

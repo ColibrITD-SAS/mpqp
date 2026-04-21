@@ -102,8 +102,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         from mpqp.measures import pI
 
         if (
-            obs._pauli_string is None and targets_is_contiguous
-        ):  # pyright: ignore[reportPrivateUsage]
+            obs._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            and targets_is_contiguous
+        ):
             n_before = targets[0]
             n_after = nb_qubits - targets[-1] - 1
 
@@ -118,7 +119,11 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             if n_after > 0:
                 full_matrix = np.kron(full_matrix, Id_after)
 
-            tweaked_observables.append(Observable(full_matrix, label=obs.label))
+            tweaked_observables.append(
+                Observable(
+                    full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
+                )
+            )
             continue
 
         pauli = obs.pauli_string
@@ -168,7 +173,7 @@ def generate_job(
         The Job containing information about the execution of the circuit.
     """
     if values is not None:
-        circuit = circuit.subs(values, True)
+        circuit = circuit.subs(values)
 
     m_list = circuit.measurements
     nb_meas = len(m_list)

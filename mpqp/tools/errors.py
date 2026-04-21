@@ -41,6 +41,10 @@ class DeviceJobIncompatibleError(ValueError):
     for the selected device (for example SAMPLE job on a statevector simulator)."""
 
 
+class DeviceJobIncompatibleWarning(UserWarning):
+    """A warning is issued when a job is not compatible with the selected device."""
+
+
 class RemoteExecutionError(ConnectionError):
     """Raised when an error occurred during a remote connection, submission or
     execution."""

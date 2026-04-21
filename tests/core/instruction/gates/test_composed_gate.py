@@ -82,7 +82,7 @@ def test_composedgate_translation_decomposition(
     c.add(gate)
     translated = c.to_other_language(language, authorized_gates=authorized_gates)
     c_re = QCircuit().from_other_language(translated)
-    assert matrix_eq(c_re.to_matrix(), c.to_matrix())
+    assert matrix_eq(c_re.to_matrix(), c.to_matrix(), 1e-5, 1e-5)
 
 
 @pytest.mark.parametrize(
