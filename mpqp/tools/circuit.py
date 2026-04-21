@@ -399,7 +399,7 @@ def mpqp_to_qiskit(
         options = {"printing": printing} if isinstance(instruction, CustomGate) else {}
         instr = [instruction]
         if isinstance(instruction, ComposedGate):
-            if authorized_gates != set():
+            if len(authorized_gates) != 0:
                 if type(instruction) not in authorized_gates:
                     instr = instruction.decompose()
                     if any(type(gate) not in authorized_gates for gate in instr):
@@ -446,9 +446,6 @@ def mpqp_to_qiskit(
 
                         if TYPE_CHECKING:
                             assert not isinstance(inst, Operator)
-                        print(type(instruction))
-                        print(instruction.targets)
-                        print(qargs)
                         new_circ.append(
                             inst,
                             list(qargs),
@@ -571,11 +568,13 @@ def mpqp_to_braket(
             continue
         gates = [instruction]
         if isinstance(instruction, ComposedGate):
-            if authorized_gates != set():
+            if len(authorized_gates) != 0:
                 if type(instruction) not in authorized_gates:
                     gates = instruction.decompose()
                     if any(type(gate) not in authorized_gates for gate in gates):
-                        raise ValueError("")
+                        raise ValueError(
+                            f"Gate: {type(instruction)} and its decomposition {[type(g) for g in gates]} is not included in the gate set {authorized_gates}."
+                        )
                 else:
                     gates = [instruction]
             else:
@@ -606,7 +605,7 @@ def mpqp_to_cirq(
     circuit: QCircuit,
     skip_pre_measure: bool = False,
     skip_measurements: bool = False,
-    authorized_gates: set[type[Gate]] = set(),
+    authorized_gates: set[type[Gate]] | None = None,
 ) -> cirq_Circuit:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.identity import I
@@ -622,6 +621,8 @@ def mpqp_to_cirq(
         ComposedGate,
     )
 
+    if authorized_gates is None:
+        authorized_gates = set()
     cirq_qubits = [NamedQubit(f"q_{i}") for i in range(circuit.nb_qubits)]
     cirq_circuit = CirqCircuit()
 
@@ -657,7 +658,7 @@ def mpqp_to_cirq(
                             targets.append(cirq_qubits[target])
                         cirq_circuit.append(cirq_pre_measure.on(*targets))
         if isinstance(instruction, ComposedGate):
-            if authorized_gates != set():
+            if len(authorized_gates) != 0:
                 if type(instruction) not in authorized_gates:
                     gates = instruction.decompose()
                     if any(type(gate) not in authorized_gates for gate in gates):

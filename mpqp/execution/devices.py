@@ -23,9 +23,7 @@ For more information about handling Remote devices, please refer to the `Remote 
 """
 
 from abc import abstractmethod
-from copy import deepcopy
 from enum import Enum, auto
-from typing import Optional
 import warnings
 
 from mpqp.core.instruction.gates import Gate
@@ -119,7 +117,6 @@ class IBMDevice(AvailableDevice):
     IBM_BRISBANE = "ibm_brisbane"
     IBM_KYIV = "ibm_kyiv"
 
-    IBM_FEZ = "ibm_fez"
     IBM_RENSSELAER = "ibm_rensselaer"
     IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
@@ -128,16 +125,19 @@ class IBMDevice(AvailableDevice):
     IBM_NAZCA = "ibm_nazca"
     IBM_STRASBOURG = "ibm_strasbourg"
 
-    # RETIRED - IBM_OSAKA = "ibm_osaka"
-    # RETIRED - IBM_KYOTO = "ibm_kyoto"
-    # RETIRED - IBM_CUSCO = "ibm_cusco"
-    # RETIRED - IBM_ITHACA = "ibm_ithaca"
+    # NightHawk chips
+    IBM_BOSTON = "ibm_boston"
+    IBM_KINGSTON = "ibm_kingston"
+    IBM_PITTSBURGH = "ibm_pittsburgh"
+    IBM_FEZ = "ibm_fez"
+    IBM_MARRAKESH = "ibm_marrakesh"
+    IBM_AACHEN = "IBM_AACHEN"
+
+    # Heron chips
+    IBM_MIAMI = "ibm_miami"
+    IBM_BERLIN = "ibm_berlin"
+
     IBM_CLEVELAND = "ibm_cleveland"
-    # RETIRED - IBM_CAIRO = "ibm_cairo"
-    # RETIRED - IBM_HANOI = "ibm_hanoi"
-    # RETIRED - IBM_ALGIERS = "ibm_algiers"
-    # RETIRED - IBM_KOLKATA = "ibm_kolkata"
-    # RETIRED - IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
     IBM_LEAST_BUSY = "ibm_least_busy"
@@ -208,6 +208,10 @@ class IBMDevice(AvailableDevice):
                 )
             )
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
+        elif self in IBM_CHIPS_HERON:
+            return {CZ, Id, Rx, Rz, Rzz, X}
+        elif self in IBM_CHIPS_NIGHTHAWK:
+            return {CZ, Id, Rx, Rz, X}
         else:
             return set()
 
@@ -588,3 +592,14 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
+
+
+IBM_CHIPS_HERON = [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
+IBM_CHIPS_NIGHTHAWK = [
+    IBMDevice.IBM_BOSTON,
+    IBMDevice.IBM_KINGSTON,
+    IBMDevice.IBM_PITTSBURGH,
+    IBMDevice.IBM_FEZ,
+    IBMDevice.IBM_MARRAKESH,
+    IBMDevice.IBM_AACHEN,
+]
