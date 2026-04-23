@@ -675,9 +675,7 @@ def mpqp_to_cirq(
         for gate in gates:
             if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
                 continue
-            elif isinstance(gate, ControlledGate) and not isinstance(
-                instruction, CustomControlledGate
-            ):
+            elif isinstance(gate, ControlledGate):
                 targets = []
                 for target in gate.targets:
                     targets.append(cirq_qubits[target])
@@ -689,8 +687,6 @@ def mpqp_to_cirq(
             else:
                 if skip_measurements and isinstance(gate, Measure):
                     continue
-                if isinstance(instruction, CustomControlledGate):
-                    instruction = instruction.to_custom_gate()
                 targets = []
                 for target in gate.targets:
                     targets.append(cirq_qubits[target])

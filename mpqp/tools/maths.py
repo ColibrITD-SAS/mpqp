@@ -6,6 +6,7 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
+from re import X
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
@@ -389,6 +390,11 @@ def rand_product_local_unitaries(
         nb_qubits: Number of qubits on which the product of unitaries will act.
         seed: Seed used to initialize the random number generation.
 
+        seed: Used for the random number generation. If unspecified, a new
+            generator will be used. If a ``Generator`` is provided, it will be
+            used to generate any random number needed. Finally if an ``int`` is
+            provided, it will be used to initialize a new generator.
+
     Returns:
         A tensor product of random unitary matrices.
 
@@ -413,11 +419,16 @@ def rand_product_local_unitaries(
     )  # pyright: ignore[reportReturnType]
 
 
-def rand_unitary_matrix(size: int) -> Matrix:
+def rand_unitary_matrix(size: int, seed: Optional[int] = None) -> Matrix:
     """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
+
+        seed: Used for the random number generation. If unspecified, a new
+            generator will be used. If a ``Generator`` is provided, it will be
+            used to generate any random number needed. Finally if an ``int`` is
+            provided, it will be used to initialize a new generator.
 
     Returns:
         A random unitary matrix with complex coefficients.
@@ -429,8 +440,12 @@ def rand_unitary_matrix(size: int) -> Matrix:
         True
     """
     from scipy.stats import unitary_group
+    import numpy as np
 
-    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
+    return np.asarray(
+        unitary_group.rvs(size, random_state=np.random.default_rng(seed)),
+        dtype=np.complex128,
+    )
 
 
 def rand_hermitian_matrix(
