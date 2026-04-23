@@ -433,11 +433,11 @@ class Id(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "I"
     qiskit_string = "id"
+    matrix = np.eye(2, dtype=np.complex128)
 
     def __init__(self, target: int, label: Optional[str] = None):
         super().__init__(target)
         self.label = label
-        self.matrix = np.eye(2, dtype=np.complex128)
 
     def to_other_language(
         self,
@@ -499,10 +499,10 @@ class X(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "X"
     qiskit_string = "x"
+    matrix = np.array([[0, 1], [1, 0]], dtype=np.complex128)
 
     def __init__(self, target: int):
         super().__init__(target)
-        self.matrix = np.array([[0, 1], [1, 0]])
 
 
 class Y(OneQubitNoParamGate, InvolutionGate):
@@ -540,10 +540,10 @@ class Y(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "Y"
     qiskit_string = "y"
+    matrix = np.array([[0, -1j], [1j, 0]], dtype=np.complex128)
 
     def __init__(self, target: int):
         super().__init__(target)
-        self.matrix = np.array([[0, -1j], [1j, 0]])
 
 
 class Z(OneQubitNoParamGate, InvolutionGate):
@@ -581,10 +581,10 @@ class Z(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "Z"
     qiskit_string = "z"
+    matrix = np.array([[1, 0], [0, -1]], dtype=np.complex128)
 
     def __init__(self, target: int):
         super().__init__(target)
-        self.matrix = np.array([[1, 0], [0, -1]])
 
 
 class H(OneQubitNoParamGate, InvolutionGate):
@@ -620,10 +620,10 @@ class H(OneQubitNoParamGate, InvolutionGate):
 
     qlm_aqasm_keyword = "H"
     qiskit_string = "h"
+    matrix = np.array([[1, 1], [1, -1]], dtype=np.complex128) / np.sqrt(2)
 
     def __init__(self, target: int):
         super().__init__(target)
-        self.matrix = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
 
 class P(RotationGate, SingleQubitGate):
@@ -776,10 +776,10 @@ class S(OneQubitNoParamGate):
 
     qlm_aqasm_keyword = "S"
     qiskit_string = "s"
+    matrix = np.array([[1, 0], [0, 1j]], dtype=np.complex128)
 
     def __init__(self, target: int):
         super().__init__(target)
-        self.matrix = np.array([[1, 0], [0, 1j]])
 
     def inverse(self) -> Gate:
         return S_dagger(self.targets[0])
@@ -821,9 +821,10 @@ class S_dagger(OneQubitNoParamGate):
     qlm_aqasm_keyword = "DAG(S)"
     qiskit_string = "sdg"
 
+    matrix = np.array([[1, 0], [0, -1j]], dtype=np.complex128)
+
     def __init__(self, target: int):
         super().__init__(target, "S†")
-        self.matrix = np.array([[1, 0], [0, -1j]])
 
     def __repr__(self):
         return f"{type(self).__name__}({self.targets[0]})"
@@ -919,9 +920,13 @@ class SWAP(InvolutionGate, NoParameterGate):
     qlm_aqasm_keyword = "SWAP"
     qiskit_string = "swap"
 
+    matrix = np.array(
+        [[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]],
+        dtype=np.complex128,
+    )
+
     def __init__(self, a: int, b: int):
         super().__init__([a, b], "SWAP")
-        self.matrix = np.array([[1, 0, 0, 0], [0, 0, 1, 0], [0, 1, 0, 0], [0, 0, 0, 1]])
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.targets[0]}, {self.targets[1]})"
