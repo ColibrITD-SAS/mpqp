@@ -1,6 +1,8 @@
 # pyright: reportUnusedImport=false
 import importlib
 import os
+
+os.environ["MPLBACKEND"] = "Agg"
 import sys
 import warnings
 from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner, register_optionflag
@@ -9,6 +11,7 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Optional, Type
 
+import matplotlib
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
@@ -137,6 +140,12 @@ from mpqp.tools.maths import (
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
 from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
+
+matplotlib.use("Agg", force=True)
+from matplotlib import pyplot as plt
+
+plt.ioff()
+
 
 theta, k = symbols("θ k")
 obs = Observable(np.array([[0, 1], [1, 0]]))
@@ -272,6 +281,7 @@ def run_doctest(
             skip_provider_flags[name] = flag
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
+    monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
     warnings.filterwarnings(
@@ -303,19 +313,21 @@ def run_doctest(
                 for flag in PROVIDER_FLAGS.values():
                     if flag in flags and flag in skip_provider_flags.values():
                         example.options[SKIP] = True
-
-            if safe_needed:
-                with EnvRunner():
-                    if any(name in root + filename for name in files_needing_db):
-                        if (
-                            "--long-local" in sys.argv or "--long" in sys.argv
-                        ) and "all" in active_providers:
-                            with DBRunner(test.name):
-                                assert runner.run(test).failed == 0
-                    else:
-                        assert runner.run(test).failed == 0
-            else:
-                assert runner.run(test).failed == 0
+            try:
+                if safe_needed:
+                    with EnvRunner():
+                        if any(name in root + filename for name in files_needing_db):
+                            if (
+                                "--long-local" in sys.argv or "--long" in sys.argv
+                            ) and "all" in active_providers:
+                                with DBRunner(test.name):
+                                    assert runner.run(test).failed == 0
+                        else:
+                            assert runner.run(test).failed == 0
+                else:
+                    assert runner.run(test).failed == 0
+            finally:
+                plt.close("all")
 
 
 folder_path = "mpqp"

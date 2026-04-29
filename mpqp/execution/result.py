@@ -552,8 +552,7 @@ class Result:
         """
         from matplotlib import pyplot as plt
 
-        if show:
-            plt.figure()
+        plt.figure()
 
         x_array, y_array = self._to_display_lists()
         x_axis = range(len(x_array))
