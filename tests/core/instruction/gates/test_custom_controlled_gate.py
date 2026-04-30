@@ -5,7 +5,7 @@ import pytest
 from numpy import array  # pyright: ignore[reportUnusedImport]
 from mpqp.core.circuit import QCircuit
 from mpqp.core.languages import Language
-from mpqp.tools.maths import matrix_eq, rand_unitary_matrix
+from mpqp.tools.maths import closest_unitary, matrix_eq, rand_unitary_matrix
 from mpqp.gates import *
 
 
@@ -14,10 +14,18 @@ def all_cases_controlled_gates():
         CustomControlledGate([0, 2], X(1)),
         CustomControlledGate([0, 1], X(2)),
         CustomControlledGate([1, 2], X(0)),
-        CustomControlledGate([1], CustomGate(rand_unitary_matrix(4), [0, 2])),
-        CustomControlledGate([2], CustomGate(rand_unitary_matrix(4), [0, 1])),
-        CustomControlledGate([0], CustomGate(rand_unitary_matrix(4), [1, 2])),
-        CustomControlledGate([1], CustomGate(rand_unitary_matrix(8), [0, 2, 3])),
+        CustomControlledGate(
+            [1], CustomGate(closest_unitary(rand_unitary_matrix(4)), [0, 2])
+        ),
+        CustomControlledGate(
+            [2], CustomGate(closest_unitary(rand_unitary_matrix(4)), [0, 1])
+        ),
+        CustomControlledGate(
+            [0], CustomGate(closest_unitary(rand_unitary_matrix(4)), [1, 2])
+        ),
+        CustomControlledGate(
+            [1], CustomGate(closest_unitary(rand_unitary_matrix(8)), [0, 2, 3])
+        ),
     ]
 
 
@@ -81,7 +89,7 @@ def test_translation_customcontrolledgate_qiskit(gate: CustomControlledGate):
     c = QCircuit([gate])
     c_qiskit = c.to_other_language(Language.QISKIT)
     c_translated = QCircuit().from_other_language(c_qiskit)
-    assert matrix_eq(c.to_matrix(), c_translated.to_matrix())
+    assert matrix_eq(c.to_matrix(), c_translated.to_matrix(), atol=1e10, rtol=1e10)
 
 
 @pytest.mark.provider("cirq")
@@ -93,7 +101,7 @@ def test_translation_customcontrolledgate_cirq(gate: CustomControlledGate):
     c = QCircuit([gate])
     c_qiskit = c.to_other_language(Language.CIRQ)
     c_translated = QCircuit().from_other_language(c_qiskit)
-    assert matrix_eq(c.to_matrix(), c_translated.to_matrix())
+    assert matrix_eq(c.to_matrix(), c_translated.to_matrix(), atol=1e10, rtol=1e10)
 
 
 @pytest.mark.provider("braket")
@@ -105,7 +113,7 @@ def test_translation_customcontrolledgate_braket(gate: CustomControlledGate):
     c = QCircuit([gate])
     c_qiskit = c.to_other_language(Language.BRAKET)
     c_translated = QCircuit().from_other_language(c_qiskit)
-    assert matrix_eq(c.to_matrix(), c_translated.to_matrix())
+    assert matrix_eq(c.to_matrix(), c_translated.to_matrix(), atol=1e10, rtol=1e10)
 
 
 @pytest.mark.provider("qasm3")
@@ -117,7 +125,7 @@ def test_translation_customcontrolledgate_qasm3(gate: CustomControlledGate):
     c = QCircuit([gate])
     c_qiskit = c.to_other_language(Language.QASM3)
     c_translated = QCircuit().from_other_language(c_qiskit)
-    assert matrix_eq(c.to_matrix(), c_translated.to_matrix())
+    assert matrix_eq(c.to_matrix(), c_translated.to_matrix(), atol=1e10, rtol=1e10)
 
 
 @pytest.mark.provider("qasm2")

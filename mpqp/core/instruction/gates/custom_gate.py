@@ -161,10 +161,9 @@ class CustomGate(Gate):
                     target=self.targets,
                 )
         elif language == Language.CIRQ:
-            from cirq import Gate as cirqGate  # pyright: ignore[reportUnusedImport]
-            from mpqp.tools.cirq import cirqCustomGate
+            from cirq import MatrixGate
 
-            return cirqCustomGate(self.matrix, self.label)
+            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
 
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
@@ -186,9 +185,7 @@ class CustomGate(Gate):
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(
-                qiskit_circ.data[0], nb_qubits, self.targets
-            )
+            circuit, gphase = replace_custom_gate(qiskit_circ, nb_qubits, self.targets)
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()
@@ -228,7 +225,7 @@ class CustomGate(Gate):
         """
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
-        return quantum_shannon_decomposition(self.matrix)
+        return quantum_shannon_decomposition(self.matrix, int(self.targets[0]))
 
     def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
         res = copy(self)

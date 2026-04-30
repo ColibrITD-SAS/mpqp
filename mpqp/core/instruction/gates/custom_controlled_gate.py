@@ -34,11 +34,13 @@ class CustomControlledGate(ControlledGate):
         >>> circuit = QCircuit(3)
         >>> circuit.add(CustomControlledGate([0,2], CustomGate(np.array([[1,0],[0,-1]]),[1])))
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
-        q_0: ─────■─────
-             ┌────┴────┐
-        q_1: ┤ Unitary ├
-             └────┬────┘
-        q_2: ─────■─────
+             ┌──────────┐
+        q_0: ┤2         ├
+             │          │
+        q_1: ┤1 Unitary ├
+             │          │
+        q_2: ┤0         ├
+             └──────────┘
 
     """
 
@@ -85,64 +87,34 @@ class CustomControlledGate(ControlledGate):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ) -> Any:
+        if isinstance(self.non_controlled_gate, CustomGate):
+            return self.to_custom_gate().to_other_language(language)
         if language == Language.QISKIT:
-            if isinstance(self.non_controlled_gate, CustomGate):
-                return self.to_custom_gate().to_other_language(language)
-            else:
-                from qiskit.quantum_info import Operator
 
-                gate = self.non_controlled_gate.to_other_language()
-                if isinstance(gate, Operator):
-                    gate = gate.to_instruction()
-                gate = gate.control(len(self.controls))
-                return gate
+            from qiskit.quantum_info import Operator
+
+            gate = self.non_controlled_gate.to_other_language()
+            if isinstance(gate, Operator):
+                gate = gate.to_instruction()
+            gate = gate.control(len(self.controls))
+            return gate
         elif language == Language.CIRQ:
+
             from cirq import ControlledGate as cirqControlledGate
 
             return cirqControlledGate(
-                self.non_controlled_gate.to_other_language(Language.CIRQ)
+                sub_gate=self.non_controlled_gate.to_other_language(Language.CIRQ),
+                num_controls=len(self.controls),
             )
         elif language == Language.BRAKET:
-            if isinstance(self.non_controlled_gate, CustomGate):
-                from sympy import Expr
+            from braket.circuits import Instruction as BraketInstruction
 
-                gate_symbols = set().union(
-                    *(
-                        elt.free_symbols
-                        for elt in self.to_matrix().flatten()
-                        if isinstance(elt, Expr)
-                    )
-                )
-
-                if len(gate_symbols) > 0:
-                    raise ValueError(
-                        "Custom gates defined with symbolic variables cannot be "
-                        "exported to Braket for now (only numerical matrices are supported)."
-                    )
-                else:
-                    from braket.circuits import Instruction as BraketInstruction
-                    from braket.circuits.gates import Unitary as BraketUnitary
-
-                    return BraketInstruction(
-                        operator=BraketUnitary(self.to_matrix()),
-                        target=self.targets + self.controls,
-                        control=self.controls,
-                    )
-            else:
-                from braket.circuits import Instruction as BraketInstruction
-
-                return BraketInstruction(
-                    operator=self.non_controlled_gate.to_other_language(language),
-                    target=self.targets,
-                    control=self.controls,
-                )
+            return BraketInstruction(
+                operator=self.non_controlled_gate.to_other_language(language).operator,
+                target=self.targets,
+                control=self.controls,
+            )
         elif language == Language.QASM2:
-            if isinstance(self.non_controlled_gate, CustomGate):
-                targets = self.targets + self.controls
-                targets.sort()
-                gate = CustomGate(self.to_matrix(), targets)
-
-                return gate.to_other_language(Language.QASM2)
 
             from qiskit import QuantumCircuit, qasm2
 

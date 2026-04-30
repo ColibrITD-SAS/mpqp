@@ -228,9 +228,9 @@ def braket_custom_gates_to_mpqp(qasm3_code: str) -> CustomGate:
     import numpy as np
 
     if "braket unitary" in qasm3_code:
-        matrix = np.array(
-            ast.literal_eval(qasm3_code[qasm3_code.find('[') : qasm3_code.rfind(')')])
-        )
+        matrix_str = qasm3_code[qasm3_code.find('[') : qasm3_code.rfind(')')]
+        matrix_str = matrix_str.replace("im", "j")
+        matrix = np.array(ast.literal_eval(matrix_str))
         indices = [int(i) for i in re.findall(r"q\[(\d+)\]", qasm3_code)]
 
         return CustomGate(matrix, indices)

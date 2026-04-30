@@ -216,11 +216,10 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
                     break
                 j += 1
         i += 1
-
     return circuit
 
 
-def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
+def quantum_shannon_decomposition(U: Matrix, start_position: int = 0) -> QCircuit:
     """
     Returns a circuit containing the decomposition of a unitary.
     The resulting circuit is composed of gates CNOT, Ry and Rz.
@@ -251,6 +250,6 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
         raise ValueError(
             f"The size of the unitary matrix should be of the form 2**n : got {len(U)}"
         )
-    circuit = QCircuit(int(np.log2(len(U))))
-    circuit = _decompose(U, circuit, 0)
+    circuit = QCircuit()
+    circuit = _decompose(U, circuit, start_position)
     return _optimize_circuit(circuit)

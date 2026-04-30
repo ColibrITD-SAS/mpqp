@@ -36,3 +36,8 @@ if "cirq" in sys.modules:  # if cirq is imported instanciate the following class
             if self.label:
                 return [self.label] * self._nb_qubits
             return ["CustomGate"] * self._nb_qubits
+
+        def __str__(self) -> str:
+            if self.label:
+                return f"{self.label}"
+            return f"MPQP custom gate"

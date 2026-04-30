@@ -176,12 +176,14 @@ def test_qasm2_to_mpqp(qasm_code: str, gate_names: list[str]):
 @pytest.mark.parametrize(
     "qasm_code",
     [
-        ("""OPENQASM 2.0;
+        (
+            """OPENQASM 2.0;
             include "qelib1.inc";
 
             qreg q[1];
             h q[0]
-            cx q[0], """),
+            cx q[0], """
+        ),
     ],
 )
 def test_invalid_qasm_code(qasm_code: str):
@@ -197,5 +199,4 @@ def test_random_qasm_code():
         qasm_code = qcircuit.to_other_language(Language.QASM2)
         if TYPE_CHECKING:
             assert isinstance(qasm_code, str)
-        print(qcircuit)
         assert qcircuit.is_equivalent(qasm2_parse(qasm_code))

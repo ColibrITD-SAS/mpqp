@@ -960,7 +960,7 @@ class QCircuit:
         qiskit_circuit.append(
             StatePreparation(Statevector(normalize(state))), range(size)
         )
-        circ, phase = replace_custom_gate(qiskit_circuit[0], size, list(range(size)))
+        circ, phase = replace_custom_gate(qiskit_circuit, size, list(range(size)))
         cls = QCircuit.from_other_language(circ.reverse_bits())
         cls.input_g_phase = phase
         return cls
@@ -1731,11 +1731,19 @@ class QCircuit:
 
                 from mpqp.qasm import open_qasm_3_to_2
                 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+                from qiskit.transpiler.passes.synthesis import UnitarySynthesis
 
-                qasm3_code = qasm3.dumps(qcircuit)
+                # translation step for custom gates so that we keep the g_phase
+                # UnitarySynthesis only translates unitaries so it doesn't affect the rest
+                unitary_translator = UnitarySynthesis(basis_gates=['u3', 'cx'])
+                translated_dag = unitary_translator.run(qcircuit.to_dag())
+                cq: QuantumCircuit = translated_dag.to_circuit()
+
+                qasm3_code = qasm3.dumps(cq)
                 qasm2_code = open_qasm_3_to_2(str(qasm3_code), language=Language.QISKIT)
 
                 qc = qasm2_parse(qasm2_code)
+                qc.input_g_phase = cq.global_phase
                 return qc
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -1743,13 +1751,27 @@ class QCircuit:
 
             if isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
                 from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates, qasm2_parse
+                from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
+                from cirq import GlobalPhaseGate
+                import numpy as np
 
                 if isinstance(qcircuit, Moment):
                     qcircuit = cirq_Circuit([qcircuit])
+                g_phase = 0
+                for op in qcircuit.all_operations():
+                    if isinstance(op.gate, GlobalPhaseGate):
+
+                        g_phase += np.round(
+                            np.log(
+                                op.gate.coefficient  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+                            )
+                            / 1j,
+                            10,
+                        )
 
                 qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
                 qc = qasm2_parse(qasm2_code)
-                qc.input_g_phase = gphase
+                qc.input_g_phase = gphase + g_phase
 
                 return qc
 
@@ -1769,7 +1791,6 @@ class QCircuit:
                     if instr.operator.name == "Measure":
                         remove_measure = False
                         break
-
                 qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
 
                 if TYPE_CHECKING:

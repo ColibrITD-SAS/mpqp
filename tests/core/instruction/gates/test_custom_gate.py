@@ -25,10 +25,10 @@ def test_random_orthogonal_matrix_qiskit(circ_size: int):
     exec_random_orthogonal_matrix(circ_size, IBMDevice.AER_SIMULATOR)
 
 
-"""@pytest.mark.provider("braket")
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize("circ_size", range(1, 6))
 def test_random_orthogonal_matrix_braket(circ_size: int):
-    exec_random_orthogonal_matrix(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)"""
+    exec_random_orthogonal_matrix(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
 
 @pytest.mark.provider("cirq")
@@ -61,7 +61,6 @@ def exec_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     result = run(c, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    assert isinstance(result, Result)
     assert matrix_eq(result.amplitudes, exp_state_vector, 1e-5, 1e-5)
 
 
@@ -118,10 +117,10 @@ def test_custom_gate_with_random_circuit_qiskit(circ_size: int):
     exec_custom_gate_with_random_circuit(circ_size, IBMDevice.AER_SIMULATOR)
 
 
-"""@pytest.mark.provider("braket")
+@pytest.mark.provider("braket")
 @pytest.mark.parametrize("circ_size", range(1, 6))
 def test_custom_gate_with_random_circuit_braket(circ_size: int):
-    exec_custom_gate_with_random_circuit(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)"""
+    exec_custom_gate_with_random_circuit(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
 
 @pytest.mark.provider("cirq")
@@ -144,8 +143,6 @@ def exec_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     result1 = run(random_circ, device)
     result2 = run(custom_gate_circ, device)
 
-    assert isinstance(result1, Result)
-    assert isinstance(result2, Result)
     # precision reduced from approximation errors (CustomGate usage)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 

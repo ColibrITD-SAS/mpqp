@@ -7,6 +7,8 @@ import numpy.typing as npt
 from numpy.random import Generator
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
+from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
@@ -48,7 +50,7 @@ def random_circuit(
     nb_gates: Optional[int] = None,
     use_all_qubits: bool = False,
     seed: Optional[int] = None,
-):
+) -> QCircuit:
     """This function creates a QCircuit with a specified number of qubits and gates.
     The gates are chosen randomly from the provided list of native gate classes.
 
@@ -310,7 +312,9 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
 
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int, targets: list[int]
+    custom_unitary: "CircuitInstruction | QuantumCircuit",
+    nb_qubits: int,
+    targets: list[int],
 ) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
@@ -335,8 +339,13 @@ def replace_custom_gate(
     from qiskit.exceptions import QiskitError
     from qiskit.circuit.library import UnitaryGate
 
-    transpilation_circuit = QuantumCircuit(nb_qubits)
-    transpilation_circuit.append(custom_unitary)
+    if not isinstance(custom_unitary, QuantumCircuit):
+        transpilation_circuit = QuantumCircuit(nb_qubits)
+        transpilation_circuit.append(custom_unitary)
+        matrix = custom_unitary.matrix
+    else:
+        transpilation_circuit = custom_unitary
+        matrix = custom_unitary.data[0].matrix
     try:
         transpiled = transpile(
             transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
@@ -345,7 +354,7 @@ def replace_custom_gate(
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
         # matrix by the closest unitary
         if "TwoQubitWeylDecomposition" in str(e):
-            custom_closest_unitary = UnitaryGate(closest_unitary(custom_unitary.matrix))
+            custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
             transpilation_circuit = QuantumCircuit(nb_qubits)
             transpilation_circuit.unitary(
                 custom_closest_unitary, list(reversed(targets))
@@ -360,12 +369,34 @@ def replace_custom_gate(
     return transpiled, transpiled.global_phase
 
 
+def verify_convert_instructions(
+    gate: Gate, authorized_gates: set[type[Gate]]
+) -> list[Gate]:
+    if len(authorized_gates) != 0:
+        if type(gate) not in authorized_gates:
+            if isinstance(gate, ComposedGate):
+                instr = gate.decompose()
+                if any(type(gate) not in authorized_gates for gate in instr):
+                    raise ValueError(
+                        f"The gate {type(gate)} and it's decomposition f{[type(g) for g in instr]} are not in the set: f{authorized_gates}"
+                    )
+                return instr
+            raise ValueError(
+                f"The gate {type(gate)} are not in the set of authorized gates: f{authorized_gates}"
+            )
+    if isinstance(gate, CustomControlledGate) and isinstance(
+        gate.non_controlled_gate, CustomGate
+    ):
+        return [gate.to_custom_gate()]
+    return [gate]
+
+
 def mpqp_to_qiskit(
     circuit: QCircuit,
     skip_pre_measure: bool = False,
     skip_measurements: bool = False,
     printing: bool = False,
-    authorized_gates: set[type[Gate]] = set(),
+    authorized_gates: set[type[Gate]] | None = None,
 ) -> QuantumCircuit:
     from qiskit.circuit import Operation, QuantumCircuit
     from qiskit.circuit.quantumcircuit import CircuitInstruction
@@ -384,6 +415,8 @@ def mpqp_to_qiskit(
     # to avoid defining twice the same parameter, we keep trace of the
     # added parameters, and we use those instead of new ones when they
     # are used more than once
+    if authorized_gates is None:
+        authorized_gates = set()
     qiskit_parameters = set()
     if circuit.nb_cbits == 0:
         new_circ = QuantumCircuit(circuit.nb_qubits)
@@ -397,100 +430,57 @@ def mpqp_to_qiskit(
         if isinstance(instruction, (Measure, Breakpoint)):
             continue
         options = {"printing": printing} if isinstance(instruction, CustomGate) else {}
-        instr = [instruction]
-        if isinstance(instruction, ComposedGate):
-            if len(authorized_gates) != 0:
-                if type(instruction) not in authorized_gates:
-                    instr = instruction.decompose()
-                    if any(type(gate) not in authorized_gates for gate in instr):
-                        raise ValueError(
-                            f"The gate {type(instruction)} and it's decomposition f{[type(g) for g in instr]} are not in the set: f{authorized_gates}"
-                        )
-                else:
-                    instr = [instruction]
-            else:
-                instr = instruction.decompose()
+        if isinstance(instruction, Gate):
+            instr = verify_convert_instructions(instruction, authorized_gates)
+        else:
+            instr = [instruction]
         for instruction in instr:
             qiskit_inst = instruction.to_other_language(
                 Language.QISKIT, qiskit_parameters, **options
             )
-            if isinstance(qiskit_inst, list):
-                for inst in qiskit_inst:
-                    if TYPE_CHECKING:
-                        assert isinstance(
-                            inst, (CircuitInstruction, Operation, Operator)
-                        )
-                    cargs = []
-                    if isinstance(instruction, CustomGate):
-                        if TYPE_CHECKING:
-                            assert isinstance(inst, Operator)
-                        if printing and len(instruction.free_symbols) > 0:
-                            new_circ.append(inst, list(reversed(instruction.targets)))
-                        else:
-                            new_circ.unitary(
-                                inst,
-                                list(reversed(instruction.targets)),
-                                instruction.label,
-                            )
-                    else:
-                        if isinstance(instruction, ControlledGate):
-                            qargs = list(reversed(instruction.controls)) + list(
-                                reversed(instruction.targets)
-                            )
-                        elif isinstance(instruction, Gate):
-                            qargs = list(reversed(instruction.targets))
-                        elif isinstance(instruction, Barrier):
-                            qargs = range(circuit.nb_qubits)
-                        else:
-                            raise ValueError(f"Instruction not handled: {instruction}")
+            if isinstance(instruction, CustomControlledGate) and isinstance(
+                instruction.non_controlled_gate, CustomGate
+            ):
+                instruction = instruction.to_custom_gate()
+            if TYPE_CHECKING:
+                assert isinstance(
+                    qiskit_inst, (CircuitInstruction, Operation, Operator)
+                )
+            cargs = []
 
-                        if TYPE_CHECKING:
-                            assert not isinstance(inst, Operator)
-                        new_circ.append(
-                            inst,
-                            list(qargs),
-                            cargs,
-                        )
-            else:
+            if isinstance(instruction, CustomGate) and not isinstance(
+                instruction, CustomControlledGate
+            ):
                 if TYPE_CHECKING:
-                    assert isinstance(
-                        qiskit_inst, (CircuitInstruction, Operation, Operator)
-                    )
-                cargs = []
-
-                if isinstance(instruction, CustomGate):
-                    if TYPE_CHECKING:
-                        assert isinstance(qiskit_inst, Operator)
-                    if printing and len(instruction.free_symbols) > 0:
-                        new_circ.append(
-                            qiskit_inst, list(reversed(instruction.targets))
-                        )
-                    else:
-                        new_circ.unitary(
-                            qiskit_inst,
-                            list(reversed(instruction.targets)),
-                            instruction.label,
-                        )
+                    assert isinstance(qiskit_inst, Operator)
+                if printing and len(instruction.free_symbols) > 0:
+                    new_circ.append(qiskit_inst, list(reversed(instruction.targets)))
                 else:
-                    qargs = []
-                    if isinstance(instruction, ControlledGate):
-                        qargs = list(reversed(instruction.controls)) + list(
-                            reversed(instruction.targets)
-                        )
-                    elif isinstance(instruction, Gate):
-                        qargs = list(reversed(instruction.targets))
-                    elif isinstance(instruction, Barrier):
-                        qargs = range(circuit.nb_qubits)
-                    else:
-                        raise ValueError(f"Instruction not handled: {instruction}")
-
-                    if TYPE_CHECKING:
-                        assert not isinstance(qiskit_inst, Operator)
-                    new_circ.append(
+                    new_circ.unitary(
                         qiskit_inst,
-                        list(qargs),
-                        cargs,
+                        list(reversed(instruction.targets)),
+                        instruction.label,
                     )
+            else:
+                qargs = []
+                if isinstance(instruction, ControlledGate):
+                    qargs = list(reversed(instruction.controls)) + list(
+                        reversed(instruction.targets)
+                    )
+                elif isinstance(instruction, Gate):
+                    qargs = list(reversed(instruction.targets))
+                elif isinstance(instruction, Barrier):
+                    qargs = range(circuit.nb_qubits)
+                else:
+                    raise ValueError(f"Instruction not handled: {instruction}")
+
+                if TYPE_CHECKING:
+                    assert not isinstance(qiskit_inst, Operator)
+                new_circ.append(
+                    qiskit_inst,
+                    list(qargs),
+                    cargs,
+                )
     for measurement in circuit.measurements:
         if not skip_pre_measure:
 
@@ -535,7 +525,7 @@ def mpqp_to_braket(
     circuit: QCircuit,
     skip_pre_measure: bool = False,
     skip_measurements: bool = False,
-    authorized_gates: set[type[Gate]] = set(),
+    authorized_gates: set[type[Gate]] | None = None,
 ) -> braket_Circuit:
     from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
     from mpqp.core.instruction import (
@@ -544,9 +534,10 @@ def mpqp_to_braket(
         Barrier,
         ControlledGate,
         BasisMeasure,
-        ComposedGate,
     )
 
+    if authorized_gates is None:
+        authorized_gates = set()
     if len(circuit.noises) != 0:
         if any(isinstance(instr, CRk) for instr in circuit.instructions):
             raise NotImplementedError(
@@ -556,6 +547,30 @@ def mpqp_to_braket(
     from braket.circuits import Circuit as BracketCircuit
 
     braket_circuit = BracketCircuit()
+
+    # If the number of qubits are defined by the user, we ensure that every qubits are used.
+    # Otherwise the circuit can remain non continuous.
+    if circuit._user_nb_qubits is not None:  # pyright: ignore[reportPrivateUsage]
+        used_qubits = set().union(
+            *(
+                inst.connections()
+                for inst in circuit.instructions
+                if isinstance(inst, Gate)
+            )
+        )
+        if len(used_qubits) != circuit.nb_qubits:
+            from mpqp.gates import Id
+            from copy import deepcopy
+
+            circuit = QCircuit(
+                [
+                    Id(qubit)
+                    for qubit in range(circuit.nb_qubits)
+                    if qubit not in used_qubits
+                ],
+                nb_qubits=circuit.nb_qubits,
+            ) + deepcopy(circuit)
+
     for instruction in circuit.instructions:
         targets = [target for target in instruction.targets]
         if isinstance(instruction, (Barrier, Breakpoint)):
@@ -569,26 +584,22 @@ def mpqp_to_braket(
                 if isinstance(instruction, BasisMeasure) and instruction.shots != 0:
                     braket_circuit.measure(targets)
             continue
-        gates = [instruction]
-        if isinstance(instruction, ComposedGate):
-            if len(authorized_gates) != 0:
-                if type(instruction) not in authorized_gates:
-                    gates = instruction.decompose()
-                    if any(type(gate) not in authorized_gates for gate in gates):
-                        raise ValueError(
-                            f"Gate: {type(instruction)} and its decomposition {[type(g) for g in gates]} is not included in the gate set {authorized_gates}."
-                        )
-                else:
-                    gates = [instruction]
-            else:
-                gates = instruction.decompose()
+        if isinstance(instruction, Gate):
+            instr = verify_convert_instructions(instruction, authorized_gates)
         else:
-            gates = [instruction]
-        for instruction in gates:
+            instr = [instruction]
+
+        for instruction in instr:
             braket_instr = instruction.to_other_language(Language.BRAKET)
             try:
                 targets = [target for target in instruction.targets]
-                if isinstance(instruction, ControlledGate):
+                if isinstance(instruction, CustomControlledGate):
+                    if isinstance(instruction.non_controlled_gate, CustomGate):
+                        targets = [
+                            control for control in instruction.controls
+                        ] + targets
+                        targets.sort()
+                elif isinstance(instruction, ControlledGate):
                     targets = [control for control in instruction.controls] + targets
                 braket_circuit.add_instruction(braket_instr, target=targets)
             except Exception as e:
@@ -621,7 +632,6 @@ def mpqp_to_cirq(
         ControlledGate,
         CustomControlledGate,
         ExpectationMeasure,
-        ComposedGate,
     )
 
     if authorized_gates is None:
@@ -637,6 +647,9 @@ def mpqp_to_cirq(
             if isinstance(instruction, Measure):
                 for pre_measure in instruction.pre_measure:
                     if isinstance(pre_measure, (CustomGate, CustomControlledGate)):
+                        instr = verify_convert_instructions(
+                            pre_measure, authorized_gates
+                        )
                         qasm2_code, gphase = pre_measure.to_other_language(
                             Language.QASM2
                         )  # pyright: ignore[reportGeneralTypeIssues]
@@ -660,19 +673,23 @@ def mpqp_to_cirq(
                         for target in pre_measure.targets:
                             targets.append(cirq_qubits[target])
                         cirq_circuit.append(cirq_pre_measure.on(*targets))
-        if isinstance(instruction, ComposedGate):
-            if len(authorized_gates) != 0:
-                if type(instruction) not in authorized_gates:
-                    gates = instruction.decompose()
-                    if any(type(gate) not in authorized_gates for gate in gates):
-                        raise ValueError("")
-                else:
-                    gates = [instruction]
-            else:
-                gates = instruction.decompose()
+
+        if isinstance(instruction, Gate):
+            instr = verify_convert_instructions(instruction, authorized_gates)
         else:
-            gates = [instruction]
-        for gate in gates:
+            instr = [instruction]
+
+        if isinstance(instr[0], CustomGate):
+            from cirq import GlobalPhaseGate
+
+            tmp_circuit = instr[0].decompose()
+            instr = tmp_circuit.instructions
+
+            cirq_circuit.insert(
+                0, GlobalPhaseGate(np.exp(1j * tmp_circuit.input_g_phase)).on()
+            )
+
+        for gate in instr:
             if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
                 continue
             elif isinstance(gate, ControlledGate):
@@ -702,5 +719,10 @@ def mpqp_to_cirq(
             cirq_circuit,
             circuit.noises,
         )
+
+    if circuit.input_g_phase != 0:
+        from cirq import GlobalPhaseGate
+
+        cirq_circuit.insert(0, GlobalPhaseGate(np.exp(1j * circuit.input_g_phase)).on())
 
     return cirq_circuit
