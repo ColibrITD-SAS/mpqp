@@ -187,11 +187,14 @@ def run_braket_observable(job: Job):
 
         if job.measure.pre_transpiled is None:
             grouping = job.measure.get_pauli_grouping()
+            pre_measure = [
+                QCircuit(find_qubitwise_rotations(group)) for group in grouping
+            ]
+            for circuit in pre_measure:
+                for instr in circuit.instructions:
+                    instr.targets[0] = job.measure.targets[instr.targets[0]]
             transpiled_pre_measures = [
-                QCircuit(find_qubitwise_rotations(group)).to_other_language(
-                    Language.BRAKET
-                )
-                for group in grouping
+                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
             ]
             eigenvalues = [
                 {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
@@ -211,7 +214,11 @@ def run_braket_observable(job: Job):
 
                 cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
-                local_result = device.run(cirq, shots=0, inputs=None).result()
+                local_result = device.run(
+                    cirq,
+                    shots=0,
+                    inputs=None,  # disable_qubit_rewiring=True
+                ).result()
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 values = local_result.values[0]
@@ -223,10 +230,12 @@ def run_braket_observable(job: Job):
                     transpiled_circuit + pre_measure,
                     shots=job.measure.shots,
                     inputs=None,
+                    # disable_qubit_rewiring=True,
                 )
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
-                length = 2**job.circuit.nb_qubits
+                a = len(list(result.measurement_probabilities.keys())[0])
+                length = 2**a
                 sorted_values: list[float] = []
                 for i in range(length):
                     binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
@@ -278,8 +287,12 @@ def run_braket_observable(job: Job):
                     observable=braket_obs, target=job.measure.targets
                 )
                 job.status = JobStatus.RUNNING
+                # TODO: handle disable_qubit_rewiring, linked to verbatim box but crashes when not in use.
                 local_result = device.run(
-                    copy, shots=job.measure.shots, inputs=None
+                    copy,
+                    shots=job.measure.shots,
+                    inputs=None,
+                    # disable_qubit_rewiring=True,
                 ).result()
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 results.update({f"observable_{i}": local_result.values[0].real})
@@ -314,6 +327,7 @@ def run_braket_observable(job: Job):
                 program_set,
                 shots=program_set.total_executables * job.measure.shots,
                 inputs=None,
+                # disable_qubit_rewiring=True,
             ).result()
             assert isinstance(local_result, ProgramSetQuantumTaskResult)
             for res in local_result:
@@ -402,7 +416,11 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        task = device.run(braket_circuit, shots=0, inputs=None)
+        task = device.run(
+            braket_circuit,
+            shots=0,
+            inputs=None,  # disable_qubit_rewiring=True
+        )
 
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
@@ -410,7 +428,12 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         job.status = JobStatus.RUNNING
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+        task = device.run(
+            braket_circuit,
+            shots=job.measure.shots,
+            inputs=None,
+            # disable_qubit_rewiring=True,
+        )
 
     elif job.job_type == JobType.OBSERVABLE:
         # TODO : [multi-obs] update this to take into account the case when we have list of Observables
@@ -428,7 +451,13 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
-        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
+
+        task = device.run(
+            braket_circuit,
+            shots=job.measure.shots,
+            inputs=None,
+            # disable_qubit_rewiring=True,
+        )
 
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")

@@ -55,6 +55,8 @@ from .gates import (
     Rx,
     Ry,
     Rz,
+    Rzz,
+    PRX,
     S,
     S_dagger,
     T,

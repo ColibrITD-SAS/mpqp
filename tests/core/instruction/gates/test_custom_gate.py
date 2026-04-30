@@ -64,7 +64,6 @@ def exec_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     result = run(c, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    assert isinstance(result, Result)
     assert matrix_eq(result.amplitudes, exp_state_vector, 1e-5, 1e-5)
 
 
@@ -147,8 +146,6 @@ def exec_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     result1 = run(random_circ, device)
     result2 = run(custom_gate_circ, device)
 
-    assert isinstance(result1, Result)
-    assert isinstance(result2, Result)
     # precision reduced from approximation errors (CustomGate usage)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 

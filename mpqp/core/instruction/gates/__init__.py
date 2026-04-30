@@ -20,6 +20,8 @@ from .native_gates import (
     Rx,
     Ry,
     Rz,
+    Rzz,
+    PRX,
     S,
     S_dagger,
     T,
@@ -27,5 +29,6 @@ from .native_gates import (
     X,
     Y,
     Z,
+    ComposedGate,
 )
 from .parametrized_gate import ParametrizedGate

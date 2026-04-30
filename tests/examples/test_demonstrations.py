@@ -36,9 +36,7 @@ def test_sample_demo_qiskit():
         [
             IBMDevice.AER_SIMULATOR,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
-            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
-            # IBMDevice.AER_SIMULATOR_STABILIZER,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
         ],
     )

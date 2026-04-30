@@ -25,9 +25,12 @@ For more information about handling Remote devices, please refer to the `Remote 
 from __future__ import annotations
 from abc import abstractmethod
 from enum import Enum, auto
+import warnings
 
 from mpqp.core.instruction.gates import Gate
 from mpqp.environment.env_manager import get_env_variable
+
+from mpqp.core.instruction.gates.native_gates import *
 
 
 class AvailableDevice(Enum):
@@ -90,7 +93,7 @@ class AvailableDevice(Enum):
     def supports_observable_ideal(self) -> bool:
         pass
 
-    def incompatible_gate(self) -> set[type[Gate]]:
+    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
         return set()
 
 
@@ -115,7 +118,6 @@ class IBMDevice(AvailableDevice):
     IBM_BRISBANE = "ibm_brisbane"
     IBM_KYIV = "ibm_kyiv"
 
-    IBM_FEZ = "ibm_fez"
     IBM_RENSSELAER = "ibm_rensselaer"
     IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
@@ -124,16 +126,19 @@ class IBMDevice(AvailableDevice):
     IBM_NAZCA = "ibm_nazca"
     IBM_STRASBOURG = "ibm_strasbourg"
 
-    # RETIRED - IBM_OSAKA = "ibm_osaka"
-    # RETIRED - IBM_KYOTO = "ibm_kyoto"
-    # RETIRED - IBM_CUSCO = "ibm_cusco"
-    # RETIRED - IBM_ITHACA = "ibm_ithaca"
+    # NightHawk chips
+    IBM_BOSTON = "ibm_boston"
+    IBM_KINGSTON = "ibm_kingston"
+    IBM_PITTSBURGH = "ibm_pittsburgh"
+    IBM_FEZ = "ibm_fez"
+    IBM_MARRAKESH = "ibm_marrakesh"
+    IBM_AACHEN = "IBM_AACHEN"
+
+    # Heron chips
+    IBM_MIAMI = "ibm_miami"
+    IBM_BERLIN = "ibm_berlin"
+
     IBM_CLEVELAND = "ibm_cleveland"
-    # RETIRED - IBM_CAIRO = "ibm_cairo"
-    # RETIRED - IBM_HANOI = "ibm_hanoi"
-    # RETIRED - IBM_ALGIERS = "ibm_algiers"
-    # RETIRED - IBM_KOLKATA = "ibm_kolkata"
-    # RETIRED - IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
     IBM_LEAST_BUSY = "ibm_least_busy"
@@ -188,13 +193,26 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 
-    def incompatible_gate(self) -> set[type[Gate]]:
-        from mpqp.core.instruction.gates import TOF, CRk, P, Rk, Rx, Ry, Rz, T, U
+    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
 
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
-            return {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}
+            warnings.warn(
+                UserWarning(
+                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                )
+            )
+            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
-            return {Rx, Rz}
+            warnings.warn(
+                UserWarning(
+                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                )
+            )
+            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
+        elif self in IBM_CHIPS_HERON:
+            return {CZ, Id, Rx, Rz, Rzz, X}
+        elif self in IBM_CHIPS_NIGHTHAWK:
+            return {CZ, Id, Rx, Rz, X}
         else:
             return set()
 
@@ -361,6 +379,69 @@ class AWSDevice(AvailableDevice):
         else:
             return get_env_variable("AWS_DEFAULT_REGION")
 
+    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
+        """List of compatible gates with the devices that can be found in MPQP.
+        Lists pulled from here: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html#braket-qpu-partner-iqm
+        """
+        if self == AWSDevice.IQM_GARNET or self == AWSDevice.IQM_EMERALD:
+            if verbatim:  # authorized: cz, prx
+                return set([CZ, PRX])
+            else:
+                """authorized gates from doc:
+                "ccnot", "cnot",
+                "cphaseshift", "cphaseshift00", "cphaseshift01", "cphaseshift10", "phaseshift"
+                "cswap", "swap", "iswap", "pswap",
+                "ecr", "cy", "cz", "xy", "xx", "yy", "zz", "h", "i", "rx", "ry", "rz", "s", "si", "t", "ti", "v", "vi", "x", "y", "z"
+                """
+                return set(
+                    [
+                        TOF,
+                        CNOT,
+                        SWAP,
+                        CZ,
+                        H,
+                        Id,
+                        Rx,
+                        Ry,
+                        Rz,
+                        S,
+                        T,
+                        X,
+                        Y,
+                        Z,
+                    ]
+                )
+
+        elif self == AWSDevice.RIGETTI_ANKAA_3:
+            if verbatim:  # 'rx', 'rz', 'iswap'
+                return {Rz, Rx}
+                # TODO: add (ISWAP) to the set
+            else:
+                """
+                'cz', 'xy', 'ccnot', 'cnot',
+                'cphaseshift', 'cphaseshift00', 'cphaseshift01', 'cphaseshift10',
+                'cswap', 'h', 'i', 'iswap', 'phaseshift', 'pswap',
+                'rx', 'ry', 'rz', 's', 'si', 'swap', 't', 'ti', 'x', 'y', 'z'
+                """
+                authorized = [
+                    TOF,
+                    CNOT,
+                    CZ,
+                    H,
+                    Id,
+                    Rx,
+                    Ry,
+                    Rz,
+                    S,
+                    T,
+                    X,
+                    Y,
+                    Z,
+                ]
+                return set(authorized)
+
+        return set()
+
     @staticmethod
     def from_arn(arn: str):
         """Returns the right AWSDevice from the arn given in parameter.
@@ -512,3 +593,14 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
+
+
+IBM_CHIPS_HERON = [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
+IBM_CHIPS_NIGHTHAWK = [
+    IBMDevice.IBM_BOSTON,
+    IBMDevice.IBM_KINGSTON,
+    IBMDevice.IBM_PITTSBURGH,
+    IBMDevice.IBM_FEZ,
+    IBMDevice.IBM_MARRAKESH,
+    IBMDevice.IBM_AACHEN,
+]

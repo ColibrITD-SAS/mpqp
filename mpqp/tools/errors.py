@@ -2,6 +2,13 @@
 clearer errors. When relevant, we also append the trace of the error raised by a
 provider's SDK."""
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mpqp.execution.result import JobType
+
 
 class InstructionParsingError(ValueError):
     """Raised when an QASM instruction encountered by the parser is malformed."""
@@ -77,3 +84,19 @@ class AdditionalGateNoiseWarning(UserWarning):
 
 class NonReversibleWarning(UserWarning):
     """Warning for nonreversible instruction used in inverse function."""
+
+
+def result_error_message(type: JobType) -> str:
+    """Function to give more precision upon errors when getting data from results."""
+    from mpqp.execution.result import JobType
+
+    if type == JobType.OBSERVABLE:
+        msg = "Since your job is of type OBSERVABLE you have access to the following data:\n- expectation_values"
+    elif type == JobType.SAMPLE:
+        msg = "Since your job is of type SAMPLE you have access to the following data:\n-counts \n-probabilities"
+    elif type == JobType.STATE_VECTOR:
+        msg = "Since your job is of type STATE_VECTOR you have access to the following data:\n-counts \n-probabilities"
+    return (
+        msg
+        + "\nNote: The type of the job in MPQP is dependant of the type of measurement done in the circuit."
+    )
