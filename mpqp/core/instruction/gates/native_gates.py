@@ -694,15 +694,27 @@ class P(RotationGate, SingleQubitGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.common_gates import ZPowGate
-
-        return lambda theta: ZPowGate(exponent=theta / np.pi)
+        pass
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
 
     def __init__(self, theta: Expr | float, target: int):
         super().__init__(theta, target)
+
+    def to_other_language(
+        self,
+        language: Language = Language.QISKIT,
+        qiskit_parameters: Optional[set["Parameter"]] = None,
+    ):
+        if language == Language.CIRQ:
+            from cirq import MatrixGate
+
+            return MatrixGate(
+                matrix=self.to_matrix(), name=self.label, unitary_check=False
+            )
+        else:
+            return super().to_other_language(language, qiskit_parameters)
 
     def to_canonical_matrix(self) -> Matrix:
         return np.array(
@@ -1657,9 +1669,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
     @classproperty
     def cirq_gate(cls):
-        from cirq.ops.common_gates import ZPowGate
-
-        return lambda theta: ZPowGate(exponent=theta / np.pi)
+        pass
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
@@ -1693,7 +1703,13 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
-        if language == Language.QASM2:
+        if language == Language.CIRQ:
+            from cirq import MatrixGate
+
+            return MatrixGate(
+                matrix=self.to_matrix(), name=self.label, unitary_check=False
+            )
+        elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate

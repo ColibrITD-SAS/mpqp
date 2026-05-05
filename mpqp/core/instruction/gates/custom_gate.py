@@ -225,7 +225,22 @@ class CustomGate(Gate):
         """
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
-        return quantum_shannon_decomposition(self.matrix, int(self.targets[0]))
+        # non ordered targets
+        if any(
+            self.targets[i + 1] < self.targets[i] for i in range(len(self.targets) - 1)
+        ):
+            from mpqp.tools import rearrange_matrix
+            from copy import deepcopy
+
+            print("Batman, you cannot stop me.")
+            targets = deepcopy(self.targets)
+            targets.sort()
+
+            return quantum_shannon_decomposition(
+                rearrange_matrix(self.matrix, self.targets), targets
+            )
+
+        return quantum_shannon_decomposition(self.matrix, self.targets)
 
     def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
         res = copy(self)

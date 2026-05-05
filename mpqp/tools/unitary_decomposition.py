@@ -60,13 +60,17 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     G1 = np.array(g1)
 
     # Build G as G = V @ D² @ V†
-    G = G0 @ G1.conj().T
+    g = G0 @ G1.conj().T
+    G = np.round(g, 10)
+    eigvals, v = np.linalg.eig(G)
+    from mpqp.tools import is_unitary, closest_unitary
 
-    eigvals, V = np.linalg.eig(G)
+    if not is_unitary(v):
+        v = closest_unitary(v)
     D = np.diag(np.sqrt(eigvals.astype(complex)))
 
     # W = D @ V† @ G1
-    W = np.asarray(D @ V.conj().T @ G1, dtype=np.complex128)
+    W = np.asarray(D @ v.conj().T @ G1, dtype=np.complex128)
     D_dagg = D.conj().T
 
     # Reconstruct the whole D matrix
@@ -79,12 +83,13 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     for i in range(length // 2):
         D_result.append(list(padding) + list(D_dagg[0 : length // 2][i]))
 
-    return V, np.array(D_result), W
+    return v, np.array(D_result), W
 
 
 def _gray_code_decomposition(
     thetas: Matrix,
     circuit: QCircuit,
+    targets: list[int],
     position: int,
     rotation: Union[type[Rz], type[Ry]],
 ) -> QCircuit:
@@ -116,14 +121,16 @@ def _gray_code_decomposition(
         # CNOT's control is the changed bit of two consecutive numbers in gray code
         changed = _gray_code(i) ^ _gray_code(i + 1)
         control = next(i for i in range(len(thetas)) if (changed >> i & 1))
-        control = max(-control - position - 1 + circuit.nb_qubits, 1)
+        control = max(-control - targets[position] - 1 + circuit.nb_qubits, 1)
         if np.abs(angle) > PRECISION:  # Dodge unnecessary rotations
-            circuit.add(rotation(angle, position))
-        circuit.add(CNOT(control + position, position))
+            circuit.add(rotation(angle, int(targets[position])))
+        circuit.add(CNOT(int(control + targets[position]), int(targets[position])))
     return circuit
 
 
-def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
+def _decompose(
+    U: Matrix, circuit: QCircuit, targets: list[int], position: int = 0
+) -> QCircuit:
     """
     This function recursively decompose the matrix U into the circuit then returns it.
 
@@ -138,19 +145,18 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
 
         # extract the global phase so that SU is a special unitary, note that if U is a special unitary then delta = 0
         SU = U / np.exp(1j * delta)
-        beta = 2 * math.acos(np.abs(SU[0][0]))
+        beta = 2 * math.acos(np.round(np.abs(SU[0][0]), 10))
         alpha = -np.angle(SU[0][0]) - np.angle(SU[1][0])
         gamma = -np.angle(SU[0][0]) + np.angle(SU[1][0])
 
-        circuit.add(Rz(alpha, position))
-        circuit.add(Ry(beta, position))
-        circuit.add(Rz(gamma, position))
+        circuit.add(Rz(alpha, int(targets[position])))
+        circuit.add(Ry(beta, int(targets[position])))
+        circuit.add(Rz(gamma, int(targets[position])))
         circuit.input_g_phase += delta  # Stores the gphase in the circuit
         return circuit
     else:  # 2 qubits or more
         length = len(U)
         U12, MuxRy, V12 = cossin(U, p=length // 2, q=length // 2, separate=False)
-
         # Extracts the rotations of the multiplexed Ry for later decomposition
         thetas = []
         for i in range(MuxRy.shape[0] // 2):
@@ -159,6 +165,7 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
 
         assert isinstance(U12, np.ndarray)
         assert isinstance(V12, np.ndarray)
+
         Vu, MuxRzu, Wu = _unitary_SVD(U12)
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
@@ -176,24 +183,33 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
             dv[i] *= -1
 
         # Now recursively decompose every obtained matrices.
-        circuit = _decompose(Wv, circuit, position + 1)
+        circuit = _decompose(Wv, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
-            dv, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+            dv,
+            circuit,
+            targets,
+            position,
+            Rz,  # pyright: ignore[reportArgumentType]
         )
-        circuit = _decompose(Vv, circuit, position + 1)
+        circuit = _decompose(Vv, circuit, targets, position + 1)
 
         circuit = _gray_code_decomposition(
             thetas,
             circuit,
+            targets,
             position,
             Ry,  # pyright: ignore[reportArgumentType]
         )
 
-        circuit = _decompose(Wu, circuit, position + 1)
+        circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
-            du, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+            du,
+            circuit,
+            targets,
+            position,
+            Rz,  # pyright: ignore[reportArgumentType]
         )
-        circuit = _decompose(Vu, circuit, position + 1)
+        circuit = _decompose(Vu, circuit, targets, position + 1)
 
         return circuit
 
@@ -219,7 +235,7 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
     return circuit
 
 
-def quantum_shannon_decomposition(U: Matrix, start_position: int = 0) -> QCircuit:
+def quantum_shannon_decomposition(U: Matrix, targets: list[int]) -> QCircuit:
     """
     Returns a circuit containing the decomposition of a unitary.
     The resulting circuit is composed of gates CNOT, Ry and Rz.
@@ -242,7 +258,7 @@ def quantum_shannon_decomposition(U: Matrix, start_position: int = 0) -> QCircui
 
     Examples:
         >>> U = np.array([[1,0],[0,1]])
-        >>> circuit = quantum_shannon_decomposition(U)
+        >>> circuit = quantum_shannon_decomposition(U, [0])
         >>> print(matrix_eq(U, circuit.to_matrix()))
         True
     """
@@ -251,5 +267,5 @@ def quantum_shannon_decomposition(U: Matrix, start_position: int = 0) -> QCircui
             f"The size of the unitary matrix should be of the form 2**n : got {len(U)}"
         )
     circuit = QCircuit()
-    circuit = _decompose(U, circuit, start_position)
+    circuit = _decompose(U, circuit, targets, 0)
     return _optimize_circuit(circuit)

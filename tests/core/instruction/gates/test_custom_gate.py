@@ -143,6 +143,9 @@ def exec_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice
     result1 = run(random_circ, device)
     result2 = run(custom_gate_circ, device)
 
+    for inst in random_circ.instructions:
+        print(type(inst))
+
     # precision reduced from approximation errors (CustomGate usage)
     assert matrix_eq(result1.amplitudes, result2.amplitudes, 1e-4, 1e-4)
 

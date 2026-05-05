@@ -384,10 +384,15 @@ def verify_convert_instructions(
             raise ValueError(
                 f"The gate {type(gate)} are not in the set of authorized gates: f{authorized_gates}"
             )
+        else:
+            return [gate]
     if isinstance(gate, CustomControlledGate) and isinstance(
         gate.non_controlled_gate, CustomGate
     ):
         return [gate.to_custom_gate()]
+    if isinstance(gate, ComposedGate):
+        return gate.decompose()
+
     return [gate]
 
 
