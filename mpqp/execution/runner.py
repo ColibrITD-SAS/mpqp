@@ -166,7 +166,7 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    if values is not None and not device.is_remote(): # TODO : check why is remote
+    if values is not None and not device.is_remote():  # TODO : check why is remote
         from sympy import Expr
 
         subs_values: dict[Expr | str, Complex] = {}

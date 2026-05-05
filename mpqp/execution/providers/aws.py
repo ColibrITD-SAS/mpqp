@@ -121,7 +121,6 @@ def run_braket(job: Job, reservation_arn: Optional[str] = None) -> Result:
 
     from braket.tasks import GateModelQuantumTaskResult
 
-    
     try:
         if isinstance(job.measure, ExpectationMeasure):
             return run_braket_observable(job, reservation_arn)
