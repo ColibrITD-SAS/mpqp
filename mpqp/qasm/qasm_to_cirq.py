@@ -13,6 +13,7 @@ In addition, Cirq does not handle user defined gates. So an important part of
 :func:`remove_user_gates`.
 """
 
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -218,6 +219,12 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             num_args=1,
             cirq_gate=(lambda params: MyQasmUGate(*[p for p in params])),
         ),
+        "u3": QasmGateStatement(
+            qasm_gate="u3",
+            num_params=3,
+            num_args=1,
+            cirq_gate=(lambda params: MyQasmUGate(*[p for p in params])),
+        ),
         "rxx": QasmGateStatement(
             qasm_gate="rxx",
             num_params=1,
@@ -231,7 +238,7 @@ def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
             cirq_gate=(lambda params: Rzz(params[0])),
         ),
     }
-    qasm_parser.all_gates |= qs_dict
+    qasm_parser.qelib_gates |= qs_dict
 
     def p_new_reg2(self, p):  # pyright: ignore[reportMissingParameterType]
         """new_reg : QREG ID '[' NATURAL_NUMBER ']' ';'

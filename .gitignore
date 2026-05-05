@@ -1,7 +1,11 @@
 # build artifacts
 build/
+docs/notebooks/
+docs/requirements_providers/
 docs/html/
 out/
+mpqp/_setuptools_scm_version.py
+.eggs/
 
 # python
 *.egg-info/

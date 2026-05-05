@@ -314,7 +314,11 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         l1 = "g1" if self.label is None else self.label
         l2 = "g2" if self.label is None else self.label
 
-        return CustomGate(matrix=gd, targets=targets, label=f"{l1}⊗{l2}")
+        return CustomGate(
+            matrix=gd,  # pyright: ignore[reportArgumentType]
+            targets=targets,
+            label=f"{l1}⊗{l2}",
+        )
 
     def _mandatory_label(self, postfix: str = ""):
         return "g" + postfix if self.label is None else self.label

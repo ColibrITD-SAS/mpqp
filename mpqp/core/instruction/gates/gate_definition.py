@@ -53,7 +53,6 @@ class GateDefinition(ABC):
     def subs(
         self,
         values: dict[Expr | str, Complex],
-        remove_symbolic: bool = False,
     ) -> GateDefinition:
         pass
 
@@ -187,17 +186,12 @@ class UnitaryMatrix(GateDefinition):
     def subs(
         self,
         values: dict[Expr | str, Complex],
-        remove_symbolic: bool = False,
     ):
         """Substitute some symbolic variables in the definition by complex values.
 
         Args:
             values: Mapping between the symbolic variables and their complex
                 attributions.
-            remove_symbolic: Some values such as pi are kept symbolic during
-                circuit manipulation for better precision, but must be replaced
-                by their complex counterpart for circuit execution, this
-                arguments fills that role. Defaults to False.
         """
         from sympy import Expr
 
@@ -206,13 +200,17 @@ class UnitaryMatrix(GateDefinition):
                 # problem between pyright and abstract numeric types ?
                 # "complex" cannot be assigned to return type "Complex"
                 return (
-                    complex(v) if remove_symbolic else v
+                    complex(v) if isinstance(v, Expr) and v.is_constant() else v
                 )  # pyright: ignore[reportReturnType]
 
             # the types in sympy are relatively badly handled
             # Argument of type "Unknown | Basic | Expr" cannot be assigned to parameter "v" of type "Expr | Complex"
             return (
-                caster(val.subs(values))  # pyright: ignore[reportArgumentType]
+                caster(
+                    val.subs(
+                        values  # pyright: ignore[reportArgumentType, reportCallIssue]
+                    )
+                )
                 if isinstance(val, Expr)
                 else val
             )
@@ -220,11 +218,9 @@ class UnitaryMatrix(GateDefinition):
         matrix = self.to_matrix()
         otype = (
             complex
-            if remove_symbolic
-            or not any(isinstance(val, Expr) for _, val in np.ndenumerate(matrix))
+            if not any(isinstance(val, Expr) for _, val in np.ndenumerate(matrix))
             else object
         )
-
         return UnitaryMatrix(np.vectorize(mapping, otypes=[otype])(matrix))
 
     def __repr__(self) -> str:

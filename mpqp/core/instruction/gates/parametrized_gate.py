@@ -53,19 +53,24 @@ class ParametrizedGate(Gate, ABC):
         self.parameters = parameters
         """See parameter description."""
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> ParametrizedGate:
+    def subs(self, values: dict[Expr | str, Complex]) -> ParametrizedGate:
         from sympy import Expr
 
         concrete_gate = deepcopy(self)
-        options = getattr(self, "native_gate_options", {})
-        concrete_gate.definition = concrete_gate.definition.subs(
-            values, remove_symbolic, **options
-        )
-        caster = lambda v: float(v) if remove_symbolic else v
+        concrete_gate.definition = concrete_gate.definition.subs(values)
+
+        def caster(v: Expr | float) -> Expr | float:
+            if isinstance(v, Expr) and v.is_Number:
+                return float(v.evalf())  # pyright: ignore[reportArgumentType]
+            else:
+                return v
+
         concrete_gate.parameters = [
-            caster(param.subs(values)) if isinstance(param, Expr) else param
+            (
+                caster(param.subs(values))  # pyright: ignore
+                if isinstance(param, Expr)
+                else param
+            )
             for param in self.parameters
         ]
 

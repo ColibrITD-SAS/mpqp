@@ -6,6 +6,7 @@ function :func:`qasm2_to_Qiskit_Circuit` to generate the circuit from the qasm
 code.
 """
 
+from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

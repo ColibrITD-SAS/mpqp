@@ -125,7 +125,11 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
             tweaked_observables.append(
-                Observable(np.kron(np.kron(Id_before, obs.matrix), Id_after))
+                Observable(
+                    np.kron(
+                        np.kron(Id_before, obs.matrix), Id_after
+                    )  # pyright: ignore[reportArgumentType]
+                )
             )
 
     tweaked_measure = ExpectationMeasure(
@@ -162,7 +166,7 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    if values is not None and not device.is_remote():
+    if values is not None and not device.is_remote(): # TODO : check why is remote
         from sympy import Expr
 
         subs_values: dict[Expr | str, Complex] = {}

@@ -152,6 +152,9 @@ class Job:
         circuit prior to execution. For remote execution, these bindings are stored in the
         ``Job`` so the provider can bind them on the transpiled circuit without 
         re-transpiling the circuit each time."""
+        self.status_message: Optional[str] = None
+        """Optional message associated with the current job status, especially
+        for execution errors."""
 
     @property
     def measure(self) -> Optional[Measure]:
@@ -217,6 +220,7 @@ class Job:
             "measure": self.measure,
             "id": self.id,
             "status": self.status,
+            "status_message": self.status_message,
         }
 
     @staticmethod
@@ -228,12 +232,22 @@ class Job:
         Example:
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
             Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
+            Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
+            Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
 
         """
         from mpqp.local_storage.load import get_all_jobs
@@ -251,7 +265,7 @@ class Job:
 
         Example:
             >>> Job.load_by_local_id(1) # doctest: +ELLIPSIS
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
         """
         from mpqp.local_storage.load import get_jobs_with_id
 
@@ -291,20 +305,16 @@ class Job:
         Example:
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            ...
             >>> Job.delete_by_local_id(1)
             >>> for job in Job.load_all(): # doctest: +ELLIPSIS
             ...     print(job)
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
             Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
-            Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+            Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+            ...
 
         """
         from mpqp.local_storage.delete import remove_jobs_with_id

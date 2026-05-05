@@ -15,7 +15,7 @@ from sympy import Expr
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
     from mpqp.core.circuit import QCircuit
     from sympy import Basic
 
@@ -161,6 +161,34 @@ class CustomGate(Gate):
                     operator=BraketUnitary(self.definition.matrix),
                     target=self.targets,
                 )
+        elif language == Language.CIRQ:
+            from cirq import Gate as cirqGate
+
+            # TODO: find clean way of initiating this class once
+            # Cost is negli
+            class cirqCustomGate(cirqGate):
+                def __init__(self, matrix: Matrix, label: str | None):
+                    import numpy as np
+
+                    self.matrix = matrix
+                    self.label = label
+                    self._nb_qubits = int(np.log2(len(matrix)))
+                    super(cirqCustomGate, self)
+
+                def _num_qubits_(self) -> int:
+                    return self._nb_qubits
+
+                def _unitary_(self) -> Matrix:
+                    return self.matrix
+
+                def _circuit_diagram_info_(self, args: list[float]) -> str | list[str]:
+                    # we keep args for later implementation
+                    if self.label:
+                        return [self.label] * self._nb_qubits
+                    return ["CustomGate"] * self._nb_qubits
+
+            return cirqCustomGate(self.matrix, self.label)
+
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
 
@@ -171,16 +199,19 @@ class CustomGate(Gate):
             qiskit_circ = QuantumCircuit(nb_qubits)
             instr = self.to_other_language(Language.QISKIT)
             if TYPE_CHECKING:
-                from qiskit.quantum_info.operators import Operator as QiskitOperator
+                from qiskit.circuit.library import UnitaryGate
 
-                assert isinstance(instr, QiskitOperator)
+                assert isinstance(instr, UnitaryGate)
+
             qiskit_circ.unitary(
                 instr,
-                list(reversed(self.targets)),  # dang qiskit qubits order
+                list(reversed(self.targets)),
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(qiskit_circ.data[0], nb_qubits)
+            circuit, gphase = replace_custom_gate(
+                qiskit_circ.data[0], nb_qubits, self.targets
+            )
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()
@@ -212,6 +243,7 @@ class CustomGate(Gate):
             >>> U = np.array([[0,1], [1,0]])
             >>> gate = CustomGate(U, [0])
             >>> print(gate.decompose()) # doctest: +NORMALIZE_WHITESPACE
+            global phase: π/2
                ┌─────────┐┌───────┐┌──────────┐
             q: ┤ Rz(π/2) ├┤ Ry(π) ├┤ Rz(-π/2) ├
                └─────────┘└───────┘└──────────┘
@@ -221,9 +253,7 @@ class CustomGate(Gate):
 
         return quantum_shannon_decomposition(self.matrix)
 
-    def subs(
-        self, values: dict[Expr | str, Complex], remove_symbolic: bool = False
-    ) -> CustomGate:
+    def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
         res = copy(self)
-        res.definition = res.definition.subs(values, remove_symbolic)
+        res.definition = res.definition.subs(values)
         return res
