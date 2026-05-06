@@ -221,7 +221,7 @@ def qaoa_solver(
         raise ValueError(
             f"Length of initial parameters must be the same as the number of gates in the ansatz, expected: {depth * 2} but got {len(init_params)}"
         )
-    # _, optimal_params = minimize( 
+    # _, optimal_params = minimize(
     #     loss_optimize,
     #     method=optimizer,
     #     init_params=init_params,

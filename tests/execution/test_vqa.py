@@ -30,9 +30,7 @@ theta: Expr = symbols("θ")
 
 
 def with_local_devices_qiskit(args: tuple[Any, ...]):
-    return (
-        (*args, IBMDevice.AER_SIMULATOR),
-        )
+    return ((*args, IBMDevice.AER_SIMULATOR),)
 
 
 def with_local_devices_braket(args: tuple[Any, ...]):
@@ -59,15 +57,17 @@ def with_local_devices_cirq(args: tuple[Any, ...]):
     )
 
 
-vqa_circuit = (VQACircuit(
-    QCircuit(
-        [
-            P(theta, 0),
-        ]
+vqa_circuit = (
+    VQACircuit(
+        QCircuit(
+            [
+                P(theta, 0),
+            ]
+        ),
+        ExpectationMeasure([Observable(pZ)]),
     ),
-    ExpectationMeasure([Observable(pZ)]),
-),
 )
+
 
 def exec_vqa_optimizer(vqa_circuit: VQACircuit, device: AvailableDevice):
     vqa = VQAModule(vqa_circuit, device)
@@ -95,34 +95,26 @@ def exec_vqa_optimizer(vqa_circuit: VQACircuit, device: AvailableDevice):
 
 
 @pytest.mark.provider("qiskit")
-@pytest.mark.parametrize(
-    "vqa_circuit, device", with_local_devices_qiskit(vqa_circuit)
-)
+@pytest.mark.parametrize("vqa_circuit, device", with_local_devices_qiskit(vqa_circuit))
 def test_vqa_module_qiskit(vqa_circuit: VQACircuit, device: AvailableDevice):
     print(device)
     exec_vqa_optimizer(vqa_circuit, device)
 
 
 @pytest.mark.provider("braket")
-@pytest.mark.parametrize(
-    "vqa_circuit, device", with_local_devices_braket(vqa_circuit)
-)
+@pytest.mark.parametrize("vqa_circuit, device", with_local_devices_braket(vqa_circuit))
 def test_vqa_module_braket(vqa_circuit: VQACircuit, device: AvailableDevice):
     exec_vqa_optimizer(vqa_circuit, device)
 
 
 @pytest.mark.provider("cirq")
-@pytest.mark.parametrize(
-    "vqa_circuit, device", with_local_devices_cirq(vqa_circuit)
-)
+@pytest.mark.parametrize("vqa_circuit, device", with_local_devices_cirq(vqa_circuit))
 def test_vqa_module_cirq(vqa_circuit: VQACircuit, device: AvailableDevice):
     exec_vqa_optimizer(vqa_circuit, device)
 
 
 @pytest.mark.provider("myqlm")
-@pytest.mark.parametrize(
-    "vqa_circuit, device", with_local_devices_myqlm(vqa_circuit)
-)
+@pytest.mark.parametrize("vqa_circuit, device", with_local_devices_myqlm(vqa_circuit))
 def test_vqa_module_myqlm(vqa_circuit: VQACircuit, device: AvailableDevice):
     exec_vqa_optimizer(vqa_circuit, device)
 
@@ -157,9 +149,7 @@ def exec_vqa_multi(vqa_circuit: VQACircuit, device: AvailableDevice):
 
 
 @pytest.mark.provider("qiskit")
-@pytest.mark.parametrize(
-    "vqa_circuit, device", with_local_devices_qiskit(vqa_circuit)
-)
+@pytest.mark.parametrize("vqa_circuit, device", with_local_devices_qiskit(vqa_circuit))
 def test_vqa_multi_qiskit(vqa_circuit: VQACircuit, device: AvailableDevice):
     exec_vqa_multi(vqa_circuit, device)
 
@@ -183,8 +173,6 @@ def exec_vqa_modes(vqa_circuit: VQACircuit, device: AvailableDevice):
 
 
 @pytest.mark.provider("qiskit")
-@pytest.mark.parametrize(
-    "vqa_circuit, device", with_local_devices_qiskit(vqa_circuit)
-)
+@pytest.mark.parametrize("vqa_circuit, device", with_local_devices_qiskit(vqa_circuit))
 def test_vqa_modes_qiskit(vqa_circuit: VQACircuit, device: AvailableDevice):
     exec_vqa_modes(vqa_circuit, device)

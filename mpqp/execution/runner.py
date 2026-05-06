@@ -316,10 +316,10 @@ def _run_single(
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
-    circ_transpile =None
+    circ_transpile = None
     if circuit.transpiled_circuit[device] is not None:
         circ_transpile = copy(circuit.transpiled_circuit[device])
-    
+
     job = generate_job(circuit, device, values, mode)
     job.status = JobStatus.INIT
 
@@ -365,6 +365,7 @@ def _run_single(
     finally:
         if circ_transpile is not None:
             circuit.transpiled_circuit[device] = circ_transpile
+
 
 @overload
 def run(
