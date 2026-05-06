@@ -180,6 +180,7 @@ def _run_diagonal_observables(
     result = _run_single(adapted_circuit, device, values, False)
     return _compute_result_diagonal_observables(result, exp_measure, observable_job)
 
+
 def _compute_result_diagonal_observables(
     result: Result,
     exp_measure: ExpectationMeasure,
@@ -211,6 +212,7 @@ def _compute_result_diagonal_observables(
         errors,
         exp_measure.shots,
     )
+
 
 def _run_single(
     circuit: QCircuit,
@@ -291,20 +293,20 @@ def _run_single(
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
+
 def _run_multiple(
     circuits: list[tuple[QCircuit, "Optional[dict[Expr | str, Complex]]"]],
     device: AvailableDevice,
     display_breakpoints: bool = True,
 ) -> BatchResult:
-    """
-    """
+    """ """
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
         StaticIBMSimulatedDevice,
     )
 
     if display_breakpoints:
-        for (circuit, _) in circuits:
+        for circuit, _ in circuits:
             for k in range(len(circuit.breakpoints)):
                 display_kth_breakpoint(circuit, k, device)
 
@@ -313,7 +315,6 @@ def _run_multiple(
     for i, (circuit, values) in enumerate(circuits):
         job = generate_job(circuit, device, values)
         job.status = JobStatus.INIT
-        
 
         if len(circuit.noises) != 0:
             if not device.is_noisy_simulator():
@@ -321,48 +322,52 @@ def _run_multiple(
                     f"Device {device} cannot simulate circuits containing NoiseModels."
                 )
             elif not isinstance(
-                device, (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice)
+                device,
+                (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice),
             ):
-                raise NotImplementedError(f"Noisy simulations not supported on {device}.")
-
+                raise NotImplementedError(
+                    f"Noisy simulations not supported on {device}."
+                )
 
         if len(circuit.measurements) == 1:
             measure = circuit.measurements[0]
             if isinstance(measure, ExpectationMeasure):
                 if measure.optim_diagonal and measure.only_diagonal_observables():
                     adapted_circuit = circuit.without_measurements(deep_copy=False)
-                    adapted_circuit.add(BasisMeasure(measure.targets, shots=measure.shots))
+                    adapted_circuit.add(
+                        BasisMeasure(measure.targets, shots=measure.shots)
+                    )
 
                     job_obs = generate_job(adapted_circuit, device, values)
                     job_obs.status = JobStatus.INIT
                     jobs.append(job_obs)
                     run_diagonal_observables[i] = (measure, job)
                     continue
-        
-        jobs.append(job)
 
-    
+        jobs.append(job)
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         result = run_ibm(jobs)
     elif isinstance(device, ATOSDevice):
         raise NotImplementedError(f"Device {device} not handled")
-        result = run_atos(jobs) # TODO
+        result = run_atos(jobs)  # TODO
     elif isinstance(device, AWSDevice):
         raise NotImplementedError(f"Device {device} not handled")
-        result = run_braket(jobs) # TODO
+        result = run_braket(jobs)  # TODO
     elif isinstance(device, GOOGLEDevice):
         raise NotImplementedError(f"Device {device} not handled")
-        result = run_google(jobs) # TODO
+        result = run_google(jobs)  # TODO
     elif isinstance(device, AZUREDevice):
         raise NotImplementedError(f"Device {device} not handled")
-        result = run_azure(jobs) # TODO
+        result = run_azure(jobs)  # TODO
     else:
         raise NotImplementedError(f"Device {device} not handled")
-    
+
     for i, (exp_measure, job) in run_diagonal_observables.items():
-        result.results[i] = _compute_result_diagonal_observables(result[i], exp_measure, job)
-    
+        result.results[i] = _compute_result_diagonal_observables(
+            result[i], exp_measure, job
+        )
+
     return result
 
 
@@ -394,7 +399,10 @@ def run(
 
 
 def run(
-    circuit: QCircuit | list[QCircuit | tuple[QCircuit, "Optional[dict[Expr | str, Complex]]"]],
+    circuit: (
+        QCircuit
+        | list[QCircuit | tuple[QCircuit, "Optional[dict[Expr | str, Complex]]"]]
+    ),
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
@@ -479,12 +487,14 @@ def run(
         for dev in flatten(device):
 
             if isinstance(circuit, QCircuit):
-                results.append(_run_single(
-                    namer(circuit, 1),
-                    dev,
-                    values,
-                    display_breakpoints,
-                ))
+                results.append(
+                    _run_single(
+                        namer(circuit, 1),
+                        dev,
+                        values,
+                        display_breakpoints,
+                    )
+                )
             else:
                 circ_list = []
                 for i, circ in enumerate(circuit):
@@ -492,10 +502,12 @@ def run(
                         print(circ, i)
                         circ_list.append((namer(circ, i + 1), values))
                     else:
-                        (circ, values) = circ
+                        circ, values = circ
                         print(circ, i)
                         circ_list.append((namer(circ, i + 1), values))
-                results.extend(_run_multiple(circ_list, dev, display_breakpoints).results)
+                results.extend(
+                    _run_multiple(circ_list, dev, display_breakpoints).results
+                )
 
         return BatchResult(results)
     else:
