@@ -649,9 +649,6 @@ class ExpectationMeasure(Measure):
     def pre_transpile_observables(self, device: AvailableDevice):
         from mpqp.execution.devices import AWSDevice, IBMDevice
 
-        if device in self.translated_pre_measures:
-            return
-
         if isinstance(device, AWSDevice):
             from mpqp.core.circuit import QCircuit
             from mpqp.tools.pauli_grouping import (
@@ -677,8 +674,8 @@ class ExpectationMeasure(Measure):
 
         elif isinstance(device, IBMDevice):
             for observable in self.observables:
-                if device not in observable.pre_transpile:
-                    observable.pre_transpile[device] = observable.to_other_language(
+                if device not in observable.pre_transpiled:
+                    observable.pre_transpiled[device] = observable.to_other_language(
                         language=Language.QISKIT
                     )
         else:

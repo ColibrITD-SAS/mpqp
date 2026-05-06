@@ -11,7 +11,7 @@ import numpy.typing as npt
 from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
 
-OptimizerInput = Union[list[float], npt.NDArray[np.float_]]
+OptimizerInput = Union[list[float], npt.NDArray[np.float64]]
 OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
 OptimizerOptions = dict[str, Any]
 # OptimizerCallback = Callable[[OptimizerInput, float], None]
@@ -37,9 +37,9 @@ def run_optimizer(
     optimizer_options: Optional[OptimizerOptions] = None,
     callback: Optional[Callable[[OptimizerInput], None]] = None,
     batch_eval: Optional[
-        Callable[[Sequence[npt.NDArray[np.float_]]], Sequence[float]]
+        Callable[[Sequence[npt.NDArray[np.float64]]], Sequence[float]]
     ] = None,
-) -> tuple[float, npt.NDArray[np.float_]]:
+) -> tuple[float, npt.NDArray[np.float64]]:
 
     if optimizer_options is None:
         optimizer_options = {}

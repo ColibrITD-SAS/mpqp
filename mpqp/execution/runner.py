@@ -18,6 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from copy import copy
 from numbers import Complex, Number
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, overload
@@ -166,19 +167,21 @@ def generate_job(
     Returns:
         The Job containing information about the execution of the circuit.
     """
-    if values is not None and not device.is_remote(): # TODO : check why is remote
+    if values is not None:
         from sympy import Expr
 
-        subs_values: dict[Expr | str, Complex] = {}
-        for k, v in values.items():
-            if isinstance(k, (str, Expr)):
-                if not isinstance(v, Complex):
-                    raise TypeError(
-                        f"Parameter binding requires numeric values; got {type(v).__name__}."
-                    )
-                subs_values[k] = v
-
-        circuit = circuit.subs(subs_values, True)
+        if circuit.transpiled_circuit[device] is not None:
+            circuit.bind_parameters(device, values)
+        else:
+            subs_values: dict[Expr | str, Complex] = {}
+            for k, v in values.items():
+                if isinstance(k, (str, Expr)):
+                    if not isinstance(v, Complex):
+                        raise TypeError(
+                            f"Parameter binding requires numeric values; got {type(v).__name__}."
+                        )
+                    subs_values[k] = v
+            circuit = circuit.subs(subs_values)
 
     m_list = circuit.measurements
     nb_meas = len(m_list)
@@ -313,6 +316,10 @@ def _run_single(
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
+    circ_transpile =None
+    if circuit.transpiled_circuit[device] is not None:
+        circ_transpile = copy(circuit.transpiled_circuit[device])
+    
     job = generate_job(circuit, device, values, mode)
     job.status = JobStatus.INIT
 
@@ -334,27 +341,30 @@ def _run_single(
         ):
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
-    if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        from mpqp.execution.providers.ibm import run_ibm, run_remote_ibm_batch
+    try:
+        if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
+            from mpqp.execution.providers.ibm import run_ibm, run_remote_ibm_batch
 
-        if job.mode == ExecutionMode.BATCH and device.is_remote():
-            batch_results = run_remote_ibm_batch([job])
-            return batch_results[0]
+            if job.mode == ExecutionMode.BATCH and device.is_remote():
+                batch_results = run_remote_ibm_batch([job])
+                return batch_results[0]
 
-        return run_ibm(job)
+            return run_ibm(job)
 
-    elif isinstance(device, ATOSDevice):
-        return run_atos(job)
-    elif isinstance(device, AWSDevice):
-        return run_braket(job, reservation_arn=reservation_arn)
-    elif isinstance(device, GOOGLEDevice):
-        return run_google(job)
-    elif isinstance(device, AZUREDevice):
-        return run_azure(job)
+        elif isinstance(device, ATOSDevice):
+            return run_atos(job)
+        elif isinstance(device, AWSDevice):
+            return run_braket(job, reservation_arn=reservation_arn)
+        elif isinstance(device, GOOGLEDevice):
+            return run_google(job)
+        elif isinstance(device, AZUREDevice):
+            return run_azure(job)
 
-    else:
-        raise NotImplementedError(f"Device {device} not handled")
-
+        else:
+            raise NotImplementedError(f"Device {device} not handled")
+    finally:
+        if circ_transpile is not None:
+            circuit.transpiled_circuit[device] = circ_transpile
 
 @overload
 def run(

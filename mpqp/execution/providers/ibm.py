@@ -108,7 +108,7 @@ def compute_expectation_value(
     qiskit_observables: list[SparsePauliOp] = []
     job.measure.pre_transpile_observables(job.device)
     for obs in job.measure.observables:
-        translated = obs.pre_transpile[job.device]
+        translated = obs.pre_transpiled[job.device]
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
@@ -421,7 +421,6 @@ def run_aer(job: Job):
 
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
-    job_circuit = job.circuit
     if TYPE_CHECKING:
         assert isinstance(job.device, (IBMDevice, StaticIBMSimulatedDevice))
 
@@ -435,10 +434,10 @@ def run_aer(job: Job):
             # (grab qiskit NoiseModel from AerSimulator generated below, and add
             # to it directly)
         backend_sim = job.device.to_noisy_simulator()
-        job_circuit = job.circuit.transpiled_for_device(job.device)
+        qiskit_circuit = job.circuit.transpiled_for_device(job.device)
 
     elif len(job.circuit.noises) != 0:
-        job_circuit = job.circuit.transpiled_for_device(job.device)
+        qiskit_circuit = job.circuit.transpiled_for_device(job.device)
 
         if job.circuit.transpiled_noise_model is None:
             raise InstructionParsingError("transpiled_noise_model is not initialized")
@@ -447,10 +446,9 @@ def run_aer(job: Job):
         )
 
     else:
-        job_circuit = job.circuit.transpiled_for_device(job.device)
+        qiskit_circuit = job.circuit.transpiled_for_device(job.device)
         backend_sim = AerSimulator(method=job.device.value)
 
-    qiskit_circuit = job_circuit
     if TYPE_CHECKING:
         assert isinstance(qiskit_circuit, QuantumCircuit)
 
@@ -518,16 +516,8 @@ def _submit_remote_ibm(
     job.device = IBMDevice(backend.name)
     session = Session(backend=backend)
 
-    if job.circuit.transpiled_circuit is None:
-        qiskit_circ = job.circuit.to_other_device(job.device)
-    else:
-        qiskit_circ = job.circuit.transpiled_circuit
-
-    # TODO: bind_parameters check
-    if job.values is not None:
-        job.circuit = job.circuit.bind_parameters(job.device, job.values)
-
     qiskit_circ = job.circuit.transpiled_for_device(job.device)
+
     if TYPE_CHECKING:
         assert isinstance(qiskit_circ, QuantumCircuit)
 
@@ -542,7 +532,7 @@ def _submit_remote_ibm(
         qiskit_observables: list[SparsePauliOp] = []
 
         for obs in meas.observables:
-            translated = obs.pre_transpile[job.device]
+            translated = obs.pre_transpiled[job.device]
             if TYPE_CHECKING:
                 assert isinstance(translated, SparsePauliOp)
             qiskit_observables.append(translated.apply_layout(qiskit_circ.layout))
@@ -640,7 +630,7 @@ def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]
         obs_list: list[SparsePauliOp] = []
 
         for obs in meas.observables:
-            translated = obs.pre_transpile[job.device]
+            translated = obs.pre_transpiled[job.device]
             if TYPE_CHECKING:
                 assert isinstance(translated, SparsePauliOp)
             obs_list.append(translated.apply_layout(qc.layout))
