@@ -497,7 +497,7 @@ def is_power_of_two(n: int) -> bool:
 
 
 @typechecked
-def rearrange_matrix(matrix: Matrix, targets: list[int]) -> Matrix:
+def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix:
     """Function to reorder the rows and columns of a matrix in order to change the targets of a gate.
     The intended order for a gate is having continuous targets in growing order.
 
@@ -507,8 +507,9 @@ def rearrange_matrix(matrix: Matrix, targets: list[int]) -> Matrix:
     Note: This function's goal is not to move around a gate in a circuit but to shuffle the targets in a sense.
 
     Args:
-        matrix: The matrix for which we want to reorder the targets.
-        targets: The changed targets for
+        m: The matrix for which we want to reorder the targets.
+        targets: The targets
+        copy: If True performs the copy of the matrix, to prevent overwriting the original matrix.
 
     Returns:
         The shuffled matrix according to the given targets.
@@ -528,8 +529,15 @@ def rearrange_matrix(matrix: Matrix, targets: list[int]) -> Matrix:
      [1, 0, 0, 0],
      [0, 1, 0, 0]]
     """
+    from copy import deepcopy
+
+    if copy:
+        matrix = deepcopy(m)
+    else:
+        matrix = m
     l = len(targets)
-    shuffled = list(range(min(targets), len(targets)))
+    shuffled = deepcopy(targets)
+    shuffled.sort()
     for index in range(l - 1):
         if targets[index] == index:
             continue
@@ -554,7 +562,15 @@ def rearrange_matrix(matrix: Matrix, targets: list[int]) -> Matrix:
                     matrix[conjugate][k] = hold
 
         # keeps tracks of the position of the targets in the matrix
-        hold = shuffled[index]
-        shuffled[index] = shuffled[targets[index]]
-        shuffled[targets[index]] = hold
+
+        shuffled[index], shuffled[targets[index]] = (
+            shuffled[targets[index]],
+            shuffled[index],
+        )
+
+        i = targets.index(index)
+        targets[i], targets[index] = (
+            targets[index],
+            targets[i],
+        )
     return matrix

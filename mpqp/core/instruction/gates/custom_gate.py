@@ -232,12 +232,11 @@ class CustomGate(Gate):
             from mpqp.tools import rearrange_matrix
             from copy import deepcopy
 
-            print("Batman, you cannot stop me.")
             targets = deepcopy(self.targets)
             targets.sort()
 
             return quantum_shannon_decomposition(
-                rearrange_matrix(self.matrix, self.targets), targets
+                rearrange_matrix(self.matrix, self.targets, copy=True), targets
             )
 
         return quantum_shannon_decomposition(self.matrix, self.targets)
