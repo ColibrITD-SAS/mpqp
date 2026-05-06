@@ -509,7 +509,6 @@ def _submit_remote_ibm(
     meas = job.measure
     check_job_compatibility(job)
 
-
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
