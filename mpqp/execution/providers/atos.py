@@ -82,12 +82,10 @@ def job_pre_processing(job: Job) -> "Circuit":
                 "`OBSERVABLE` jobs with shots!=0 are disabled for MPO."
             )
 
-    if job.circuit.transpiled_circuit is None:
-        if TYPE_CHECKING:
-            assert isinstance(job.device, ATOSDevice)
-        myqlm_circuit = job.circuit.to_other_device(job.device)
-    else:
-        myqlm_circuit = job.circuit.transpiled_circuit
+    if TYPE_CHECKING:
+        assert isinstance(job.device, ATOSDevice)
+
+    myqlm_circuit = job.circuit.transpiled_for_device(job.device)
 
     return myqlm_circuit
 
@@ -250,12 +248,14 @@ def generate_observable_job(myqlm_circuit: "Circuit", job: Job) -> list["JobQLM"
     # TODO: [multi-obs] update this to take into account the case when we have list of Observables
     if TYPE_CHECKING:
         assert job.measure is not None and isinstance(job.measure, ExpectationMeasure)
+
     result = []
     for obs in job.measure.observables:
-        if obs.pre_transpiled is None:
-            qlm_obs = obs.to_other_language(Language.MY_QLM)
-        else:
-            qlm_obs = obs.pre_transpiled
+        if job.device not in obs.pre_transpiled:
+            obs.pre_transpiled[job.device] = obs.to_other_language(Language.MY_QLM)
+
+        qlm_obs = obs.pre_transpiled[job.device]
+
         result.append(
             myqlm_circuit.to_job(
                 job_type="OBS",

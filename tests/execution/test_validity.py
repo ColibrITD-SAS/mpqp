@@ -39,9 +39,7 @@ from mpqp.measures import PauliString
 from mpqp.noise.noise_model import NOISE_MODELS
 from mpqp.tools import Matrix, atol, rand_hermitian_matrix, rtol
 from mpqp.tools.circuit import random_gate, random_noise
-from mpqp.tools.errors import (
-    DeviceJobIncompatibleError,
-)
+from mpqp.tools.errors import DeviceJobIncompatibleError
 from mpqp.tools.maths import matrix_eq
 
 pi = np.pi

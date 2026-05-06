@@ -34,7 +34,7 @@ could be used to add CNOT gates to your circuit, using the two registers
 from __future__ import annotations
 
 from copy import deepcopy
-from numbers import Complex
+from numbers import Complex, Number
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
 from warnings import warn
 
@@ -70,7 +70,7 @@ if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
-    from qiskit.circuit import QuantumCircuit
+    from qiskit.circuit import Parameter, QuantumCircuit
     from qiskit_aer import AerSimulator
     from sympy import Basic, Expr
 
@@ -171,7 +171,10 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit]]" = (None)
+        self.transpiled_circuit: dict[
+            AvailableDevice,
+            Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit],
+        ] = {}
         """A pre-transpiled circuit to skip repeated transpilation when running 
         the circuit. Useful when working with a symbolic circuit that needs to
         be executed with different parameters."""
@@ -2163,6 +2166,18 @@ class QCircuit:
 
         return f'QCircuit({args_repr})'
 
+    def transpiled_for_device(self, device: AvailableDevice):
+        if device not in self.transpiled_circuit:
+            self.transpiled_circuit[device] = (
+                self.to_other_device(  # pyright: ignore[reportCallIssue]
+                    device  # pyright: ignore[reportArgumentType]
+                )
+            )
+        for instruction in self.instructions:
+            if isinstance(instruction, ExpectationMeasure):
+                instruction.pre_transpile_observables(device)
+        return self.transpiled_circuit[device]
+
     def variables(self) -> set[Basic]:
         """Returns all the symbolic parameters involved in this circuit.
 
@@ -2187,3 +2202,36 @@ class QCircuit:
                     if isinstance(param, Expr):
                         params.update(param.free_symbols)
         return params
+
+    def bind_parameters(
+        self, device: AvailableDevice, values: dict[str | Parameter | Basic, Number]
+    ):
+        """Bind parameter values to the transpiled circuit."""
+        # TODO: to enhance docs
+        if device not in self.transpiled_circuit:
+            self.transpiled_for_device(device)
+        transpiled = self.transpiled_circuit[device]
+
+        param_values = {str(k): v for k, v in values.items()}
+
+        from qiskit import QuantumCircuit
+
+        if isinstance(transpiled, QuantumCircuit):
+            qiskit_param_map = {
+                p: param_values[p.name]
+                for p in transpiled.parameters
+                if p.name in param_values
+            }
+            self.transpiled_circuit[device] = (
+                transpiled.assign_parameters(qiskit_param_map, inplace=False)
+                if qiskit_param_map
+                else transpiled
+            )
+
+        elif isinstance(transpiled, braket_Circuit):
+            self.transpiled_circuit[device] = transpiled.make_bound_circuit(
+                param_values
+            )
+
+        else:
+            raise TypeError(f"Unsupported transpiled circuit yet: {type(transpiled)}")
