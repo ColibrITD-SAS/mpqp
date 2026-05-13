@@ -72,9 +72,7 @@ def qasm2_parse(input_string: str) -> QCircuit:
 
     input_string = remove_user_gates(input_string, skip_qelib1=True)
     input_string, gphase = remove_include_and_comment(input_string)
-
     tokens = lex_openqasm(input_string)
-
     if (
         tokens[0].type != 'OPENQASM'
         and tokens[1].type != 'REALN'
@@ -235,6 +233,8 @@ def _Gate_two_qubits_parametrized(
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
     parameter, idx = _eval_expr(tokens, idx)
+    if len(parameter) == 1:
+        parameter = parameter[0]
     if (
         check_Id(tokens, idx)
         or tokens[idx + 4].type != 'COMMA'
@@ -308,9 +308,16 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
 
     expr = ""
     open_paren = 0
-    while tokens[idx].type != 'COMMA' and (
-        tokens[idx].type != 'RPAREN' or open_paren > 0
-    ):
+    index = 0
+    parameters = []
+    while tokens[idx].type != 'RPAREN' or open_paren > 0:
+
+        if tokens[idx].type == 'COMMA':
+            parameters.append(expr)
+            expr = ""
+            index += 1
+            idx += 1
+            continue
         if tokens[idx].type == 'LPAREN':
             open_paren += 1
             expr += "("
@@ -336,7 +343,8 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
         else:
             expr += str(tokens[idx].value)
         idx += 1
-    return eval(expr), idx + 1
+    parameters.append(expr)
+    return [eval(param) for param in parameters], idx + 1
 
 
 def _Gate_one_parametrized(
@@ -346,13 +354,19 @@ def _Gate_one_parametrized(
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
     parameter, idx = _eval_expr(tokens, idx)
-
     if check_Id(tokens, idx):
         raise SyntaxError(
             f'Gate_two_qubits: {" ".join(token.value for token in tokens[idx : idx + 3])}'
         )
     target = tokens[idx + 2].value
-    circuit.add(one_parametrized_gate_qasm[gate_str](parameter, target))
+    if one_parametrized_gate_qasm[gate_str] == PRX:
+        circuit.add(PRX(parameter[0], parameter[1], target))
+    else:
+        circuit.add(
+            one_parametrized_gate_qasm[gate_str](
+                parameter[0], target
+            )  # pyright: ignore[reportCallIssue]
+        )
     return idx + 5
 
 
@@ -368,10 +382,8 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
         theta, idx = _eval_expr(tokens, idx)
         phi, idx = _eval_expr(tokens, idx)
     elif gate_str == 'u3' or gate_str == 'u' or gate_str == 'U':
-        theta, idx = _eval_expr(tokens, idx)
-        phi, idx = _eval_expr(tokens, idx)
-        lbda, idx = _eval_expr(tokens, idx)
-
+        list_params, idx = _eval_expr(tokens, idx)
+        theta, phi, lbda = tuple(list_params)
     if check_Id(tokens, idx):
         raise SyntaxError(
             f'GateU:  {" ".join(str(token.value) for token in tokens[idx : idx + 4])}'

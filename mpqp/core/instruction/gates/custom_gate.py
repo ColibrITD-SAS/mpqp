@@ -129,11 +129,10 @@ class CustomGate(Gate):
                 from qiskit import QuantumCircuit
 
                 dummy_circuit = QuantumCircuit(self.nb_qubits)
-                for param in qiskit_parameters:
-                    # Rx is just a random choice so to have the parameter in the
-                    # list of inputs
-                    dummy_circuit.rx(param, 0)
-                return dummy_circuit.to_gate(label="CustomGate")
+                dummy_circuit.id(0)
+                return dummy_circuit.to_gate(
+                    label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
+                )
             return UnitaryGate(self.matrix)
         elif language == Language.BRAKET:
             from sympy import Expr
@@ -162,32 +161,9 @@ class CustomGate(Gate):
                     target=self.targets,
                 )
         elif language == Language.CIRQ:
-            from cirq import Gate as cirqGate
+            from cirq import MatrixGate
 
-            # TODO: find clean way of initiating this class once
-            # Cost is negli
-            class cirqCustomGate(cirqGate):
-                def __init__(self, matrix: Matrix, label: str | None):
-                    import numpy as np
-
-                    self.matrix = matrix
-                    self.label = label
-                    self._nb_qubits = int(np.log2(len(matrix)))
-                    super(cirqCustomGate, self)
-
-                def _num_qubits_(self) -> int:
-                    return self._nb_qubits
-
-                def _unitary_(self) -> Matrix:
-                    return self.matrix
-
-                def _circuit_diagram_info_(self, args: list[float]) -> str | list[str]:
-                    # we keep args for later implementation
-                    if self.label:
-                        return [self.label] * self._nb_qubits
-                    return ["CustomGate"] * self._nb_qubits
-
-            return cirqCustomGate(self.matrix, self.label)
+            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
 
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
@@ -209,9 +185,7 @@ class CustomGate(Gate):
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(
-                qiskit_circ.data[0], nb_qubits, self.targets
-            )
+            circuit, gphase = replace_custom_gate(qiskit_circ, nb_qubits, self.targets)
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()
@@ -251,7 +225,21 @@ class CustomGate(Gate):
         """
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
-        return quantum_shannon_decomposition(self.matrix)
+        # non ordered targets
+        if any(
+            self.targets[i + 1] < self.targets[i] for i in range(len(self.targets) - 1)
+        ):
+            from mpqp.tools import rearrange_matrix
+            from copy import deepcopy
+
+            targets = deepcopy(self.targets)
+            targets.sort()
+
+            return quantum_shannon_decomposition(
+                rearrange_matrix(self.matrix, self.targets, copy=True), targets
+            )
+
+        return quantum_shannon_decomposition(self.matrix, self.targets)
 
     def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
         res = copy(self)

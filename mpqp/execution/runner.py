@@ -55,14 +55,16 @@ if TYPE_CHECKING:
 
 
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
+    # TODO: to enhance docs
+
     """We allow the measure to not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
     this function to match the expected behavior.
 
     In order to do this, we add identity measures on the qubits not targeted by
-    the measure. In addition to this, some swaps are automatically added so the
-    the qubits measured are ordered and contiguous (though this is done in
-    :func:`generate_job`)
+    the measure. pauli observables are directly embeded on their target qubits,
+    while matrix observables are padded with identity matrices when the targets
+    are ordered and contiguous, otherwise are embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
@@ -78,25 +80,64 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     if measure.targets == list(range(circuit.nb_qubits)):
         return measure
 
-    tweaked_observables = []
-    n_before = measure.rearranged_targets[0]
-    n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
-    for obs in measure.observables:
-        if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-            from mpqp.measures import pI
+    nb_qubits = circuit.nb_qubits
+    targets = measure.targets
 
-            pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
-            tweaked_observables.append(Observable(pauli))
-        else:
+    targets_is_ordered = all(
+        [targets[i] > targets[i - 1] for i in range(1, len(targets))]
+    )
+    targets_is_contiguous = (
+        len(targets) > 0
+        and targets_is_ordered
+        and (targets[-1] - targets[0] + 1 == len(targets))
+    )
+
+    tweaked_observables: list[Observable] = []
+
+    for obs in measure.observables:
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliString,
+            PauliStringMonomial,
+        )
+        from mpqp.measures import pI
+
+        if (
+            obs._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            and targets_is_contiguous
+        ):
+            n_before = targets[0]
+            n_after = nb_qubits - targets[-1] - 1
+
+            full_matrix = obs.matrix
+
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
+
+            if n_before > 0:
+                full_matrix = np.kron(Id_before, full_matrix)
+
+            if n_after > 0:
+                full_matrix = np.kron(full_matrix, Id_after)
+
             tweaked_observables.append(
                 Observable(
-                    np.kron(
-                        np.kron(Id_before, obs.matrix), Id_after
-                    )  # pyright: ignore[reportArgumentType]
+                    full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
                 )
             )
+            continue
+
+        pauli = obs.pauli_string
+        embedded = PauliString()
+
+        for mono in pauli.monomials:
+            full_register = [pI] * nb_qubits
+
+            for local_idx, target in enumerate(targets):
+                full_register[target] = mono.atoms[local_idx]
+
+            embedded += PauliStringMonomial(mono.coef, full_register)
+
+        tweaked_observables.append(Observable(embedded.simplify(), label=obs.label))
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
@@ -104,7 +145,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
+        label=measure.label,
         optimize_measurement=measure.optimize_measurement,
+        optim_diagonal=measure.optim_diagonal,
     )
     return tweaked_measure
 
@@ -145,14 +188,21 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements(deep_copy=False)
-            c.add(m)
-            job = Job(
-                JobType.OBSERVABLE,
-                c,
-                device,
-            )
+            if measurement.optimize_measurement and isinstance(device, AWSDevice):
+                job = Job(
+                    JobType.OBSERVABLE,
+                    circuit,
+                    device,
+                )
+            else:
+                m = adjust_measure(measurement, circuit)
+                c = circuit.without_measurements(deep_copy=False)
+                c.add(m)
+                job = Job(
+                    JobType.OBSERVABLE,
+                    c,
+                    device,
+                )
         else:
             raise NotImplementedError(
                 f"Measurement type {type(measurement)} not handled"

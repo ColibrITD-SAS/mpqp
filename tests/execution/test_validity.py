@@ -729,7 +729,15 @@ def exec_validity_native_gate_to_other_language(language: Language):
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
-            assert gate_build.to_other_language(language) is not None
+            if isinstance(gate_build, ComposedGate):
+                assert all(
+                    [
+                        gate.to_other_language(language) is not None
+                        for gate in gate_build.decompose()
+                    ]
+                )
+            else:
+                assert gate_build.to_other_language(language) is not None
 
 
 @pytest.fixture

@@ -7,12 +7,16 @@ import numpy.typing as npt
 from numpy.random import Generator
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
+from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
+    PRX,
     TOF,
     CRk,
     P,
+    ComposedGate,
     Rk,
     RotationGate,
     Rx,
@@ -21,6 +25,7 @@ from mpqp.core.instruction.gates.native_gates import (
     U,
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+from mpqp.core.languages import Language
 from mpqp.noise.noise_model import (
     NOISE_MODELS,
     AmplitudeDamping,
@@ -33,7 +38,9 @@ from mpqp.noise.noise_model import (
 from mpqp.tools.maths import closest_unitary
 
 if TYPE_CHECKING:
-    from qiskit import QuantumCircuit
+    from braket.circuits import Circuit as braket_Circuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from qiskit.circuit import QuantumCircuit
     from qiskit._accelerate.circuit import CircuitInstruction
 
 
@@ -41,8 +48,9 @@ def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
     nb_gates: Optional[int] = None,
+    use_all_qubits: bool = False,
     seed: Optional[int] = None,
-):
+) -> QCircuit:
     """This function creates a QCircuit with a specified number of qubits and gates.
     The gates are chosen randomly from the provided list of native gate classes.
 
@@ -86,6 +94,11 @@ def random_circuit(
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
         qcircuit.add(random_gate(gate_classes, nb_qubits, rng))
+    if use_all_qubits:  # used in case we want to test braket
+        from mpqp.gates import H
+
+        for i in range(nb_qubits):
+            qcircuit.add(H(i))
     return qcircuit
 
 
@@ -106,12 +119,12 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.70710678+0.j  0. -0.j  0.26893257-0.65396886j  0. -0.j ]
+        >>> pprint(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
+        [0.70711, 0, 0.26893-0.65397j, 0]
     """
     from mpqp.execution import IBMDevice, Result, run
 
-    mpqp_circ = random_circuit(None, nb_qubits, None, seed)
+    mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
         assert isinstance(res, Result)
@@ -164,7 +177,6 @@ def random_gate(
 
     gate_class = rng.choice(np.array(gate_classes))
     target = rng.choice(qubits).item()
-
     if issubclass(gate_class, SingleQubitGate):
         if issubclass(gate_class, ParametrizedGate):
             if issubclass(gate_class, U):
@@ -176,6 +188,12 @@ def random_gate(
                 )
             elif issubclass(gate_class, Rk):
                 return Rk(int(rng.integers(1, 10)), target)
+            elif issubclass(gate_class, PRX):
+                return gate_class(
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    target,
+                )
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))
@@ -294,7 +312,9 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
 
 def replace_custom_gate(
-    custom_unitary: "CircuitInstruction", nb_qubits: int, targets: list[int]
+    custom_unitary: "CircuitInstruction | QuantumCircuit",
+    nb_qubits: int,
+    targets: list[int],
 ) -> "tuple[QuantumCircuit, float]":
     """Decompose and replace the (custom) qiskit unitary given in parameter by a
     qiskit `QuantumCircuit` composed of ``U`` and ``CX`` gates.
@@ -319,8 +339,13 @@ def replace_custom_gate(
     from qiskit.exceptions import QiskitError
     from qiskit.circuit.library import UnitaryGate
 
-    transpilation_circuit = QuantumCircuit(nb_qubits)
-    transpilation_circuit.append(custom_unitary)
+    if not isinstance(custom_unitary, QuantumCircuit):
+        transpilation_circuit = QuantumCircuit(nb_qubits)
+        transpilation_circuit.append(custom_unitary)
+        matrix = custom_unitary.matrix
+    else:
+        transpilation_circuit = custom_unitary
+        matrix = custom_unitary.data[0].matrix
     try:
         transpiled = transpile(
             transpilation_circuit, basis_gates=['u3', 'cx'], optimization_level=0
@@ -329,7 +354,7 @@ def replace_custom_gate(
         # if the error is arising from TwoQubitWeylDecomposition, we replace the
         # matrix by the closest unitary
         if "TwoQubitWeylDecomposition" in str(e):
-            custom_closest_unitary = UnitaryGate(closest_unitary(custom_unitary.matrix))
+            custom_closest_unitary = UnitaryGate(closest_unitary(matrix))
             transpilation_circuit = QuantumCircuit(nb_qubits)
             transpilation_circuit.unitary(
                 custom_closest_unitary, list(reversed(targets))
@@ -342,3 +367,367 @@ def replace_custom_gate(
         else:
             raise e
     return transpiled, transpiled.global_phase
+
+
+def verify_convert_instructions(
+    gate: Gate, authorized_gates: set[type[Gate]]
+) -> list[Gate]:
+    if len(authorized_gates) != 0:
+        if type(gate) not in authorized_gates:
+            if isinstance(gate, ComposedGate):
+                instr = gate.decompose()
+                if any(type(gate) not in authorized_gates for gate in instr):
+                    raise ValueError(
+                        f"The gate {type(gate)} and it's decomposition f{[type(g) for g in instr]} are not in the set: f{authorized_gates}"
+                    )
+                return instr
+            raise ValueError(
+                f"The gate {type(gate)} are not in the set of authorized gates: f{authorized_gates}"
+            )
+        else:
+            return [gate]
+    if isinstance(gate, CustomControlledGate) and isinstance(
+        gate.non_controlled_gate, CustomGate
+    ):
+        return [gate.to_custom_gate()]
+    if isinstance(gate, ComposedGate):
+        return gate.decompose()
+
+    return [gate]
+
+
+def mpqp_to_qiskit(
+    circuit: QCircuit,
+    skip_pre_measure: bool = False,
+    skip_measurements: bool = False,
+    printing: bool = False,
+    authorized_gates: set[type[Gate]] | None = None,
+) -> QuantumCircuit:
+    from qiskit.circuit import Operation, QuantumCircuit
+    from qiskit.circuit.quantumcircuit import CircuitInstruction
+    from qiskit.quantum_info import Operator
+
+    from mpqp.core.instruction import (
+        Measure,
+        Breakpoint,
+        CustomGate,
+        Barrier,
+        ControlledGate,
+        BasisMeasure,
+        ExpectationMeasure,
+    )
+
+    # to avoid defining twice the same parameter, we keep trace of the
+    # added parameters, and we use those instead of new ones when they
+    # are used more than once
+    if authorized_gates is None:
+        authorized_gates = set()
+    qiskit_parameters = set()
+    if circuit.nb_cbits == 0:
+        new_circ = QuantumCircuit(circuit.nb_qubits)
+    else:
+        new_circ = QuantumCircuit(circuit.nb_qubits, circuit.nb_cbits)
+
+    if circuit.label is not None:
+        new_circ.name = circuit.label
+
+    for instruction in circuit.instructions:
+        if isinstance(instruction, (Measure, Breakpoint)):
+            continue
+        options = {"printing": printing} if isinstance(instruction, CustomGate) else {}
+        if isinstance(instruction, Gate):
+            instr = verify_convert_instructions(instruction, authorized_gates)
+        else:
+            instr = [instruction]
+        for instruction in instr:
+            qiskit_inst = instruction.to_other_language(
+                Language.QISKIT, qiskit_parameters, **options
+            )
+            if isinstance(instruction, CustomControlledGate) and isinstance(
+                instruction.non_controlled_gate, CustomGate
+            ):
+                instruction = instruction.to_custom_gate()
+            if TYPE_CHECKING:
+                assert isinstance(
+                    qiskit_inst, (CircuitInstruction, Operation, Operator)
+                )
+            cargs = []
+
+            if isinstance(instruction, CustomGate) and not isinstance(
+                instruction, CustomControlledGate
+            ):
+                if TYPE_CHECKING:
+                    assert isinstance(qiskit_inst, Operator)
+                if printing and len(instruction.free_symbols) > 0:
+                    new_circ.append(qiskit_inst, list(reversed(instruction.targets)))
+                else:
+                    new_circ.unitary(
+                        qiskit_inst,
+                        list(reversed(instruction.targets)),
+                        instruction.label,
+                    )
+            else:
+                qargs = []
+                if isinstance(instruction, ControlledGate):
+                    qargs = list(reversed(instruction.controls)) + list(
+                        reversed(instruction.targets)
+                    )
+                elif isinstance(instruction, Gate):
+                    qargs = list(reversed(instruction.targets))
+                elif isinstance(instruction, Barrier):
+                    qargs = range(circuit.nb_qubits)
+                else:
+                    raise ValueError(f"Instruction not handled: {instruction}")
+
+                if TYPE_CHECKING:
+                    assert not isinstance(qiskit_inst, Operator)
+                new_circ.append(
+                    qiskit_inst,
+                    list(qargs),
+                    cargs,
+                )
+    for measurement in circuit.measurements:
+        if not skip_pre_measure:
+
+            for pre_measure in measurement.pre_measure:
+                cargs = []
+                qiskit_pre_measure = pre_measure.to_other_language(
+                    Language.QISKIT, qiskit_parameters
+                )
+                new_circ.append(
+                    qiskit_pre_measure,
+                    list(reversed(pre_measure.targets)),
+                    cargs=cargs,
+                )
+        if not skip_measurements:
+            if isinstance(measurement, ExpectationMeasure):
+                continue
+            qiskit_inst = measurement.to_other_language(
+                Language.QISKIT, qiskit_parameters
+            )
+            if isinstance(measurement, BasisMeasure):
+                if TYPE_CHECKING:
+                    assert measurement.c_targets is not None
+            else:
+                raise ValueError(f"measurement not handled: {measurement}")
+
+            if TYPE_CHECKING:
+                assert not isinstance(qiskit_inst, Operator)
+            new_circ.append(
+                qiskit_inst,
+                [measurement.targets],
+                [measurement.c_targets],
+            )
+
+    new_circ.global_phase += (
+        circuit.input_g_phase
+        + circuit._generated_g_phase  # type: ignore[reporPrivateUsage]
+    )
+    return new_circ
+
+
+def mpqp_to_braket(
+    circuit: QCircuit,
+    skip_pre_measure: bool = False,
+    skip_measurements: bool = False,
+    authorized_gates: set[type[Gate]] | None = None,
+) -> braket_Circuit:
+    from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+    from mpqp.core.instruction import (
+        Measure,
+        Breakpoint,
+        Barrier,
+        ControlledGate,
+        BasisMeasure,
+    )
+
+    if authorized_gates is None:
+        authorized_gates = set()
+    if len(circuit.noises) != 0:
+        if any(isinstance(instr, CRk) for instr in circuit.instructions):
+            raise NotImplementedError(
+                "Cannot simulate noisy circuit with CRk gate due to "
+                "an error on AWS Braket side."
+            )
+    from braket.circuits import Circuit as BracketCircuit
+
+    braket_circuit = BracketCircuit()
+
+    # If the number of qubits are defined by the user, we ensure that every qubits are used.
+    # Otherwise the circuit can remain non continuous.
+    if circuit._user_nb_qubits is not None:  # pyright: ignore[reportPrivateUsage]
+        used_qubits = set().union(
+            *(
+                inst.connections()
+                for inst in circuit.instructions
+                if isinstance(inst, Gate)
+            )
+        )
+        if len(used_qubits) != circuit.nb_qubits:
+            from mpqp.gates import Id
+            from copy import deepcopy
+
+            circuit = QCircuit(
+                [
+                    Id(qubit)
+                    for qubit in range(circuit.nb_qubits)
+                    if qubit not in used_qubits
+                ],
+                nb_qubits=circuit.nb_qubits,
+            ) + deepcopy(circuit)
+
+    for instruction in circuit.instructions:
+        targets = [target for target in instruction.targets]
+        if isinstance(instruction, (Barrier, Breakpoint)):
+            continue
+        if isinstance(instruction, Measure):
+            if not skip_pre_measure:
+                for pre_measure in instruction.pre_measure:
+                    bracket_pre_measure = pre_measure.to_other_language(Language.BRAKET)
+                    braket_circuit.add(bracket_pre_measure, targets)
+            if not skip_measurements:
+                if isinstance(instruction, BasisMeasure) and instruction.shots != 0:
+                    braket_circuit.measure(targets)
+            continue
+        if isinstance(instruction, Gate):
+            instr = verify_convert_instructions(instruction, authorized_gates)
+        else:
+            instr = [instruction]
+
+        for instruction in instr:
+            braket_instr = instruction.to_other_language(Language.BRAKET)
+            try:
+                targets = [target for target in instruction.targets]
+                if isinstance(instruction, CustomControlledGate):
+                    if isinstance(instruction.non_controlled_gate, CustomGate):
+                        targets = [
+                            control for control in instruction.controls
+                        ] + targets
+                        targets.sort()
+                elif isinstance(instruction, ControlledGate):
+                    targets = [control for control in instruction.controls] + targets
+                braket_circuit.add_instruction(braket_instr, target=targets)
+            except Exception as e:
+                raise ValueError(
+                    f"{type(braket_instr)}{braket_instr} cannot be added to the braket circuit: {e}"
+                )
+    if len(circuit.noises) != 0:
+        braket_circuit = apply_noise_to_braket_circuit(
+            braket_circuit,
+            circuit.noises,
+            circuit.nb_qubits,
+        )
+    return braket_circuit
+
+
+def mpqp_to_cirq(
+    circuit: QCircuit,
+    skip_pre_measure: bool = False,
+    skip_measurements: bool = False,
+    authorized_gates: set[type[Gate]] | None = None,
+) -> cirq_Circuit:
+    from cirq.circuits.circuit import Circuit as CirqCircuit
+    from cirq.ops.identity import I
+    from cirq.ops.named_qubit import NamedQubit
+    from mpqp.core.instruction import (
+        Measure,
+        Breakpoint,
+        CustomGate,
+        Barrier,
+        ControlledGate,
+        CustomControlledGate,
+        ExpectationMeasure,
+    )
+
+    if authorized_gates is None:
+        authorized_gates = set()
+    cirq_qubits = [NamedQubit(f"q_{i}") for i in range(circuit.nb_qubits)]
+    cirq_circuit = CirqCircuit()
+
+    for qubit in cirq_qubits:
+        cirq_circuit.append(I(qubit))
+
+    for instruction in circuit.instructions:
+        if not skip_pre_measure:
+            if isinstance(instruction, Measure):
+                for pre_measure in instruction.pre_measure:
+                    if isinstance(pre_measure, (CustomGate, CustomControlledGate)):
+                        instr = verify_convert_instructions(
+                            pre_measure, authorized_gates
+                        )
+                        qasm2_code, gphase = pre_measure.to_other_language(
+                            Language.QASM2
+                        )  # pyright: ignore[reportGeneralTypeIssues]
+                        if TYPE_CHECKING:
+                            assert isinstance(qasm2_code, str)
+                        from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
+
+                        qasm2_code = (
+                            "OPENQASM 2.0;"
+                            + "\ninclude \"qelib1.inc\";"
+                            + f"\nqreg q[{circuit.nb_qubits}];\n"
+                            + qasm2_code
+                        )
+                        custom_cirq_circuit = qasm2_to_cirq_Circuit(qasm2_code)
+                        cirq_circuit += custom_cirq_circuit
+                        # TODO: handle gphase in the circuit
+                        circuit._generated_g_phase += gphase  # type: ignore[reporPrivateUsage]
+                    else:
+                        cirq_pre_measure = pre_measure.to_other_language(Language.CIRQ)
+                        targets = []
+                        for target in pre_measure.targets:
+                            targets.append(cirq_qubits[target])
+                        cirq_circuit.append(cirq_pre_measure.on(*targets))
+
+        if isinstance(instruction, Gate):
+            instr = verify_convert_instructions(instruction, authorized_gates)
+        else:
+            instr = [instruction]
+
+        if isinstance(instr[0], CustomGate):
+            from cirq import GlobalPhaseGate
+
+            tmp_circuit = instr[0].decompose()
+            instr = tmp_circuit.instructions
+
+            cirq_circuit.insert(
+                0, GlobalPhaseGate(np.exp(1j * tmp_circuit.input_g_phase)).on()
+            )
+
+        for gate in instr:
+            if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
+                continue
+            elif isinstance(gate, ControlledGate):
+                targets = []
+                for target in gate.targets:
+                    targets.append(cirq_qubits[target])
+                controls = []
+                for control in gate.controls:
+                    controls.append(cirq_qubits[control])
+                cirq_instruction = gate.to_other_language(Language.CIRQ)
+                cirq_circuit.append(cirq_instruction.on(*controls, *targets))
+            else:
+                if skip_measurements and isinstance(gate, Measure):
+                    continue
+                targets = []
+                for target in gate.targets:
+                    targets.append(cirq_qubits[target])
+                cirq_instruction = gate.to_other_language(Language.CIRQ)
+                if TYPE_CHECKING:
+                    assert cirq_instruction
+                cirq_circuit.append(cirq_instruction.on(*targets))
+
+    if circuit.noises:
+        from mpqp.execution.providers.google import apply_noise_to_cirq_circuit
+
+        return apply_noise_to_cirq_circuit(
+            cirq_circuit,
+            circuit.noises,
+        )
+
+    if circuit.input_g_phase != 0:
+        from cirq import GlobalPhaseGate
+
+        cirq_circuit.insert(0, GlobalPhaseGate(np.exp(1j * circuit.input_g_phase)).on())
+
+    return cirq_circuit
