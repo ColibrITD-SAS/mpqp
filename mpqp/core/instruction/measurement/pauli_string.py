@@ -12,16 +12,18 @@ from functools import reduce
 from numbers import Real
 from operator import mul
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
-from typing_extensions import Never
 
 import numpy as np
 import numpy.typing as npt
+from typing_extensions import Never
 
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 from mpqp.tools import NumberQubitsError, format_element
@@ -1073,10 +1075,6 @@ class PauliStringMonomial(PauliString):
         )  # pyright: ignore[reportAssignmentType, reportOperatorIssue]
         self.coef = new_coef
         return self
-
-        res = deepcopy(self)
-        res *= other
-        return res
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
