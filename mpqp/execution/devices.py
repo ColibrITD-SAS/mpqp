@@ -27,7 +27,9 @@ from abc import abstractmethod
 from enum import Enum, auto
 
 from mpqp.core.instruction.gates import Gate
+from mpqp.core.instruction.gates.native_gates import *
 from mpqp.environment.env_manager import get_env_variable
+import warnings
 
 
 class AvailableDevice(Enum):
@@ -90,7 +92,13 @@ class AvailableDevice(Enum):
     def supports_observable_ideal(self) -> bool:
         pass
 
-    def incompatible_gate(self) -> set[type[Gate]]:
+    def compatible_gate(self, native_set: bool = False) -> set[type[Gate]]:
+        """Returns the set of gates supported by the devices.
+
+        Args:
+            native_set: If True returns the set of gates of the device without any transpilation.
+                (For example: optimization_level=0 on Qiskit or Verbatim box on Braket)
+        """
         return set()
 
 
@@ -115,7 +123,6 @@ class IBMDevice(AvailableDevice):
     IBM_BRISBANE = "ibm_brisbane"
     IBM_KYIV = "ibm_kyiv"
 
-    IBM_FEZ = "ibm_fez"
     IBM_RENSSELAER = "ibm_rensselaer"
     IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
@@ -124,16 +131,19 @@ class IBMDevice(AvailableDevice):
     IBM_NAZCA = "ibm_nazca"
     IBM_STRASBOURG = "ibm_strasbourg"
 
-    # RETIRED - IBM_OSAKA = "ibm_osaka"
-    # RETIRED - IBM_KYOTO = "ibm_kyoto"
-    # RETIRED - IBM_CUSCO = "ibm_cusco"
-    # RETIRED - IBM_ITHACA = "ibm_ithaca"
+    # NightHawk chips
+    IBM_BOSTON = "ibm_boston"
+    IBM_KINGSTON = "ibm_kingston"
+    IBM_PITTSBURGH = "ibm_pittsburgh"
+    IBM_FEZ = "ibm_fez"
+    IBM_MARRAKESH = "ibm_marrakesh"
+    IBM_AACHEN = "IBM_AACHEN"
+
+    # Heron chips
+    IBM_MIAMI = "ibm_miami"
+    IBM_BERLIN = "ibm_berlin"
+
     IBM_CLEVELAND = "ibm_cleveland"
-    # RETIRED - IBM_CAIRO = "ibm_cairo"
-    # RETIRED - IBM_HANOI = "ibm_hanoi"
-    # RETIRED - IBM_ALGIERS = "ibm_algiers"
-    # RETIRED - IBM_KOLKATA = "ibm_kolkata"
-    # RETIRED - IBM_MUMBAI = "ibm_mumbai"
     IBM_PEEKSKILL = "ibm_peekskill"
 
     IBM_LEAST_BUSY = "ibm_least_busy"
@@ -184,17 +194,28 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
             IBMDevice.AER_SIMULATOR_STABILIZER,
-            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 
-    def incompatible_gate(self) -> set[type[Gate]]:
-        from mpqp.core.instruction.gates import TOF, CRk, P, Rk, Rx, Ry, Rz, T, U
-
+    def compatible_gate(self, native_set: bool = False) -> set[type[Gate]]:
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
-            return {CRk, P, Rk, Rx, Ry, Rz, T, TOF, U}
+            warnings.warn(
+                UserWarning(
+                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                )
+            )
+            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         elif self == IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER:
-            return {Rx, Rz}
+            warnings.warn(
+                UserWarning(
+                    f"For {self} the gates Rx, Ry and Rz are allowed but only at angles 0, π, π/2 and 3*π/2"
+                )
+            )
+            return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
+        elif self in IBM_CHIPS_HERON:
+            return {CZ, Id, Rx, Rz, X}  # add Rzz
+        elif self in IBM_CHIPS_NIGHTHAWK:
+            return {CZ, Id, Rx, Rz, X}
         else:
             return set()
 
@@ -512,3 +533,14 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
+
+
+IBM_CHIPS_HERON = [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
+IBM_CHIPS_NIGHTHAWK = [
+    IBMDevice.IBM_BOSTON,
+    IBMDevice.IBM_KINGSTON,
+    IBMDevice.IBM_PITTSBURGH,
+    IBMDevice.IBM_FEZ,
+    IBMDevice.IBM_MARRAKESH,
+    IBMDevice.IBM_AACHEN,
+]
