@@ -1,11 +1,10 @@
-from cirq import PauliString
 import numpy as np
 import pytest
 from sympy import symbols
 
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_hermitian, rand_hermitian_matrix, rand_unitary_matrix
-from mpqp.core.instruction.measurement.pauli_string import pX, pI, pY, pZ
+from mpqp.core.instruction.measurement.pauli_string import pX, pI, pY, pZ, PauliString
 
 x = symbols("x", real=True)
 

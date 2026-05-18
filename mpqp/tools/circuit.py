@@ -118,7 +118,7 @@ def statevector_from_random_circuit(
     """
     from mpqp.execution import IBMDevice, Result, run
 
-    mpqp_circ = random_circuit(None, nb_qubits, None, seed)
+    mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
         assert isinstance(res, Result)

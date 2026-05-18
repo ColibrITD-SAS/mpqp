@@ -22,7 +22,6 @@ from mpqp.core.instruction.measurement.pauli_string import (
 )
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
