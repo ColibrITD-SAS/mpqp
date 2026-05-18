@@ -686,7 +686,7 @@ def mpqp_to_cirq(
         if isinstance(instr[0], CustomGate):
             if isinstance(instruction, CustomGate):
                 from cirq.ops.raw_types import Gate as CirqGate
-                
+
                 custom_gate = instr[0]
 
                 targets = []
