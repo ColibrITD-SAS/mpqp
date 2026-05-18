@@ -1,4 +1,5 @@
 from functools import reduce
+from typing import Optional
 
 import numpy as np
 import pytest
@@ -64,7 +65,10 @@ def exec_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     result = run(c, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    assert isinstance(result, Result)
+    from mpqp.tools import pprint
+
+    pprint(result.amplitudes)
+    pprint(exp_state_vector)
     assert matrix_eq(result.amplitudes, exp_state_vector, 1e-5, 1e-5)
 
 
@@ -124,7 +128,9 @@ def test_custom_gate_with_random_circuit_qiskit(circ_size: int):
 @pytest.mark.provider("braket")
 @pytest.mark.parametrize("circ_size", range(1, 6))
 def test_custom_gate_with_random_circuit_braket(circ_size: int):
-    exec_custom_gate_with_random_circuit(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    exec_custom_gate_with_random_circuit(
+        circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR, True
+    )
 
 
 @pytest.mark.provider("cirq")
@@ -139,8 +145,10 @@ def test_custom_gate_with_random_circuit_myqlm(circ_size: int):
     exec_custom_gate_with_random_circuit(circ_size, ATOSDevice.MYQLM_PYLINALG)
 
 
-def exec_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
-    random_circ = random_circuit(nb_qubits=circ_size)
+def exec_custom_gate_with_random_circuit(
+    circ_size: int, device: AvailableDevice, use_all_qubits: bool = False
+):
+    random_circ = random_circuit(nb_qubits=circ_size, use_all_qubits=use_all_qubits)
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit([CustomGate(matrix, list(range(circ_size)))])
 

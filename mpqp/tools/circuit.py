@@ -41,6 +41,7 @@ def random_circuit(
     gate_classes: Optional[Sequence[type[Gate]]] = None,
     nb_qubits: int = 5,
     nb_gates: Optional[int] = None,
+    use_all_qubits: bool = False,
     seed: Optional[int] = None,
 ):
     """This function creates a QCircuit with a specified number of qubits and gates.
@@ -86,6 +87,12 @@ def random_circuit(
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
         qcircuit.add(random_gate(gate_classes, nb_qubits, rng))
+
+    if use_all_qubits:  # used in case we want to test braket
+        from mpqp.gates import H
+
+        for i in range(nb_qubits):
+            qcircuit.add(H(i))
     return qcircuit
 
 
@@ -107,7 +114,7 @@ def statevector_from_random_circuit(
 
     Examples:
         >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.70710678+0.j  0. -0.j  0.26893257-0.65396886j  0. -0.j ]
+        [-0.07978925-0.49359262j -0.07978925+0.49359262j -0.07978925-0.49359262j -0.07978925+0.49359262j]
     """
     from mpqp.execution import IBMDevice, Result, run
 
