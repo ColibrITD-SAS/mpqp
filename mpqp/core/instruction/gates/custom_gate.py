@@ -133,7 +133,7 @@ class CustomGate(Gate):
                 return dummy_circuit.to_gate(
                     label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
                 )
-            return UnitaryGate(self.matrix)
+            return UnitaryGate(self.matrix, label=self.label, check_input=False)
         elif language == Language.BRAKET:
             from sympy import Expr
 
@@ -229,8 +229,9 @@ class CustomGate(Gate):
         if any(
             self.targets[i + 1] < self.targets[i] for i in range(len(self.targets) - 1)
         ):
-            from mpqp.tools import rearrange_matrix
             from copy import deepcopy
+
+            from mpqp.tools import rearrange_matrix
 
             targets = deepcopy(self.targets)
             targets.sort()

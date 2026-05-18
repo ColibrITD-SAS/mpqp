@@ -120,7 +120,7 @@ def statevector_from_random_circuit(
 
     Examples:
         >>> pprint(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.70711, 0, 0.26893-0.65397j, 0]
+        [0.43644+0.13833j, 0, 0.2176+0.86199j, 0]
     """
     from mpqp.execution import IBMDevice, Result, run
 
@@ -461,10 +461,9 @@ def mpqp_to_qiskit(
                 if printing and len(instruction.free_symbols) > 0:
                     new_circ.append(qiskit_inst, list(reversed(instruction.targets)))
                 else:
-                    new_circ.unitary(
+                    new_circ.append(
                         qiskit_inst,
                         list(reversed(instruction.targets)),
-                        instruction.label,
                     )
             else:
                 qargs = []
@@ -685,6 +684,21 @@ def mpqp_to_cirq(
             instr = [instruction]
 
         if isinstance(instr[0], CustomGate):
+            if isinstance(instruction, CustomGate):
+                from cirq.ops.raw_types import Gate as CirqGate
+                
+                custom_gate = instr[0]
+
+                targets = []
+                for target in custom_gate.targets:
+                    targets.append(cirq_qubits[target])
+
+                cirq_instruction = custom_gate.to_other_language(Language.CIRQ)
+                assert isinstance(cirq_instruction, CirqGate)
+
+                cirq_circuit.append(cirq_instruction.on(*targets))
+                continue
+
             from cirq import GlobalPhaseGate
 
             tmp_circuit = instr[0].decompose()

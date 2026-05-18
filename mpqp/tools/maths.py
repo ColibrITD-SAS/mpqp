@@ -6,7 +6,7 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from re import X
+
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
