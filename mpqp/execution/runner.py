@@ -104,11 +104,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
 
                 obs.matrix = rearrange_matrix(obs.matrix, contiguous_targets)
 
-        measure.targets = sorted(targets)
-    targets_is_contiguous = (
-        len(targets) > 0
-        and targets_is_ordered
-        and (targets[-1] - targets[0] + 1 == len(targets))
+    targets_is_contiguous = len(targets) > 0 and (
+        targets[-1] - targets[0] + 1 == len(sorted(targets))
     )
 
     tweaked_observables: list[Observable] = []
