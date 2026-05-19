@@ -110,6 +110,7 @@ class Job:
         job_type: JobType,
         circuit: QCircuit,
         device: AvailableDevice,
+        use_emulator: bool = False,
     ):
         self._status = JobStatus.INIT
 
@@ -128,6 +129,7 @@ class Job:
         self.status_message: Optional[str] = None
         """Optional message associated with the current job status, especially
         for execution errors."""
+        self.use_emulator = use_emulator
 
     @property
     def measure(self) -> Optional[Measure]:
@@ -181,6 +183,7 @@ class Job:
             and self.circuit == other.circuit
             and self.device == other.device
             and self.measure == other.measure
+            and self.use_emulator == other.use_emulator
         )
 
     def to_dict(self):
@@ -192,6 +195,7 @@ class Job:
             "id": self.id,
             "status": self.status,
             "status_message": self.status_message,
+            "use_emulator": self.use_emulator,
         }
 
     @staticmethod

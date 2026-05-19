@@ -169,14 +169,22 @@ def run_braket_observable(job: Job):
         transpiled_circuit = job.circuit.transpiled_circuit
         assert isinstance(transpiled_circuit, Circuit)
 
-    device = get_braket_device(
-        job.device,
-        is_noisy=bool(job.circuit.noises),
-    )
-
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     assert isinstance(job.measure, ExpectationMeasure)
+
+    if job.use_emulator and job.measure.optimize_measurement and job.measure.shots == 0:
+        raise DeviceJobIncompatibleError(
+            "AWS emulator does not support the MPQP grouped observable path with "
+            "shots=0, because that path explicitly requests a state vector. "
+            "Use optimize_measurement=False, or shots>0, or BRAKET_LOCAL_SIMULATOR."
+        )
+
+    device = get_braket_device(
+        job.device,
+        is_noisy=bool(job.circuit.noises),
+        use_emulator=job.use_emulator,
+    )
 
     results, errors = {}, {}
     if job.measure.optimize_measurement:
@@ -187,20 +195,16 @@ def run_braket_observable(job: Job):
 
         if job.measure.pre_transpiled is None:
             grouping = job.measure.get_pauli_grouping()
-            pre_measure = [
-                QCircuit(find_qubitwise_rotations(group)) for group in grouping
-            ]
-            for circuit in pre_measure:
-                for instr in circuit.instructions:
-                    instr.targets[0] = job.measure.targets[instr.targets[0]]
             transpiled_pre_measures = [
-                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
+                QCircuit(find_qubitwise_rotations(group)).to_other_language(
+                    Language.BRAKET
+                )
+                for group in grouping
             ]
             eigenvalues = [
                 {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
                 for group in grouping
             ]
-
         else:
             eigenvalues, transpiled_pre_measures = (
                 job.measure.pre_transpiled
@@ -214,11 +218,7 @@ def run_braket_observable(job: Job):
 
                 cirq = deepcopy(transpiled_circuit + pre_measure)
                 cirq.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
-                local_result = device.run(
-                    cirq,
-                    shots=0,
-                    inputs=None,  # disable_qubit_rewiring=True
-                ).result()
+                local_result = device.run(cirq, shots=0, inputs=None).result()
 
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 values = local_result.values[0]
@@ -230,15 +230,13 @@ def run_braket_observable(job: Job):
                     transpiled_circuit + pre_measure,
                     shots=job.measure.shots,
                     inputs=None,
-                    # disable_qubit_rewiring=True,
                 )
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
-                a = len(list(result.measurement_probabilities.keys())[0])
-                length = 2**a
+                length = 2**job.circuit.nb_qubits
                 sorted_values: list[float] = []
                 for i in range(length):
-                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+                    binary_state = f"{bin(i)[2:].zfill(len(bin(length)) - 3)}"
                     if binary_state in result.measurement_probabilities:
                         sorted_values.append(
                             result.measurement_probabilities[binary_state].real
@@ -273,8 +271,6 @@ def run_braket_observable(job: Job):
             from braket.circuits.observables import Hermitian
 
             if job.measure.shots == 0:
-                # TODO: Remove this when Braket will have fixed PauliString with coeff
-                # force the conversion to matrix to avoid issues with pauli_string with coeff
                 if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
                     obs = deepcopy(obs)
                     obs.matrix
@@ -287,12 +283,8 @@ def run_braket_observable(job: Job):
                     observable=braket_obs, target=job.measure.targets
                 )
                 job.status = JobStatus.RUNNING
-                # TODO: handle disable_qubit_rewiring, linked to verbatim box but crashes when not in use.
                 local_result = device.run(
-                    copy,
-                    shots=job.measure.shots,
-                    inputs=None,
-                    # disable_qubit_rewiring=True,
+                    copy, shots=job.measure.shots, inputs=None
                 ).result()
                 assert isinstance(local_result, GateModelQuantumTaskResult)
                 results.update({f"observable_{i}": local_result.values[0].real})
@@ -320,14 +312,10 @@ def run_braket_observable(job: Job):
             )
             job.status = JobStatus.RUNNING
 
-            if TYPE_CHECKING:
-                assert isinstance(device, AWSDevice)
-
             local_result = device.run(
                 program_set,
                 shots=program_set.total_executables * job.measure.shots,
                 inputs=None,
-                # disable_qubit_rewiring=True,
             ).result()
             assert isinstance(local_result, ProgramSetQuantumTaskResult)
             for res in local_result:
@@ -343,24 +331,6 @@ def run_braket_observable(job: Job):
 def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     """Submits the job to the right local/remote device and returns the
     generated task.
-
-    Args:
-        job: Job to be executed, it MUST be corresponding to a
-            :class:`mpqp.execution.devices.AWSDevice`.
-
-    Returns:
-        The task's id and the Task itself.
-
-    Raises:
-        ValueError: If the job type is not supported for noisy simulations,
-            or if it is of type ``OBSERVABLE`` but got no
-            ``ExpectationMeasure``.
-        NotImplementedError: If the job type is not ``STATE_VECTOR``, ``SAMPLE``
-            or ``OBSERVABLE``.
-
-    Note:
-        This function is not meant to be used directly, please use
-        :func:`~mpqp.execution.runner.run` instead.
     """
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
@@ -368,7 +338,17 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
             f"{job.device} instead"
         )
 
-    if job.job_type == JobType.STATE_VECTOR and job.device.is_remote():
+    if job.use_emulator and job.job_type == JobType.STATE_VECTOR:
+        raise DeviceJobIncompatibleError(
+            "State vector cannot be computed using the AWS Braket device emulator. "
+            "Please use BRAKET_LOCAL_SIMULATOR instead."
+        )
+
+    if (
+        job.job_type == JobType.STATE_VECTOR
+        and job.device.is_remote()
+        and not job.use_emulator
+    ):
         raise DeviceJobIncompatibleError(
             "State vector cannot be computed using AWS Braket remote simulators"
             " and devices. Please use the LocalSimulator instead"
@@ -387,7 +367,11 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     from braket.circuits import Circuit
 
-    device = get_braket_device(job.device, is_noisy=is_noisy)
+    device = get_braket_device(
+        job.device,
+        is_noisy=is_noisy,
+        use_emulator=job.use_emulator,
+    )
 
     if job.circuit.transpiled_circuit is None:
         braket_circuit = job.circuit.to_other_device(job.device)
@@ -396,9 +380,8 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
     if TYPE_CHECKING:
         assert isinstance(braket_circuit, Circuit)
+
     if job.job_type == JobType.STATE_VECTOR:
-        # rebind safe_retrieve_samples from braket to Normalize the probability
-        # because the bracket does not do so and this causes a crash.
         from braket.default_simulator.state_vector_simulation import (
             StateVectorSimulation,
         )
@@ -409,34 +392,18 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
             return np.random.choice(len(self._state_vector), p=probs, size=self._shots)
 
         StateVectorSimulation.retrieve_samples = safe_retrieve_samples
-        # ----
 
         braket_circuit.state_vector()  # pyright: ignore[reportAttributeAccessIssue]
         job.status = JobStatus.RUNNING
-
-        if TYPE_CHECKING:
-            assert isinstance(device, AWSDevice)
-        task = device.run(
-            braket_circuit,
-            shots=0,
-            inputs=None,  # disable_qubit_rewiring=True
-        )
+        task = device.run(braket_circuit, shots=0, inputs=None)
 
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert job.measure is not None
         job.status = JobStatus.RUNNING
-        if TYPE_CHECKING:
-            assert isinstance(device, AWSDevice)
-        task = device.run(
-            braket_circuit,
-            shots=job.measure.shots,
-            inputs=None,
-            # disable_qubit_rewiring=True,
-        )
+        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     elif job.job_type == JobType.OBSERVABLE:
-        # TODO : [multi-obs] update this to take into account the case when we have list of Observables
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
         if job.measure.observables[0].pre_transpiled is None:
@@ -448,16 +415,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         )
 
         job.status = JobStatus.RUNNING
-
-        if TYPE_CHECKING:
-            assert isinstance(device, AWSDevice)
-
-        task = device.run(
-            braket_circuit,
-            shots=job.measure.shots,
-            inputs=None,
-            # disable_qubit_rewiring=True,
-        )
+        task = device.run(braket_circuit, shots=job.measure.shots, inputs=None)
 
     else:
         raise NotImplementedError(f"Job of type {job.job_type} not handled.")

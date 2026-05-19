@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from numbers import Complex
 from textwrap import indent
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
+from typing import TYPE_CHECKING, Iterable, Optional
 
 import numpy as np
 
@@ -156,21 +156,10 @@ def generate_job(
     circuit: QCircuit,
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
+    use_emulator: bool = False,
 ) -> Job:
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
-
-    If the circuit contains symbolic variables (see section :ref:`VQA` for more
-    information), the ``values`` parameter is used to perform the necessary
-    substitutions.
-
-    Args:
-        circuit: Circuit to be run.
-        device: Device on which the circuit will be run.
-        values: Set of values to substitute for symbolic variables.
-
-    Returns:
-        The Job containing information about the execution of the circuit.
     """
     if values is not None:
         circuit = circuit.subs(values)
@@ -179,20 +168,31 @@ def generate_job(
     nb_meas = len(m_list)
 
     if nb_meas == 0:
-        job = Job(JobType.STATE_VECTOR, circuit, device)
+        job = Job(JobType.STATE_VECTOR, circuit, device, use_emulator=use_emulator)
     elif nb_meas == 1:
         measurement = m_list[0]
         if isinstance(measurement, BasisMeasure):
             if measurement.shots <= 0:
-                job = Job(JobType.STATE_VECTOR, circuit, device)
+                job = Job(
+                    JobType.STATE_VECTOR,
+                    circuit,
+                    device,
+                    use_emulator=use_emulator,
+                )
             else:
-                job = Job(JobType.SAMPLE, circuit, device)
+                job = Job(
+                    JobType.SAMPLE,
+                    circuit,
+                    device,
+                    use_emulator=use_emulator,
+                )
         elif isinstance(measurement, ExpectationMeasure):
             if measurement.optimize_measurement and isinstance(device, AWSDevice):
                 job = Job(
                     JobType.OBSERVABLE,
                     circuit,
                     device,
+                    use_emulator=use_emulator,
                 )
             else:
                 m = adjust_measure(measurement, circuit)
@@ -202,6 +202,7 @@ def generate_job(
                     JobType.OBSERVABLE,
                     c,
                     device,
+                    use_emulator=use_emulator,
                 )
         else:
             raise NotImplementedError(
@@ -260,51 +261,26 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    use_emulator: bool = False,
 ) -> Result:
-    """Runs the circuit on the ``backend``. If the circuit depends on variables,
-    the ``values`` given in parameters are used to do the substitution.
-
-    Args:
-        circuit: QCircuit to be run.
-        device: Device, on which the circuit will be run.
-        values: Set of values to substitute symbolic variables. Defaults to ``{}``.
-        display_breakpoints: If ``False``, breakpoints will be disabled. Each
-            breakpoint adds an execution of the circuit(s), so you may use this
-            option for performance if need be.
-
-    Returns:
-        The Result containing information about the measurement required.
-
-    Raises:
-        DeviceJobIncompatibleError: if a non noisy simulator is given in
-            parameter and the circuit contains noise
-        NotImplementedError: If the device is not handled for noisy simulation
-            or other submissions.
-
-    Example:
-        >>> c = QCircuit([H(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)], label="Bell pair")
-        >>> result = run(c, IBMDevice.AER_SIMULATOR)
-        >>> print(result) # doctest: +SKIP
-        Result: IBMDevice, AER_SIMULATOR
-         Probabilities: [0.523, 0, 0, 0.477]
-         Counts: [523, 0, 0, 477]
-         Samples:
-          State: 00, Index: 0, Count: 523, Probability: 0.523
-          State: 11, Index: 3, Count: 477, Probability: 0.477
-         Error: None
-
-    """
+    """Runs the circuit on the backend."""
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
         StaticIBMSimulatedDevice,
     )
 
+    if use_emulator and not isinstance(device, AWSDevice):
+        raise DeviceJobIncompatibleError(
+            "`use_emulator=True` is only supported for AWSDevice."
+        )
+
     if display_breakpoints:
         for k in range(len(circuit.breakpoints)):
             display_kth_breakpoint(circuit, k, device)
 
-    job = generate_job(circuit, device, values)
+    job = generate_job(circuit, device, values, use_emulator=use_emulator)
     job.status = JobStatus.INIT
+
     if len(circuit.measurements) == 1:
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
@@ -335,108 +311,15 @@ def _run_single(
         raise NotImplementedError(f"Device {device} not handled")
 
 
-@overload
-def run(
-    circuit: OneOrMany[QCircuit],
-    device: Sequence[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
-    display_breakpoints: bool = True,
-) -> BatchResult: ...
-
-
-@overload
-def run(
-    circuit: Sequence[QCircuit],
-    device: OneOrMany[AvailableDevice],
-    values: "Optional[dict[Expr | str, Complex]]" = None,
-    display_breakpoints: bool = True,
-) -> BatchResult: ...
-
-
-@overload
-def run(
-    circuit: QCircuit,
-    device: AvailableDevice,
-    values: "Optional[dict[Expr | str, Complex]]" = None,
-    display_breakpoints: bool = True,
-) -> Result: ...
-
-
 def run(
     circuit: OneOrMany[QCircuit],
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    use_emulator: bool = False,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
-
-    If the circuit contains symbolic variables (see section :ref:`VQA` for more
-    information on them), the ``values`` parameter is used perform the necessary
-    substitutions.
-
-    Args:
-        circuit: Circuit, or list of circuits, to be run.
-        device: Device, or list of devices, on which the circuit will be run.
-        values: Set of values to substitute symbolic variables. Defaults to ``{}``.
-        display_breakpoints: If ``False``, breakpoints will be disabled. Each
-            breakpoint adds an execution of the circuit(s), so you may use this
-            option for performance if need be.
-
-    Returns:
-        The Result containing information about the measurement required.
-
-    Examples:
-        >>> c = QCircuit(
-        ...     [X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=1000)],
-        ...     label="X CNOT circuit",
-        ... )
-        >>> result = run(c, IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
-        >>> print(result) # doctest: +QISKIT
-        Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-          Counts: [0, 0, 0, 1000]
-          Probabilities: [0, 0, 0, 1]
-          Samples:
-            State: 11, Index: 3, Count: 1000, Probability: 1
-          Error: None
-        >>> batch_result = run(  # doctest: +MYQLM, +BRAKET
-        ...     c,
-        ...     [ATOSDevice.MYQLM_PYLINALG, AWSDevice.BRAKET_LOCAL_SIMULATOR]
-        ... )
-        >>> print(batch_result) # doctest: +MYQLM, +BRAKET
-        BatchResult: 2 results
-            Result: X CNOT circuit, ATOSDevice, MYQLM_PYLINALG
-              Counts: [0, 0, 0, 1000]
-              Probabilities: [0, 0, 0, 1]
-              Samples:
-                State: 11, Index: 3, Count: 1000, Probability: 1
-              Error: 0.0
-            Result: X CNOT circuit, AWSDevice, BRAKET_LOCAL_SIMULATOR
-              Counts: [0, 0, 0, 1000]
-              Probabilities: [0, 0, 0, 1]
-              Samples:
-                State: 11, Index: 3, Count: 1000, Probability: 1
-              Error: None
-        >>> c2 = QCircuit(
-        ...     [X(0), X(1), BasisMeasure([0, 1], shots=1000)],
-        ...     label="X circuit",
-        ... )
-        >>> result = run([c,c2], IBMDevice.AER_SIMULATOR) # doctest: +QISKIT
-        >>> print(result) # doctest: +QISKIT
-        BatchResult: 2 results
-            Result: X CNOT circuit, IBMDevice, AER_SIMULATOR
-              Counts: [0, 0, 0, 1000]
-              Probabilities: [0, 0, 0, 1]
-              Samples:
-                State: 11, Index: 3, Count: 1000, Probability: 1
-              Error: None
-            Result: X circuit, IBMDevice, AER_SIMULATOR
-              Counts: [0, 0, 0, 1000]
-              Probabilities: [0, 0, 0, 1]
-              Samples:
-                State: 11, Index: 3, Count: 1000, Probability: 1
-              Error: None
-
     """
 
     def namer(circ: QCircuit, i: int):
@@ -451,59 +334,46 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
+                    use_emulator,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(
+            circuit,
+            device,
+            values,
+            display_breakpoints,
+            use_emulator,
+        )
 
 
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
+    use_emulator: bool = False,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
-    parameter. The submission returns a ``job_id`` that can be used to retrieve
-    the :class:`~mpqp.execution.result.Result` later using the
-    :func:`~mpqp.execution.remote_handler.get_remote_result`
-    function.
-
-    If the circuit contains symbolic variables (see section :ref:`VQA` for more
-    information), the ``values`` parameter is used perform the necessary
-    substitutions.
-
-    Note that this function only supports single device submissions.
-
-    Args:
-        circuit: QCircuit to be run.
-        device: Remote device to which the circuit will be submitted.
-        values: Values to substitute for symbolic variables. Defaults to ``{}``.
-
-    Returns:
-        The job id provided by the remote device after submission of the job.
-
-    Example:
-        >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
-        >>> job_id, job = submit(circuit, ATOSDevice.QLM_LINALG) #doctest: +SKIP
-        Logging as user <qlm_user>...
-        Submitted a new batch: Job766
-        >>> print(f"Status of {job_id}: {job.job_status}") #doctest: +SKIP
-        Status of Job766: JobStatus.RUNNING
-
-    Note:
-        Unlike :func:`run`, you can only submit on one device at a time.
+    parameter.
     """
     if values is None:
         values = {}
+
+    if use_emulator:
+        raise RemoteExecutionError(
+            "submit(..., use_emulator=True) is not supported because the AWS emulator runs locally. "
+            "Use run(..., use_emulator=True) instead."
+        )
+
     if not device.is_remote():
         raise RemoteExecutionError(
             "submit(...) function is only made for remote device."
         )
 
-    job = generate_job(circuit, device, values)
+    job = generate_job(circuit, device, values, use_emulator=use_emulator)
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):

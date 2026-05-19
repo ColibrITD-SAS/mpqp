@@ -410,6 +410,7 @@ def get_braket_device(
     device: AWSDevice,
     is_noisy: bool = False,
     is_gate_model: bool = True,
+    use_emulator: bool = False,
 ) -> "BraketDevice":
     """Returns the AwsDevice device associate with the AWSDevice in parameter.
 
@@ -486,6 +487,8 @@ def get_braket_device(
                     "This is an AHS device, which cannot run MPQP QCircuit."
                 )
 
+    if use_emulator:
+        return braket_device.emulator()
     return braket_device
 
 
