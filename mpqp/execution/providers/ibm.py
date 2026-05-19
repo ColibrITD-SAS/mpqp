@@ -106,9 +106,6 @@ def compute_expectation_value(
         if TYPE_CHECKING:
             assert isinstance(translated, SparsePauliOp)
         qiskit_observables.append(translated)
-        qiskit_observables = [
-            obs.apply_layout(ibm_circuit.layout) for obs in qiskit_observables
-        ]
 
     if isinstance(job.device, StaticIBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator

@@ -13,6 +13,7 @@ from mpqp.core.instruction.gates.native_gates import (
     TOF,
     CRk,
     P,
+    OneQubitNoParamGate,
     Rk,
     RotationGate,
     Rx,
@@ -89,10 +90,12 @@ def random_circuit(
         qcircuit.add(random_gate(gate_classes, nb_qubits, rng))
 
     if use_all_qubits:  # used in case we want to test braket
-        from mpqp.gates import H
+        gates = np.array(
+            [g for g in NATIVE_GATES if issubclass(g, OneQubitNoParamGate)]
+        )
 
         for i in range(nb_qubits):
-            qcircuit.add(H(i))
+            qcircuit.add(rng.choice(gates)(i))
     return qcircuit
 
 

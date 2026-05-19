@@ -501,18 +501,18 @@ def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix
 
     Example:
     >>> I = np.eye(2)
-    >>> X = np.array([[0,1], [1,0]])
-    >>> matrix = np.kron(I, X)
+    >>> Z = np.array([[1,0], [0,-1]])
+    >>> matrix = np.kron(I, Z)
     >>> pprint(matrix)
-    [[0, 1, 0, 0],
-     [1, 0, 0, 0],
-     [0, 0, 0, 1],
-     [0, 0, 1, 0]]
+    [[1, 0, 0 , 0 ],
+     [0, 1, 0 , 0 ],
+     [0, 0, -1, 0 ],
+     [0, 0, 0 , -1]]
     >>> pprint(rearrange_matrix(matrix, [1,0]))
-    [[0, 0, 1, 0],
-     [0, 0, 0, 1],
-     [1, 0, 0, 0],
-     [0, 1, 0, 0]]
+    [[1, 0 , 0, 0 ],
+     [0, -1, 0, 0 ],
+     [0, 0 , 1, 0 ],
+     [0, 0 , 0, -1]]
     """
     from copy import deepcopy
 
