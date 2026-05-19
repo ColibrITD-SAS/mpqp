@@ -119,17 +119,9 @@ class IBMDevice(AvailableDevice):
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
     AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
 
-    IBM_SHERBROOKE = "ibm_sherbrooke"
-    IBM_BRISBANE = "ibm_brisbane"
-    IBM_KYIV = "ibm_kyiv"
-
     IBM_RENSSELAER = "ibm_rensselaer"
-    IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
     IBM_QUEBEC = "ibm_quebec"
-    IBM_TORINO = "ibm_torino"
-    IBM_NAZCA = "ibm_nazca"
-    IBM_STRASBOURG = "ibm_strasbourg"
 
     # NightHawk chips
     IBM_BOSTON = "ibm_boston"

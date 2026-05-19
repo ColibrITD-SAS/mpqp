@@ -1651,12 +1651,12 @@ class QCircuit:
             if job_type == JobType.STATE_VECTOR:
                 skip_measurements = True
 
-            if any(
-                isinstance(i, tuple(device.incompatible_gate()))
+            if len(device.compatible_gate()) != 0 and any(
+                not isinstance(i, tuple(device.compatible_gate()))
                 for i in self.instructions
             ):
                 raise ValueError(
-                    f"Gate(s) {', '.join(map(str, device.incompatible_gate()))} cannot be simulated on {device}."
+                    f"Gate(s) {', '.join(map(str, device.compatible_gate()))} cannot be simulated on {device}."
                 )
             if (
                 isinstance(device, StaticIBMSimulatedDevice)
