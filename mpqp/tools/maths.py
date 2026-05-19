@@ -504,15 +504,15 @@ def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix
     >>> Z = np.array([[1,0], [0,-1]])
     >>> matrix = np.kron(I, Z)
     >>> pprint(matrix)
-    [[1, 0, 0 , 0 ],
-     [0, 1, 0 , 0 ],
-     [0, 0, -1, 0 ],
-     [0, 0, 0 , -1]]
-    >>> pprint(rearrange_matrix(matrix, [1,0]))
     [[1, 0 , 0, 0 ],
      [0, -1, 0, 0 ],
      [0, 0 , 1, 0 ],
      [0, 0 , 0, -1]]
+    >>> pprint(rearrange_matrix(matrix, [1,0]))
+    [[1, 0, 0 , 0 ],
+     [0, 1, 0 , 0 ],
+     [0, 0, -1, 0 ],
+     [0, 0, 0 , -1]]
     """
     from copy import deepcopy
 
