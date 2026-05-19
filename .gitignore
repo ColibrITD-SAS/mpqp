@@ -8,6 +8,7 @@ mpqp/_setuptools_scm_version.py
 
 # python
 *.egg-info/
+.eggs/
 dist/
 __pycache__/
 *.pyc
