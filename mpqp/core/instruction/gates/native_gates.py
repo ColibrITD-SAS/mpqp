@@ -1330,8 +1330,33 @@ class Rz(RotationGate, SingleQubitGate):
 
 
 class Rxx(RotationGate, ComposedGate):
-    # TODO: docs
-    r"""Two-qubit XX rotation gate."""
+    r"""Two-qubit XX rotation gate.
+
+    `Rxx(\phi) = e^{-i\phi X \otimes X / 2}`
+
+    \begin{pmatrix}
+        \cos(\phi/2)&0&0&-i\sin(\phi/2)\\
+        0&\cos(\phi/2)&-i\sin(\phi/2)&0\\
+        0&-i\sin(\phi/2)&\cos(\phi/2)&0\\
+        -i\sin(\phi/2)&0&0&\cos(\phi/2)
+    \end{pmatrix}
+
+    Decomposition used by MPQP:
+        `CNOT(a, b)`, `Rx(\phi, a)`, `CNOT(a, b)`
+
+    Args:
+        phi: Parameter representing the angle of the gate.
+        a: Index referring to the first ubit on which the gate will be applied.
+        b: Index referring to the second qubit on which the gate will be applied.
+
+    Example:
+        >>> pprint(Rxx(np.pi, 0, 1).to_matrix())
+        [[0  , 0  , 0  , -1j],
+         [0  , 0  , -1j, 0  ],
+         [0  , -1j, 0  , 0  ],
+         [-1j, 0  , 0  , 0  ]]
+
+    """
 
     @classproperty
     def braket_gate(cls):
@@ -1370,7 +1395,6 @@ class Rxx(RotationGate, ComposedGate):
                 [0, -1j * s, c, 0],
                 [-1j * s, 0, 0, c],
             ],
-            dtype=complex,
         )
 
     def decompose(self) -> list[Gate]:
@@ -1410,8 +1434,35 @@ class Rxx(RotationGate, ComposedGate):
 
 
 class Ryy(RotationGate, ComposedGate):
-    # TODO: docs
-    r"""Two-qubit YY rotation gate."""
+    r"""Two-qubit YY rotation gate.
+
+    `Ryy(\phi) = e^{-i\phi Y \otimes Y / 2}`
+
+    \begin{pmatrix}
+        \cos(\phi/2)&0&0&i\sin(\phi/2)\\
+        0&\cos(\phi/2)&-i\sin(\phi/2)&0\\
+        0&-i\sin(\phi/2)&\cos(\phi/2)&0\\
+        i\sin(\phi/2)&0&0&\cos(\phi/2)
+    \end{pmatrix}
+
+    Decomposition used by MPQP:
+        `Rx(\pi/2, a)`, `Rx(\pi/2, b)`,
+        `CNOT(a, b)`, `Rz(\phi, b)`, `CNOT(a, b)`,
+        `Rx(-\pi/2, a)`, `Rx(-\pi/2, b)`
+
+    Args:
+        phi: Parameter representing the angle of the gate.
+        a: Index referring to the first ubit on which the gate will be applied.
+        b: Index referring to the second qubit on which the gate will be applied.
+
+    Example:
+        >>> pprint(Ryy(np.pi, 0, 1).to_matrix())
+        [[0 , 0  , 0  , 1j],
+         [0 , 0  , -1j, 0 ],
+         [0 , -1j, 0  , 0 ],
+         [1j, 0  , 0  , 0 ]]
+
+    """
 
     @classproperty
     def braket_gate(cls):
@@ -1450,7 +1501,6 @@ class Ryy(RotationGate, ComposedGate):
                 [0, -1j * s, c, 0],
                 [1j * s, 0, 0, c],
             ],
-            dtype=complex,
         )
 
     def decompose(self) -> list[Gate]:
@@ -1524,7 +1574,6 @@ class Rzz(RotationGate, ComposedGate):
          [0 , 0  , -1j, 0 ],
          [0 , 0  , 0  , 1j]]
 
-
     """
 
     @classproperty
@@ -1564,7 +1613,6 @@ class Rzz(RotationGate, ComposedGate):
                 [0, 0, e_plus, 0],
                 [0, 0, 0, e_minus],
             ],
-            dtype=complex,
         )
 
     def decompose(self) -> list[Gate]:
