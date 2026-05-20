@@ -162,32 +162,9 @@ class CustomGate(Gate):
                     target=self.targets,
                 )
         elif language == Language.CIRQ:
-            from cirq import Gate as cirqGate
+            from cirq import MatrixGate
 
-            # TODO: find clean way of initiating this class once
-            # Cost is negli
-            class cirqCustomGate(cirqGate):
-                def __init__(self, matrix: Matrix, label: str | None):
-                    import numpy as np
-
-                    self.matrix = matrix
-                    self.label = label
-                    self._nb_qubits = int(np.log2(len(matrix)))
-                    super(cirqCustomGate, self)
-
-                def _num_qubits_(self) -> int:
-                    return self._nb_qubits
-
-                def _unitary_(self) -> Matrix:
-                    return self.matrix
-
-                def _circuit_diagram_info_(self, args: list[float]) -> str | list[str]:
-                    # we keep args for later implementation
-                    if self.label:
-                        return [self.label] * self._nb_qubits
-                    return ["CustomGate"] * self._nb_qubits
-
-            return cirqCustomGate(self.matrix, self.label)
+            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
 
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
@@ -251,7 +228,22 @@ class CustomGate(Gate):
         """
         from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
 
-        return quantum_shannon_decomposition(self.matrix)
+        # non ordered targets
+        if any(
+            self.targets[i + 1] < self.targets[i] for i in range(len(self.targets) - 1)
+        ):
+            from copy import deepcopy
+
+            from mpqp.tools import rearrange_matrix
+
+            targets = deepcopy(self.targets)
+            targets.sort()
+
+            return quantum_shannon_decomposition(
+                rearrange_matrix(self.matrix, self.targets, copy=True), targets
+            )
+
+        return quantum_shannon_decomposition(self.matrix, self.targets)
 
     def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
         res = copy(self)

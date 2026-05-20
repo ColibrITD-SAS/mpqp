@@ -248,8 +248,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
+            from copy import deepcopy
 
-            connection = self.targets
+            connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):
                 connection += self.controls
             return Instruction(
@@ -361,8 +362,9 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             return self.qiskit_gate()
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
+            from copy import deepcopy
 
-            connection = self.targets
+            connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):
                 connection += self.controls
             return Instruction(operator=self.braket_gate(), target=connection)
