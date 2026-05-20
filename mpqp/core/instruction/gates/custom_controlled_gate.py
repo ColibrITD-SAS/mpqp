@@ -34,11 +34,13 @@ class CustomControlledGate(ControlledGate):
         >>> circuit = QCircuit(3)
         >>> circuit.add(CustomControlledGate([0,2], CustomGate(np.array([[1,0],[0,-1]]),[1])))
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
-        q_0: ─────■─────
-             ┌────┴────┐
-        q_1: ┤ Unitary ├
-             └────┬────┘
-        q_2: ─────■─────
+             ┌──────────┐
+        q_0: ┤2         ├
+             │          │
+        q_1: ┤1 Unitary ├
+             │          │
+        q_2: ┤0         ├
+             └──────────┘
 
     """
 

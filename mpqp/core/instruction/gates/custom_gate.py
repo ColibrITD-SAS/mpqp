@@ -129,12 +129,11 @@ class CustomGate(Gate):
                 from qiskit import QuantumCircuit
 
                 dummy_circuit = QuantumCircuit(self.nb_qubits)
-                for param in qiskit_parameters:
-                    # Rx is just a random choice so to have the parameter in the
-                    # list of inputs
-                    dummy_circuit.rx(param, 0)
-                return dummy_circuit.to_gate(label="CustomGate")
-            return UnitaryGate(self.matrix)
+                dummy_circuit.id(0)
+                return dummy_circuit.to_gate(
+                    label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
+                )
+            return UnitaryGate(self.matrix, label=self.label, check_input=False)
         elif language == Language.BRAKET:
             from sympy import Expr
 
