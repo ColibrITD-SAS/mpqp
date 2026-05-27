@@ -87,7 +87,7 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
 
     def is_retired(self) -> bool:
         """Function used to tell if the simulated device is retired or not.
-        Note: It only compare its name to an already existing one, if an old simulated device has the same name as a new one it may break.
+        Note: It only compare its name to a currently existing one, if an old simulated device has the same name as a new one it may break.
         """
         from mpqp.execution.devices import IBMDevice
 
@@ -96,7 +96,7 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
             name = name[:-2]
         name = name.upper()
         devices_names = IBMDevice._member_names_
-        return any(name in device for device in devices_names)
+        return not any(name in device for device in devices_names)
 
 
 class _LazyIBMSimulatedDevice:
