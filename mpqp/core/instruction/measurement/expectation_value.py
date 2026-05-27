@@ -467,7 +467,8 @@ class ExpectationMeasure(Measure):
 
         if targets is None:
             self.targets = list(range(observable[0].nb_qubits))
-        self._check_targets_order()
+        self.rearranged_targets = list(self.targets)
+        self._pre_measure: list[Gate] = []
 
     @property
     def nb_observables(self) -> int:
@@ -476,13 +477,6 @@ class ExpectationMeasure(Measure):
     @property
     def observables_labels(self) -> list[str]:
         return [o.label for o in self.observables if o.label is not None]
-
-    def _check_targets_order(self):
-        """Ensures target qubits are ordered and contiguous, rearranging them if
-        necessary (private)."""
-
-        self.rearranged_targets = list(self.targets)
-        self._pre_measure: list[Gate] = []
 
     @property
     def pre_measure(self) -> list[Gate]:

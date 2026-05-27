@@ -581,14 +581,15 @@ def rearrange_pauli_string(
         >>> print(rearrange_pauli_string(ps2, [1,0]))
         pI@pX + pX@pI
     """
-    if copy:
-        from copy import deepcopy
+    from copy import deepcopy
 
+    if copy:
         pauli = deepcopy(ps)
     else:
         pauli = ps
 
     l = len(targets)
+    targets = deepcopy(targets)
     shuffled = sorted(targets)
     for index in range(l):
         if targets[index] == index:
