@@ -8,10 +8,10 @@ from __future__ import annotations
 import copy
 from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
-from typing_extensions import Never
 
 import numpy as np
 import numpy.typing as npt
+from typing_extensions import Never
 
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
@@ -34,8 +34,6 @@ if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
-
-    from mpqp.core.instruction.gates.custom_controlled_gate import Gate
 
 
 class Observable:
@@ -334,7 +332,7 @@ class Observable:
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
             if self._pauli_string:
-                from braket.circuits.observables import TensorProduct, Sum
+                from braket.circuits.observables import Sum, TensorProduct
 
                 obs = self.pauli_string.to_other_language(Language.BRAKET)
                 if isinstance(obs, TensorProduct):
@@ -466,9 +464,7 @@ class ExpectationMeasure(Measure):
             self.observables.append(new_obs)
 
         if targets is None:
-            self.targets = list(range(observable[0].nb_qubits))
-        self.rearranged_targets = list(self.targets)
-        self._pre_measure: list[Gate] = []
+            self.targets = list(range(self.observables[0].nb_qubits))
 
     @property
     def nb_observables(self) -> int:
@@ -477,10 +473,6 @@ class ExpectationMeasure(Measure):
     @property
     def observables_labels(self) -> list[str]:
         return [o.label for o in self.observables if o.label is not None]
-
-    @property
-    def pre_measure(self) -> list[Gate]:
-        return self._pre_measure
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
         """Return the grouped monomials of the Pauli string of the observable.
