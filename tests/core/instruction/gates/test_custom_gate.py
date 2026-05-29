@@ -64,10 +64,6 @@ def exec_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
     result = run(c, device)
 
     # we reduce the precision because of approximation errors coming from CustomGate usage
-    from mpqp.tools import pprint
-
-    pprint(result.amplitudes)
-    pprint(exp_state_vector)
     assert matrix_eq(result.amplitudes, exp_state_vector, 1e-5, 1e-5)
 
 
