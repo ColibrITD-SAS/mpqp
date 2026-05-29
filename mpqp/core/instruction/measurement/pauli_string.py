@@ -943,6 +943,56 @@ class PauliString:
 
         return all([all([a == pI or a == pZ for a in m.atoms]) for m in self.monomials])
 
+    def rearrange(self, targets: list[int], copy: bool = True) -> "PauliString":
+        """
+        This function aims at reorderring a pauli string's monomials according to unordered targets.
+
+        Note: The targets must be contiguous, otherwise the algorithm won't work.
+        Args:
+            ps: The PauliString to reorder.
+            targets: The list of unordered targets.
+            copy: If set at True will deepcopy the initial string ps.
+
+        Examples:
+            >>> ps = pX @ pI
+            >>> print(ps.rearrange([1,0]))
+            pI@pX
+            >>> ps2 = pX @ pI + pI @ pX
+            >>> print(ps2.rearrange([1,0]))
+            pI@pX + pX@pI
+        """
+        from copy import deepcopy
+
+        if copy:
+            pauli = deepcopy(self)
+        else:
+            pauli = self
+
+        l = len(targets)
+        targets = deepcopy(targets)
+        rearranged = sorted(targets)
+        for index in range(l):
+            if targets[index] == index:
+                continue
+            shuffled_index = rearranged.index(targets[index])
+            for monom in pauli.monomials:
+                atoms = monom.atoms
+                atoms[shuffled_index], atoms[rearranged[index]] = (
+                    atoms[rearranged[index]],
+                    atoms[shuffled_index],
+                )
+            rearranged[index], rearranged[targets[index]] = (
+                rearranged[targets[index]],
+                rearranged[index],
+            )
+
+            i = targets.index(index)
+            targets[i], targets[index] = (
+                targets[index],
+                targets[i],
+            )
+        return pauli
+
 
 class PauliStringMonomial(PauliString):
     """Represents a monomial in a Pauli string, consisting of a coefficient and

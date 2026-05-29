@@ -826,3 +826,18 @@ def test_pauli_monomial_from_atom(
 ):
     result = atom(prefix) if postfix is None else atom(prefix, postfix)
     assert result == expected_ps
+
+
+@pytest.mark.parametrize(
+    ("ps", "targets", "expected"),
+    [
+        (pX @ pY, [1, 0], pY @ pX),
+        (pX @ pI @ pZ, [1, 0, 2], pI @ pX @ pZ),
+        (pX @ pY @ pZ, [2, 0, 1], pY @ pZ @ pX),
+    ],
+)
+def test_rearrange_pauli_string(
+    ps: PauliString, targets: list[int], expected: PauliString
+):
+
+    assert ps.rearrange(targets) == expected
