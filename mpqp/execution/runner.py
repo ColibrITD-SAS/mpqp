@@ -55,25 +55,22 @@ if TYPE_CHECKING:
 
 
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
-    # TODO: to enhance docs
-
-    """We allow the measure to not span the entire circuit, but providers
+    """A measure can be incomplete and not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
     this function to match the expected behavior.
 
-    In order to do this, we add identity measures on the qubits not targeted by
-    the measure. pauli observables are directly embeded on their target qubits,
-    while matrix observables are padded with identity matrices when the targets
-    are ordered and contiguous, otherwise are embedded through their pauli decomposition.
+    In order to do this, we place identity operators on the qubits not targeted by
+    the measure. If the targets are not ordered, each observable is first reordered so that
+    its local qubit order matches the sorted traget order. Pauli observables are directly embedded
+    on their target qubits, while matrix observables are padded with identity matrices
+    when the targets are ordered and contiguous, and are otherwise embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
-        circuit: The circuit to which will be added the potential swaps allowing
-            the user to get the expectation value of the qubits in an arbitrary
-            order (this part is not handled by this function).
+        circuit: The circuit defining the full qubit register.
 
     Returns:
-        The measure padded with identities before and after.
+        A measure targeting all circuit qubits, with observables embedded into the full register.
     """
     # TODO: use this only for specific provider
 
