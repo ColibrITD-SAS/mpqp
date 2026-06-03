@@ -12,11 +12,11 @@ from qiskit import QuantumRegister
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 
 from mpqp.execution.devices import (
-    AvailableDevice,
     ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
     GOOGLEDevice,
     IBMDevice,
-    AWSDevice,
 )
 
 if TYPE_CHECKING:
@@ -535,7 +535,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -543,12 +544,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -556,14 +559,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -571,7 +576,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 
@@ -843,13 +849,14 @@ def test_from_other_language_myqlm_circuits(
                     PhaseDamping(0.45, [0, 1]),
                 ]
             ),
-            "[PhaseDamping(0.45, [0]), PhaseDamping(0.32, [0]), PhaseDamping(0.45, [1]), PhaseDamping(0.32, [1]), PhaseDamping(0.32, [2])]",
+            "[PhaseDamping(0.32, [0]), PhaseDamping(0.45, [0]), PhaseDamping(0.32, [1]), PhaseDamping(0.45, [1]), PhaseDamping(0.32, [2])]",
         )
     ],
 )
 def test_from_other_language_noise_braket(circuit: QCircuit, expected_str: str):
     braket_circuit = circuit.to_other_language(Language.BRAKET)
     qc = QCircuit.from_other_language(braket_circuit)
+
     assert str(qc.noises) == expected_str
 
 
