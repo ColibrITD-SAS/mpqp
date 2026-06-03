@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
 
 import numpy as np
 
-from mpqp.core.circuit import QCircuit
+from mpqp.core.circuit import CircuitBinding, QCircuit
 from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.measurement.basis_measure import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import (
@@ -295,7 +295,7 @@ def _run_single(
 
 
 def _run_multiple(
-    circuits: list[tuple[QCircuit, "Optional[dict[Expr | str, Complex]]"]],
+    circuits: CircuitBinding,
     device: AvailableDevice,
     display_breakpoints: bool = True,
 ) -> BatchResult:
@@ -373,7 +373,7 @@ def _run_multiple(
 
 @overload
 def run(
-    circuit: OneOrMany[QCircuit],
+    circuit: CircuitBinding | QCircuit,
     device: Sequence[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
@@ -382,7 +382,7 @@ def run(
 
 @overload
 def run(
-    circuit: Sequence[QCircuit],
+    circuit: CircuitBinding | QCircuit,
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
@@ -399,10 +399,7 @@ def run(
 
 
 def run(
-    circuit: (
-        QCircuit
-        | list[QCircuit | tuple[QCircuit, "Optional[dict[Expr | str, Complex]]"]]
-    ),
+    circuit: QCircuit | CircuitBinding,
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
@@ -482,7 +479,7 @@ def run(
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
-    if isinstance(circuit, Iterable) or isinstance(device, Iterable):
+    if isinstance(device, Iterable):
         results: list[Result] = []
         for dev in flatten(device):
 
@@ -496,22 +493,17 @@ def run(
                     )
                 )
             else:
-                circ_list = []
-                for i, circ in enumerate(circuit):
-                    if isinstance(circ, QCircuit):
-                        print(circ, i)
-                        circ_list.append((namer(circ, i + 1), values))
-                    else:
-                        circ, values = circ
-                        print(circ, i)
-                        circ_list.append((namer(circ, i + 1), values))
-                results.extend(
-                    _run_multiple(circ_list, dev, display_breakpoints).results
-                )
-
+                if values is not None:
+                    raise ValueError("values must be specified in CircuitBinding")
+                return _run_multiple(circuit, dev, display_breakpoints)
         return BatchResult(results)
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        if isinstance(circuit, QCircuit):
+            return _run_single(circuit, device, values, display_breakpoints)
+        else:
+            if values is not None:
+                raise ValueError("values must be specified in CircuitBinding")
+            return _run_multiple(circuit, device, display_breakpoints)
 
 
 def submit(

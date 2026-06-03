@@ -34,6 +34,7 @@ could be used to add CNOT gates to your circuit, using the two registers
 from __future__ import annotations
 
 from copy import deepcopy
+from enum import Enum, auto
 from numbers import Complex
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
 from warnings import warn
@@ -2187,3 +2188,31 @@ class QCircuit:
                     if isinstance(param, Expr):
                         params.update(param.free_symbols)
         return params
+
+class BindingMode(Enum):
+    PRODUCT = auto()
+    ZIP = auto()
+
+class CircuitBinding():
+    def __init__(self, 
+                circuit: OneOrMany[QCircuit | CircuitBinding], 
+                value: Optional[OneOrMany[dict[Expr | str, Complex]]] = None, 
+                expectation_measure: Optional[OneOrMany[ExpectationMeasure]] = None, 
+                mode: BindingMode = BindingMode.PRODUCT) -> None:
+        self.circuit = circuit
+        if isinstance(circuit, QCircuit):
+            measures = circuit.measurements
+            if len(measures) != 0:
+                if expectation_measure is not None:
+                    raise ValueError("your circuit already contains measurements, you cannot have multiple measurements")
+        elif isinstance(circuit, list):
+            for circ in circuit:
+                if isinstance(circ, QCircuit):
+                    measures = circ.measurements
+                    if len(measures) != 0:
+                        if expectation_measure is not None:
+                            raise ValueError("your circuit already contains measurements, you cannot have multiple measurements")
+                    
+        self.value = value
+        self.expectation_measure = expectation_measure
+        self.mode = mode
