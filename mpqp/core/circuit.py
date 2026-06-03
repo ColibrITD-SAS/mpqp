@@ -53,15 +53,17 @@ from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasu
 from mpqp.core.languages import Language
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
+    InstructionAfterMeasurementError,
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
-    InstructionAfterMeasurementError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -1707,8 +1709,17 @@ class QCircuit:
 
                         from qiskit import transpile
 
+                        noise_model = getattr(backend_sim.options, "noise_model", None)
                         try:
-                            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+                            if len(self.noises) != 0 and noise_model is not None:
+                                qiskit_circuit = transpile(
+                                    qiskit_circuit,
+                                    basis_gates=noise_model.basis_gates,
+                                    optimization_level=0,
+                                )
+                            else:
+                                qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+
                         except Exception as e:
                             if (
                                 'HighLevelSynthesis is unable to synthesize "measure"'
