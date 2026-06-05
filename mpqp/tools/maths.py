@@ -4,6 +4,7 @@ types, etc…"""
 from __future__ import annotations
 
 import math
+from copy import copy
 from functools import reduce
 from numbers import Complex, Real
 from typing import TYPE_CHECKING, Any, Optional, Union
@@ -15,6 +16,7 @@ from typeguard import typechecked
 
 if TYPE_CHECKING:
     from sympy import Expr
+
     from mpqp.core.instruction.measurement.pauli_string import PauliString
     from mpqp.tools.generics import Matrix
 
@@ -409,9 +411,7 @@ def rand_product_local_unitaries(
     """
     rng = np.random.default_rng(seed)
 
-    return reduce(
-        np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)]
-    )  # pyright: ignore[reportReturnType]
+    return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
 
 
 def rand_unitary_matrix(size: int) -> Matrix:
@@ -482,7 +482,7 @@ def is_power_of_two(n: int) -> bool:
 
 
 @typechecked
-def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix:
+def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Matrix:
     """Function to reorder the rows and columns of a matrix in order to change the targets of a gate.
     The intended order for a gate is having continuous targets in growing order.
 
@@ -494,7 +494,7 @@ def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix
     Args:
         m: The matrix for which we want to reorder the targets.
         targets: The targets
-        copy: If True performs the copy of the matrix, to prevent overwriting the original matrix.
+        do_copy: If True performs the copy of the matrix, to prevent overwriting the original matrix.
 
     Returns:
         The shuffled matrix according to the given targets.
@@ -514,14 +514,14 @@ def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix
      [0, 0, -1, 0 ],
      [0, 0, 0 , -1]]
     """
-    from copy import deepcopy
 
-    if copy:
-        matrix = deepcopy(m)
-    else:
-        matrix = m
+    if do_copy:
+        from copy import deepcopy
+
+        m = deepcopy(m)
+
     l = len(targets)
-    targets = deepcopy(targets)
+    targets = copy(targets)
     shuffled = sorted(targets)
     for index in range(l - 1):
         if targets[index] == index:
@@ -536,15 +536,15 @@ def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix
             if current[shuffled_index - l] == "0" and current[index - l] == "1":
                 current = int(current, 2)
                 conjugate = current + i - j
-                for k in range(len(matrix)):
-                    hold = matrix[k][current]
-                    matrix[k][current] = matrix[k][conjugate]
-                    matrix[k][conjugate] = hold
+                for k in range(len(m)):
+                    hold = m[k][current]
+                    m[k][current] = m[k][conjugate]
+                    m[k][conjugate] = hold
 
-                for k in range(len(matrix)):
-                    hold = matrix[current][k]
-                    matrix[current][k] = matrix[conjugate][k]
-                    matrix[conjugate][k] = hold
+                for k in range(len(m)):
+                    hold = m[current][k]
+                    m[current][k] = m[conjugate][k]
+                    m[conjugate][k] = hold
 
         # keeps tracks of the position of the targets in the matrix
 
@@ -558,56 +558,4 @@ def rearrange_matrix(m: Matrix, targets: list[int], copy: bool = True) -> Matrix
             targets[index],
             targets[i],
         )
-    return matrix
-
-
-def rearrange_pauli_string(
-    ps: PauliString, targets: list[int], copy: bool = True
-) -> PauliString:
-    """
-    This function aims at reorderring a pauli string's monomials according to unordered targets.
-
-    Note: The targets must be contiguous, otherwise the algorithm won't work.
-    Args:
-        ps: The PauliString to reorder.
-        targets: The list of unordered targets.
-        copy: If set at True will deepcopy the initial string ps.
-
-    Examples:
-        >>> ps = pX @ pI
-        >>> print(rearrange_pauli_string(ps, [1,0]))
-        pI@pX
-        >>> ps2 = pX @ pI + pI @ pX
-        >>> print(rearrange_pauli_string(ps2, [1,0]))
-        pI@pX + pX@pI
-    """
-    if copy:
-        from copy import deepcopy
-
-        pauli = deepcopy(ps)
-    else:
-        pauli = ps
-
-    l = len(targets)
-    shuffled = sorted(targets)
-    for index in range(l):
-        if targets[index] == index:
-            continue
-        shuffled_index = shuffled.index(targets[index])
-        for monom in pauli.monomials:
-            atoms = monom.atoms
-            atoms[shuffled_index], atoms[shuffled[index]] = (
-                atoms[shuffled[index]],
-                atoms[shuffled_index],
-            )
-        shuffled[index], shuffled[targets[index]] = (
-            shuffled[targets[index]],
-            shuffled[index],
-        )
-
-        i = targets.index(index)
-        targets[i], targets[index] = (
-            targets[index],
-            targets[i],
-        )
-    return pauli
+    return m
