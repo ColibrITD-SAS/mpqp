@@ -1958,14 +1958,12 @@ class QCircuit:
 
             if isinstance(qcircuit, QuantumCircuit):
                 from qiskit import qasm3
-
-                from mpqp.qasm import open_qasm_3_to_2
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+                from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
+                from mpqp.qasm.qasm_to_mpqp import qasm2_parse, qasm3_parse
 
                 qasm3_code = qasm3.dumps(qcircuit)
-                qasm2_code = open_qasm_3_to_2(str(qasm3_code), language=Language.QISKIT)
-
-                qc = qasm2_parse(qasm2_code)
+                # qasm2_code = open_qasm_3_to_2(str(qasm3_code), language=Language.QISKIT)
+                qc = qasm3_parse(qasm3_code, Language.QISKIT)
                 return qc
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             from cirq.circuits.circuit import Circuit as cirq_Circuit
@@ -1990,9 +1988,8 @@ class QCircuit:
                 from braket.circuits.serialization import IRType
                 from braket.ir.openqasm.program_v1 import Program
 
-                from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
                 from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+                from mpqp.qasm.qasm_to_mpqp import qasm3_parse
 
                 remove_measure = True
                 for instr in qcircuit.instructions:
@@ -2001,19 +1998,11 @@ class QCircuit:
                         break
 
                 qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
-
+                print(qasm3_code)
                 if TYPE_CHECKING:
                     assert isinstance(qasm3_code, Program)
                 noises, qasm3_code = braket_noise_to_mpqp(qasm3_code.source)
-
-                qasm2_code = open_qasm_3_to_2(
-                    qasm3_code,
-                    language=Language.BRAKET,
-                    remove_measure=remove_measure,
-                )
-
-                qc = qasm2_parse(qasm2_code)
-                # qc.input_g_phase = phase
+                qc = qasm3_parse(qasm3_code)
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc
@@ -2083,7 +2072,7 @@ class QCircuit:
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                             ┌─┐
             q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■─────────────────┤M├───
-                 └───────┘└─┬─┘└───┘┌────────┐ │P(2**(1 - k)*pi) └╥┘┌─┐
+                 └───────┘└─┬─┘└───┘┌────────┐ │P(π*2**(1 - k))  └╥┘┌─┐
             q_1: ───────────■────■──┤ P(π/2) ├─■──────────────────╫─┤M├
                                ┌─┴─┐└─┬───┬──┘        ┌─┐         ║ └╥┘
             q_2: ──────────────┤ X ├──┤ X ├───────────┤M├─────────╫──╫─

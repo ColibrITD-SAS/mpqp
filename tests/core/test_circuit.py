@@ -440,7 +440,7 @@ def test_initializer(states: list[npt.NDArray[np.complex128]]):
         if TYPE_CHECKING:
             assert isinstance(res, Result)
         state_vector_initialized = res.state_vector.vector
-        assert matrix_eq(state, state_vector_initialized)
+        assert matrix_eq(state, state_vector_initialized, atol=1e-10, rtol=1e-10)
 
 
 @pytest.mark.parametrize(

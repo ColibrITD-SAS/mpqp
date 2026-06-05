@@ -63,23 +63,30 @@ def _qiskit_parameter_adder(
     from sympy import Expr
 
     if isinstance(param, Expr):
-        name = str(param)
-        previously_set_param = list(
-            filter(lambda elt: elt.name == name, qiskit_parameters)
-        )
-        if len(previously_set_param) > 1:
-            raise ReferenceError(
-                "Somehow two parameter got the same name, this shouldn't be "
-                "possible. For help on this error please contact the authors of"
-                " this library"
+        expr = str(param)
+        params = [str(param) for param in param.free_symbols]
+        fn = lambda s: len(s)
+        params.sort(reverse=True, key=fn)
+        for i, var in enumerate(params):
+            previously_set_param = list(
+                filter(lambda elt: elt.name == var, qiskit_parameters)
             )
-        elif len(previously_set_param) == 1:
-            qiskit_param = previously_set_param[0]
-        else:
-            from qiskit.circuit import Parameter
+            if len(previously_set_param) > 1:
+                raise ReferenceError(
+                    "Somehow two parameter got the same name, this shouldn't be "
+                    "possible. For help on this error please contact the authors of"
+                    " this library"
+                )
+            elif len(previously_set_param) == 1:
+                qiskit_param = previously_set_param[0]
+                expr = expr.replace(params[i], "previously_set_param[0]")
+            else:
+                from qiskit.circuit import Parameter
 
-            qiskit_param = Parameter(name)
-            qiskit_parameters.add(qiskit_param)
+                qiskit_param = Parameter(var)
+                qiskit_parameters.add(qiskit_param)
+                expr = expr.replace(params[i], f"qiskit_param")
+        qiskit_param = eval(expr)
     else:
         qiskit_param = param
     return qiskit_param
@@ -1620,10 +1627,8 @@ class CRk(RotationGate, ControlledGate):
     def theta(self) -> Expr | float:
         r"""Value of the rotation angle, parametrized by ``k`` with the relation
         `\theta = \frac{\pi}{2^{k-1}}`."""
-        from sympy import pi
 
-        p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)
+        return np.pi / 2 ** (self.k - 1)
 
     @property
     def k(self) -> Expr | float:

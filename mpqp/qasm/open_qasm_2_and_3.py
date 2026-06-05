@@ -916,9 +916,20 @@ def remove_include_and_comment(qasm_code: str) -> tuple[str, float]:
     gphase = 0.00
     for line in qasm_code.split("\n"):
         line = line.lstrip()
-        if line.startswith("// gphase:") or line.startswith("//gphase:"):
+        if line.startswith("gphase"):
+            import numpy as np
+
+            pi = np.pi
+            gphase += eval(line.split("(")[1].split(")")[0].strip())
+        elif (
+            line.startswith("// gphase:")
+            or line.startswith("//gphase:")
+            or line.startswith("gphase")
+        ):
             gphase += float(line.split(":")[1].strip())
-        elif line.startswith("include") or line.startswith("//"):
+        elif (
+            line.startswith("include") or line.startswith("//") or line.startswith(";")
+        ):
             pass
         else:
             replaced_code.append(line)
@@ -1028,7 +1039,6 @@ def convert_instruction_3_to_2(
 
     header_code = ""
     instructions_code = ""
-
     instr_match = re.match(r"\s*(\w+)\s*", instr)
     if instr_match:
         instr_name = instr_match.group(1)
@@ -1198,7 +1208,6 @@ def _replace_header(code: str) -> str:
                 for _ in range(int(value[0])):
                     c += "c"
             line = c + lines[1]
-
         if line_to_add:
             code_with_right_instructions.append(line)
     return ';'.join(code_with_right_instructions)
@@ -1279,7 +1288,6 @@ def open_qasm_3_to_2(
     if language == Language.QISKIT or language == Language.BRAKET:
         code = _replace_header(code)
         code = remove_user_gates(code)
-
     instructions = parse_openqasm_3_file(code)
 
     included_instructions = set()
@@ -1288,7 +1296,6 @@ def open_qasm_3_to_2(
         defined_gates.update(std_qiskit_gates)
     elif language == Language.BRAKET:
         defined_gates.update(std_braket_gates)
-
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(
             instr,

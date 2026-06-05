@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import TYPE_CHECKING
 from venv import logger
 
@@ -9,11 +10,15 @@ from ply.lex import lex
 if TYPE_CHECKING:
     from mpqp.core.circuit import QCircuit
 
+from mpqp.core.languages import Language
 from mpqp.core.instruction import Barrier
 from mpqp.gates import *
 from mpqp.measures import *
 from mpqp.qasm.lexer_utils import *
-from mpqp.qasm.open_qasm_2_and_3 import remove_include_and_comment, remove_user_gates
+from mpqp.qasm.open_qasm_2_and_3 import (
+    remove_include_and_comment,
+    remove_user_gates,
+)
 
 # TODO:
 # if: not handle
@@ -21,6 +26,7 @@ from mpqp.qasm.open_qasm_2_and_3 import remove_include_and_comment, remove_user_
 # no ID name handle for qreg or creg
 
 lexer = None
+openqasm3_variables = None
 
 
 def lex_openqasm(input_string: str) -> list[LexToken]:
@@ -96,7 +102,78 @@ def qasm2_parse(input_string: str) -> QCircuit:
     return circuit
 
 
-def _TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+def extract_variables(string: str) -> tuple[str, list[str]]:
+    vars = []
+    for line in string.split("\n"):
+        line = line.lstrip()
+        if line.startswith("input"):
+            vars.append(line.split(' ')[2][:-1])
+            string = string.replace(line + "\n", "")
+        elif line.startswith("qubit") or line.startswith("bit"):
+            string = string.replace(line + "\n", "")
+
+    return (string, vars)
+
+
+def transpile_qasm3_circuit(input: str, language: Language) -> str:
+    from mpqp.qasm.open_qasm_2_and_3 import (
+        qasm_code,
+        Instr,
+        _replace_header,  # pyright: ignore[reportPrivateUsage]
+    )
+
+    if re.search(r"if\s*\(.*?\)\s*{[^}]*}", input, flags=re.DOTALL):
+        raise ValueError("\"If\" instructions aren't handled")
+    if language == Language.QISKIT:
+
+        lines = input.split(";")
+        lines.insert(1, "\n" + qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
+        input = ";".join(lines)
+    elif language == Language.BRAKET:
+        from mpqp.qasm.open_qasm_2_and_3 import qasm_code
+
+        lines = input.split(";")
+        lines.insert(1, "\n" + qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE))
+        input = ";".join(lines)
+
+    if language == Language.QISKIT or language == Language.BRAKET:
+        input = _replace_header(input)
+        input = remove_user_gates(input)
+    return input
+
+
+def qasm3_parse(input_string: str, language: Language = Language.QASM3) -> QCircuit:
+    from mpqp.core.circuit import QCircuit
+
+    input_string = transpile_qasm3_circuit(input_string, language=language)
+    input_string = remove_user_gates(input_string, skip_qelib1=True)
+    input_string, gphase = remove_include_and_comment(input_string)
+    input_string, var = extract_variables(input_string)
+    tokens = lex_openqasm(input_string)
+    if (
+        tokens[0].type != 'OPENQASM'
+        and tokens[1].type != 'REALN'
+        and tokens[1].value != '3.0'
+        and tokens[2].type != 'SEMICOLON'
+    ):
+        raise SyntaxError('Invalid OpenQASM, must start with OPENQASM 3.0;')
+
+    idx = 3
+    circuit = QCircuit()
+    circuit.input_g_phase = gphase
+    i_max = len(tokens)
+    while idx < i_max:
+        logger.debug(circuit)
+        logger.debug('================================')
+        logger.debug('new line:', tokens[idx].value, idx)
+        idx = _TokenSwitch(circuit, tokens, idx, var)
+
+    return circuit
+
+
+def _TokenSwitch(
+    circuit: QCircuit, tokens: list[LexToken], idx: int, var: list[str] = []
+) -> int:
     token = tokens[idx]
     if token.type == 'QREG':
         return _TokenQREG(circuit, tokens, idx)
@@ -107,7 +184,7 @@ def _TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     elif token.type == 'BARRIER':
         return _TokenBarrier(circuit, tokens, idx)
     elif token.type == 'ID':
-        return _TokenGate(circuit, tokens, idx)
+        return _TokenGate(circuit, tokens, idx, var)
     elif token.type == 'PRAGMA_MPQP':
         return _TokenCustom(circuit, tokens, idx)
     else:
@@ -184,7 +261,9 @@ def _TokenBarrier(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     return idx + 1
 
 
-def _TokenGate(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+def _TokenGate(
+    circuit: QCircuit, tokens: list[LexToken], idx: int, var: list[str] = []
+) -> int:
     token = tokens[idx]
     idx += 1
     token_value = token.value.lower()
@@ -193,11 +272,11 @@ def _TokenGate(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     elif token_value in two_qubits_gate_qasm:
         return _Gate_two_qubits(circuit, token_value, tokens, idx)
     elif token_value in one_parametrized_gate_qasm:
-        return _Gate_one_parametrized(circuit, token_value, tokens, idx)
+        return _Gate_one_parametrized(circuit, token_value, tokens, idx, var)
     elif token_value in u_gate_qasm:
-        return _Gate_U(circuit, token_value, tokens, idx)
+        return _Gate_U(circuit, token_value, tokens, idx, var)
     elif token_value in two_qubits_parametrized_gate_qasm:
-        return _Gate_two_qubits_parametrized(circuit, token_value, tokens, idx)
+        return _Gate_two_qubits_parametrized(circuit, token_value, tokens, idx, var)
     elif token_value == "ccx":
         return _Gate_tof(circuit, tokens, idx)
     else:
@@ -229,12 +308,16 @@ def _Gate_single_qubits(
 
 
 def _Gate_two_qubits_parametrized(
-    circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int
+    circuit: QCircuit,
+    gate_str: str,
+    tokens: list[LexToken],
+    idx: int,
+    var: list[str] = [],
 ) -> int:
     if tokens[idx].type != 'LPAREN':
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
-    parameter, idx = _eval_expr(tokens, idx)
+    parameter, idx = _eval_expr(tokens, idx, var)
     if (
         check_Id(tokens, idx)
         or tokens[idx + 4].type != 'COMMA'
@@ -303,7 +386,9 @@ def _Gate_tof(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     return idx + 1
 
 
-def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
+def _eval_expr(
+    tokens: list[LexToken], idx: int, var: list[str] = []
+) -> tuple[Any, int]:
     import numpy as np  # pyright: ignore[reportUnusedImport]
 
     expr = ""
@@ -317,18 +402,24 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
         elif tokens[idx].type == 'RPAREN':
             open_paren -= 1
             expr += ")"
-        elif tokens[idx].type == 'ID' and tokens[idx].value == 'e':
-            expr += 'e'
-            idx += 1
-
-            if tokens[idx].type in ('PLUS', 'MINUS'):
-                expr += tokens[idx].value
+        elif tokens[idx].type == 'ID':
+            if tokens[idx].value == 'e':
+                expr += 'e'
                 idx += 1
 
-            if tokens[idx].type not in ('INTN', 'REALN'):
-                raise SyntaxError("Invalid scientific notation")
+                if tokens[idx].type in ('PLUS', 'MINUS'):
+                    expr += tokens[idx].value
+                    idx += 1
+                if tokens[idx].type not in ('INTN', 'REALN'):
+                    raise SyntaxError("Invalid scientific notation")
 
-            expr += str(tokens[idx].value)
+                expr += str(tokens[idx].value)
+            elif tokens[idx].value in var:
+                # makes sure sympy is imported when eval is called
+                from sympy import Symbol  # pyright: ignore[reportUnusedImport]
+
+                expr += f"Symbol('{tokens[idx].value}')"
+
         elif check_num_expr(tokens[idx].type):
             raise SyntaxError(f"not a nb or expr: {idx}, {tokens[idx]}")
         elif tokens[idx].type == 'PI':
@@ -340,12 +431,16 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
 
 
 def _Gate_one_parametrized(
-    circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int
+    circuit: QCircuit,
+    gate_str: str,
+    tokens: list[LexToken],
+    idx: int,
+    var: list[str] = [],
 ) -> int:
     if tokens[idx].type != 'LPAREN':
         raise SyntaxError(f"Gate_one_parametrized: {idx} {tokens[idx]}")
     idx += 1
-    parameter, idx = _eval_expr(tokens, idx)
+    parameter, idx = _eval_expr(tokens, idx, var)
 
     if check_Id(tokens, idx):
         raise SyntaxError(
@@ -356,21 +451,27 @@ def _Gate_one_parametrized(
     return idx + 5
 
 
-def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) -> int:
+def _Gate_U(
+    circuit: QCircuit,
+    gate_str: str,
+    tokens: list[LexToken],
+    idx: int,
+    var: list[str] = [],
+) -> int:
     if tokens[idx].type != 'LPAREN':
         raise SyntaxError(f"Gate_U: {idx} {tokens[idx]}")
     idx += 1
 
     theta, phi, lbda = 0, 0, 0
     if gate_str == 'u1':
-        theta, idx = _eval_expr(tokens, idx)
+        theta, idx = _eval_expr(tokens, idx, var)
     elif gate_str == 'u2':
-        theta, idx = _eval_expr(tokens, idx)
-        phi, idx = _eval_expr(tokens, idx)
+        theta, idx = _eval_expr(tokens, idx, var)
+        phi, idx = _eval_expr(tokens, idx, var)
     elif gate_str == 'u3' or gate_str == 'u' or gate_str == 'U':
-        theta, idx = _eval_expr(tokens, idx)
-        phi, idx = _eval_expr(tokens, idx)
-        lbda, idx = _eval_expr(tokens, idx)
+        theta, idx = _eval_expr(tokens, idx, var)
+        phi, idx = _eval_expr(tokens, idx, var)
+        lbda, idx = _eval_expr(tokens, idx, var)
 
     if check_Id(tokens, idx):
         raise SyntaxError(
