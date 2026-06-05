@@ -961,7 +961,7 @@ class PauliString:
             >>> ps2.rearrange([1,0], False)
             pI@pX
             >>> ps2
-            pX@pI
+            pI@pX
         """
         from mpqp.core.instruction.measurement.pauli_string import (
             PauliStringMonomial,
