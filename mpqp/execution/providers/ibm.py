@@ -217,9 +217,6 @@ def generate_qiskit_noise_model(
         A ``qiskit`` noise model combining the provided noise models and the
         modified circuit, padded with identities on the "naked" qubits.
 
-    Note:
-        The qubit order in the returned noise model is reversed to match
-        ``qiskit``'s qubit ordering conventions.
     """
 
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
