@@ -18,6 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from itertools import pairwise
 from numbers import Complex
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
@@ -62,7 +63,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     this function to match the expected behavior.
 
     In order to do this, we add identity measures on the qubits not targeted by
-    the measure. pauli observables are directly embeded on their target qubits,
+    the measure. pauli observables are directly embedded on their target qubits,
     while matrix observables are padded with identity matrices when the targets
     are ordered and contiguous, otherwise are embedded through their pauli decomposition.
 
@@ -83,9 +84,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     nb_qubits = circuit.nb_qubits
     targets = measure.targets
 
-    targets_is_ordered = all(
-        [targets[i] > targets[i - 1] for i in range(1, len(targets))]
-    )
+    targets_is_ordered = all(a < b for a, b in pairwise(targets))
     if not targets_is_ordered:
         ordered_targets = sorted(targets)
         contiguous_targets = [targets.index(t) for t in ordered_targets]
@@ -94,10 +93,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
                 obs._matrix is None  # pyright: ignore[reportPrivateUsage]
                 or measure.optimize_measurement
             ):  # Order pauli string
-                from mpqp.tools.maths import rearrange_pauli_string
-
                 obs._pauli_string = (  # pyright: ignore[reportPrivateUsage]
-                    rearrange_pauli_string(obs.pauli_string, contiguous_targets)
+                    obs.pauli_string.rearrange(contiguous_targets)
                 )
             else:  # Order the matrix
                 from mpqp.tools.maths import rearrange_matrix
@@ -135,11 +132,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             if n_after > 0:
                 full_matrix = np.kron(full_matrix, Id_after)
 
-            tweaked_observables.append(
-                Observable(
-                    full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
-                )
-            )
+            tweaked_observables.append(Observable(full_matrix, label=obs.label))
             continue
 
         pauli = obs.pauli_string

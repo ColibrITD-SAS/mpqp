@@ -134,7 +134,6 @@ from mpqp.tools.maths import (
     rand_unitary_2x2_matrix,
     rand_unitary_matrix,
     rearrange_matrix,
-    rearrange_pauli_string,
 )
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
