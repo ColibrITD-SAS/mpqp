@@ -66,7 +66,8 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
     @staticmethod
     def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
         from mpqp.environment.var_cache import (
-            InstalledProviders, _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+            InstalledProviders,
+            _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
         )
 
         if InstalledProviders.QISKIT_IBM_RUNTIME in _INSTALLED_MPQP_PROVIDERS:
