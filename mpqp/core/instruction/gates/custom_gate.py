@@ -10,14 +10,12 @@ from copy import copy
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Union
 
-from sympy import Expr
-
 from mpqp.tools import Matrix
 
 if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
     from mpqp.core.circuit import QCircuit
-    from sympy import Basic
+    from sympy import Basic, Expr
 
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
@@ -253,7 +251,7 @@ class CustomGate(Gate):
 
         return quantum_shannon_decomposition(self.matrix)
 
-    def subs(self, values: dict[Expr | str, Complex]) -> CustomGate:
+    def subs(self, values: "dict[Expr | str, Complex]") -> CustomGate:
         res = copy(self)
         res.definition = res.definition.subs(values)
         return res

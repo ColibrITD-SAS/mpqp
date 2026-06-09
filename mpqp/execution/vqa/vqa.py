@@ -5,11 +5,10 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, Optional, TypeVar, 
 
 import numpy as np
 import numpy.typing as npt
-from scipy.optimize import OptimizeResult
-from scipy.optimize import minimize as scipy_minimize
 
 if TYPE_CHECKING:
     from sympy import Expr
+    from scipy.optimize import OptimizeResult
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction import ExpectationMeasure
@@ -27,7 +26,7 @@ OptimizerCallable = Callable[
     tuple[float, OptimizerInput],
 ]
 OptimizerCallback = Union[
-    Callable[[OptimizeResult], None],
+    Callable[["OptimizeResult"], None],
     Callable[[Union[list[float], npt.NDArray[np.float64], tuple[float, ...]]], None],
 ]
 
@@ -347,6 +346,9 @@ def _minimize_local_func(
     Returns:
         The optimal value reached and the parameters used to reach this value.
     """
+    from scipy.optimize import OptimizeResult
+    from scipy.optimize import minimize as scipy_mini
+    mize
     if init_params is None:
         if nb_params is None:
             raise ValueError(

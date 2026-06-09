@@ -51,10 +51,6 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.environment.var_cache import (
-    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
-    InstalledProviders,
-)
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -1952,6 +1948,10 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
         """
+        from mpqp.environment.var_cache import (
+            _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+            InstalledProviders,
+        )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.circuit import QuantumCircuit

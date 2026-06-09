@@ -20,12 +20,6 @@ from typing_extensions import Never
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
-from mpqp.environment.var_cache import (
-    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
-)
-from mpqp.environment.var_cache import (
-    InstalledProviders,
-)
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
@@ -736,7 +730,10 @@ class PauliString:
                 raise ValueError(
                     "Cannot parse non-homogeneous types when `pauli` is a `list`."
                 )
-
+        from mpqp.environment.var_cache import (
+                InstalledProviders, _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+            )
+        
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.quantum_info import SparsePauliOp
 
