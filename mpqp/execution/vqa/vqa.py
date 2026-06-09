@@ -346,9 +346,8 @@ def _minimize_local_func(
     Returns:
         The optimal value reached and the parameters used to reach this value.
     """
-    from scipy.optimize import OptimizeResult
-    from scipy.optimize import minimize as scipy_mini
-    mize
+    from scipy.optimize import minimize as scipy_minimize
+
     if init_params is None:
         if nb_params is None:
             raise ValueError(
