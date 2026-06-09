@@ -348,6 +348,7 @@ def _minimize_local_func(
     """
     from scipy.optimize import OptimizeResult
     from scipy.optimize import minimize as scipy_mini
+
     mize
     if init_params is None:
         if nb_params is None:

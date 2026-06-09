@@ -731,9 +731,10 @@ class PauliString:
                     "Cannot parse non-homogeneous types when `pauli` is a `list`."
                 )
         from mpqp.environment.var_cache import (
-                InstalledProviders, _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
-            )
-        
+            InstalledProviders,
+            _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+        )
+
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.quantum_info import SparsePauliOp
 

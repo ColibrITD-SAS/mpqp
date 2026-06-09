@@ -296,7 +296,7 @@ def rand_orthogonal_matrix(
 
     """
     from scipy.linalg import inv, sqrtm
-    
+
     rng = np.random.default_rng(seed)
 
     m = rng.random((size, size))
