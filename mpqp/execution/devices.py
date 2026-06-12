@@ -141,6 +141,21 @@ class IBMDevice(AvailableDevice):
 
     IBM_LEAST_BUSY = "ibm_least_busy"
 
+    def ibm_heron(self) -> list["IBMDevice"]:
+        """Returns the list of devices available that are IBM Heron chips."""
+        return [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
+
+    def ibm_nighthawk(self) -> list["IBMDevice"]:
+        """Returns the list of devices available that are IBM Nighthawk chips."""
+        return [
+            IBMDevice.IBM_BOSTON,
+            IBMDevice.IBM_KINGSTON,
+            IBMDevice.IBM_PITTSBURGH,
+            IBMDevice.IBM_FEZ,
+            IBMDevice.IBM_MARRAKESH,
+            IBMDevice.IBM_AACHEN,
+        ]
+
     def is_remote(self) -> bool:
         return self.name.startswith("IBM")
 
@@ -205,9 +220,9 @@ class IBMDevice(AvailableDevice):
                 )
             )
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        elif self in IBM_CHIPS_HERON:
+        elif self in self.ibm_heron():
             return {CZ, Id, Rx, Rz, X}  # add Rzz
-        elif self in IBM_CHIPS_NIGHTHAWK:
+        elif self in self.ibm_nighthawk():
             return {CZ, Id, Rx, Rz, X}
         else:
             return set()
@@ -526,14 +541,3 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
-
-
-IBM_CHIPS_HERON = [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
-IBM_CHIPS_NIGHTHAWK = [
-    IBMDevice.IBM_BOSTON,
-    IBMDevice.IBM_KINGSTON,
-    IBMDevice.IBM_PITTSBURGH,
-    IBMDevice.IBM_FEZ,
-    IBMDevice.IBM_MARRAKESH,
-    IBMDevice.IBM_AACHEN,
-]

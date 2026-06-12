@@ -92,7 +92,7 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
         from mpqp.execution.devices import IBMDevice
 
         name = self.name[4:]
-        if name[-2:] == "V2":
+        if name.endswith("V2"):
             name = name[:-2]
         name = name.upper()
         devices_names = IBMDevice._member_names_
