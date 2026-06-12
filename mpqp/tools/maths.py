@@ -500,19 +500,17 @@ def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Mat
         The shuffled matrix according to the given targets.
 
     Example:
-    >>> I = np.eye(2)
-    >>> Z = np.array([[1,0], [0,-1]])
-    >>> matrix = np.kron(I, Z)
+    >>> matrix = np.diag([1,2,3,4])
     >>> pprint(matrix)
-    [[1, 0 , 0, 0 ],
-     [0, -1, 0, 0 ],
-     [0, 0 , 1, 0 ],
-     [0, 0 , 0, -1]]
+    [[1, 0, 0, 0],
+     [0, 2, 0, 0],
+     [0, 0, 3, 0],
+     [0, 0, 0, 4]]
     >>> pprint(rearrange_matrix(matrix, [1,0]))
-    [[1, 0, 0 , 0 ],
-     [0, 1, 0 , 0 ],
-     [0, 0, -1, 0 ],
-     [0, 0, 0 , -1]]
+    [[1, 0, 0, 0],
+     [0, 3, 0, 0],
+     [0, 0, 2, 0],
+     [0, 0, 0, 4]]
     """
 
     if do_copy:
