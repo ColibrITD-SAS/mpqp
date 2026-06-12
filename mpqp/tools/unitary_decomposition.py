@@ -165,11 +165,15 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
         # Extracts the rotations of both multiplexed Rz for later decomposition
-        du = np.angle(MuxRzu.diagonal())
+        du = np.angle(
+            MuxRzu.diagonal()  # pyright: ignore[reportArgumentType, reportCallIssue]
+        )
         for i in range(len(du) // 2):
             du[i] *= -1
 
-        dv = np.angle(MuxRzv.diagonal())
+        dv = np.angle(
+            MuxRzv.diagonal()  # pyright: ignore[reportArgumentType, reportCallIssue]
+        )
         for i in range(len(dv) // 2):
             dv[i] *= -1
 

@@ -1091,7 +1091,7 @@ class PauliStringMonomial(PauliString):
         return f"PauliStringMonomial({coef}{atoms})"
 
     def to_matrix(self) -> Matrix:
-        return (
+        return (  # pyright: ignore[reportOperatorIssue,reportReturnType]
             reduce(
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
@@ -1359,7 +1359,10 @@ class PauliStringMonomial(PauliString):
                 atom.to_other_language(Language.CIRQ, target=all_qubits[index])
                 for index, atom in enumerate(self.atoms)
             ]
-            return reduce(mul, cirq_atoms) * self.coef
+            return (  # pyright: ignore[reportOperatorIssue]
+                reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType]
+                * self.coef
+            )
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
