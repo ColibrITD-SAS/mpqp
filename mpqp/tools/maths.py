@@ -17,7 +17,6 @@ from typeguard import typechecked
 if TYPE_CHECKING:
     from sympy import Expr
 
-    from mpqp.core.instruction.measurement.pauli_string import PauliString
     from mpqp.tools.generics import Matrix
 
 
@@ -411,11 +410,14 @@ def rand_product_local_unitaries(
     """
     rng = np.random.default_rng(seed)
 
-    return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
+    return reduce(
+        np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)]
+    )  # pyright: ignore[reportReturnType]
 
 
 def rand_unitary_matrix(size: int) -> Matrix:
-    """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
+    """Generate a random Unitary matrix sampled from the group U(N), calling the
+    associated `scipy` function.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.

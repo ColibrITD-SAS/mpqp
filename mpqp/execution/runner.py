@@ -131,7 +131,11 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             if n_after > 0:
                 full_matrix = np.kron(full_matrix, Id_after)
 
-            tweaked_observables.append(Observable(full_matrix, label=obs.label))
+            tweaked_observables.append(
+                Observable(
+                    full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
+                )
+            )
             continue
 
         pauli = obs.pauli_string

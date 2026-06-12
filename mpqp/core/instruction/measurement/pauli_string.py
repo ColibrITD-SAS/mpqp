@@ -1091,7 +1091,7 @@ class PauliStringMonomial(PauliString):
         return f"PauliStringMonomial({coef}{atoms})"
 
     def to_matrix(self) -> Matrix:
-        return (  # pyright: ignore[reportOperatorIssue,reportReturnType]
+        return (
             reduce(
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
