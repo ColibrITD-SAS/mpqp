@@ -827,7 +827,11 @@ class QCircuit:
         """
         from qiskit.quantum_info.operators import Operator
 
-        qiskit_circuit = self.to_other_language(Language.QISKIT).reverse_bits()
+        qiskit_circuit = (
+            self.without_measurements(deep_copy=False)
+            .to_other_language(Language.QISKIT)
+            .reverse_bits()
+        )
         if TYPE_CHECKING:
             assert isinstance(qiskit_circuit, QuantumCircuit)
         matrix = Operator.from_circuit(qiskit_circuit).to_matrix()
@@ -961,6 +965,10 @@ class QCircuit:
         )
         circ, phase = replace_custom_gate(qiskit_circuit[0], size, list(range(size)))
         cls = QCircuit.from_other_language(circ.reverse_bits())
+        for i in range(size):
+            from mpqp.gates import Id
+
+            cls.add(Id(i))
         cls.input_g_phase = phase
         return cls
 
@@ -1991,18 +1999,11 @@ class QCircuit:
                 from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
                 from mpqp.qasm.qasm_to_mpqp import qasm3_parse
 
-                remove_measure = True
-                for instr in qcircuit.instructions:
-                    if instr.operator.name == "Measure":
-                        remove_measure = False
-                        break
-
                 qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
-                print(qasm3_code)
                 if TYPE_CHECKING:
                     assert isinstance(qasm3_code, Program)
                 noises, qasm3_code = braket_noise_to_mpqp(qasm3_code.source)
-                qc = qasm3_parse(qasm3_code)
+                qc = qasm3_parse(qasm3_code, language=Language.BRAKET)
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc
@@ -2070,15 +2071,15 @@ class QCircuit:
             ...      BasisMeasure(shots=1000)]
             ... )
             >>> print(c)  # doctest: +NORMALIZE_WHITESPACE
-                 ┌───────┐┌───┐┌───┐                             ┌─┐
-            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■─────────────────┤M├───
-                 └───────┘└─┬─┘└───┘┌────────┐ │P(π*2**(1 - k))  └╥┘┌─┐
-            q_1: ───────────■────■──┤ P(π/2) ├─■──────────────────╫─┤M├
-                               ┌─┴─┐└─┬───┬──┘        ┌─┐         ║ └╥┘
-            q_2: ──────────────┤ X ├──┤ X ├───────────┤M├─────────╫──╫─
-                               └───┘  └───┘           └╥┘         ║  ║
-            c: 3/══════════════════════════════════════╩══════════╩══╩═
-                                                       2          0  1
+                 ┌───────┐┌───┐┌───┐                            ┌─┐
+            q_0: ┤ Rx(θ) ├┤ X ├┤ H ├───────────■────────────────┤M├───
+                 └───────┘└─┬─┘└───┘┌────────┐ │P(π*2**(1 - k)) └╥┘┌─┐
+            q_1: ───────────■────■──┤ P(π/2) ├─■─────────────────╫─┤M├
+                               ┌─┴─┐└─┬───┬──┘       ┌─┐         ║ └╥┘
+            q_2: ──────────────┤ X ├──┤ X ├──────────┤M├─────────╫──╫─
+                               └───┘  └───┘          └╥┘         ║  ║
+            c: 3/═════════════════════════════════════╩══════════╩══╩═
+                                                    2          0  1
             >>> print(c.subs({theta: np.pi, k: 1}))  # doctest: +NORMALIZE_WHITESPACE
                  ┌───────┐┌───┐┌───┐                 ┌─┐
             q_0: ┤ Rx(π) ├┤ X ├┤ H ├───────────■─────┤M├───

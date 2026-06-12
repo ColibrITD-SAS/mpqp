@@ -108,10 +108,21 @@ def extract_variables(string: str) -> tuple[str, list[str]]:
         line = line.lstrip()
         if line.startswith("input"):
             vars.append(line.split(' ')[2][:-1])
-            string = string.replace(line + "\n", "")
+            string = string.replace(line, "")
         elif line.startswith("qubit") or line.startswith("bit"):
-            string = string.replace(line + "\n", "")
+            string = string.replace(line, "")
+        elif "measure" in line:
+            splitted = line.split(" ")
+            c = splitted[0]
+            q = splitted[-1][:-1]
+            string = string.replace(line, f"measure {q} -> {c};")
+        elif line.startswith("#pragma"):
+            from mpqp.qasm.qasm_to_braket import braket_custom_gates_to_mpqp
 
+            custom_gate = braket_custom_gates_to_mpqp(line)
+            string = string.replace(
+                line, "#pragma mpqp" + repr(custom_gate).replace('\n', ' ') + "\n"
+            )
     return (string, vars)
 
 
@@ -124,6 +135,8 @@ def transpile_qasm3_circuit(input: str, language: Language) -> str:
 
     if re.search(r"if\s*\(.*?\)\s*{[^}]*}", input, flags=re.DOTALL):
         raise ValueError("\"If\" instructions aren't handled")
+    if language not in {Language.QISKIT, Language.BRAKET}:
+        return input
     if language == Language.QISKIT:
 
         lines = input.split(";")
@@ -136,9 +149,8 @@ def transpile_qasm3_circuit(input: str, language: Language) -> str:
         lines.insert(1, "\n" + qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE))
         input = ";".join(lines)
 
-    if language == Language.QISKIT or language == Language.BRAKET:
-        input = _replace_header(input)
-        input = remove_user_gates(input)
+    input = _replace_header(input)
+    input = remove_user_gates(input)
     return input
 
 
@@ -212,40 +224,54 @@ def _TokenCREG(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 def _TokenMeasure(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     targets = []
-    idx += 1
-    while tokens[idx].type != 'SEMICOLON' and tokens[idx].type != 'ARROW':
-        if tokens[idx].type == 'ID' and tokens[idx + 1].type == 'ARROW':
-            targets = None
-            idx += 1
+    c_targets = []
+    while tokens[idx].type == 'MEASURE':
+        if targets is None:
             break
-        if check_Id(tokens, idx):
-            raise SyntaxError(
-                ' '.join(str(token.value) for token in tokens[idx : idx + 4])
-            )
-        targets.append(tokens[idx + 2].value)
-        idx += 4
-        if tokens[idx].type == 'COMMA':
-            idx += 1
-
-    c_targets = None
-    if tokens[idx].type == 'ARROW':
-        c_targets = []
         idx += 1
-        while tokens[idx].type != 'SEMICOLON':
-            if tokens[idx].type == 'ID' and tokens[idx + 1].type == 'SEMICOLON':
-                c_targets = None
+        while tokens[idx].type != 'SEMICOLON' and tokens[idx].type != 'ARROW':
+            if tokens[idx].type == 'ID' and tokens[idx + 1].type == 'ARROW':
+                targets = None
                 idx += 1
                 break
             if check_Id(tokens, idx):
                 raise SyntaxError(
                     ' '.join(str(token.value) for token in tokens[idx : idx + 4])
                 )
-            c_targets.append(tokens[idx + 2].value)
+            targets.append(tokens[idx + 2].value)
             idx += 4
             if tokens[idx].type == 'COMMA':
                 idx += 1
 
-    circuit.add(BasisMeasure(targets, c_targets))
+        if tokens[idx].type == 'ARROW':
+            idx += 1
+            while tokens[idx].type != 'SEMICOLON':
+                if tokens[idx].type == 'ID' and tokens[idx + 1].type == 'SEMICOLON':
+                    c_targets = []
+                    idx += 1
+                    break
+                if check_Id(tokens, idx):
+                    raise SyntaxError(
+                        ' '.join(str(token.value) for token in tokens[idx : idx + 4])
+                    )
+                c_targets.append(tokens[idx + 2].value)
+                idx += 4
+                if tokens[idx].type == 'COMMA':
+                    idx += 1
+        if idx + 1 == len(tokens):
+            break
+        idx += 1
+    if targets == []:
+        if c_targets == []:
+            raise ValueError(
+                "Cannot have a dynamic sized quantum register and a set sized classical register."
+            )
+        circuit.add(BasisMeasure())
+    else:
+        if c_targets == []:
+            circuit.add(BasisMeasure(targets))
+        else:
+            circuit.add(BasisMeasure(targets, c_targets))
     return idx + 1
 
 
