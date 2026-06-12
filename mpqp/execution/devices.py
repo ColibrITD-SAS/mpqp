@@ -141,21 +141,6 @@ class IBMDevice(AvailableDevice):
 
     IBM_LEAST_BUSY = "ibm_least_busy"
 
-    def ibm_heron(self) -> list["IBMDevice"]:
-        """Returns the list of devices available that are IBM Heron chips."""
-        return [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
-
-    def ibm_nighthawk(self) -> list["IBMDevice"]:
-        """Returns the list of devices available that are IBM Nighthawk chips."""
-        return [
-            IBMDevice.IBM_BOSTON,
-            IBMDevice.IBM_KINGSTON,
-            IBMDevice.IBM_PITTSBURGH,
-            IBMDevice.IBM_FEZ,
-            IBMDevice.IBM_MARRAKESH,
-            IBMDevice.IBM_AACHEN,
-        ]
-
     def is_remote(self) -> bool:
         return self.name.startswith("IBM")
 
@@ -220,12 +205,32 @@ class IBMDevice(AvailableDevice):
                 )
             )
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        elif self in self.ibm_heron():
-            return {CZ, Id, Rx, Rz, X}  # add Rzz
-        elif self in self.ibm_nighthawk():
-            return {CZ, Id, Rx, Rz, X}
         else:
-            return set()
+            compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
+                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X},  # add Rzz
+                IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
+            }
+            family = {
+                IBMDevice.IBM_MIAMI: IBMDeviceFamily.HERON,
+                IBMDevice.IBM_BERLIN: IBMDeviceFamily.HERON,
+                IBMDevice.IBM_BOSTON: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_KINGSTON: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_PITTSBURGH: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_FEZ: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_MARRAKESH: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_AACHEN: IBMDeviceFamily.NIGHTHAWK,
+            }
+            if self in family and family[self] in compatibilities:
+                return compatibilities[family[self]]
+            else:
+                return set()
+
+
+class IBMDeviceFamily(Enum):
+    """Enum regrouping all device families defined by IBM."""
+
+    HERON = auto()
+    NIGHTHAWK = auto()
 
 
 class ATOSDevice(AvailableDevice):
