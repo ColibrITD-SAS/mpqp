@@ -113,11 +113,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
 
-            if n_before > 0:
-                full_matrix = np.kron(Id_before, full_matrix)
-
-            if n_after > 0:
-                full_matrix = np.kron(full_matrix, Id_after)
+            full_matrix = np.kron(np.kron(Id_before, full_matrix), Id_after)
 
             tweaked_observables.append(
                 Observable(
