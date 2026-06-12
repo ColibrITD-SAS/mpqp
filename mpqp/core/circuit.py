@@ -1656,8 +1656,8 @@ class QCircuit:
             if len(compatible_gates) != 0:
                 if any(type(i) not in compatible_gates for i in self.gates):
                     raise ValueError(
-                        f"Gate(s) {', '.join(map(str, compatible_gates))} "
-                        f"cannot be simulated on {device}."
+                        f"Gates {', '.join(map(str, compatible_gates))} "
+                        f"are the only one available on {device}."
                     )
             if (
                 isinstance(device, StaticIBMSimulatedDevice)
