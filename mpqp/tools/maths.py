@@ -10,7 +10,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from scipy.linalg import inv, sqrtm
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -296,6 +295,8 @@ def rand_orthogonal_matrix(
          [0.61751 , 0.71739 , 0.32254]]
 
     """
+    from scipy.linalg import inv, sqrtm
+
     rng = np.random.default_rng(seed)
 
     m = rng.random((size, size))
