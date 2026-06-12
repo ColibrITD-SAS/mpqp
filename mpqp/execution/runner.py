@@ -72,7 +72,8 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         circuit: The circuit defining the full qubit register.
 
     Returns:
-        A measure targeting all circuit qubits, with observables embedded into the full register.
+        A measure targeting all circuit qubits, with observables embedded into
+        the full register.
     """
     # TODO: use this only for specific provider
 
@@ -195,21 +196,15 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            if measurement.optimize_measurement and isinstance(device, AWSDevice):
-                job = Job(
-                    JobType.OBSERVABLE,
-                    circuit,
-                    device,
-                )
-            else:
+            if not (measurement.optimize_measurement and isinstance(device, AWSDevice)):
                 m = adjust_measure(measurement, circuit)
-                c = circuit.without_measurements(deep_copy=False)
-                c.add(m)
-                job = Job(
-                    JobType.OBSERVABLE,
-                    c,
-                    device,
-                )
+                circuit = circuit.without_measurements(deep_copy=False)
+                circuit.add(m)
+            job = Job(
+                JobType.OBSERVABLE,
+                circuit,
+                device,
+            )
         else:
             raise NotImplementedError(
                 f"Measurement type {type(measurement)} not handled"
