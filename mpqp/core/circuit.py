@@ -53,15 +53,17 @@ from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasu
 from mpqp.core.languages import Language
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+)
+from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
+    InstructionAfterMeasurementError,
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
-    InstructionAfterMeasurementError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -1650,11 +1652,12 @@ class QCircuit:
         if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
             if job_type == JobType.STATE_VECTOR:
                 skip_measurements = True
-            gate_set = list(device.compatible_gate())
-            if len(gate_set) != 0:
-                if any(type(i) not in gate_set for i in self.gates):
+            compatible_gates = list(device.compatible_gates())
+            if len(compatible_gates) != 0:
+                if any(type(i) not in compatible_gates for i in self.gates):
                     raise ValueError(
-                        f"Gate(s) {', '.join(map(str, device.compatible_gate()))} cannot be simulated on {device}."
+                        f"Gate(s) {', '.join(map(str, compatible_gates))} "
+                        f"cannot be simulated on {device}."
                     )
             if (
                 isinstance(device, StaticIBMSimulatedDevice)

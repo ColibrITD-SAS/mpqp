@@ -23,13 +23,14 @@ For more information about handling Remote devices, please refer to the `Remote 
 """
 
 from __future__ import annotations
+
+import warnings
 from abc import abstractmethod
 from enum import Enum, auto
 
 from mpqp.core.instruction.gates import Gate
 from mpqp.core.instruction.gates.native_gates import *
 from mpqp.environment.env_manager import get_env_variable
-import warnings
 
 
 class AvailableDevice(Enum):
@@ -92,7 +93,7 @@ class AvailableDevice(Enum):
     def supports_observable_ideal(self) -> bool:
         pass
 
-    def compatible_gate(self, native_set: bool = False) -> set[type[Gate]]:
+    def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
         """Returns the set of gates supported by the devices.
 
         Args:
@@ -189,7 +190,7 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 
-    def compatible_gate(self, native_set: bool = False) -> set[type[Gate]]:
+    def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
             warnings.warn(
                 UserWarning(
