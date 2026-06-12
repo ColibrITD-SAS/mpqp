@@ -6,12 +6,23 @@ from mpqp.core.languages import Language
 from mpqp.gates import *
 from mpqp.tools.maths import matrix_eq
 
-COMPOSED_GATES = [Rzz(np.pi / 2, 0, 1), PRX(np.pi / 3, 1, 0)]
+COMPOSED_GATES = [
+    Rxx(np.pi / 2, 0, 1),
+    Rzz(np.pi / 2, 0, 1),
+    Ryy(np.pi / 2, 0, 1),
+    PRX(np.pi / 3, 1, 0),
+]
 
 
 @pytest.mark.parametrize(
     "gate, gate_set",
     [
+        (Rxx(np.pi / 2, 0, 1), {}),
+        (Rxx(np.pi / 2, 0, 1), {Rxx}),
+        (Rxx(np.pi / 2, 0, 1), {Rx, CNOT}),
+        (Ryy(np.pi / 2, 0, 1), {}),
+        (Ryy(np.pi / 2, 0, 1), {Ryy}),
+        (Ryy(np.pi / 2, 0, 1), {Rx, Rz, CNOT}),
         (Rzz(np.pi / 2, 0, 1), {}),
         (Rzz(np.pi / 2, 0, 1), {Rzz}),
         (Rzz(np.pi / 2, 0, 1), {Rz, CNOT}),
@@ -27,8 +38,13 @@ def test_composedgate_compatible(gate: Gate, gate_set: set[type[Gate]]) -> None:
 @pytest.mark.parametrize(
     "gate, gate_set",
     [
-        (Rzz(np.pi / 2, 0, 1), {CNOT}),
+        (Rxx(np.pi / 2, 0, 1), {Rx}),
+        (Rxx(np.pi / 2, 0, 1), {CNOT}),
+        (Ryy(np.pi / 2, 0, 1), {Rx}),
+        (Ryy(np.pi / 2, 0, 1), {Rz}),
+        (Ryy(np.pi / 2, 0, 1), {CNOT}),
         (Rzz(np.pi / 2, 0, 1), {Rz}),
+        (Rzz(np.pi / 2, 0, 1), {CNOT}),
         (PRX(np.pi / 3, 1, 0), {Rx}),
         (PRX(np.pi / 3, 1, 0), {Rz}),
     ],
@@ -87,10 +103,7 @@ def test_composedgate_translation_decomposition(
 
 @pytest.mark.parametrize(
     "gate",
-    [
-        (Rzz(np.pi / 2, 0, 1)),
-        (PRX(np.pi / 3, 1, 0)),
-    ],
+    COMPOSED_GATES,
 )
 def test_composedgates_decomposition(gate: ComposedGate):
     c = QCircuit(gate.decompose())
