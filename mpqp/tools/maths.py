@@ -12,7 +12,6 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 import numpy as np
 import numpy.typing as npt
 from scipy.linalg import inv, sqrtm
-from typeguard import typechecked
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -483,7 +482,6 @@ def is_power_of_two(n: int) -> bool:
     return n >= 1 and (n & (n - 1)) == 0
 
 
-@typechecked
 def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Matrix:
     """Function to reorder the rows and columns of a matrix in order to change the targets of a gate.
     The intended order for a gate is having continuous targets in growing order.

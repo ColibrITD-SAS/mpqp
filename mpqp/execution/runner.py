@@ -136,20 +136,19 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
                     full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
                 )
             )
-            continue
+        else:
+            pauli = obs.pauli_string
+            embedded = PauliString()
 
-        pauli = obs.pauli_string
-        embedded = PauliString()
+            for mono in pauli.monomials:
+                full_register = [pI] * nb_qubits
 
-        for mono in pauli.monomials:
-            full_register = [pI] * nb_qubits
+                for local_idx, target in enumerate(targets):
+                    full_register[target] = mono.atoms[local_idx]
 
-            for local_idx, target in enumerate(targets):
-                full_register[target] = mono.atoms[local_idx]
+                embedded += PauliStringMonomial(mono.coef, full_register)
 
-            embedded += PauliStringMonomial(mono.coef, full_register)
-
-        tweaked_observables.append(Observable(embedded.simplify(), label=obs.label))
+            tweaked_observables.append(Observable(embedded.simplify(), label=obs.label))
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
