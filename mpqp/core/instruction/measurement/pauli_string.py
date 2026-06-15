@@ -941,6 +941,55 @@ class PauliString:
 
         return all([all([a == pI or a == pZ for a in m.atoms]) for m in self.monomials])
 
+    def rearrange(self, targets: list[int], do_copy: bool = True) -> PauliString:
+        """Rearranges elements (order of the atoms in the monomial) of the pauli
+        string according to the targets.
+
+        Args:
+            targets: The list of unordered contiguous targets, (must contain 0).
+            do_copy: If ``True`` will deepcopy the initial string ps.
+
+        Examples:
+            >>> ps = pX @ pI + pI @ pX
+            >>> ps.rearrange([1,0])
+            pI@pX + pX@pI
+            >>> ps
+            pX@pI + pI@pX
+            >>> ps2 = pX @ pI
+            >>> ps2.rearrange([1,0], False)
+            pI@pX
+            >>> ps2
+            pI@pX
+        """
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliStringMonomial,
+            pI,
+        )
+
+        if do_copy:
+            from copy import deepcopy
+
+            ps = deepcopy(self)
+        else:
+            ps = self
+
+        def _reorder_inplace_monomial(mono: PauliStringMonomial):
+            atoms = [pI] * len(mono.atoms)
+            for source, destination in enumerate(targets):
+                atoms[destination] = mono.atoms[source]
+            mono._atoms = atoms  # pyright: ignore[reportPrivateUsage]
+
+        if isinstance(ps, PauliStringMonomial):
+            # this is needed because the monomials attribute of PauliStringMonomial
+            # creates a new object, so if we rely on it it would actually not modify
+            # the new object
+            _reorder_inplace_monomial(ps)
+            return ps
+
+        for mono in ps.monomials:
+            _reorder_inplace_monomial(mono)
+        return ps
+
 
 class PauliStringMonomial(PauliString):
     """Represents a monomial in a Pauli string, consisting of a coefficient and
@@ -1308,7 +1357,10 @@ class PauliStringMonomial(PauliString):
                 atom.to_other_language(Language.CIRQ, target=all_qubits[index])
                 for index, atom in enumerate(self.atoms)
             ]
-            return reduce(mul, cirq_atoms) * self.coef
+            return (  # pyright: ignore[reportOperatorIssue]
+                reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType]
+                * self.coef
+            )
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
