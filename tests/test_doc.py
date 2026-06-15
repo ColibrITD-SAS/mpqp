@@ -11,10 +11,10 @@ from pathlib import Path
 from types import TracebackType
 from typing import Any, Optional, Type
 
-import matplotlib
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
+from matplotlib import pyplot as plt
 from numpy.random import default_rng
 from sympy import symbols
 
@@ -140,12 +140,6 @@ from mpqp.tools.maths import (
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
 from mpqp.tools.unitary_decomposition import quantum_shannon_decomposition
-
-matplotlib.use("Agg", force=True)
-from matplotlib import pyplot as plt
-
-plt.ioff()
-
 
 theta, k = symbols("θ k")
 obs = Observable(np.array([[0, 1], [1, 0]]))
@@ -282,6 +276,7 @@ def run_doctest(
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
     monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
+
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
     warnings.filterwarnings(
