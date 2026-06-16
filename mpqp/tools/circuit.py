@@ -369,6 +369,9 @@ def replace_custom_gate(
 def _verify_convert_instructions(
     gate: Gate, authorized_gates: set[type[Gate]]
 ) -> list[Gate]:
+    """Function used to verify if the instruction is contained in the gate set.
+    If the gate is a ComposedGate and not explicitly in the authorized_gates set it will check if it's decomposition is present in the gate set.
+    """
     if len(authorized_gates) != 0:
         if type(gate) not in authorized_gates:
             raise ValueError(
@@ -379,6 +382,9 @@ def _verify_convert_instructions(
     if isinstance(gate, CustomControlledGate) and isinstance(
         gate.non_controlled_gate, CustomGate
     ):
+        # If the CustomControlledGate contains itself a custom gate it's better to return a bigger custom gate for compatibilities issues.
+        # If the non_controlled_gate is a NativeGate it shouldn't pose a problem.
+        # TODO: check how to decompose a ComposeGate that is inside a CCG, (example: a C-PRX)
         return [gate.to_custom_gate()]
 
     return [gate]
@@ -391,6 +397,17 @@ def mpqp_to_qiskit(
     printing: bool = False,
     authorized_gates: set[type[Gate]] | None = None,
 ) -> QuantumCircuit:
+    """Translate a MPQP circuit to a Qiskit equivalent.
+
+    Note:
+        If the circuit contains ComposedGate type instructions you need to include the gate in the authorize_gates set for it to avoid decomposition, otherwise, the translation will always
+        try to use the gate's decomposition (see example).
+    Args:
+        circuit: The original MPQP circuit to be translated.
+        skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
+        skip_measurements: If set at True will translate the circuit without any measurement.
+        authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
+    """
     from qiskit.circuit import Operation, QuantumCircuit
     from qiskit.circuit.quantumcircuit import CircuitInstruction
     from qiskit.quantum_info import Operator
@@ -508,7 +525,7 @@ def mpqp_to_qiskit(
 
     new_circ.global_phase += (
         circuit.input_g_phase
-        + circuit._generated_g_phase  # type: ignore[reporPrivateUsage]
+        + circuit._generated_g_phase  # type: ignore[reportPrivateUsage]
     )
     return new_circ
 
@@ -519,6 +536,17 @@ def mpqp_to_braket(
     skip_measurements: bool = False,
     authorized_gates: set[type[Gate]] | None = None,
 ) -> braket_Circuit:
+    """Translate a MPQP circuit to a Braket equivalent.
+
+    Note:
+        If the circuit contains ComposedGate type instructions you need to include the gate in the authorize_gates set for it to avoid decomposition, otherwise, the translation will always
+        try to use the gate's decomposition (see example).
+    Args:
+        circuit: The original MPQP circuit to be translated.
+        skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
+        skip_measurements: If set at True will translate the circuit without any measurement.
+        authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
+    """
     from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
     from mpqp.core.instruction import (
         Measure,
@@ -613,6 +641,17 @@ def mpqp_to_cirq(
     skip_measurements: bool = False,
     authorized_gates: set[type[Gate]] | None = None,
 ) -> cirq_Circuit:
+    """Translate a MPQP circuit to a Cirq equivalent.
+
+    Note:
+        If the circuit contains ComposedGate type instructions you need to include the gate in the authorize_gates set for it to avoid decomposition, otherwise, the translation will always
+        try to use the gate's decomposition (see example). Also in the case of CustomGates it will always be decomposed into the {Ry, Rz, CNOT} basis for translation compatibilities.
+    Args:
+        circuit: The original MPQP circuit to be translated.
+        skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
+        skip_measurements: If set at True will translate the circuit without any measurement.
+        authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
+    """
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.identity import I
     from cirq.ops.named_qubit import NamedQubit

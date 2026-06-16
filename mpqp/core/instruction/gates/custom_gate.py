@@ -237,7 +237,7 @@ class CustomGate(Gate):
             targets.sort()
 
             return quantum_shannon_decomposition(
-                rearrange_matrix(self.matrix, self.targets, copy=True), targets
+                rearrange_matrix(self.matrix, self.targets, do_copy=True), targets
             )
 
         return quantum_shannon_decomposition(self.matrix, self.targets)

@@ -42,7 +42,7 @@ from mpqp.tools.circuit import random_gate, random_noise
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
 )
-from mpqp.tools.maths import matrix_eq
+from mpqp.tools.maths import matrix_eq, rand_unitary_matrix
 
 pi = np.pi
 s = np.sqrt
@@ -1086,3 +1086,29 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
         assert r1.expectation_values.keys() == r2.expectation_values.keys()
         for k in r1.expectation_values:
             assert np.isclose(r1.expectation_values[k], r2.expectation_values[k])
+
+
+@pytest.mark.parametrize(
+    "matrix, gphase",
+    [
+        (rand_unitary_matrix(2), 2),
+        (rand_unitary_matrix(4), -1),
+        (rand_unitary_matrix(8), 10),
+    ],
+)
+def test_global_phase_statevector(matrix: Matrix, gphase: float):
+    from math import log2
+
+    circuit = QCircuit([CustomGate(matrix, list(range(int(log2(len(matrix))))))])
+    circuit.input_g_phase = gphase
+    devices = [
+        IBMDevice.AER_SIMULATOR,
+        GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+        AWSDevice.BRAKET_LOCAL_SIMULATOR,
+        ATOSDevice.MYQLM_PYLINALG,
+    ]
+    results = run(circuit, devices)
+    for i in range(len(results) - 1):
+        assert matrix_eq(
+            results[i].state_vector.vector, results[i + 1].state_vector.vector
+        )
