@@ -1,8 +1,6 @@
 # pyright: reportUnusedImport=false
 import importlib
 import os
-
-os.environ["MPLBACKEND"] = "Agg"
 import sys
 import warnings
 from doctest import SKIP, DocTest, DocTestFinder, DocTestRunner, register_optionflag
@@ -308,21 +306,19 @@ def run_doctest(
                 for flag in PROVIDER_FLAGS.values():
                     if flag in flags and flag in skip_provider_flags.values():
                         example.options[SKIP] = True
-            try:
-                if safe_needed:
-                    with EnvRunner():
-                        if any(name in root + filename for name in files_needing_db):
-                            if (
-                                "--long-local" in sys.argv or "--long" in sys.argv
-                            ) and "all" in active_providers:
-                                with DBRunner(test.name):
-                                    assert runner.run(test).failed == 0
-                        else:
-                            assert runner.run(test).failed == 0
-                else:
-                    assert runner.run(test).failed == 0
-            finally:
-                plt.close("all")
+
+            if safe_needed:
+                with EnvRunner():
+                    if any(name in root + filename for name in files_needing_db):
+                        if (
+                            "--long-local" in sys.argv or "--long" in sys.argv
+                        ) and "all" in active_providers:
+                            with DBRunner(test.name):
+                                assert runner.run(test).failed == 0
+                    else:
+                        assert runner.run(test).failed == 0
+            else:
+                assert runner.run(test).failed == 0
 
 
 folder_path = "mpqp"
