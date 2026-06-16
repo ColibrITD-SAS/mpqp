@@ -1637,6 +1637,7 @@ class QCircuit:
     def from_other_language(
         cls,
         qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str,
+        ignore_identities: bool = True,
     ) -> QCircuit:
         """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM, QASM2 or QASM3) into
         the corresponding internal ``QCircuit`` format.
@@ -1755,6 +1756,7 @@ class QCircuit:
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             from cirq.circuits.circuit import Circuit as cirq_Circuit
             from cirq.circuits.moment import Moment
+            from cirq import ops, MatrixGate
 
             if isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
                 from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates, qasm2_parse
@@ -1762,6 +1764,49 @@ class QCircuit:
                 if isinstance(qcircuit, Moment):
                     qcircuit = cirq_Circuit([qcircuit])
 
+                c = QCircuit()
+                qubits = ops.QubitOrder.as_qubit_order(
+                    ops.QubitOrder.DEFAULT
+                ).order_for(qcircuit.all_qubits())
+                split_index = 0
+                for i, moment in enumerate(qcircuit):
+                    for operation in moment.operations:
+                        # Maybe only do it for BIG matrices
+                        if isinstance(operation.gate, MatrixGate):
+                            matrix = (
+                                operation.gate._matrix  # pyright: ignore[reportPrivateUsage]
+                            )
+                            targets = [
+                                qubits.index(qubit) for qubit in operation.qubits
+                            ]
+                            qcircuit.batch_remove([(i, operation)])
+                            cir, phase = parse_qasm2_gates(
+                                qcircuit.from_moments(qcircuit[split_index:i]).to_qasm()
+                            )
+                            c += qasm2_parse(cir)
+                            c.input_g_phase += phase
+                            c.add(CustomGate(matrix, targets))
+
+                            split_index = i
+                        else:
+                            moment_ = moment.expand_to(qubits)
+
+                            qcircuit._moments.pop(i)  # type: ignore[reportPrivateUsage]
+
+                            qcircuit._moments.insert(  # pyright: ignore[reportPrivateUsage]
+                                i, moment_
+                            )
+                if split_index != 0:
+                    cir, phase = parse_qasm2_gates(
+                        qcircuit.from_moments(qcircuit[split_index:]).to_qasm()
+                    )
+                    c += qasm2_parse(cir)
+                    c.input_g_phase += phase
+                from mpqp.gates import Id
+
+                # This method adds a lot of identities so for a much cleaner circuit we remove them.
+                # Maybe add this as an option
+                c.instructions = [i for i in c.instructions if not isinstance(i, Id)]
                 qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
                 qc = qasm2_parse(qasm2_code)
                 qc.input_g_phase = gphase
@@ -1798,7 +1843,6 @@ class QCircuit:
                 )
 
                 qc = qasm2_parse(qasm2_code)
-                # qc.input_g_phase = phase
                 if len(noises) != 0:
                     qc.add(noises)
                 return qc

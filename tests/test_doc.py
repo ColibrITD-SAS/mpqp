@@ -105,6 +105,9 @@ from mpqp.tools.circuit import (
     random_gate,
     random_noise,
     statevector_from_random_circuit,
+    mpqp_to_braket,
+    mpqp_to_cirq,
+    mpqp_to_qiskit,
 )
 from mpqp.tools.display import (
     clean_1D_array,

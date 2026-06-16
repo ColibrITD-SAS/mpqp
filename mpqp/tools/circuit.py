@@ -407,6 +407,26 @@ def mpqp_to_qiskit(
         skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
         skip_measurements: If set at True will translate the circuit without any measurement.
         authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
+
+    Examples:
+        >>> circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure()])
+        >>> cirq_with = mpqp_to_qiskit(circuit)
+        >>> cirq_without = mpqp_to_qiskit(circuit, skip_measurements=True)
+        >>> print(cirq_with) # doctest: +NORMALIZE_WHITESPACE
+             ┌───┐     ┌─┐
+        q_0: ┤ H ├──■──┤M├───
+             └───┘┌─┴─┐└╥┘┌─┐
+        q_1: ─────┤ X ├─╫─┤M├
+                  └───┘ ║ └╥┘
+        c: 2/═══════════╩══╩═
+                    0  1
+        >>> print(cirq_without) # doctest: +NORMALIZE_WHITESPACE
+             ┌───┐
+        q_0: ┤ H ├──■──
+             └───┘┌─┴─┐
+        q_1: ─────┤ X ├
+                  └───┘
+        c: 2/══════════
     """
     from qiskit.circuit import Operation, QuantumCircuit
     from qiskit.circuit.quantumcircuit import CircuitInstruction
@@ -546,6 +566,29 @@ def mpqp_to_braket(
         skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
         skip_measurements: If set at True will translate the circuit without any measurement.
         authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
+
+    Examples:
+        >>> circuit = QCircuit([H(0), CNOT(0, 1), BasisMeasure()])
+        >>> cirq_with = mpqp_to_braket(circuit)
+        >>> cirq_without = mpqp_to_braket(circuit, skip_measurements=True)
+        >>> print(cirq_with)  # doctest: +NORMALIZE_WHITESPACE
+        T  : │  0  │  1  │  2  │
+              ┌───┐       ┌───┐
+        q0 : ─┤ H ├───●───┤ M ├─
+              └───┘   │   └───┘
+                    ┌─┴─┐ ┌───┐
+        q1 : ───────┤ X ├─┤ M ├─
+                    └───┘ └───┘
+        T  : │  0  │  1  │  2  │
+        >>> print(cirq_without)  # doctest: +NORMALIZE_WHITESPACE
+        T  : │  0  │  1  │
+              ┌───┐
+        q0 : ─┤ H ├───●───
+              └───┘   │
+                    ┌─┴─┐
+        q1 : ───────┤ X ├─
+                    └───┘
+        T  : │  0  │  1  │
     """
     from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
     from mpqp.core.instruction import (
@@ -651,7 +694,21 @@ def mpqp_to_cirq(
         skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
         skip_measurements: If set at True will translate the circuit without any measurement.
         authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
+
+    Examples:
+        >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure()])
+        >>> cirq_with = mpqp_to_cirq(circuit)
+        >>> cirq_without = mpqp_to_cirq(circuit, skip_measurements=True)
+        >>> print(cirq_with) # doctest: +NORMALIZE_WHITESPACE
+        q_0: ───I───H───@───M('')───
+                        │   │
+        q_1: ───I───────X───M───────
+        >>> print(cirq_without) # doctest: +NORMALIZE_WHITESPACE
+        q_0: ───I───H───@───
+                        │
+        q_1: ───I───────X───
     """
+    # TODO: add better doc for all providers (ComposedGate) and CustomGate behavior for this one specifically
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.identity import I
     from cirq.ops.named_qubit import NamedQubit
