@@ -2,15 +2,17 @@
 unitary operator into elementary gates regrouped in a quantum circuit."""
 
 from __future__ import annotations
+
 import math
 from typing import Union
 
 import numpy as np
+from scipy.linalg import cossin
+
 from mpqp.core.circuit import QCircuit
 from mpqp.gates import CNOT, Ry, Rz
 from mpqp.tools import Matrix
 from mpqp.tools.maths import is_power_of_two
-from scipy.linalg import cossin
 
 PRECISION = 1e-9
 
