@@ -12,11 +12,11 @@ from qiskit import QuantumRegister
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 
 from mpqp.execution.devices import (
-    AvailableDevice,
     ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
     GOOGLEDevice,
     IBMDevice,
-    AWSDevice,
 )
 
 if TYPE_CHECKING:
@@ -843,13 +843,14 @@ def test_from_other_language_myqlm_circuits(
                     PhaseDamping(0.45, [0, 1]),
                 ]
             ),
-            "[PhaseDamping(0.45, [0]), PhaseDamping(0.32, [0]), PhaseDamping(0.45, [1]), PhaseDamping(0.32, [1]), PhaseDamping(0.32, [2])]",
+            "[PhaseDamping(0.32, [0]), PhaseDamping(0.45, [0]), PhaseDamping(0.32, [1]), PhaseDamping(0.45, [1]), PhaseDamping(0.32, [2])]",
         )
     ],
 )
 def test_from_other_language_noise_braket(circuit: QCircuit, expected_str: str):
     braket_circuit = circuit.to_other_language(Language.BRAKET)
     qc = QCircuit.from_other_language(braket_circuit)
+
     assert str(qc.noises) == expected_str
 
 
