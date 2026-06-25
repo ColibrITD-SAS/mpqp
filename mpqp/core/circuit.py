@@ -1966,11 +1966,10 @@ class QCircuit:
 
             if isinstance(qcircuit, QuantumCircuit):
                 from qiskit import qasm3
-                from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
                 from mpqp.qasm.qasm_to_mpqp import qasm2_parse, qasm3_parse
 
                 qasm3_code = qasm3.dumps(qcircuit)
-                # qasm2_code = open_qasm_3_to_2(str(qasm3_code), language=Language.QISKIT)
+                print(qasm3_code)
                 qc = qasm3_parse(qasm3_code, Language.QISKIT)
                 return qc
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
@@ -2037,10 +2036,9 @@ class QCircuit:
                         return qc
 
                     elif line.startswith("OPENQASM 3.0"):
-                        from mpqp.qasm import open_qasm_3_to_2
+                        from mpqp.qasm import qasm3_parse
 
-                        qasm2_code = open_qasm_3_to_2(qcircuit)
-                        qc = qasm2_parse(qasm2_code)
+                        qc = qasm3_parse(qcircuit, Language.QASM3)
 
                         return qc
                     break

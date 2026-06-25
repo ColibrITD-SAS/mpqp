@@ -69,7 +69,7 @@ def t_newline(t):  # pyright: ignore[reportMissingParameterType]
 
 
 def t_ID(t):  # pyright: ignore[reportMissingParameterType]
-    r'[a-zA-Z_][a-zA-Z_0-9]*'
+    r'[a-zA-Z_\u0370-\u03ff][a-zA-Z0-9_\u0370-\u03ff]*'
     t.type = reserved.get(t.value, 'ID')  # Check for reserved words
     return t
 

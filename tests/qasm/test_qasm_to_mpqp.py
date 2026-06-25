@@ -3,8 +3,11 @@ from typing import TYPE_CHECKING
 import pytest
 
 from mpqp import CNOT, CP, BasisMeasure, H, Language
+from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates.native_gates import Rx
 from mpqp.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit
+from sympy import Symbol
 
 
 @pytest.mark.parametrize(
@@ -29,8 +32,7 @@ from mpqp.tools.circuit import random_circuit
             [
                 H(0),
                 CNOT(0, 1),
-                BasisMeasure([0], [0]),
-                BasisMeasure([1], [1]),
+                BasisMeasure([0, 1], [0, 1]),
             ],
         ),
         (
@@ -48,8 +50,7 @@ from mpqp.tools.circuit import random_circuit
                 H(0),
                 H(1),
                 CNOT(0, 1),
-                BasisMeasure([0], [0]),
-                BasisMeasure([1], [1]),
+                BasisMeasure([0, 1], [0, 1]),
             ],
         ),
         (
@@ -120,9 +121,7 @@ from mpqp.tools.circuit import random_circuit
             [
                 H(0),
                 CNOT(0, 1),
-                BasisMeasure([0], [2]),
-                BasisMeasure([1], [1]),
-                BasisMeasure([2], [0]),
+                BasisMeasure([0, 1, 2], [2, 1, 0]),
             ],
         ),
         (
@@ -139,8 +138,8 @@ from mpqp.tools.circuit import random_circuit
             creg c[2];
 
             MyMixedGate q[0], q[1];
-            measure q[1] -> c[1];""",
-            [H(0), CNOT(0, 1), BasisMeasure([1], [0]), BasisMeasure([1], [1])],
+            measure q[0] -> c[1];""",
+            [H(0), CNOT(0, 1), BasisMeasure([1, 0], [0, 1])],
         ),
         (
             """OPENQASM 2.0;
@@ -196,3 +195,42 @@ def test_random_qasm_code():
         if TYPE_CHECKING:
             assert isinstance(qasm_code, str)
         assert qcircuit.is_equivalent(qasm2_parse(qasm_code))
+
+
+θ = Symbol("θ")
+σ = Symbol("σ")
+
+
+@pytest.mark.parametrize(
+    "qasm_code, expected",
+    [
+        (
+            "OPENQASM 3.0;\ninclude 'stdgates.inc';\ninput float[64] θ;\nqubit[1] q;\nrx(θ) q[0];",
+            QCircuit([Rx(θ, 0)]),
+        ),
+        (
+            "OPENQASM 3.0;\ninclude 'stdgates.inc';\ninput float[64] θ;\n\ninput float[64] σ;\nqubit[1] q;\nrx(θ*σ) q[0];",
+            QCircuit([Rx(θ * σ, 0)]),  # pyright: ignore[reportOperatorIssue]
+        ),
+        (
+            "OPENQASM 3.0;\ninclude 'stdgates.inc';\ninput float[64] θ;\n\ninput float[64] σ;\nqubit[2] q;\nrx(6*σ) q[1]; \nrx(2*σ) q[0];",
+            QCircuit(
+                [Rx(6 * σ, 1), Rx(2 * σ, 0)]  # pyright: ignore[reportOperatorIssue]
+            ),
+        ),
+    ],
+)
+def test_parametrized_circuit(qasm_code: str, expected: QCircuit):
+    c = QCircuit.from_other_language(qasm_code)
+    assert c == expected
+
+
+@pytest.mark.parametrize(
+    "qasm_code", ["OPENQASM 3.0;\ninclude 'stdgates.inc';\nqubit[1] q;\nrx(θ) q[0];"]
+)
+def test_parametrized_circuit_not_declared(qasm_code: str):
+    with pytest.raises(
+        ValueError,
+        match="Variable: θ not found",
+    ):
+        QCircuit.from_other_language(qasm_code)

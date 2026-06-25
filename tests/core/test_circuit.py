@@ -802,13 +802,13 @@ def test_from_other_language_braket_circuits(
         if i == 0:
             with pytest.raises(
                 ValueError,
-                match="Gates not defined/handled at the time of usage: ccry, ccry",
+                match="Braket's pow instructions are not handled yet.",
             ):
                 QCircuit.from_other_language(list_braket_funky_circuits[i])
         elif i == 6:
             with pytest.raises(
                 ValueError,
-                match="Gates not defined/handled at the time of usage: pswap, pswap",
+                match="Gate is not defined/handled at the time of usage: pswap",
             ):
                 QCircuit.from_other_language(list_braket_funky_circuits[i])
         else:

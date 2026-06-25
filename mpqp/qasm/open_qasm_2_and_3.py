@@ -641,8 +641,9 @@ def open_qasm_hard_includes(
     """
     if path_to_file is None:
         path_to_file = "./"
+    import re
 
-    lines = code.split("\n")
+    lines = re.split("\n", code)
     converted_code = []
 
     for line in lines:
@@ -650,7 +651,6 @@ def open_qasm_hard_includes(
             line_array = line.split()
             if not remove_included:
                 converted_code.append(line)
-
             file_name = line_array[line_array.index("include") + 1].strip(";'\"")
             if file_name not in included_files:
                 included_files.add(file_name)
@@ -746,13 +746,13 @@ GATE_PATTERN = re.compile(
 #    ^        ^       ^
 # gate_name  param? qubits
 GATE_CALL_PATTERN = re.compile(
-    r"(?P<gate>\w+)\s*(\((?P<params>[^)]*)\))?\s*(?P<qubits>[^;]*);",
+    r"(?:(?P<pow>pow\([^)]*\))\s*@\s*)?(?P<gate>\w+)\s*(\((?P<params>[^)]*)\))?\s*(?P<qubits>[^;]*);",
     re.MULTILINE | re.DOTALL,
 )
 
 
 def parse_user_gates(
-    qasm_code: str, skip_qelib1: bool = False
+    qasm_code: str, skip_qelib1: bool = False, language: Language = Language.QASM2
 ) -> tuple[list[UserGate], str]:
     r"""Parses user gate definitions from QASM code.
 
@@ -794,6 +794,7 @@ def parse_user_gates(
     )
     matches = list(GATE_PATTERN.finditer(qasm_code_include))
     user_gates = []
+
     for match in matches:
         parameters = (
             [p.strip() for p in match.group("param").split(',')]
@@ -818,7 +819,9 @@ def parse_user_gates(
     return user_gates, copy_qasm_code.strip()
 
 
-def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
+def remove_user_gates(
+    qasm_code: str, skip_qelib1: bool = False, language: Language = Language.QASM2
+) -> str:
     """Replaces instances of user gates with their definitions in the given QASM
     code. This uses :func:`parse_user_gates` to separate the gate definitions
     from the rest of the code.
@@ -846,12 +849,14 @@ def remove_user_gates(qasm_code: str, skip_qelib1: bool = False) -> str:
         measure q -> c;
 
     """
-    user_gates, qasm_code = parse_user_gates(qasm_code, skip_qelib1)
+    user_gates, qasm_code = parse_user_gates(qasm_code, skip_qelib1, language)
     previous_qasm_body = None
     while previous_qasm_body != qasm_code:
         previous_qasm_body = qasm_code
         for gate in user_gates:
             for match in GATE_CALL_PATTERN.finditer(qasm_code):
+                if match.group("pow"):
+                    raise ValueError("Braket's pow instructions are not handled yet.")
                 if match.group("gate") == gate.name:
                     param_values = (
                         [p.strip() for p in match.group("params").split(',')]
@@ -914,12 +919,15 @@ def remove_include_and_comment(qasm_code: str) -> tuple[str, float]:
     """
     replaced_code = []
     gphase = 0.00
-    for line in qasm_code.split("\n"):
+    import re
+
+    lines = re.split('\n|;', qasm_code)
+    for line in lines:
         line = line.lstrip()
         if line.startswith("gphase"):
             import numpy as np
 
-            pi = np.pi
+            pi = np.pi  # pyright: ignore[reportUnusedVariable]
             gphase += eval(line.split("(")[1].split(")")[0].strip())
         elif (
             line.startswith("// gphase:")
@@ -932,7 +940,11 @@ def remove_include_and_comment(qasm_code: str) -> tuple[str, float]:
         ):
             pass
         else:
-            replaced_code.append(line)
+            if line != "":
+                if line.endswith('{'):
+                    replaced_code.append(line)
+                else:
+                    replaced_code.append(line + ';')
     return "\n".join(replaced_code), gphase
 
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from typing import TYPE_CHECKING
 from venv import logger
+from warnings import warn
 
 import numpy as np
 from ply.lex import lex
@@ -78,7 +79,6 @@ def qasm2_parse(input_string: str) -> QCircuit:
 
     input_string = remove_user_gates(input_string, skip_qelib1=True)
     input_string, gphase = remove_include_and_comment(input_string)
-
     tokens = lex_openqasm(input_string)
 
     if (
@@ -102,8 +102,15 @@ def qasm2_parse(input_string: str) -> QCircuit:
     return circuit
 
 
-def extract_variables(string: str) -> tuple[str, list[str]]:
+def convert_qasm3_instructions(string: str) -> tuple[str, list[str]]:
+    """This function iterates through the program line by line and removes qasm3 specific instructions before parsing.
+    Here are handled the following features:
+        - Merge measurement instructions for better MPQP translation
+        - Compile and returns all of the variables in the program
+        - Handle braket custom gates
+    """
     vars = []
+    warning_string = ""
     for line in string.split("\n"):
         line = line.lstrip()
         if line.startswith("input"):
@@ -123,6 +130,8 @@ def extract_variables(string: str) -> tuple[str, list[str]]:
             string = string.replace(
                 line, "#pragma mpqp" + repr(custom_gate).replace('\n', ' ') + "\n"
             )
+    if warning_string != "":
+        warn(warning_string)
     return (string, vars)
 
 
@@ -150,7 +159,7 @@ def transpile_qasm3_circuit(input: str, language: Language) -> str:
         input = ";".join(lines)
 
     input = _replace_header(input)
-    input = remove_user_gates(input)
+    input = remove_user_gates(input, language=language)
     return input
 
 
@@ -158,9 +167,9 @@ def qasm3_parse(input_string: str, language: Language = Language.QASM3) -> QCirc
     from mpqp.core.circuit import QCircuit
 
     input_string = transpile_qasm3_circuit(input_string, language=language)
-    input_string = remove_user_gates(input_string, skip_qelib1=True)
+    # input_string = remove_user_gates(input_string, language=language)
     input_string, gphase = remove_include_and_comment(input_string)
-    input_string, var = extract_variables(input_string)
+    input_string, var = convert_qasm3_instructions(input_string)
     tokens = lex_openqasm(input_string)
     if (
         tokens[0].type != 'OPENQASM'
@@ -306,7 +315,9 @@ def _TokenGate(
     elif token_value == "ccx":
         return _Gate_tof(circuit, tokens, idx)
     else:
-        raise SyntaxError(f"TokenGate: {idx} {token.value}")
+        raise ValueError(
+            f"Gate is not defined/handled at the time of usage: {token_value}"
+        )
 
 
 def _Gate_single_qubits(
@@ -445,6 +456,8 @@ def _eval_expr(
                 from sympy import Symbol  # pyright: ignore[reportUnusedImport]
 
                 expr += f"Symbol('{tokens[idx].value}')"
+            else:
+                raise ValueError(f"Variable: {tokens[idx].value} not found.")
 
         elif check_num_expr(tokens[idx].type):
             raise SyntaxError(f"not a nb or expr: {idx}, {tokens[idx]}")
@@ -453,7 +466,13 @@ def _eval_expr(
         else:
             expr += str(tokens[idx].value)
         idx += 1
-    return eval(expr), idx + 1
+    try:
+        result = eval(expr)
+    except:
+        raise ValueError(
+            f"Expression: {expr} couldn't be evaluated, either a variable is not declared or it is not a correct expression."
+        )
+    return result, idx + 1
 
 
 def _Gate_one_parametrized(
