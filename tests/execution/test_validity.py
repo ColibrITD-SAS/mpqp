@@ -1098,6 +1098,7 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
 )
 def test_global_phase_statevector(matrix: Matrix, gphase: float):
     from math import log2
+    from itertools import pairwise
 
     circuit = QCircuit([CustomGate(matrix, list(range(int(log2(len(matrix))))))])
     circuit.input_g_phase = gphase
@@ -1108,7 +1109,5 @@ def test_global_phase_statevector(matrix: Matrix, gphase: float):
         ATOSDevice.MYQLM_PYLINALG,
     ]
     results = run(circuit, devices)
-    for i in range(len(results) - 1):
-        assert matrix_eq(
-            results[i].state_vector.vector, results[i + 1].state_vector.vector
-        )
+    for result_1, result_2 in pairwise(results):
+        assert matrix_eq(result_1.state_vector.vector, results_2.state_vector.vector)
