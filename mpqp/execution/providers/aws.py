@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import math
 from typing import TYPE_CHECKING, Optional
 
@@ -16,7 +18,11 @@ from mpqp.execution.devices import AWSDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise.noise_model import NoiseModel
-from mpqp.tools.errors import AWSBraketRemoteExecutionError, DeviceJobIncompatibleError
+from mpqp.tools.errors import (
+    AWSBraketRemoteExecutionError,
+    DeviceJobIncompatibleError,
+    DeviceJobIncompatibleWarning,
+)
 
 if TYPE_CHECKING:
     from braket.circuits import Circuit
@@ -56,7 +62,7 @@ def apply_noise_to_braket_circuit(
 
     noisy_circuit = Circuit(other_instructions)
 
-    for noise in noises:
+    for noise in reversed(noises):
         braket_noise = noise.to_other_language(Language.BRAKET)
         if TYPE_CHECKING:
             assert isinstance(braket_noise, Noise)
@@ -109,6 +115,8 @@ def run_braket(job: Job) -> Result:
             f"{job.device} instead"
         )
 
+    import warnings
+
     from braket.tasks import GateModelQuantumTaskResult
 
     if isinstance(job.measure, ExpectationMeasure):
@@ -118,7 +126,19 @@ def run_braket(job: Job) -> Result:
     if TYPE_CHECKING:
         assert isinstance(res, GateModelQuantumTaskResult)
 
-    return extract_result(res, job, job.device)
+        return extract_result(res, job, job.device)
+
+    except DeviceJobIncompatibleError as e:
+        warnings.warn(str(e), DeviceJobIncompatibleWarning, stacklevel=1)
+
+        job.status = JobStatus.ERROR
+        job.status_message = "Job execution failed. See warning for details."
+
+        return Result(
+            job,
+            data=None,
+            shots=0,
+        )
 
 
 def run_braket_observable(job: Job):
@@ -151,6 +171,7 @@ def run_braket_observable(job: Job):
         job.device,
         is_noisy=bool(job.circuit.noises),
     )
+
     if job.measure is None:
         raise NotImplementedError("job.measure is None")
     assert isinstance(job.measure, ExpectationMeasure)
@@ -164,11 +185,14 @@ def run_braket_observable(job: Job):
 
         if job.measure.pre_transpiled is None:
             grouping = job.measure.get_pauli_grouping()
+            pre_measure = [
+                QCircuit(find_qubitwise_rotations(group)) for group in grouping
+            ]
+            for circuit in pre_measure:
+                for instr in circuit.instructions:
+                    instr.targets = [job.measure.targets[t] for t in instr.targets]
             transpiled_pre_measures = [
-                QCircuit(find_qubitwise_rotations(group)).to_other_language(
-                    Language.BRAKET
-                )
-                for group in grouping
+                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
             ]
             eigenvalues = [
                 {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
@@ -207,7 +231,7 @@ def run_braket_observable(job: Job):
                 job.id.append(local_result.id)
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
-                length = 2**job.circuit.nb_qubits
+                length = 2**job.measure.nb_qubits
                 sorted_values: list[float] = []
                 for i in range(length):
                     binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
@@ -278,7 +302,7 @@ def run_braket_observable(job: Job):
                 )
 
         if braket_sum is not None:
-            from braket.program_sets import ProgramSet, CircuitBinding
+            from braket.program_sets import CircuitBinding, ProgramSet
             from braket.tasks.program_set_quantum_task_result import (
                 ProgramSetQuantumTaskResult,
             )
@@ -527,7 +551,7 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
         AWSBraketRemoteExecutionError: When the status of the task is unknown.
     """
     from braket.aws import AwsQuantumTask
-    from braket.tasks import GateModelQuantumTaskResult, QuantumTask
+    from braket.tasks import GateModelQuantumTaskResult
 
     task: QuantumTask = AwsQuantumTask(task_arn)
     # catch an error if the id is not correct (wrong ID, wrong region, ...) ?

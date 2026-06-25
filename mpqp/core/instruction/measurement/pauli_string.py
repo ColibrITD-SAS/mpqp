@@ -12,18 +12,14 @@ from functools import reduce
 from numbers import Real
 from operator import mul
 from typing import TYPE_CHECKING, Any, Literal, Optional, Union, overload
-from typing_extensions import Never
 
 import numpy as np
 import numpy.typing as npt
+from typing_extensions import Never
 
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import H, S_dagger
 from mpqp.core.languages import Language
-from mpqp.environment.var_cache import (
-    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
-    InstalledProviders,
-)
 from mpqp.tools import NumberQubitsError, format_element
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import atol, is_power_of_two, rtol
@@ -156,7 +152,9 @@ class PauliString:
                 coef_str = re.sub(r'([a-zA-Z])(\d)', r'\1*\2', coef_str)
                 coef = sympify(coef_str)
                 if dict_value:
-                    coef = coef.subs(dict_value)
+                    coef = coef.subs(
+                        dict_value  # pyright: ignore[reportArgumentType, reportCallIssue]
+                    )
 
             atoms_dict = {
                 "I": pI,
@@ -266,9 +264,7 @@ class PauliString:
 
         return self.to_dict() == other.to_dict()
 
-    def subs(
-        self, values: dict[Expr | str, Real], remove_symbolic: bool = True
-    ) -> PauliString:
+    def subs(self, values: dict[Expr | str, Real]) -> PauliString:
         r"""Substitute the coef of the pauli sting with values for each of the
         specified coef. Optionally also remove all symbolic variables such
         as `\pi` (needed for example for circuit execution).
@@ -278,8 +274,6 @@ class PauliString:
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: Whether symbolic values should be replaced by their
-                numeric counterparts.
 
         Returns:
             The pauli sting with the replaced parameters.
@@ -295,7 +289,7 @@ class PauliString:
         """
         new_pauli_string = PauliString()
         for monomial in self.monomials:
-            substituted_monomial = monomial.subs(values, remove_symbolic)
+            substituted_monomial = monomial.subs(values)
             new_pauli_string += substituted_monomial
         return new_pauli_string
 
@@ -736,6 +730,10 @@ class PauliString:
                 raise ValueError(
                     "Cannot parse non-homogeneous types when `pauli` is a `list`."
                 )
+        from mpqp.environment.var_cache import (
+            InstalledProviders,
+            _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+        )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.quantum_info import SparsePauliOp
@@ -943,6 +941,55 @@ class PauliString:
 
         return all([all([a == pI or a == pZ for a in m.atoms]) for m in self.monomials])
 
+    def rearrange(self, targets: list[int], do_copy: bool = True) -> PauliString:
+        """Rearranges elements (order of the atoms in the monomial) of the pauli
+        string according to the targets.
+
+        Args:
+            targets: The list of unordered contiguous targets, (must contain 0).
+            do_copy: If ``True`` will deepcopy the initial string ps.
+
+        Examples:
+            >>> ps = pX @ pI + pI @ pX
+            >>> ps.rearrange([1,0])
+            pI@pX + pX@pI
+            >>> ps
+            pX@pI + pI@pX
+            >>> ps2 = pX @ pI
+            >>> ps2.rearrange([1,0], False)
+            pI@pX
+            >>> ps2
+            pI@pX
+        """
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliStringMonomial,
+            pI,
+        )
+
+        if do_copy:
+            from copy import deepcopy
+
+            ps = deepcopy(self)
+        else:
+            ps = self
+
+        def _reorder_inplace_monomial(mono: PauliStringMonomial):
+            atoms = [pI] * len(mono.atoms)
+            for source, destination in enumerate(targets):
+                atoms[destination] = mono.atoms[source]
+            mono._atoms = atoms  # pyright: ignore[reportPrivateUsage]
+
+        if isinstance(ps, PauliStringMonomial):
+            # this is needed because the monomials attribute of PauliStringMonomial
+            # creates a new object, so if we rely on it it would actually not modify
+            # the new object
+            _reorder_inplace_monomial(ps)
+            return ps
+
+        for mono in ps.monomials:
+            _reorder_inplace_monomial(mono)
+        return ps
+
 
 class PauliStringMonomial(PauliString):
     """Represents a monomial in a Pauli string, consisting of a coefficient and
@@ -1042,7 +1089,7 @@ class PauliStringMonomial(PauliString):
         return f"PauliStringMonomial({coef}{atoms})"
 
     def to_matrix(self) -> Matrix:
-        return (
+        return (  # pyright: ignore[reportOperatorIssue,reportReturnType]
             reduce(
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
@@ -1070,13 +1117,11 @@ class PauliStringMonomial(PauliString):
         return res
 
     def __imul__(self, other: "Coef") -> PauliStringMonomial:
-        new_coef: "Coef" = self.coef * other  # pyright: ignore[reportOperatorIssue]
+        new_coef: "Coef" = (
+            self.coef * other
+        )  # pyright: ignore[reportAssignmentType, reportOperatorIssue]
         self.coef = new_coef
         return self
-
-        res = deepcopy(self)
-        res *= other
-        return res
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         new_coef: "Coef" = (
@@ -1180,9 +1225,7 @@ class PauliStringMonomial(PauliString):
                 f"This type of commutingType {method} is not implemented yet."
             )
 
-    def subs(
-        self, values: dict[Expr | str, Real], remove_symbolic: bool = True
-    ) -> PauliStringMonomial:
+    def subs(self, values: dict[Expr | str, Real]) -> PauliStringMonomial:
         r"""Substitutes the parameters of the instruction with complex values.
         Optionally, also removes all symbolic variables such as `\pi` (needed for
         circuit execution, for example).
@@ -1192,8 +1235,6 @@ class PauliStringMonomial(PauliString):
 
         Args:
             values: Mapping between the variables and the replacing values.
-            remove_symbolic: Whether symbolic values should be replaced by their
-                numeric counterparts.
 
         Returns:
             The circuit with the replaced parameters.
@@ -1211,9 +1252,13 @@ class PauliStringMonomial(PauliString):
         )
 
         new_monomial = deepcopy(self)
-        caster = lambda v: _unpack_expr(v) if remove_symbolic else v
+        caster = lambda v: _unpack_expr(v) if isinstance(v, Expr) else v
         if isinstance(new_monomial.coef, Expr):
-            new_coef: "Coef" = caster(new_monomial.coef.subs(values))
+            new_coef: "Coef" = caster(
+                new_monomial.coef.subs(
+                    values  # pyright: ignore[reportArgumentType, reportCallIssue]
+                )
+            )
             new_monomial.coef = new_coef
 
         return new_monomial
@@ -1312,7 +1357,10 @@ class PauliStringMonomial(PauliString):
                 atom.to_other_language(Language.CIRQ, target=all_qubits[index])
                 for index, atom in enumerate(self.atoms)
             ]
-            return reduce(mul, cirq_atoms) * self.coef
+            return (  # pyright: ignore[reportOperatorIssue]
+                reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType]
+                * self.coef
+            )
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 

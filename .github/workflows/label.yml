@@ -1,0 +1,77 @@
+name: Labeler
+on:
+  pull_request:
+    # opened, reopened, and synchronize are default for pull_request
+    # edited - when PR title or body is changed
+    # labeled - when labels are added to PR
+    types: [opened, reopened, synchronize, edited, labeled]
+  push:
+    branches: [ main ]
+    paths:
+      - '../labels.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+
+  label-syncer:
+    name: Syncer
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: micnncim/action-label-syncer@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  labeler:
+    name: Set labels
+    needs: [label-syncer]
+    permissions:
+      contents: read
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+
+    # Label based on modified files
+    - name: Label based on changed files
+      uses: actions/labeler@v6
+      with:
+        repo-token: ${{ secrets.GITHUB_TOKEN }}
+        sync-labels: true
+
+    # Label based on branch name
+    - uses: actions-ecosystem/action-add-labels@v1
+      if: |
+        startsWith(github.event.pull_request.head.ref, 'doc') ||
+        startsWith(github.event.pull_request.head.ref, 'docs')
+      with:
+        labels: documentation
+
+    - uses: actions-ecosystem/action-add-labels@v1
+      if: |
+        startsWith(github.event.pull_request.head.ref, 'maint') ||
+        startsWith(github.event.pull_request.head.ref, 'no-ci') ||
+        startsWith(github.event.pull_request.head.ref, 'ci')
+      with:
+        labels: maintenance
+
+    - uses: actions-ecosystem/action-add-labels@v1
+      if: startsWith(github.event.pull_request.head.ref, 'feat')
+      with:
+        labels: |
+          enhancement
+
+    - uses: actions-ecosystem/action-add-labels@v1
+      if: |
+        startsWith(github.event.pull_request.head.ref, 'fix') ||
+        startsWith(github.event.pull_request.head.ref, 'patch')
+      with:
+        labels: bug
+
+    - uses: actions-ecosystem/action-add-labels@v1
+      if: |
+        startsWith(github.event.pull_request.head.ref, 'test')
+      with:
+        labels: testing

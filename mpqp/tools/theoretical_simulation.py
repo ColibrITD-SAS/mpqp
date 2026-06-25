@@ -52,13 +52,10 @@ def amplitude(
     state = np.zeros((d), dtype=np.complex128)
     state[0] = 1
     gates = circ.gates
-    print(state)
 
     for gate in gates:
         g = gate.to_matrix(circ.nb_qubits)
-        print(g)
         state = g @ state
-        print(state)
         for noise in circ.noises:
             if (
                 len(noise.gates) == 0

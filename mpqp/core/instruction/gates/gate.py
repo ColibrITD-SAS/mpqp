@@ -8,7 +8,6 @@ from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
-from scipy.linalg import fractional_matrix_power
 
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
@@ -253,6 +252,7 @@ class Gate(Instruction, ABC):
         """
         # TODO: test
         from mpqp.core.instruction.gates.custom_gate import CustomGate
+        from scipy.linalg import fractional_matrix_power
 
         if exponent == 1:
             return deepcopy(self)
@@ -314,7 +314,11 @@ Naive attribution will be used (targets start at 0 and of the right length)""",
         l1 = "g1" if self.label is None else self.label
         l2 = "g2" if self.label is None else self.label
 
-        return CustomGate(matrix=gd, targets=targets, label=f"{l1}⊗{l2}")
+        return CustomGate(
+            matrix=gd,  # pyright: ignore[reportArgumentType]
+            targets=targets,
+            label=f"{l1}⊗{l2}",
+        )
 
     def _mandatory_label(self, postfix: str = ""):
         return "g" + postfix if self.label is None else self.label

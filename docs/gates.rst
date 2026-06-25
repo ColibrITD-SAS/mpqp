@@ -58,4 +58,4 @@ Custom Gates
 Controlled Custom Gates
 -----------------------
 
-.. automodule:: mpqp.core.instruction.gates.controlled_custom_gate
+.. automodule:: mpqp.core.instruction.gates.custom_controlled_gate

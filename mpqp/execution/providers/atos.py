@@ -567,9 +567,11 @@ def extract_sample_result(
 
     # we here take the average of errors over all samples
     error = mean([sample.err for sample in myqlm_result])
+    if TYPE_CHECKING:
+        assert job.measure is not None
     samples = [
         Sample(
-            nb_qubits,
+            job.measure.nb_qubits,
             index=sample.state.int,
             probability=sample.probability,
             bin_str=sample.state.bitstring,

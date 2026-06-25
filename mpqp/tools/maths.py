@@ -4,13 +4,13 @@ types, etc…"""
 from __future__ import annotations
 
 import math
+from copy import copy
 from functools import reduce
 from numbers import Complex, Real
 from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
-from scipy.linalg import inv, sqrtm
 
 if TYPE_CHECKING:
     from sympy import Expr
@@ -296,6 +296,8 @@ def rand_orthogonal_matrix(
          [0.61751 , 0.71739 , 0.32254]]
 
     """
+    from scipy.linalg import inv, sqrtm
+
     rng = np.random.default_rng(seed)
 
     m = rng.random((size, size))
@@ -316,16 +318,16 @@ def rand_clifford_matrix(
 
     Examples:
         >>> pprint(rand_clifford_matrix(2))
-        [[-0.5 , 0.5  , 0.5j , -0.5j],
-         [-0.5j, -0.5j, 0.5  , 0.5  ],
-         [-0.5j, -0.5j, -0.5 , -0.5 ],
-         [-0.5 , 0.5  , -0.5j, 0.5j ]]
+        [[0.5 , -0.5j, -0.5 , -0.5j],
+         [0.5j, 0.5  , 0.5j , -0.5 ],
+         [0.5j, -0.5 , -0.5j, -0.5 ],
+         [0.5 , 0.5j , 0.5  , -0.5j]]
 
         >>> pprint(rand_clifford_matrix(2, seed=123))
-        [[0.70711j, 0        , -0.70711j, 0        ],
-         [0       , -0.70711j, 0        , -0.70711j],
-         [0       , 0.70711j , 0        , -0.70711j],
-         [0.70711j, 0        , 0.70711j , 0        ]]
+        [[0.70711  , 0       , 0.70711 , 0        ],
+         [0        , -0.70711, 0       , -0.70711 ],
+         [-0.70711j, 0       , 0.70711j, 0        ],
+         [0        , 0.70711j, 0       , -0.70711j]]
 
     """
     from qiskit.quantum_info import random_clifford
@@ -408,11 +410,14 @@ def rand_product_local_unitaries(
     """
     rng = np.random.default_rng(seed)
 
-    return reduce(np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)])
+    return reduce(
+        np.kron, [rand_unitary_2x2_matrix(rng) for _ in range(nb_qubits)]
+    )  # pyright: ignore[reportReturnType]
 
 
 def rand_unitary_matrix(size: int) -> Matrix:
-    """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
+    """Generate a random Unitary matrix sampled from the group U(N), calling the
+    associated `scipy` function.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
@@ -476,3 +481,80 @@ def is_power_of_two(n: int) -> bool:
 
     """
     return n >= 1 and (n & (n - 1)) == 0
+
+
+def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Matrix:
+    """Function to reorder the rows and columns of a matrix in order to change the targets of a gate.
+    The intended order for a gate is having continuous targets in growing order.
+
+    For example the targets for a 3 qubit gate should be [1,2,3], changing it for [3,2,1] would
+    reverse the effects on the qubits 3 and 1 (akin to a SWAP gate on those qubits).
+
+    Note: This function's goal is not to move around a gate in a circuit but to shuffle the targets in a sense.
+
+    Args:
+        m: The matrix for which we want to reorder the targets.
+        targets: The targets
+        do_copy: If True performs the copy of the matrix, to prevent overwriting the original matrix.
+
+    Returns:
+        The shuffled matrix according to the given targets.
+
+    Example:
+    >>> matrix = np.diag([1,2,3,4])
+    >>> pprint(matrix)
+    [[1, 0, 0, 0],
+     [0, 2, 0, 0],
+     [0, 0, 3, 0],
+     [0, 0, 0, 4]]
+    >>> pprint(rearrange_matrix(matrix, [1,0]))
+    [[1, 0, 0, 0],
+     [0, 3, 0, 0],
+     [0, 0, 2, 0],
+     [0, 0, 0, 4]]
+    """
+
+    if do_copy:
+        from copy import deepcopy
+
+        m = deepcopy(m)
+
+    l = len(targets)
+    targets = copy(targets)
+    shuffled = sorted(targets)
+    for index in range(l - 1):
+        if targets[index] == index:
+            continue
+        # If no swaps happened of the target then shuffled_index = targets[index]
+        shuffled_index = shuffled.index(targets[index])
+
+        i = 1 << (l - 1 - shuffled_index)
+        j = 1 << (l - 1 - index)
+        for change in range(1 << l):
+            current = bin(change)[2:].zfill(l)
+            if current[shuffled_index - l] == "0" and current[index - l] == "1":
+                current = int(current, 2)
+                conjugate = current + i - j
+                for k in range(len(m)):
+                    hold = m[k][current]
+                    m[k][current] = m[k][conjugate]
+                    m[k][conjugate] = hold
+
+                for k in range(len(m)):
+                    hold = m[current][k]
+                    m[current][k] = m[conjugate][k]
+                    m[conjugate][k] = hold
+
+        # keeps tracks of the position of the targets in the matrix
+
+        shuffled[index], shuffled[targets[index]] = (
+            shuffled[targets[index]],
+            shuffled[index],
+        )
+
+        i = targets.index(index)
+        targets[i], targets[index] = (
+            targets[index],
+            targets[i],
+        )
+    return m

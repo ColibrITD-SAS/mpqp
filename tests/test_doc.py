@@ -12,6 +12,7 @@ from typing import Any, Optional, Type
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
+from matplotlib import pyplot as plt
 from numpy.random import default_rng
 from sympy import symbols
 
@@ -133,6 +134,7 @@ from mpqp.tools.maths import (
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
     rand_unitary_matrix,
+    rearrange_matrix,
 )
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
@@ -259,18 +261,21 @@ def run_doctest(
     monkeypatch: pytest.MonkeyPatch,
     request: pytest.FixtureRequest,
 ):
-
     active_providers = request.config.getoption("--providers")
-    skip_provider_flags = {}
-    if active_providers is not None:
-        for name, flag in PROVIDER_FLAGS.items():
-            if (
-                len(active_providers) == 0  # pyright: ignore[reportArgumentType]
-                or name not in active_providers  # pyright: ignore[reportOperatorIssue]
-            ):
-                skip_provider_flags[name] = flag
+    if isinstance(active_providers, str):
+        active_providers = [active_providers]
+    elif not isinstance(active_providers, list):
+        active_providers = ["all"]
+
+    skip_provider_flags: dict[str, int] = {}
+
+    for name, flag in PROVIDER_FLAGS.items():
+        if not active_providers or name not in active_providers:
+            skip_provider_flags[name] = flag
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
+    monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
+
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
     warnings.filterwarnings(
@@ -291,6 +296,7 @@ def run_doctest(
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
+            # TODO: Check for +FUNC_NEED_ flags
             and all(
                 f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring
                 for keyword in skip_provider_flags.keys()
@@ -305,7 +311,9 @@ def run_doctest(
             if safe_needed:
                 with EnvRunner():
                     if any(name in root + filename for name in files_needing_db):
-                        if "--long-local" in sys.argv or "--long" in sys.argv:
+                        if (
+                            "--long-local" in sys.argv or "--long" in sys.argv
+                        ) and "all" in active_providers:
                             with DBRunner(test.name):
                                 assert runner.run(test).failed == 0
                     else:

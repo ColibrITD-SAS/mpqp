@@ -1,15 +1,18 @@
 """This module regroups functions used for decomposition of arbitrary
 unitary operator into elementary gates regrouped in a quantum circuit."""
 
+from __future__ import annotations
+
 import math
 from typing import Union
 
 import numpy as np
+from scipy.linalg import cossin
+
 from mpqp.core.circuit import QCircuit
 from mpqp.gates import CNOT, Ry, Rz
 from mpqp.tools import Matrix
 from mpqp.tools.maths import is_power_of_two
-from scipy.linalg import cossin
 
 PRECISION = 1e-9
 
@@ -162,17 +165,23 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
         # Extracts the rotations of both multiplexed Rz for later decomposition
-        du = np.angle(MuxRzu.diagonal())
+        du = np.angle(
+            MuxRzu.diagonal()  # pyright: ignore[reportArgumentType, reportCallIssue]
+        )
         for i in range(len(du) // 2):
             du[i] *= -1
 
-        dv = np.angle(MuxRzv.diagonal())
+        dv = np.angle(
+            MuxRzv.diagonal()  # pyright: ignore[reportArgumentType, reportCallIssue]
+        )
         for i in range(len(dv) // 2):
             dv[i] *= -1
 
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, position + 1)
-        circuit = _gray_code_decomposition(dv, circuit, position, Rz)
+        circuit = _gray_code_decomposition(
+            dv, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+        )
         circuit = _decompose(Vv, circuit, position + 1)
 
         circuit = _gray_code_decomposition(
@@ -183,7 +192,9 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         )
 
         circuit = _decompose(Wu, circuit, position + 1)
-        circuit = _gray_code_decomposition(du, circuit, position, Rz)
+        circuit = _gray_code_decomposition(
+            du, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+        )
         circuit = _decompose(Vu, circuit, position + 1)
 
         return circuit

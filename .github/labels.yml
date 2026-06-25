@@ -1,0 +1,47 @@
+- name: bug
+  description: Something isn't working
+  color: d42a34
+
+- name: dependencies
+  description: Related with project dependencies
+  color: ffc0cb
+
+- name: documentation
+  description: Improvements or additions to documentation
+  color: 0677ba
+
+- name: enhancement
+  description: New features or code improvements
+  color: FFD827
+
+- name: Easy to solve
+  description: Easy to solve for newcomers
+  color: 62ca50
+
+- name: maintenance
+  description: Package and maintenance related
+  color: f78c37
+
+- name: release
+  description: Anything related to an incoming release
+  color: ffffff
+
+- name: testing
+  description: Anything related to testing
+  color: 5802B8
+
+- name: graphics
+  description: Anything related to graphics
+  color: 5903A8
+
+- name: limitation
+  description: Current limitation
+  color: 7983A8
+
+- name: triage
+  description: Need some assessment
+  color: f78a50
+
+- name: top priority
+  description: Must be fixed promptly
+  color: ab8a50

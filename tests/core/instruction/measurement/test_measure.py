@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 import pytest
 
 if TYPE_CHECKING:
-    from qiskit.circuit import Parameter
+    from qiskit._accelerate.circuit import Parameter
 
 from mpqp import Language, Measure
 from mpqp.tools.generics import flatten

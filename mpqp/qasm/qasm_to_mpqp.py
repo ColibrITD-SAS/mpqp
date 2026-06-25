@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from venv import logger
 
+import numpy as np
 from ply.lex import lex
 
 if TYPE_CHECKING:
@@ -70,7 +71,8 @@ def qasm2_parse(input_string: str) -> QCircuit:
     from mpqp.core.circuit import QCircuit
 
     input_string = remove_user_gates(input_string, skip_qelib1=True)
-    input_string = remove_include_and_comment(input_string)
+    input_string, gphase = remove_include_and_comment(input_string)
+
     tokens = lex_openqasm(input_string)
 
     if (
@@ -83,6 +85,7 @@ def qasm2_parse(input_string: str) -> QCircuit:
 
     idx = 3
     circuit = QCircuit()
+    circuit.input_g_phase = gphase
     i_max = len(tokens)
     while idx < i_max:
         logger.debug(circuit)
@@ -105,6 +108,8 @@ def _TokenSwitch(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
         return _TokenBarrier(circuit, tokens, idx)
     elif token.type == 'ID':
         return _TokenGate(circuit, tokens, idx)
+    elif token.type == 'PRAGMA_MPQP':
+        return _TokenCustom(circuit, tokens, idx)
     else:
         raise SyntaxError(f"Invalid token: {idx} {token.type}")
 
@@ -302,10 +307,31 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
     import numpy as np  # pyright: ignore[reportUnusedImport]
 
     expr = ""
-    while tokens[idx].type != 'COMMA' and tokens[idx].type != 'RPAREN':
-        if check_num_expr(tokens[idx].type):
+    open_paren = 0
+    while tokens[idx].type != 'COMMA' and (
+        tokens[idx].type != 'RPAREN' or open_paren > 0
+    ):
+        if tokens[idx].type == 'LPAREN':
+            open_paren += 1
+            expr += "("
+        elif tokens[idx].type == 'RPAREN':
+            open_paren -= 1
+            expr += ")"
+        elif tokens[idx].type == 'ID' and tokens[idx].value == 'e':
+            expr += 'e'
+            idx += 1
+
+            if tokens[idx].type in ('PLUS', 'MINUS'):
+                expr += tokens[idx].value
+                idx += 1
+
+            if tokens[idx].type not in ('INTN', 'REALN'):
+                raise SyntaxError("Invalid scientific notation")
+
+            expr += str(tokens[idx].value)
+        elif check_num_expr(tokens[idx].type):
             raise SyntaxError(f"not a nb or expr: {idx}, {tokens[idx]}")
-        if tokens[idx].type == 'PI':
+        elif tokens[idx].type == 'PI':
             expr += "np.pi"
         else:
             expr += str(tokens[idx].value)
@@ -355,6 +381,33 @@ def _Gate_U(circuit: QCircuit, gate_str: str, tokens: list[LexToken], idx: int) 
     return idx + 5
 
 
+def _TokenCustom(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
+    raw = tokens[idx].value.strip()
+
+    if not raw.startswith("#pragma mpqp"):
+        raise SyntaxError(f"Unknown pragma: {raw}")
+
+    expr = raw[len("#pragma mpqp") :].strip()
+
+    safe_globals = {
+        "__builtins__": {},
+    }
+
+    safe_locals = {
+        "CustomGate": CustomGate,
+        "array": np.array,
+        "np": np,
+    }
+
+    try:
+        gate = eval(expr, safe_globals, safe_locals)
+    except Exception as e:
+        raise SyntaxError(f"Custom gate eval failed: {expr}") from e
+
+    circuit.add(gate)
+    return idx + 1
+
+
 def parse_qasm2_gates(code: str) -> tuple[str, float]:
     from mpqp.qasm.open_qasm_2_and_3 import (
         qasm_code,
@@ -365,7 +418,7 @@ def parse_qasm2_gates(code: str) -> tuple[str, float]:
     )
     import re
 
-    code = remove_include_and_comment(code)
+    code, gphase = remove_include_and_comment(code)
 
     lines = code.split(";")
     lines.insert(1, qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
@@ -373,7 +426,6 @@ def parse_qasm2_gates(code: str) -> tuple[str, float]:
 
     code = remove_user_gates(code)
 
-    gphase = 0
     clean_code = []
     to_add = True
 

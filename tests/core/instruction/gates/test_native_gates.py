@@ -11,8 +11,8 @@ k: Expr
 theta, k = symbols("θ k")
 c, s, e = cos(theta), sin(theta), exp(1.0 * I * theta)
 c2, s2, e2 = (
-    cos(theta / 2),  # pyright: ignore[reportOperatorIssue]
-    sin(theta / 2),  # pyright: ignore[reportOperatorIssue]
+    cos(theta / 2),
+    sin(theta / 2),
     exp(1.0 * I * theta / 2),
 )
 
@@ -52,7 +52,7 @@ def test_P(angle: float, result_matrix: Matrix):
             theta,
             0,
             0,
-            np.array([[c2, -1.0 * s2], [1.0 * s2, 1.0 * c2]]),  # pyright: ignore
+            np.array([[c2, -1.0 * s2], [1.0 * s2, 1.0 * c2]]),
         ),
     ],
 )
@@ -76,7 +76,7 @@ def test_U(theta: float, phi: float, gamma: float, result_matrix: Matrix):
         ),
         (
             theta,
-            np.array([[c2, -1j * s2], [-1j * s2, c2]]),  # pyright: ignore
+            np.array([[c2, -1j * s2], [-1j * s2, c2]]),
         ),
     ],
 )

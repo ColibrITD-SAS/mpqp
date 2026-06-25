@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
+import shutil
 import sys
 from typing import Literal
 
@@ -40,7 +42,6 @@ extensions = [
     "sphinx_rtd_dark_mode",
     "sphinx_copybutton",
     "nbsphinx",  # requires pandoc ?
-    "nbsphinx_link",
 ]
 default_dark_mode = True
 autodoc_typehints = "description"
@@ -51,6 +52,19 @@ autodoc_type_aliases = {
     "Measure": "Measure",
     "Breakpoint": "Breakpoint",
     "PauliStringMonomial": "PauliStringMonomial",
+    "PauliStringAtom": "PauliStringAtom",
+    "Job": "Job",
+    "Result": "Result",
+    "BatchResult": "BatchResult",
+    "NoiseModel": "NoiseModel",
+    "AnswerNode": "AnswerNode",
+    "Qubo": "Qubo",
+    "Instruction": "Instruction",
+    "Sample": "Sample",
+    "Instr": "Instr",
+    "UserGate": "UserGate",
+    "SingleQubitGate": "SingleQubitGate",
+    "CustomGate": "CustomGate",
     "npt.NDArray[np.complex128]": "np.array[np.complex128]",
 }
 autodoc_mock_imports = ["braket.circuits.measure"]
@@ -86,6 +100,68 @@ nbsphinx_prolog = r"""
     \textcolor{gray}{The following section was generated from the notebook
     \sphinxcode{\sphinxupquote{\strut {{ docname | escape_latex }}}} \dotfill}}
 """
+
+
+def copy_notebooks(app: Sphinx):
+    app_dir = Path(app.srcdir).absolute()
+    src_dir = app_dir / "../examples/notebooks"
+    dest_dir = app_dir / "notebooks"
+
+    dest_dir.mkdir(exist_ok=True)
+
+    if not src_dir.exists():
+        raise FileNotFoundError(f"Source notebooks directory not found: {src_dir}")
+
+    for nb in src_dir.iterdir():
+        if nb.suffix == ".ipynb":
+            shutil.copy2(src_dir / nb, dest_dir)
+
+
+def copy_requirements_providers(app: Sphinx):
+    """
+    Copy requirements_providers/*.txt into docs/requirements_providers
+    so Sphinx can access them.
+    """
+    app_dir = Path(app.srcdir).absolute()
+    src_dir = app_dir / "../requirements_providers"
+    dest_dir = app_dir / "requirements_providers"
+
+    dest_dir.mkdir(exist_ok=True)
+
+    if not src_dir.exists():
+        raise FileNotFoundError(
+            f"Source requirements_providers directory not found: {src_dir}"
+        )
+
+    for src_file in src_dir.glob("*.txt"):
+        dest_file = dest_dir / src_file.name
+
+        if dest_file.exists():
+            dest_file.unlink()
+
+        shutil.copy2(src_file, dest_file)
+
+
+def generate_notebooks_toctree(app: Sphinx):
+    """
+    Automatically generate a toctree listing all notebooks
+    found in notebooks/.
+    """
+    notebooks_dir = Path(app.srcdir) / "notebooks"
+    notebooks_dir.mkdir(exist_ok=True)
+    output_file = notebooks_dir / "notebooks_toctree.rst"
+
+    notebooks = sorted(f for f in notebooks_dir.iterdir() if f.suffix == ".ipynb")
+    prefix = """.. toctree::
+   :maxdepth: 1
+   :caption: Notebooks:
+   
+"""
+    with open(output_file, "w", encoding="utf-8") as f:
+        f.write(prefix)
+        for nb in notebooks:
+            f.write(f"   notebooks/{nb.stem}\n")
+
 
 # The suffix of source filenames.
 source_suffix = ".rst"
@@ -385,4 +461,7 @@ def maybe_skip_member(
 
 
 def setup(app: Sphinx):
+    app.connect("builder-inited", copy_notebooks)
+    app.connect("builder-inited", copy_requirements_providers)
     app.connect("autodoc-skip-member", maybe_skip_member)
+    app.connect("builder-inited", generate_notebooks_toctree)

@@ -156,7 +156,7 @@ class NoiseModel(ABC):
             for ops in product(
                 *[K if t in targets else [pI.matrix] for t in range(size)]
             )
-        ]
+        ]  # pyright: ignore[reportReturnType]
 
     @abstractmethod
     def to_other_language(
@@ -300,10 +300,18 @@ class DimensionalNoiseModel(NoiseModel, ABC):
 
 
 class Depolarizing(DimensionalNoiseModel):
-    """Class representing the depolarizing noise channel, which maps a state
+    r"""Class representing the depolarizing noise channel, which maps a state
     onto a linear combination of itself and the maximally mixed state. It can
     be applied to a single or multiple qubits, and depends on a single parameter
     (probability or error rate).
+
+    We recall below the associated representation, in terms of Kraus operators,
+    where we denote by `p` the depolarizing probability ``prob``:
+
+    `E_0=\sqrt{1-p} \ I`
+    `~ ~ E_1 = \sqrt{\frac{p}{3}} \ X`
+    `~ ~ E_2 = \sqrt{\frac{p}{3}} \ Y`
+    `~ ~ E_3 = \sqrt{\frac{p}{3}} \ Z`
 
     When the number of qubits in the target is higher than the dimension, the
     noise will be applied to all possible combinations of indices of size
@@ -480,10 +488,16 @@ class Depolarizing(DimensionalNoiseModel):
 
 
 class BitFlip(NoiseModel):
-    """Class representing the bit flip noise channel, which flips the state of
+    r"""Class representing the bit flip noise channel, which flips the state of
     a qubit with a certain probability. It can be applied to single and
     multi-qubit gates and depends on a single parameter (probability or error
     rate).
+
+    We recall below the associated representation, in terms of Kraus operators,
+    where we denote by `p` the bit flip probability ``prob``:
+
+    `E_0=\sqrt{1-p} \ I`
+    `~ ~ E_1 = \sqrt{p} \ X`
 
     Args:
         prob: Bit flip error probability or error rate (must be within
@@ -788,10 +802,18 @@ class AmplitudeDamping(NoiseModel):
 
 
 class PhaseDamping(NoiseModel):
-    """Class representing the phase damping noise channel. It can be applied to
+    r"""Class representing the phase damping noise channel. It can be applied to
     a single qubit and depends on the phase damping parameter ``gamma``. Phase
     damping happens when a quantum system loses its phase information due to
     interactions with the environment, leading to decoherence.
+
+    We recall below the associated representation, in terms of Kraus operators,
+    where we denote by `\gamma` the decay rate ``gamma``, and by `p` the
+    excitation probability ``prob``:
+
+    `E_0=\sqrt{p}\begin{pmatrix}1&0\\0&\sqrt{1-\gamma}\end{pmatrix}`,
+    `~ ~ E_1=\sqrt{p}\begin{pmatrix}0&\sqrt{\gamma}\\0&0\end{pmatrix}` and
+    `~ ~ E_2=\sqrt{1-p}\begin{pmatrix}1&0\\0&1\end{pmatrix}`.
 
     Args:
         gamma: Probability of phase damping.
