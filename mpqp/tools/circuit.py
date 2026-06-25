@@ -367,7 +367,7 @@ def replace_custom_gate(
 
 
 def _verify_convert_instructions(
-    gate: Gate, authorized_gates: set[type[Gate]]
+    gate: Gate, authorized_gates: set[type[Gate]], printing: bool = False
 ) -> list[Gate]:
     """Function used to verify if the instruction is contained in the gate set.
     If the gate is a ComposedGate and not explicitly in the authorized_gates set it will check if it's decomposition is present in the gate set.
@@ -379,8 +379,10 @@ def _verify_convert_instructions(
             )
         else:
             return [gate]
-    if isinstance(gate, CustomControlledGate) and isinstance(
-        gate.non_controlled_gate, CustomGate
+    if (
+        isinstance(gate, CustomControlledGate)
+        and isinstance(gate.non_controlled_gate, CustomGate)
+        and not printing
     ):
         # If the CustomControlledGate contains itself a custom gate it's better to return a bigger custom gate for compatibilities issues.
         # If the non_controlled_gate is a NativeGate it shouldn't pose a problem.
@@ -461,17 +463,15 @@ def mpqp_to_qiskit(
             continue
         options = {"printing": printing} if isinstance(instruction, CustomGate) else {}
         if isinstance(instruction, Gate):
-            instr = _verify_convert_instructions(instruction, authorized_gates)
+            instr = _verify_convert_instructions(
+                instruction, authorized_gates, printing
+            )
         else:
             instr = [instruction]
         for instruction in instr:
             qiskit_inst = instruction.to_other_language(
                 Language.QISKIT, qiskit_parameters, **options
             )
-            if isinstance(instruction, CustomControlledGate) and isinstance(
-                instruction.non_controlled_gate, CustomGate
-            ):
-                instruction = instruction.to_custom_gate()
             if TYPE_CHECKING:
                 assert isinstance(
                     qiskit_inst, (CircuitInstruction, Operation, Operator)
@@ -767,8 +767,10 @@ def mpqp_to_cirq(
         else:
             instr = [instruction]
 
-        if isinstance(instr[0], CustomGate):
-            if isinstance(instruction, CustomGate):
+        for gate in instr:
+            if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
+                continue
+            elif isinstance(gate, CustomGate):
                 from cirq.ops.raw_types import Gate as CirqGate
 
                 custom_gate = instr[0]
@@ -783,18 +785,14 @@ def mpqp_to_cirq(
                 cirq_circuit.append(cirq_instruction.on(*targets))
                 continue
 
-            from cirq import GlobalPhaseGate
+                """from cirq import GlobalPhaseGate
 
-            tmp_circuit = instr[0].decompose()
-            instr = tmp_circuit.instructions
+                tmp_circuit = instr[0].decompose()
+                instr = tmp_circuit.instructions
 
-            cirq_circuit.insert(
-                0, GlobalPhaseGate(np.exp(1j * tmp_circuit.input_g_phase)).on()
-            )
-
-        for gate in instr:
-            if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
-                continue
+                cirq_circuit.insert(
+                    0, GlobalPhaseGate(np.exp(1j * tmp_circuit.input_g_phase)).on()
+                )"""
             elif isinstance(gate, ControlledGate):
                 targets = []
                 for target in gate.targets:

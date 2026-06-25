@@ -197,6 +197,8 @@ def closest_unitary(matrix: Matrix) -> Matrix:
         True
 
     """
+    if is_unitary(matrix):
+        return matrix
     from scipy.linalg import svd
 
     V, _, Wh = svd(matrix)

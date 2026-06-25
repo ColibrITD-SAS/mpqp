@@ -65,10 +65,9 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     g = G0 @ G1.conj().T
     G = np.round(g, 10)
     eigvals, v = np.linalg.eig(G)
-    from mpqp.tools import closest_unitary, is_unitary
+    from mpqp.tools import closest_unitary
 
-    if not is_unitary(v):
-        v = closest_unitary(v)
+    v = closest_unitary(v)
 
     D = np.diag(np.sqrt(eigvals.astype(complex)))
 
@@ -126,8 +125,8 @@ def _gray_code_decomposition(
         control = next(i for i in range(len(thetas)) if (changed >> i & 1))
         control = max(-control - targets[position] - 1 + circuit.nb_qubits, 1)
         if np.abs(angle) > PRECISION:  # Dodge unnecessary rotations
-            circuit.add(rotation(angle, int(targets[position])))
-        circuit.add(CNOT(int(control + targets[position]), int(targets[position])))
+            circuit.add(rotation(angle, targets[position]))
+        circuit.add(CNOT(control + targets[position], targets[position]))
     return circuit
 
 
@@ -149,16 +148,13 @@ def _decompose(
         # extract the global phase so that SU is a special unitary, note that if U is a special unitary then delta = 0
         SU = U / np.exp(1j * delta)
         abs = np.abs(SU[0][0])
-        if abs >= 1:
-            beta = 0
-        else:
-            beta = 2 * math.acos(abs)
+        beta = 0 if abs >= 1 else 2 * math.acos(abs)
         alpha = -np.angle(SU[0][0]) - np.angle(SU[1][0])
         gamma = -np.angle(SU[0][0]) + np.angle(SU[1][0])
 
-        circuit.add(Rz(alpha, int(targets[position])))
-        circuit.add(Ry(beta, int(targets[position])))
-        circuit.add(Rz(gamma, int(targets[position])))
+        circuit.add(Rz(alpha, targets[position]))
+        circuit.add(Ry(beta, targets[position]))
+        circuit.add(Rz(gamma, targets[position]))
         circuit.input_g_phase += delta  # Stores the gphase in the circuit
         return circuit
     else:  # 2 qubits or more

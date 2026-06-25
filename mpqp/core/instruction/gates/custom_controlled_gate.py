@@ -34,13 +34,11 @@ class CustomControlledGate(ControlledGate):
         >>> circuit = QCircuit(3)
         >>> circuit.add(CustomControlledGate([0,2], CustomGate(np.array([[1,0],[0,-1]]),[1])))
         >>> print(circuit)  # doctest: +NORMALIZE_WHITESPACE
-             ┌──────────┐
-        q_0: ┤2         ├
-             │          │
-        q_1: ┤1 Unitary ├
-             │          │
-        q_2: ┤0         ├
-             └──────────┘
+        q_0: ─────■─────
+             ┌────┴────┐
+        q_1: ┤ Unitary ├
+             └────┬────┘
+        q_2: ─────■─────
 
     """
 
@@ -90,10 +88,11 @@ class CustomControlledGate(ControlledGate):
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator
 
-            gate = self.non_controlled_gate.to_other_language()
+            gate = self.non_controlled_gate.to_other_language(Language.QISKIT)
             if isinstance(gate, Operator):
                 gate = gate.to_instruction()
             gate = gate.control(len(self.controls))
+            gate.control()
             return gate
         elif language == Language.QASM2:
             if isinstance(self.non_controlled_gate, CustomGate):

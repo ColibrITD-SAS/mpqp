@@ -1109,5 +1109,5 @@ def test_global_phase_statevector(matrix: Matrix, gphase: float):
         ATOSDevice.MYQLM_PYLINALG,
     ]
     results = run(circuit, devices)
-    for result_1, result_2 in pairwise(results):
-        assert matrix_eq(result_1.state_vector.vector, results_2.state_vector.vector)
+    for result_1, result_2 in pairwise(results.results):
+        assert matrix_eq(result_1.state_vector.vector, result_2.state_vector.vector)

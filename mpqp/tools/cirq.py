@@ -5,7 +5,7 @@ from mpqp.environment.var_cache import (
     InstalledProviders,
 )
 
-if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
+if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
 
     from cirq import Gate as cirqGate
     from cirq import Qid

@@ -1758,6 +1758,7 @@ class QCircuit:
             from cirq.circuits.moment import Moment
             from cirq import ops, MatrixGate
 
+            qcircuit = deepcopy(qcircuit)
             if isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
                 from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates, qasm2_parse
 
@@ -1796,22 +1797,19 @@ class QCircuit:
                             qcircuit._moments.insert(  # pyright: ignore[reportPrivateUsage]
                                 i, moment_
                             )
+
                 if split_index != 0:
                     cir, phase = parse_qasm2_gates(
                         qcircuit.from_moments(qcircuit[split_index:]).to_qasm()
                     )
                     c += qasm2_parse(cir)
                     c.input_g_phase += phase
-                from mpqp.gates import Id
-
-                # This method adds a lot of identities so for a much cleaner circuit we remove them.
-                # Maybe add this as an option
-                c.instructions = [i for i in c.instructions if not isinstance(i, Id)]
-                qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
-                qc = qasm2_parse(qasm2_code)
-                qc.input_g_phase = gphase
-
-                return qc
+                    return c
+                else:
+                    qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
+                    qc = qasm2_parse(qasm2_code)
+                    qc.input_g_phase = gphase
+                    return qc
 
         if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             from braket.circuits import Circuit as braket_Circuit
