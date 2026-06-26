@@ -4,7 +4,7 @@ unitary operator into elementary gates regrouped in a quantum circuit."""
 from __future__ import annotations
 
 import math
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 from scipy.linalg import cossin
@@ -103,7 +103,8 @@ def _gray_code_decomposition(
     Args:
         thetas : A list of floats that are the rotations to be applied on each qubits.
         circuit: The circuit in which the decomposition is stocked.
-        position : On which qubit is the rotation is taking place.
+        targets: The targets on which the CustomGate is applied.
+        position : At which step of the decomposition the process is currently at (from 0 to len(targets) - 1).
         rotation : Either a Ry or a Rz rotation.
 
     Returns:
@@ -235,7 +236,9 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
     return circuit
 
 
-def quantum_shannon_decomposition(U: Matrix, targets: list[int]) -> QCircuit:
+def quantum_shannon_decomposition(
+    U: Matrix, check_unitary: bool = True, targets: Optional[list[int]] = None
+) -> QCircuit:
     """
     Returns a circuit containing the decomposition of a unitary.
     The resulting circuit is composed of gates CNOT, Ry and Rz.
@@ -249,7 +252,8 @@ def quantum_shannon_decomposition(U: Matrix, targets: list[int]) -> QCircuit:
 
     Args:
         U: The unitary matrix to be decomposed
-
+        check_unitary: boolean if at True will check if the inputted U is unitary. Default at True.
+        targets: The qubits on which the CustomGate should be applied. Defaults to [0,log2(len(U))]
     Returns:
         A quantum circuit equivalent to U.
 
@@ -258,14 +262,22 @@ def quantum_shannon_decomposition(U: Matrix, targets: list[int]) -> QCircuit:
 
     Examples:
         >>> U = np.array([[1,0],[0,1]])
-        >>> circuit = quantum_shannon_decomposition(U, [0])
+        >>> circuit = quantum_shannon_decomposition(U)
         >>> print(matrix_eq(U, circuit.to_matrix()))
         True
     """
+    from mpqp.tools import is_unitary
+
+    if check_unitary and not is_unitary(U):
+        raise ValueError("The input gate should be unitary.")
     if not is_power_of_two(len(U)):
         raise ValueError(
-            f"The size of the unitary matrix should be of the form 2**n : got {len(U)}"
+            f"The size of the unitary matrix should be of a power of 2: got {len(U)}"
         )
-    circuit = QCircuit(int(np.log2(len(U))))
+    import numpy as np
+
+    if targets is None:
+        targets = list(range(np.log2(len(U)).astype(int)))
+    circuit = QCircuit()
     circuit = _decompose(U, circuit, targets, 0)
     return _optimize_circuit(circuit)
