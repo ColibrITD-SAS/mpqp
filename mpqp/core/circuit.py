@@ -1772,7 +1772,7 @@ class QCircuit:
                 split_index = 0
                 for i, moment in enumerate(qcircuit):
                     for operation in moment.operations:
-                        # Maybe only do it for BIG matrices
+                        # Cut the moments of the circuit if a matrixGate is encountered
                         if isinstance(operation.gate, MatrixGate):
                             matrix = (
                                 operation.gate._matrix  # pyright: ignore[reportPrivateUsage]
@@ -1804,12 +1804,11 @@ class QCircuit:
                     )
                     c += qasm2_parse(cir)
                     c.input_g_phase += phase
-                    return c
                 else:
                     qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
-                    qc = qasm2_parse(qasm2_code)
-                    qc.input_g_phase = gphase
-                    return qc
+                    c = qasm2_parse(qasm2_code)
+                    c.input_g_phase = gphase
+                return c
 
         if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             from braket.circuits import Circuit as braket_Circuit

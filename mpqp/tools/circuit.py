@@ -784,15 +784,6 @@ def mpqp_to_cirq(
 
                 cirq_circuit.append(cirq_instruction.on(*targets))
                 continue
-
-                """from cirq import GlobalPhaseGate
-
-                tmp_circuit = instr[0].decompose()
-                instr = tmp_circuit.instructions
-
-                cirq_circuit.insert(
-                    0, GlobalPhaseGate(np.exp(1j * tmp_circuit.input_g_phase)).on()
-                )"""
             elif isinstance(gate, ControlledGate):
                 targets = []
                 for target in gate.targets:
