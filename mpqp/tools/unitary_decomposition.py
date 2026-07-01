@@ -237,7 +237,7 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
 
 
 def quantum_shannon_decomposition(
-    U: Matrix, check_unitary: bool = True, targets: Optional[list[int]] = None
+    U: Matrix, targets: Optional[list[int]] = None, check_unitary: bool = True
 ) -> QCircuit:
     """
     Returns a circuit containing the decomposition of a unitary.
