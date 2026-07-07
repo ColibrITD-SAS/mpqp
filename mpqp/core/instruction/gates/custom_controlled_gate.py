@@ -92,7 +92,6 @@ class CustomControlledGate(ControlledGate):
             if isinstance(gate, Operator):
                 gate = gate.to_instruction()
             gate = gate.control(len(self.controls))
-            gate.control()
             return gate
         elif language == Language.QASM2:
             if isinstance(self.non_controlled_gate, CustomGate):
