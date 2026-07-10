@@ -192,7 +192,7 @@ def run_braket_observable(job: Job):
             ]
             for circuit in pre_measure:
                 for instr in circuit.instructions:
-                    instr.targets[0] = job.measure.targets[instr.targets[0]]
+                    instr.targets = [job.measure.targets[t] for t in instr.targets]
             transpiled_pre_measures = [
                 pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
             ]

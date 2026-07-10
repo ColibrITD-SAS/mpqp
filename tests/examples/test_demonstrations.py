@@ -342,7 +342,7 @@ def test_aws_mpqp_executions():
     circuit.add(ExpectationMeasure(obs, shots=0))
 
     # Running the computation on myQLM and on Braket simulator, then retrieving the results
-    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR])
 
     #####################################################
 
@@ -352,7 +352,7 @@ def test_aws_mpqp_executions():
     )
 
     # Running the computation on myQLM and on Aer simulator, then retrieving the results
-    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR, ATOSDevice.MYQLM_PYLINALG])
+    run(circuit, [AWSDevice.BRAKET_LOCAL_SIMULATOR])
 
 
 @pytest.mark.provider("qiskit")

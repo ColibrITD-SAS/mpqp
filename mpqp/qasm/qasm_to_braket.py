@@ -58,8 +58,8 @@ def qasm3_to_braket_Program(qasm3_str: str) -> "Program":
         ... qubit[2] q;
         ... h q[0];
         ... '''
-        >>> program = qasm3_to_braket_Program(qasm_code) # doctest: +MYQLM
-        >>> print(program) # doctest: +MYQLM
+        >>> program = qasm3_to_braket_Program(qasm_code) # doctest: +BRAKET
+        >>> print(program) # doctest: +BRAKET
         braketSchemaHeader=BraketSchemaHeader(name='braket.ir.openqasm.program', version='1') source='\nOPENQASM 3.0;\nqubit[2] q;\nh q[0];\n' inputs=None
 
     """
@@ -90,8 +90,8 @@ def qasm3_to_braket_Circuit(qasm3_str: str) -> "Circuit":
         ... qubit[2] q;
         ... h q[0];
         ... '''
-        >>> circuit = qasm3_to_braket_Circuit(qasm_code) # doctest: +MYQLM
-        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE, +MYQLM
+        >>> circuit = qasm3_to_braket_Circuit(qasm_code) # doctest: +BRAKET
+        >>> print(circuit) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
         T  : │  0  │
               ┌───┐
         q0 : ─┤ H ├─
@@ -159,10 +159,10 @@ def braket_noise_to_mpqp(qasm3_code: str) -> tuple[list[NoiseModel], str]:
         ... h q[0];
         ... #pragma braket noise phase_damping(0.1) q[0]
         ... '''
-        >>> noise, clean_qasm = braket_noise_to_mpqp(qasm_code)
-        >>> print(noise) # doctest: +NORMALIZE_WHITESPACE
+        >>> noise, clean_qasm = braket_noise_to_mpqp(qasm_code) # doctest: +BRAKET
+        >>> print(noise) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
         [PhaseDamping(0.1, [0])]
-        >>> print(clean_qasm) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(clean_qasm) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
         OPENQASM 3.0;
         qubit[2] q;
         h q[0];
@@ -219,7 +219,7 @@ def braket_custom_gates_to_mpqp(qasm3_code: str) -> CustomGate:
 
     Example:
         >>> qasm_code = '''#pragma braket unitary([[0, 1.0], [1.0, 0]]) q[0]'''
-        >>> print(repr(braket_custom_gates_to_mpqp(qasm_code))) # doctest: +NORMALIZE_WHITESPACE
+        >>> print(repr(braket_custom_gates_to_mpqp(qasm_code))) # doctest: +NORMALIZE_WHITESPACE, +BRAKET
         CustomGate(array([[0., 1.], [1., 0.]]), [0])
     """
     import ast

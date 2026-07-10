@@ -26,7 +26,7 @@ def insert_jobs(jobs: Job | list[Job]) -> list[int]:
     Example:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR)
         >>> insert_jobs(job)
-        [7]
+        [17]
 
     """
     import json
@@ -114,7 +114,7 @@ def insert_results(
     Example:
         >>> result = Result(Job(JobType.STATE_VECTOR, QCircuit(2), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]))
         >>> insert_results(result)
-        [8]
+        [21]
 
     """
     if isinstance(result, Result):

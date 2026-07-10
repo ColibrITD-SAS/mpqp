@@ -264,7 +264,7 @@ def run_doctest(
     if isinstance(active_providers, str):
         active_providers = [active_providers]
     elif not isinstance(active_providers, list):
-        active_providers = []
+        active_providers = ["all"]
 
     skip_provider_flags: dict[str, int] = {}
 
@@ -293,6 +293,7 @@ def run_doctest(
             test.docstring
             and "3M-TODO" not in test.docstring
             and "6M-TODO" not in test.docstring
+            # TODO: Check for +FUNC_NEED_ flags
             and all(
                 f"# doctest: +FUNC_NEED_{keyword.upper()}" not in test.docstring
                 for keyword in skip_provider_flags.keys()
@@ -307,7 +308,9 @@ def run_doctest(
             if safe_needed:
                 with EnvRunner():
                     if any(name in root + filename for name in files_needing_db):
-                        if "--long-local" in sys.argv or "--long" in sys.argv:
+                        if (
+                            "--long-local" in sys.argv or "--long" in sys.argv
+                        ) and "all" in active_providers:
                             with DBRunner(test.name):
                                 assert runner.run(test).failed == 0
                     else:

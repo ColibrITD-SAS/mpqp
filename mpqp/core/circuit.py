@@ -52,10 +52,6 @@ from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
 from mpqp.core.languages import Language
-from mpqp.environment.var_cache import (
-    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
-    InstalledProviders,
-)
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -384,8 +380,6 @@ class QCircuit:
         if isinstance(component, Barrier):
             component.size = self.nb_qubits
             component.targets = list(range(self.nb_qubits))
-        elif isinstance(component, ExpectationMeasure):
-            component._check_targets_order()  # pyright: ignore[reportPrivateUsage]
         elif isinstance(component, DimensionalNoiseModel):
             component.check_dimension()
         elif isinstance(component, BasisMeasure):
@@ -1508,7 +1502,43 @@ class QCircuit:
 
                         from qiskit import transpile
 
-                        qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+                        try:
+                            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+                        except Exception as e:
+                            if (
+                                'HighLevelSynthesis is unable to synthesize "measure"'
+                                in str(e)
+                            ):
+                                # TODO: We use this workaround for old backend that do not support measure in their synthesis.
+                                # ['FakeAlmadenV2','FakeArmonkV2','FakeBurlingtonV2','FakeCambridgeV2',
+                                # 'FakeEssexV2','FakeJohannesburgV2','FakeLondonV2','FakePoughkeepsieV2',
+                                # 'FakeRochesterV2','FakeSingaporeV2']
+
+                                from qiskit import ClassicalRegister
+
+                                qc = qiskit_circuit.remove_final_measurements(
+                                    inplace=False
+                                )
+                                if TYPE_CHECKING:
+                                    assert qc is not None
+                                qc = transpile(qc, backend_sim)
+                                if qiskit_circuit.num_clbits > 0:
+                                    qc.add_register(
+                                        ClassicalRegister(qiskit_circuit.num_clbits)
+                                    )
+                                for instr, qargs, cargs in qiskit_circuit.data:
+                                    if instr.name == "measure":
+                                        q_index = qiskit_circuit.find_bit(
+                                            qargs[0]
+                                        ).index
+                                        c_index = qiskit_circuit.find_bit(
+                                            cargs[0]
+                                        ).index
+                                        qc.measure(q_index, c_index)
+                                qiskit_circuit = qc
+                            else:
+                                raise e
+
                     elif job_type == JobType.OBSERVABLE:
                         if isinstance(device, StaticIBMSimulatedDevice):
                             from qiskit.transpiler.preset_passmanagers import (
@@ -1722,6 +1752,10 @@ class QCircuit:
             q_1: ─────┤ X ├
                       └───┘
         """
+        from mpqp.environment.var_cache import (
+            _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+            InstalledProviders,
+        )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             from qiskit.circuit import QuantumCircuit

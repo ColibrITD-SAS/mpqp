@@ -17,6 +17,7 @@ from mpqp.core.instruction.gates.native_gates import (
     CRk,
     P,
     ComposedGate,
+    OneQubitNoParamGate,
     Rk,
     RotationGate,
     Rx,
@@ -94,11 +95,14 @@ def random_circuit(
     qcircuit = QCircuit(nb_qubits)
     for _ in range(nb_gates):
         qcircuit.add(random_gate(gate_classes, nb_qubits, rng))
+
     if use_all_qubits:  # used in case we want to test braket
-        from mpqp.gates import H
+        gates = np.array(
+            [g for g in NATIVE_GATES if issubclass(g, OneQubitNoParamGate)]
+        )
 
         for i in range(nb_qubits):
-            qcircuit.add(H(i))
+            qcircuit.add(rng.choice(gates)(i))
     return qcircuit
 
 
@@ -119,11 +123,13 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> pprint(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.43644+0.13833j, 0, 0.2176+0.86199j, 0]
+        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
+        [0.4364437 +0.13832902j 0.        +0.j         0.21760065+0.861993j
+            0.        +0.j        ]
     """
     from mpqp.execution import IBMDevice, Result, run
 
+    mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:

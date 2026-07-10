@@ -25,7 +25,7 @@ def jobs_local_storage_to_mpqp(jobs: Optional[list[DictDB] | DictDB]) -> list[Jo
     Example:
         >>> job_local_storage = fetch_jobs_with_id(1)
         >>> jobs_local_storage_to_mpqp(job_local_storage) # doctest: +ELLIPSIS
-        [Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)]
+        [Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)]
 
     """
     if jobs is None:
@@ -75,8 +75,8 @@ def results_local_storage_to_mpqp(
         >>> results = results_local_storage_to_mpqp(result_local_storage)
         >>> for result in results:  # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(2, index=0, count=..., probability=0...), ...], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(2, index=0, count=..., probability=0...), ...], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), ...], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), ...], None, 1024)
 
     """
     if results is None:
@@ -125,12 +125,22 @@ def get_all_jobs() -> list[Job]:
     Example:
         >>> for job in get_all_jobs(): # doctest: +ELLIPSIS
         ...     print(job)
-        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
         Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
         Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
         Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
+        Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
         Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
+        Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
         Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
 
     """
     return jobs_local_storage_to_mpqp(fetch_all_jobs())
@@ -148,13 +158,26 @@ def get_all_results() -> list[Result]:
     Example:
         >>> for result in get_all_results(): # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
         Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
         Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
-        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
-        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector(...), 0, 0)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), ATOSDevice.MYQLM_CLINALG), [Sample(...), Sample(...)], ..., 1024)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), StateVector([1, 0, 0, 0]), 0, 0)
+        Result(Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG), StateVector([1, 0, 0, 0]), 0, 0)
 
     """
     return results_local_storage_to_mpqp(fetch_all_results())
@@ -206,8 +229,16 @@ def get_jobs_with_result(result: Result | list[Result] | BatchResult) -> list[Jo
         ...     0,
         ...     0,
         ... )
-        >>> print(get_jobs_with_result(result)) # doctest: +ELLIPSIS
-        [Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)]
+        >>> for job in get_jobs_with_result(result): # doctest: +ELLIPSIS
+        ...     print(repr(job))
+        Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
+        Job(JobType.STATE_VECTOR, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR)
+        Job(JobType.STATE_VECTOR, QCircuit(...), ATOSDevice.MYQLM_CLINALG)
 
     """
     return jobs_local_storage_to_mpqp(fetch_jobs_with_result(result))
@@ -298,11 +329,11 @@ def get_results_with_id(result_id: int | list[int]) -> list[Result]:
     Example:
         >>> for result in get_results_with_id(1): # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
         >>> for result in get_results_with_id([2, 3]): # doctest: +ELLIPSIS
         ...     print(repr(result))
         Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), AWSDevice.BRAKET_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
 
     """
     return results_local_storage_to_mpqp(fetch_results_with_id(result_id))
@@ -323,9 +354,9 @@ def get_jobs_with_id(job_id: int | list[int]) -> list[Job]:
         >>> jobs = get_jobs_with_id([1, 2, 3])
         >>> for job in jobs: # doctest: +ELLIPSIS
         ...     print(job)
-        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
-        Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
-        Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit([...], label="H CX BM"), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit([...], label="H CX BM"), IBMDevice.AER_SIMULATOR)
+        Job(JobType.SAMPLE, QCircuit([...], label="H CX BM"), AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
     """
     return jobs_local_storage_to_mpqp(fetch_jobs_with_id(job_id))
@@ -346,7 +377,7 @@ def get_results_with_job_id(job_id: int | list[int]) -> list[Result]:
         >>> results = get_results_with_job_id(1)
         >>> for result in results: # doctest: +ELLIPSIS
         ...     print(repr(result))
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
-        Result(Job(JobType.SAMPLE, QCircuit(...), IBMDevice.AER_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
+        Result(Job(JobType.SAMPLE, QCircuit(...), GOOGLEDevice.CIRQ_LOCAL_SIMULATOR), [Sample(...), Sample(...)], None, 1024)
     """
     return results_local_storage_to_mpqp(fetch_results_with_job_id(job_id))

@@ -34,8 +34,8 @@ def qasm2_to_myqlm_Circuit(qasm_str: str) -> "Circuit":
         ... h q[0];
         ... cx q[0], q[1];
         ... '''
-        >>> circuit = qasm2_to_myqlm_Circuit(qasm_code) # doctest: +FUNC_NEED_MYQLM
-        >>> circuit.display(batchmode=True) # doctest: +NORMALIZE_WHITESPACE
+        >>> circuit = qasm2_to_myqlm_Circuit(qasm_code) # doctest: +MYQLM
+        >>> circuit.display(batchmode=True) # doctest: +NORMALIZE_WHITESPACE, +MYQLM
           ┌─┐
          ─┤H├─●─
           └─┘ │

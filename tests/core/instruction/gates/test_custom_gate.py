@@ -1,4 +1,3 @@
-import random
 from functools import reduce
 
 import numpy as np
@@ -44,8 +43,12 @@ def test_random_orthogonal_matrix_myqlm(circ_size: int):
 
 
 def exec_random_orthogonal_matrix(circ_size: int, device: AvailableDevice):
-    gate_size = random.randint(1, circ_size)
-    targets_start = random.randint(0, circ_size - gate_size)
+    if circ_size == 1:
+        gate_size = 1
+        targets_start = 0
+    else:
+        gate_size = np.random.randint(1, circ_size)
+        targets_start = np.random.randint(0, circ_size - gate_size)
     m = rand_orthogonal_matrix(2**gate_size)
     c = QCircuit(
         [CustomGate(m, list(range(targets_start, targets_start + gate_size)))],
@@ -120,7 +123,9 @@ def test_custom_gate_with_random_circuit_qiskit(circ_size: int):
 @pytest.mark.provider("braket")
 @pytest.mark.parametrize("circ_size", range(1, 6))
 def test_custom_gate_with_random_circuit_braket(circ_size: int):
-    exec_custom_gate_with_random_circuit(circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    exec_custom_gate_with_random_circuit(
+        circ_size, AWSDevice.BRAKET_LOCAL_SIMULATOR, True
+    )
 
 
 @pytest.mark.provider("cirq")
@@ -135,8 +140,10 @@ def test_custom_gate_with_random_circuit_myqlm(circ_size: int):
     exec_custom_gate_with_random_circuit(circ_size, ATOSDevice.MYQLM_PYLINALG)
 
 
-def exec_custom_gate_with_random_circuit(circ_size: int, device: AvailableDevice):
-    random_circ = random_circuit(nb_qubits=circ_size)
+def exec_custom_gate_with_random_circuit(
+    circ_size: int, device: AvailableDevice, use_all_qubits: bool = False
+):
+    random_circ = random_circuit(nb_qubits=circ_size, use_all_qubits=use_all_qubits)
     matrix = random_circ.to_matrix()
     custom_gate_circ = QCircuit([CustomGate(matrix, list(range(circ_size)))])
 
