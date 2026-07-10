@@ -106,6 +106,21 @@ class StateVector:
             "nb_qubits": self.nb_qubits,
         }
 
+    def to_sample_list(self) -> list[Sample]:
+        """
+        Converts the StateVector object into a list of Samples. This allows 
+        to quickly have a binary representation of the basis states composing
+        a StateVector. 
+        
+        Note that the samples will be instantiated with probabilities, so
+        we cannot come back after that to the StateVector amplitudes.
+
+        Returns:
+            A list of Samples representing the possible measurement outcomes 
+            of the state represented by this StateVector.
+        """
+        pass  
+
     def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, StateVector):
             return False
