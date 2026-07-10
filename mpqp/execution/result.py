@@ -125,7 +125,11 @@ class StateVector:
             [Sample(2, index=0, count=None, probability=0.5), Sample(2, index=3, count=None, probability=0.5)]
 
         """
-        pass  
+        return [
+            Sample(self.nb_qubits, index=index, probability=proba)
+            for index, proba in enumerate(self.probabilities)
+            if not np.isclose(proba, 0)
+        ] 
 
     def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, StateVector):
