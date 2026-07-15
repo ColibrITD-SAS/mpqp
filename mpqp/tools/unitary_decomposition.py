@@ -67,7 +67,7 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     eigvals, v = np.linalg.eig(G)
     from mpqp.tools import closest_unitary
 
-    v = closest_unitary(v)
+    v = closest_unitary(v, check_unitary=True)
 
     D = np.diag(np.sqrt(eigvals.astype(complex)))
 

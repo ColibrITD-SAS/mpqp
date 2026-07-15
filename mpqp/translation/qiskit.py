@@ -1,5 +1,7 @@
 from typing import TYPE_CHECKING
 
+from mpqp.core.instruction.gates.gate import Gate
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
@@ -7,16 +9,22 @@ from mpqp.environment.var_cache import (
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
-from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.languages import Language
-from mpqp.translation.translation_utils import verify_convert_instructions
+from mpqp.translation.utils import verify_convert_instructions
 
 if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
 
     from qiskit import QuantumCircuit
 
     def qiskit_to_mpqp(qcircuit: QuantumCircuit):
+        """Translate a qiskit QuantumCircuit into a MPQP QCircuit.
+        Note:
+            This function make use of the qasm3 package from qiskit which means that some gates in the circuit
+            could be replaced by equivalents.
 
+        Args:
+            qcircuit: Any Qiskit quantum circuit.
+        """
         from qiskit import qasm3
 
         from mpqp.translation.qasm import open_qasm_3_to_2
@@ -33,7 +41,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
-        authorized_gates: set[type[Gate]] | None = None,
+        authorized_gates: set[type[NativeGate]] | None = None,
     ) -> QuantumCircuit:
         """Translate a MPQP circuit to a Qiskit equivalent.
 
@@ -51,19 +59,19 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             >>> cirq_with = mpqp_to_qiskit(circuit)
             >>> cirq_without = mpqp_to_qiskit(circuit, skip_measurements=True)
             >>> print(cirq_with) # doctest: +NORMALIZE_WHITESPACE
-                ┌───┐     ┌─┐
+                 ┌───┐     ┌─┐
             q_0: ┤ H ├──■──┤M├───
-                └───┘┌─┴─┐└╥┘┌─┐
+                 └───┘┌─┴─┐└╥┘┌─┐
             q_1: ─────┤ X ├─╫─┤M├
-                    └───┘ ║ └╥┘
+                      └───┘ ║ └╥┘
             c: 2/═══════════╩══╩═
                         0  1
             >>> print(cirq_without) # doctest: +NORMALIZE_WHITESPACE
-                ┌───┐
+                 ┌───┐
             q_0: ┤ H ├──■──
-                └───┘┌─┴─┐
+                 └───┘┌─┴─┐
             q_1: ─────┤ X ├
-                    └───┘
+                      └───┘
             c: 2/══════════
         """
         from qiskit.circuit import Operation, QuantumCircuit
@@ -100,6 +108,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             options = (
                 {"printing": printing} if isinstance(instruction, CustomGate) else {}
             )
+
             if isinstance(instruction, Gate):
                 instr = verify_convert_instructions(
                     instruction, authorized_gates, printing

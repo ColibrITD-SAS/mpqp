@@ -3,19 +3,27 @@ from typing import TYPE_CHECKING
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.languages import Language
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
 )
-from mpqp.translation.translation_utils import verify_convert_instructions
+from mpqp.translation.utils import verify_convert_instructions
 
 if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
 
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from cirq.circuits.moment import Moment
 
-    def cirq_to_mpqp(qcircuit: cirq_Circuit | Moment):
+    def cirq_to_mpqp(qcircuit: cirq_Circuit | Moment) -> QCircuit:
+        """Translate a cirq Circuit to a MPQP QCircuit.
+        Note:
+            If the provided qcircuit is a Moment it will be translated to a fully fledged cirq circuit.
+            Also since we use cirq's to_qasm method some edge cases are limited by the original library.
+        Args:
+            qcircuit: Any cirq Circuit, or for simpler circuits could be a sole Moment.
+        """
         from cirq.circuits.circuit import Circuit as cirq_Circuit
         from cirq.circuits.moment import Moment
         from cirq import ops, MatrixGate
@@ -78,13 +86,13 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         circuit: QCircuit,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] | None = None,
+        authorized_gates: set[type[NativeGate]] | None = None,
     ) -> cirq_Circuit:
         """Translate a MPQP circuit to a Cirq equivalent.
 
         Note:
             If the circuit contains ComposedGate type instructions you need to include the gate in the authorize_gates set for it to avoid decomposition, otherwise, the translation will always
-            try to use the gate's decomposition (see example). Also in the case of CustomGates it will always be decomposed into the {Ry, Rz, CNOT} basis for translation compatibilities.
+            try to use the gate's decomposition (see example).
         Args:
             circuit: The original MPQP circuit to be translated.
             skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).

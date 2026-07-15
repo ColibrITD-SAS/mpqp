@@ -4,13 +4,13 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate import Gate
-from mpqp.core.instruction.gates.native_gates import CRk
+from mpqp.core.instruction.gates.native_gates import CRk, NativeGate
 from mpqp.core.languages import Language
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
 )
-from mpqp.translation.translation_utils import verify_convert_instructions
+from mpqp.translation.utils import verify_convert_instructions
 
 if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     from braket.circuits import Circuit as braket_Circuit
@@ -53,7 +53,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         circuit: QCircuit,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] | None = None,
+        authorized_gates: set[type[NativeGate]] | None = None,
     ) -> braket_Circuit:
         """Translate a MPQP circuit to a Braket equivalent.
 
@@ -72,18 +72,18 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             >>> cirq_without = mpqp_to_braket(circuit, skip_measurements=True)
             >>> print(cirq_with)  # doctest: +NORMALIZE_WHITESPACE
             T  : │  0  │  1  │  2  │
-                ┌───┐       ┌───┐
+                  ┌───┐       ┌───┐
             q0 : ─┤ H ├───●───┤ M ├─
-                └───┘   │   └───┘
+                  └───┘   │   └───┘
                         ┌─┴─┐ ┌───┐
             q1 : ───────┤ X ├─┤ M ├─
                         └───┘ └───┘
             T  : │  0  │  1  │  2  │
             >>> print(cirq_without)  # doctest: +NORMALIZE_WHITESPACE
             T  : │  0  │  1  │
-                ┌───┐
+                  ┌───┐
             q0 : ─┤ H ├───●───
-                └───┘   │
+                  └───┘   │
                         ┌─┴─┐
             q1 : ───────┤ X ├─
                         └───┘

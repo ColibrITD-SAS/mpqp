@@ -232,7 +232,11 @@ class CustomGate(Gate):
             from copy import deepcopy
 
             from mpqp.tools import rearrange_matrix
+            import warnings
 
+            warnings.warn(
+                "In order to decompose a CustomGate with non ordered targets, the matrix gets copied and ordered according to the targets provided."
+            )
             targets = deepcopy(self.targets)
             targets.sort()
 

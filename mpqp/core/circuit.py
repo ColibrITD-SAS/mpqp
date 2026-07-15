@@ -47,6 +47,7 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, Gate
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -1122,7 +1123,7 @@ class QCircuit:
         language: Literal[Language.QASM2, Language.QASM3],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[Gate]]] = None,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> str: ...
 
@@ -1132,7 +1133,7 @@ class QCircuit:
         language: Literal[Language.CIRQ],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[Gate]]] = None,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> cirq_Circuit: ...
 
@@ -1142,7 +1143,7 @@ class QCircuit:
         language: Literal[Language.BRAKET],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[Gate]]] = None,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> braket_Circuit: ...
     @overload
@@ -1151,7 +1152,7 @@ class QCircuit:
         language: Literal[Language.MY_QLM],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[Gate]]] = None,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> myQLM_Circuit: ...
 
@@ -1161,7 +1162,7 @@ class QCircuit:
         language: Literal[Language.QISKIT],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[Gate]]] = None,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit: ...
 
@@ -1171,7 +1172,7 @@ class QCircuit:
         language: Language,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[Gate]]] = None,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
 
@@ -1180,7 +1181,7 @@ class QCircuit:
         language: Language = Language.QISKIT,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: Optional[set[type[Gate]]] = None,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
@@ -1258,7 +1259,7 @@ class QCircuit:
             authorized_gates = set()
         self._generated_g_phase = 0
         if language == Language.QISKIT:
-            from mpqp.translation.qiskit_translation import mpqp_to_qiskit
+            from mpqp.translation.qiskit import mpqp_to_qiskit
 
             return mpqp_to_qiskit(
                 self,
@@ -1281,14 +1282,14 @@ class QCircuit:
             return myqlm_circuit
 
         elif language == Language.BRAKET:
-            from mpqp.translation.braket_translation import mpqp_to_braket
+            from mpqp.translation.braket import mpqp_to_braket
 
             return mpqp_to_braket(
                 self, skip_pre_measure, authorized_gates=authorized_gates
             )
 
         elif language == Language.CIRQ:
-            from mpqp.translation.cirq_translation import mpqp_to_cirq
+            from mpqp.translation import mpqp_to_cirq
 
             return mpqp_to_cirq(
                 self, skip_pre_measure, skip_measurements, authorized_gates
@@ -1740,13 +1741,13 @@ class QCircuit:
         )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
-            from mpqp.translation.qiskit_translation import qiskit_to_mpqp
+            from mpqp.translation.qiskit import qiskit_to_mpqp
             from qiskit import QuantumCircuit
 
             if isinstance(qcircuit, QuantumCircuit):
                 return qiskit_to_mpqp(qcircuit)
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
-            from mpqp.translation.cirq_translation import cirq_to_mpqp
+            from mpqp.translation import cirq_to_mpqp
             from cirq.circuits.circuit import Circuit as cirq_Circuit
             from cirq.circuits.moment import Moment
 
@@ -1754,7 +1755,7 @@ class QCircuit:
                 return cirq_to_mpqp(qcircuit)
 
         if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
-            from mpqp.translation.braket_translation import braket_to_mpqp
+            from mpqp.translation.braket import braket_to_mpqp
             from braket.circuits import Circuit as braket_Circuit
 
             if isinstance(qcircuit, braket_Circuit):

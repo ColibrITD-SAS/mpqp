@@ -99,10 +99,8 @@ from mpqp.translation.qasm.qasm_to_braket import (
     braket_noise_to_mpqp,
     qasm3_to_braket_Circuit,
 )
-from mpqp.translation.braket_translation import *
-from mpqp.translation.cirq_translation import *
-from mpqp.translation.myqlm_translation import *
-from mpqp.translation.qiskit_translation import *
+from mpqp.translation.braket import *
+from mpqp.translation.qiskit import *
 from mpqp.translation import *
 from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import (

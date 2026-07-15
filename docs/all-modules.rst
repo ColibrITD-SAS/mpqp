@@ -13,6 +13,6 @@ mpqp
     measures
     noise
     execution
-    qasm
+    translation
     tools
     local_storage
