@@ -260,7 +260,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         elif language == Language.CIRQ:
             return self.cirq_gate(theta)
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -1112,7 +1112,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         elif language == Language.CIRQ:
             return self.cirq_gate(self.theta, self.phi, self.gamma)
         elif language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -1357,7 +1357,7 @@ class Rk(RotationGate, SingleQubitGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -1438,7 +1438,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -1642,7 +1642,7 @@ class CRk(RotationGate, ControlledGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -1751,7 +1751,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (

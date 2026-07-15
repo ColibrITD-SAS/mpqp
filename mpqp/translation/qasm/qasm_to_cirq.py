@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_circuit
 
-from mpqp.qasm.open_qasm_2_and_3 import remove_user_gates
+from mpqp.translation.qasm.open_qasm_2_and_3 import remove_user_gates
 
 
 def qasm2_to_cirq_Circuit(qasm_str: str) -> "cirq_circuit":
