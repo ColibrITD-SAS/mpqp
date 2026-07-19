@@ -426,9 +426,20 @@ def run_google_remote(job: Job) -> Result:
             if TYPE_CHECKING:
                 assert isinstance(job.measure, BasisMeasure)
 
-            return extract_result_SAMPLE(
-                service.run(circuit=job_CirqCircuit, repetitions=job.measure.shots), job
+            ionq_job = service.create_job(
+                circuit=job_CirqCircuit, repetitions=job.measure.shots
             )
+            job.id = ionq_job.job_id()
+
+            ionq_results = ionq_job.results()
+            if len(ionq_results) != 1:
+                raise NotImplementedError(
+                    "Can't retrieve remote result for a Google IonQ job with multiple results."
+                )
+
+            cirq_result = ionq_results[0].to_cirq_result()
+
+            return extract_result_SAMPLE(cirq_result, job)
         elif job.job_type == JobType.OBSERVABLE:
             return run_cirq_observable_remote(job, job_CirqCircuit, service)
         else:

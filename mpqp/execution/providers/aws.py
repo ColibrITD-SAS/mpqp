@@ -119,12 +119,14 @@ def run_braket(job: Job) -> Result:
 
     from braket.tasks import GateModelQuantumTaskResult
 
-    if isinstance(job.measure, ExpectationMeasure):
-        return run_braket_observable(job)
-    job.id, task = submit_job_braket(job)
-    res = task.result()
-    if TYPE_CHECKING:
-        assert isinstance(res, GateModelQuantumTaskResult)
+    try:
+        if isinstance(job.measure, ExpectationMeasure):
+            return run_braket_observable(job)
+
+        job.id, task = submit_job_braket(job)
+        res = task.result()
+        if TYPE_CHECKING:
+            assert isinstance(res, GateModelQuantumTaskResult)
 
         return extract_result(res, job, job.device)
 
@@ -311,7 +313,7 @@ def run_braket_observable(job: Job):
             program_set = ProgramSet(
                 CircuitBinding(
                     copy,
-                    observables=braket_sum,
+                    observables=[braket_sum],
                 )
             )
             job.status = JobStatus.RUNNING
@@ -323,8 +325,13 @@ def run_braket_observable(job: Job):
                 program_set,
                 shots=program_set.total_executables * job.measure.shots,
                 inputs=None,
-            ).result()
+            )
+            job.id.append(local_result.id)
+
+            local_result = local_result.result()
+
             assert isinstance(local_result, ProgramSetQuantumTaskResult)
+
             for res in local_result:
                 for i, value in enumerate(res.entries):
                     results.update({f"observable_{index[i]}": value.expectation})

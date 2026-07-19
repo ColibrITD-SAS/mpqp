@@ -570,8 +570,9 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         )
 
     job.id = ibm_job.job_id()
+    job_id = job.id
 
-    return job.id, ibm_job
+    return job_id, ibm_job
 
 
 def run_remote_ibm(job: Job) -> Result:
@@ -588,7 +589,9 @@ def run_remote_ibm(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    job.id, remote_job = submit_remote_ibm(job)
+    job_id, remote_job = submit_remote_ibm(job)
+    job.id = job_id
+
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
