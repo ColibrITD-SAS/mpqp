@@ -78,18 +78,27 @@ def get_remote_result(
          Number of qubits: 2
 
     """
+
+    job_id: str | list[str]
+
     if isinstance(job_data, Job):
         if job_data.id is None:
             raise ValueError("Can't retrieve remote result for a job whose id is None.")
 
         device = job_data.device
-        job_data = job_data.id
+        job_id = job_data.id
     else:
         if device is None:
             raise ValueError(
                 "To get a remote result from a job it, please also provide the "
                 "device to get the data from."
             )
+        job_id = job_data
+
+    if isinstance(job_id, list):
+        raise NotImplementedError(
+            "Can't retrieve remote result for a job with multiple ids."
+        )
 
     if not device.is_remote():
         raise ValueError(
@@ -97,13 +106,13 @@ def get_remote_result(
         )
 
     if isinstance(device, IBMDevice):
-        return get_result_from_ibm_job_id(job_data)
+        return get_result_from_ibm_job_id(job_id)
     elif isinstance(device, ATOSDevice):
-        return get_result_from_qlm_job_id(job_data)
+        return get_result_from_qlm_job_id(job_id)
     elif isinstance(device, AWSDevice):
-        return get_result_from_aws_task_arn(job_data)
+        return get_result_from_aws_task_arn(job_id)
     elif isinstance(device, AZUREDevice):
-        return get_result_from_azure_job_id(job_data)
+        return get_result_from_azure_job_id(job_id)
     else:
         raise NotImplementedError(
             f"The device {device.name} is not supported for remote features."
