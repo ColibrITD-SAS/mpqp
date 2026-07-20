@@ -1,21 +1,17 @@
 from typing import TYPE_CHECKING
 
-from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
-from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate import Gate
-from mpqp.core.instruction.gates.native_gates import CRk, NativeGate
-from mpqp.core.languages import Language
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
 )
-from mpqp.translation.utils import verify_convert_instructions
 
 if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
-    from braket.circuits import Circuit as braket_Circuit
+    if TYPE_CHECKING:
+        from braket.circuits import Circuit as braket_Circuit
+        from mpqp.core.instruction.gates.native_gates import NativeGate
+        from mpqp.core.circuit import QCircuit
 
-    def braket_to_mpqp(qcircuit: braket_Circuit) -> QCircuit:
+    def braket_to_mpqp(qcircuit: "braket_Circuit") -> "QCircuit":
 
         from braket.circuits.serialization import IRType
         from braket.ir.openqasm.program_v1 import Program
@@ -24,6 +20,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.translation.qasm.qasm_to_braket import braket_noise_to_mpqp
         from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
         from braket.circuits import Circuit as braket_Circuit
+        from mpqp.core.languages import Language
 
         assert isinstance(qcircuit, braket_Circuit)
         remove_measure = True
@@ -50,11 +47,11 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         return qc
 
     def mpqp_to_braket(
-        circuit: QCircuit,
+        circuit: "QCircuit",
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[NativeGate]] | None = None,
-    ) -> braket_Circuit:
+        authorized_gates: set[type["NativeGate"]] | None = None,
+    ) -> "braket_Circuit":
         """Translate a MPQP circuit to a Braket equivalent.
 
         Note:
@@ -90,6 +87,13 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             T  : │  0  │  1  │
         """
         from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
+        from mpqp.core.instruction.gates.custom_controlled_gate import (
+            CustomControlledGate,
+        )
+        from mpqp.core.instruction.gates.custom_gate import CustomGate
+        from mpqp.core.instruction.gates.gate import Gate
+        from mpqp.core.instruction.gates.native_gates import CRk
+        from mpqp.core.languages import Language
         from mpqp.core.instruction import (
             Measure,
             Breakpoint,
@@ -97,6 +101,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             ControlledGate,
             BasisMeasure,
         )
+        from mpqp.core.circuit import QCircuit
 
         if authorized_gates is None:
             authorized_gates = set()
@@ -149,6 +154,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         braket_circuit.measure(targets)
                 continue
             if isinstance(instruction, Gate):
+                from mpqp.translation.utils import verify_convert_instructions
+
                 instr = verify_convert_instructions(instruction, authorized_gates)
             else:
                 instr = [instruction]

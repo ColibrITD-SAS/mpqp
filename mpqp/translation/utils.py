@@ -1,15 +1,19 @@
-from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
-from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.gate import Gate
-from mpqp.core.instruction.gates.native_gates import NativeGate
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mpqp.core.instruction.gates.gate import Gate
+    from mpqp.core.instruction.gates.native_gates import NativeGate
 
 
 def verify_convert_instructions(
-    gate: Gate, authorized_gates: set[type[NativeGate]], printing: bool = False
-) -> list[Gate]:
+    gate: "Gate", authorized_gates: set[type["NativeGate"]], printing: bool = False
+) -> list["Gate"]:
     """Function used to verify if the instruction is contained in the gate set.
     If the gate is a ComposedGate and not explicitly in the authorized_gates set it will check if it's decomposition is present in the gate set.
     """
+    from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
+    from mpqp.core.instruction.gates.custom_gate import CustomGate
+
     if len(authorized_gates) != 0:
         if type(gate) not in authorized_gates:
             raise ValueError(

@@ -1638,7 +1638,6 @@ class QCircuit:
     def from_other_language(
         cls,
         qcircuit: QuantumCircuit | cirq_Circuit | braket_Circuit | myQLM_Circuit | str,
-        ignore_identities: bool = True,
     ) -> QCircuit:
         """Transforms a quantum circuit from an external representation (Qiskit, Cirq, Braket, MyQLM, QASM2 or QASM3) into
         the corresponding internal ``QCircuit`` format.

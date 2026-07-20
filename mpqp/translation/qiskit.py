@@ -1,22 +1,16 @@
 from typing import TYPE_CHECKING
-
-from mpqp.core.instruction.gates.gate import Gate
-from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
 )
 
-from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
-from mpqp.core.languages import Language
-from mpqp.translation.utils import verify_convert_instructions
-
 if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
+    if TYPE_CHECKING:
+        from mpqp.core.instruction.gates.native_gates import NativeGate
+        from mpqp.core.circuit import QCircuit
+        from qiskit import QuantumCircuit
 
-    from qiskit import QuantumCircuit
-
-    def qiskit_to_mpqp(qcircuit: QuantumCircuit):
+    def qiskit_to_mpqp(qcircuit: "QuantumCircuit"):
         """Translate a qiskit QuantumCircuit into a MPQP QCircuit.
         Note:
             This function make use of the qasm3 package from qiskit which means that some gates in the circuit
@@ -26,7 +20,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             qcircuit: Any Qiskit quantum circuit.
         """
         from qiskit import qasm3
-
+        from mpqp.core.languages import Language
         from mpqp.translation.qasm import open_qasm_3_to_2
         from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 
@@ -37,12 +31,12 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         return qc
 
     def mpqp_to_qiskit(
-        circuit: QCircuit,
+        circuit: "QCircuit",
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
         printing: bool = False,
-        authorized_gates: set[type[NativeGate]] | None = None,
-    ) -> QuantumCircuit:
+        authorized_gates: set[type["NativeGate"]] | None = None,
+    ) -> "QuantumCircuit":
         """Translate a MPQP circuit to a Qiskit equivalent.
 
         Note:
@@ -77,6 +71,11 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         from qiskit.circuit import Operation, QuantumCircuit
         from qiskit.circuit.quantumcircuit import CircuitInstruction
         from qiskit.quantum_info import Operator
+        from mpqp.core.instruction.gates.gate import Gate
+        from mpqp.core.instruction.gates.custom_controlled_gate import (
+            CustomControlledGate,
+        )
+        from mpqp.core.languages import Language
 
         from mpqp.core.instruction import (
             Measure,
@@ -110,6 +109,8 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             )
 
             if isinstance(instruction, Gate):
+                from mpqp.translation.utils import verify_convert_instructions
+
                 instr = verify_convert_instructions(
                     instruction, authorized_gates, printing
                 )
