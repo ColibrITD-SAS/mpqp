@@ -9,6 +9,7 @@ Each supported provider has its available devices listed as these enums:
 - :class:`AWSDevice`,
 - :class:`GOOGLEDevice`.
 - :class:`AZUREDevice`.
+- :class:`QUANTINUUMDevice`
 
 Not all combinations of :class:`AvailableDevice` and
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
@@ -534,6 +535,36 @@ class AZUREDevice(AvailableDevice):
 
     def is_ionq(self):
         return self.name.startswith("IONQ")
+
+    def supports_samples(self) -> bool:
+        return True
+
+    def supports_state_vector(self) -> bool:
+        return False
+
+    def supports_observable(self) -> bool:
+        return False
+
+    def supports_observable_ideal(self) -> bool:
+        return False
+
+
+class QUANTINUUMDevice(AvailableDevice):
+    """Enum regrouping all available devices provided by Quantinuum Nexus."""
+
+    H2_EMULATOR = "h2-emulator"
+
+    def is_remote(self):
+        return True
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return self == QUANTINUUMDevice.H2_EMULATOR
+
+    def is_noisy_simulator(self) -> bool:
+        return False
 
     def supports_samples(self) -> bool:
         return True
