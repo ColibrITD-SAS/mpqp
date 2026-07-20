@@ -26,7 +26,7 @@ if TYPE_CHECKING:
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
-from ..core.circuit import QCircuit
+from ..core.circuit import CircuitBinding, QCircuit
 from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
@@ -108,7 +108,7 @@ class Job:
     def __init__(
         self,
         job_type: JobType,
-        circuit: QCircuit,
+        circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
     ):
         self._status = JobStatus.INIT
@@ -132,12 +132,16 @@ class Job:
     @property
     def measure(self) -> Optional[Measure]:
         """Returns the first measurement from the circuit's measurements."""
-
+        if isinstance(self.circuit, CircuitBinding):
+            return None
+        
         return (
             None
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )
+        
+        
 
     @property
     def status(self) -> JobStatus:
