@@ -182,7 +182,7 @@ def closest_unitary(matrix: Matrix, check_unitary: bool = False) -> Matrix:
 
     Args:
         matrix: Matrix for which we want to determine the closest unitary matrix.
-        check_unitary: If true checks if the matrix is unitary. If the matrix is unitary return it.
+        check_unitary: If True, we check whether the input matrix is unitary, and return it if so.
 
     Returns:
         The closest unitary matrix.
