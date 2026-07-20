@@ -278,6 +278,5 @@ def quantum_shannon_decomposition(
 
     if targets is None:
         targets = list(range(np.log2(len(U)).astype(int)))
-    circuit = QCircuit()
-    circuit = _decompose(U, circuit, targets, 0)
+    circuit = _decompose(U, QCircuit(), targets, 0)
     return _optimize_circuit(circuit)
