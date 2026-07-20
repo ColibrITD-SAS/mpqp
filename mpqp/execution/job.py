@@ -134,14 +134,12 @@ class Job:
         """Returns the first measurement from the circuit's measurements."""
         if isinstance(self.circuit, CircuitBinding):
             return None
-        
+
         return (
             None
             if len(self.circuit.measurements) == 0
             else self.circuit.measurements[0]
         )
-        
-        
 
     @property
     def status(self) -> JobStatus:
