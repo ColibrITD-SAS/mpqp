@@ -1,15 +1,16 @@
 Translation
 ===========
-.. note::
-    This module is separated in two parts:
-
-    - QASM converter
-    - Direct MPQP to provider and provider to MPQP translations
 
 .. code-block:: python
     :class: import
 
     from mpqp.translation import *
+    
+This module regroups all the modules and functions used to import quantum circuits and other objects from providers' SDKs, but also to export MPQP objects.
+
+This module contains:
+    - A submodule regrouping all features allowing interoperability through OpenQASM
+    - Provider-specific functions used for import and export of quantum objects (circuits, observables, noise models, etc.)
 
 QASM converter
 ^^^^^^^^^^^^^^
