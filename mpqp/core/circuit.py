@@ -2421,13 +2421,13 @@ class CircuitBinding:
                 )
 
             unrolled = self.unroll()
-        
+
             pubs_by_circuit = {}
             for c, v, m in unrolled:
                 c_id = id(c)
                 if c_id not in pubs_by_circuit:
                     pubs_by_circuit[c_id] = {"circuit": c, "params": [], "measures": []}
-                
+
                 pubs_by_circuit[c_id]["params"].append(list(v.values()) if v else [])
                 pubs_by_circuit[c_id]["measures"].append(m)
 
@@ -2439,24 +2439,30 @@ class CircuitBinding:
                 if original_c.transpiled_circuit is None:
                     self.transpiled_circuits(device=device)
                 q_c = original_c.transpiled_circuit
-                
+
                 params = data["params"]
                 measures = data["measures"]
-                
+
                 q_obs = []
                 for m in measures:
                     if m is not None and hasattr(m, "observables"):
                         obs_list = [
-                            obs.pre_transpiled if obs.pre_transpiled is not None else obs.to_other_language(Language.QISKIT)
+                            (
+                                obs.pre_transpiled
+                                if obs.pre_transpiled is not None
+                                else obs.to_other_language(Language.QISKIT)
+                            )
                             for obs in m.observables
                         ]
                         q_obs.append(obs_list)
                     else:
                         q_obs.append([])
-                
-                if all(len(p) == 0 for p in params): params = None
-                if all(len(o) == 0 for o in q_obs): q_obs = None
-                
+
+                if all(len(p) == 0 for p in params):
+                    params = None
+                if all(len(o) == 0 for o in q_obs):
+                    q_obs = None
+
                 if q_obs and params:
                     pub = (q_c, q_obs, params)
                 elif q_obs:
@@ -2471,15 +2477,19 @@ class CircuitBinding:
                 context_job = Job(self.job_type, c_context, device)
 
                 pubs_with_context.append((pub, context_job))
-                
+
             return pubs_with_context
         else:
             raise NotImplementedError(
                 "Broadcasting is currently only implemented for IBMDevice."
             )
 
-    def unroll(self) -> list[tuple[QCircuit, Optional[dict["Expr | str", "Complex"]], Optional["Measure"]]]:
-        """Resolves the lazy execution graph and returns a flat list of 
+    def unroll(
+        self,
+    ) -> list[
+        tuple[QCircuit, Optional[dict["Expr | str", "Complex"]], Optional["Measure"]]
+    ]:
+        """Resolves the lazy execution graph and returns a flat list of
         (circuit, values, expectation_measure) tuples representing each execution.
         """
         import itertools

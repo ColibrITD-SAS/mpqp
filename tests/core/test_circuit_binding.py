@@ -65,27 +65,25 @@ v2 = {'θ': 2.0, 'phi': 2.0, 'psi': 2.0}
 v3 = {'θ': 3.0, 'phi': 3.0, 'psi': 3.0}
 v4 = {'θ': 4.0, 'phi': 4.0, 'psi': 4.0}
 
-m1 = ExpectationMeasure(Observable(pI), label="Exp1")   
-m2 = ExpectationMeasure(Observable(pX@pZ), label="Exp2") 
-m3 = BasisMeasure(label="b3", shots=1024)                            
-m4 = None                                                                                     
+m1 = ExpectationMeasure(Observable(pI), label="Exp1")
+m2 = ExpectationMeasure(Observable(pX @ pZ), label="Exp2")
+m3 = BasisMeasure(label="b3", shots=1024)
+m4 = None
 
 m_I = ExpectationMeasure(Observable(pI), label="Exp_I")
 m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z")
 
+
 def test_broadcasting_product_shapes():
     """Valide que le mode PRODUCT génère la bonne grille 2D pour Qiskit V2."""
     binding = CircuitBinding(
-        circuits=c1, 
-        values=[v1, v2],
-        measurements=[m_I, m_Z],
-        mode=BindingMode.PRODUCT
+        circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.PRODUCT
     )
-    
+
     pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
 
     assert len(pubs_with_context) == 1
-    
+
     pub, context_job = pubs_with_context[0]
     assert len(pub) == 3
 
@@ -93,29 +91,22 @@ def test_broadcasting_product_shapes():
 def test_broadcasting_zip_shapes():
     """Valide que le mode ZIP aligne les tableaux en 1D."""
     binding = CircuitBinding(
-        circuits=c1, 
-        values=[v1, v2],           
-        measurements=[m_I, m_Z],   
-        mode=BindingMode.ZIP
+        circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.ZIP
     )
-    
+
     pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) > 0
-
 
 
 def test_broadcasting_zip_broadcasting_rules():
     """Valide que le mode ZIP duplique correctement un élément unique (règle de broadcast)."""
     binding = CircuitBinding(
-        circuits=c1, 
-        values=v1,                
-        measurements=[m_I, m_Z],  
-        mode=BindingMode.ZIP
+        circuits=c1, values=v1, measurements=[m_I, m_Z], mode=BindingMode.ZIP
     )
-    
+
     pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
     _, q_obs, q_params = pubs_with_context[0][0]
-    
+
     assert len(q_obs) == 2
     assert len(q_params) == 2
     assert q_params[0] == q_params[1] == [1.0, 1.0, 1.0]
@@ -124,46 +115,40 @@ def test_broadcasting_zip_broadcasting_rules():
 def test_broadcasting_context_job_creation():
     """Vérifie que le Job de contexte MPQP est correctement créé et attaché au PUB."""
     from mpqp.execution.job import JobType
-    
-    binding = CircuitBinding(
-        circuits=c1, 
-        measurements=m_I,
-        mode=BindingMode.PRODUCT
-    )
-    
+
+    binding = CircuitBinding(circuits=c1, measurements=m_I, mode=BindingMode.PRODUCT)
+
     pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
     _, context_job = pubs_with_context[0]
-    
+
     assert context_job.job_type == JobType.OBSERVABLE
     assert context_job.device == IBMDevice.AER_SIMULATOR
 
 
 def test_broadcasting_recursive_bindings():
     """S'assure que les CircuitBindings imbriqués sont bien aplatis et parsés."""
-    inner_binding = CircuitBinding(
-        circuits=c2, 
-        measurements=m1
-    )
-    outer_binding = CircuitBinding(
-        circuits=inner_binding,
-        values=[v1, v2]
-    )
-    
+    inner_binding = CircuitBinding(circuits=c2, measurements=m1)
+    outer_binding = CircuitBinding(circuits=inner_binding, values=[v1, v2])
+
     pubs_with_context = outer_binding.Broadcasting(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
 
+
 def test_broadcasting_exceptions():
     """Valide les sécurités de la méthode Broadcasting."""
-    
+
     binding_dev = CircuitBinding(circuits=c1, measurements=m_I)
     with pytest.raises(NotImplementedError, match="only implemented for IBMDevice"):
         binding_dev.Broadcasting(ATOSDevice.MYQLM_PYLINALG)
-        
+
     m_basis = BasisMeasure()
     binding_type = CircuitBinding(circuits=c1, measurements=m_basis)
-    
-    with pytest.raises(ValueError, match="only supported for circuits with expectation measurements"):
+
+    with pytest.raises(
+        ValueError, match="only supported for circuits with expectation measurements"
+    ):
         binding_type.Broadcasting(IBMDevice.AER_SIMULATOR)
+
 
 @pytest.fixture
 def list_circuit_binding_produit():
@@ -226,16 +211,19 @@ def list_circuit_binding_zip():
             else:
                 val = r.expectation_values
             assert val == pytest.approx(1.0, abs=1e-5)
-            
-    cb2 = CircuitBinding(circuits=[c2, c4], values=m4, measurements=[m3, m3], mode=BindingMode.ZIP)
+
+    cb2 = CircuitBinding(
+        circuits=[c2, c4], values=m4, measurements=[m3, m3], mode=BindingMode.ZIP
+    )
+
     def val_cb2(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 2
-        
+
         assert len(res.results[0].counts) >= 2
         assert res.results[0].counts[0] > 0
-        
-        assert len(res.results[1].counts) >= 4  
+
+        assert len(res.results[1].counts) >= 4
         assert res.results[1].counts[0] > 0
 
     return [(cb1, val_cb1), (cb2, val_cb2)]
