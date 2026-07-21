@@ -1577,7 +1577,6 @@ class QCircuit:
         backend_sim: Optional["AerSimulator"] = None,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
 
-
     def to_other_device(
         self,
         device: AvailableDevice,
@@ -2259,7 +2258,9 @@ class CircuitBinding:
                     raise ValueError(
                         "your circuit already contains measurements, you cannot have multiple measurements"
                     )
-                m = adjust_measure(measurement[0], circuits.nb_qubits) # pyright: ignore[reportArgumentType]
+                m = adjust_measure(
+                    measurement[0], circuits.nb_qubits
+                )  # pyright: ignore[reportArgumentType]
                 c = circuits.without_measurements(deep_copy=False)
                 c.add(m)
             self.is_noisy = circuits.is_noisy
@@ -2297,7 +2298,7 @@ class CircuitBinding:
                 )
             elif circuits.measurements is not None:
                 self.measurements = circuits.measurements
-                
+
             if circuits.is_noisy:
                 if self.noises is None:
                     self.noises = circuits.noises
@@ -2310,13 +2311,19 @@ class CircuitBinding:
             raise ValueError(
                 "circuits must be a QCircuit, a list of QCircuit or a CircuitBinding"
             )
-        
+
         if measurements is not None:
-            if self.job_type != JobType.STATE_VECTOR: # TODO: check for basisMeasure shots = 0
+            if (
+                self.job_type != JobType.STATE_VECTOR
+            ):  # TODO: check for basisMeasure shots = 0
                 raise ValueError(
                     "your circuit already contains measurements, you cannot have multiple measurements"
                 )
-            measurements = [measurements] if isinstance(measurements, Measure) else list(measurements)
+            measurements = (
+                [measurements]
+                if isinstance(measurements, Measure)
+                else list(measurements)
+            )
             for measure in measurements:
                 if isinstance(measure, ExpectationMeasure):
                     measure = adjust_measure(measure, self.nb_qubits)
@@ -2326,25 +2333,38 @@ class CircuitBinding:
                 if self.shots is not None:
                     # TODO: this is a check for default shots but it is hardcode
                     if isinstance(measure, ExpectationMeasure) and measure.shots != 0:
-                        raise ValueError("shots is already specified in CircuitBinding, you cannot specify it again in the measures")
+                        raise ValueError(
+                            "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
+                        )
                     elif isinstance(measure, BasisMeasure) and measure.shots != 1024:
-                        raise ValueError("shots is already specified in CircuitBinding, you cannot specify it again in the measures")
+                        raise ValueError(
+                            "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
+                        )
                     else:
                         measure.shots = self.shots
                 else:
                     self.shots = measure.shots
-        
+
         self.circuits = c
         self.value = values
-        self.measurements = self.measurements if self.measurements is not None else measurements
+        self.measurements = (
+            self.measurements if self.measurements is not None else measurements
+        )
         self.mode = mode
 
-    def transpiled_circuits(self, device: AvailableDevice, skip_pre_measure: bool = False, backend_sim: Optional["AerSimulator"] = None) -> None:
-                
+    def transpiled_circuits(
+        self,
+        device: AvailableDevice,
+        skip_pre_measure: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
+    ) -> None:
+
         from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 
         if isinstance(self.circuits, QCircuit):
-            self.circuits.transpiled_circuit = self.circuits.to_other_device(device, skip_pre_measure, backend_sim)
+            self.circuits.transpiled_circuit = self.circuits.to_other_device(
+                device, skip_pre_measure, backend_sim
+            )
         elif isinstance(self.circuits, list):
             for i, c in enumerate(self.circuits):
                 if isinstance(c, QCircuit):
@@ -2356,11 +2376,19 @@ class CircuitBinding:
                             c.noises = original_noises
                             if self.transpiled_noise_model is None:
                                 self.transpiled_noise_model = nm
-                            
-                            modified_circuit.transpiled_circuit = modified_circuit.to_other_device(device, skip_pre_measure, backend_sim)
-                            self.circuits[i] = modified_circuit #TODO: check if we need to update the circuit in the list or if we can just modify it in place
+
+                            modified_circuit.transpiled_circuit = (
+                                modified_circuit.to_other_device(
+                                    device, skip_pre_measure, backend_sim
+                                )
+                            )
+                            self.circuits[i] = (
+                                modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
+                            )
                     else:
-                        c.transpiled_circuit = c.to_other_device(device, skip_pre_measure, backend_sim)
+                        c.transpiled_circuit = c.to_other_device(
+                            device, skip_pre_measure, backend_sim
+                        )
                 else:
                     c.transpiled_circuits(device, skip_pre_measure, backend_sim)
         elif isinstance(self.circuits, CircuitBinding):
@@ -2368,11 +2396,12 @@ class CircuitBinding:
         else:
             raise ValueError("Invalid circuit type in CircuitBinding.")
 
-
-    def Broadcasting(self, device: Optional["AvailableDevice"] = None) -> list[tuple["EstimatorPubLike", list["Job"]]]:
+    def Broadcasting(
+        self, device: Optional["AvailableDevice"] = None
+    ) -> list[tuple["EstimatorPubLike", list["Job"]]]:
         """Translates the CircuitBinding lazy graph into optimally shaped Qiskit V2 PUBs,
         leveraging NumPy broadcasting rules.
-        
+
         Returns:
             list: Formatted PUBs as (circuit, observables_array, parameter_values_array)
         """
@@ -2445,7 +2474,9 @@ class CircuitBinding:
                 
             return pubs_with_context
         else:
-            raise NotImplementedError("Broadcasting is currently only implemented for IBMDevice.")
+            raise NotImplementedError(
+                "Broadcasting is currently only implemented for IBMDevice."
+            )
 
     def unroll(self) -> list[tuple[QCircuit, Optional[dict["Expr | str", "Complex"]], Optional["Measure"]]]:
         """Resolves the lazy execution graph and returns a flat list of 
@@ -2460,10 +2491,18 @@ class CircuitBinding:
                 base_items.extend(c.unroll())
             else:
                 base_items.append((c, None, None))
-        
-        vals = self.value if isinstance(self.value, list) else ([self.value] if self.value is not None else [None])
-        exps = self.measurements if isinstance(self.measurements, list) else ([self.measurements] if self.measurements is not None else [None])
-        
+
+        vals = (
+            self.value
+            if isinstance(self.value, list)
+            else ([self.value] if self.value is not None else [None])
+        )
+        exps = (
+            self.measurements
+            if isinstance(self.measurements, list)
+            else ([self.measurements] if self.measurements is not None else [None])
+        )
+
         def merge_vals(v_base, v_curr):
             if v_base is None and v_curr is None:
                 return None
@@ -2473,10 +2512,10 @@ class CircuitBinding:
             return merged
 
         result = []
-        
+
         if self.mode == BindingMode.ZIP:
             max_len = max(len(base_items), len(vals), len(exps))
-            
+
             def broadcast(lst, target_length):
                 if not lst:
                     return [None] * target_length
@@ -2487,23 +2526,25 @@ class CircuitBinding:
                         f"In ZIP mode, lists must be length 1 or match the maximum list length ({target_length})."
                     )
                 return lst
-                
+
             b_items = broadcast(base_items, max_len)
             b_vals = broadcast(vals, max_len)
             b_exps = broadcast(exps, max_len)
-            
+
             for (c, v_base, e_base), v_curr, e_curr in zip(b_items, b_vals, b_exps):
                 merged_val = merge_vals(v_base, v_curr)
                 merged_exp = e_curr if e_curr is not None else e_base
                 result.append((c, merged_val, merged_exp))
-                
+
         else:
-            for (c, v_base, e_base), v_curr, e_curr in itertools.product(base_items, vals, exps):
+            for (c, v_base, e_base), v_curr, e_curr in itertools.product(
+                base_items, vals, exps
+            ):
                 merged_val = merge_vals(v_base, v_curr)
                 merged_exp = e_curr if e_curr is not None else e_base
                 result.append((c, merged_val, merged_exp))
-                
+
         return result
-    
+
     def __repr__(self):
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"

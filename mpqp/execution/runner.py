@@ -138,7 +138,6 @@ def generate_job(
 
     m_list = circuit.measurements
     nb_meas = len(m_list)
-    
 
     if nb_meas == 0:
         job = Job(JobType.STATE_VECTOR, circuit, device)
@@ -312,12 +311,11 @@ def _run_circuit_binding(
 
     if display_breakpoints:
         pass
-        #TODO: implement display breakpoints for CircuitBinding
-        #raise ValueError(
+        # TODO: implement display breakpoints for CircuitBinding
+        # raise ValueError(
         #    "display_breakpoints is not supported with CircuitBinding"
-        #)
+        # )
 
-   
     if circuit_binding.is_noisy:
         if not device.is_noisy_simulator():
             raise DeviceJobIncompatibleError(
@@ -327,10 +325,8 @@ def _run_circuit_binding(
             device,
             (ATOSDevice, AWSDevice, IBMDevice, GOOGLEDevice, SimulatedDevice),
         ):
-            raise NotImplementedError(
-                f"Noisy simulations not supported on {device}."
-            )
-    
+            raise NotImplementedError(f"Noisy simulations not supported on {device}.")
+
     job = generate_job(circuit_binding, device)
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
@@ -350,7 +346,7 @@ def _run_circuit_binding(
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
-    #for i, (exp_measure, job) in run_diagonal_observables.items():
+    # for i, (exp_measure, job) in run_diagonal_observables.items():
     #    result.results[i] = _compute_result_diagonal_observables(
     #        result[i], exp_measure, job
     #    )

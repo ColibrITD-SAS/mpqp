@@ -483,7 +483,7 @@ class Result:
 
             probabilities = [
                 sample.probability
-                for sample in self.samples 
+                for sample in self.samples
                 if sample.probability is not None
             ]
 
