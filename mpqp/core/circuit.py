@@ -2321,6 +2321,8 @@ class CircuitBinding:
                 if isinstance(measure, ExpectationMeasure):
                     measure = adjust_measure(measure, self.nb_qubits)
                     self.job_type = JobType.OBSERVABLE
+                elif isinstance(measure, BasisMeasure):
+                    self.job_type = JobType.SAMPLE
                 if self.shots is not None:
                     # TODO: this is a check for default shots but it is hardcode
                     if isinstance(measure, ExpectationMeasure) and measure.shots != 0:
@@ -2388,79 +2390,64 @@ class CircuitBinding:
                 raise ValueError(
                     "Broadcasting is only supported for circuits with expectation measurements."
                 )
+
+            unrolled = self.unroll()
+        
+            pubs_by_circuit = {}
+            for c, v, m in unrolled:
+                c_id = id(c)
+                if c_id not in pubs_by_circuit:
+                    pubs_by_circuit[c_id] = {"circuit": c, "params": [], "measures": []}
+                
+                pubs_by_circuit[c_id]["params"].append(list(v.values()) if v else [])
+                pubs_by_circuit[c_id]["measures"].append(m)
+
             pubs_with_context = []
-            
-            vals = self.value if isinstance(self.value, list) else ([self.value] if self.value is not None else [{}])
-            exps = self.measurements if isinstance(self.measurements, list) else ([self.measurements] if self.measurements is not None else [None])
-            circs: list[QCircuit | CircuitBinding] = self.circuits if isinstance(self.circuits, list) else [self.circuits]
-            
-            for c in circs:
-                if isinstance(c, CircuitBinding):
-                    # Recursive call now returns the inner context perfectly intact
-                    pubs_with_context.extend(c.Broadcasting(device))
-                else:
-                    q_c = c.transpiled_circuit
-                    q_obs = []
 
-                    for meas in exps:
-                        if meas is not None and not isinstance(meas, ExpectationMeasure):
-                            raise ValueError(
-                                "Broadcasting is only supported for circuits with expectation measurements."
-                            )
-                        qiskit_observables = [
+            for c_id, data in pubs_by_circuit.items():
+                original_c = data["circuit"]
+                assert isinstance(original_c, QCircuit)
+                if original_c.transpiled_circuit is None:
+                    self.transpiled_circuits(device=device)
+                q_c = original_c.transpiled_circuit
+                
+                params = data["params"]
+                measures = data["measures"]
+                
+                q_obs = []
+                for m in measures:
+                    if m is not None and hasattr(m, "observables"):
+                        obs_list = [
                             obs.pre_transpiled if obs.pre_transpiled is not None else obs.to_other_language(Language.QISKIT)
-                            for obs in meas.observables
+                            for obs in m.observables
                         ]
-                        
-                        if len(exps) == 1:
-                            q_obs = qiskit_observables
-                        else:
-                            q_obs.append(qiskit_observables)
-
-                    param_arrays = [list(v.values()) if v else [] for v in vals]
-                    
-                    if not q_obs: q_obs = None
-                    if all(len(p) == 0 for p in param_arrays): param_arrays = None
-                    
-                    # Create the PUB tuple based on mode
-                    if self.mode == BindingMode.PRODUCT:
-                        if q_obs and param_arrays:
-                            pub = (q_c, [[obs] for obs in q_obs], [param_arrays])
-                        elif q_obs:
-                            pub = (q_c, q_obs)
-                        elif param_arrays:
-                            pub = (q_c, None, param_arrays)
-                        else:
-                            pub = (q_c,)
-                            
-                    elif self.mode == BindingMode.ZIP:
-                        if q_obs and param_arrays:
-                            max_len = max(len(q_obs), len(param_arrays))
-                            pub = (q_c, 
-                                   q_obs * max_len if len(q_obs) == 1 else q_obs, 
-                                   param_arrays * max_len if len(param_arrays) == 1 else param_arrays)
-                        elif q_obs:
-                            pub = (q_c, q_obs)
-                        elif param_arrays:
-                            pub = (q_c, None, param_arrays)
-                        else:
-                            pub = (q_c,)
+                        q_obs.append(obs_list)
                     else:
-                        raise ValueError(f"Unsupported binding mode: {self.mode}")
-                    
-                    c_context = c.without_measurements(deep_copy=False)
-                    for exp in exps:
-                        if exp is not None:
-                            c_context.add(exp)
-                    context_job = Job(self.job_type, c_context, device)
+                        q_obs.append([])
+                
+                if all(len(p) == 0 for p in params): params = None
+                if all(len(o) == 0 for o in q_obs): q_obs = None
+                
+                if q_obs and params:
+                    pub = (q_c, q_obs, params)
+                elif q_obs:
+                    pub = (q_c, q_obs)
+                elif params:
+                    pub = (q_c, None, params)
+                else:
+                    pub = (q_c,)
 
-                    pubs_with_context.append((pub, context_job))
-                    
+                c_context = original_c.without_measurements(deep_copy=False)
+                c_context.add(measures)
+                context_job = Job(self.job_type, c_context, device)
+
+                pubs_with_context.append((pub, context_job))
+                
             return pubs_with_context
         else:
             raise NotImplementedError("Broadcasting is currently only implemented for IBMDevice.")
 
-    def unroll(self) -> list[tuple[QCircuit, Optional[dict["Expr | str", "Complex"]], Optional["ExpectationMeasure"]]]:
+    def unroll(self) -> list[tuple[QCircuit, Optional[dict["Expr | str", "Complex"]], Optional["Measure"]]]:
         """Resolves the lazy execution graph and returns a flat list of 
         (circuit, values, expectation_measure) tuples representing each execution.
         """
