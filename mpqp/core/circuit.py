@@ -2233,7 +2233,7 @@ class CircuitBinding:
     def __init__(
         self,
         circuits: OneOrMany[QCircuit | CircuitBinding],
-        values: Optional[OneOrMany[dict[Expr | str, Complex | float]]] = None,
+        values: Optional[dict[Expr | str, list[Complex | float]]] = None,
         measurements: Optional[OneOrMany[Measure]] = None,
         mode: BindingMode = BindingMode.PRODUCT,
         noises: Optional[list[NoiseModel]] = None,
@@ -2241,6 +2241,11 @@ class CircuitBinding:
     ) -> None:
         from mpqp.execution.runner import adjust_measure
         from mpqp.execution.job import JobType
+
+        if not isinstance(circuits, Sequence):
+            circuits = [circuits]
+        else:
+            circuits = [c for c in circuits]
 
         self.transpiled_noise_model = None
         self.noises = noises
@@ -2250,67 +2255,23 @@ class CircuitBinding:
         self.measurements = None
 
         c = circuits
-        if isinstance(circuits, QCircuit):
-            self.job_type = circuits.job_type
-            if self.job_type == JobType.OBSERVABLE:
-                measurement = circuits.measurements
-                if len(measurement) != 1:
-                    raise ValueError(
-                        "your circuit already contains measurements, you cannot have multiple measurements"
-                    )
-                m = adjust_measure(
-                    measurement[0], circuits.nb_qubits
-                )  # pyright: ignore[reportArgumentType]
-                c = circuits.without_measurements(deep_copy=False)
-                c.add(m)
-            self.is_noisy = circuits.is_noisy
-            if self.is_noisy and self.noises is not None:
-                raise ValueError(
-                    "You can not specify noises in the CircuitBinding if the circuit already has noise instructions"
-                )
-            elif self.noises is None:
-                self.noises = circuits.noises
-            self.nb_qubits = circuits.nb_qubits
-        elif isinstance(circuits, list):
-            self.job_type = circuits[0].job_type
-            self.nb_qubits = circuits[0].nb_qubits
-            for circ in circuits:
-                if circ.job_type != self.job_type:
-                    raise ValueError(
-                        "All circuits in CircuitBinding must have the same job type."
-                    )
-                if circ.is_noisy:
-                    if isinstance(circ, CircuitBinding) and self.noises is None:
-                        self.noises = circ.noises
-                        self.is_noisy = True
-                    else:
-                        raise ValueError(
-                            "All circuits in CircuitBinding must have the same noise. please use the noises parameter."
-                        )
-                self.nb_qubits = max(self.nb_qubits, circ.nb_qubits)
-        elif isinstance(circuits, CircuitBinding):
-            self.job_type = circuits.job_type
-            self.nb_qubits = circuits.nb_qubits
-            self.shots = circuits.shots
-            if measurements is not None and circuits.measurements is not None:
-                raise ValueError(
-                    "your circuit already contains measurements, you cannot have multiple measurements"
-                )
-            elif circuits.measurements is not None:
-                self.measurements = circuits.measurements
 
-            if circuits.is_noisy:
-                if self.noises is None:
-                    self.noises = circuits.noises
+        self.job_type = circuits[0].job_type
+        self.nb_qubits = circuits[0].nb_qubits
+        for circ in circuits:
+            if circ.job_type != self.job_type:
+                raise ValueError(
+                    "All circuits in CircuitBinding must have the same job type."
+                )
+            if circ.is_noisy:
+                if isinstance(circ, CircuitBinding) and self.noises is None:
+                    self.noises = circ.noises
                     self.is_noisy = True
                 else:
                     raise ValueError(
                         "All circuits in CircuitBinding must have the same noise. please use the noises parameter."
                     )
-        else:
-            raise ValueError(
-                "circuits must be a QCircuit, a list of QCircuit or a CircuitBinding"
-            )
+            self.nb_qubits = max(self.nb_qubits, circ.nb_qubits)
 
         if measurements is not None:
             if (
@@ -2343,7 +2304,7 @@ class CircuitBinding:
                 else:
                     self.shots = measure.shots
 
-        self.circuits = c
+        self.circuits: list["QCircuit | CircuitBinding"] = c
         self.value = values
         self.measurements = (
             self.measurements if self.measurements is not None else measurements
@@ -2593,3 +2554,88 @@ class CircuitBinding:
 
     def __repr__(self):
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"
+
+    def to_other_language(self, language: Language, programSet: bool = True):
+        if language == Language.BRAKET:
+            from braket.program_sets import ProgramSet
+
+        if not isinstance(self.circuits, list):
+            circuits = [self.circuits]
+        else:
+            circuits = self.circuits
+        translated = []
+        for c in circuits:
+            if isinstance(c, QCircuit):
+                translated.append(c.to_other_language(Language.BRAKET))
+            elif isinstance(c, "CircuitBinding"):
+                translation = c.to_other_language(language, False)
+                if isinstance(translation, list):
+                    translated.extend(translation)
+                else:
+                    translated.append(translation)
+        var = self.value
+        if var:
+            converted = {}
+            for key in var.keys():
+                val = var[key]
+                if any([not isinstance(v, float | int) for v in val]):
+                    raise ValueError(
+                        f"Cannot use complex parameters in Braket. Got: {val}"
+                    )
+                converted.update({str(key): tuple(val)})
+            var = converted
+
+        from braket.program_sets import CircuitBinding as BraketBinding
+
+        obs = None
+        for t in translated:
+            if var:
+                if self.job_type == JobType.OBSERVABLE and self.measurements:
+                    obs = []
+                    for m in self.measurements:
+                        assert isinstance(m, ExpectationMeasure)
+                        obs.extend(
+                            [
+                                o.to_other_language(Language.BRAKET)
+                                for o in m.observables
+                            ]
+                        )
+            else:
+                if self.job_type == JobType.OBSERVABLE and self.measurements:
+                    obs = []
+                    for m in self.measurements:
+                        assert isinstance(m, ExpectationMeasure)
+                        obs.extend(
+                            [
+                                o.to_other_language(Language.BRAKET)
+                                for o in m.observables
+                            ]
+                        )
+            if programSet:
+                from braket.program_sets import ProgramSet
+
+                mode = (
+                    ProgramSet.zip
+                    if self.mode == BindingMode.ZIP
+                    else ProgramSet.product
+                )
+
+                if var:
+                    if obs:
+                        return mode(
+                            circuits=translated, input_sets=var, observables=obs
+                        )
+                    else:
+                        return mode(circuits=translated, input_sets=var)
+                else:
+                    if obs:
+                        return mode(circuits=translated, observables=obs)
+                    else:
+                        return ProgramSet.zip(circuits=translated)
+                return ProgramSet.product(result, self.shots)
+            else:
+                return result
+        else:
+            raise NotImplementedError(
+                f"language: {language} is not supported for this feature yet."
+            )
