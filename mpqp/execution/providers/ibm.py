@@ -179,9 +179,14 @@ def compute_expectation_value(
 
     extracted_items = []
 
-    for res, context_job in zip(estimator_result, context_jobs_to_run):
+    for i, context_job in enumerate(context_jobs_to_run):
+        pub = pubs_to_run[i]
+
         extracted = extract_result(
-            result=res, job=context_job, device=context_job.device
+            result=estimator_result[i],
+            job=context_job,
+            device=job.device,
+            experiment_index=0,
         )
         extracted_items.append(extracted)
 
@@ -512,27 +517,82 @@ def run_aer(job: Job) -> Result | BatchResult:
         elif job.job_type in (JobType.SAMPLE, JobType.STATE_VECTOR):
             unrolled_items = binding.unroll()
             bound_circuits = []
+            context_jobs = []
 
-            for c, v, _ in unrolled_items:
+            for c, v, m in unrolled_items:
                 q_c = c.transpiled_circuit
                 if TYPE_CHECKING:
                     assert isinstance(q_c, QuantumCircuit)
 
                 b_c = q_c.assign_parameters(v) if v else q_c.copy()
+
                 if job.job_type == JobType.STATE_VECTOR:
                     b_c.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
+                elif job.job_type == JobType.SAMPLE:
+                    assert isinstance(m, BasisMeasure)
+                    for pre_measure in m.pre_measure:
+                        cargs = []
+                        qiskit_pre_measure = pre_measure.to_other_language(
+                            Language.QISKIT
+                        )
+                        b_c.append(
+                            qiskit_pre_measure,
+                            list(reversed(pre_measure.targets)),
+                            cargs=cargs,
+                        )
+                    if m._dynamic:
+                        tagrets = list(range(c.nb_qubits))
+                        c_targets = list(range(c.nb_qubits))
+                        from qiskit.circuit import ClassicalRegister
+
+                        creg = ClassicalRegister(c.nb_qubits, "c")
+                        b_c.add_register(creg)
+                    else:
+                        tagrets = list(m.targets)
+                        c_targets = list(m.c_targets)
+
+                    b_c.append(
+                        m.to_other_language(Language.QISKIT),
+                        [tagrets],
+                        [c_targets],
+                    )
                 bound_circuits.append(b_c)
+
+                c_context = c.without_measurements(deep_copy=False)
+                if m is not None:
+                    c_context.add(m)
+                else:
+                    c_context.add(c.measurements)
+                context_jobs.append(Job(job.job_type, c_context, job.device))
 
             job.status = JobStatus.RUNNING
 
             if job.job_type == JobType.STATE_VECTOR:
                 job_sim = backend_sim.run(bound_circuits, shots=0)
             else:
-                shots = job.measure.shots if job.measure else 1024
+                shots = binding.shots if binding.shots is not None else 1024
+                print(shots)
                 job_sim = backend_sim.run(bound_circuits, shots=shots)
 
             result_sim = job_sim.result()
-            result = extract_result(result_sim, job, job.device)
+
+            extracted_items = []
+            for i, context_job in enumerate(context_jobs):
+                extracted = extract_result(
+                    result=result_sim,
+                    job=context_job,
+                    device=job.device,
+                    experiment_index=i,
+                )
+                extracted_items.append(extracted)
+
+            if len(extracted_items) == 1:
+                result = extracted_items[0]
+            else:
+                result = BatchResult(extracted_items)
+
+            job.status = JobStatus.DONE
+            return result
         else:
             raise ValueError(f"Job type {job.job_type} not handled in CircuitBinding.")
     else:
@@ -792,6 +852,7 @@ def extract_result(
     result: "QiskitResult | EstimatorResult | PubResult | SamplerPubResult",
     job: Optional[Job],
     device: "IBMDevice | StaticIBMSimulatedDevice | AZUREDevice",
+    experiment_index: int = 0,
 ) -> Result | BatchResult:
     """Parses a result from ``IBM`` execution (remote or local) in a ``MPQP``
     :class:`~mpqp.execution.result.Result`.
@@ -830,30 +891,64 @@ def extract_result(
                 if job.device.is_simulator() and job.measure is not None
                 else result.metadata["shots"]
             )
-            observables = job.measure.observables
-            nb_observables = len(observables)
 
-            # If only one result, we directly return the expectation value
-            if exp_values.ndim == 0 or (exp_values.ndim == 1 and len(exp_values) == 1):
-                val = (
-                    float(exp_values) if exp_values.ndim == 0 else float(exp_values[0])
-                )
-                std = float(stds) if stds.ndim == 0 else float(stds[0])
+            measures = job.circuit.measurements if job.circuit.measurements else []
+
+            if exp_values.ndim == 0:
+                val = float(exp_values)
+                std = float(stds) if stds.size > 0 else 0.0
+                m = measures[0] if measures else None
+                obs = m.observables[0] if m.observables else None
+                label = obs.label if obs else "ibm_obs_0"
                 return Result(job, val, std, shots)
 
-            # If several results, we construct the dictionary with observable labels
-            elif exp_values.ndim == 1 and len(exp_values) == nb_observables:
-                exp_values_dict = dict()
-                errors_dict = dict()
-                for i in range(len(exp_values)):
-                    label = (
-                        observables[i].label if i < len(observables) else f"ibm_obs_{i}"
-                    )
-                    exp_values_dict[label] = float(exp_values[i])
-                    errors_dict[label] = float(stds[i])
-                return Result(job, exp_values_dict, errors_dict, shots)
+            elif exp_values.ndim == 2:
+                N_obs, M_params = exp_values.shape
+                batch_results = []
+                for j in range(M_params):
+                    exp_dict, err_dict = {}, {}
+                    obs_flat_idx = 0
+                    for m in measures:
+                        for obs in m.observables:
+                            label = obs.label
+                            if obs_flat_idx < N_obs:
+                                exp_dict[label] = float(exp_values[obs_flat_idx, j])
+                                err_dict[label] = float(stds[obs_flat_idx, j])
+                            obs_flat_idx += 1
+                    batch_results.append(Result(job, exp_dict, err_dict, shots))
+                return BatchResult(batch_results)
+
+            elif exp_values.ndim == 1:
+                total_obs = sum(len(m.observables) for m in measures)
+
+                if len(exp_values) == total_obs and len(measures) == 1:
+                    exp_dict, err_dict = {}, {}
+                    if len(measures[0].observables) == 1:
+                        return Result(job, exp_values[0], stds[0], shots)
+                    for idx, obs in enumerate(measures[0].observables):
+                        label = obs.label
+                        exp_dict[label] = float(exp_values[idx])
+                        err_dict[label] = float(stds[idx])
+                    return Result(job, exp_dict, err_dict, shots)
+
+                else:
+                    batch_results = []
+                    for idx, val in enumerate(exp_values):
+                        std_val = (
+                            float(stds[idx])
+                            if stds.size.item() > 0 and stds.size > idx
+                            else 0.0
+                        )
+                        m_idx = idx % len(measures) if len(measures) > 0 else 0
+                        m = measures[m_idx] if m_idx < len(measures) else measures[0]
+                        obs = m.observables[0] if m.observables else None
+                        label = obs.label if obs else f"ibm_obs_{idx}"
+                        batch_results.append(Result(job, float(val), std_val, shots))
+                    return BatchResult(batch_results)
             else:
                 batch_results = []
+                observables = job.measure.observables
+                nb_observables = len(observables)
                 for idx, val in np.ndenumerate(exp_values):
                     std_val = float(stds[idx]) if stds.size > 0 else 0.0
                     obs_idx = (
@@ -895,18 +990,33 @@ def extract_result(
             if TYPE_CHECKING:
                 assert job.measure is not None
 
-            counts = getattr(res_data, 'c', None)
-            counts = counts.get_counts() if counts else {}
-            data = [
-                Sample(
-                    bin_str=item[::-1],
-                    count=counts[item],
-                    nb_qubits=job.circuit.nb_qubits,
-                )
-                for item in counts
-            ]
+            bit_array = None
+            for key in dir(res_data):
+                if not key.startswith("_"):
+                    val = getattr(res_data, key)
+                    if hasattr(val, "get_counts"):
+                        bit_array = val
+                        break
 
-            return Result(job, data, None, job.measure.shots)
+            if bit_array is None:
+                raise ValueError("No valid BitArray found in SamplerPubResult data.")
+
+            counts_data = bit_array.get_counts()
+            shots = bit_array.num_shots
+
+            counts_array = np.atleast_1d(counts_data)
+            batch_results = []
+
+            for count_dict in counts_array:
+                data = [
+                    Sample(bin_str=k[::-1], count=v, nb_qubits=job.circuit.nb_qubits)
+                    for k, v in count_dict.items()
+                ]
+                batch_results.append(Result(job, data, None, shots))
+
+            if len(batch_results) == 1:
+                return batch_results[0]
+            return BatchResult(batch_results)
 
     else:
 
@@ -991,7 +1101,7 @@ def extract_result(
                         )
 
             if job.job_type == JobType.STATE_VECTOR:
-                vector = np.array(result.get_statevector().reverse_qargs())  # type: ignore[reportUnnecessaryIsInstance]
+                vector = np.array(result.get_statevector(experiment_index).reverse_qargs())  # type: ignore[reportUnnecessaryIsInstance]
                 state_vector = StateVector(
                     vector,
                     job.circuit.nb_qubits,
@@ -1007,7 +1117,7 @@ def extract_result(
 
                     data = extract_samples_azure(job, result)
                 else:
-                    data = extract_samples(job, result)
+                    data = extract_samples(job, result, experiment_index)
                 return Result(job, data, None, job.measure.shots)
             else:
                 raise NotImplementedError(f"{job.job_type} not handled.")
@@ -1057,19 +1167,22 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
     return extract_result(result, None, ibm_device)
 
 
-def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:
+def extract_samples(
+    job: Job, result: QiskitResult, experiment_index: int = 0
+) -> list[Sample]:
     """Extracts measurement samples from the execution results.
 
     Args:
         job: ``MPQP`` job used to generate the run. Enables a more complete result.
         result: Result returned by IBM after running of the job.
+        experiment_index: Index of the experiment/circuit in the batch.
 
     Returns:
         A list of sample objects representing measurement outcomes.
 
     """
     counts = result.get_counts(0)
-    job_data = result.data()
+    job_data = result.data(experiment_index)
     return [
         Sample(
             bin_str=item[::-1],
