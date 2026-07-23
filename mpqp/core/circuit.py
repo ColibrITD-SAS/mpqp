@@ -2245,11 +2245,14 @@ class CircuitBinding:
         if not isinstance(circuits, Sequence):
             circuits = [circuits]
         else:
-            circuits = [c for c in circuits]
+            circuits = list(circuits)
 
         self.transpiled_noise_model = None
         self.noises = noises
         self.shots = shots
+        self._translated_circuits = None
+        self._translated_observables = None
+        self._translated_variables = None
         self.is_noisy = noises is not None and len(noises) > 0
         """ is_noisy is True if any of the circuits in the binding has noise instructions, False otherwise. """
         self.measurements = None
