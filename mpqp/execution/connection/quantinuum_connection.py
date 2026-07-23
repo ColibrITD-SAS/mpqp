@@ -60,10 +60,10 @@ def _setup_quantinuum_project():
 
         except Exception as err:
             save_env_variable("QUANTINUUM_CONFIGURED", "False")
-            print(colored("Quantinuum Nexus configuration failed.", "red"))
-            print(colored(str(err), "red"))
-            input("Press 'Enter' to continue")
-            return "", []
+            return (
+                f"Quantinuum Nexus configuration failed.\n{err}",
+                [],
+            )
 
     def use_existing_project():
         return setup_project(create_new=False)
@@ -78,20 +78,21 @@ def _setup_quantinuum_project():
             AnswerNode("Create new project", create_new_project),
         ],
     )
-
-    project_tree.answers[0].next_question = None
-    project_tree.answers[1].next_question = None
+    for answer in project_tree.answers:
+        answer.next_question = None
 
     run_choice_tree(project_tree)
-    return "", []
+
+    return "Quantinuum Nexus project configured successfully.", []
 
 
 def get_quantinuum_account_info() -> str:
     """Return the locally configured Quantinuum Nexus project name."""
 
+    configured = get_env_variable("QUANTINUUM_CONFIGURED") == "True"
     project_name = get_env_variable("QUANTINUUM_PROJECT_NAME")
 
-    if project_name == "":
+    if not configured or not project_name:
         return "Account not configured"
 
     return "   QUANTINUUM_PROJECT_NAME: " + project_name

@@ -61,8 +61,8 @@ def print_config_info():
     print("===== Quantinuum Nexus info : ===== ")
     try:
         print(quantc.get_quantinuum_account_info())
-    except:
-        print("Error occurred when getting Quantinuum account info.")
+    except Exception as err:
+        print("Error occurred when getting Quantinuum account info: " f"{err}")
     input("Press 'Enter' to continue")
     return "", []
 
