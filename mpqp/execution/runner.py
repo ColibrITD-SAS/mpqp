@@ -524,7 +524,7 @@ def submit(
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
     elif isinstance(device, QUANTINUUMDevice):
-        return submit_job_quantinuum(job)
+        job_id, _ = submit_job_quantinuum(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
