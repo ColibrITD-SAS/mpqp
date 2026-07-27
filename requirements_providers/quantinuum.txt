@@ -1,0 +1,2 @@
+qnexus==0.46.0
+pytket-qiskit==0.77.0
