@@ -31,7 +31,14 @@ from ..tools.errors import IBMRemoteExecutionError, QLMRemoteExecutionError
 from .connection.azure_connection import get_jobs_by_id
 from .connection.ibm_connection import get_QiskitRuntimeService
 from .connection.qlm_connection import get_QLMaaSConnection
-from .devices import ATOSDevice, AvailableDevice, AWSDevice, AZUREDevice, IBMDevice
+from .devices import (
+    ATOSDevice,
+    AvailableDevice,
+    AWSDevice,
+    AZUREDevice,
+    IBMDevice,
+    QUANTINUUMDevice,
+)
 
 
 class JobStatus(MessageEnum):
@@ -160,6 +167,8 @@ class Job:
                     self._status = get_aws_job_status(self.id)
                 elif isinstance(self.device, AZUREDevice):
                     self._status = get_azure_job_status(self.id)
+                elif isinstance(self.device, QUANTINUUMDevice):
+                    self._status = get_quantinuum_job_status(self.id)
                 else:
                     raise NotImplementedError(
                         f"Cannot update job status for the device {self.device} yet"
@@ -417,3 +426,29 @@ def get_azure_job_status(job_id: str) -> JobStatus:
         return JobStatus.RUNNING
     else:
         raise ValueError(f"Unexpected azure job status: {status}")
+
+
+def get_quantinuum_job_status(job_id: str) -> JobStatus:
+    """Retrieve the status of a Quantinuum Nexus job from its ID and return the
+    corresponding MPQP :class:`JobStatus`.
+
+    Args:
+        job_id: ID of the job for which the status should be retrieved.
+    """
+    import qnexus as qnx
+
+    job_ref = qnx.jobs.get(id=job_id)
+    status = qnx.jobs.status(job_ref).status.value
+
+    if status in {"SUBMITTED", "QUEUED"}:
+        return JobStatus.QUEUED
+    elif status in {"RUNNING", "RETRYING", "CANCELLING"}:
+        return JobStatus.RUNNING
+    elif status == "COMPLETED":
+        return JobStatus.DONE
+    elif status in {"CANCELLED", "TERMINATED"}:
+        return JobStatus.CANCELLED
+    elif status in {"ERROR", "DEPLETED"}:
+        return JobStatus.ERROR
+    else:
+        raise ValueError(f"Unexpected Quantinuum Nexus job status: {status}")

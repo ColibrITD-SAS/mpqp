@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
 from mpqp.execution.devices import IBMDevice, QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
@@ -16,8 +18,6 @@ if TYPE_CHECKING:
         ExecutionResultRef,
     )
 
-# TODO: to enhance docs
-
 
 def run_quantinuum(job: Job) -> Result:
     """Execute a job on a Quantinuum Nexus device.
@@ -26,21 +26,33 @@ def run_quantinuum(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    _, execute_job_ref = submit_job_quantinuum(job)
+    try:
+        _, execute_job_ref = submit_job_quantinuum(job)
 
-    import qnexus as qnx
+        import qnexus as qnx
 
-    qnx.jobs.wait_for(execute_job_ref)
+        execution_status = qnx.jobs.wait_for(execute_job_ref)
+        result_refs = qnx.jobs.results(execute_job_ref)
+        if not result_refs:
+            status = getattr(execution_status.status, "value", execution_status.status)
+            raise RuntimeError(
+                f"Quantinuum Nexus execution job '{execute_job_ref.id}' finished "
+                f"with status '{status}', but no result was returned."
+            )
 
-    result_ref = qnx.jobs.results(execute_job_ref)[0]
-    if TYPE_CHECKING:
-        assert isinstance(result_ref, ExecutionResultRef)
+        result_ref = result_refs[0]
+        if TYPE_CHECKING:
+            assert isinstance(result_ref, ExecutionResultRef)
 
-    backend_result = result_ref.download_result()
-    if TYPE_CHECKING:
-        assert isinstance(backend_result, BackendResult)
+        backend_result = result_ref.download_result()
+        if TYPE_CHECKING:
+            assert isinstance(backend_result, BackendResult)
 
-    return extract_result(backend_result, job)
+        return extract_result(backend_result, job)
+    except Exception as error:
+        job.status = JobStatus.ERROR
+        job.status_message = str(error)
+        raise
 
 
 def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
@@ -55,7 +67,7 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
         raise ValueError(f"Job type {job.job_type} not handled on Quantinuum devices.")
 
     if job.measure is None:
-        raise ValueError("Sample jobs must have a measure.")
+        raise ValueError("Sample jobs must have a measurement.")
 
     import qnexus as qnx
     from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
@@ -86,9 +98,18 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
         name=f"{name}-compilation-job",
     )
 
-    qnx.jobs.wait_for(compile_job_ref)
+    compilation_status = qnx.jobs.wait_for(compile_job_ref)
 
-    compiled_circuit_ref = qnx.jobs.results(compile_job_ref)[0]
+    compiled_circuit_refs = qnx.jobs.results(compile_job_ref)
+    if not compiled_circuit_refs:
+        status = getattr(compilation_status.status, "value", compilation_status.status)
+        raise RuntimeError(
+            f"Quantinuum Nexus compilation job '{compile_job_ref.id}' finished "
+            f"with status '{status}', but no compiled circuit was returned."
+        )
+
+    compilation_result_ref = compiled_circuit_refs[0]
+    compiled_circuit_ref = compilation_result_ref.get_output()
     if TYPE_CHECKING:
         assert isinstance(compiled_circuit_ref, CircuitRef)
 
@@ -107,13 +128,13 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
 
 
 def extract_result(backend_result: "BackendResult", job: Job) -> Result:
-    """Convert Quantinuum Nexus counts into MPQP Result."""
-
+    """Convert Quantinuum Nexus counts into an MPQP result."""
+    if job.job_type != JobType.SAMPLE:
+        raise ValueError(f"Job type {job.job_type} not handled on Quantinuum devices.")
     if job.measure is None:
         raise ValueError("Cannot extract samples without a measurement.")
 
     raw_counts = backend_result.get_counts()
-
     samples = [
         Sample(
             bin_str="".join(str(bit) for bit in outcome),
@@ -124,5 +145,52 @@ def extract_result(backend_result: "BackendResult", job: Job) -> Result:
     ]
 
     job.status = JobStatus.DONE
-
     return Result(job, samples, None, job.measure.shots)
+
+
+def get_result_from_quantinuum_job_id(job_id: str) -> Result:
+    """Retrieve a Quantinuum Nexus job result and convert it to an MPQP result."""
+    import qnexus as qnx
+
+    job_ref = qnx.jobs.get(id=job_id)
+    execution_status = qnx.jobs.wait_for(job_ref)
+    result_refs = qnx.jobs.results(job_ref)
+    if not result_refs:
+        status = getattr(execution_status.status, "value", execution_status.status)
+        raise RuntimeError(
+            f"Quantinuum Nexus execution job '{job_id}' finished with status "
+            f"'{status}', but no result was returned."
+        )
+
+    backend_config = job_ref.backend_config_store
+    device_name = (
+        None if backend_config is None else getattr(backend_config, "device_name", None)
+    )
+    if device_name is None:
+        raise ValueError(
+            f"Quantinuum Nexus job '{job_id}' does not contain a device name."
+        )
+
+    try:
+        device = QUANTINUUMDevice(device_name)
+    except ValueError as error:
+        raise ValueError(
+            f"Quantinuum Nexus job '{job_id}' targeted unsupported device "
+            f"'{device_name}'."
+        ) from error
+
+    backend_result = result_refs[0].download_result()
+    raw_counts = backend_result.get_counts()
+    if not raw_counts:
+        raise ValueError(f"Quantinuum Nexus job '{job_id}' returned no sample counts.")
+
+    nb_qubits = len(next(iter(raw_counts)))
+    shots = sum(int(count) for count in raw_counts.values())
+    circuit = QCircuit(
+        [BasisMeasure(list(range(nb_qubits)), shots=shots)],
+        nb_qubits=nb_qubits,
+    )
+    job = Job(JobType.SAMPLE, circuit, device)
+    job.id = job_id
+
+    return extract_result(backend_result, job)

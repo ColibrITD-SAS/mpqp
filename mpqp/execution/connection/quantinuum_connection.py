@@ -105,7 +105,7 @@ def get_quantinuum_config(device_name: str):
 
     project_name = get_env_variable("QUANTINUUM_PROJECT_NAME")
 
-    if project_name == "":
+    if not project_name:
         raise RuntimeError(
             "No Quantinuum Nexus project configured. "
             "Run setup_connections and configure Quantinuum Nexus first."
