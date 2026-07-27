@@ -552,6 +552,8 @@ class AZUREDevice(AvailableDevice):
 class QUANTINUUMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by Quantinuum Nexus."""
 
+    H1_1LE = "H1-1LE"
+    H2_1LE = "H2-1LE"
     H1_EMULATOR = "H1-Emulator"
     H2_EMULATOR = "H2-Emulator"
 
@@ -563,12 +565,17 @@ class QUANTINUUMDevice(AvailableDevice):
 
     def is_simulator(self) -> bool:
         return self in {
+            QUANTINUUMDevice.H1_1LE,
+            QUANTINUUMDevice.H2_1LE,
             QUANTINUUMDevice.H1_EMULATOR,
             QUANTINUUMDevice.H2_EMULATOR,
         }
 
     def is_noisy_simulator(self) -> bool:
-        return self.is_simulator()
+        return self in {
+            QUANTINUUMDevice.H1_EMULATOR,
+            QUANTINUUMDevice.H2_EMULATOR,
+        }
 
     def supports_samples(self) -> bool:
         return True
