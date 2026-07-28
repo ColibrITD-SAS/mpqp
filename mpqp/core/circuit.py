@@ -85,6 +85,7 @@ if TYPE_CHECKING:
         IBMDevice,
     )
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
+    from braket.program_sets import ProgramSet
 
 
 class QCircuit:
@@ -2233,7 +2234,7 @@ class CircuitBinding:
     def __init__(
         self,
         circuits: OneOrMany[QCircuit | CircuitBinding],
-        values: Optional[dict[Expr | str, list[Complex | float]]] = None,
+        values: Optional[list[dict[Expr | str, Complex | float]]] = None,
         measurements: Optional[OneOrMany[Measure]] = None,
         mode: BindingMode = BindingMode.PRODUCT,
         noises: Optional[list[NoiseModel]] = None,
@@ -2523,87 +2524,235 @@ class CircuitBinding:
     def __repr__(self):
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"
 
-    def to_other_language(self, language: Language, programSet: bool = True):
+    @overload
+    def to_other_language(self, language: Literal[Language.BRAKET]) -> ProgramSet: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.BRAKET], programSet: Literal[True]
+    ) -> ProgramSet: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.BRAKET], programSet: Literal[False]
+    ) -> "CircuitBinding": ...
+    def to_other_language(
+        self, language: Language, programSet: bool = True
+    ) -> "ProgramSet | CircuitBinding":
         if language == Language.BRAKET:
             from braket.program_sets import ProgramSet
+            from braket.circuits import Circuit
 
-        if not isinstance(self.circuits, list):
-            circuits = [self.circuits]
-        else:
-            circuits = self.circuits
-        translated = []
-        for c in circuits:
-            if isinstance(c, QCircuit):
-                translated.append(c.to_other_language(Language.BRAKET))
-            elif isinstance(c, "CircuitBinding"):
-                translation = c.to_other_language(language, False)
-                if isinstance(translation, list):
-                    translated.extend(translation)
+            # translate inner circuits to braket and CB's elements to Braket
+            translated: list[CircuitBinding | Circuit] = []
+            for c in self.circuits:
+                if isinstance(c, QCircuit):
+                    translated.append(c.to_other_language(Language.BRAKET))
                 else:
-                    translated.append(translation)
-        var = self.value
-        if var:
-            converted = {}
-            for key in var.keys():
-                val = var[key]
-                if any([not isinstance(v, float | int) for v in val]):
-                    raise ValueError(
-                        f"Cannot use complex parameters in Braket. Got: {val}"
+                    translation = c.to_other_language(language, False)
+
+                    if isinstance(translation, list):
+                        translated.extend(translation)
+                    else:
+                        translated.append(translation)
+
+            # translate var
+            var = []
+            if self.value:
+                from copy import deepcopy
+
+                var = deepcopy(self.value)
+                converted = []
+                for variables in var:
+                    current = {}
+                    for key in variables.keys():
+                        val = variables[key]
+                        if not isinstance(val, float | int):
+                            raise ValueError(
+                                f"Cannot use complex parameters in Braket. Got: {val}"
+                            )
+                        current.update({str(key): [val]})
+                    converted.append(current)
+                var = converted
+
+            from braket.program_sets import CircuitBinding as BraketBinding
+
+            obs = []
+            if self.measurements:
+                for m in self.measurements:
+                    assert isinstance(m, ExpectationMeasure)
+                    obs.extend(
+                        [o.to_other_language(Language.BRAKET) for o in m.observables]
                     )
-                converted.update({str(key): tuple(val)})
-            var = converted
 
-        from braket.program_sets import CircuitBinding as BraketBinding
+            if (
+                not programSet
+            ):  # If the circuitBinding is embedded store the translated data.
+                self._translated_circuits = translated
+                self._translated_observables = obs
+                self._translated_variables = var
+                return self
 
-        obs = None
-        for t in translated:
-            if var:
-                if self.job_type == JobType.OBSERVABLE and self.measurements:
-                    obs = []
-                    for m in self.measurements:
-                        assert isinstance(m, ExpectationMeasure)
-                        obs.extend(
-                            [
-                                o.to_other_language(Language.BRAKET)
-                                for o in m.observables
-                            ]
-                        )
+            result = []
+            # i is used only if the binding mode is zip
+            if len(translated) == 1 and (
+                not isinstance(translated[0], CircuitBinding)
+                or len(translated[0].circuits) == 1
+            ):
+                # if i == -1 then we're in the case of a single circuit in the binding.
+                # Otherwise it'll iterate of the translated circuit (and bindings) and apply the values and obs accordingly
+                i = -1
             else:
-                if self.job_type == JobType.OBSERVABLE and self.measurements:
-                    obs = []
-                    for m in self.measurements:
-                        assert isinstance(m, ExpectationMeasure)
-                        obs.extend(
-                            [
-                                o.to_other_language(Language.BRAKET)
-                                for o in m.observables
-                            ]
-                        )
-            if programSet:
-                from braket.program_sets import ProgramSet
-
-                mode = (
-                    ProgramSet.zip
-                    if self.mode == BindingMode.ZIP
-                    else ProgramSet.product
+                i = 0
+            if self.mode == BindingMode.ZIP:
+                executables = list(
+                    zip(var or [None] * len(obs), obs or [None] * len(var))
                 )
-
-                if var:
-                    if obs:
-                        return mode(
-                            circuits=translated, input_sets=var, observables=obs
-                        )
-                    else:
-                        return mode(circuits=translated, input_sets=var)
-                else:
-                    if obs:
-                        return mode(circuits=translated, observables=obs)
-                    else:
-                        return ProgramSet.zip(circuits=translated)
-                return ProgramSet.product(result, self.shots)
             else:
-                return result
+                from itertools import product
+
+                executables = list(product(var or [None], obs or [None]))
+            for values, observable in executables:
+                if self.mode == BindingMode.PRODUCT:
+                    for t in translated:
+                        if isinstance(t, CircuitBinding):
+                            if t._translated_observables and observable:
+                                raise ValueError(
+                                    "Cannot declare an observable both inside a CircuitBinding and outside"
+                                )
+                            if t._translated_variables and values:
+                                raise ValueError(
+                                    "Cannot declare variables both inside a CircuitBinding and outside"
+                                )
+                            from itertools import product
+
+                            inside_executables = list(
+                                product(
+                                    t._translated_observables or [observable],
+                                    t._translated_variables or [values],
+                                )
+                            )
+
+                            assert isinstance(t._translated_circuits, list)
+                            from braket.circuits import Circuit as braket_Circuit
+
+                            assert all(
+                                [
+                                    isinstance(c, braket_Circuit)
+                                    for c in t._translated_circuits
+                                ]
+                            )
+                            for inside_observable, inside_val in inside_executables:
+                                result.extend(
+                                    [
+                                        BraketBinding(
+                                            c,
+                                            input_sets=inside_val,
+                                            observables=[
+                                                inside_observable  # pyright: ignore[reportArgumentType]
+                                            ],
+                                        )
+                                        for c in t._translated_circuits
+                                        if isinstance(c, braket_Circuit)
+                                    ]
+                                )
+
+                        else:
+                            result.append(
+                                BraketBinding(
+                                    t,
+                                    input_sets=values,
+                                    observables=[observable],  # pyright: ignore
+                                )
+                            )
+                else:
+                    if isinstance(
+                        translated[i], CircuitBinding
+                    ):  # ZIP to Binding ==> distribute level 0 to level 1
+                        if (
+                            translated[
+                                i
+                            ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue]
+                            and observable
+                        ):
+                            raise ValueError(
+                                "Cannot declare an observable both inside a CircuitBinding and outside"
+                            )
+                        if (
+                            translated[
+                                i
+                            ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue]
+                            and values
+                        ):
+                            raise ValueError(
+                                "Cannot declare variables both inside a CircuitBinding and outside"
+                            )
+                        from itertools import product
+
+                        inside_executables = list(
+                            product(
+                                translated[
+                                    i
+                                ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue]
+                                or [observable],
+                                translated[
+                                    i
+                                ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue]
+                                or [values],
+                            )
+                        )
+                        if i == -1:
+                            for inside_observable, inside_val in inside_executables:
+                                result.append(
+                                    BraketBinding(
+                                        translated[
+                                            i
+                                        ]._translated_circuits[  # pyright: ignore
+                                            0
+                                        ],
+                                        input_sets=inside_val,
+                                        observables=[
+                                            inside_observable  # pyright: ignore
+                                        ],
+                                    )
+                                )
+                        else:
+                            for inside_observable, inside_val in inside_executables:
+                                assert inside_observable
+                                result.extend(
+                                    [
+                                        BraketBinding(
+                                            c,  # pyright: ignore[reportArgumentType]
+                                            input_sets=inside_val,
+                                            observables=[inside_observable],
+                                        )
+                                        for c in translated[
+                                            i
+                                        ]._translated_circuits  # pyright: ignore
+                                    ]
+                                )
+                    else:
+
+                        if i == -1:
+                            result.append(
+                                BraketBinding(
+                                    translated[0],  # pyright: ignore
+                                    input_sets=values,
+                                    observables=[observable],  # pyright: ignore
+                                )
+                            )
+                        else:
+                            result.append(
+                                BraketBinding(
+                                    translated[i],  # pyright: ignore
+                                    input_sets=values,
+                                    observables=[observable],  # pyright: ignore
+                                )
+                            )
+                            i += 1
+
+            from braket.program_sets import ProgramSet
+
+            return ProgramSet(result, self.shots)
         else:
             raise NotImplementedError(
-                f"language: {language} is not supported for this feature yet."
+                f"Translation to {language} is not supported yet on CircuitBindings"
             )
