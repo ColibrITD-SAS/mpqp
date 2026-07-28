@@ -19,6 +19,7 @@ if TYPE_CHECKING:
     from qiskit import QuantumCircuit
     from qnexus.models.references import (
         CircuitRef,
+        CompilationResultRef,
         ExecuteJobRef,
         ExecutionResultRef,
     )
@@ -117,17 +118,26 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
         )
 
     compilation_result_ref = compiled_circuit_refs[0]
+    if TYPE_CHECKING:
+        assert isinstance(compilation_result_ref, CompilationResultRef)
     compiled_circuit_ref = compilation_result_ref.get_output()
     if TYPE_CHECKING:
         assert isinstance(compiled_circuit_ref, CircuitRef)
 
     job.status = JobStatus.RUNNING
 
-    n_shots = job.measure.shots if job.measure is not None else None
+    n_shots: list[int] | list[None]
+    if job.job_type == JobType.SAMPLE:
+        if TYPE_CHECKING:
+            assert job.measure is not None
+        n_shots = [job.measure.shots]
+    else:
+        n_shots = [None]
+
     execute_job_ref = qnx.start_execute_job(
         programs=[compiled_circuit_ref],
         backend_config=backend_config,
-        n_shots=[n_shots],
+        n_shots=n_shots,
         name=f"{name}-execution-job",
     )
 
@@ -206,6 +216,8 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
     import qnexus as qnx
 
     job_ref = qnx.jobs.get(id=job_id)
+    if TYPE_CHECKING:
+        assert isinstance(job_ref, ExecuteJobRef)
     execution_status = qnx.jobs.wait_for(job_ref)
     result_refs = qnx.jobs.results(job_ref)
     if not result_refs:
@@ -215,6 +227,10 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
             f"'{status}', but no result was returned."
         )
 
+    result_ref = result_refs[0]
+    if TYPE_CHECKING:
+        assert isinstance(result_ref, ExecutionResultRef)
+
     backend_config = job_ref.backend_config_store
     if backend_config is None:
         raise ValueError(
@@ -223,7 +239,9 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
         )
 
     if isinstance(backend_config, qnx.AerStateConfig):
-        backend_result = result_refs[0].download_result()
+        backend_result = result_ref.download_result()
+        if TYPE_CHECKING:
+            assert isinstance(backend_result, BackendResult)
         amplitudes = backend_result.get_state()
         nb_qubits = int(math.log2(len(amplitudes)))
         job = Job(
@@ -249,7 +267,9 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
             f"'{device_name}'."
         ) from error
 
-    backend_result = result_refs[0].download_result()
+    backend_result = result_ref.download_result()
+    if TYPE_CHECKING:
+        assert isinstance(backend_result, BackendResult)
     raw_counts = backend_result.get_counts()
     if not raw_counts:
         raise ValueError(f"Quantinuum Nexus job '{job_id}' returned no sample counts.")
