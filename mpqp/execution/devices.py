@@ -550,12 +550,15 @@ class AZUREDevice(AvailableDevice):
 
 
 class QUANTINUUMDevice(AvailableDevice):
-    """Enum regrouping all available devices provided by Quantinuum Nexus."""
+    """Enum regrouping the supported backends available through Quantinuum Nexus."""
 
     H1_1LE = "H1-1LE"
     H2_1LE = "H2-1LE"
+
     H1_EMULATOR = "H1-Emulator"
     H2_EMULATOR = "H2-Emulator"
+
+    NEXUS_AER_STATE_SIMULATOR = "aer-state"
 
     def is_remote(self):
         return True
@@ -569,6 +572,7 @@ class QUANTINUUMDevice(AvailableDevice):
             QUANTINUUMDevice.H2_1LE,
             QUANTINUUMDevice.H1_EMULATOR,
             QUANTINUUMDevice.H2_EMULATOR,
+            QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
         }
 
     def is_noisy_simulator(self) -> bool:
@@ -578,10 +582,10 @@ class QUANTINUUMDevice(AvailableDevice):
         }
 
     def supports_samples(self) -> bool:
-        return True
+        return self != QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR
 
     def supports_state_vector(self) -> bool:
-        return False
+        return self == QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR
 
     def supports_observable(self) -> bool:
         return False

@@ -65,6 +65,7 @@ from mpqp.tools.maths import matrix_eq
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from pytket import Circuit as tket_Circuit
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
@@ -76,6 +77,7 @@ if TYPE_CHECKING:
         AWSDevice,
         GOOGLEDevice,
         IBMDevice,
+        QUANTINUUMDevice,
     )
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
@@ -1555,6 +1557,13 @@ class QCircuit:
     @overload
     def to_other_device(
         self,
+        device: QUANTINUUMDevice,
+        skip_pre_measure: bool = False,
+    ) -> tket_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
         device: Union[IBMDevice, StaticIBMSimulatedDevice],
         skip_pre_measure: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
@@ -1565,7 +1574,7 @@ class QCircuit:
         device: AvailableDevice,
         skip_pre_measure: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | tket_Circuit:
         """Transforms this circuit into the corresponding device specified
         in the ``device`` arg.
 
@@ -1619,6 +1628,7 @@ class QCircuit:
             AWSDevice,
             GOOGLEDevice,
             IBMDevice,
+            QUANTINUUMDevice,
         )
         from mpqp.execution.providers.ibm import JobType
         from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
@@ -1851,6 +1861,19 @@ class QCircuit:
                 skip_measurements,
             )
             return circuit
+        elif isinstance(device, QUANTINUUMDevice):
+            if job_type == JobType.STATE_VECTOR:
+                skip_measurements = True
+
+            qiskit_circuit = self.to_other_language(
+                Language.QISKIT,
+                skip_pre_measure,
+                skip_measurements,
+            )
+
+            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+
+            return qiskit_to_tk(qiskit_circuit)
         else:
             raise NotImplementedError(f"Error: {device} is not supported")
 
