@@ -504,7 +504,6 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     from qiskit import QuantumCircuit
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
-    from qiskit_ibm_runtime import Session
 
     meas = job.measure
 
@@ -514,7 +513,6 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
         assert isinstance(job.device, IBMDevice)
     backend = get_backend(job.device)
     job.device = IBMDevice(backend.name)
-    session = Session(backend=backend)
 
     if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
@@ -527,7 +525,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-        estimator = Runtime_Estimator(mode=session)
+        estimator = Runtime_Estimator(mode=backend)
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
@@ -558,7 +556,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
-        sampler = Runtime_Sampler(mode=session)
+        sampler = Runtime_Sampler(mode=backend)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
         raise NotImplementedError(
