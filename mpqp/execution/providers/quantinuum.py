@@ -70,14 +70,14 @@ def run_quantinuum(job: Job) -> Result:
 def run_quantinuum_observable(job: Job) -> Result:
     """Execute an observable job using a supported Quantinuum Nexus backend.
 
-    Aer State observables are evaluated exactly from the returned state vector.
-    Nexus Aer and H-series observables are estimated from grouped sample executions.
+    Exact observables are computed from a state vector when `shots=0`.
+    When `shots>0`, observables are estimated from measurement results.
 
     Args:
-        job: Job to be executed.
+        job: Job to execute.
 
     Returns:
-        A result containing the requested expectation values.
+        A result containing the expectation values and statistical errors.
     """
     if not isinstance(job.device, QUANTINUUMDevice):
         raise ValueError(
@@ -91,7 +91,12 @@ def run_quantinuum_observable(job: Job) -> Result:
 
     circuit = job.circuit.without_measurements()
 
-    if job.device == QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR:
+    if job.measure.shots == 0:
+        if not job.device.supports_state_vector():
+            raise ValueError(
+                f"{job.device} requires a positive number of shots for "
+                "observable jobs."
+            )
         state_job = Job(
             JobType.STATE_VECTOR,
             circuit,
@@ -114,9 +119,10 @@ def run_quantinuum_observable(job: Job) -> Result:
             )
         return extract_observable_result(job, expectation_values, 0.0, 0)
 
-    if job.measure.shots <= 0:
+    if not job.device.supports_samples():
         raise ValueError(
-            f"{job.device} requires a positive number of shots for observable jobs."
+            f"{job.device} does not support sampled observable jobs. Set `shots=0` "
+            "to evaluate the observable without sampling."
         )
     if job.measure.commuting_type != CommutingTypes.QUBITWISE:
         raise NotImplementedError(
@@ -410,6 +416,8 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
 
     if isinstance(backend_config, qnx.AerConfig):
         device = QUANTINUUMDevice.NEXUS_AER_SIMULATOR
+    elif isinstance(backend_config, qnx.QulacsConfig):
+        device = QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR
     elif isinstance(backend_config, qnx.QuantinuumConfig):
         device_name = backend_config.device_name
         try:
@@ -428,6 +436,16 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
     backend_result = result_ref.download_result()
     if TYPE_CHECKING:
         assert isinstance(backend_result, BackendResult)
+    if (
+        device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR
+        and backend_result.contains_state_results
+    ):
+        amplitudes = backend_result.get_state()
+        nb_qubits = int(math.log2(len(amplitudes)))
+        job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device)
+        job.id = job_id
+        return extract_state_vector_result(amplitudes, job)
+
     raw_counts = backend_result.get_counts()
     if not raw_counts:
         raise ValueError(f"Quantinuum Nexus job '{job_id}' returned no sample counts.")
