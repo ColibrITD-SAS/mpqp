@@ -529,8 +529,10 @@ def run_aer(job: Job) -> Result | BatchResult:
                     qc_param_names = {p.name for p in qc_params}
 
                     filtered_v = {
-                        key: val for key, val in v.items()
-                        if key in qc_params or (isinstance(key, str) and key in qc_param_names)
+                        key: val
+                        for key, val in v.items()
+                        if key in qc_params
+                        or (isinstance(key, str) and key in qc_param_names)
                     }
                     b_c = q_c.assign_parameters(filtered_v)
                 else:
@@ -584,7 +586,7 @@ def run_aer(job: Job) -> Result | BatchResult:
                 job_sim = backend_sim.run(bound_circuits, shots=shots)
 
             result_sim = job_sim.result()
-            
+
             extracted_items = []
             for i, context_job in enumerate(context_jobs):
                 extracted = extract_result(
@@ -594,7 +596,7 @@ def run_aer(job: Job) -> Result | BatchResult:
                     experiment_index=i,
                 )
                 extracted_items.append(extracted)
-            
+
             if len(extracted_items) == 1:
                 result = extracted_items[0]
             else:

@@ -1078,7 +1078,9 @@ class PauliStringMonomial(PauliString):
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
         if isinstance(other, (int, float, complex, Expr)):
-            raise ValueError(f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}")
+            raise ValueError(
+                f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}"
+            )
         new_coef: "Coef" = (
             self.coef
             / other  # pyright: ignore[reportOperatorIssue, reportAssignmentType]
@@ -1410,7 +1412,9 @@ class PauliStringAtom(PauliStringMonomial):
 
     def __imul__(self, other: "Coef") -> PauliStringMonomial:
         if isinstance(other, (int, float, complex, Expr)):
-            raise ValueError(f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}")
+            raise ValueError(
+                f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}"
+            )
         self = self * other
         return self
 

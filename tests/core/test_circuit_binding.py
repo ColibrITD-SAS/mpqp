@@ -74,10 +74,12 @@ m4 = None
 m_I = ExpectationMeasure(Observable(pI), label="Exp_I")
 m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z")
 
+
 @pytest.mark.provider("qiskit")
 def test_broadcasting_product_shapes():
     """Valide que le mode PRODUCT génère la bonne grille 2D pour Qiskit V2."""
     from qiskit.quantum_info import Operator
+
     binding = CircuitBinding(
         circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.PRODUCT
     )
@@ -119,7 +121,8 @@ def test_broadcasting_zip_shapes():
     assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
     assert v[0] == list(v1.values())
     assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
-    assert v[1] == list(v2.values()) 
+    assert v[1] == list(v2.values())
+
 
 @pytest.mark.provider("qiskit")
 def test_broadcasting_zip_broadcasting_rules():
@@ -130,7 +133,7 @@ def test_broadcasting_zip_broadcasting_rules():
 
     pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
-    
+
     pub, _ = pubs_with_context[0]
     c, m, v = pub
     assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
@@ -139,7 +142,7 @@ def test_broadcasting_zip_broadcasting_rules():
     assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
     assert v[0] == list(v1.values())
     assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
-    assert v[1] == list(v1.values()) 
+    assert v[1] == list(v1.values())
 
 
 def test_broadcasting_recursive_bindings():
@@ -149,7 +152,7 @@ def test_broadcasting_recursive_bindings():
 
     pubs_with_context = outer_binding.Broadcasting(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
-        
+
     pub, _ = pubs_with_context[0]
     c, m, v = pub
     assert str(c.data) == str(c2.to_other_device(IBMDevice.AER_SIMULATOR).data)
@@ -158,8 +161,7 @@ def test_broadcasting_recursive_bindings():
     assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
     assert v[0] == list(v1.values())
     assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
-    assert v[1] == list(v2.values()) 
-    
+    assert v[1] == list(v2.values())
 
 
 def test_broadcasting_exceptions():
@@ -224,16 +226,23 @@ def list_circuit_binding_produit():
             val = res.expectation_values
         assert val == pytest.approx(0.0, abs=1e-2)
 
-
     cb4 = CircuitBinding(circuits=[c1, c2, c3], values=v1, mode=BindingMode.PRODUCT)
-    
+
     def val_cb4(res: BatchResult):
         assert isinstance(res, BatchResult)
 
         assert len(res.results) == 3
-        assert np.allclose(res.results[0].state_vector.vector, [0.87758, 0.25903+0.40342j],atol=1e-5)
-        assert np.allclose(res.results[1].state_vector.vector, [0.70710678, 0.70710678],atol=1e-5)
-        assert np.allclose(res.results[2].state_vector.vector, [0.70710678, 0, 0, 0.70710678],atol=1e-5)
+        assert np.allclose(
+            res.results[0].state_vector.vector, [0.87758, 0.25903 + 0.40342j], atol=1e-5
+        )
+        assert np.allclose(
+            res.results[1].state_vector.vector, [0.70710678, 0.70710678], atol=1e-5
+        )
+        assert np.allclose(
+            res.results[2].state_vector.vector,
+            [0.70710678, 0, 0, 0.70710678],
+            atol=1e-5,
+        )
 
     return [(cb1, val_cb1), (cb2, val_cb2), (cb3, val_cb3), (cb4, val_cb4)]
 
@@ -263,7 +272,7 @@ def list_circuit_binding_zip():
         assert isinstance(res, BatchResult)
         print(res)
         assert len(res.results) == 2
-                
+
         r_c2 = res.results[0]
         assert r_c2.counts[0] == pytest.approx(500, abs=60)
         assert r_c2.counts[1] == pytest.approx(500, abs=60)
