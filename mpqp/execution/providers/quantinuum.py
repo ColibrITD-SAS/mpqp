@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from numbers import Complex
+from numbers import Complex, Real
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.measurement import BasisMeasure
+from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
+from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
 from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
@@ -33,6 +36,9 @@ def run_quantinuum(job: Job) -> Result:
         :func:`~mpqp.execution.runner.run` instead.
     """
     try:
+        if job.job_type == JobType.OBSERVABLE:
+            return run_quantinuum_observable(job)
+
         _, execute_job_ref = submit_job_quantinuum(job)
 
         import qnexus as qnx
@@ -59,6 +65,156 @@ def run_quantinuum(job: Job) -> Result:
         job.status = JobStatus.ERROR
         job.status_message = str(error)
         raise
+
+
+def run_quantinuum_observable(job: Job) -> Result:
+    """Execute an observable job using a supported Quantinuum Nexus backend.
+
+    Aer State observables are evaluated exactly from the returned state vector.
+    Nexus Aer and H-series observables are estimated from grouped sample executions.
+
+    Args:
+        job: Job to be executed.
+
+    Returns:
+        A result containing the requested expectation values.
+    """
+    if not isinstance(job.device, QUANTINUUMDevice):
+        raise ValueError(
+            "`job` must correspond to a `QUANTINUUMDevice`, but corresponds to "
+            f"a {job.device} instead."
+        )
+    if not isinstance(job.measure, ExpectationMeasure):
+        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+
+    observable_labels = job.measure.observables_labels
+
+    circuit = job.circuit.without_measurements()
+
+    if job.device == QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR:
+        state_job = Job(
+            JobType.STATE_VECTOR,
+            circuit,
+            job.device,
+        )
+        state_result = run_quantinuum(state_job)
+        job.id = state_job.id
+        job.status = state_job.status
+
+        expectation_values: dict[str, float] = {}
+        for label, observable in zip(
+            observable_labels,
+            job.measure.observables,
+        ):
+            expectation_values[label] = float(
+                np.vdot(
+                    state_result.amplitudes,
+                    observable.matrix @ state_result.amplitudes,
+                ).real
+            )
+        return extract_observable_result(job, expectation_values, 0.0, 0)
+
+    if job.measure.shots <= 0:
+        raise ValueError(
+            f"{job.device} requires a positive number of shots for observable jobs."
+        )
+    if job.measure.commuting_type != CommutingTypes.QUBITWISE:
+        raise NotImplementedError(
+            "Quantinuum sample derived observable jobs currently support only "
+            "qubit-wise commuting Pauli grouping."
+        )
+
+    from mpqp.tools.pauli_grouping import (
+        find_qubitwise_rotations,
+        pauli_monomial_eigenvalues,
+    )
+
+    grouped_probabilities = []
+    grouping = job.measure.get_pauli_grouping()
+    eigenvalues = [
+        {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
+        for group in grouping
+    ]
+    for group in grouping:
+        pre_measure = QCircuit(find_qubitwise_rotations(group))
+        sample_circuit = circuit + pre_measure
+        sample_circuit.add(
+            BasisMeasure(
+                list(range(job.circuit.nb_qubits)),
+                shots=job.measure.shots,
+            )
+        )
+        sample_job = Job(JobType.SAMPLE, sample_circuit, job.device)
+        sample_result = run_quantinuum(sample_job)
+        job.id = sample_job.id
+        grouped_probabilities.append(sample_result.probabilities)
+
+    expectation_values: dict[str, float] = {}
+    errors: dict[str, float] = {}
+    for label, observable in zip(
+        observable_labels,
+        job.measure.observables,
+    ):
+        expectation_value = 0.0
+        variance = 0.0
+        monomials = {
+            monomial.name: monomial for monomial in observable.pauli_string.monomials
+        }
+
+        for group, group_eigenvalues, probabilities in zip(
+            grouping,
+            eigenvalues,
+            grouped_probabilities,
+        ):
+            weighted_eigenvalues = np.zeros_like(probabilities)
+            for monomial in group:
+                observable_monomial = monomials.get(monomial.name)
+                if observable_monomial is None:
+                    continue
+                if TYPE_CHECKING:
+                    assert isinstance(observable_monomial.coef, Real)
+                weighted_eigenvalues += (
+                    float(observable_monomial.coef) * group_eigenvalues[monomial.name]
+                )
+
+            group_expectation = float(np.dot(weighted_eigenvalues, probabilities))
+            expectation_value += group_expectation
+            variance += (
+                max(
+                    0.0,
+                    float(np.dot(weighted_eigenvalues**2, probabilities))
+                    - group_expectation**2,
+                )
+                / job.measure.shots
+            )
+
+        expectation_values[label] = expectation_value
+        errors[label] = math.sqrt(variance)
+
+    return extract_observable_result(
+        job,
+        expectation_values,
+        errors,
+        job.measure.shots,
+    )
+
+
+def extract_observable_result(
+    job: Job,
+    expectation_values: dict[str, float],
+    errors: float | dict[str, float],
+    shots: int,
+) -> Result:
+    """Construct an MPQP result from Quantinuum expectation values."""
+    job.status = JobStatus.DONE
+    if len(expectation_values) == 1:
+        label = list(expectation_values)[0]
+        expectation_value = expectation_values[label]
+        error = errors[label] if isinstance(errors, dict) else errors
+        return Result(job, expectation_value, error, shots)
+    if not isinstance(errors, dict):
+        errors = dict.fromkeys(expectation_values, errors)
+    return Result(job, expectation_values, errors, shots)
 
 
 def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
@@ -252,20 +408,22 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
         job.id = job_id
         return extract_state_vector_result(amplitudes, job)
 
-    if not isinstance(backend_config, qnx.QuantinuumConfig):
+    if isinstance(backend_config, qnx.AerConfig):
+        device = QUANTINUUMDevice.NEXUS_AER_SIMULATOR
+    elif isinstance(backend_config, qnx.QuantinuumConfig):
+        device_name = backend_config.device_name
+        try:
+            device = QUANTINUUMDevice(device_name)
+        except ValueError as error:
+            raise ValueError(
+                f"Quantinuum Nexus job '{job_id}' targeted unsupported device "
+                f"'{device_name}'."
+            ) from error
+    else:
         raise ValueError(
             f"Quantinuum Nexus job '{job_id}' used unsupported backend "
             f"configuration '{type(backend_config).__name__}'."
         )
-
-    device_name = backend_config.device_name
-    try:
-        device = QUANTINUUMDevice(device_name)
-    except ValueError as error:
-        raise ValueError(
-            f"Quantinuum Nexus job '{job_id}' targeted unsupported device "
-            f"'{device_name}'."
-        ) from error
 
     backend_result = result_ref.download_result()
     if TYPE_CHECKING:

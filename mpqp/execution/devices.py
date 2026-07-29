@@ -558,6 +558,7 @@ class QUANTINUUMDevice(AvailableDevice):
     H1_EMULATOR = "H1-Emulator"
     H2_EMULATOR = "H2-Emulator"
 
+    NEXUS_AER_SIMULATOR = "aer"
     NEXUS_AER_STATE_SIMULATOR = "aer-state"
 
     def is_remote(self):
@@ -572,6 +573,7 @@ class QUANTINUUMDevice(AvailableDevice):
             QUANTINUUMDevice.H2_1LE,
             QUANTINUUMDevice.H1_EMULATOR,
             QUANTINUUMDevice.H2_EMULATOR,
+            QUANTINUUMDevice.NEXUS_AER_SIMULATOR,
             QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
         }
 
@@ -588,7 +590,7 @@ class QUANTINUUMDevice(AvailableDevice):
         return self == QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR
 
     def supports_observable(self) -> bool:
-        return False
+        return True
 
     def supports_observable_ideal(self) -> bool:
-        return False
+        return self == QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR
