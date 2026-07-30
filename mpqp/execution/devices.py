@@ -550,21 +550,25 @@ class AZUREDevice(AvailableDevice):
 
 
 class QUANTINUUMDevice(AvailableDevice):
-    """Enum regrouping the supported backends available through Quantinuum Nexus."""
+    """Enum regrouping all available devices provided by Quantinuum."""
 
-    H1_1LE = "H1-1LE"
-    H2_1LE = "H2-1LE"
-
-    H1_EMULATOR = "H1-Emulator"
-    H2_EMULATOR = "H2-Emulator"
+    TKET_AER_SIMULATOR = "tket-aer"
+    TKET_AER_STATE_SIMULATOR = "tket-aer-state"
 
     NEXUS_AER_SIMULATOR = "aer"
     NEXUS_AER_STATE_SIMULATOR = "aer-state"
-
     NEXUS_QULACS_SIMULATOR = "qulacs"
 
-    def is_remote(self):
-        return True
+    H1_1LE = "H1-1LE"
+    H2_1LE = "H2-1LE"
+    H1_EMULATOR = "H1-Emulator"
+    H2_EMULATOR = "H2-Emulator"
+
+    def is_remote(self) -> bool:
+        return self not in {
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+        }
 
     def is_gate_based(self) -> bool:
         return True
@@ -579,12 +583,16 @@ class QUANTINUUMDevice(AvailableDevice):
         }
 
     def supports_samples(self) -> bool:
-        return self != QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR
+        return self not in {
+            QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+        }
 
     def supports_state_vector(self) -> bool:
         return self in {
             QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
             QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
         }
 
     def supports_observable(self) -> bool:
@@ -594,4 +602,5 @@ class QUANTINUUMDevice(AvailableDevice):
         return self in {
             QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
             QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
         }

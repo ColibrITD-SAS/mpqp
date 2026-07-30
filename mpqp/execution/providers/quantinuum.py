@@ -29,13 +29,28 @@ if TYPE_CHECKING:
 
 
 def run_quantinuum(job: Job) -> Result:
-    """Execute a job on a Quantinuum Nexus device.
+    """Execute the job on the selected Quantinuum device (local or remote),
+    wait until execution is complete, and return the result.
+
+    Args:
+        job: Job to execute. It must target a
+            :class:`mpqp.execution.devices.QUANTINUUMDevice`.
+
+    Returns:
+        The result of the job.
 
     Note:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
     try:
+        if not isinstance(job.device, QUANTINUUMDevice):
+            raise ValueError(
+                "`job` must correspond to a `QUANTINUUMDevice`, but corresponds "
+                f"to a {job.device} instead."
+            )
+        if not job.device.is_remote():
+            return run_tket_local(job)
         if job.job_type == JobType.OBSERVABLE:
             return run_quantinuum_observable(job)
 
@@ -67,8 +82,74 @@ def run_quantinuum(job: Job) -> Result:
         raise
 
 
+def run_tket_local(job: Job) -> Result:
+    """Execute a job using a local TKET backend.
+
+    Args:
+        job: Job targeting a local TKET device.
+
+    Returns:
+        The result after local compilation and execution.
+    """
+    if not isinstance(job.device, QUANTINUUMDevice) or job.device.is_remote():
+        raise ValueError("The job must target a local TKET device.")
+
+    if job.job_type == JobType.OBSERVABLE:
+        return run_quantinuum_observable(job)
+
+    if job.job_type == JobType.SAMPLE:
+        if not job.device.supports_samples():
+            raise ValueError(
+                f"{job.device} does not support `SAMPLE` jobs. Use "
+                f"{QUANTINUUMDevice.TKET_AER_SIMULATOR} instead."
+            )
+        if not isinstance(job.measure, BasisMeasure):
+            raise ValueError("Sample jobs must have a `BasisMeasure`.")
+    elif job.job_type == JobType.STATE_VECTOR:
+        if not job.device.supports_state_vector():
+            raise ValueError(
+                f"{job.device} does not support `STATE_VECTOR` jobs. Use "
+                f"{QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR} instead."
+            )
+    else:
+        raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
+
+    from pytket.extensions.qiskit.backends.aer import AerBackend, AerStateBackend
+    from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+
+    if job.circuit.transpiled_circuit is None:
+        tket_circuit = job.circuit.to_other_device(job.device)
+    else:
+        qiskit_circuit = job.circuit.transpiled_circuit
+        if TYPE_CHECKING:
+            assert isinstance(qiskit_circuit, QuantumCircuit)
+        tket_circuit = qiskit_to_tk(qiskit_circuit)
+
+    if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
+        backend = AerBackend()
+    elif job.device == QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR:
+        backend = AerStateBackend()
+    else:
+        raise ValueError(f"Local TKET device {job.device} is not handled.")
+
+    compiled_circuit = backend.get_compiled_circuit(
+        tket_circuit,
+        optimisation_level=0,
+    )
+    if job.job_type == JobType.SAMPLE:
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, BasisMeasure)
+        n_shots = job.measure.shots
+    else:
+        n_shots = None
+
+    job.status = JobStatus.RUNNING
+    backend_result = backend.run_circuit(compiled_circuit, n_shots=n_shots)
+    return extract_result(backend_result, job)
+
+
 def run_quantinuum_observable(job: Job) -> Result:
-    """Execute an observable job using a supported Quantinuum Nexus backend.
+    """Execute an observable job using a supported Quantinuum backend.
 
     Exact observables are computed from a state vector when `shots=0`.
     When `shots>0`, observables are estimated from measurement results.
@@ -77,7 +158,7 @@ def run_quantinuum_observable(job: Job) -> Result:
         job: Job to execute.
 
     Returns:
-        A result containing the expectation values and statistical errors.
+        A result containing the expectation values of the observables.
     """
     if not isinstance(job.device, QUANTINUUMDevice):
         raise ValueError(
@@ -356,14 +437,16 @@ def extract_sample_result(
 
 
 def extract_result(backend_result: "BackendResult", job: Job) -> Result:
-    """Convert a Quantinuum Nexus backend result into an MPQP result.
+    """Construct a Result from a backend execution result.
 
     Args:
-        backend_result: Result returned by Quantinuum Nexus.
-        job: Original MPQP job used for the execution.
+        backend_result: TKET result returned by a local backend or retrieved from
+            Quantinuum Nexus.
+        job: Original MPQP job used for the execution. It provides the job type,
+            circuit, measurement, and target device required to construct the result
 
     Returns:
-        The MPQP result corresponding to the job type.
+        The backend result converted to our format.
     """
     if job.job_type == JobType.STATE_VECTOR:
         return extract_state_vector_result(backend_result.get_state(), job)
