@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from pytket.utils.operators import QubitPauliOperator
     from qat.core.wrappers.observable import Observable as QLMObservable
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
@@ -284,19 +285,34 @@ class Observable:
     ) -> Union[CirqPauliSum, CirqPauliString]: ...
     @overload
     def to_other_language(
+        self, language: Literal[Language.TKET]
+    ) -> QubitPauliOperator: ...
+    @overload
+    def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
     @overload
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]: ...
 
     def to_other_language(
         self, language: Language, circuit: Optional[CirqCircuit] = None
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, Sum, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        Sum,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]:
         """Converts the observable to the representation of another quantum
         programming language.
@@ -349,6 +365,8 @@ class Observable:
                 )
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit)
+        elif language == Language.TKET:
+            return self.pauli_string.to_other_language(Language.TKET)
         else:
             raise ValueError(f"Unsupported language: {language}")
 

@@ -33,6 +33,7 @@ if TYPE_CHECKING:
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
     from cirq.ops.raw_types import Qid
+    from pytket.utils.operators import QubitPauliOperator
     from qat.core.wrappers.observable import Term
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Basic, Expr
@@ -731,8 +732,10 @@ class PauliString:
                     "Cannot parse non-homogeneous types when `pauli` is a `list`."
                 )
         from mpqp.environment.var_cache import (
-            InstalledProviders,
             _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+        )
+        from mpqp.environment.var_cache import (
+            InstalledProviders,
         )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
@@ -801,6 +804,10 @@ class PauliString:
     ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
     @overload
     def to_other_language(
+        self, language: Literal[Language.TKET]
+    ) -> QubitPauliOperator: ...
+    @overload
+    def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
     @overload
@@ -814,6 +821,7 @@ class PauliString:
         BraketSum,
         TensorProduct,
         list[Term],
+        QubitPauliOperator,
     ]: ...
 
     def to_other_language(
@@ -827,6 +835,7 @@ class PauliString:
         CirqPauliSum,
         CirqPauliString,
         list[CirqPauliString],
+        QubitPauliOperator,
     ]:
         """Converts the pauli string to pauli string of another quantum
         programming language.
@@ -888,6 +897,26 @@ class PauliString:
                 )
 
             return cirq_pauli_string
+        elif language == Language.TKET:
+            from pytket.circuit import Qubit
+            from pytket.pauli import Pauli, QubitPauliString
+            from pytket.utils.operators import QubitPauliOperator
+
+            pauli_gate_map = {
+                "I": Pauli.I,
+                "X": Pauli.X,
+                "Y": Pauli.Y,
+                "Z": Pauli.Z,
+            }
+            qubits = [Qubit(index) for index in range(self.nb_qubits)]
+            terms = {
+                QubitPauliString(
+                    qubits,
+                    [pauli_gate_map[atom.label] for atom in monomial.atoms],
+                ): monomial.coef
+                for monomial in self.simplify().monomials
+            }
+            return QubitPauliOperator(terms)
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
@@ -1279,6 +1308,10 @@ class PauliStringMonomial(PauliString):
     ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
     @overload
     def to_other_language(
+        self, language: Literal[Language.TKET]
+    ) -> QubitPauliOperator: ...
+    @overload
+    def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
     @overload
@@ -1292,6 +1325,7 @@ class PauliStringMonomial(PauliString):
         BraketSum,
         TensorProduct,
         list[Term],
+        QubitPauliOperator,
     ]: ...
 
     def to_other_language(
@@ -1361,6 +1395,8 @@ class PauliStringMonomial(PauliString):
                 reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType]
                 * self.coef
             )
+        elif language == Language.TKET:
+            return PauliString.to_other_language(self, Language.TKET)
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
@@ -1591,6 +1627,10 @@ class PauliStringAtom(PauliStringMonomial):
     ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
     @overload
     def to_other_language(
+        self, language: Literal[Language.TKET]
+    ) -> QubitPauliOperator: ...
+    @overload
+    def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
     @overload
@@ -1606,6 +1646,7 @@ class PauliStringAtom(PauliStringMonomial):
         SparsePauliOp,
         BraketSum,
         list[Term],
+        QubitPauliOperator,
     ]: ...
 
     def to_other_language(
@@ -1651,6 +1692,8 @@ class PauliStringAtom(PauliStringMonomial):
             return pauli_gate_map[self.label](
                 LineQubit(0) if target is None else target
             )
+        elif language == Language.TKET:
+            return PauliString.to_other_language(self, Language.TKET)
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
