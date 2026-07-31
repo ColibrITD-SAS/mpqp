@@ -26,8 +26,10 @@ from mpqp.execution.providers.aws import get_result_from_aws_task_arn
 from mpqp.execution.providers.azure import get_result_from_azure_job_id
 from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
 
+
 class ProviderParam:
     """Classe de base pour les paramètres du fournisseur."""
+
     pass
 
 

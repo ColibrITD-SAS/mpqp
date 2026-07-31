@@ -59,7 +59,11 @@ def run_ibm(job: Job, qiskit_param: Optional[QiskitParam] = None) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return run_aer(job) if not job.device.is_remote() else run_remote_ibm(job, qiskit_param)
+    return (
+        run_aer(job)
+        if not job.device.is_remote()
+        else run_remote_ibm(job, qiskit_param)
+    )
 
 
 def compute_expectation_value(
@@ -489,7 +493,9 @@ def run_aer(job: Job):
     return result
 
 
-def submit_remote_ibm(job: Job, qiskit_param: Optional[QiskitParam] = None) -> tuple[str, "RuntimeJobV2"]:
+def submit_remote_ibm(
+    job: Job, qiskit_param: Optional[QiskitParam] = None
+) -> tuple[str, "RuntimeJobV2"]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
     Args:
@@ -514,7 +520,7 @@ def submit_remote_ibm(job: Job, qiskit_param: Optional[QiskitParam] = None) -> t
         assert isinstance(job.device, IBMDevice)
 
     instance = qiskit_param.instance if qiskit_param is not None else None
-    
+
     backend = get_backend(job.device, instance)
     job.device = IBMDevice(backend.name)
 

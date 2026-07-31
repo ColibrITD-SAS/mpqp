@@ -141,7 +141,7 @@ def test_connection() -> bool:
     return True
 
 
-def get_QiskitRuntimeService( instance: Optional[str]= None) -> "QiskitRuntimeService":
+def get_QiskitRuntimeService(instance: Optional[str] = None) -> "QiskitRuntimeService":
     """Return the QiskitRuntimeService needed for remote connection and
     execution.
 

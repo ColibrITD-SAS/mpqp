@@ -330,7 +330,9 @@ def _run_single(
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
         if provider_params is not None and not isinstance(provider_params, QiskitParam):
-            raise ValueError(f"provider_params should be QiskitParam not {type(provider_params)}")
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
         return run_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
@@ -464,14 +466,16 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
-                    provider_params
+                    provider_params,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints, provider_params)
+        return _run_single(
+            circuit, device, values, display_breakpoints, provider_params
+        )
 
 
 def submit(
