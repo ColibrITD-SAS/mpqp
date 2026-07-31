@@ -10,6 +10,7 @@ import numpy as np
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
 from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
+from mpqp.core.languages import Language
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
 from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
@@ -18,7 +19,10 @@ from mpqp.execution.result import Result, Sample, StateVector
 if TYPE_CHECKING:
     import numpy as np
     import numpy.typing as npt
+    from pytket import Circuit as TKETCircuit
     from pytket.backends.backendresult import BackendResult
+    from pytket.extensions.qiskit.backends.aer import AerBackend, AerStateBackend
+    from pytket.utils.operators import QubitPauliOperator
     from qiskit import QuantumCircuit
     from qnexus.models.references import (
         CircuitRef,
@@ -94,9 +98,6 @@ def run_tket_local(job: Job) -> Result:
     if not isinstance(job.device, QUANTINUUMDevice) or job.device.is_remote():
         raise ValueError("The job must target a local TKET device.")
 
-    if job.job_type == JobType.OBSERVABLE:
-        return run_quantinuum_observable(job)
-
     if job.job_type == JobType.SAMPLE:
         if not job.device.supports_samples():
             raise ValueError(
@@ -110,6 +111,15 @@ def run_tket_local(job: Job) -> Result:
             raise ValueError(
                 f"{job.device} does not support `STATE_VECTOR` jobs. Use "
                 f"{QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR} instead."
+            )
+    elif job.job_type == JobType.OBSERVABLE:
+        if not isinstance(job.measure, ExpectationMeasure):
+            raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+        if job.measure.shots > 0:
+            return run_quantinuum_observable(job)
+        if not job.device.supports_observable_ideal():
+            raise ValueError(
+                f"{job.device} does not support observable jobs without sampling."
             )
     else:
         raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
@@ -136,6 +146,9 @@ def run_tket_local(job: Job) -> Result:
         tket_circuit,
         optimisation_level=0,
     )
+    if job.job_type == JobType.OBSERVABLE:
+        return run_tket_observable(job, compiled_circuit, backend)
+
     if job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(job.measure, BasisMeasure)
@@ -146,6 +159,47 @@ def run_tket_local(job: Job) -> Result:
     job.status = JobStatus.RUNNING
     backend_result = backend.run_circuit(compiled_circuit, n_shots=n_shots)
     return extract_result(backend_result, job)
+
+
+def run_tket_observable(
+    job: Job,
+    tket_circuit: "TKETCircuit",
+    backend: "AerBackend | AerStateBackend",
+) -> Result:
+    """Return the result of an exact `OBSERVABLE` job using the built in
+    observable evaluation of a local TKET backend.
+
+    The backend computes the expectation values directly. This function should
+    be called by :func:`run_tket_local` for observable jobs without sampling, it
+    is not intended for remote Nexus jobs.
+
+    Args:
+        job: Job to execute.
+        tket_circuit: Compiled TKET circuit on which the observables are evaluated.
+        backend: Local TKET backend used to evaluate the observables.
+
+    Returns:
+        A result containing the exact expectation values of the observables.
+    """
+    if not isinstance(job.measure, ExpectationMeasure):
+        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+
+    job.status = JobStatus.RUNNING
+    expectation_values: dict[str, float] = {}
+    for label, observable in zip(
+        job.measure.observables_labels,
+        job.measure.observables,
+    ):
+        operator = observable.to_other_language(Language.TKET)
+        if TYPE_CHECKING:
+            assert isinstance(operator, QubitPauliOperator)
+        expectation_value = backend.get_operator_expectation_value(
+            tket_circuit,
+            operator,
+        )
+        expectation_values[label] = float(expectation_value.real)
+
+    return extract_observable_result(job, expectation_values, 0.0, 0)
 
 
 def run_quantinuum_observable(job: Job) -> Result:

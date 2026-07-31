@@ -602,5 +602,6 @@ class QUANTINUUMDevice(AvailableDevice):
         return self in {
             QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
             QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
         }
