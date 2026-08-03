@@ -270,7 +270,6 @@ def run_braket_observable(job: Job) -> Result:
                 sorted_values = []
                 for i in range(len(values)):
                     sorted_values.append(float(np.abs(values[i]) ** 2))
-                print(sorted_values)
             else:
                 local_result = device.run(
                     transpiled_circuit + pre_measure,
@@ -289,7 +288,6 @@ def run_braket_observable(job: Job) -> Result:
                         )
                     else:
                         sorted_values.append(0)
-                print(sorted_values)
             for name, eigenvalue in eigenvalues.items():
                 expectation_value: float = np.dot(
                     eigenvalue,

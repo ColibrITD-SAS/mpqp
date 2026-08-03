@@ -310,7 +310,12 @@ class Result:
         """See parameter description."""
         self._data = data
         self.label = label
+        from mpqp.core.circuit import CircuitBinding
 
+        if isinstance(job.circuit, CircuitBinding):
+            raise ValueError(
+                "The result class should be only use to hold the result of one job. A CircuitBinding should be associated with a BatchResult."
+            )
         if data is None:
             if job.status != JobStatus.ERROR:
                 raise TypeError("Result data cannot be None unless job.status == ERROR")

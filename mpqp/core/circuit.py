@@ -2234,7 +2234,7 @@ class CircuitBinding:
     def __init__(
         self,
         circuits: OneOrMany[QCircuit | CircuitBinding],
-        values: Optional[list[dict[Expr | str, Complex | float]]] = None,
+        values: Optional[OneOrMany[dict[Expr | str, Complex | float]]] = None,
         measurements: Optional[OneOrMany[Measure]] = None,
         mode: BindingMode = BindingMode.PRODUCT,
         noises: Optional[list[NoiseModel]] = None,
@@ -2247,6 +2247,11 @@ class CircuitBinding:
             circuits = [circuits]
         else:
             circuits = list(circuits)
+
+        if not isinstance(values, Sequence):
+            parameters = [values]
+        else:
+            parameters = list(values)
 
         self.transpiled_noise_model = None
         self.noises = noises
@@ -2311,7 +2316,7 @@ class CircuitBinding:
                     self.shots = measure.shots
 
         self.circuits: list["QCircuit | CircuitBinding"] = c
-        self.value = values
+        self.value = parameters
         self.measurements = (
             self.measurements if self.measurements is not None else measurements
         )
@@ -2326,40 +2331,31 @@ class CircuitBinding:
 
         from mpqp.execution.providers.ibm import generate_qiskit_noise_model
 
-        if isinstance(self.circuits, QCircuit):
-            self.circuits.transpiled_circuit = self.circuits.to_other_device(
-                device, skip_pre_measure, backend_sim
-            )
-        elif isinstance(self.circuits, list):
-            for i, c in enumerate(self.circuits):
-                if isinstance(c, QCircuit):
-                    if self.is_noisy:
-                        if c.transpiled_circuit is None:
-                            original_noises = c.noises
-                            c.noises = self.noises if self.noises is not None else []
-                            nm, modified_circuit = generate_qiskit_noise_model(c)
-                            c.noises = original_noises
-                            if self.transpiled_noise_model is None:
-                                self.transpiled_noise_model = nm
+        for i, c in enumerate(self.circuits):
+            if isinstance(c, QCircuit):
+                if self.is_noisy:
+                    if c.transpiled_circuit is None:
+                        original_noises = c.noises
+                        c.noises = self.noises if self.noises is not None else []
+                        nm, modified_circuit = generate_qiskit_noise_model(c)
+                        c.noises = original_noises
+                        if self.transpiled_noise_model is None:
+                            self.transpiled_noise_model = nm
 
-                            modified_circuit.transpiled_circuit = (
-                                modified_circuit.to_other_device(
-                                    device, skip_pre_measure, backend_sim
-                                )
+                        modified_circuit.transpiled_circuit = (
+                            modified_circuit.to_other_device(
+                                device, skip_pre_measure, backend_sim
                             )
-                            self.circuits[i] = (
-                                modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
-                            )
-                    else:
-                        c.transpiled_circuit = c.to_other_device(
-                            device, skip_pre_measure, backend_sim
+                        )
+                        self.circuits[i] = (
+                            modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
                         )
                 else:
-                    c.transpiled_circuits(device, skip_pre_measure, backend_sim)
-        elif isinstance(self.circuits, CircuitBinding):
-            self.circuits.transpiled_circuits(device, skip_pre_measure, backend_sim)
-        else:
-            raise ValueError("Invalid circuit type in CircuitBinding.")
+                    c.transpiled_circuit = c.to_other_device(
+                        device, skip_pre_measure, backend_sim
+                    )
+            else:
+                c.transpiled_circuits(device, skip_pre_measure, backend_sim)
 
     def Broadcasting(
         self, device: Optional["AvailableDevice"] = None
@@ -2372,9 +2368,6 @@ class CircuitBinding:
         """
         from mpqp.execution.job import Job
         from mpqp.execution.devices import (
-            ATOSDevice,
-            AWSDevice,
-            GOOGLEDevice,
             IBMDevice,
         )
         from mpqp.execution.providers.ibm import JobType
