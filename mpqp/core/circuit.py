@@ -2248,10 +2248,12 @@ class CircuitBinding:
         else:
             circuits = list(circuits)
 
-        if not isinstance(values, Sequence):
+        if isinstance(values, Sequence):
+            parameters = list(values)
+        elif values is not None:
             parameters = [values]
         else:
-            parameters = list(values)
+            parameters = None
 
         self.transpiled_noise_model = None
         self.noises = noises
