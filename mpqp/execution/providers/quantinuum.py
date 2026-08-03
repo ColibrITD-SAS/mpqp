@@ -20,8 +20,8 @@ if TYPE_CHECKING:
     import numpy as np
     import numpy.typing as npt
     from pytket import Circuit as TKETCircuit
+    from pytket.backends.backend import Backend
     from pytket.backends.backendresult import BackendResult
-    from pytket.extensions.qiskit.backends.aer import AerBackend, AerStateBackend
     from pytket.utils.operators import QubitPauliOperator
     from qiskit import QuantumCircuit
     from qnexus.models.references import (
@@ -126,6 +126,7 @@ def run_tket_local(job: Job) -> Result:
 
     from pytket.extensions.qiskit.backends.aer import AerBackend, AerStateBackend
     from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+    from pytket.extensions.qulacs.backends.qulacs_backend import QulacsBackend
 
     if job.circuit.transpiled_circuit is None:
         tket_circuit = job.circuit.to_other_device(job.device)
@@ -139,6 +140,8 @@ def run_tket_local(job: Job) -> Result:
         backend = AerBackend()
     elif job.device == QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR:
         backend = AerStateBackend()
+    elif job.device == QUANTINUUMDevice.TKET_QULACS_SIMULATOR:
+        backend = QulacsBackend()
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
 
@@ -164,7 +167,7 @@ def run_tket_local(job: Job) -> Result:
 def run_tket_observable(
     job: Job,
     tket_circuit: "TKETCircuit",
-    backend: "AerBackend | AerStateBackend",
+    backend: "Backend",
 ) -> Result:
     """Return the result of an exact `OBSERVABLE` job using the built in
     observable evaluation of a local TKET backend.

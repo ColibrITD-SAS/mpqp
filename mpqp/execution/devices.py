@@ -554,6 +554,7 @@ class QUANTINUUMDevice(AvailableDevice):
 
     TKET_AER_SIMULATOR = "tket-aer"
     TKET_AER_STATE_SIMULATOR = "tket-aer-state"
+    TKET_QULACS_SIMULATOR = "tket-qulacs"
 
     NEXUS_AER_SIMULATOR = "aer"
     NEXUS_AER_STATE_SIMULATOR = "aer-state"
@@ -568,6 +569,7 @@ class QUANTINUUMDevice(AvailableDevice):
         return self not in {
             QUANTINUUMDevice.TKET_AER_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }
 
     def is_gate_based(self) -> bool:
@@ -593,6 +595,7 @@ class QUANTINUUMDevice(AvailableDevice):
             QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
             QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }
 
     def supports_observable(self) -> bool:
@@ -604,4 +607,5 @@ class QUANTINUUMDevice(AvailableDevice):
             QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }
