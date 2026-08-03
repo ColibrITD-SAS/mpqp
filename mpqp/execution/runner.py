@@ -46,7 +46,7 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
-from mpqp.execution.remote_handler import ProviderParam, QiskitParam
+from mpqp.execution.providers.providers_params import ProviderParams, QiskitParams
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -266,7 +266,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_params: Optional[ProviderParam] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -329,7 +329,7 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        if provider_params is not None and not isinstance(provider_params, QiskitParam):
+        if provider_params is not None and not isinstance(provider_params, QiskitParams):
             raise ValueError(
                 f"provider_params should be QiskitParam not {type(provider_params)}"
             )
@@ -352,7 +352,7 @@ def run(
     device: Sequence[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_params: Optional[ProviderParam] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
 
 
@@ -362,7 +362,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_params: Optional[ProviderParam] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
 
 
@@ -372,7 +372,7 @@ def run(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_params: Optional[ProviderParam] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result: ...
 
 
@@ -381,7 +381,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
-    provider_params: Optional[ProviderParam] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.

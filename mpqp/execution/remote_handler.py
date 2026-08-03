@@ -27,17 +27,6 @@ from mpqp.execution.providers.azure import get_result_from_azure_job_id
 from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
 
 
-class ProviderParam:
-    """Classe de base pour les paramètres du fournisseur."""
-
-    pass
-
-
-class QiskitParam(ProviderParam):
-    def __init__(self, instance: Optional[str] = None):
-        self.instance = instance
-
-
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
 ) -> Result:

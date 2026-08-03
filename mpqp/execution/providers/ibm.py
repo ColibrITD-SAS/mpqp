@@ -19,7 +19,7 @@ from mpqp.execution.connection.ibm_connection import (
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.remote_handler import QiskitParam
+from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import (
@@ -45,7 +45,7 @@ if TYPE_CHECKING:
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
-def run_ibm(job: Job, qiskit_param: Optional[QiskitParam] = None) -> Result:
+def run_ibm(job: Job, qiskit_param: Optional[QiskitParams] = None) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
@@ -494,7 +494,7 @@ def run_aer(job: Job):
 
 
 def submit_remote_ibm(
-    job: Job, qiskit_param: Optional[QiskitParam] = None
+    job: Job, qiskit_param: Optional[QiskitParams] = None
 ) -> tuple[str, "RuntimeJobV2"]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
@@ -578,7 +578,7 @@ def submit_remote_ibm(
     return job.id, ibm_job
 
 
-def run_remote_ibm(job: Job, qiskit_param: Optional[QiskitParam] = None) -> Result:
+def run_remote_ibm(job: Job, qiskit_param: Optional[QiskitParams] = None) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
