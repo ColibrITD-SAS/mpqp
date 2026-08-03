@@ -23,6 +23,8 @@ from mpqp.tools.generics import MessageEnum
 # is a class (probably because Enum does weird things to the Enum class)
 if TYPE_CHECKING:
     from enum import Enum
+    from sympy import Expr
+    from numbers import Complex
 
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure, Measure
 
@@ -110,6 +112,8 @@ class Job:
         job_type: JobType,
         circuit: QCircuit | CircuitBinding,
         device: AvailableDevice,
+        measurement: Optional[Measure] = None,
+        values: Optional[dict[Expr | str, Complex | float]] = None,
     ):
         self._status = JobStatus.INIT
 
@@ -128,6 +132,12 @@ class Job:
         self.status_message: Optional[str] = None
         """Optional message associated with the current job status, especially
         for execution errors."""
+
+        """Store the measurement of a circuit."""
+        self.measurement = measurement
+
+        """Store parameters in case the original circuit was parametrized."""
+        self.values = values
 
     @property
     def measure(self) -> Optional[Measure]:

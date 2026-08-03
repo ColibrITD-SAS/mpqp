@@ -2452,7 +2452,11 @@ class CircuitBinding:
     def unroll(
         self,
     ) -> list[
-        tuple[QCircuit, Optional[dict["Expr | str", "Complex"]], Optional["Measure"]]
+        tuple[
+            QCircuit,
+            Optional[dict["Expr | str", "Complex | float"]],
+            Optional["Measure"],
+        ]
     ]:
         """Resolves the lazy execution graph and returns a flat list of
         (circuit, values, expectation_measure) tuples representing each execution.
@@ -2536,7 +2540,7 @@ class CircuitBinding:
     ) -> "CircuitBinding": ...
     def to_other_language(
         self, language: Language, programSet: bool = True
-    ) -> "ProgramSet | CircuitBinding":
+    ) -> "CircuitBinding | ProgramSet":
         if language == Language.BRAKET:
             from braket.program_sets import ProgramSet
             from braket.circuits import Circuit
@@ -2577,11 +2581,22 @@ class CircuitBinding:
 
             obs = []
             if self.measurements:
+
                 for m in self.measurements:
                     assert isinstance(m, ExpectationMeasure)
-                    obs.extend(
-                        [o.to_other_language(Language.BRAKET) for o in m.observables]
-                    )
+                    if any([o.is_matrix() for o in m.observables]):
+                        # This is because of braket's programSet limitations
+                        warn(
+                            "To translate observables from CircuitBindings to braket we need to translate the matrix to pauli string. This process might impact performances on big matrices."
+                        )
+                    for o in m.observables:
+                        from braket.circuits.observables import Sum
+
+                        translation = o.pauli_string.to_other_language(Language.BRAKET)
+                        if isinstance(translation, Sum):
+                            obs.append(translation)
+                        else:
+                            obs.append([translation])
 
             if (
                 not programSet
@@ -2592,6 +2607,8 @@ class CircuitBinding:
                 return self
 
             result = []
+            # This list helps differentiate exp_values later because braket creates 1 job per pauli MONOMIALS so we will need to group them afterwards.
+
             # i is used only if the binding mode is zip
             if len(translated) == 1 and (
                 not isinstance(translated[0], CircuitBinding)
@@ -2610,6 +2627,9 @@ class CircuitBinding:
                 from itertools import product
 
                 executables = list(product(var or [None], obs or [None]))
+
+            from braket.circuits.observables import Sum
+
             for values, observable in executables:
                 if self.mode == BindingMode.PRODUCT:
                     for t in translated:
@@ -2640,15 +2660,14 @@ class CircuitBinding:
                                     for c in t._translated_circuits
                                 ]
                             )
+
                             for inside_observable, inside_val in inside_executables:
                                 result.extend(
                                     [
                                         BraketBinding(
                                             c,
                                             input_sets=inside_val,
-                                            observables=[
-                                                inside_observable  # pyright: ignore[reportArgumentType]
-                                            ],
+                                            observables=inside_observable,
                                         )
                                         for c in t._translated_circuits
                                         if isinstance(c, braket_Circuit)
@@ -2660,13 +2679,13 @@ class CircuitBinding:
                                 BraketBinding(
                                     t,
                                     input_sets=values,
-                                    observables=[observable],  # pyright: ignore
+                                    observables=observable,
                                 )
                             )
                 else:
                     if isinstance(
                         translated[i], CircuitBinding
-                    ):  # ZIP to Binding ==> distribute level 0 to level 1
+                    ):  # ZIP to Binding ==> distribute upper binding to embedded binding
                         if (
                             translated[
                                 i
@@ -2674,7 +2693,7 @@ class CircuitBinding:
                             and observable
                         ):
                             raise ValueError(
-                                "Cannot declare an observable both inside a CircuitBinding and outside"
+                                "Cannot declare observables both inside a CircuitBinding and outside"
                             )
                         if (
                             translated[
@@ -2709,20 +2728,17 @@ class CircuitBinding:
                                             0
                                         ],
                                         input_sets=inside_val,
-                                        observables=[
-                                            inside_observable  # pyright: ignore
-                                        ],
+                                        observables=inside_observable,
                                     )
                                 )
                         else:
                             for inside_observable, inside_val in inside_executables:
-                                assert inside_observable
                                 result.extend(
                                     [
                                         BraketBinding(
                                             c,  # pyright: ignore[reportArgumentType]
                                             input_sets=inside_val,
-                                            observables=[inside_observable],
+                                            observables=inside_observable,
                                         )
                                         for c in translated[
                                             i
@@ -2730,13 +2746,12 @@ class CircuitBinding:
                                     ]
                                 )
                     else:
-
                         if i == -1:
                             result.append(
                                 BraketBinding(
                                     translated[0],  # pyright: ignore
                                     input_sets=values,
-                                    observables=[observable],  # pyright: ignore
+                                    observables=observable,
                                 )
                             )
                         else:
@@ -2744,14 +2759,15 @@ class CircuitBinding:
                                 BraketBinding(
                                     translated[i],  # pyright: ignore
                                     input_sets=values,
-                                    observables=[observable],  # pyright: ignore
+                                    observables=observable,
                                 )
                             )
                             i += 1
 
             from braket.program_sets import ProgramSet
 
-            return ProgramSet(result, self.shots)
+            ps = ProgramSet(result, self.shots)
+            return ps
         else:
             raise NotImplementedError(
                 f"Translation to {language} is not supported yet on CircuitBindings"

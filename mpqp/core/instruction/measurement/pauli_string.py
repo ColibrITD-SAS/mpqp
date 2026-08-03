@@ -1077,6 +1077,8 @@ class PauliStringMonomial(PauliString):
         return self
 
     def __itruediv__(self, other: "Coef") -> PauliStringMonomial:
+        from sympy import Expr
+
         assert isinstance(
             other, (int, float, complex, Expr)
         ), f"Expected a coefficient of type (int, float, complex, Expr), got {type(other)}"

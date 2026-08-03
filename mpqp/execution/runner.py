@@ -335,8 +335,7 @@ def _run_circuit_binding(
         raise NotImplementedError(f"Device {device} not handled")
         result = run_atos(jobs)  # TODO
     elif isinstance(device, AWSDevice):
-        raise NotImplementedError(f"Device {device} not handled")
-        result = run_braket(jobs)  # TODO
+        result = run_braket(job)  # TODO
     elif isinstance(device, GOOGLEDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_google(jobs)  # TODO
