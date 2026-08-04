@@ -43,6 +43,8 @@ def config_ibm_account(token: str, channel: str, instance: Optional[str] = None)
         save_env_variable("IBM_TOKEN", token.strip())
         save_env_variable("IBM_CHANNEL", channel)
         save_env_variable("IBM_INSTANCE", instance if instance is not None else "")
+        global Runtime_Service
+        Runtime_Service = {}
     except Exception as err:
         # if an error occurred, we put False in the mpqp config file
         save_env_variable("IBM_CONFIGURED", "False")
@@ -106,7 +108,7 @@ def setup_ibm_account():
 
     old_token = get_env_variable("IBM_TOKEN")
     old_channel = get_env_variable("IBM_CHANNEL")
-    old_instance = get_env_variable("IBM_INSTANCE")
+    old_instance = get_env_variable("IBM_INSTANCE") or None
 
     config_ibm_account(token, channel, instance)
     if test_connection():
@@ -168,7 +170,6 @@ def get_QiskitRuntimeService(instance: Optional[str] = None) -> "QiskitRuntimeSe
                 "Error when instantiating QiskitRuntimeService. No IBM account configured."
             )
         try:
-            Runtime_Service: dict[Optional[str], QiskitRuntimeService] = {}
             Runtime_Service[instance] = QiskitRuntimeService(instance=instance)
         except Exception as err:
             raise IBMRemoteExecutionError(
