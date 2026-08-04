@@ -130,7 +130,7 @@ class IBMDevice(AvailableDevice):
     IBM_PITTSBURGH = "ibm_pittsburgh"
     IBM_FEZ = "ibm_fez"
     IBM_MARRAKESH = "ibm_marrakesh"
-    IBM_AACHEN = "IBM_AACHEN"
+    IBM_AACHEN = "ibm_aachen"
 
     # Heron chips
     IBM_MIAMI = "ibm_miami"

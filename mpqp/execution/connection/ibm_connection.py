@@ -90,19 +90,18 @@ def setup_ibm_account():
         getpass("Press 'Enter' to continue")
         return "", []
 
-    instance = input(
-        f"Enter the instance. This is an optional parameter to specify the CRN  or service name."
-        "If set, it will define a default instance for service instantiation,"
-        "if not set, the service will fetch all instances accessible within the account."
-    ).strip()
-    if instance == "":
-        instance = None
-
     token = getpass("Enter your IBM Cloud API key (hidden): ").strip()
     if token == "":
         print(colored("Empty credentials", "red"))
         getpass("Press 'Enter' to continue")
         return "", []
+
+    instance = input(
+        f"Enter the default instance CRN (optional, if not set service will fetch all instances"
+        "accessible by this account) :"
+    ).strip()
+    if instance == "":
+        instance = None
 
     old_token = get_env_variable("IBM_TOKEN")
     old_channel = get_env_variable("IBM_CHANNEL")
