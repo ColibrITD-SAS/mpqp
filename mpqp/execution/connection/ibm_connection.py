@@ -228,7 +228,7 @@ def delete_ibm_account():
     save_env_variable("IBM_CONFIGURED", "False")
     save_env_variable("IBM_TOKEN", "")
     save_env_variable("IBM_CHANNEL", "")
-    save_env_variable("IBM_INSTANCE", "")   
+    save_env_variable("IBM_INSTANCE", "")
 
     Runtime_Service = {}
 
