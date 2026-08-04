@@ -2361,7 +2361,7 @@ class CircuitBinding:
 
     def Broadcasting(
         self, device: Optional["AvailableDevice"] = None
-    ) -> list[tuple["EstimatorPubLike", list["Job"]]]:
+    ) -> list[tuple["EstimatorPubLike", "Job"]]:
         """Translates the CircuitBinding lazy graph into optimally shaped Qiskit V2 PUBs,
         leveraging NumPy broadcasting rules.
 

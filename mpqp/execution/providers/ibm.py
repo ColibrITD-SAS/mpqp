@@ -524,7 +524,19 @@ def run_aer(job: Job) -> Result | BatchResult:
                 if TYPE_CHECKING:
                     assert isinstance(q_c, QuantumCircuit)
 
-                b_c = q_c.assign_parameters(v) if v else q_c.copy()
+                if v:
+                    qc_params = q_c.parameters
+                    qc_param_names = {p.name for p in qc_params}
+
+                    filtered_v = {
+                        key: val
+                        for key, val in v.items()
+                        if key in qc_params
+                        or (isinstance(key, str) and key in qc_param_names)
+                    }
+                    b_c = q_c.assign_parameters(filtered_v)
+                else:
+                    b_c = q_c.copy()
 
                 if job.job_type == JobType.STATE_VECTOR:
                     b_c.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
@@ -571,7 +583,6 @@ def run_aer(job: Job) -> Result | BatchResult:
                 job_sim = backend_sim.run(bound_circuits, shots=0)
             else:
                 shots = binding.shots if binding.shots is not None else 1024
-                print(shots)
                 job_sim = backend_sim.run(bound_circuits, shots=shots)
 
             result_sim = job_sim.result()
@@ -874,7 +885,6 @@ def extract_result(
     # If this is a PubResult from primitives V2
     if isinstance(result, (PubResult | SamplerPubResult)):
         res_data = result.data
-
         if hasattr(res_data, "evs"):
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
@@ -1029,7 +1039,6 @@ def extract_result(
             )
 
         if isinstance(result, EstimatorResult):
-
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
@@ -1181,7 +1190,7 @@ def extract_samples(
         A list of sample objects representing measurement outcomes.
 
     """
-    counts = result.get_counts(0)
+    counts = result.get_counts(experiment_index)
     job_data = result.data(experiment_index)
     return [
         Sample(
