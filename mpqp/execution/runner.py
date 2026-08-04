@@ -95,7 +95,6 @@ def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
                     )  # pyright: ignore[reportArgumentType]
                 )
             )
-
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
         list(range(nb_qubits)),
@@ -302,7 +301,7 @@ def _run_circuit_binding(
     circuit_binding: CircuitBinding,
     device: AvailableDevice,
     display_breakpoints: bool = True,
-) -> BatchResult:
+) -> Result | BatchResult:
     """ """
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,

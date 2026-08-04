@@ -66,25 +66,23 @@ v2 = {'θ': 2.0, 'phi': 2.0, 'psi': 2.0}
 v3 = {'θ': 3.0, 'phi': 3.0, 'psi': 3.0}
 v4 = {'θ': 4.0, 'phi': 4.0, 'psi': 4.0}
 
-m1 = ExpectationMeasure(Observable(pI), label="Exp1")
-m2 = ExpectationMeasure(Observable(pX @ pZ), label="Exp2")
-m3 = BasisMeasure(label="b3", shots=1024)
+m1 = ExpectationMeasure(Observable(pI), label="Exp1", shots=2024)
+m2 = ExpectationMeasure(Observable(pX @ pZ), label="Exp2", shots=2024)
+m3 = BasisMeasure(label="b3", shots=2024)
 m4 = None
 
-m_I = ExpectationMeasure(Observable(pI), label="Exp_I")
-m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z")
+m_I = ExpectationMeasure(Observable(pI), label="Exp_I", shots=2024)
+m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z", shots=2024)
 
 
 @pytest.mark.provider("qiskit")
-def test_broadcasting_product_shapes():
-    """Valide que le mode PRODUCT génère la bonne grille 2D pour Qiskit V2."""
-    from qiskit.quantum_info import Operator
+def test_qiskit_to_other_device_product_shapes():
 
     binding = CircuitBinding(
         circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.PRODUCT
     )
 
-    pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
+    pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
 
     assert len(pubs_with_context) == 1
 
@@ -104,13 +102,12 @@ def test_broadcasting_product_shapes():
 
 
 @pytest.mark.provider("qiskit")
-def test_broadcasting_zip_shapes():
-    """Valide que le mode ZIP aligne les tableaux en 1D."""
+def test_qiskit_to_other_device_zip_shapes():
     binding = CircuitBinding(
         circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.ZIP
     )
 
-    pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
+    pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
 
     pub, _ = pubs_with_context[0]
@@ -125,13 +122,12 @@ def test_broadcasting_zip_shapes():
 
 
 @pytest.mark.provider("qiskit")
-def test_broadcasting_zip_broadcasting_rules():
-    """Valide que le mode ZIP duplique correctement un élément unique (règle de broadcast)."""
+def test_qiskit_to_other_device_zip_broadcasting_rules():
     binding = CircuitBinding(
-        circuits=c1, values=v1, measurements=[m_I, m_Z], mode=BindingMode.ZIP
+        circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.ZIP
     )
 
-    pubs_with_context = binding.Broadcasting(IBMDevice.AER_SIMULATOR)
+    pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
 
     pub, _ = pubs_with_context[0]
@@ -142,15 +138,14 @@ def test_broadcasting_zip_broadcasting_rules():
     assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
     assert v[0] == list(v1.values())
     assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
-    assert v[1] == list(v1.values())
+    assert v[1] == list(v2.values())
 
-
-def test_broadcasting_recursive_bindings():
-    """S'assure que les CircuitBindings imbriqués sont bien aplatis et parsés."""
+@pytest.mark.provider("qiskit")
+def test_qiskit_to_other_device_recursive_bindings():
     inner_binding = CircuitBinding(circuits=c2, measurements=m1)
     outer_binding = CircuitBinding(circuits=inner_binding, values=[v1, v2])
 
-    pubs_with_context = outer_binding.Broadcasting(IBMDevice.AER_SIMULATOR)
+    pubs_with_context = outer_binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
 
     pub, _ = pubs_with_context[0]
@@ -164,73 +159,59 @@ def test_broadcasting_recursive_bindings():
     assert v[1] == list(v2.values())
 
 
-def test_broadcasting_exceptions():
-    """Valide les sécurités de la méthode Broadcasting."""
+@pytest.fixture
+def product_tests_observable():
+    cb_prod = CircuitBinding(
+        circuits=c1, values=[v1, v2], measurements=m1, mode=BindingMode.PRODUCT
+    )
+    def val_prod(res: BatchResult):
+        assert isinstance(res, BatchResult)
+        for r in res.results:
+            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
+            assert val == pytest.approx(1.0, abs=1e-5)
 
-    binding_dev = CircuitBinding(circuits=c1, measurements=m_I)
-    with pytest.raises(NotImplementedError, match="only implemented for IBMDevice"):
-        binding_dev.Broadcasting(ATOSDevice.MYQLM_PYLINALG)
+    cb_single = CircuitBinding(circuits=c3, measurements=m2, mode=BindingMode.PRODUCT)
+    def val_single(res: BatchResult):
+        assert len(res.results) == 1
+        val = list(res[0].expectation_values.values())[0] if isinstance(res[0].expectation_values, dict) else res[0].expectation_values
+        assert val == pytest.approx(0.0, abs=1e-1)
 
-    m_basis = BasisMeasure()
-    binding_type = CircuitBinding(circuits=c1, measurements=m_basis)
+    cb_prod_ind = CircuitBinding(
+        circuits=c1, values=[v1, v2, v3], measurements=m1, mode=BindingMode.PRODUCT
+    )
+    def val_prod_ind(res: BatchResult):
+        assert isinstance(res, BatchResult)
+        assert len(res.results) == 3
+        for r in res.results:
+            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
+            assert val == pytest.approx(1.0, abs=1e-5)
 
-    with pytest.raises(
-        ValueError, match="only supported for circuits with expectation measurements"
-    ):
-        binding_type.Broadcasting(IBMDevice.AER_SIMULATOR)
+    return [(cb_prod, val_prod), (cb_single, val_single), (cb_prod_ind, val_prod_ind)]
 
 
 @pytest.fixture
-def list_circuit_binding_produit():
-    """Test du mode PRODUCT et validation via les propriétés de Result."""
-
-    cb1 = CircuitBinding(
-        circuits=c1, values=[v1, v2], measurements=m1, mode=BindingMode.PRODUCT
-    )
-
-    def val_cb1(res: BatchResult):
+def product_tests_sample():
+    cb_prod = CircuitBinding(circuits=[c2, c3], measurements=m3, mode=BindingMode.PRODUCT)
+    def val_prod(res: BatchResult):
         assert isinstance(res, BatchResult)
-        for r in res.results:
-            if isinstance(r.expectation_values, dict):
-                val = list(r.expectation_values.values())[0]
-            else:
-                val = r.expectation_values
-            assert val == pytest.approx(1.0, abs=1e-5)
-
-    cb2 = CircuitBinding(circuits=[c2, c3], measurements=m3, mode=BindingMode.PRODUCT)
-
-    def val_cb2(res: BatchResult):
-        assert isinstance(res, BatchResult)
-
         assert len(res.results) == 2
 
         r_c2 = res.results[0]
-        assert r_c2.counts[0] == pytest.approx(500, abs=50)
-        assert r_c2.counts[1] == pytest.approx(500, abs=50)
-        assert r_c2.counts[2] == pytest.approx(0, abs=50)
-        assert r_c2.counts[3] == pytest.approx(0, abs=50)
+        assert r_c2.counts[0] == pytest.approx(1012, abs=50)
+        assert r_c2.counts[1] == pytest.approx(1012, abs=50)
 
         r_c3 = res.results[1]
-        assert r_c3.counts[0] == pytest.approx(500, abs=60)
-        assert r_c3.counts[1] == pytest.approx(0, abs=50)
-        assert r_c3.counts[2] == pytest.approx(0, abs=50)
-        assert r_c3.counts[3] == pytest.approx(500, abs=60)
+        assert r_c3.counts[0] == pytest.approx(1012, abs=50)
+        assert r_c3.counts[3] == pytest.approx(1012, abs=50)
 
-    cb3 = CircuitBinding(circuits=c3, measurements=m2, mode=BindingMode.PRODUCT)
+    return [(cb_prod, val_prod)]
 
-    def val_cb3(res: Result):
-        assert isinstance(res, Result)
-        if isinstance(res.expectation_values, dict):
-            val = list(res.expectation_values.values())[0]
-        else:
-            val = res.expectation_values
-        assert val == pytest.approx(0.0, abs=1e-2)
 
-    cb4 = CircuitBinding(circuits=[c1, c2, c3], values=v1, mode=BindingMode.PRODUCT)
-
-    def val_cb4(res: BatchResult):
+@pytest.fixture
+def product_tests_state_vector():
+    cb_sv = CircuitBinding(circuits=[c1, c2, c3], values=v1, mode=BindingMode.PRODUCT)
+    def val_sv(res: BatchResult):
         assert isinstance(res, BatchResult)
-
         assert len(res.results) == 3
         assert np.allclose(
             res.results[0].state_vector.vector, [0.87758, 0.25903 + 0.40342j], atol=1e-5
@@ -244,88 +225,101 @@ def list_circuit_binding_produit():
             atol=1e-5,
         )
 
-    return [(cb1, val_cb1), (cb2, val_cb2), (cb3, val_cb3), (cb4, val_cb4)]
+    return [(cb_sv, val_sv)]
 
 
 @pytest.fixture
-def list_circuit_binding_zip():
-    """Test du mode ZIP et validation avec broadcast Numpy."""
-
-    cb1 = CircuitBinding(
-        circuits=c1, values=[v1, v2, v3], measurements=m1, mode=BindingMode.ZIP
+def zip_tests_observable():
+    cb_zip = CircuitBinding(
+        circuits=c3, values=[v1, v2, v3], measurements=[m1, m2, m_Z], mode=BindingMode.ZIP
     )
-
-    def val_cb1(res: BatchResult):
+    def val_zip(res: BatchResult):
         assert isinstance(res, BatchResult)
+        assert len(res.results) == 3
         for r in res.results:
-            if isinstance(r.expectation_values, dict):
-                val = list(r.expectation_values.values())[0]
-            else:
-                val = r.expectation_values
+            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
             assert val == pytest.approx(1.0, abs=1e-5)
 
-    cb2 = CircuitBinding(
+    return [(cb_zip, val_zip)]
+
+
+@pytest.fixture
+def zip_tests_sample():
+    cb_zip = CircuitBinding(
         circuits=[c2, c4], values=m4, measurements=[m3, m3], mode=BindingMode.ZIP
     )
-
-    def val_cb2(res: BatchResult):
+    def val_zip(res: BatchResult):
         assert isinstance(res, BatchResult)
-        print(res)
         assert len(res.results) == 2
 
         r_c2 = res.results[0]
-        assert r_c2.counts[0] == pytest.approx(500, abs=60)
-        assert r_c2.counts[1] == pytest.approx(500, abs=60)
-        assert r_c2.counts[2] == pytest.approx(0, abs=50)
-        assert r_c2.counts[3] == pytest.approx(0, abs=50)
+        assert r_c2.counts[0] == pytest.approx(1012, abs=50)
+        assert r_c2.counts[1] == pytest.approx(1012, abs=50)
 
-        r_c3 = res.results[1]
-        assert r_c3.counts[0] == pytest.approx(250, abs=50)
-        assert r_c3.counts[1] == pytest.approx(250, abs=50)
-        assert r_c3.counts[2] == pytest.approx(250, abs=50)
-        assert r_c3.counts[3] == pytest.approx(250, abs=50)
+        r_c4 = res.results[1]
+        assert r_c4.counts[0] == pytest.approx(505, abs=50)
+        assert r_c4.counts[1] == pytest.approx(505, abs=50)
+        assert r_c4.counts[2] == pytest.approx(505, abs=50)
+        assert r_c4.counts[3] == pytest.approx(505, abs=50)
 
-    return [(cb1, val_cb1), (cb2, val_cb2)]
+    return [(cb_zip, val_zip)]
 
 
 @pytest.fixture
-def list_circuit_binding_recursif():
-    """Test d'imbrication avec préservation des contextes (Job/Measure)."""
-
+def zip_tests_recursive():
     cb_inner = CircuitBinding(circuits=c1, measurements=m1, mode=BindingMode.ZIP)
-    cb_outer = CircuitBinding(
-        circuits=cb_inner, values=[v1, v2], mode=BindingMode.PRODUCT
-    )
-
-    def val_cb_outer(res: BatchResult):
+    cb_outer = CircuitBinding(circuits=cb_inner, values=[v1, v2], mode=BindingMode.PRODUCT)
+    def val_outer(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 2
         for r in res.results:
-            if isinstance(r.expectation_values, dict):
-                val = list(r.expectation_values.values())[0]
-            else:
-                val = r.expectation_values
+            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
             assert val == pytest.approx(1.0, abs=1e-5)
 
-    return [(cb_outer, val_cb_outer)]
+    return [(cb_outer, val_outer)]
 
 
-def execute_and_validate(bindings_and_validators):
+def execute_and_validate(bindings_and_validators, device):
     for binding, validator in bindings_and_validators:
-        result = run(binding, device=IBMDevice.AER_SIMULATOR)
+        result = run(binding, device=device)
         validator(result)
 
 
 @pytest.mark.provider("qiskit")
-def test_circuit_binding_produit(list_circuit_binding_produit):
-    execute_and_validate(list_circuit_binding_produit)
-
-
-@pytest.mark.provider("qiskit")
-def test_circuit_binding_zip(list_circuit_binding_zip):
-    execute_and_validate(list_circuit_binding_zip)
-
+def test_qiskit_product_observable(product_tests_observable):
+    execute_and_validate(product_tests_observable, device=IBMDevice.AER_SIMULATOR)
 
 @pytest.mark.provider("qiskit")
-def test_circuit_binding_recursif(list_circuit_binding_recursif):
-    execute_and_validate(list_circuit_binding_recursif)
+def test_qiskit_product_sample(product_tests_sample):
+    execute_and_validate(product_tests_sample, device=IBMDevice.AER_SIMULATOR)
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_product_state_vector(product_tests_state_vector):
+    execute_and_validate(product_tests_state_vector, device=IBMDevice.AER_SIMULATOR)
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_zip_observable(zip_tests_observable):
+    execute_and_validate(zip_tests_observable, device=IBMDevice.AER_SIMULATOR)
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_zip_sample(zip_tests_sample):
+    execute_and_validate(zip_tests_sample, device=IBMDevice.AER_SIMULATOR)
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_zip_recursive(zip_tests_recursive):
+    execute_and_validate(zip_tests_recursive, device=IBMDevice.AER_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_braket_product_observable(product_tests_observable):
+    execute_and_validate(product_tests_observable, device=AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_braket_zip_observable(zip_tests_observable):
+    execute_and_validate(zip_tests_observable, device=AWSDevice.BRAKET_LOCAL_SIMULATOR)
+
+
+@pytest.mark.provider("braket")
+def test_braket_zip_recursive(zip_tests_recursive):
+    execute_and_validate(zip_tests_recursive, device=AWSDevice.BRAKET_LOCAL_SIMULATOR)

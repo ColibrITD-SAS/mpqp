@@ -157,7 +157,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
             f"{job.device} instead"
         )
     device = get_braket_device(job.device, is_noisy=circuitBinding.is_noisy)
-    braket_circuit = circuitBinding.to_other_language(Language.BRAKET)
+    braket_circuit = circuitBinding.to_other_device(job.device)
     jobs = circuitBinding.unroll()
     task = device.run(braket_circuit, shots=None, inputs=None).result()
     result = []
