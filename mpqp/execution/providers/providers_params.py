@@ -3,6 +3,7 @@ to configure more precisely the run on local or remote devices."""
 
 from typing import Optional
 
+
 class ProviderParams:
     """Abstract class meant to regroup a set of provider specific parameters needed at runtime."""
 

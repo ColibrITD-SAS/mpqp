@@ -329,7 +329,9 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        if provider_params is not None and not isinstance(provider_params, QiskitParams):
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
             raise ValueError(
                 f"provider_params should be QiskitParam not {type(provider_params)}"
             )
