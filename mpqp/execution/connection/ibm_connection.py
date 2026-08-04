@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime import QiskitRuntimeService
 
 
-Runtime_Service = None
+Runtime_Service: dict[Optional[str], QiskitRuntimeService] = {}
 
 
 def config_ibm_account(token: str, channel: str, instance: Optional[str] = None):
@@ -42,6 +42,7 @@ def config_ibm_account(token: str, channel: str, instance: Optional[str] = None)
         save_env_variable("IBM_CONFIGURED", "True")
         save_env_variable("IBM_TOKEN", token.strip())
         save_env_variable("IBM_CHANNEL", channel)
+        save_env_variable("IBM_INSTANCE", instance if instance is not None else "")
     except Exception as err:
         # if an error occurred, we put False in the mpqp config file
         save_env_variable("IBM_CONFIGURED", "False")
@@ -130,7 +131,7 @@ def test_connection() -> bool:
 
     global Runtime_Service
     try:
-        Runtime_Service = QiskitRuntimeService()
+        Runtime_Service[None] = QiskitRuntimeService()
     except IBMNotAuthorizedError as err:
         if "Login failed" in str(err):
             print(colored("Wrong credentials", "red"))
@@ -161,19 +162,20 @@ def get_QiskitRuntimeService(instance: Optional[str] = None) -> "QiskitRuntimeSe
     from qiskit_ibm_runtime import QiskitRuntimeService
 
     global Runtime_Service
-    if Runtime_Service is None:
+    if instance not in Runtime_Service:
         if get_env_variable("IBM_CONFIGURED") == "False":
             raise IBMRemoteExecutionError(
                 "Error when instantiating QiskitRuntimeService. No IBM account configured."
             )
         try:
-            Runtime_Service = QiskitRuntimeService(instance=instance)
+            Runtime_Service: dict[Optional[str], QiskitRuntimeService] = {}
+            Runtime_Service[instance] = QiskitRuntimeService(instance=instance)
         except Exception as err:
             raise IBMRemoteExecutionError(
                 "Error when instantiating QiskitRuntimeService (probably wrong token saved "
                 "in the account).\nTrace: " + str(err)
             )
-    return Runtime_Service
+    return Runtime_Service[instance]
 
 
 def get_active_account_info() -> str:
@@ -225,8 +227,9 @@ def delete_ibm_account():
     save_env_variable("IBM_CONFIGURED", "False")
     save_env_variable("IBM_TOKEN", "")
     save_env_variable("IBM_CHANNEL", "")
+    save_env_variable("IBM_INSTANCE", "")   
 
-    Runtime_Service = None
+    Runtime_Service = {}
 
     print(colored("IBM Quantum account deleted.", "green"))
     input("Press 'Enter' to continue")
