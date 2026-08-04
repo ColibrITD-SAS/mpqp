@@ -2459,7 +2459,7 @@ class CircuitBinding:
         import itertools
 
         base_items = []
-        circs = self.circuits if isinstance(self.circuits, list) else [self.circuits]
+        circs = self.circuits
         for c in circs:
             if isinstance(c, CircuitBinding):
                 base_items.extend(c.unroll())
