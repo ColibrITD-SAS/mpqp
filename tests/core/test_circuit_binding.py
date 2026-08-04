@@ -140,6 +140,7 @@ def test_qiskit_to_other_device_zip_broadcasting_rules():
     assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
     assert v[1] == list(v2.values())
 
+
 @pytest.mark.provider("qiskit")
 def test_qiskit_to_other_device_recursive_bindings():
     inner_binding = CircuitBinding(circuits=c2, measurements=m1)
@@ -164,26 +165,41 @@ def product_tests_observable():
     cb_prod = CircuitBinding(
         circuits=c1, values=[v1, v2], measurements=m1, mode=BindingMode.PRODUCT
     )
+
     def val_prod(res: BatchResult):
         assert isinstance(res, BatchResult)
         for r in res.results:
-            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
+            val = (
+                list(r.expectation_values.values())[0]
+                if isinstance(r.expectation_values, dict)
+                else r.expectation_values
+            )
             assert val == pytest.approx(1.0, abs=1e-5)
 
     cb_single = CircuitBinding(circuits=c3, measurements=m2, mode=BindingMode.PRODUCT)
+
     def val_single(res: BatchResult):
         assert len(res.results) == 1
-        val = list(res[0].expectation_values.values())[0] if isinstance(res[0].expectation_values, dict) else res[0].expectation_values
+        val = (
+            list(res[0].expectation_values.values())[0]
+            if isinstance(res[0].expectation_values, dict)
+            else res[0].expectation_values
+        )
         assert val == pytest.approx(0.0, abs=1e-1)
 
     cb_prod_ind = CircuitBinding(
         circuits=c1, values=[v1, v2, v3], measurements=m1, mode=BindingMode.PRODUCT
     )
+
     def val_prod_ind(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 3
         for r in res.results:
-            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
+            val = (
+                list(r.expectation_values.values())[0]
+                if isinstance(r.expectation_values, dict)
+                else r.expectation_values
+            )
             assert val == pytest.approx(1.0, abs=1e-5)
 
     return [(cb_prod, val_prod), (cb_single, val_single), (cb_prod_ind, val_prod_ind)]
@@ -191,7 +207,10 @@ def product_tests_observable():
 
 @pytest.fixture
 def product_tests_sample():
-    cb_prod = CircuitBinding(circuits=[c2, c3], measurements=m3, mode=BindingMode.PRODUCT)
+    cb_prod = CircuitBinding(
+        circuits=[c2, c3], measurements=m3, mode=BindingMode.PRODUCT
+    )
+
     def val_prod(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 2
@@ -210,6 +229,7 @@ def product_tests_sample():
 @pytest.fixture
 def product_tests_state_vector():
     cb_sv = CircuitBinding(circuits=[c1, c2, c3], values=v1, mode=BindingMode.PRODUCT)
+
     def val_sv(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 3
@@ -231,13 +251,21 @@ def product_tests_state_vector():
 @pytest.fixture
 def zip_tests_observable():
     cb_zip = CircuitBinding(
-        circuits=c3, values=[v1, v2, v3], measurements=[m1, m2, m_Z], mode=BindingMode.ZIP
+        circuits=c3,
+        values=[v1, v2, v3],
+        measurements=[m1, m2, m_Z],
+        mode=BindingMode.ZIP,
     )
+
     def val_zip(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 3
         for r in res.results:
-            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
+            val = (
+                list(r.expectation_values.values())[0]
+                if isinstance(r.expectation_values, dict)
+                else r.expectation_values
+            )
             assert val == pytest.approx(1.0, abs=1e-5)
 
     return [(cb_zip, val_zip)]
@@ -248,6 +276,7 @@ def zip_tests_sample():
     cb_zip = CircuitBinding(
         circuits=[c2, c4], values=m4, measurements=[m3, m3], mode=BindingMode.ZIP
     )
+
     def val_zip(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 2
@@ -268,12 +297,19 @@ def zip_tests_sample():
 @pytest.fixture
 def zip_tests_recursive():
     cb_inner = CircuitBinding(circuits=c1, measurements=m1, mode=BindingMode.ZIP)
-    cb_outer = CircuitBinding(circuits=cb_inner, values=[v1, v2], mode=BindingMode.PRODUCT)
+    cb_outer = CircuitBinding(
+        circuits=cb_inner, values=[v1, v2], mode=BindingMode.PRODUCT
+    )
+
     def val_outer(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 2
         for r in res.results:
-            val = list(r.expectation_values.values())[0] if isinstance(r.expectation_values, dict) else r.expectation_values
+            val = (
+                list(r.expectation_values.values())[0]
+                if isinstance(r.expectation_values, dict)
+                else r.expectation_values
+            )
             assert val == pytest.approx(1.0, abs=1e-5)
 
     return [(cb_outer, val_outer)]
@@ -289,21 +325,26 @@ def execute_and_validate(bindings_and_validators, device):
 def test_qiskit_product_observable(product_tests_observable):
     execute_and_validate(product_tests_observable, device=IBMDevice.AER_SIMULATOR)
 
+
 @pytest.mark.provider("qiskit")
 def test_qiskit_product_sample(product_tests_sample):
     execute_and_validate(product_tests_sample, device=IBMDevice.AER_SIMULATOR)
+
 
 @pytest.mark.provider("qiskit")
 def test_qiskit_product_state_vector(product_tests_state_vector):
     execute_and_validate(product_tests_state_vector, device=IBMDevice.AER_SIMULATOR)
 
+
 @pytest.mark.provider("qiskit")
 def test_qiskit_zip_observable(zip_tests_observable):
     execute_and_validate(zip_tests_observable, device=IBMDevice.AER_SIMULATOR)
 
+
 @pytest.mark.provider("qiskit")
 def test_qiskit_zip_sample(zip_tests_sample):
     execute_and_validate(zip_tests_sample, device=IBMDevice.AER_SIMULATOR)
+
 
 @pytest.mark.provider("qiskit")
 def test_qiskit_zip_recursive(zip_tests_recursive):
@@ -312,7 +353,9 @@ def test_qiskit_zip_recursive(zip_tests_recursive):
 
 @pytest.mark.provider("braket")
 def test_braket_product_observable(product_tests_observable):
-    execute_and_validate(product_tests_observable, device=AWSDevice.BRAKET_LOCAL_SIMULATOR)
+    execute_and_validate(
+        product_tests_observable, device=AWSDevice.BRAKET_LOCAL_SIMULATOR
+    )
 
 
 @pytest.mark.provider("braket")

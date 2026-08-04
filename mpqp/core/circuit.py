@@ -2341,7 +2341,11 @@ class CircuitBinding:
                 if isinstance(measurements, Measure)
                 else list(measurements)
             )
-            self.job_type = JobType.OBSERVABLE if isinstance(measurements[0], ExpectationMeasure) else JobType.SAMPLE
+            self.job_type = (
+                JobType.OBSERVABLE
+                if isinstance(measurements[0], ExpectationMeasure)
+                else JobType.SAMPLE
+            )
 
             shots_ = None
             for measure in measurements:
@@ -2508,7 +2512,9 @@ class CircuitBinding:
         self, device: AWSDevice, programSet: Literal[True]
     ) -> ProgramSet: ...
     @overload
-    def to_other_device(self, device: IBMDevice) -> list[tuple["EstimatorPubLike", "Job"]]: ...
+    def to_other_device(
+        self, device: IBMDevice
+    ) -> list[tuple["EstimatorPubLike", "Job"]]: ...
     @overload
     def to_other_device(
         self, device: AvailableDevice, programSet: Literal[False]
@@ -2587,7 +2593,7 @@ class CircuitBinding:
 
                 pubs_with_context.append((pub, context_job))
 
-            return pubs_with_context   
+            return pubs_with_context
         elif isinstance(device, AWSDevice):
             from braket.program_sets import ProgramSet
             from braket.circuits import Circuit
@@ -2668,9 +2674,7 @@ class CircuitBinding:
                 i = 0
             if self.mode == BindingMode.ZIP:
                 if not var and not obs:
-                    executables = [(None, None)] * (
-                        1 if i == -1 else len(translated)
-                    )
+                    executables = [(None, None)] * (1 if i == -1 else len(translated))
                 else:
                     executables = list(
                         zip(
