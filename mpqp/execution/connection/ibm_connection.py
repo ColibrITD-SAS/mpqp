@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime import QiskitRuntimeService
 
 
-Runtime_Service: dict[Optional[str], QiskitRuntimeService] = {}
+Runtime_Service: dict[Optional[str], "QiskitRuntimeService"] = {}
 
 
 def config_ibm_account(token: str, channel: str, instance: Optional[str] = None):
