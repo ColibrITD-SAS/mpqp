@@ -12,6 +12,7 @@ from typing import Any, Optional, Type
 import pytest
 from anytree import Node
 from dotenv import dotenv_values, set_key, unset_key
+from matplotlib import pyplot as plt
 from numpy.random import default_rng
 from sympy import symbols
 
@@ -133,6 +134,7 @@ from mpqp.tools.maths import (
     rand_product_local_unitaries,
     rand_unitary_2x2_matrix,
     rand_unitary_matrix,
+    rearrange_matrix,
 )
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy
@@ -272,6 +274,8 @@ def run_doctest(
             skip_provider_flags[name] = flag
 
     monkeypatch.setattr('numpy.random.default_rng', stable_random)
+    monkeypatch.setattr(plt, "show", lambda *args, **kwargs: None)
+
     warnings.filterwarnings("ignore", category=UnsupportedBraketFeaturesWarning)
     warnings.filterwarnings("ignore", category=OpenQASMTranslationWarning)
     warnings.filterwarnings(
