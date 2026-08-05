@@ -109,7 +109,10 @@ def get_remote_result(
     elif isinstance(job_device, AZUREDevice):
         return get_result_from_azure_job_id(job_id)
     elif isinstance(job_device, QUANTINUUMDevice):
-        return get_result_from_quantinuum_job_id(job_id)
+        return get_result_from_quantinuum_job_id(
+            job_id,
+            job=job_data if isinstance(job_data, Job) else None,
+        )
     else:
         raise NotImplementedError(
             f"The device {job_device.name} is not supported for remote features."

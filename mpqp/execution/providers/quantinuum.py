@@ -268,17 +268,10 @@ def run_quantinuum_observable(job: Job) -> Result:
             "qubit-wise commuting Pauli grouping."
         )
 
-    from mpqp.tools.pauli_grouping import (
-        find_qubitwise_rotations,
-        pauli_monomial_eigenvalues,
-    )
+    from mpqp.tools.pauli_grouping import find_qubitwise_rotations
 
     grouped_probabilities = []
     grouping = job.measure.get_pauli_grouping()
-    eigenvalues = [
-        {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
-        for group in grouping
-    ]
     for group in grouping:
         pre_measure = QCircuit(find_qubitwise_rotations(group))
         sample_circuit = circuit + pre_measure
@@ -293,10 +286,39 @@ def run_quantinuum_observable(job: Job) -> Result:
         job.id = sample_job.id
         grouped_probabilities.append(sample_result.probabilities)
 
+    return extract_sampled_observable_result(job, grouped_probabilities)
+
+
+def extract_sampled_observable_result(
+    job: Job,
+    grouped_probabilities: list[npt.NDArray[np.float64]],
+) -> Result:
+    """Reconstruct a sampled observable result from one probability vector per
+    Pauli group by combining the measured probabilities with the eigenvalues and
+    coefficients of the observable's Pauli terms.
+    """
+    if not isinstance(job.measure, ExpectationMeasure):
+        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+
+    grouping = job.measure.get_pauli_grouping()
+    if len(grouped_probabilities) != len(grouping):
+        raise ValueError(
+            "The number of Quantinuum observable results "
+            f"({len(grouped_probabilities)}) does not match the number of "
+            f"submitted Pauli groups ({len(grouping)})."
+        )
+
+    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
+    eigenvalues = [
+        {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
+        for group in grouping
+    ]
+
     expectation_values: dict[str, float] = {}
     errors: dict[str, float] = {}
     for label, observable in zip(
-        observable_labels,
+        job.measure.observables_labels,
         job.measure.observables,
     ):
         expectation_value = 0.0
@@ -343,6 +365,60 @@ def run_quantinuum_observable(job: Job) -> Result:
     )
 
 
+def submit_quantinuum_observable(job: Job) -> tuple[str, "ExecuteJobRef"]:
+    """Submit an observable as one Nexus execution job.
+
+    Exact observables submit one state-vector circuit. For sampled observables,
+    each qubit-wise commuting Pauli group is submitted as a circuit containing
+    the required basis change followed by a measurement. The original
+    MPQP `Job` is required to reconstruct the expectation value from the
+    returned states or counts.
+    """
+    if not isinstance(job.device, QUANTINUUMDevice) or not job.device.is_remote():
+        raise ValueError("Observable submission requires a remote Quantinuum device.")
+    if not isinstance(job.measure, ExpectationMeasure):
+        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+
+    circuit = job.circuit.without_measurements()
+    if job.measure.shots == 0:
+        if not job.device.supports_state_vector():
+            raise ValueError(
+                f"{job.device} requires a positive number of shots for observable jobs."
+            )
+        circuits = [circuit]
+        n_shots: list[int | None] = [None]
+    else:
+        if not job.device.supports_samples():
+            raise ValueError(f"{job.device} does not support sampled observable jobs.")
+        if job.measure.commuting_type != CommutingTypes.QUBITWISE:
+            raise NotImplementedError(
+                "Quantinuum sample-derived observable jobs currently support only "
+                "qubit-wise commuting Pauli grouping."
+            )
+
+        from mpqp.tools.pauli_grouping import find_qubitwise_rotations
+
+        circuits = []
+        for group in job.measure.get_pauli_grouping():
+            sample_circuit = circuit + QCircuit(find_qubitwise_rotations(group))
+            sample_circuit.add(
+                BasisMeasure(
+                    list(range(job.circuit.nb_qubits)),
+                    shots=job.measure.shots,
+                )
+            )
+            circuits.append(sample_circuit)
+        n_shots = [job.measure.shots] * len(circuits)
+
+    return submit_circuits_to_nexus(
+        job,
+        circuits,
+        n_shots,
+        name=f"mpqp-observable-{job.device.value}",
+        description="mpqp:observable",
+    )
+
+
 def extract_observable_result(
     job: Job,
     expectation_values: dict[str, float],
@@ -369,6 +445,8 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
             f"a {job.device} instead."
         )
 
+    if job.job_type == JobType.OBSERVABLE:
+        return submit_quantinuum_observable(job)
     if job.job_type == JobType.SAMPLE:
         if not job.device.supports_samples():
             raise ValueError(f"{job.device} does not support `SAMPLE` jobs.")
@@ -380,28 +458,57 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
     else:
         raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
 
+    if job.job_type == JobType.SAMPLE:
+        if TYPE_CHECKING:
+            assert job.measure is not None
+        n_shots: list[int | None] = [job.measure.shots]
+    else:
+        n_shots = [None]
+
+    return submit_circuits_to_nexus(
+        job,
+        [job.circuit],
+        n_shots,
+        name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
+    )
+
+
+def submit_circuits_to_nexus(
+    job: Job,
+    circuits: list[QCircuit],
+    n_shots: list[int | None],
+    name: str,
+    description: str = "",
+) -> tuple[str, "ExecuteJobRef"]:
+    """Upload, compile, and submit several circuits as one Nexus execute job."""
+
+    if not isinstance(job.device, QUANTINUUMDevice) or not job.device.is_remote():
+        raise ValueError("Nexus submission requires a remote Quantinuum device.")
+
     import qnexus as qnx
     from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
 
-    if job.circuit.transpiled_circuit is None:
-        tket_circuit = job.circuit.to_other_device(job.device)
-    else:
-        qiskit_circuit = job.circuit.transpiled_circuit
-        if TYPE_CHECKING:
-            assert isinstance(qiskit_circuit, QuantumCircuit)
-        tket_circuit = qiskit_to_tk(qiskit_circuit)
+    tket_circuits = []
+    for circuit in circuits:
+        if circuit.transpiled_circuit is None:
+            tket_circuits.append(circuit.to_other_device(job.device))
+        else:
+            qiskit_circuit = circuit.transpiled_circuit
+            if TYPE_CHECKING:
+                assert isinstance(qiskit_circuit, QuantumCircuit)
+            tket_circuits.append(qiskit_to_tk(qiskit_circuit))
 
     backend_config = get_quantinuum_config(job.device)
-
-    name = f"mpqp-{job.job_type.name.lower()}-{job.device.value}"
-
-    uploaded_circuit_ref = qnx.circuits.upload(
-        circuit=tket_circuit,
-        name=f"{name}-circuit",
-    )
+    uploaded_circuit_refs = [
+        qnx.circuits.upload(
+            circuit=tket_circuit,
+            name=f"{name}-circuit-{index}",
+        )
+        for index, tket_circuit in enumerate(tket_circuits)
+    ]
 
     compile_job_ref = qnx.start_compile_job(
-        programs=[uploaded_circuit_ref],
+        programs=uploaded_circuit_refs,
         backend_config=backend_config,
         optimisation_level=0,
         name=f"{name}-compilation-job",
@@ -409,36 +516,37 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
 
     compilation_status = qnx.jobs.wait_for(compile_job_ref)
 
-    compiled_circuit_refs = qnx.jobs.results(compile_job_ref)
-    if not compiled_circuit_refs:
+    compilation_result_refs = qnx.jobs.results(compile_job_ref)
+    if not compilation_result_refs:
         status = compilation_status.status.value
         raise RuntimeError(
             f"Quantinuum Nexus compilation job '{compile_job_ref.id}' finished "
             f"with status '{status}', but no compiled circuit was returned."
         )
 
-    compilation_result_ref = compiled_circuit_refs[0]
-    if TYPE_CHECKING:
-        assert isinstance(compilation_result_ref, CompilationResultRef)
-    compiled_circuit_ref = compilation_result_ref.get_output()
-    if TYPE_CHECKING:
-        assert isinstance(compiled_circuit_ref, CircuitRef)
+    compiled_circuit_refs = []
+    for compilation_result_ref in compilation_result_refs:
+        if TYPE_CHECKING:
+            assert isinstance(compilation_result_ref, CompilationResultRef)
+        compiled_circuit_ref = compilation_result_ref.get_output()
+        if TYPE_CHECKING:
+            assert isinstance(compiled_circuit_ref, CircuitRef)
+        compiled_circuit_refs.append(compiled_circuit_ref)
+
+    if len(compiled_circuit_refs) != len(circuits):
+        raise RuntimeError(
+            f"Quantinuum Nexus compiled {len(compiled_circuit_refs)} circuits, "
+            f"but {len(circuits)} were submitted."
+        )
 
     job.status = JobStatus.RUNNING
 
-    n_shots: list[int] | list[None]
-    if job.job_type == JobType.SAMPLE:
-        if TYPE_CHECKING:
-            assert job.measure is not None
-        n_shots = [job.measure.shots]
-    else:
-        n_shots = [None]
-
     execute_job_ref = qnx.start_execute_job(
-        programs=[compiled_circuit_ref],
+        programs=compiled_circuit_refs,
         backend_config=backend_config,
         n_shots=n_shots,
         name=f"{name}-execution-job",
+        description=description,
     )
 
     job.id = str(execute_job_ref.id)
@@ -513,7 +621,10 @@ def extract_result(backend_result: "BackendResult", job: Job) -> Result:
         raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
 
 
-def get_result_from_quantinuum_job_id(job_id: str) -> Result:
+def get_result_from_quantinuum_job_id(
+    job_id: str,
+    job: Job | None = None,
+) -> Result:
     """Retrieve a Quantinuum Nexus job result and convert it to an MPQP result."""
     import qnexus as qnx
 
@@ -527,6 +638,57 @@ def get_result_from_quantinuum_job_id(job_id: str) -> Result:
         raise RuntimeError(
             f"Quantinuum Nexus execution job '{job_id}' finished with status "
             f"'{status}', but no result was returned."
+        )
+
+    if job is not None and job.job_type == JobType.OBSERVABLE:
+        if not isinstance(job.measure, ExpectationMeasure):
+            raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+        job.id = job_id
+        if job.measure.shots == 0:
+            if len(result_refs) != 1:
+                raise ValueError(
+                    "An exact Quantinuum observable job must return one state-vector "
+                    f"result, but returned {len(result_refs)}."
+                )
+            result_ref = result_refs[0]
+            if TYPE_CHECKING:
+                assert isinstance(result_ref, ExecutionResultRef)
+            backend_result = result_ref.download_result()
+            if TYPE_CHECKING:
+                assert isinstance(backend_result, BackendResult)
+            state = backend_result.get_state()
+            expectation_values = {
+                label: float(np.vdot(state, observable.matrix @ state).real)
+                for label, observable in zip(
+                    job.measure.observables_labels,
+                    job.measure.observables,
+                )
+            }
+            return extract_observable_result(job, expectation_values, 0.0, 0)
+
+        grouped_probabilities = []
+        for result_ref in result_refs:
+            if TYPE_CHECKING:
+                assert isinstance(result_ref, ExecutionResultRef)
+            backend_result = result_ref.download_result()
+            if TYPE_CHECKING:
+                assert isinstance(backend_result, BackendResult)
+            raw_counts = backend_result.get_counts()
+            shots = sum(raw_counts.values())
+            if shots == 0:
+                raise ValueError(
+                    f"Quantinuum observable job '{job_id}' returned no sample counts."
+                )
+            probabilities = np.zeros(2**job.circuit.nb_qubits, dtype=np.float64)
+            for outcome, count in raw_counts.items():
+                index = int("".join(str(bit) for bit in outcome), 2)
+                probabilities[index] = count / shots
+            grouped_probabilities.append(probabilities)
+        return extract_sampled_observable_result(job, grouped_probabilities)
+
+    if job is None and job_ref.annotations.description == "mpqp:observable":
+        raise ValueError(
+            "Retrieving a Quantinuum observable result requires the original MPQP `Job`."
         )
 
     result_ref = result_refs[0]
