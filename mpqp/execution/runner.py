@@ -95,7 +95,6 @@ def adjust_measure(measure: ExpectationMeasure, nb_qubits: int):
                     )  # pyright: ignore[reportArgumentType]
                 )
             )
-
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
         list(range(nb_qubits)),
@@ -302,7 +301,7 @@ def _run_circuit_binding(
     circuit_binding: CircuitBinding,
     device: AvailableDevice,
     display_breakpoints: bool = True,
-) -> BatchResult:
+) -> Result | BatchResult:
     """ """
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
@@ -335,8 +334,7 @@ def _run_circuit_binding(
         raise NotImplementedError(f"Device {device} not handled")
         result = run_atos(jobs)  # TODO
     elif isinstance(device, AWSDevice):
-        raise NotImplementedError(f"Device {device} not handled")
-        result = run_braket(jobs)  # TODO
+        result = run_braket(job)  # TODO
     elif isinstance(device, GOOGLEDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_google(jobs)  # TODO

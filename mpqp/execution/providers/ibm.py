@@ -90,9 +90,7 @@ def compute_expectation_value(
             raise ValueError("pubs_contexts must perfectly map 1:1 to pubs.")
 
         nb_shots = shots
-        context_jobs_to_run = (
-            pubs_contexts  # On récupère les contextes générés par Broadcasting
-        )
+        context_jobs_to_run = pubs_contexts
 
         for pub in pubs:
             circ = pub[0]
@@ -197,8 +195,6 @@ def compute_expectation_value(
         else:
             final_flat_results.append(item)
 
-    if len(final_flat_results) == 1:
-        return final_flat_results[0]
     return BatchResult(final_flat_results)
 
 
@@ -501,12 +497,7 @@ def run_aer(job: Job) -> Result | BatchResult:
 
         if job.job_type == JobType.OBSERVABLE:
 
-            if binding.measurements is None:
-                raise ValueError(
-                    "CircuitBinding requires measurements for OBSERVABLE job types."
-                )
-
-            pubs_with_context = binding.Broadcasting(job.device)
+            pubs_with_context = binding.to_other_device(job.device)
 
             pubs = [item[0] for item in pubs_with_context]
             contexts = [item[1] for item in pubs_with_context]
