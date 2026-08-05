@@ -891,7 +891,9 @@ def extract_result(
                 else result.metadata["shots"]
             )
 
-            measures: list[ExpectationMeasure] = job.circuit.measurements if job.circuit.measurements else []
+            measures: list[ExpectationMeasure] = (
+                job.circuit.measurements if job.circuit.measurements else []
+            )
 
             if exp_values.ndim == 0:
                 val = float(exp_values)
