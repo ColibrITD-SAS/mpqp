@@ -22,6 +22,6 @@ m_I = ExpectationMeasure(Observable(pI), label="Exp_I")
 m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z")
 
 cb_zip = CircuitBinding(
-        circuits=c1, values=[v1, v2, v3], measurements=m1, mode=BindingMode.ZIP
-    )
+    circuits=c1, values=[v1, v2, v3], measurements=m1, mode=BindingMode.ZIP
+)
 print(cb_zip)
