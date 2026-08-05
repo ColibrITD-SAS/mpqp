@@ -891,16 +891,12 @@ def extract_result(
                 else result.metadata["shots"]
             )
 
-            measures = job.circuit.measurements if job.circuit.measurements else []
+            measures: list[ExpectationMeasure] = job.circuit.measurements if job.circuit.measurements else []
 
             if exp_values.ndim == 0:
                 val = float(exp_values)
                 std = float(stds) if stds.size > 0 else 0.0
-                m = measures[0] if measures else None
-                obs = m.observables[0] if m.observables else None
-                label = obs.label if obs else "ibm_obs_0"
                 return Result(job, val, std, shots)
-
             elif exp_values.ndim == 2:
                 N_obs, M_params = exp_values.shape
                 batch_results = []
@@ -946,7 +942,7 @@ def extract_result(
                     return BatchResult(batch_results)
             else:
                 batch_results = []
-                observables = job.measure.observables
+                observables = measures[0].observables
                 nb_observables = len(observables)
                 for idx, val in np.ndenumerate(exp_values):
                     std_val = float(stds[idx]) if stds.size > 0 else 0.0
