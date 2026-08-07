@@ -534,6 +534,8 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
+        if TYPE_CHECKING:
+            assert provider_params is None or isinstance(provider_params, QiskitParams)
         job_id, _ = submit_remote_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
