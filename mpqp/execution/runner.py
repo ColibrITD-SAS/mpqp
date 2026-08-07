@@ -18,6 +18,7 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 
 from __future__ import annotations
 
+from itertools import pairwise
 from numbers import Complex
 from textwrap import indent
 from typing import TYPE_CHECKING, Iterable, Optional, Sequence, overload
@@ -45,6 +46,7 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
+from mpqp.execution.providers.providers_params import ProviderParams, QiskitParams
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -55,48 +57,99 @@ if TYPE_CHECKING:
 
 
 def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
-    """We allow the measure to not span the entire circuit, but providers
+    """A measure can be incomplete and not span the entire circuit, but providers
     usually do not support this behavior. To make this work, we tweak the measure
     this function to match the expected behavior.
 
-    In order to do this, we add identity measures on the qubits not targeted by
-    the measure. In addition to this, some swaps are automatically added so the
-    the qubits measured are ordered and contiguous (though this is done in
-    :func:`generate_job`)
+    In order to do this, we place identity operators on the qubits not targeted
+    by the measure. If the targets are not ordered, each observable is first
+    reordered so that its local qubit order matches the sorted target order.
+    Pauli observables are directly embedded on their target qubits, while matrix
+    observables are padded with identity matrices when the targets are ordered
+    and contiguous, and are otherwise embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
-        circuit: The circuit to which will be added the potential swaps allowing
-            the user to get the expectation value of the qubits in an arbitrary
-            order (this part is not handled by this function).
+        circuit: The circuit defining the full qubit register.
 
     Returns:
-        The measure padded with identities before and after.
+        A measure targeting all circuit qubits, with observables embedded into
+        the full register.
     """
     # TODO: use this only for specific provider
 
     if measure.targets == list(range(circuit.nb_qubits)):
         return measure
 
-    tweaked_observables = []
-    n_before = measure.rearranged_targets[0]
-    n_after = circuit.nb_qubits - measure.rearranged_targets[-1] - 1
-    for obs in measure.observables:
-        if obs._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
-            from mpqp.measures import pI
+    nb_qubits = circuit.nb_qubits
+    targets = measure.targets
 
-            pauli = pI(n_before - 1) @ obs.pauli_string @ pI(n_after - 1)
-            tweaked_observables.append(Observable(pauli))
-        else:
+    targets_is_ordered = all(a < b for a, b in pairwise(targets))
+    if not targets_is_ordered:
+        ordered_targets = sorted(targets)
+        contiguous_targets = [targets.index(t) for t in ordered_targets]
+        for obs in measure.observables:
+            if (
+                obs._matrix is None  # pyright: ignore[reportPrivateUsage]
+                or measure.optimize_measurement
+            ):  # Order pauli string
+                obs._pauli_string = (  # pyright: ignore[reportPrivateUsage]
+                    obs.pauli_string.rearrange(contiguous_targets)
+                )
+            else:  # Order the matrix
+                from mpqp.tools.maths import rearrange_matrix
+
+                obs.matrix = rearrange_matrix(obs.matrix, contiguous_targets)
+
+    targets_is_contiguous = len(targets) > 0 and (
+        targets[-1] - targets[0] + 1 == len(sorted(targets))
+    )
+
+    tweaked_observables: list[Observable] = []
+
+    for obs in measure.observables:
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliString,
+            PauliStringMonomial,
+        )
+        from mpqp.measures import pI
+
+        if (
+            obs._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            and targets_is_contiguous
+        ):
+            n_before = targets[0]
+            n_after = nb_qubits - targets[-1] - 1
+
+            full_matrix = obs.matrix
+
             Id_before = np.eye(2**n_before)
             Id_after = np.eye(2**n_after)
+
+            if n_before > 0:
+                full_matrix = np.kron(Id_before, full_matrix)
+
+            if n_after > 0:
+                full_matrix = np.kron(full_matrix, Id_after)
+
             tweaked_observables.append(
                 Observable(
-                    np.kron(
-                        np.kron(Id_before, obs.matrix), Id_after
-                    )  # pyright: ignore[reportArgumentType]
+                    full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
                 )
             )
+        else:
+            pauli = obs.pauli_string
+            embedded = PauliString()
+
+            for mono in pauli.monomials:
+                full_register = [pI] * nb_qubits
+
+                for local_idx, target in enumerate(targets):
+                    full_register[target] = mono.atoms[local_idx]
+
+                embedded += PauliStringMonomial(mono.coef, full_register)
+
+            tweaked_observables.append(Observable(embedded.simplify(), label=obs.label))
 
     tweaked_measure = ExpectationMeasure(
         tweaked_observables,
@@ -104,7 +157,9 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
+        label=measure.label,
         optimize_measurement=measure.optimize_measurement,
+        optim_diagonal=measure.optim_diagonal,
     )
     return tweaked_measure
 
@@ -145,12 +200,13 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            m = adjust_measure(measurement, circuit)
-            c = circuit.without_measurements(deep_copy=False)
-            c.add(m)
+            if not (measurement.optimize_measurement and isinstance(device, AWSDevice)):
+                m = adjust_measure(measurement, circuit)
+                circuit = circuit.without_measurements(deep_copy=False)
+                circuit.add(m)
             job = Job(
                 JobType.OBSERVABLE,
-                c,
+                circuit,
                 device,
             )
         else:
@@ -210,6 +266,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -221,12 +278,13 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        provider_params: Provider's specific parameters, mainly for remote runs.
 
     Returns:
         The Result containing information about the measurement required.
 
     Raises:
-        DeviceJobIncompatibleError: if a non noisy simulator is given in
+        DeviceJobIncompatibleError: if a non-noisy simulator is given in
             parameter and the circuit contains noise
         NotImplementedError: If the device is not handled for noisy simulation
             or other submissions.
@@ -272,7 +330,13 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        return run_ibm(job)
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
+        return run_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
@@ -291,6 +355,7 @@ def run(
     device: Sequence[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
 
 
@@ -300,6 +365,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
 
 
@@ -309,6 +375,7 @@ def run(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result: ...
 
 
@@ -317,6 +384,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -332,6 +400,7 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        provider_params: Provider's specific parameters, mainly for remote runs
 
     Returns:
         The Result containing information about the measurement required.
@@ -386,6 +455,9 @@ def run(
               Samples:
                 State: 11, Index: 3, Count: 1000, Probability: 1
               Error: None
+        >>> ibm_instance = "crn:v1:****:public:quantum-computing:us-east:a/****"
+        >>> qp = QiskitParams(instance=ibm_instance) # doctest: +SKIP
+        >>> run(c2, IBMDevice.IBM_FEZ, provider_params=qp) # doctest: +SKIP
 
     """
 
@@ -401,19 +473,23 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
+                    provider_params,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(
+            circuit, device, values, display_breakpoints, provider_params
+        )
 
 
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -431,6 +507,7 @@ def submit(
         circuit: QCircuit to be run.
         device: Remote device to which the circuit will be submitted.
         values: Values to substitute for symbolic variables. Defaults to ``{}``.
+        provider_params: Provider's specific parameters for remote submissions
 
     Returns:
         The job id provided by the remote device after submission of the job.
@@ -457,7 +534,13 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        job_id, _ = submit_remote_ibm(job)
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
+        job_id, _ = submit_remote_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):

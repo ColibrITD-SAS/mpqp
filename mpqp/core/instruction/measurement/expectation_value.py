@@ -8,13 +8,11 @@ from __future__ import annotations
 import copy
 from numbers import Real
 from typing import TYPE_CHECKING, Literal, Optional, Union, overload
-from typing_extensions import Never
-from warnings import warn
 
 import numpy as np
 import numpy.typing as npt
+from typing_extensions import Never
 
-from mpqp.core.instruction.gates.native_gates import SWAP
 from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.instruction.measurement.pauli_string import (
     CommutingTypes,
@@ -24,7 +22,6 @@ from mpqp.core.instruction.measurement.pauli_string import (
 )
 from mpqp.core.languages import Language
 from mpqp.tools.display import one_lined_repr
-from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import is_diagonal, is_hermitian, is_power_of_two
 
@@ -37,8 +34,6 @@ if TYPE_CHECKING:
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
     from sympy import Expr
-
-    from mpqp.core.instruction.gates.custom_controlled_gate import Gate
 
 
 class Observable:
@@ -337,7 +332,7 @@ class Observable:
             return QLMObservable(self.nb_qubits, matrix=self.matrix)
         elif language == Language.BRAKET:
             if self._pauli_string:
-                from braket.circuits.observables import TensorProduct, Sum
+                from braket.circuits.observables import Sum, TensorProduct
 
                 obs = self.pauli_string.to_other_language(Language.BRAKET)
                 if isinstance(obs, TensorProduct):
@@ -469,8 +464,7 @@ class ExpectationMeasure(Measure):
             self.observables.append(new_obs)
 
         if targets is None:
-            self.targets = list(range(observable[0].nb_qubits))
-        self._check_targets_order()
+            self.targets = list(range(self.observables[0].nb_qubits))
 
     @property
     def nb_observables(self) -> int:
@@ -479,56 +473,6 @@ class ExpectationMeasure(Measure):
     @property
     def observables_labels(self) -> list[str]:
         return [o.label for o in self.observables if o.label is not None]
-
-    def _check_targets_order(self):
-        """Ensures target qubits are ordered and contiguous, rearranging them if
-        necessary (private)."""
-
-        if len(self.targets) == 0:
-            self._pre_measure: list[Gate] = []
-            return
-
-        if self.nb_qubits != self.observables[0].nb_qubits:
-            raise NumberQubitsError(
-                f"Target size {self.nb_qubits} doesn't match observable size "
-                f"{self.observables[0].nb_qubits}."
-            )
-
-        self._pre_measure: list[Gate] = []
-        """List of Gates added before the expectation measurement to correctly swap
-        target qubits when their are not ordered or contiguous."""
-        targets_is_ordered = all(
-            [self.targets[i] > self.targets[i - 1] for i in range(1, len(self.targets))]
-        )
-        tweaked_tgt = copy.copy(self.targets)
-        if (
-            max(tweaked_tgt) - min(tweaked_tgt) + 1 != len(tweaked_tgt)
-            or not targets_is_ordered
-        ):
-            warn(
-                "Non contiguous or non sorted observable target will introduce "
-                "additional CNOTs."
-            )
-
-            for t_index, target in enumerate(tweaked_tgt):  # sort the targets
-                min_index = tweaked_tgt.index(min(tweaked_tgt[t_index:]))
-                if t_index != min_index:
-                    self._pre_measure.append(SWAP(target, tweaked_tgt[min_index]))
-                    tweaked_tgt[t_index] = tweaked_tgt[min_index]
-                    tweaked_tgt[min_index] = target
-            for t_index, target in enumerate(tweaked_tgt):  # compact the targets
-                if t_index == 0:
-                    continue
-                if target != tweaked_tgt[t_index - 1] + 1:
-                    self._pre_measure.append(SWAP(target, tweaked_tgt[t_index - 1] + 1))
-                    tweaked_tgt[t_index] = tweaked_tgt[t_index - 1] + 1
-        self.rearranged_targets = tweaked_tgt
-        """Adjusted list of target qubits when they are not initially sorted and
-        contiguous."""
-
-    @property
-    def pre_measure(self) -> list[Gate]:
-        return self._pre_measure
 
     def get_pauli_grouping(self) -> list[list[PauliStringMonomial]]:
         """Return the grouped monomials of the Pauli string of the observable.
