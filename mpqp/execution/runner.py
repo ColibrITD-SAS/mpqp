@@ -534,7 +534,9 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        if provider_params is not None and not isinstance(provider_params, QiskitParams):
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
             raise ValueError(
                 f"provider_params should be QiskitParam not {type(provider_params)}"
             )
