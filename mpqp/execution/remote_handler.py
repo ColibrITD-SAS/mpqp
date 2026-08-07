@@ -12,6 +12,9 @@ from mpqp.execution.connection.azure_connection import get_all_job_ids as azure_
 from mpqp.execution.connection.google_connection import get_all_job_ids as cirq_ids
 from mpqp.execution.connection.ibm_connection import get_all_job_ids as ibm_ids
 from mpqp.execution.connection.qlm_connection import get_all_job_ids as qlm_ids
+from mpqp.execution.connection.quantinuum_connection import (
+    get_all_job_ids as quantinuum_ids,
+)
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -133,6 +136,7 @@ def get_all_remote_job_ids() -> dict[type[AvailableDevice], list[str]]:
         IBMDevice: ibm_ids(),
         GOOGLEDevice: cirq_ids(),
         AZUREDevice: azure_ids(),
+        QUANTINUUMDevice: quantinuum_ids(),
     }
 
     return job_ids

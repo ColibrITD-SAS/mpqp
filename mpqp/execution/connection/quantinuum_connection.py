@@ -157,6 +157,28 @@ def get_quantinuum_config(device: QUANTINUUMDevice):
     return qnx.QuantinuumConfig(device_name=device.value)
 
 
+def get_all_job_ids() -> list[str]:
+    """Retrieve all the job ids from the configured Nexus project.
+
+    Returns:
+        The list of job ids.
+
+    Example:
+        >>> get_all_job_ids()[:3]
+        ['cbfefd41-26f2-494d-bfb7-a704a48af969',
+        '4b657bfa-790d-486b-8c0c-5fd912c90e7e',
+        'f5f2d30b-c323-4fa8-a2e7-dda9eed134db']
+
+    """
+    if get_env_variable("QUANTINUUM_CONFIGURED") != "True":
+        return []
+
+    import qnexus as qnx
+
+    _activate_quantinuum_project()
+    return [str(job.id) for job in qnx.jobs.get_all()]
+
+
 def delete_quantinuum_account():
     """Delete the locally stored Quantinuum Nexus configuration."""
     decision = input(
