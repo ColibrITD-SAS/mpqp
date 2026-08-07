@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Union
 import numpy as np
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates import Gate, Id
+from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -20,6 +20,7 @@ from mpqp.execution.connection.ibm_connection import (
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import ExecutionMode, Job, JobStatus, JobType
 from mpqp.execution.result import BatchResult, Result, Sample, StateVector
+from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
@@ -45,13 +46,13 @@ if TYPE_CHECKING:
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
-def run_ibm(job: Job) -> Result:
-    # TODO: update docs
+def run_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
+        qiskit_params: IBM Quantum Cloud specific parameters, mainly for remote jobs.
 
     Returns:
         The result of the job.
@@ -66,7 +67,7 @@ def run_ibm(job: Job) -> Result:
     if job.mode == ExecutionMode.SESSION:
         return run_remote_ibm_session(job)
 
-    return run_remote_ibm(job)
+    return run_remote_ibm(job, qiskit_params)
 
 
 def compute_expectation_value(
@@ -223,9 +224,6 @@ def generate_qiskit_noise_model(
         A ``qiskit`` noise model combining the provided noise models and the
         modified circuit, padded with identities on the "naked" qubits.
 
-    Note:
-        The qubit order in the returned noise model is reversed to match
-        ``qiskit``'s qubit ordering conventions.
     """
 
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
@@ -293,9 +291,11 @@ def generate_qiskit_noise_model(
                     connections = gate.connections()
                     size = len(connections)
 
-                    reversed_qubits = [
-                        modified_circuit.nb_qubits - 1 - qubit for qubit in connections
-                    ]
+                    qiskit_error_qubits = (
+                        gate.controls + gate.targets
+                        if isinstance(gate, ControlledGate)
+                        else gate.targets
+                    )
 
                     if (
                         isinstance(noise, DimensionalNoiseModel)
@@ -309,7 +309,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             qiskit_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
                     else:
@@ -319,7 +319,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             tensor_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
 
@@ -344,10 +344,11 @@ def generate_qiskit_noise_model(
 
                 # Gate targets are included in the noise targets
                 if intersection == connections:
-
-                    reversed_qubits = [
-                        modified_circuit.nb_qubits - 1 - qubit for qubit in connections
-                    ]
+                    qiskit_error_qubits = (
+                        gate.controls + gate.targets
+                        if isinstance(gate, ControlledGate)
+                        else gate.targets
+                    )
 
                     # Noise model is multi-dimensional
                     if isinstance(
@@ -360,7 +361,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             qiskit_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
                     else:
@@ -370,7 +371,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             tensor_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
 
@@ -389,7 +390,8 @@ def generate_qiskit_noise_model(
                             noise_model.add_quantum_error(
                                 qiskit_error,
                                 [labeled_identity.label],
-                                [modified_circuit.nb_qubits - 1 - qubit],
+                                [qubit],
+                                warnings=False,
                             )
                             gate_index = modified_circuit.instructions.index(gate)
                             modified_circuit.instructions.insert(
@@ -485,14 +487,16 @@ def run_aer(job: Job):
     return result
 
 
+
+
 def _submit_remote_ibm(
-    job: Job, runtime_target: Union[BackendV2, Session]
+    job: Job, qiskit_params: Optional[QiskitParams] = None, runtime_target: Union[BackendV2, Session]
 ) -> tuple[str, "RuntimeJobV2"]:
-    # TODO: rewrite docs if needed
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
     Args:
         job: Job to be executed.
+        qiskit_params: IBM Quantum Cloud specific parameters, mainly for remote submissions.
 
     Returns:
         IBM's job id and the ``qiskit`` job itself.
@@ -511,9 +515,11 @@ def _submit_remote_ibm(
 
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
-    backend = get_backend(job.device)
+
+    instance = qiskit_params.instance if qiskit_params is not None else None
+
+    backend = get_backend(job.device, instance)
     job.device = IBMDevice(backend.name)
-    session = Session(backend=backend)
 
     qiskit_circ = job.circuit.transpiled_for_device(job.device)
 
@@ -523,19 +529,16 @@ def _submit_remote_ibm(
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-
-        estimator = Runtime_Estimator(mode=runtime_target)
-
-        meas.pre_transpile_observables(job.device)
-
-        qiskit_observables: list[SparsePauliOp] = []
-
-        for obs in meas.observables:
-            translated = obs.pre_transpiled[job.device]
-            if TYPE_CHECKING:
-                assert isinstance(translated, SparsePauliOp)
-            qiskit_observables.append(translated.apply_layout(qiskit_circ.layout))
-
+        estimator = Runtime_Estimator(mode=backend)
+        # estimator = Runtime_Estimator(mode=runtime_target)
+        qiskit_observables = [
+            (
+                obs.to_other_language(Language.QISKIT)
+                if obs.pre_transpiled is None
+                else obs.pre_transpiled
+            )
+            for obs in meas.observables
+        ]
         if TYPE_CHECKING:
             assert all(isinstance(obs, SparsePauliOp) for obs in qiskit_observables)
 
@@ -553,7 +556,8 @@ def _submit_remote_ibm(
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
-        sampler = Runtime_Sampler(mode=runtime_target)
+        #sampler = Runtime_Sampler(mode=runtime_target)
+        sampler = Runtime_Sampler(mode=backend)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
 
     else:
@@ -566,7 +570,7 @@ def _submit_remote_ibm(
     return job.id, ibm_job
 
 
-def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
+def submit_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> tuple[str, "RuntimeJobV2"]:
     # TODO: docs
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
@@ -577,7 +581,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     except Exception:
         pass
 
-    return _submit_remote_ibm(job, runtime_target=backend)
+    return _submit_remote_ibm(job, qiskit_params, runtime_target=backend)
 
 
 def submit_remote_ibm_batch(jobs: list[Job]) -> tuple[list[str], "RuntimeJobV2"]:
@@ -656,12 +660,14 @@ def submit_remote_ibm_session(
     return _submit_remote_ibm(job, runtime_target=session)
 
 
-def run_remote_ibm(job: Job) -> Result:
+def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
     Args:
         job: Job to be executed.
+        qiskit_params: IBM Quantum Cloud specific parameters, mainly for remote jobs.
+
 
     Returns:
         A Result after submission and execution of the job.
@@ -670,7 +676,7 @@ def run_remote_ibm(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    _, remote_job = submit_remote_ibm(job)
+    _, remote_job = submit_remote_ibm(job, qiskit_params)
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)

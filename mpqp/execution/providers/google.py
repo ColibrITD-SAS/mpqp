@@ -77,7 +77,7 @@ def apply_noise_to_cirq_circuit(
             if isinstance(op.gate, (MeasurementGate, IdentityGate)):
                 continue
 
-            for noise in reversed(noises):
+            for noise in noises:
                 noise_dimension = (
                     noise.dimension if isinstance(noise, DimensionalNoiseModel) else 1
                 )
