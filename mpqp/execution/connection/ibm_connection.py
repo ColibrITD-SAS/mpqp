@@ -266,8 +266,8 @@ def get_backend(device: IBMDevice, instance: Optional[str] = None) -> "BackendV2
 
     try:
         if device == IBMDevice.IBM_LEAST_BUSY:
-            return service.least_busy(operational=True)
-        return service.backend(device.value)
+            return service.least_busy(operational=True, instance=instance)
+        return service.backend(device.value, instance=instance)
     except QiskitBackendNotFoundError as err:
         raise IBMRemoteExecutionError(
             f"Requested device {device} not found. Verify if your instances "
