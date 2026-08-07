@@ -46,6 +46,7 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
+from mpqp.execution.providers.providers_params import ProviderParams, QiskitParams
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -265,6 +266,7 @@ def _run_single(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result:
     """Runs the circuit on the ``backend``. If the circuit depends on variables,
     the ``values`` given in parameters are used to do the substitution.
@@ -276,12 +278,13 @@ def _run_single(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        provider_params: Provider's specific parameters, mainly for remote runs.
 
     Returns:
         The Result containing information about the measurement required.
 
     Raises:
-        DeviceJobIncompatibleError: if a non noisy simulator is given in
+        DeviceJobIncompatibleError: if a non-noisy simulator is given in
             parameter and the circuit contains noise
         NotImplementedError: If the device is not handled for noisy simulation
             or other submissions.
@@ -327,7 +330,13 @@ def _run_single(
             raise NotImplementedError(f"Noisy simulations not supported on {device}.")
 
     if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
-        return run_ibm(job)
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
+        return run_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
@@ -346,6 +355,7 @@ def run(
     device: Sequence[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
 
 
@@ -355,6 +365,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> BatchResult: ...
 
 
@@ -364,6 +375,7 @@ def run(
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result: ...
 
 
@@ -372,6 +384,7 @@ def run(
     device: OneOrMany[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
+    provider_params: Optional[ProviderParams] = None,
 ) -> Result | BatchResult:
     """Runs the circuit on the backend, or list of backend, provided in
     parameter.
@@ -387,6 +400,7 @@ def run(
         display_breakpoints: If ``False``, breakpoints will be disabled. Each
             breakpoint adds an execution of the circuit(s), so you may use this
             option for performance if need be.
+        provider_params: Provider's specific parameters, mainly for remote runs
 
     Returns:
         The Result containing information about the measurement required.
@@ -441,6 +455,9 @@ def run(
               Samples:
                 State: 11, Index: 3, Count: 1000, Probability: 1
               Error: None
+        >>> ibm_instance = "crn:v1:****:public:quantum-computing:us-east:a/****"
+        >>> qp = QiskitParams(instance=ibm_instance) # doctest: +SKIP
+        >>> run(c2, IBMDevice.IBM_FEZ, provider_params=qp) # doctest: +SKIP
 
     """
 
@@ -456,19 +473,23 @@ def run(
                     dev,
                     values,
                     display_breakpoints,
+                    provider_params,
                 )
                 for i, circ in enumerate(flatten(circuit))
                 for dev in flatten(device)
             ]
         )
     else:
-        return _run_single(circuit, device, values, display_breakpoints)
+        return _run_single(
+            circuit, device, values, display_breakpoints, provider_params
+        )
 
 
 def submit(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[dict[Expr | str, Complex]] = None,
+    provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str, Job]:
     """Submit the job related to the circuit on the remote backend provided in
     parameter. The submission returns a ``job_id`` that can be used to retrieve
@@ -486,6 +507,7 @@ def submit(
         circuit: QCircuit to be run.
         device: Remote device to which the circuit will be submitted.
         values: Values to substitute for symbolic variables. Defaults to ``{}``.
+        provider_params: Provider's specific parameters for remote submissions
 
     Returns:
         The job id provided by the remote device after submission of the job.
@@ -512,7 +534,13 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        job_id, _ = submit_remote_ibm(job)
+        if provider_params is not None and not isinstance(
+            provider_params, QiskitParams
+        ):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
+        job_id, _ = submit_remote_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
     elif isinstance(device, AWSDevice):

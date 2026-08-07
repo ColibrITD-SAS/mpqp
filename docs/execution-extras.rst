@@ -117,3 +117,13 @@ The details on how to get these information can be found in the section
 
 
 
+Provider-specific parameters
+----------------------------
+
+Some providers accept additional runtime parameters that cannot be represented
+by MPQP's provider-independent interface. These parameters can be supplied
+through the ``provider_params`` argument of
+:func:`~mpqp.execution.runner.run`.
+
+.. automodule:: mpqp.execution.providers.providers_params
+
