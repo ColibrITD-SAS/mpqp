@@ -456,7 +456,7 @@ def run(
                 State: 11, Index: 3, Count: 1000, Probability: 1
               Error: None
         >>> ibm_instance = "crn:v1:****:public:quantum-computing:us-east:a/****"
-        >>> qp = QiskitParams(instance=ibm_instance)
+        >>> qp = QiskitParams(instance=ibm_instance) # doctest: +SKIP
         >>> run(c2, IBMDevice.IBM_FEZ, provider_params=qp) # doctest: +SKIP
 
     """
@@ -534,8 +534,10 @@ def submit(
     job.status = JobStatus.INIT
 
     if isinstance(device, IBMDevice):
-        if TYPE_CHECKING:
-            assert provider_params is None or isinstance(provider_params, QiskitParams)
+        if provider_params is not None and not isinstance(provider_params, QiskitParams):
+            raise ValueError(
+                f"provider_params should be QiskitParam not {type(provider_params)}"
+            )
         job_id, _ = submit_remote_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         job_id, _ = submit_QLM(job)
