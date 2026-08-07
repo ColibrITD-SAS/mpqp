@@ -11,5 +11,12 @@ class ProviderParams:
 
 
 class QiskitParams(ProviderParams):
+    """
+    Class meant to regroup all IBM specific parameters for remote execution.
+
+    Args:
+        instance: IBM Quantum instance on which the job(s) should be sent.
+
+    """
     def __init__(self, instance: Optional[str] = None):
         self.instance = instance

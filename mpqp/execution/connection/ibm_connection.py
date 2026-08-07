@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 
 Runtime_Service: dict[Optional[str], "QiskitRuntimeService"] = {}
+"""Dictionary regrouping QiskitRuntimeServices related to specific instances (key)."""
 
 
 def config_ibm_account(token: str, channel: str, instance: Optional[str] = None):
@@ -147,6 +148,9 @@ def get_QiskitRuntimeService(instance: Optional[str] = None) -> "QiskitRuntimeSe
     """Return the QiskitRuntimeService needed for remote connection and
     execution.
 
+    Args:
+        instance: IBM Quantum instance used to instantiate the QiskitRuntime service.
+
     Raises:
         IBMRemoteExecutionError: When the ``qiskit`` runtime is not configured
             or the configuration cannot be retrieved.
@@ -243,6 +247,7 @@ def get_backend(device: IBMDevice, instance: Optional[str] = None) -> "BackendV2
 
     Args:
         device: The device to get from the qiskit Runtime service.
+        instance: IBM Quantum instance used to retrive the backend.
 
     Returns:
         The requested backend.
