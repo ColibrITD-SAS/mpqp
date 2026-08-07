@@ -18,5 +18,6 @@ class QiskitParams(ProviderParams):
         instance: IBM Quantum instance on which the job(s) should be sent.
 
     """
+
     def __init__(self, instance: Optional[str] = None):
         self.instance = instance
