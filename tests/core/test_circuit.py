@@ -11,6 +11,7 @@ from qiskit import QuantumCircuit as QiskitCircuit
 from qiskit import QuantumRegister
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
 
+from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.execution.devices import (
     ATOSDevice,
     AvailableDevice,
@@ -1319,3 +1320,17 @@ def test_cbits_dynamic_toggled_off_undersized_circuit(
     circuit.nb_qubits = expected_cbits
     with pytest.raises(ValueError):
         circuit.add(BasisMeasure([expected_cbits], [expected_cbits]))
+
+
+@pytest.mark.provider("cirq")
+@pytest.mark.parametrize("size", list(range(1, 6)))
+def test_cirq_custom_gate_transpilation(size: int):
+    from mpqp.tools import rand_unitary_matrix
+
+    m = rand_unitary_matrix(2**size)
+    targets = list(range(size))
+
+    c = QCircuit([CustomGate(m, targets)])
+    cc = c.to_other_language(Language.CIRQ)
+    ccc = QCircuit.from_other_language(cc)
+    assert matrix_eq(m, ccc.to_matrix())
