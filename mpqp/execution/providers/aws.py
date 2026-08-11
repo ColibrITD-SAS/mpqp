@@ -157,20 +157,68 @@ def run_circuit_binding(job: Job) -> BatchResult:
             f"{job.device} instead"
         )
     device = get_braket_device(job.device, is_noisy=circuitBinding.is_noisy)
-    braket_circuit = circuitBinding.to_other_device(job.device)
-    jobs = circuitBinding.unroll()
+    braket_circuit, jobs = circuitBinding.to_other_device(job.device)
+    if TYPE_CHECKING:
+        from braket.circuits import Circuit as braket_Circuit
+
+        assert isinstance(braket_circuit, braket_Circuit)
     task = device.run(braket_circuit, shots=None, inputs=None).result()
-    result = []
+    if TYPE_CHECKING:
+        from braket.tasks.program_set_quantum_task_result import (
+            ProgramSetQuantumTaskResult,
+        )
+
+        assert isinstance(task, ProgramSetQuantumTaskResult)
+    results = []
     if job.job_type == JobType.OBSERVABLE:
-        i = 0
-        for res in task:
-            exp_value = 0
-            for execution in res:
-                exp_value += execution.expectation
-            circuit, values, measurement = jobs[i]
-            i += 1
-            local_job = Job(job.job_type, circuit, job.device, measurement, values)
-            result.append(Result(local_job, exp_value))
+        index = 0
+        length = 2**job.circuit.nb_qubits
+        sorted_values: list[float] = []
+        for i in range(length):
+            sorted_values.append(0)
+        for context in jobs:
+            # Jobs contains the whole context to both be able to compute the expectation value
+            # and to create the individual jobs
+            (
+                circuit,
+                observables,
+                values,
+                eigenvalues,
+                grouping,
+            ) = context  # pyright: ignore[reportAssignmentType]
+
+            if TYPE_CHECKING:
+                assert isinstance(circuit, QCircuit)
+                assert isinstance(observables, list)
+            expectation_values = {}
+            exp_value, errors = {}, {}
+            for j in range(len(grouping)):
+                result = task[index][0]
+                for name, eigenvalue in eigenvalues.items():
+                    for i in range(length):
+                        binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+                        if binary_state in result.probabilities:
+                            sorted_values[i] = result.probabilities[binary_state].real
+                        else:
+                            sorted_values[i] = 0
+                    expectation_value: float = np.dot(
+                        eigenvalue,
+                        np.array(sorted_values, dtype=np.float64),
+                    )
+                    expectation_values[name] = expectation_value
+
+                local_job = Job(job.job_type, circuit, job.device, observables, values)
+                for i, obs in enumerate(observables):
+                    string = obs.pauli_string
+                    local: float = 0
+                    for monoms in string.monomials:
+                        if TYPE_CHECKING:
+                            assert isinstance(monoms.coef, (int, float))
+                        local += expectation_values[monoms.name] * monoms.coef
+                    exp_value.update({f"observable_{i}": local})
+                    errors.update({f"observable_{len(errors)}": None})
+                results.append(Result(local_job, exp_value, errors))
+            index += 1
     else:
         i = 0
         for res in task:
@@ -189,9 +237,9 @@ def run_circuit_binding(job: Job) -> BatchResult:
                 i += 1
                 local_job = Job(job.job_type, circuit, job.device, measurement, values)
 
-                result.append(Result(local_job, sample_info))
+                results.append(Result(local_job, sample_info))
 
-    return BatchResult(result)
+    return BatchResult(results)
 
 
 def run_braket_observable(job: Job) -> Result:

@@ -834,7 +834,7 @@ class BatchResult:
         body = "\n".join(
             "    " + line
             for result in self.results
-            for line in str(result).splitlines()
+            for line in str(result).splitlines() + ["\n"]
         )
         return header + body
 
