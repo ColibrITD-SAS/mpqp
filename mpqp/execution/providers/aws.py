@@ -62,7 +62,7 @@ def apply_noise_to_braket_circuit(
 
     noisy_circuit = Circuit(other_instructions)
 
-    for noise in noises:
+    for noise in reversed(noises):
         braket_noise = noise.to_other_language(Language.BRAKET)
         if TYPE_CHECKING:
             assert isinstance(braket_noise, Noise)
@@ -287,11 +287,14 @@ def run_braket_observable(job: Job) -> Result:
 
         if job.measure.pre_transpiled is None:
             grouping = job.measure.get_pauli_grouping()
+            pre_measure = [
+                QCircuit(find_qubitwise_rotations(group)) for group in grouping
+            ]
+            for circuit in pre_measure:
+                for instr in circuit.instructions:
+                    instr.targets = [job.measure.targets[t] for t in instr.targets]
             transpiled_pre_measures = [
-                QCircuit(find_qubitwise_rotations(group)).to_other_language(
-                    Language.BRAKET
-                )
-                for group in grouping
+                pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
             ]
             eigenvalues = [
                 {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
@@ -326,7 +329,7 @@ def run_braket_observable(job: Job) -> Result:
                 )
                 result = local_result.result()
                 assert isinstance(result, GateModelQuantumTaskResult)
-                length = 2**job.circuit.nb_qubits
+                length = 2**job.measure.nb_qubits
                 sorted_values: list[float] = []
                 for i in range(length):
                     binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"

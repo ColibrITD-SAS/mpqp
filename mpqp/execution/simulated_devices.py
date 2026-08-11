@@ -9,10 +9,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, Iterator, Optional
 
-from mpqp.environment.var_cache import (
-    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
-)
-from mpqp.environment.var_cache import InstalledProviders
 from mpqp.execution import AvailableDevice
 
 if TYPE_CHECKING:
@@ -69,6 +65,11 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
 
     @staticmethod
     def get_ibm_fake_providers() -> list[tuple[str, type["FakeBackendV2"]]]:
+        from mpqp.environment.var_cache import (
+            InstalledProviders,
+            _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+        )
+
         if InstalledProviders.QISKIT_IBM_RUNTIME in _INSTALLED_MPQP_PROVIDERS:
             from qiskit_ibm_runtime import fake_provider
             from qiskit_ibm_runtime.fake_provider.fake_backend import FakeBackendV2
@@ -84,6 +85,19 @@ class StaticIBMSimulatedDevice(SimulatedDevice):
             ]
         else:
             return []
+
+    def is_retired(self) -> bool:
+        """Function used to tell if the simulated device is retired or not.
+        Note: It only compare its name to a currently existing one, if an old simulated device has the same name as a new one it may break.
+        """
+        from mpqp.execution.devices import IBMDevice
+
+        name = self.name[4:]
+        if name.endswith("V2"):
+            name = name[:-2]
+        name = name.upper()
+        devices_names = IBMDevice._member_names_
+        return not any(name in device for device in devices_names)
 
 
 class _LazyIBMSimulatedDevice:

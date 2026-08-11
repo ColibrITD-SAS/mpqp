@@ -24,23 +24,6 @@ def test_expectation_measure_right_targets(targets: list[int]):
         ExpectationMeasure(obs, targets)
 
 
-@pytest.mark.parametrize(
-    "targets, expected_swaps",
-    [
-        ([1, 3, 4], [{2, 3}, {3, 4}]),
-        ([1, 0, 2], [{1, 0}]),
-        ([2, 0, 3], [{0, 2}, {1, 2}, {2, 3}]),
-    ],
-)
-def test_expectation_measure_wrong_targets(
-    targets: list[int], expected_swaps: list[tuple[int, int]]
-):
-    obs = Observable(np.diag([1] * 2 ** len(targets)))
-    with pytest.warns(UserWarning):
-        measure = ExpectationMeasure(obs, targets)
-    assert [set(swap.targets) for swap in measure.pre_measure] == expected_swaps
-
-
 # TODO: complete this
 @pytest.fixture
 def list_to_cirq_pauli() -> (

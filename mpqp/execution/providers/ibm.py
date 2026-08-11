@@ -3,16 +3,13 @@ from __future__ import annotations
 import math
 import warnings
 from copy import deepcopy
-from typing import TYPE_CHECKING, Optional, overload
-
-import numpy as np
+from typing import TYPE_CHECKING, Optional
 
 from mpqp.core.circuit import CircuitBinding, QCircuit
-from mpqp.core.instruction.gates import Gate, Id
+from mpqp.core.instruction.gates import ControlledGate, Gate, Id
 from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.measurement import BasisMeasure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
-from mpqp.core.instruction.measurement.measure import Measure
 from mpqp.core.languages import Language
 from mpqp.execution.connection.ibm_connection import (
     get_backend,
@@ -271,9 +268,6 @@ def generate_qiskit_noise_model(
         A ``qiskit`` noise model combining the provided noise models and the
         modified circuit, padded with identities on the "naked" qubits.
 
-    Note:
-        The qubit order in the returned noise model is reversed to match
-        ``qiskit``'s qubit ordering conventions.
     """
 
     from qiskit_aer.noise import NoiseModel as Qiskit_NoiseModel
@@ -341,9 +335,11 @@ def generate_qiskit_noise_model(
                     connections = gate.connections()
                     size = len(connections)
 
-                    reversed_qubits = [
-                        modified_circuit.nb_qubits - 1 - qubit for qubit in connections
-                    ]
+                    qiskit_error_qubits = (
+                        gate.controls + gate.targets
+                        if isinstance(gate, ControlledGate)
+                        else gate.targets
+                    )
 
                     if (
                         isinstance(noise, DimensionalNoiseModel)
@@ -357,7 +353,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             qiskit_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
                     else:
@@ -367,7 +363,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             tensor_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
 
@@ -392,10 +388,11 @@ def generate_qiskit_noise_model(
 
                 # Gate targets are included in the noise targets
                 if intersection == connections:
-
-                    reversed_qubits = [
-                        modified_circuit.nb_qubits - 1 - qubit for qubit in connections
-                    ]
+                    qiskit_error_qubits = (
+                        gate.controls + gate.targets
+                        if isinstance(gate, ControlledGate)
+                        else gate.targets
+                    )
 
                     # Noise model is multi-dimensional
                     if isinstance(
@@ -408,7 +405,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             qiskit_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
                     else:
@@ -418,7 +415,7 @@ def generate_qiskit_noise_model(
                         noise_model.add_quantum_error(
                             tensor_error,
                             [gate.qiskit_string],
-                            reversed_qubits,
+                            qiskit_error_qubits,
                             warnings=False,
                         )
 
@@ -437,7 +434,8 @@ def generate_qiskit_noise_model(
                             noise_model.add_quantum_error(
                                 qiskit_error,
                                 [labeled_identity.label],
-                                [modified_circuit.nb_qubits - 1 - qubit],
+                                [qubit],
+                                warnings=False,
                             )
                             gate_index = modified_circuit.instructions.index(gate)
                             modified_circuit.instructions.insert(
@@ -893,16 +891,14 @@ def extract_result(
                 else result.metadata["shots"]
             )
 
-            measures = job.circuit.measurements if job.circuit.measurements else []
+            measures: list[ExpectationMeasure] = (
+                job.circuit.measurements if job.circuit.measurements else []
+            )
 
             if exp_values.ndim == 0:
                 val = float(exp_values)
                 std = float(stds) if stds.size > 0 else 0.0
-                m = measures[0] if measures else None
-                obs = m.observables[0] if m.observables else None
-                label = obs.label if obs else "ibm_obs_0"
                 return Result(job, val, std, shots)
-
             elif exp_values.ndim == 2:
                 N_obs, M_params = exp_values.shape
                 batch_results = []
@@ -948,7 +944,7 @@ def extract_result(
                     return BatchResult(batch_results)
             else:
                 batch_results = []
-                observables = job.measure.observables
+                observables = measures[0].observables
                 nb_observables = len(observables)
                 for idx, val in np.ndenumerate(exp_values):
                     std_val = float(stds[idx]) if stds.size > 0 else 0.0
