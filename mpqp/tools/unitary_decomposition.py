@@ -63,6 +63,7 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
 
     # Build G as G = V @ D² @ V†
     g = G0 @ G1.conj().T
+    # TODO: Find a cleaner way to solve rounding issues
     G = np.round(g, 10)
     eigvals, v = np.linalg.eig(G)
     from mpqp.tools import closest_unitary

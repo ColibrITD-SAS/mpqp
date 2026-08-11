@@ -63,8 +63,8 @@ Cirq
 .. automodule:: mpqp.translation.qasm.qasm_to_cirq
 
 
-Direct translations
-^^^^^^^^^^^^^^^^^^^
+MPQP-providers' SDK translations
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 This part of the module host the functions called by the methods to_other_language and from_other_language
 of the QCircuit object.

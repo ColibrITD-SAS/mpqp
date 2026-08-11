@@ -610,9 +610,6 @@ def extract_result_STATE_VECTOR(
     Returns:
         The formatted result.
     """
-    state_vector = result.final_state_vector
-    if job.circuit.input_g_phase:
-        import numpy as np
-
-        state_vector = state_vector * np.exp(-1j * job.circuit.input_g_phase)
-    return Result(job, StateVector(state_vector, job.circuit.nb_qubits), 0, 0)
+    return Result(
+        job, StateVector(result.final_state_vector, job.circuit.nb_qubits), 0, 0, False
+    )
