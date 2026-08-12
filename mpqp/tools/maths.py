@@ -4,7 +4,6 @@ types, etc…"""
 from __future__ import annotations
 
 import math
-from copy import copy
 from functools import reduce
 from numbers import Complex, Real
 from typing import TYPE_CHECKING, Any, Optional, Union
@@ -484,21 +483,26 @@ def is_power_of_two(n: int) -> bool:
 
 
 def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Matrix:
-    """Function to reorder the rows and columns of a matrix in order to change the targets of a gate.
-    The intended order for a gate is having continuous targets in growing order.
+    """Reorder the rows and columns of a matrix according to the gate targets.
+    The resulting matrix corresponds to the targets in sorted order.
 
-    For example the targets for a 3 qubit gate should be [1,2,3], changing it for [3,2,1] would
-    reverse the effects on the qubits 3 and 1 (akin to a SWAP gate on those qubits).
+    For example, for a three-qubit gate with `targets=[3, 2, 1]`, the first
+    local qubit is associated with qubit 3, the second with qubit 2, and the third
+    with qubit 1. Reordering the matrix to correspond to `[1, 2, 3]` exchanges
+    the roles of qubits 1 and 3, similarly to a SWAP between their positions in
+    the matrix.
 
-    Note: This function's goal is not to move around a gate in a circuit but to shuffle the targets in a sense.
+    Note: This function does not move a gate within the circuit. It only adjusts
+        its matrix representation according to the target order.
 
     Args:
         m: The matrix for which we want to reorder the targets.
         targets: The targets
-        do_copy: If True performs the copy of the matrix, to prevent overwriting the original matrix.
+        do_copy: If `True`, rearrange a copy without modifying the original
+            matrix. If `False`, rearrange the original matrix in place.
 
     Returns:
-        The shuffled matrix according to the given targets.
+        The matrix rearranged to correspond to the sorted target order.
 
     Example:
     >>> matrix = np.diag([1,2,3,4])
@@ -514,47 +518,18 @@ def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Mat
      [0, 0, 0, 4]]
     """
 
-    if do_copy:
-        from copy import deepcopy
-
-        m = deepcopy(m)
-
     l = len(targets)
-    targets = copy(targets)
     shuffled = sorted(targets)
-    for index in range(l - 1):
-        if targets[index] == index:
-            continue
-        # If no swaps happened of the target then shuffled_index = targets[index]
-        shuffled_index = shuffled.index(targets[index])
+    permutation = [targets.index(target) for target in shuffled]
+    axes = permutation + [l + index for index in permutation]
 
-        i = 1 << (l - 1 - shuffled_index)
-        j = 1 << (l - 1 - index)
-        for change in range(1 << l):
-            current = bin(change)[2:].zfill(l)
-            if current[shuffled_index - l] == "0" and current[index - l] == "1":
-                current = int(current, 2)
-                conjugate = current + i - j
-                for k in range(len(m)):
-                    hold = m[k][current]
-                    m[k][current] = m[k][conjugate]
-                    m[k][conjugate] = hold
+    if do_copy:
+        m = m.copy()
 
-                for k in range(len(m)):
-                    hold = m[current][k]
-                    m[current][k] = m[conjugate][k]
-                    m[conjugate][k] = hold
+    rearranged_matrix = np.array(
+        m.reshape([2] * (2 * l)).transpose(axes).reshape(m.shape),
+        copy=True,
+    )
 
-        # keeps tracks of the position of the targets in the matrix
-
-        shuffled[index], shuffled[targets[index]] = (
-            shuffled[targets[index]],
-            shuffled[index],
-        )
-
-        i = targets.index(index)
-        targets[i], targets[index] = (
-            targets[index],
-            targets[i],
-        )
+    m[...] = rearranged_matrix
     return m

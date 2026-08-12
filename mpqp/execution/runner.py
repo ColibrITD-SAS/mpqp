@@ -56,10 +56,13 @@ if TYPE_CHECKING:
     from sympy import Expr
 
 
-def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
+def adjust_measure(
+    measure: ExpectationMeasure,
+    circuit: QCircuit,
+) -> ExpectationMeasure:
     """A measure can be incomplete and not span the entire circuit, but providers
-    usually do not support this behavior. To make this work, we tweak the measure
-    this function to match the expected behavior.
+    usually do not support this behavior. The function therefore adjusts each
+    observable to span the circuit's full qubit register.
 
     In order to do this, we place identity operators on the qubits not targeted
     by the measure. If the targets are not ordered, each observable is first
@@ -75,85 +78,125 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
     Returns:
         A measure targeting all circuit qubits, with observables embedded into
         the full register.
+
+    Raises:
+        ValueError: If a measurement target is not a valid qubit index in the
+            circuit, or if the number of target qubits does not match the number
+            of qubits represented by an observable.
+
     """
     # TODO: use this only for specific provider
 
-    if measure.targets == list(range(circuit.nb_qubits)):
+    nb_qubits = circuit.nb_qubits
+    targets = list(measure.targets)
+
+    observables = measure.observables
+
+    if any(observable.nb_qubits != len(targets) for observable in observables):
+        raise ValueError(
+            f"Each observable must act on {len(targets)} qubits to match the "
+            "measurement targets."
+        )
+
+    if targets == list(range(nb_qubits)):
         return measure
 
-    nb_qubits = circuit.nb_qubits
-    targets = measure.targets
-
-    targets_is_ordered = all(a < b for a, b in pairwise(targets))
-    if not targets_is_ordered:
-        ordered_targets = sorted(targets)
-        contiguous_targets = [targets.index(t) for t in ordered_targets]
-        for obs in measure.observables:
-            if (
-                obs._matrix is None  # pyright: ignore[reportPrivateUsage]
-                or measure.optimize_measurement
-            ):  # Order pauli string
-                obs._pauli_string = (  # pyright: ignore[reportPrivateUsage]
-                    obs.pauli_string.rearrange(contiguous_targets)
-                )
-            else:  # Order the matrix
-                from mpqp.tools.maths import rearrange_matrix
-
-                obs.matrix = rearrange_matrix(obs.matrix, contiguous_targets)
-
-    targets_is_contiguous = len(targets) > 0 and (
-        targets[-1] - targets[0] + 1 == len(sorted(targets))
+    targets_are_ordered = all(
+        first_target < second_target
+        for first_target, second_target in pairwise(targets)
     )
 
-    tweaked_observables: list[Observable] = []
+    if not targets_are_ordered:
+        ordered_targets = sorted(targets)
 
-    for obs in measure.observables:
-        from mpqp.core.instruction.measurement.pauli_string import (
-            PauliString,
-            PauliStringMonomial,
-        )
-        from mpqp.measures import pI
+        pauli_permutation = [ordered_targets.index(target) for target in targets]
+        # Reorder observables to match the sorted target order
+        reordered_observables: list[Observable] = []
 
+        for observable in observables:
+            if (
+                observable._matrix is None  # pyright: ignore[reportPrivateUsage]
+                or measure.optimize_measurement
+            ):
+                reordered_observables.append(
+                    Observable(
+                        observable.pauli_string.rearrange(pauli_permutation),
+                        label=observable.label,
+                    )
+                )
+            else:
+                from mpqp.tools.maths import rearrange_matrix
+
+                reordered_observables.append(
+                    Observable(
+                        rearrange_matrix(observable.matrix, targets),
+                        label=observable.label,
+                    )
+                )
+
+        targets = ordered_targets
+        observables = reordered_observables
+
+    targets_are_contiguous = bool(targets) and targets == list(
+        range(targets[0], targets[-1] + 1)
+    )
+    # Extend observables to cover the circuit's full qubit register
+    adjusted_observables: list[Observable] = []
+
+    from mpqp.core.instruction.measurement.pauli_string import (
+        PauliString,
+        PauliStringMonomial,
+        pI,
+    )
+
+    for observable in observables:
         if (
-            obs._pauli_string is None  # pyright: ignore[reportPrivateUsage]
-            and targets_is_contiguous
+            observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+            and targets_are_contiguous
         ):
-            n_before = targets[0]
-            n_after = nb_qubits - targets[-1] - 1
+            nb_qubits_before = targets[0]
+            nb_qubits_after = nb_qubits - targets[-1] - 1
 
-            full_matrix = obs.matrix
+            full_matrix = observable.matrix
 
-            Id_before = np.eye(2**n_before)
-            Id_after = np.eye(2**n_after)
+            if nb_qubits_before > 0:
+                identity_before = np.eye(2**nb_qubits_before)
+                full_matrix = np.kron(identity_before, full_matrix)
 
-            if n_before > 0:
-                full_matrix = np.kron(Id_before, full_matrix)
+            if nb_qubits_after > 0:
+                identity_after = np.eye(2**nb_qubits_after)
+                full_matrix = np.kron(full_matrix, identity_after)
 
-            if n_after > 0:
-                full_matrix = np.kron(full_matrix, Id_after)
-
-            tweaked_observables.append(
+            adjusted_observables.append(
                 Observable(
-                    full_matrix, label=obs.label  # pyright: ignore[reportArgumentType]
+                    full_matrix,  # pyright: ignore[reportArgumentType]
+                    label=observable.label,
                 )
             )
         else:
-            pauli = obs.pauli_string
-            embedded = PauliString()
+            embedded_pauli_string = PauliString()
 
-            for mono in pauli.monomials:
-                full_register = [pI] * nb_qubits
+            for monomial in observable.pauli_string.monomials:
+                embedded_atoms = [pI] * nb_qubits
 
                 for local_idx, target in enumerate(targets):
-                    full_register[target] = mono.atoms[local_idx]
+                    embedded_atoms[target] = monomial.atoms[local_idx]
 
-                embedded += PauliStringMonomial(mono.coef, full_register)
+                embedded_pauli_string += PauliStringMonomial(
+                    monomial.coef,
+                    embedded_atoms,
+                )
 
-            tweaked_observables.append(Observable(embedded.simplify(), label=obs.label))
+            adjusted_observables.append(
+                Observable(
+                    embedded_pauli_string.simplify(),
+                    label=observable.label,
+                )
+            )
 
-    tweaked_measure = ExpectationMeasure(
-        tweaked_observables,
-        list(range(circuit.nb_qubits)),
+    adjusted_measure = ExpectationMeasure(
+        adjusted_observables,
+        list(range(nb_qubits)),
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
@@ -161,7 +204,7 @@ def adjust_measure(measure: ExpectationMeasure, circuit: QCircuit):
         optimize_measurement=measure.optimize_measurement,
         optim_diagonal=measure.optim_diagonal,
     )
-    return tweaked_measure
+    return adjusted_measure
 
 
 def generate_job(
