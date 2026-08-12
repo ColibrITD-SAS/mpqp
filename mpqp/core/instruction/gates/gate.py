@@ -251,16 +251,18 @@ class Gate(Instruction, ABC):
 
         """
         # TODO: test
-        from mpqp.core.instruction.gates.custom_gate import CustomGate
         from scipy.linalg import fractional_matrix_power
+
+        from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         if exponent == 1:
             return deepcopy(self)
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
-            self.to_matrix(), exponent
+        semantics: npt.NDArray[np.complex128] = np.asarray(
+            fractional_matrix_power(self.to_matrix(), exponent),
+            dtype=np.complex128,
         )
 
         return CustomGate(
