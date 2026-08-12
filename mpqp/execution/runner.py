@@ -80,8 +80,7 @@ def adjust_measure(
         the full register.
 
     Raises:
-        ValueError: If a measurement target is not a valid qubit index in the
-            circuit, or if the number of target qubits does not match the number
+        ValueError: If the number of target qubits does not match the number
             of qubits represented by an observable.
 
     """

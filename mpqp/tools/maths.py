@@ -486,9 +486,9 @@ def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Mat
     """Reorder the rows and columns of a matrix according to the gate targets.
     The resulting matrix corresponds to the targets in sorted order.
 
-    For example, for a three-qubit gate with `targets=[3, 2, 1]`, the first
+    For example, for a three-qubit gate with ``targets=[3, 2, 1]``, the first
     local qubit is associated with qubit 3, the second with qubit 2, and the third
-    with qubit 1. Reordering the matrix to correspond to `[1, 2, 3]` exchanges
+    with qubit 1. Reordering the matrix to correspond to ``[1, 2, 3]`` exchanges
     the roles of qubits 1 and 3, similarly to a SWAP between their positions in
     the matrix.
 
@@ -498,8 +498,8 @@ def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Mat
     Args:
         m: The matrix for which we want to reorder the targets.
         targets: The targets
-        do_copy: If `True`, rearrange a copy without modifying the original
-            matrix. If `False`, rearrange the original matrix in place.
+        do_copy: If ``True``, rearrange a copy without modifying the original
+            matrix. If ``False``, rearrange the original matrix in place.
 
     Returns:
         The matrix rearranged to correspond to the sorted target order.
