@@ -1,6 +1,6 @@
 import pytest
 
-from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
+from mpqp.translation.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
 
 
 @pytest.mark.provider("myqlm")

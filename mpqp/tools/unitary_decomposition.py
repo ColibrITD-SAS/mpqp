@@ -4,7 +4,7 @@ unitary operator into elementary gates regrouped in a quantum circuit."""
 from __future__ import annotations
 
 import math
-from typing import Union
+from typing import Optional, Union
 
 import numpy as np
 from scipy.linalg import cossin
@@ -62,13 +62,18 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     G1 = np.array(g1)
 
     # Build G as G = V @ D² @ V†
-    G = G0 @ G1.conj().T
+    g = G0 @ G1.conj().T
+    # TODO: Find a cleaner way to solve rounding issues
+    G = np.round(g, 10)
+    eigvals, v = np.linalg.eig(G)
+    from mpqp.tools import closest_unitary
 
-    eigvals, V = np.linalg.eig(G)
+    v = closest_unitary(v, check_unitary=True)
+
     D = np.diag(np.sqrt(eigvals.astype(complex)))
 
     # W = D @ V† @ G1
-    W = np.asarray(D @ V.conj().T @ G1, dtype=np.complex128)
+    W = np.asarray(D @ v.conj().T @ G1, dtype=np.complex128)
     D_dagg = D.conj().T
 
     # Reconstruct the whole D matrix
@@ -81,12 +86,13 @@ def _unitary_SVD(U: Matrix) -> tuple[Matrix, Matrix, Matrix]:
     for i in range(length // 2):
         D_result.append(list(padding) + list(D_dagg[0 : length // 2][i]))
 
-    return V, np.array(D_result), W
+    return v, np.array(D_result), W
 
 
 def _gray_code_decomposition(
     thetas: Matrix,
     circuit: QCircuit,
+    targets: list[int],
     position: int,
     rotation: Union[type[Rz], type[Ry]],
 ) -> QCircuit:
@@ -98,7 +104,8 @@ def _gray_code_decomposition(
     Args:
         thetas : A list of floats that are the rotations to be applied on each qubits.
         circuit: The circuit in which the decomposition is stocked.
-        position : On which qubit is the rotation is taking place.
+        targets: The targets on which the CustomGate is applied.
+        position : At which step of the decomposition the process is currently at (from 0 to len(targets) - 1).
         rotation : Either a Ry or a Rz rotation.
 
     Returns:
@@ -118,14 +125,16 @@ def _gray_code_decomposition(
         # CNOT's control is the changed bit of two consecutive numbers in gray code
         changed = _gray_code(i) ^ _gray_code(i + 1)
         control = next(i for i in range(len(thetas)) if (changed >> i & 1))
-        control = max(-control - position - 1 + circuit.nb_qubits, 1)
+        control = max(-control - targets[position] - 1 + circuit.nb_qubits, 1)
         if np.abs(angle) > PRECISION:  # Dodge unnecessary rotations
-            circuit.add(rotation(angle, position))
-        circuit.add(CNOT(control + position, position))
+            circuit.add(rotation(angle, targets[position]))
+        circuit.add(CNOT(control + targets[position], targets[position]))
     return circuit
 
 
-def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
+def _decompose(
+    U: Matrix, circuit: QCircuit, targets: list[int], position: int = 0
+) -> QCircuit:
     """
     This function recursively decompose the matrix U into the circuit then returns it.
 
@@ -140,13 +149,14 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
 
         # extract the global phase so that SU is a special unitary, note that if U is a special unitary then delta = 0
         SU = U / np.exp(1j * delta)
-        beta = 2 * math.acos(np.abs(SU[0][0]))
+        abs = np.abs(SU[0][0])
+        beta = 0 if abs >= 1 else 2 * math.acos(abs)
         alpha = -np.angle(SU[0][0]) - np.angle(SU[1][0])
         gamma = -np.angle(SU[0][0]) + np.angle(SU[1][0])
 
-        circuit.add(Rz(alpha, position))
-        circuit.add(Ry(beta, position))
-        circuit.add(Rz(gamma, position))
+        circuit.add(Rz(alpha, targets[position]))
+        circuit.add(Ry(beta, targets[position]))
+        circuit.add(Rz(gamma, targets[position]))
         circuit.input_g_phase += delta  # Stores the gphase in the circuit
         return circuit
     else:  # 2 qubits or more
@@ -165,37 +175,42 @@ def _decompose(U: Matrix, circuit: QCircuit, position: int = 0) -> QCircuit:
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
         # Extracts the rotations of both multiplexed Rz for later decomposition
-        du = np.angle(
-            MuxRzu.diagonal()  # pyright: ignore[reportArgumentType, reportCallIssue]
+        du = np.asarray(
+            np.angle(
+                MuxRzu.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
+            )
         )
         for i in range(len(du) // 2):
             du[i] *= -1
 
-        dv = np.angle(
-            MuxRzv.diagonal()  # pyright: ignore[reportArgumentType, reportCallIssue]
+        dv = np.asarray(
+            np.angle(
+                MuxRzv.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
+            )
         )
         for i in range(len(dv) // 2):
             dv[i] *= -1
 
         # Now recursively decompose every obtained matrices.
-        circuit = _decompose(Wv, circuit, position + 1)
+        circuit = _decompose(Wv, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
-            dv, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+            dv, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
         )
-        circuit = _decompose(Vv, circuit, position + 1)
+        circuit = _decompose(Vv, circuit, targets, position + 1)
 
         circuit = _gray_code_decomposition(
             thetas,
             circuit,
+            targets,
             position,
             Ry,
         )
 
-        circuit = _decompose(Wu, circuit, position + 1)
+        circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
-            du, circuit, position, Rz  # pyright: ignore[reportArgumentType]
+            du, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
         )
-        circuit = _decompose(Vu, circuit, position + 1)
+        circuit = _decompose(Vu, circuit, targets, position + 1)
 
         return circuit
 
@@ -222,7 +237,9 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
     return circuit
 
 
-def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
+def quantum_shannon_decomposition(
+    U: Matrix, targets: Optional[list[int]] = None, check_unitary: bool = True
+) -> QCircuit:
     """
     Returns a circuit containing the decomposition of a unitary.
     The resulting circuit is composed of gates CNOT, Ry and Rz.
@@ -236,7 +253,8 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
 
     Args:
         U: The unitary matrix to be decomposed
-
+        check_unitary: boolean if at True will check if the inputted U is unitary. Default at True.
+        targets: The qubits on which the CustomGate should be applied. Defaults to [0,log2(len(U))]
     Returns:
         A quantum circuit equivalent to U.
 
@@ -249,10 +267,17 @@ def quantum_shannon_decomposition(U: Matrix) -> QCircuit:
         >>> print(matrix_eq(U, circuit.to_matrix()))
         True
     """
+    from mpqp.tools import is_unitary
+
+    if check_unitary and not is_unitary(U):
+        raise ValueError("The input gate should be unitary.")
     if not is_power_of_two(len(U)):
         raise ValueError(
-            f"The size of the unitary matrix should be of the form 2**n : got {len(U)}"
+            f"The size of the unitary matrix should be of a power of 2: got {len(U)}"
         )
-    circuit = QCircuit(int(np.log2(len(U))))
-    circuit = _decompose(U, circuit, 0)
+    import numpy as np
+
+    if targets is None:
+        targets = list(range(np.log2(len(U)).astype(int)))
+    circuit = _decompose(U, QCircuit(), targets, 0)
     return _optimize_circuit(circuit)
