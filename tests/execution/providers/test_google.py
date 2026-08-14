@@ -1,4 +1,6 @@
+import sys
 from typing import TYPE_CHECKING
+
 import numpy as np
 import pytest
 
@@ -79,6 +81,16 @@ def test_running_local_cirq(circuit: QCircuit):
     run(circuit, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR)
 
 
+@pytest.mark.provider("cirq")
+def remote_google_ionq_execution_binds_job_id():
+    circuit = QCircuit([H(0), BasisMeasure([0], shots=1)])
+
+    result = run(circuit, GOOGLEDevice.IONQ_SIMULATOR)
+
+    assert isinstance(result.job.id, str)
+    assert result.job.id
+
+
 @pytest.fixture
 def list_cirq() -> list[tuple["Circuit", str]]:
     from cirq.circuits.circuit import Circuit
@@ -113,3 +125,9 @@ def test_qasm2_to_cirq_Circuit(list_cirq: list[tuple[QCircuit, str]]):
             encoding="utf-8",
         ) as f:
             assert qasm2_to_cirq_Circuit(f.read()) == circuit
+
+
+if "--long-costly" in sys.argv:
+    test_remote_google_ionq_execution_binds_job_id = (
+        remote_google_ionq_execution_binds_job_id
+    )
