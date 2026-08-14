@@ -76,15 +76,15 @@ from mpqp.local_storage.save import insert_jobs, insert_results
 from mpqp.local_storage.setup import setup_local_storage
 from mpqp.measures import PauliString, pI, pX, pY, pZ
 from mpqp.noise.noise_model import _plural_marker  # pyright: ignore[reportPrivateUsage]
-from mpqp.qasm import (
+from mpqp.translation.qasm import (
     qasm2_to_cirq_Circuit,
     qasm2_to_myqlm_Circuit,
     qasm2_to_Qiskit_Circuit,
     qasm3_to_braket_Program,
 )
-from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
-from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
-from mpqp.qasm.open_qasm_2_and_3 import (
+from mpqp.translation.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.translation.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
+from mpqp.translation.qasm.open_qasm_2_and_3 import (
     convert_instruction_3_to_2,
     open_qasm_2_to_3,
     open_qasm_3_to_2,
@@ -95,12 +95,15 @@ from mpqp.qasm.open_qasm_2_and_3 import (
     remove_include_and_comment,
     remove_user_gates,
 )
-from mpqp.qasm.qasm_to_braket import (
+from mpqp.translation.qasm.qasm_to_braket import (
     braket_custom_gates_to_mpqp,
     braket_noise_to_mpqp,
     qasm3_to_braket_Circuit,
 )
-from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.translation.braket import *
+from mpqp.translation.qiskit import *
+from mpqp.translation import *
+from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import (
     random_circuit,
     random_gate,

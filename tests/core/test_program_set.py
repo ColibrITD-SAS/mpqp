@@ -15,7 +15,7 @@ t = Symbol("t")
 r = Symbol("r")
 c1 = QCircuit([Ry(t, 0), Rx(r, 0)])
 c2 = QCircuit([Rz(t, 0), Rz(r, 0)])
-o = ExpectationMeasure([Observable(pX - pZ), Observable(pZ)])
+o = [ExpectationMeasure([Observable(pZ)]), ExpectationMeasure([Observable(pX - pZ)])]
 
 
 @pytest.mark.provider("braket")
@@ -128,7 +128,10 @@ def test_translation_nbr_jobs(circuit: CircuitBinding, nbr_jobs: int):
             CircuitBinding(
                 [c1, c2],
                 values=[{"t": 1.0, "r": 0.0}, {"t": 0.0, "r": 1.0}],
-                measurements=ExpectationMeasure([Observable(pX + pZ), Observable(pX)]),
+                measurements=[
+                    ExpectationMeasure(Observable(pX + pZ)),
+                    ExpectationMeasure(Observable(pX)),
+                ],
                 mode=BindingMode.ZIP,
                 shots=500,
             ),

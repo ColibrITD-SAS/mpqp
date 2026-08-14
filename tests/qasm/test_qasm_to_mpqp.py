@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 import pytest
 
 from mpqp import CNOT, CP, BasisMeasure, H, Language
-from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit
 
 

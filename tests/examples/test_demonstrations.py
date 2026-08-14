@@ -16,7 +16,7 @@ from mpqp import (
 )
 from mpqp.execution.devices import AvailableDevice
 from mpqp.gates import *
-from mpqp.qasm.qasm_to_braket import qasm3_to_braket_Circuit
+from mpqp.translation.qasm.qasm_to_braket import qasm3_to_braket_Circuit
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 # TODO: add CIRQ local simulator devices to this file

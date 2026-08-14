@@ -17,6 +17,7 @@ from mpqp.execution.connection.ibm_connection import (
 )
 from mpqp.execution.devices import AZUREDevice, IBMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.providers.providers_params import QiskitParams
 from mpqp.execution.result import Result, Sample, StateVector, BatchResult
 from mpqp.noise import DimensionalNoiseModel
 from mpqp.tools.errors import (
@@ -42,12 +43,15 @@ if TYPE_CHECKING:
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
 
-def run_ibm(job: Job) -> Result | BatchResult:
+def run_ibm(
+    job: Job, qiskit_params: Optional[QiskitParams] = None
+) -> Result | BatchResult:
     """Executes the job on the right IBM Q device precised in the job in
     parameter.
 
     Args:
         job: Job to be executed.
+        qiskit_params: IBM Quantum Cloud specific parameters, mainly for remote jobs.
 
     Returns:
         The result of the job.
@@ -56,7 +60,11 @@ def run_ibm(job: Job) -> Result | BatchResult:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    return run_aer(job) if not job.device.is_remote() else run_remote_ibm(job)
+    return (
+        run_aer(job)
+        if not job.device.is_remote()
+        else run_remote_ibm(job, qiskit_params)
+    )
 
 
 def compute_expectation_value(
@@ -671,11 +679,14 @@ def run_aer(job: Job) -> Result | BatchResult:
         return result
 
 
-def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
+def submit_remote_ibm(
+    job: Job, qiskit_params: Optional[QiskitParams] = None
+) -> tuple[str, "RuntimeJobV2"]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
     Args:
         job: Job to be executed.
+        qiskit_params: IBM Quantum Cloud specific parameters, mainly for remote submissions.
 
     Returns:
         IBM's job id and the ``qiskit`` job itself.
@@ -687,7 +698,6 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     from qiskit import QuantumCircuit
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import SamplerV2 as Runtime_Sampler
-    from qiskit_ibm_runtime import Session
 
     meas = job.measure
 
@@ -695,9 +705,11 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
 
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
-    backend = get_backend(job.device)
+
+    instance = qiskit_params.instance if qiskit_params is not None else None
+
+    backend = get_backend(job.device, instance)
     job.device = IBMDevice(backend.name)
-    session = Session(backend=backend)
 
     if job.circuit.transpiled_circuit is None:
         qiskit_circ = job.circuit.to_other_device(job.device)
@@ -710,7 +722,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     if job.job_type == JobType.OBSERVABLE:
         if TYPE_CHECKING:
             assert isinstance(meas, ExpectationMeasure)
-        estimator = Runtime_Estimator(mode=session)
+        estimator = Runtime_Estimator(mode=backend)
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
@@ -741,7 +753,7 @@ def submit_remote_ibm(job: Job) -> tuple[str, "RuntimeJobV2"]:
     elif job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
             assert isinstance(meas, BasisMeasure)
-        sampler = Runtime_Sampler(mode=session)
+        sampler = Runtime_Sampler(mode=backend)
         ibm_job = sampler.run([qiskit_circ], shots=meas.shots)
     else:
         raise NotImplementedError(
@@ -826,12 +838,14 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
         return job.id, ibm_job
 
 
-def run_remote_ibm(job: Job) -> Result:
+def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
     Args:
         job: Job to be executed.
+        qiskit_params: IBM Quantum Cloud specific parameters, mainly for remote jobs.
+
 
     Returns:
         A Result after submission and execution of the job.
@@ -840,7 +854,7 @@ def run_remote_ibm(job: Job) -> Result:
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    _, remote_job = submit_remote_ibm(job)
+    _, remote_job = submit_remote_ibm(job, qiskit_params)
     ibm_result = remote_job.result()
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
