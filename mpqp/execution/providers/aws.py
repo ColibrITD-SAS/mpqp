@@ -400,7 +400,10 @@ def run_braket_observable(job: Job) -> Result:
             from braket.tasks.program_set_quantum_task_result import (
                 ProgramSetQuantumTaskResult,
             )
+            from braket.circuits.observables import Sum
 
+            if not isinstance(braket_sum, Sum):
+                braket_sum = [braket_sum]
             copy = deepcopy(transpiled_circuit)
             program_set = ProgramSet(
                 CircuitBinding(
