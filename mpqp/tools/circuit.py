@@ -442,7 +442,10 @@ def mpqp_to_qiskit(
             continue
         options = {"printing": printing} if isinstance(instruction, CustomGate) else {}
         if isinstance(instruction, Gate):
-            instr = verify_convert_instructions(instruction, authorized_gates)
+            if isinstance(instruction, ComposedGate) and not authorized_gates:
+                instr = [instruction]
+            else:
+                instr = verify_convert_instructions(instruction, authorized_gates)
         else:
             instr = [instruction]
         for instruction in instr:
