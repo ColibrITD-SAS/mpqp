@@ -2357,7 +2357,7 @@ class CircuitBinding:
 
             return pubs_with_context
         elif isinstance(device, AWSDevice):
-            from braket.program_sets import ProgramSet
+            from mpqp.translation.braket import circuitbinding_to_programset
             from braket.circuits import Circuit as braket_Circuit
 
             # translate inner circuits to braket and CB's elements to Braket
