@@ -160,6 +160,8 @@ class QCircuit:
         """See parameter description."""
         self.instructions: list[Instruction] = []
         """List of instructions with positions in the circuit."""
+        self.measurements: list[Measure] = []
+        """List of Measurements in the circuit."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -299,14 +301,15 @@ class QCircuit:
             self.noises.append(components)
         else:
             if isinstance(components, Gate):
-                for i in range(len(self.instructions) - 1, -1, -1):
-                    if isinstance(self.instructions[i], Measure):
-                        raise InstructionAfterMeasurementError(
-                            "Cannot add gate after measurement in the circuit."
+                if len(self.measurements) != 0:
+                    raise InstructionAfterMeasurementError(
+                        "Cannot add gate after measurement in the circuit."
                         )
-                    if isinstance(self.instructions[i], Gate):
-                        break
-            self.instructions.append(components)
+                  
+            if isinstance(components, Measure):
+                self.measurements.append(components)
+            else:
+                self.instructions.append(components)
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -394,7 +397,7 @@ class QCircuit:
             component.basis.set_size(self.nb_qubits)
 
             unique_cbits = set()
-            for instruction in self.instructions:
+            for instruction in self.measurements:
                 if instruction != component and isinstance(instruction, BasisMeasure):
                     if instruction.c_targets:
                         unique_cbits.update(instruction.c_targets)
@@ -456,7 +459,7 @@ class QCircuit:
                 if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(noise)
 
-            for instruction in self.instructions:
+            for instruction in self.instructions + self.measurements:
                 if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(instruction)
 
@@ -530,7 +533,7 @@ class QCircuit:
                 " index and the size of this circuit"
             )
 
-        for inst in deepcopy(other.instructions):
+        for inst in deepcopy(other.instructions + other.measurements):
             inst.targets = [qubit + qubits_offset for qubit in inst.targets]
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
@@ -724,8 +727,6 @@ class QCircuit:
         current_layer = 0
         last_barrier = 0
         for instr in self.instructions:
-            if isinstance(instr, Measure):
-                continue
             if isinstance(instr, Barrier):
                 last_barrier = current_layer
                 current_layer += 1
@@ -754,7 +755,7 @@ class QCircuit:
             4
 
         """
-        return len(self.instructions)
+        return len(self.instructions + self.measurements)
 
     def is_equivalent(self, circuit: QCircuit) -> bool:
         """Whether the circuit in parameter is equivalent to this circuit, in
@@ -868,6 +869,7 @@ class QCircuit:
         dagger = self._clone_without(
             [
                 "instructions",
+                "measurements"
             ],
             deep_copy=True,
         )
@@ -1018,21 +1020,6 @@ class QCircuit:
         return new_obj
 
     @property
-    def measurements(self) -> list[Measure]:
-        """Returns a list of all measurements in the circuit, ordered by their index.
-
-        Returns:
-            Ordered list of measurements in the circuit.
-
-        """
-        measurements: list[Measure] = []
-        for m in self.instructions:
-            if isinstance(m, Measure):
-                measurements.append(m)
-
-        return measurements
-
-    @property
     def gates(self) -> list[Gate]:
         """Returns a list of all gates in the circuit, ordered by their index.
 
@@ -1075,11 +1062,8 @@ class QCircuit:
 
         """
         new_circuit = self._clone_without(
-            ["instructions", "_nb_cbits"], deep_copy=deep_copy
+            ["measurements", "_nb_cbits"], deep_copy=deep_copy
         )
-        new_circuit.instructions = [
-            instr for instr in self.instructions if not isinstance(instr, Measure)
-        ]
 
         return new_circuit
 
@@ -1900,7 +1884,7 @@ class QCircuit:
 
     def __repr__(self) -> str:
         args = []
-        components: list[Instruction | NoiseModel] = self.instructions + self.noises
+        components: list[Instruction | NoiseModel] = self.instructions + self.measurements + self.noises
         if len(components) != 0:
             args.append(f"[{', '.join(repr(component) for component in components)}]")
         if self._user_nb_qubits is not None:
