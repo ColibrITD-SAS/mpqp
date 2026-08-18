@@ -304,8 +304,8 @@ class QCircuit:
                 if len(self.measurements) != 0:
                     raise InstructionAfterMeasurementError(
                         "Cannot add gate after measurement in the circuit."
-                        )
-                  
+                    )
+
             if isinstance(components, Measure):
                 self.measurements.append(components)
             else:
@@ -867,10 +867,7 @@ class QCircuit:
 
         """
         dagger = self._clone_without(
-            [
-                "instructions",
-                "measurements"
-            ],
+            ["instructions", "measurements"],
             deep_copy=True,
         )
 
@@ -1884,7 +1881,9 @@ class QCircuit:
 
     def __repr__(self) -> str:
         args = []
-        components: list[Instruction | NoiseModel] = self.instructions + self.measurements + self.noises
+        components: list[Instruction | NoiseModel] = (
+            self.instructions + self.measurements + self.noises
+        )
         if len(components) != 0:
             args.append(f"[{', '.join(repr(component) for component in components)}]")
         if self._user_nb_qubits is not None:
