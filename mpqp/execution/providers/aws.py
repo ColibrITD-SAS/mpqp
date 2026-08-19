@@ -145,6 +145,8 @@ def run_braket(job: Job) -> Result | BatchResult:
 
 
 def run_circuit_binding(job: Job) -> BatchResult:
+    from mpqp.core.instruction.measurement import Measure
+
     circuitBinding = job.circuit
     assert isinstance(circuitBinding, CircuitBinding)
     if job.job_type == JobType.STATE_VECTOR:
@@ -176,6 +178,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
             assert circuitBinding.measurements
             assert isinstance(circuitBinding.measurements[0], ExpectationMeasure)
         if circuitBinding.measurements[0].optimize_measurement:  # Compute Grouping
+            print(circuitBinding.measurements[0].optimize_measurement)
             length = 2**job.circuit.nb_qubits
             sorted_values: list[float] = []
             for i in range(length):
@@ -213,6 +216,8 @@ def run_circuit_binding(job: Job) -> BatchResult:
                         )
                         expectation_values[name] = expectation_value
 
+                    if TYPE_CHECKING:
+                        assert isinstance(observables, Measure)
                     local_job = Job(
                         job.job_type, circuit, job.device, observables, values
                     )
@@ -229,19 +234,16 @@ def run_circuit_binding(job: Job) -> BatchResult:
                 index += 1
         else:  # 1 run per monomials
             index = 0
-            for results in task:
+            for execution in task:
                 exp_value = 0
-                for result in results:
+                for result in execution:
                     exp_value += result.expectation
-                circuit, observable, variables = jobs[
-                    index
-                ]  # pyright: ignore[reportAssignmentType]
+                circuit, observable, variables = jobs[index]  # type: ignore
                 index += 1
                 local_job = Job(
                     job.job_type, circuit, job.device, observable, variables
                 )
-                result.append(local_job)
-
+                results.append(Result(local_job, exp_value))
     else:
         i = 0
         for res in task:

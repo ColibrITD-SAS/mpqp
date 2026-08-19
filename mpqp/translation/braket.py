@@ -291,9 +291,13 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         if (
             not programSet
         ):  # If the circuitBinding is embedded store the translated data.
-            binding._translated_circuits = translated
-            binding._translated_observables = obs
-            binding._translated_variables = var
+            binding._translated_circuits = translated  # pyright: ignore[reportAttributeAccessIssue, reportPrivateUsage]
+            binding._translated_observables = (  # pyright: ignore[reportPrivateUsage, reportAttributeAccessIssue]
+                obs
+            )
+            binding._translated_variables = (  # pyright: ignore[reportPrivateUsage, reportAttributeAccessIssue]
+                var
+            )
             return binding
 
         executable_list = []
@@ -329,7 +333,10 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             if binding.mode == BindingMode.PRODUCT:
                 for t in translated:
                     if isinstance(t, CircuitBinding):
-                        if t._translated_observables and observable:
+                        if (
+                            t._translated_observables  # pyright: ignore[reportPrivateUsage]
+                            and observable
+                        ):
                             raise ValueError(
                                 "Cannot declare an observable both inside a CircuitBinding and outside"
                             )
@@ -344,14 +351,16 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
                         inside_executables = list(
                             product(
-                                t._translated_observables or [observable],
-                                t._translated_variables or [values],
+                                t._translated_observables  # pyright: ignore[reportPrivateUsage]
+                                or [observable],
+                                t._translated_variables  # pyright: ignore[reportPrivateUsage]
+                                or [values],
                             )
                         )
 
                         for inside_observable, inside_val in inside_executables:
                             for circuitindex, c in enumerate(
-                                t._translated_circuits  # pyright: ignore[reportPrivateUsage]
+                                t._translated_circuits  # pyright: ignore[reportPrivateUsage,reportArgumentType]
                             ):
                                 if TYPE_CHECKING:
                                     assert isinstance(c, braket_Circuit)
@@ -437,7 +446,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     if (
                         translated[
                             i
-                        ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue]
+                        ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                         and observable
                     ):
                         raise ValueError(
@@ -447,7 +456,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     if (
                         translated[
                             i
-                        ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue]
+                        ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                         and values
                     ):
                         raise ValueError(
@@ -460,21 +469,25 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         product(
                             translated[
                                 i
-                            ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue]
+                            ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                             or [observable],
                             translated[
                                 i
-                            ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue]
+                            ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                             or [values],
                         )
                     )
 
                     if i == -1:
-                        binding = translated[i]
+                        binding = translated[i]  # pyright: ignore[reportAssignmentType]
                         if TYPE_CHECKING:
                             assert isinstance(binding, CircuitBinding)
-                            assert binding._translated_circuits
-                        for circuitindex, c in enumerate(binding._translated_circuits):
+                            assert (
+                                binding._translated_circuits  # pyright: ignore[reportPrivateUsage]
+                            )
+                        for circuitindex, c in enumerate(
+                            binding._translated_circuits  # pyright: ignore[reportPrivateUsage]
+                        ):
                             mpqp_circuit = binding.circuits[circuitindex]
 
                             for inside_observable, inside_val in inside_executables:
@@ -577,6 +590,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from braket.circuits import Circuit
 
         from mpqp.core import Language
+        from mpqp.core.circuit import CircuitBinding, QCircuit
 
         # translate inner circuits to braket and CB's elements to Braket
         translated: list[CircuitBinding | Circuit] = []
@@ -584,7 +598,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             if isinstance(c, QCircuit):
                 translated.append(c.to_other_language(Language.BRAKET))
             else:
-                translation = _cb_to_programset(binding, device, programSet=False)
+                translation = _cb_to_programset(c, device, programSet=False)
 
                 if isinstance(translation, list):
                     translated.extend(translation)
@@ -629,16 +643,22 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         translation = o.pauli_string.to_other_language(Language.BRAKET)
                         if not isinstance(translation, Sum):
                             translation = [translation]
-                        obs.append((m.observables, translation))
-
+                        if len(m.observables) != 1:
+                            obs.append((ExpectationMeasure(o), translation))
+                        else:
+                            obs.append((m, translation))
         if (
             not programSet
         ):  # If the circuitBinding is embedded store the translated data.
-            binding._translated_circuits = (  # pyright: ignore[reportPrivateUsage]
+            binding._translated_circuits = (  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
                 translated
             )
-            binding._translated_observables = obs  # pyright: ignore[reportPrivateUsage]
-            binding._translated_variables = var  # pyright: ignore[reportPrivateUsage]
+            binding._translated_observables = (  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
+                obs
+            )
+            binding._translated_variables = (  # pyright: ignore[reportPrivateUsage,reportAttributeAccessIssue]
+                var
+            )
             return binding
 
         result = []
@@ -676,13 +696,19 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
         for values, observable in executables:
             if binding.mode == BindingMode.PRODUCT:
-                for t in translated:
+                for i, t in enumerate(translated):
                     if isinstance(t, CircuitBinding):
-                        if t._translated_observables and observable:
+                        if (
+                            t._translated_observables  # pyright: ignore[reportPrivateUsage]
+                            and observable
+                        ):
                             raise ValueError(
                                 "Cannot declare an observable both inside a CircuitBinding and outside"
                             )
-                        if t._translated_variables and values:
+                        if (
+                            t._translated_variables  # pyright: ignore[reportPrivateUsage]
+                            and values
+                        ):
                             raise ValueError(
                                 "Cannot declare variables both inside a CircuitBinding and outside"
                             )
@@ -690,17 +716,22 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
                         inside_executables = list(
                             product(
-                                t._translated_observables or [observable],
-                                t._translated_variables or [values],
+                                t._translated_observables  # pyright: ignore[reportPrivateUsage]
+                                or [observable],
+                                t._translated_variables  # pyright: ignore[reportPrivateUsage]
+                                or [values],
                             )
                         )
 
-                        assert isinstance(t._translated_circuits, list)
+                        assert isinstance(
+                            t._translated_circuits,  # pyright: ignore[reportPrivateUsage]
+                            list,
+                        )
 
                         assert all(
                             [
                                 isinstance(c, braket_Circuit)
-                                for c in t._translated_circuits
+                                for c in t._translated_circuits  # pyright: ignore[reportGeneralTypeIssues,reportPrivateUsage]
                             ]
                         )
 
@@ -708,7 +739,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                             if inside_observable:
                                 if TYPE_CHECKING:
                                     assert isinstance(inside_observable, tuple)
-                                mpqp_obs, braket_obs = inside_observable
+                                mpqp_obs, braket_obs = (
+                                    inside_observable  # pyright: ignore[reportGeneralTypeIssues]
+                                )
                                 result.extend(
                                     [
                                         BraketBinding(
@@ -722,7 +755,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                 )
                                 context.extend(
                                     [(c, mpqp_obs, inside_val)]
-                                    for c in t._translated_circuits
+                                    for c in t._translated_circuits  # pyright: ignore[reportGeneralTypeIssues,reportPrivateUsage]
                                     if isinstance(c, braket_Circuit)
                                 )
                             else:
@@ -741,14 +774,16 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                 )
                                 context.extend(
                                     [(c, inside_val)]
-                                    for c in t._translated_circuits
+                                    for c in t._translated_circuits  # pyright: ignore[reportGeneralTypeIssues,reportPrivateUsage]
                                     if isinstance(c, braket_Circuit)
                                 )
                     else:
                         if observable:
                             if TYPE_CHECKING:
                                 assert isinstance(observable, tuple)
-                            mpqp_obs, braket_obs = observable
+                            mpqp_obs, braket_obs = (
+                                observable  # pyright: ignore[reportGeneralTypeIssues]
+                            )
                             result.append(
                                 BraketBinding(
                                     t,
@@ -756,7 +791,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                     observables=braket_obs,
                                 )
                             )
-                            context.extend([(t, mpqp_obs, values)])
+                            context.extend([(binding.circuits[i], mpqp_obs, values)])
                         else:
                             result.append(
                                 BraketBinding(
@@ -766,15 +801,13 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                 if values
                                 else t
                             )
-                            context.extend([(t, values)])
+                            context.extend([(binding.circuits[i], values)])
             else:
-                if isinstance(
-                    translated[i], CircuitBinding
-                ):  # ZIP to Binding ==> distribute upper binding to embedded binding
+                if isinstance(translated[i], CircuitBinding):
                     if (
                         translated[
                             i
-                        ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue]
+                        ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                         and observable
                     ):
                         raise ValueError(
@@ -783,7 +816,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     if (
                         translated[
                             i
-                        ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue]
+                        ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                         and values
                     ):
                         raise ValueError(
@@ -795,22 +828,28 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                         product(
                             translated[
                                 i
-                            ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue]
+                            ]._translated_observables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                             or [observable],
                             translated[
                                 i
-                            ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue]
+                            ]._translated_variables  # pyright: ignore[reportAttributeAccessIssue,reportPrivateUsage]
                             or [values],
                         )
                     )
-                    for c in translated[i]._translated_circuits:  # type: ignore
+
+                    cb: CircuitBinding = translated[
+                        i
+                    ]  # pyright: ignore[reportAssignmentType]
+                    for index, c in enumerate(translated[i]._translated_circuits):  # type: ignore
                         if TYPE_CHECKING:
                             assert isinstance(c, braket_Circuit)
                         for inside_observable, inside_val in inside_executables:
                             if inside_observable:
                                 if TYPE_CHECKING:
                                     assert isinstance(inside_observable, tuple)
-                                mpqp_obs, braket_obs = inside_observable
+                                mpqp_obs, braket_obs = (
+                                    inside_observable  # pyright: ignore[reportGeneralTypeIssues]
+                                )
                                 result.append(
                                     BraketBinding(
                                         c,
@@ -818,7 +857,13 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                         observables=braket_obs,
                                     )
                                 )
-                                context.append((c, mpqp_obs, inside_val))
+                                context.append(
+                                    (
+                                        cb.circuits[index],
+                                        mpqp_obs,
+                                        inside_val,
+                                    )
+                                )
                             else:
                                 result.append(
                                     (
@@ -830,12 +875,14 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                         else c
                                     )
                                 )
-                                context.append((c, inside_val))
+                                context.append((cb.circuits[index], inside_val))
                 else:
                     if observable:
                         if TYPE_CHECKING:
                             assert isinstance(observable, tuple)
-                        mpqp_obs, braket_obs = observable
+                        mpqp_obs, braket_obs = (
+                            observable  # pyright: ignore[reportGeneralTypeIssues]
+                        )
                         result.append(
                             BraketBinding(
                                 translated[i],  # pyright: ignore
@@ -868,6 +915,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.instruction import ExpectationMeasure
 
         if binding.measurements:
-            if isinstance(binding.measurements[0], ExpectationMeasure):
+            if (
+                isinstance(binding.measurements[0], ExpectationMeasure)
+                and binding.measurements[0].optimize_measurement
+            ):
                 return _cb_to_programset_pauli_grouping(binding, device, True)
         return _cb_to_programset(binding, device, True)

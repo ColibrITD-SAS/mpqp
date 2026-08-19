@@ -199,7 +199,8 @@ def compute_expectation_value(
             final_flat_results.extend(item.results)
         else:
             final_flat_results.append(item)
-
+    if isinstance(job.circuit, QCircuit):
+        return final_flat_results[0]
     return BatchResult(final_flat_results)
 
 
