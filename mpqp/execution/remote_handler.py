@@ -30,7 +30,7 @@ from mpqp.execution.providers.ibm import get_result_from_ibm_job_id
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
 ) -> Result:
-    """Retrieve and parse a remote the result from a job_id and device. If the
+    """Retrieve and parse a remote result from a job id and device. If the
     job is still running, it will wait until it is done.
 
     Args:
@@ -40,7 +40,10 @@ def get_remote_result(
             ``job_data`` is the identifier of the job.
 
     Returns:
-        The result(s) associated with the desired remote job in parameter.
+        The result associated with the desired remote job in parameter.
+
+    Note:
+        Retrieving results for jobs with multiple remote ids is not supported.
 
     Examples:
         >>> print(get_remote_result('Job141933', ATOSDevice.QLM_LINALG))
@@ -90,7 +93,7 @@ def get_remote_result(
     else:
         if device is None:
             raise ValueError(
-                "To get a remote result from a job it, please also provide the "
+                "To get a remote result from a job id, please also provide the "
                 "device to get the data from."
             )
         job_id = job_data

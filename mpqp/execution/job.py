@@ -120,10 +120,9 @@ class Job:
         self.device = device
         """See parameter description."""
         self.id: Optional[str | list[str]] = None
-        """Contains the id of the remote job, used to retrieve the result from 
-        the remote provider.  ``None`` if the job is local. It can take a little
-        while before it is set to the right value (For instance, a job
-        submission can require handshake protocols to conclude before
+        """Contains the job id or ids assigned by the execution provider. It can
+        take a little while before it is set to the right value (for instance,
+        a job submission can require handshake protocols to conclude before
         attributing an id to the job)."""
         self.status_message: Optional[str] = None
         """Optional message associated with the current job status, especially

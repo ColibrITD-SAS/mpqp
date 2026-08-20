@@ -510,7 +510,8 @@ def submit(
         provider_params: Provider's specific parameters for remote submissions
 
     Returns:
-        The job id provided by the remote device after submission of the job.
+        The job id or ids provided by the remote device after
+        submission and the associated MPQP job.
 
     Example:
         >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure([0,1], shots=10)])
