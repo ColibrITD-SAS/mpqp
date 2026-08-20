@@ -77,7 +77,7 @@ def submit_job_azure(job: Job) -> tuple[str, "AzureQuantumJob"]:
     job_id = job_sim.id()
     job.id = job_id
 
-    return job.id, job_sim
+    return job_id, job_sim
 
 
 def extract_result(

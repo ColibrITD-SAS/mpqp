@@ -579,8 +579,8 @@ def submit_remote_ibm(
             f"{job.job_type} not handled by remote remote IBM devices."
         )
 
-    job.id = ibm_job.job_id()
-    job_id = job.id
+    job_id = ibm_job.job_id()
+    job.id = job_id
 
     return job_id, ibm_job
 
