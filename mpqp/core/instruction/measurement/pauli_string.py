@@ -916,7 +916,7 @@ class PauliString:
                 ): monomial.coef
                 for monomial in self.simplify().monomials
             }
-            return QubitPauliOperator(terms)
+            return QubitPauliOperator(terms)  # pyright: ignore[reportArgumentType]
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 

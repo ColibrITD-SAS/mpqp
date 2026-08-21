@@ -15,6 +15,7 @@ from mpqp.execution.connection.quantinuum_connection import get_quantinuum_confi
 from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.result import Result, Sample, StateVector
+from mpqp.tools.errors import DeviceJobIncompatibleError
 
 if TYPE_CHECKING:
     import numpy as np
@@ -49,13 +50,15 @@ def run_quantinuum(job: Job) -> Result:
     """
     try:
         if not isinstance(job.device, QUANTINUUMDevice):
-            raise ValueError(
+            raise DeviceJobIncompatibleError(
                 "`job` must correspond to a `QUANTINUUMDevice`, but corresponds "
                 f"to a {job.device} instead."
             )
+
         if not job.device.is_remote():
             return run_tket_local(job)
         if job.job_type == JobType.OBSERVABLE:
+            check_job_compatibility(job)
             return run_quantinuum_observable(job)
 
         _, execute_job_ref = submit_job_quantinuum(job)
@@ -86,6 +89,84 @@ def run_quantinuum(job: Job) -> Result:
         raise
 
 
+def check_job_compatibility(job: Job) -> None:
+    """Checks whether the job in parameter has coherent and compatible
+    attributes.
+
+    Args:
+        job: Job for which we want to check compatibility.
+
+    Raises:
+        DeviceJobIncompatibleError: If there is a mismatch between information
+            contained in the job (measure and job_type, device and job_type,
+            etc...).
+    """
+    if not isinstance(job.device, QUANTINUUMDevice):
+        raise DeviceJobIncompatibleError(
+            "`job` must correspond to a `QUANTINUUMDevice`, but corresponds "
+            f"to a {job.device} instead."
+        )
+
+    if type(job.measure) not in job.job_type.value:
+        expected_measures = ", ".join(
+            measure_type.__name__ for measure_type in job.job_type.value
+        )
+        raise DeviceJobIncompatibleError(
+            f"A {job.job_type.name} job requires a measurement of type "
+            f"{expected_measures}, but {type(job.measure).__name__} was given."
+        )
+
+    if TYPE_CHECKING:
+        assert isinstance(job.device, QUANTINUUMDevice)
+
+    if job.job_type == JobType.SAMPLE and not job.device.supports_samples():
+        raise DeviceJobIncompatibleError(
+            f"{job.device} does not support `SAMPLE` jobs."
+        )
+
+    if job.job_type == JobType.STATE_VECTOR and not job.device.supports_state_vector():
+        raise DeviceJobIncompatibleError(
+            f"{job.device} does not support `STATE_VECTOR` jobs."
+        )
+
+    if (
+        job.job_type == JobType.OBSERVABLE
+        and isinstance(job.measure, ExpectationMeasure)
+        and job.measure.shots == 0
+    ):
+        supports_exact_observable = (
+            job.device.supports_state_vector()
+            if job.device.is_remote()
+            else job.device.supports_observable_ideal()
+        )
+        if not supports_exact_observable:
+            raise DeviceJobIncompatibleError(
+                f"{job.device} requires a positive number of shots for "
+                "observable jobs."
+            )
+
+    if (
+        job.job_type == JobType.OBSERVABLE
+        and isinstance(job.measure, ExpectationMeasure)
+        and job.measure.shots > 0
+        and (not job.device.supports_observable() or not job.device.supports_samples())
+    ):
+        raise DeviceJobIncompatibleError(
+            f"{job.device} does not support sampled observable jobs."
+        )
+
+    if (
+        job.job_type == JobType.OBSERVABLE
+        and isinstance(job.measure, ExpectationMeasure)
+        and job.measure.shots > 0
+        and job.measure.commuting_type != CommutingTypes.QUBITWISE
+    ):
+        raise DeviceJobIncompatibleError(
+            "Quantinuum sampld observable jobs currently require qubit-wise "
+            "commuting Pauli grouping."
+        )
+
+
 def run_tket_local(job: Job) -> Result:
     """Execute a job using a local TKET backend.
 
@@ -95,34 +176,17 @@ def run_tket_local(job: Job) -> Result:
     Returns:
         The result after local compilation and execution.
     """
-    if not isinstance(job.device, QUANTINUUMDevice) or job.device.is_remote():
+    check_job_compatibility(job)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, QUANTINUUMDevice)
+    if job.device.is_remote():
         raise ValueError("The job must target a local TKET device.")
 
-    if job.job_type == JobType.SAMPLE:
-        if not job.device.supports_samples():
-            raise ValueError(
-                f"{job.device} does not support `SAMPLE` jobs. Use "
-                f"{QUANTINUUMDevice.TKET_AER_SIMULATOR} instead."
-            )
-        if not isinstance(job.measure, BasisMeasure):
-            raise ValueError("Sample jobs must have a `BasisMeasure`.")
-    elif job.job_type == JobType.STATE_VECTOR:
-        if not job.device.supports_state_vector():
-            raise ValueError(
-                f"{job.device} does not support `STATE_VECTOR` jobs. Use "
-                f"{QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR} instead."
-            )
-    elif job.job_type == JobType.OBSERVABLE:
-        if not isinstance(job.measure, ExpectationMeasure):
-            raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+    if job.job_type == JobType.OBSERVABLE:
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, ExpectationMeasure)
         if job.measure.shots > 0:
             return run_quantinuum_observable(job)
-        if not job.device.supports_observable_ideal():
-            raise ValueError(
-                f"{job.device} does not support observable jobs without sampling."
-            )
-    else:
-        raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
 
     from pytket.extensions.qiskit.backends.aer import AerBackend, AerStateBackend
     from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
@@ -217,24 +281,15 @@ def run_quantinuum_observable(job: Job) -> Result:
     Returns:
         A result containing the expectation values of the observables.
     """
-    if not isinstance(job.device, QUANTINUUMDevice):
-        raise ValueError(
-            "`job` must correspond to a `QUANTINUUMDevice`, but corresponds to "
-            f"a {job.device} instead."
-        )
-    if not isinstance(job.measure, ExpectationMeasure):
-        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+    if TYPE_CHECKING:
+        assert isinstance(job.device, QUANTINUUMDevice)
+        assert isinstance(job.measure, ExpectationMeasure)
 
     observable_labels = job.measure.observables_labels
 
     circuit = job.circuit.without_measurements()
 
     if job.measure.shots == 0:
-        if not job.device.supports_state_vector():
-            raise ValueError(
-                f"{job.device} requires a positive number of shots for "
-                "observable jobs."
-            )
         state_job = Job(
             JobType.STATE_VECTOR,
             circuit,
@@ -257,17 +312,6 @@ def run_quantinuum_observable(job: Job) -> Result:
             )
         return extract_observable_result(job, expectation_values, 0.0, 0)
 
-    if not job.device.supports_samples():
-        raise ValueError(
-            f"{job.device} does not support sampled observable jobs. Set `shots=0` "
-            "to evaluate the observable without sampling."
-        )
-    if job.measure.commuting_type != CommutingTypes.QUBITWISE:
-        raise NotImplementedError(
-            "Quantinuum sample derived observable jobs currently support only "
-            "qubit-wise commuting Pauli grouping."
-        )
-
     from mpqp.tools.pauli_grouping import find_qubitwise_rotations
 
     grouped_probabilities = []
@@ -289,79 +333,25 @@ def run_quantinuum_observable(job: Job) -> Result:
     return extract_sampled_observable_result(job, grouped_probabilities)
 
 
-def extract_sampled_observable_result(
-    job: Job,
-    grouped_probabilities: list[npt.NDArray[np.float64]],
-) -> Result:
-    """Reconstruct a sampled observable result from one probability vector per
-    Pauli group by combining the measured probabilities with the eigenvalues and
-    coefficients of the observable's Pauli terms.
-    """
-    if not isinstance(job.measure, ExpectationMeasure):
-        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
+    """Submit a job to a supported Quantinuum Nexus backend."""
+    if job.job_type == JobType.OBSERVABLE:
+        return submit_quantinuum_observable(job)
 
-    grouping = job.measure.get_pauli_grouping()
-    if len(grouped_probabilities) != len(grouping):
-        raise ValueError(
-            "The number of Quantinuum observable results "
-            f"({len(grouped_probabilities)}) does not match the number of "
-            f"submitted Pauli groups ({len(grouping)})."
-        )
+    check_job_compatibility(job)
+    n_shots: int | list[None]
+    if job.job_type == JobType.SAMPLE:
+        if TYPE_CHECKING:
+            assert job.measure is not None
+        n_shots = job.measure.shots
+    else:
+        n_shots = [None]
 
-    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
-
-    eigenvalues = [
-        {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
-        for group in grouping
-    ]
-
-    expectation_values: dict[str, float] = {}
-    errors: dict[str, float] = {}
-    for label, observable in zip(
-        job.measure.observables_labels,
-        job.measure.observables,
-    ):
-        expectation_value = 0.0
-        variance = 0.0
-        monomials = {
-            monomial.name: monomial for monomial in observable.pauli_string.monomials
-        }
-
-        for group, group_eigenvalues, probabilities in zip(
-            grouping,
-            eigenvalues,
-            grouped_probabilities,
-        ):
-            weighted_eigenvalues = np.zeros_like(probabilities)
-            for monomial in group:
-                observable_monomial = monomials.get(monomial.name)
-                if observable_monomial is None:
-                    continue
-                if TYPE_CHECKING:
-                    assert isinstance(observable_monomial.coef, Real)
-                weighted_eigenvalues += (
-                    float(observable_monomial.coef) * group_eigenvalues[monomial.name]
-                )
-
-            group_expectation = float(np.dot(weighted_eigenvalues, probabilities))
-            expectation_value += group_expectation
-            variance += (
-                max(
-                    0.0,
-                    float(np.dot(weighted_eigenvalues**2, probabilities))
-                    - group_expectation**2,
-                )
-                / job.measure.shots
-            )
-
-        expectation_values[label] = expectation_value
-        errors[label] = math.sqrt(variance)
-
-    return extract_observable_result(
+    return submit_circuits_to_nexus(
         job,
-        expectation_values,
-        errors,
-        job.measure.shots,
+        [job.circuit],
+        n_shots,
+        name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
     )
 
 
@@ -374,28 +364,19 @@ def submit_quantinuum_observable(job: Job) -> tuple[str, "ExecuteJobRef"]:
     MPQP `Job` is required to reconstruct the expectation value from the
     returned states or counts.
     """
-    if not isinstance(job.device, QUANTINUUMDevice) or not job.device.is_remote():
+    check_job_compatibility(job)
+    if TYPE_CHECKING:
+        assert isinstance(job.device, QUANTINUUMDevice)
+        assert isinstance(job.measure, ExpectationMeasure)
+    if not job.device.is_remote():
         raise ValueError("Observable submission requires a remote Quantinuum device.")
-    if not isinstance(job.measure, ExpectationMeasure):
-        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
 
     circuit = job.circuit.without_measurements()
+    n_shots: int | list[None]
     if job.measure.shots == 0:
-        if not job.device.supports_state_vector():
-            raise ValueError(
-                f"{job.device} requires a positive number of shots for observable jobs."
-            )
         circuits = [circuit]
-        n_shots: list[int | None] = [None]
+        n_shots = [None]
     else:
-        if not job.device.supports_samples():
-            raise ValueError(f"{job.device} does not support sampled observable jobs.")
-        if job.measure.commuting_type != CommutingTypes.QUBITWISE:
-            raise NotImplementedError(
-                "Quantinuum sample-derived observable jobs currently support only "
-                "qubit-wise commuting Pauli grouping."
-            )
-
         from mpqp.tools.pauli_grouping import find_qubitwise_rotations
 
         circuits = []
@@ -408,7 +389,7 @@ def submit_quantinuum_observable(job: Job) -> tuple[str, "ExecuteJobRef"]:
                 )
             )
             circuits.append(sample_circuit)
-        n_shots = [job.measure.shots] * len(circuits)
+        n_shots = job.measure.shots
 
     return submit_circuits_to_nexus(
         job,
@@ -419,64 +400,10 @@ def submit_quantinuum_observable(job: Job) -> tuple[str, "ExecuteJobRef"]:
     )
 
 
-def extract_observable_result(
-    job: Job,
-    expectation_values: dict[str, float],
-    errors: float | dict[str, float],
-    shots: int,
-) -> Result:
-    """Construct an MPQP result from Quantinuum expectation values."""
-    job.status = JobStatus.DONE
-    if len(expectation_values) == 1:
-        label = list(expectation_values)[0]
-        expectation_value = expectation_values[label]
-        error = errors[label] if isinstance(errors, dict) else errors
-        return Result(job, expectation_value, error, shots)
-    if not isinstance(errors, dict):
-        errors = dict.fromkeys(expectation_values, errors)
-    return Result(job, expectation_values, errors, shots)
-
-
-def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
-    """Submit a job to a supported Quantinuum Nexus backend."""
-    if not isinstance(job.device, QUANTINUUMDevice):
-        raise ValueError(
-            "`job` must correspond to a `QUANTINUUMDevice`, but corresponds to "
-            f"a {job.device} instead."
-        )
-
-    if job.job_type == JobType.OBSERVABLE:
-        return submit_quantinuum_observable(job)
-    if job.job_type == JobType.SAMPLE:
-        if not job.device.supports_samples():
-            raise ValueError(f"{job.device} does not support `SAMPLE` jobs.")
-        if job.measure is None:
-            raise ValueError("Sample jobs must have a measurement.")
-    elif job.job_type == JobType.STATE_VECTOR:
-        if not job.device.supports_state_vector():
-            raise ValueError(f"{job.device} does not support `STATE_VECTOR` jobs.")
-    else:
-        raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
-
-    if job.job_type == JobType.SAMPLE:
-        if TYPE_CHECKING:
-            assert job.measure is not None
-        n_shots: list[int | None] = [job.measure.shots]
-    else:
-        n_shots = [None]
-
-    return submit_circuits_to_nexus(
-        job,
-        [job.circuit],
-        n_shots,
-        name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
-    )
-
-
 def submit_circuits_to_nexus(
     job: Job,
     circuits: list[QCircuit],
-    n_shots: list[int | None],
+    n_shots: int | list[None],
     name: str,
     description: str = "",
 ) -> tuple[str, "ExecuteJobRef"]:
@@ -554,6 +481,100 @@ def submit_circuits_to_nexus(
     return job.id, execute_job_ref
 
 
+def extract_observable_result(
+    job: Job,
+    expectation_values: dict[str, float],
+    errors: float | dict[str, float],
+    shots: int,
+) -> Result:
+    """Construct an MPQP result from Quantinuum expectation values."""
+    job.status = JobStatus.DONE
+    if len(expectation_values) == 1:
+        label = list(expectation_values)[0]
+        expectation_value = expectation_values[label]
+        error = errors[label] if isinstance(errors, dict) else errors
+        return Result(job, expectation_value, error, shots)
+    if not isinstance(errors, dict):
+        errors = dict.fromkeys(expectation_values, errors)
+    return Result(job, expectation_values, errors, shots)
+
+
+def extract_sampled_observable_result(
+    job: Job,
+    grouped_probabilities: list[npt.NDArray[np.float64]],
+) -> Result:
+    """Reconstruct a sampled observable result from one probability vector per
+    Pauli group by combining the measured probabilities with the eigenvalues and
+    coefficients of the observable's Pauli terms.
+    """
+    if not isinstance(job.measure, ExpectationMeasure):
+        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+
+    grouping = job.measure.get_pauli_grouping()
+    if len(grouped_probabilities) != len(grouping):
+        raise ValueError(
+            "The number of Quantinuum observable results "
+            f"({len(grouped_probabilities)}) does not match the number of "
+            f"submitted Pauli groups ({len(grouping)})."
+        )
+
+    from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
+    eigenvalues = [
+        {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
+        for group in grouping
+    ]
+
+    expectation_values: dict[str, float] = {}
+    errors: dict[str, float] = {}
+    for label, observable in zip(
+        job.measure.observables_labels,
+        job.measure.observables,
+    ):
+        expectation_value = 0.0
+        variance = 0.0
+        monomials = {
+            monomial.name: monomial for monomial in observable.pauli_string.monomials
+        }
+
+        for group, group_eigenvalues, probabilities in zip(
+            grouping,
+            eigenvalues,
+            grouped_probabilities,
+        ):
+            weighted_eigenvalues = np.zeros_like(probabilities)
+            for monomial in group:
+                observable_monomial = monomials.get(monomial.name)
+                if observable_monomial is None:
+                    continue
+                if TYPE_CHECKING:
+                    assert isinstance(observable_monomial.coef, Real)
+                weighted_eigenvalues += (
+                    float(observable_monomial.coef) * group_eigenvalues[monomial.name]
+                )
+
+            group_expectation = float(np.dot(weighted_eigenvalues, probabilities))
+            expectation_value += group_expectation
+            variance += (
+                max(
+                    0.0,
+                    float(np.dot(weighted_eigenvalues**2, probabilities))
+                    - group_expectation**2,
+                )
+                / job.measure.shots
+            )
+
+        expectation_values[label] = expectation_value
+        errors[label] = variance
+
+    return extract_observable_result(
+        job,
+        expectation_values,
+        errors,
+        job.measure.shots,
+    )
+
+
 def extract_state_vector_result(
     amplitudes: "list[Complex] | npt.NDArray[np.complex128]",
     job: Job,
@@ -625,7 +646,18 @@ def get_result_from_quantinuum_job_id(
     job_id: str,
     job: Job | None = None,
 ) -> Result:
-    """Retrieve a Quantinuum Nexus job result and convert it to an MPQP result."""
+    """Retrieve and parse the result of a Quantinuum Nexus job.
+
+    If the job is still running, wait until its execution is complete.
+
+    Args:
+        job_id: id of the remote Quantinuum Nexus job.
+        job: Original MPQP job used for submission. Required when retrieving
+        an observable result.
+
+    Returns:
+        The result converted to our format.
+    """
     import qnexus as qnx
 
     job_ref = qnx.jobs.get(id=job_id)
