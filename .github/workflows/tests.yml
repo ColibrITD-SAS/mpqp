@@ -39,13 +39,14 @@ on:
           - "cirq"
           - "braket"
           - "myqlm"
+          - "quantinuum"
 jobs:
   tests:
     runs-on: ubuntu-latest
     strategy:
       matrix: 
         python-version: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.python_v) || '["3.10", "3.11", "3.12", "3.13"]') }}
-        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || ((github.ref_name == 'main' || github.base_ref == 'main') && '["all", "qiskit", "cirq", "braket", "myqlm"]' || '["all"]')) }}
+        provider: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', github.event.inputs.providers) || ((github.ref_name == 'main' || github.base_ref == 'main') && '["all", "qiskit", "cirq", "braket", "myqlm", "quantinuum"]' || '["all"]')) }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
