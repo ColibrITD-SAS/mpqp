@@ -451,7 +451,7 @@ class QCircuit:
             for noise in self.noises:
                 if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(noise)
-            instructions = self.with_measurement()
+            instructions = self.with_measurement(deep_copy=False)
             for instruction in instructions:
                 if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(instruction)
