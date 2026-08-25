@@ -2110,18 +2110,7 @@ class CircuitBinding:
             )
 
             shots_ = None
-            for measure in measurements:
-                if isinstance(measure, ExpectationMeasure):
-                    measure = adjust_measure(measure, self.nb_qubits)
-                    if self.job_type != JobType.OBSERVABLE:
-                        raise ValueError(
-                            "All measurements in CircuitBinding must be of the same type."
-                        )
-                elif isinstance(measure, BasisMeasure):
-                    if self.job_type != JobType.SAMPLE:
-                        raise ValueError(
-                            "All measurements in CircuitBinding must be of the same type."
-                        )
+            for index, measure in enumerate(measurements):
                 if self.shots is not None:
                     # TODO: this is a check for default shots but it is hardcode
                     if isinstance(measure, ExpectationMeasure) and measure.shots != 0:
@@ -2140,6 +2129,17 @@ class CircuitBinding:
                     elif measure.shots != shots_:
                         raise ValueError(
                             "All measurements in CircuitBinding must have the same number of shots."
+                        )
+                if isinstance(measure, ExpectationMeasure):
+                    measurements[index] = adjust_measure(measure, self.nb_qubits)
+                    if self.job_type != JobType.OBSERVABLE:
+                        raise ValueError(
+                            "All measurements in CircuitBinding must be of the same type."
+                        )
+                elif isinstance(measure, BasisMeasure):
+                    if self.job_type != JobType.SAMPLE:
+                        raise ValueError(
+                            "All measurements in CircuitBinding must be of the same type."
                         )
             if shots_ is not None:
                 self.shots = shots_
