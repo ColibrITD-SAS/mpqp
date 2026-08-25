@@ -47,7 +47,6 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, Gate
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.native_gates import ComposedGate
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -1410,24 +1409,20 @@ class QCircuit:
         skip_measurements = False
 
         # Checks if all the gates or its direct decomposition are available on the device.
-        authorized_gates = device.compatible_gate()
-        if authorized_gates != set():
-            for instr in self.instructions:
-                if not isinstance(instr, Gate):
-                    continue
-                if not type(instr) in authorized_gates:
-                    if isinstance(instr, ComposedGate):
-                        if not all(
-                            isinstance(gate, tuple(device.compatible_gate()))
-                            for gate in instr.decompose()
-                        ):
-                            raise ValueError(
-                                f"Gate: {type(instr)} and its decomposition is not available on {device}.\n\nThis device\'s compatible gates are: {authorized_gates}."
-                            )
-                    else:
-                        raise ValueError(
-                            f"Gate: {type(instr)} is not available on {device}.\n\nThis device\'s compatible gates are: {authorized_gates}."
-                        )
+        from copy import deepcopy
+
+        from mpqp.core.instruction.gates.decomposition import (
+            resolve_instructions,
+        )
+
+        translated_circuit = deepcopy(self)
+        native_gates = device.compatible_gate()
+
+        if native_gates:
+            translated_circuit.instructions = resolve_instructions(
+                translated_circuit.instructions,
+                native_gates,
+            )
 
         if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
             if job_type == JobType.STATE_VECTOR:

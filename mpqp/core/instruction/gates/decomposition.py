@@ -4,6 +4,7 @@ from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledG
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.native_gates import ComposedGate
+from mpqp.core.instruction.instruction import Instruction
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,23 @@ class UnsupportedGateError(ValueError):
             f"gate set. Missing gates: {missing_names}. "
             f"Available gates: {available_names}."
         )
+
+
+def resolve_instructions(
+    instructions: list["Instruction"],
+    gate_set: set[type[Gate]],
+) -> list["Instruction"]:
+    resolved: list[Instruction] = []
+
+    for instruction in instructions:
+        if isinstance(instruction, Gate):
+            resolved.extend(
+                resolve_gate(instruction, gate_set)
+            )
+        else:
+            resolved.append(instruction)
+
+    return resolved
 
 
 def resolve_composed_gate(
