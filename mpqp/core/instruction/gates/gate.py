@@ -259,8 +259,11 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex128] = fractional_matrix_power(
-            self.to_matrix(), exponent
+        semantics: npt.NDArray[np.complex128] = # pyright: ignore[reportAssignmentType]
+        (
+            fractional_matrix_power(  
+                self.to_matrix(), exponent
+            )
         )
 
         return CustomGate(
