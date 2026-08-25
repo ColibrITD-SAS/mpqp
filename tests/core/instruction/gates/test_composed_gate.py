@@ -99,9 +99,7 @@ def define_parameters():
     "gate, language",
     define_parameters(),
 )
-def test_composedgate_translation_no_decomposition(
-    gate: Gate, language: Language
-):
+def test_composedgate_translation_no_decomposition(gate: Gate, language: Language):
     c = QCircuit()
     c.add(gate)
     translated = c.to_other_language(language)
@@ -113,9 +111,7 @@ def test_composedgate_translation_no_decomposition(
     "gate, language",
     define_parameters(),
 )
-def test_composedgate_translation_decomposition(
-    gate: Gate, language: Language
-):
+def test_composedgate_translation_decomposition(gate: Gate, language: Language):
     c = QCircuit()
     c.add(gate)
     translated = c.to_other_language(language)
@@ -130,3 +126,34 @@ def test_composedgate_translation_decomposition(
 def test_composedgates_decomposition(gate: ComposedGate):
     c = QCircuit(gate.decompose())
     assert matrix_eq(c.to_matrix(), gate.to_matrix())
+
+
+def test_native_gate_is_preserved():
+    gate = Rzz(0.5, 0, 1)
+
+    result = resolve_gate(gate, {Rzz})
+
+    assert result.gates == (gate,)
+    assert not result.decomposed
+
+
+def test_gate_is_implicitly_decomposed():
+    result = resolve_gate(
+        Rzz(0.5, 0, 1),
+        {Rz, CNOT},
+    )
+
+    assert [type(gate) for gate in result.gates] == [
+        CNOT,
+        Rz,
+        CNOT,
+    ]
+    assert result.decomposed
+
+
+def test_unsupported_gate_raises():
+    with pytest.raises(UnsupportedGateError):
+        resolve_gate(
+            Rzz(0.5, 0, 1),
+            {Rx},
+        )

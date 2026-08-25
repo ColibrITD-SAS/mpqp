@@ -404,7 +404,7 @@ def mpqp_to_qiskit(
     circuit: QCircuit,
     skip_pre_measure: bool = False,
     skip_measurements: bool = False,
-    printing: bool = False
+    printing: bool = False,
 ) -> QuantumCircuit:
     from qiskit.circuit import Operation, QuantumCircuit
     from qiskit.circuit.quantumcircuit import CircuitInstruction
@@ -448,7 +448,7 @@ def mpqp_to_qiskit(
             )
         else:
             instr = [instruction]
-        
+
         for instruction in instr:
             qiskit_inst = instruction.to_other_language(
                 Language.QISKIT, qiskit_parameters, **options
@@ -558,6 +558,7 @@ def get_braket_gate_set() -> set[type[Gate]]:
         Rzz,
         CNOT,
     }
+
 
 def mpqp_to_braket(
     circuit: QCircuit,
@@ -672,10 +673,9 @@ def get_cirq_gate_set() -> set[type[Gate]]:
         CNOT
     }
 
+
 def mpqp_to_cirq(
-    circuit: QCircuit,
-    skip_pre_measure: bool = False,
-    skip_measurements: bool = False
+    circuit: QCircuit, skip_pre_measure: bool = False, skip_measurements: bool = False
 ) -> cirq_Circuit:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.identity import I
@@ -707,7 +707,7 @@ def mpqp_to_cirq(
                         )
                         qasm2_code, gphase = resolved_pre_measure[0].to_other_language(
                             Language.QASM2
-                        )  
+                        )
                         if TYPE_CHECKING:
                             assert isinstance(qasm2_code, str)
                         from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit

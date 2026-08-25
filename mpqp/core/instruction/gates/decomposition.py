@@ -43,16 +43,12 @@ def resolve_composed_gate(
         raise UnsupportedGateError(gate, gate_set)
 
     if gate_type in resolving:
-        raise ValueError(
-            f"Cyclic decomposition detected for {gate_type.__name__}."
-        )
+        raise ValueError(f"Cyclic decomposition detected for {gate_type.__name__}.")
 
     decomposition = gate.decompose()
 
     if not decomposition or any(child is gate for child in decomposition):
-        raise ValueError(
-            f"{gate_type.__name__} returned an invalid decomposition."
-        )
+        raise ValueError(f"{gate_type.__name__} returned an invalid decomposition.")
 
     resolved: list[Gate] = []
     missing: set[type[Gate]] = set()
@@ -82,3 +78,4 @@ def resolve_gate(
         return (gate,)
 
     return resolve_composed_gate(gate, gate_set).gates
+
