@@ -88,7 +88,7 @@ class CustomControlledGate(ControlledGate):
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator
 
-            gate = self.non_controlled_gate.to_other_language()
+            gate = self.non_controlled_gate.to_other_language(Language.QISKIT)
             if isinstance(gate, Operator):
                 gate = gate.to_instruction()
             gate = gate.control(len(self.controls))
