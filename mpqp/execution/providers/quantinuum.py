@@ -202,7 +202,7 @@ def run_tket_local(job: Job) -> Result:
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
         backend = AerBackend()
-    elif job.device == QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR:
+    elif job.device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
         backend = AerStateBackend()
     elif job.device == QUANTINUUMDevice.TKET_QULACS_SIMULATOR:
         backend = QulacsBackend()
@@ -743,7 +743,7 @@ def get_result_from_quantinuum_job_id(
         job = Job(
             JobType.STATE_VECTOR,
             QCircuit(nb_qubits),
-            QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
         )
         job.id = job_id
         return extract_state_vector_result(amplitudes, job)

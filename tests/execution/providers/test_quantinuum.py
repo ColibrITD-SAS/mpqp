@@ -53,7 +53,7 @@ def test_local_tket_sample(device: QUANTINUUMDevice):
 @pytest.mark.parametrize(
     "device",
     [
-        QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+        QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
         QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
     ],
 )
@@ -88,7 +88,7 @@ def test_local_tket_state_vector(device: QUANTINUUMDevice):
             Job(
                 JobType.SAMPLE,
                 QCircuit([BasisMeasure([0], shots=100)]),
-                QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+                QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             ),
             "does not support `SAMPLE` jobs",
         ),
@@ -112,7 +112,7 @@ def test_local_tket_state_vector(device: QUANTINUUMDevice):
             Job(
                 JobType.OBSERVABLE,
                 QCircuit([ExpectationMeasure(Observable(pX), shots=100)]),
-                QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+                QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             ),
             "does not support sampled observable jobs",
         ),
@@ -143,7 +143,7 @@ def test_job_compatibility(job: Job, message: str):
     "device",
     [
         QUANTINUUMDevice.TKET_AER_SIMULATOR,
-        QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+        QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
         QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
     ],
 )
@@ -215,7 +215,7 @@ def test_remote_quantinuum_jobs():
 
     state_vector_result = run(
         QCircuit([H(0), CNOT(0, 1)]),
-        QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
+        QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
     )
     assert matrix_eq(
         state_vector_result.amplitudes,
@@ -230,7 +230,7 @@ def test_remote_quantinuum_jobs():
     )
     _, exact_job = submit(
         exact_circuit,
-        QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
+        QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
     )
     exact_result = get_remote_result(exact_job)
     assert isinstance(exact_result.expectation_values, float)
