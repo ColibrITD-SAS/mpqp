@@ -123,13 +123,17 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.4364437 +0.13832902j 0.        +0.j         0.21760065+0.861993j
-            0.        +0.j        ]
+        >>> expected = np.array([
+        ...     0.4364437 + 0.13832902j,
+        ...     0,
+        ...     0.21760065 + 0.861993j,
+        ...     0,
+        ... ])
+        >>> np.allclose(statevector_from_random_circuit(2, seed=123), expected)
+        True
     """
     from mpqp.execution import IBMDevice, Result, run
 
-    mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
