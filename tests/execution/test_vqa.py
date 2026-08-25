@@ -265,6 +265,7 @@ def test_optimizer_func_braket(
 ):
     exec_optimizer_func(eval_f, minimum, device)
 
+
 @pytest.mark.provider("quantinuum")
 @pytest.mark.parametrize(
     "eval_f, minimum, device",

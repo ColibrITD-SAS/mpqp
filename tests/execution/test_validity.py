@@ -341,6 +341,7 @@ def test_state_vector_various_native_gates_quantinuum(
         gates, expected_vector, state_vector_devices_quantinuum
     )
 
+
 def exec_state_vector_various_native_gates(
     gates: list[Gate],
     expected_vector: Matrix,
@@ -692,6 +693,7 @@ def test_validity_run_job_type_quantinuum(
     device: AvailableDevice, circuits_type: list[QCircuit]
 ):
     exec_validity_run_job_type(device, circuits_type)
+
 
 @pytest.mark.provider("azure")
 @pytest.mark.parametrize(
