@@ -239,7 +239,7 @@ def test_expectation_value_all_devices_qiskit(
             expectation_value,
             circuit,
             observable,
-            [IBMDevice.AER_SIMULATOR, IBMDevice.AER_SIMULATOR_STATEVECTOR]
+            [IBMDevice.AER_SIMULATOR, IBMDevice.AER_SIMULATOR_STATEVECTOR],
         )
 
 
@@ -262,10 +262,7 @@ def test_expectation_value_all_devices_cirq(
 ):
     for expectation_value, circuit, observable in list_expect_v_circ_obs:
         exec_expectation_value_all_devices(
-            expectation_value,
-            circuit,
-            observable,
-            [GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
+            expectation_value, circuit, observable, [GOOGLEDevice.CIRQ_LOCAL_SIMULATOR]
         )
 
 
@@ -288,10 +285,7 @@ def test_expectation_value_all_devices_quantinuum(
 ):
     for expectation_value, circuit, observable in list_expect_v_circ_obs:
         exec_expectation_value_all_devices(
-            expectation_value,
-            circuit,
-            observable,
-            optimized_devices_quantinuum()
+            expectation_value, circuit, observable, optimized_devices_quantinuum()
         )
 
 
