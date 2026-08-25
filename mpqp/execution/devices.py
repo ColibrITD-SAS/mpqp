@@ -15,7 +15,7 @@ Not all combinations of :class:`AvailableDevice` and
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
 compatible job types and devices.
 
-For more information about handling remote devices, please refer to the 
+For more information about handling remote devices, please refer to the
 `Remote devices handling <execution-extras.html>`_ section.
 
 .. csv-table:: Job/Device Compatibility Matrix
