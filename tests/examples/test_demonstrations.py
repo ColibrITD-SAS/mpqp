@@ -273,9 +273,14 @@ def test_observable_demo_cirq(shots: int):
 @pytest.mark.provider("quantinuum")
 @pytest.mark.parametrize("shots", [0, 1000])
 def test_observable_demo_quantinuum(shots: int):
-    devices = [QUANTINUUMDevice.TKET_AER_SIMULATOR, QUANTINUUMDevice.TKET_QULACS_SIMULATOR]
-    if shots==0:
-        devices.append(QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,)
+    devices = [
+        QUANTINUUMDevice.TKET_AER_SIMULATOR,
+        QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+    ]
+    if shots == 0:
+        devices.append(
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+        )
     exec_observable_demo(shots, devices)
 
 
