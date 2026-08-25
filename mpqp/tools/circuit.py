@@ -378,30 +378,16 @@ def replace_custom_gate(
 def get_qiskit_gate_set() -> set[type[Gate]]:
     from mpqp.gates import (
         CNOT,
-        CP,
-        CZ,
-        H,
-        Id,
         PRX,
         Rxx,
         Ryy,
         Rzz,
         Rx,
         Ry,
-        Rz,
-        U,
-        SWAP,
-        X,
-        Y,
-        Z,
+        Rz
     )
 
     return {
-        X,
-        Y,
-        Z,
-        H,
-        Id,
         Rx,
         Ry,
         Rz,
@@ -410,10 +396,7 @@ def get_qiskit_gate_set() -> set[type[Gate]]:
         Ryy,
         Rzz,
         U,
-        CNOT,
-        CP,
-        CZ,
-        SWAP,
+        CNOT
     }
 
 
@@ -461,7 +444,7 @@ def mpqp_to_qiskit(
                 resolve_gate(
                     instruction,
                     qiskit_gate_set,
-                ).gates
+                )
             )
         else:
             instr = [instruction]
@@ -556,34 +539,16 @@ def get_braket_gate_set() -> set[type[Gate]]:
     """Return gates directly representable by Braket."""
     from mpqp.gates import (
         CNOT,
-        CP,
-        CZ,
-        H,
-        Id,
         PRX,
         Rxx,
         Ryy,
         Rzz,
         Rx,
         Ry,
-        Rz,
-        S,
-        SWAP,
-        T,
-        TOF,
-        X,
-        Y,
-        Z,
+        Rz
     )
 
     return {
-        X,
-        Y,
-        Z,
-        H,
-        Id,
-        S,
-        T,
         Rx,
         Ry,
         Rz,
@@ -592,10 +557,6 @@ def get_braket_gate_set() -> set[type[Gate]]:
         Ryy,
         Rzz,
         CNOT,
-        CP,
-        CZ,
-        SWAP,
-        TOF,
     }
 
 def mpqp_to_braket(
@@ -663,7 +624,7 @@ def mpqp_to_braket(
             instructions = resolve_gate(
                 instruction,
                 get_braket_gate_set(),
-            ).gates
+            )
         else:
             instructions = (instruction,)
 
@@ -697,40 +658,18 @@ def get_cirq_gate_set() -> set[type[Gate]]:
     """Return gates directly representable by Cirq."""
     from mpqp.gates import (
         CNOT,
-        CP,
-        CZ,
-        H,
-        Id,
         PRX,
         Rx,
         Ry,
-        Rz,
-        S,
-        SWAP,
-        T,
-        TOF,
-        X,
-        Y,
-        Z,
+        Rz
     )
 
     return {
-        X,
-        Y,
-        Z,
-        H,
-        Id,
-        S,
-        T,
         Rx,
         Ry,
         Rz,
         PRX,
-        CNOT,
-        CP,
-        CZ,
-        SWAP,
-        TOF,
+        CNOT
     }
 
 def mpqp_to_cirq(
@@ -765,7 +704,7 @@ def mpqp_to_cirq(
                         resolved_pre_measure = resolve_gate(
                             pre_measure,
                             get_cirq_gate_set(),
-                        ).gates
+                        )
                         qasm2_code, gphase = resolved_pre_measure[0].to_other_language(
                             Language.QASM2
                         )  
@@ -794,7 +733,7 @@ def mpqp_to_cirq(
             instructions = resolve_gate(
                 instruction,
                 get_cirq_gate_set(),
-            ).gates
+            )
         else:
             instructions = (instruction,)
 

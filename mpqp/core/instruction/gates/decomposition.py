@@ -29,7 +29,7 @@ class UnsupportedGateError(ValueError):
         )
 
 
-def resolve_gate(
+def resolve_composed_gate(
     gate: Gate,
     gate_set: set[type[Gate]],
     resolving: frozenset[type[Gate]] = frozenset(),
@@ -59,7 +59,7 @@ def resolve_gate(
 
     for child in decomposition:
         try:
-            result = resolve_gate(
+            result = resolve_composed_gate(
                 child,
                 gate_set,
                 resolving | {gate_type},
@@ -72,3 +72,13 @@ def resolve_gate(
         raise UnsupportedGateError(gate, gate_set, missing)
 
     return GateResolution(gate, tuple(resolved), decomposed=True)
+
+
+def resolve_gate(
+    gate: Gate,
+    gate_set: set[type[Gate]],
+) -> tuple[Gate, ...]:
+    if not isinstance(gate, ComposedGate):
+        return (gate,)
+
+    return resolve_composed_gate(gate, gate_set).gates
