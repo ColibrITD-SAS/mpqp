@@ -81,7 +81,7 @@ def resolve_gate(
         CustomGate,
     ):
         return (gate.to_custom_gate(),)
-    
+
     if not isinstance(gate, ComposedGate):
         return (gate,)
 
