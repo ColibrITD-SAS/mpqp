@@ -40,9 +40,7 @@ def resolve_instructions(
 
     for instruction in instructions:
         if isinstance(instruction, Gate):
-            resolved.extend(
-                resolve_gate(instruction, gate_set)
-            )
+            resolved.extend(resolve_gate(instruction, gate_set))
         else:
             resolved.append(instruction)
 
