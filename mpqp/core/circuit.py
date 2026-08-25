@@ -55,7 +55,6 @@ from mpqp.core.languages import Language
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
-    InstructionAfterMeasurementError,
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
@@ -300,12 +299,6 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
-            if isinstance(components, Gate):
-                if len(self.measurements) != 0:
-                    raise InstructionAfterMeasurementError(
-                        "Cannot add gate after measurement in the circuit."
-                    )
-
             if isinstance(components, Measure):
                 self.measurements.append(components)
             else:
@@ -755,7 +748,7 @@ class QCircuit:
             4
 
         """
-        return len(self.instructions + self.measurements)
+        return len(self.instructions) + len(self.measurements)
 
     def is_equivalent(self, circuit: QCircuit) -> bool:
         """Whether the circuit in parameter is equivalent to this circuit, in
