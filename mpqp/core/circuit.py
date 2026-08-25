@@ -451,8 +451,8 @@ class QCircuit:
             for noise in self.noises:
                 if noise._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(noise)
-
-            for instruction in self.instructions + self.measurements:
+            instructions = self.with_measurement()
+            for instruction in instructions:
                 if instruction._dynamic:  # pyright: ignore[reportPrivateUsage]
                     self._update_targets_components(instruction)
 
@@ -1056,6 +1056,18 @@ class QCircuit:
         )
 
         return new_circuit
+
+    def with_measurement(self, deep_copy: bool = True) -> list[Instruction]:
+        """Returns the instructions with the measurements added at the back.
+        Args:
+            deep_copy: If True, returns the deepcopy of the resulting list, otherwise returns a shallow copy.
+        """
+        if deep_copy:
+            from copy import deepcopy
+
+            return deepcopy(self.instructions + self.measurements)
+        else:
+            return self.instructions + self.measurements
 
     def without_noises(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the noise models removed.
@@ -1875,7 +1887,7 @@ class QCircuit:
     def __repr__(self) -> str:
         args = []
         components: list[Instruction | NoiseModel] = (
-            self.instructions + self.measurements + self.noises
+            self.with_measurement(deep_copy=False) + self.noises
         )
         if len(components) != 0:
             args.append(f"[{', '.join(repr(component) for component in components)}]")
