@@ -376,28 +376,9 @@ def replace_custom_gate(
 
 
 def get_qiskit_gate_set() -> set[type[Gate]]:
-    from mpqp.gates import (
-        CNOT,
-        PRX,
-        Rxx,
-        Ryy,
-        Rzz,
-        Rx,
-        Ry,
-        Rz
-    )
+    from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
 
-    return {
-        Rx,
-        Ry,
-        Rz,
-        PRX,
-        Rxx,
-        Ryy,
-        Rzz,
-        U,
-        CNOT
-    }
+    return {Rx, Ry, Rz, PRX, Rxx, Ryy, Rzz, U, CNOT}
 
 
 def mpqp_to_qiskit(
@@ -537,16 +518,7 @@ def mpqp_to_qiskit(
 
 def get_braket_gate_set() -> set[type[Gate]]:
     """Return gates directly representable by Braket."""
-    from mpqp.gates import (
-        CNOT,
-        PRX,
-        Rxx,
-        Ryy,
-        Rzz,
-        Rx,
-        Ry,
-        Rz
-    )
+    from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
 
     return {
         Rx,
@@ -657,21 +629,9 @@ def mpqp_to_braket(
 
 def get_cirq_gate_set() -> set[type[Gate]]:
     """Return gates directly representable by Cirq."""
-    from mpqp.gates import (
-        CNOT,
-        PRX,
-        Rx,
-        Ry,
-        Rz
-    )
+    from mpqp.gates import CNOT, PRX, Rx, Ry, Rz
 
-    return {
-        Rx,
-        Ry,
-        Rz,
-        PRX,
-        CNOT
-    }
+    return {Rx, Ry, Rz, PRX, CNOT}
 
 
 def mpqp_to_cirq(

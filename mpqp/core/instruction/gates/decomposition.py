@@ -78,4 +78,3 @@ def resolve_gate(
         return (gate,)
 
     return resolve_composed_gate(gate, gate_set).gates
-
