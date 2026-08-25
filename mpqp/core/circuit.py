@@ -1123,7 +1123,6 @@ class QCircuit:
         language: Literal[Language.QASM2, Language.QASM3],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> str: ...
 
@@ -1133,7 +1132,6 @@ class QCircuit:
         language: Literal[Language.CIRQ],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> cirq_Circuit: ...
 
@@ -1143,7 +1141,6 @@ class QCircuit:
         language: Literal[Language.BRAKET],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> braket_Circuit: ...
     @overload
@@ -1152,7 +1149,6 @@ class QCircuit:
         language: Literal[Language.MY_QLM],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> myQLM_Circuit: ...
 
@@ -1162,7 +1158,6 @@ class QCircuit:
         language: Literal[Language.QISKIT],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> QuantumCircuit: ...
 
@@ -1172,7 +1167,6 @@ class QCircuit:
         language: Language,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
 
@@ -1181,7 +1175,6 @@ class QCircuit:
         language: Language = Language.QISKIT,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
@@ -1263,16 +1256,14 @@ class QCircuit:
                 self,
                 skip_pre_measure,
                 skip_measurements,
-                printing,
-                authorized_gates=authorized_gates,
+                printing
             )
 
         elif language == Language.MY_QLM:
             qasm2_code = self.to_other_language(
                 Language.QASM2,
                 skip_pre_measure=skip_pre_measure,
-                skip_measurements=True,
-                authorized_gates=authorized_gates,
+                skip_measurements=True
             )
             from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
 
@@ -1283,14 +1274,14 @@ class QCircuit:
             from mpqp.tools.circuit import mpqp_to_braket
 
             return mpqp_to_braket(
-                self, skip_pre_measure, authorized_gates=authorized_gates
+                self, skip_pre_measure
             )
 
         elif language == Language.CIRQ:
             from mpqp.tools.circuit import mpqp_to_cirq
 
             return mpqp_to_cirq(
-                self, skip_pre_measure, skip_measurements, authorized_gates
+                self, skip_pre_measure, skip_measurements
             )
 
         elif language == Language.QASM2:
@@ -1463,8 +1454,7 @@ class QCircuit:
             qiskit_circuit = mpqp_to_qiskit(
                 self,
                 skip_pre_measure,
-                skip_measurements,
-                authorized_gates=device.compatible_gate(),
+                skip_measurements
             )
             if TYPE_CHECKING:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
