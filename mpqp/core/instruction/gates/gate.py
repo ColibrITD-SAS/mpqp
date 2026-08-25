@@ -7,7 +7,6 @@ from typing import Optional
 from warnings import warn
 
 import numpy as np
-import numpy.typing as npt
 
 from mpqp.core.instruction.instruction import Instruction
 from mpqp.tools.errors import NumberQubitsWarning
@@ -259,12 +258,7 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics: npt.NDArray[np.complex128] = # pyright: ignore[reportAssignmentType]
-        (
-            fractional_matrix_power(  
-                self.to_matrix(), exponent
-            )
-        )
+        semantics = fractional_matrix_power(self.to_matrix(), exponent)
 
         return CustomGate(
             matrix=semantics / np.linalg.norm(semantics, ord=2),
