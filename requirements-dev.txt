@@ -1,4 +1,4 @@
--r requirements.txt
+-r requirements-all.txt
 setuptools==81.0.0
 pytest==9.0.2
 nbmake

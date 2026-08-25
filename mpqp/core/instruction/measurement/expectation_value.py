@@ -298,6 +298,7 @@ class Observable:
         SparsePauliOp,
         QLMObservable,
         Hermitian,
+        Sum,
         CirqPauliSum,
         CirqPauliString,
         QubitPauliOperator,
