@@ -100,9 +100,7 @@ def define_parameters():
     "gate, language",
     define_parameters(),
 )
-def test_composedgate_translation_no_decomposition(
-    gate: Gate, language: Language
-):
+def test_composedgate_translation_no_decomposition(gate: Gate, language: Language):
     c = QCircuit()
     c.add(gate)
     translated = c.to_other_language(language)
@@ -114,9 +112,7 @@ def test_composedgate_translation_no_decomposition(
     "gate, language",
     define_parameters(),
 )
-def test_composedgate_translation_decomposition(
-    gate: Gate, language: Language
-):
+def test_composedgate_translation_decomposition(gate: Gate, language: Language):
     c = QCircuit()
     c.add(gate)
     translated = c.to_other_language(language)

@@ -1252,18 +1252,13 @@ class QCircuit:
         if language == Language.QISKIT:
             from mpqp.tools.circuit import mpqp_to_qiskit
 
-            return mpqp_to_qiskit(
-                self,
-                skip_pre_measure,
-                skip_measurements,
-                printing
-            )
+            return mpqp_to_qiskit(self, skip_pre_measure, skip_measurements, printing)
 
         elif language == Language.MY_QLM:
             qasm2_code = self.to_other_language(
                 Language.QASM2,
                 skip_pre_measure=skip_pre_measure,
-                skip_measurements=True
+                skip_measurements=True,
             )
             from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
 
@@ -1273,16 +1268,12 @@ class QCircuit:
         elif language == Language.BRAKET:
             from mpqp.tools.circuit import mpqp_to_braket
 
-            return mpqp_to_braket(
-                self, skip_pre_measure
-            )
+            return mpqp_to_braket(self, skip_pre_measure)
 
         elif language == Language.CIRQ:
             from mpqp.tools.circuit import mpqp_to_cirq
 
-            return mpqp_to_cirq(
-                self, skip_pre_measure, skip_measurements
-            )
+            return mpqp_to_cirq(self, skip_pre_measure, skip_measurements)
 
         elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
@@ -1451,11 +1442,7 @@ class QCircuit:
                 )
             from mpqp.tools.circuit import mpqp_to_qiskit
 
-            qiskit_circuit = mpqp_to_qiskit(
-                self,
-                skip_pre_measure,
-                skip_measurements
-            )
+            qiskit_circuit = mpqp_to_qiskit(self, skip_pre_measure, skip_measurements)
             if TYPE_CHECKING:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
 
