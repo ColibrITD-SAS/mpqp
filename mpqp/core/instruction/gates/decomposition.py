@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
+from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.native_gates import ComposedGate
 
@@ -74,6 +76,12 @@ def resolve_gate(
     gate: Gate,
     gate_set: set[type[Gate]],
 ) -> tuple[Gate, ...]:
+    if isinstance(gate, CustomControlledGate) and isinstance(
+        gate.non_controlled_gate,
+        CustomGate,
+    ):
+        return (gate.to_custom_gate(),)
+    
     if not isinstance(gate, ComposedGate):
         return (gate,)
 

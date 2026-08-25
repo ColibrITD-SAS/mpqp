@@ -629,9 +629,9 @@ def mpqp_to_braket(
 
 def get_cirq_gate_set() -> set[type[Gate]]:
     """Return gates directly representable by Cirq."""
-    from mpqp.gates import CNOT, PRX, Rx, Ry, Rz
+    from mpqp.gates import CNOT, Rx, Ry, Rz
 
-    return {Rx, Ry, Rz, PRX, CNOT}
+    return {Rx, Ry, Rz, CNOT}
 
 
 def mpqp_to_cirq(
