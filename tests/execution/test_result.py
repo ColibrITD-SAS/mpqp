@@ -190,32 +190,43 @@ sampling_devices_quantinuum: list[AvailableDevice] = [
 observable_sampling_devices_qiskit: list[AvailableDevice] = [
     device
     for device in IBMDevice
-    if not device.is_remote() and device.supports_samples() and device.supports_observable()
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
 ]
 
 observable_sampling_devices_cirq: list[AvailableDevice] = [
     device
     for device in GOOGLEDevice
-    if not device.is_remote() and device.supports_samples() and device.supports_observable()
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
 ]
 
 observable_sampling_devices_braket: list[AvailableDevice] = [
     device
     for device in AWSDevice
-    if not device.is_remote() and device.supports_samples() and device.supports_observable()
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
 ]
 
 observable_sampling_devices_myqlm: list[AvailableDevice] = [
     device
     for device in ATOSDevice
-    if not device.is_remote() and device.supports_samples() and device.supports_observable()
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
 ]
 
 observable_sampling_devices_quantinuum: list[AvailableDevice] = [
     device
     for device in QUANTINUUMDevice
-    if not device.is_remote() and device.supports_samples() and device.supports_observable()
+    if not device.is_remote()
+    and device.supports_samples()
+    and device.supports_observable()
 ]
+
 
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("device", sampling_devices_qiskit)
@@ -285,6 +296,7 @@ def test_observable_nb_shot_handle_myqlm(device: AvailableDevice):
 @pytest.mark.parametrize("device", observable_sampling_devices_quantinuum)
 def test_observable_and_observable_nb_shot_handle_quantinuum(device: AvailableDevice):
     exec_observable_nb_shot_handle(device)
+
 
 def exec_observable_nb_shot_handle(device: AvailableDevice):
     circuit = QCircuit(
