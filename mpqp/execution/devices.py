@@ -7,15 +7,16 @@ Each supported provider has its available devices listed as these enums:
 - :class:`IBMDevice`,
 - :class:`ATOSDevice`,
 - :class:`AWSDevice`,
-- :class:`GOOGLEDevice`.
-- :class:`AZUREDevice`.
-- :class:`QUANTINUUMDevice`
+- :class:`GOOGLEDevice`,
+- :class:`AZUREDevice`,
+- :class:`QUANTINUUMDevice`.
 
 Not all combinations of :class:`AvailableDevice` and
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
-compatible jobs types and devices.
+compatible job types and devices.
 
-For more information about handling Remote devices, please refer to the `Remote devices handling <execution-extras.html>`_ section.
+For more information about handling remote devices, please refer to the 
+`Remote devices handling <execution-extras.html>`_ section.
 
 .. csv-table:: Job/Device Compatibility Matrix
    :file: ../../docs/resources/job-device_compat.csv

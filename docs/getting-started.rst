@@ -88,6 +88,15 @@ Add more providers
 .. literalinclude:: requirements_providers/myqlm.txt
    :language: text
 
+- **Quantinuum Nexus**:
+
+    .. code-block:: console
+
+        $ pip install mpqp[quantinuum]
+
+.. literalinclude:: requirements_providers/quantinuum.txt
+   :language: text
+
 
 You can also combine extras, for example, to install both Qiskit and Braket support:
 
@@ -163,7 +172,8 @@ Set up remote accesses
 
 Installing MPQP gives you access to ``setup_connections``, a script facilitating
 the setup of remote QPU connections. The supported providers (Qiskit,
-Qaptiva, Braket, Azure and IonQ) can be set up from this script.  
+Qaptiva, Braket, Azure, IonQ and Quantinuum) can be set up from this
+script.
 
 To run the script, simply run the following command in your terminal:
 
@@ -258,6 +268,58 @@ script and select AWS configuration, you will have to choose between one of the 
     + ``AWS Secret Access Key``,
     + ``AWS Session Token``,
     + ``Default region name``.
+
+
+Quantinuum Nexus
+^^^^^^^^^^^^^^^^
+
+To use Quantinuum Nexus, you need a Nexus account with access to the required
+projects and quotas. See the `Quantinuum Nexus authentication and quotas guide
+<https://docs.quantinuum.com/nexus/trainings/notebooks/basics/auth_quotas.html>`_
+for more information.
+
+After installing the ``quantinuum`` extra, run the connection setup script:
+
+.. code-block:: console
+
+    $ setup_connections
+
+Select ``Quantinuum``. MPQP calls ``qnx.login()`` to start the Nexus
+browser authentication flow and then asks whether you want to use an existing
+Nexus project or create a new one. If a browser cannot be opened, QNexus
+displays a login link in the terminal instead.
+
+QNexus stores and manages the authentication tokens. MPQP stores the selected
+project name in its local configuration and activates that project when a
+remote job is submitted. Running the setup again allows you to authenticate
+again or select another project. More information about Nexus projects is
+available in the `QNexus projects API reference
+<https://docs.quantinuum.com/nexus/nexus_api/projects.html>`_.
+
+MPQP provides local TKET simulators that do not require Nexus authentication.
+The Nexus connection is required for the remote Nexus-hosted Aer and Qulacs
+simulators, the noiseless H-Series ``QUANTINUUMDevice.H1_1LE`` and
+``QUANTINUUMDevice.H2_1LE`` emulators, and the noisy H-Series
+``QUANTINUUMDevice.H1_EMULATOR`` and ``QUANTINUUMDevice.H2_EMULATOR``
+emulators.
+
+Depending on the selected backend, MPQP supports sample, state-vector, and
+observable jobs. Observable evaluation can be exact or shot-based. The
+supported job types for each device are listed in the :ref:`Devices` section.
+See the `Nexus backend configuration guide
+<https://docs.quantinuum.com/nexus/trainings/notebooks/basics/alternate_backends/index.html>`_
+for details about the corresponding Nexus backends.
+
+For example, the following circuit is executed remotely on the Nexus-hosted
+Aer simulator:
+
+.. code-block:: python
+
+    from mpqp import BasisMeasure, H, QCircuit, QUANTINUUMDevice, run
+
+    circuit = QCircuit([H(0), BasisMeasure([0], shots=100)])
+    result = run(circuit, QUANTINUUMDevice.NEXUS_AER_SIMULATOR)
+    print(result)
 
 
 Microsoft Azure
