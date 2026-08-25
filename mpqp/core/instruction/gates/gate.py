@@ -258,9 +258,7 @@ class Gate(Instruction, ABC):
         if exponent == -1:
             return self.inverse()
 
-        semantics = fractional_matrix_power(
-            self.to_matrix(), exponent
-        )
+        semantics = fractional_matrix_power(self.to_matrix(), exponent)
 
         return CustomGate(
             matrix=semantics / np.linalg.norm(semantics, ord=2),
