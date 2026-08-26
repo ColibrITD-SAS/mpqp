@@ -38,28 +38,32 @@ def test_composedgate_compatible(gate: Gate) -> None:
 
 
 @pytest.mark.parametrize(
-    "language, gate_set_getter, gate, native_gates",
+    "language, provider, gate_set_getter, gate, native_gates",
     [
         (
             Language.QISKIT,
+            "qiskit",
             "get_qiskit_gate_set",
             Rxx(np.pi / 2, 0, 1),
             {Rx},
         ),
         (
             Language.QISKIT,
+            "qiskit",
             "get_qiskit_gate_set",
             Ryy(np.pi / 2, 0, 1),
             {Rx, Rz},
         ),
         (
             Language.BRAKET,
+            "braket",
             "get_braket_gate_set",
             Rzz(np.pi / 2, 0, 1),
             {Rz},
         ),
         (
             Language.CIRQ,
+            "cirq",
             "get_cirq_gate_set",
             PRX(np.pi / 3, 1, 0),
             {Rx},
@@ -69,12 +73,13 @@ def test_composedgate_compatible(gate: Gate) -> None:
 def test_composedgate_not_compatible_with_provider(
     monkeypatch: pytest.MonkeyPatch,
     language: Language,
+    provider: str,
     gate_set_getter: str,
     gate: Gate,
     native_gates: set[type[Gate]],
 ) -> None:
     monkeypatch.setattr(
-        f"mpqp.tools.circuit.{gate_set_getter}",
+        f"mpqp.translation.{provider}.{gate_set_getter}",
         lambda: native_gates,
     )
 
