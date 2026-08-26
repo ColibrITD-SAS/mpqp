@@ -47,7 +47,6 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, Gate
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.native_gates import ComposedGate
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -1123,7 +1122,6 @@ class QCircuit:
         language: Literal[Language.QASM2, Language.QASM3],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> str: ...
 
@@ -1133,7 +1131,6 @@ class QCircuit:
         language: Literal[Language.CIRQ],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> cirq_Circuit: ...
 
@@ -1143,7 +1140,6 @@ class QCircuit:
         language: Literal[Language.BRAKET],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> braket_Circuit: ...
     @overload
@@ -1152,7 +1148,6 @@ class QCircuit:
         language: Literal[Language.MY_QLM],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> myQLM_Circuit: ...
 
@@ -1162,7 +1157,6 @@ class QCircuit:
         language: Literal[Language.QISKIT],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> QuantumCircuit: ...
 
@@ -1172,7 +1166,6 @@ class QCircuit:
         language: Language,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
 
@@ -1181,7 +1174,6 @@ class QCircuit:
         language: Language = Language.QISKIT,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type[Gate]] = set(),
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
@@ -1259,20 +1251,13 @@ class QCircuit:
         if language == Language.QISKIT:
             from mpqp.tools.circuit import mpqp_to_qiskit
 
-            return mpqp_to_qiskit(
-                self,
-                skip_pre_measure,
-                skip_measurements,
-                printing,
-                authorized_gates=authorized_gates,
-            )
+            return mpqp_to_qiskit(self, skip_pre_measure, skip_measurements, printing)
 
         elif language == Language.MY_QLM:
             qasm2_code = self.to_other_language(
                 Language.QASM2,
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=True,
-                authorized_gates=authorized_gates,
             )
             from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
 
@@ -1282,16 +1267,12 @@ class QCircuit:
         elif language == Language.BRAKET:
             from mpqp.tools.circuit import mpqp_to_braket
 
-            return mpqp_to_braket(
-                self, skip_pre_measure, authorized_gates=authorized_gates
-            )
+            return mpqp_to_braket(self, skip_pre_measure)
 
         elif language == Language.CIRQ:
             from mpqp.tools.circuit import mpqp_to_cirq
 
-            return mpqp_to_cirq(
-                self, skip_pre_measure, skip_measurements, authorized_gates
-            )
+            return mpqp_to_cirq(self, skip_pre_measure, skip_measurements)
 
         elif language == Language.QASM2:
             from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
@@ -1428,24 +1409,20 @@ class QCircuit:
         skip_measurements = False
 
         # Checks if all the gates or its direct decomposition are available on the device.
-        authorized_gates = device.compatible_gate()
-        if authorized_gates != set():
-            for instr in self.instructions:
-                if not isinstance(instr, Gate):
-                    continue
-                if not type(instr) in authorized_gates:
-                    if isinstance(instr, ComposedGate):
-                        if not all(
-                            isinstance(gate, tuple(device.compatible_gate()))
-                            for gate in instr.decompose()
-                        ):
-                            raise ValueError(
-                                f"Gate: {type(instr)} and its decomposition is not available on {device}.\n\nThis device\'s compatible gates are: {authorized_gates}."
-                            )
-                    else:
-                        raise ValueError(
-                            f"Gate: {type(instr)} is not available on {device}.\n\nThis device\'s compatible gates are: {authorized_gates}."
-                        )
+        from copy import deepcopy
+
+        from mpqp.core.instruction.gates.gate_decomposition import (
+            resolve_instructions,
+        )
+
+        translated_circuit = deepcopy(self)
+        native_gates = device.compatible_gate()
+
+        if native_gates:
+            translated_circuit.instructions = resolve_instructions(
+                translated_circuit.instructions,
+                native_gates,
+            )
 
         if isinstance(device, (IBMDevice, StaticIBMSimulatedDevice)):
             if job_type == JobType.STATE_VECTOR:
@@ -1460,12 +1437,7 @@ class QCircuit:
                 )
             from mpqp.tools.circuit import mpqp_to_qiskit
 
-            qiskit_circuit = mpqp_to_qiskit(
-                self,
-                skip_pre_measure,
-                skip_measurements,
-                authorized_gates=device.compatible_gate(),
-            )
+            qiskit_circuit = mpqp_to_qiskit(self, skip_pre_measure, skip_measurements)
             if TYPE_CHECKING:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
 

@@ -431,9 +431,10 @@ class ComposedGate(NativeGate, SimpleClassReprABC):
     def __init__(self, targets: list[int], label: Optional[str] = None):
         NativeGate.__init__(self, targets, label)
 
+    @abstractmethod
     def decompose(self) -> list[Gate]:
         """Method used to return the decomposed version of a ComposedGate."""
-        return [self]
+        raise NotImplementedError
 
 
 class Id(OneQubitNoParamGate, InvolutionGate):

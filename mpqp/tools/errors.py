@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from mpqp.execution.result import JobType
+    from mpqp.core.instruction.gates.gate import Gate
 
 
 class InstructionParsingError(ValueError):
@@ -84,6 +85,24 @@ class AdditionalGateNoiseWarning(UserWarning):
 
 class NonReversibleWarning(UserWarning):
     """Warning for nonreversible instruction used in inverse function."""
+
+
+class UnsupportedGateError(ValueError):
+    def __init__(
+        self,
+        gate: Gate,
+        gate_set: set[type[Gate]],
+        missing_gates: set[type[Gate]] | None = None,
+    ):
+        missing = missing_gates or {type(gate)}
+        missing_names = ", ".join(sorted(g.__name__ for g in missing))
+        available_names = ", ".join(sorted(g.__name__ for g in gate_set))
+
+        super().__init__(
+            f"{type(gate).__name__} cannot be represented with the target "
+            f"gate set. Missing gates: {missing_names}. "
+            f"Available gates: {available_names}."
+        )
 
 
 def result_error_message(type: JobType) -> str:

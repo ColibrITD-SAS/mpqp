@@ -9,6 +9,7 @@ from numpy.random import Generator
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
@@ -16,7 +17,6 @@ from mpqp.core.instruction.gates.native_gates import (
     TOF,
     CRk,
     P,
-    ComposedGate,
     OneQubitNoParamGate,
     Rk,
     RotationGate,
@@ -123,13 +123,17 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.4364437 +0.13832902j 0.        +0.j         0.21760065+0.861993j
-            0.        +0.j        ]
+        >>> expected = np.array([
+        ...     0.4364437 + 0.13832902j,
+        ...     0,
+        ...     0.21760065 + 0.861993j,
+        ...     0,
+        ... ])
+        >>> np.allclose(statevector_from_random_circuit(2, seed=123), expected)
+        True
     """
     from mpqp.execution import IBMDevice, Result, run
 
-    mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     mpqp_circ = random_circuit(None, nb_qubits, None, seed=seed)
     res = run(mpqp_circ, IBMDevice.AER_SIMULATOR_STATEVECTOR)
     if TYPE_CHECKING:
@@ -375,31 +379,10 @@ def replace_custom_gate(
     return transpiled, transpiled.global_phase
 
 
-def verify_convert_instructions(
-    gate: Gate, authorized_gates: set[type[Gate]]
-) -> list[Gate]:
-    if len(authorized_gates) != 0:
-        if type(gate) not in authorized_gates:
-            if isinstance(gate, ComposedGate):
-                instr = gate.decompose()
-                if any(type(gate) not in authorized_gates for gate in instr):
-                    raise ValueError(
-                        f"The gate {type(gate)} and it's decomposition f{[type(g) for g in instr]} are not in the set: f{authorized_gates}"
-                    )
-                return instr
-            raise ValueError(
-                f"The gate {type(gate)} are not in the set of authorized gates: f{authorized_gates}"
-            )
-        else:
-            return [gate]
-    if isinstance(gate, CustomControlledGate) and isinstance(
-        gate.non_controlled_gate, CustomGate
-    ):
-        return [gate.to_custom_gate()]
-    if isinstance(gate, ComposedGate):
-        return gate.decompose()
+def get_qiskit_gate_set() -> set[type[Gate]]:
+    from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
 
-    return [gate]
+    return {Rx, Ry, Rz, PRX, Rxx, Ryy, Rzz, U, CNOT}
 
 
 def mpqp_to_qiskit(
@@ -407,7 +390,6 @@ def mpqp_to_qiskit(
     skip_pre_measure: bool = False,
     skip_measurements: bool = False,
     printing: bool = False,
-    authorized_gates: set[type[Gate]] | None = None,
 ) -> QuantumCircuit:
     from qiskit.circuit import Operation, QuantumCircuit
     from qiskit.circuit.quantumcircuit import CircuitInstruction
@@ -426,8 +408,7 @@ def mpqp_to_qiskit(
     # to avoid defining twice the same parameter, we keep trace of the
     # added parameters, and we use those instead of new ones when they
     # are used more than once
-    if authorized_gates is None:
-        authorized_gates = set()
+
     qiskit_parameters = set()
     if circuit.nb_cbits == 0:
         new_circ = QuantumCircuit(circuit.nb_qubits)
@@ -441,13 +422,18 @@ def mpqp_to_qiskit(
         if isinstance(instruction, (Measure, Breakpoint)):
             continue
         options = {"printing": printing} if isinstance(instruction, CustomGate) else {}
+
         if isinstance(instruction, Gate):
-            if isinstance(instruction, ComposedGate) and not authorized_gates:
-                instr = [instruction]
-            else:
-                instr = verify_convert_instructions(instruction, authorized_gates)
+            qiskit_gate_set = get_qiskit_gate_set()
+            instr = list(
+                resolve_gate(
+                    instruction,
+                    qiskit_gate_set,
+                )
+            )
         else:
             instr = [instruction]
+
         for instruction in instr:
             qiskit_inst = instruction.to_other_language(
                 Language.QISKIT, qiskit_parameters, **options
@@ -534,11 +520,26 @@ def mpqp_to_qiskit(
     return new_circ
 
 
+def get_braket_gate_set() -> set[type[Gate]]:
+    """Return gates directly representable by Braket."""
+    from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
+
+    return {
+        Rx,
+        Ry,
+        Rz,
+        PRX,
+        Rxx,
+        Ryy,
+        Rzz,
+        CNOT,
+    }
+
+
 def mpqp_to_braket(
     circuit: QCircuit,
     skip_pre_measure: bool = False,
     skip_measurements: bool = False,
-    authorized_gates: set[type[Gate]] | None = None,
 ) -> braket_Circuit:
     from mpqp.execution.providers.aws import apply_noise_to_braket_circuit
     from mpqp.core.instruction import (
@@ -549,8 +550,6 @@ def mpqp_to_braket(
         BasisMeasure,
     )
 
-    if authorized_gates is None:
-        authorized_gates = set()
     if len(circuit.noises) != 0:
         if any(isinstance(instr, CRk) for instr in circuit.instructions):
             raise NotImplementedError(
@@ -597,12 +596,16 @@ def mpqp_to_braket(
                 if isinstance(instruction, BasisMeasure) and instruction.shots != 0:
                     braket_circuit.measure(targets)
             continue
-        if isinstance(instruction, Gate):
-            instr = verify_convert_instructions(instruction, authorized_gates)
-        else:
-            instr = [instruction]
 
-        for instruction in instr:
+        if isinstance(instruction, Gate):
+            instructions = resolve_gate(
+                instruction,
+                get_braket_gate_set(),
+            )
+        else:
+            instructions = (instruction,)
+
+        for instruction in instructions:
             braket_instr = instruction.to_other_language(Language.BRAKET)
             try:
                 targets = [target for target in instruction.targets]
@@ -628,11 +631,15 @@ def mpqp_to_braket(
     return braket_circuit
 
 
+def get_cirq_gate_set() -> set[type[Gate]]:
+    """Return gates directly representable by Cirq."""
+    from mpqp.gates import CNOT, Rx, Ry, Rz
+
+    return {Rx, Ry, Rz, CNOT}
+
+
 def mpqp_to_cirq(
-    circuit: QCircuit,
-    skip_pre_measure: bool = False,
-    skip_measurements: bool = False,
-    authorized_gates: set[type[Gate]] | None = None,
+    circuit: QCircuit, skip_pre_measure: bool = False, skip_measurements: bool = False
 ) -> cirq_Circuit:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.identity import I
@@ -647,8 +654,6 @@ def mpqp_to_cirq(
         ExpectationMeasure,
     )
 
-    if authorized_gates is None:
-        authorized_gates = set()
     cirq_qubits = [NamedQubit(f"q_{i}") for i in range(circuit.nb_qubits)]
     cirq_circuit = CirqCircuit()
 
@@ -660,12 +665,13 @@ def mpqp_to_cirq(
             if isinstance(instruction, Measure):
                 for pre_measure in instruction.pre_measure:
                     if isinstance(pre_measure, (CustomGate, CustomControlledGate)):
-                        instr = verify_convert_instructions(
-                            pre_measure, authorized_gates
+                        resolved_pre_measure = resolve_gate(
+                            pre_measure,
+                            get_cirq_gate_set(),
                         )
-                        qasm2_code, gphase = pre_measure.to_other_language(
+                        qasm2_code, gphase = resolved_pre_measure[0].to_other_language(
                             Language.QASM2
-                        )  # pyright: ignore[reportGeneralTypeIssues]
+                        )
                         if TYPE_CHECKING:
                             assert isinstance(qasm2_code, str)
                         from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
@@ -688,15 +694,18 @@ def mpqp_to_cirq(
                         cirq_circuit.append(cirq_pre_measure.on(*targets))
 
         if isinstance(instruction, Gate):
-            instr = verify_convert_instructions(instruction, authorized_gates)
+            instructions = resolve_gate(
+                instruction,
+                get_cirq_gate_set(),
+            )
         else:
-            instr = [instruction]
+            instructions = (instruction,)
 
-        if isinstance(instr[0], CustomGate):
+        if isinstance(instructions[0], CustomGate):
             if isinstance(instruction, CustomGate):
                 from cirq.ops.raw_types import Gate as CirqGate
 
-                custom_gate = instr[0]
+                custom_gate = instructions[0]
 
                 targets = []
                 for target in custom_gate.targets:
@@ -710,14 +719,14 @@ def mpqp_to_cirq(
 
             from cirq import GlobalPhaseGate
 
-            tmp_circuit = instr[0].decompose()
-            instr = tmp_circuit.instructions
+            tmp_circuit = instructions[0].decompose()
+            instructions = tmp_circuit.instructions
 
             cirq_circuit.insert(
                 0, GlobalPhaseGate(np.exp(1j * tmp_circuit.input_g_phase)).on()
             )
 
-        for gate in instr:
+        for gate in instructions:
             if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
                 continue
             elif isinstance(gate, ControlledGate):
