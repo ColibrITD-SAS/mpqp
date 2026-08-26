@@ -62,7 +62,7 @@ def apply_noise_to_braket_circuit(
 
     noisy_circuit = Circuit(other_instructions)
 
-    for noise in noises:
+    for noise in reversed(noises):
         braket_noise = noise.to_other_language(Language.BRAKET)
         if TYPE_CHECKING:
             assert isinstance(braket_noise, Noise)

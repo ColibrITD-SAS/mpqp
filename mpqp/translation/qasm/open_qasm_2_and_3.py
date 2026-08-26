@@ -1164,7 +1164,7 @@ def convert_instruction_3_to_2(
         if instr_match:
             gphase = parse_gphase_instruction(gphase, instr, instr_match)
     elif language == Language.BRAKET and instr_name == "pragma":
-        from mpqp.qasm.qasm_to_braket import braket_custom_gates_to_mpqp
+        from mpqp.translation.qasm.qasm_to_braket import braket_custom_gates_to_mpqp
 
         custom_gate = braket_custom_gates_to_mpqp(instr)
         instructions_code += (
@@ -1270,13 +1270,13 @@ def open_qasm_3_to_2(
     instructions_code = ""
 
     if language == Language.QISKIT:
-        from mpqp.qasm.open_qasm_2_and_3 import qasm_code
+        from mpqp.translation.qasm.open_qasm_2_and_3 import qasm_code
 
         lines = code.split(";")
         lines.insert(1, qasm_code(Instr.QISKIT_CUSTOM_INCLUDE))
         code = ";".join(lines)
     elif language == Language.BRAKET:
-        from mpqp.qasm.open_qasm_2_and_3 import qasm_code
+        from mpqp.translation.qasm.open_qasm_2_and_3 import qasm_code
 
         lines = code.split(";")
         lines.insert(1, qasm_code(Instr.BRAKET_INVERSE_CUSTOM_INCLUDE))

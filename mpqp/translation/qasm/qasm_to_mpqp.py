@@ -12,8 +12,11 @@ if TYPE_CHECKING:
 from mpqp.core.instruction import Barrier
 from mpqp.gates import *
 from mpqp.measures import *
-from mpqp.qasm.lexer_utils import *
-from mpqp.qasm.open_qasm_2_and_3 import remove_include_and_comment, remove_user_gates
+from mpqp.translation.qasm.lexer_utils import *
+from mpqp.translation.qasm.open_qasm_2_and_3 import (
+    remove_include_and_comment,
+    remove_user_gates,
+)
 
 # TODO:
 # if: not handle
@@ -421,7 +424,7 @@ def _TokenCustom(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
 
 def parse_qasm2_gates(code: str) -> tuple[str, float]:
-    from mpqp.qasm.open_qasm_2_and_3 import (
+    from mpqp.translation.qasm.open_qasm_2_and_3 import (
         qasm_code,
         remove_user_gates,
         Instr,

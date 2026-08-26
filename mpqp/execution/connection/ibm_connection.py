@@ -1,5 +1,5 @@
 from getpass import getpass
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from termcolor import colored
 
@@ -12,15 +12,19 @@ if TYPE_CHECKING:
     from qiskit_ibm_runtime import QiskitRuntimeService
 
 
-Runtime_Service = None
+Runtime_Service: dict[Optional[str], "QiskitRuntimeService"] = {}
+"""Dictionary regrouping QiskitRuntimeServices related to specific instances (key)."""
 
 
-def config_ibm_account(token: str, channel: str):
+def config_ibm_account(token: str, channel: str, instance: Optional[str] = None):
     """Configure and save locally IBM Quantum account's information.
 
     Args:
         token: IBM Quantum API token (API key).
         channel: The channel to use for the account (default is "ibm_quantum_platform").
+        instance: This is an optional parameter to specify the CRN  or service name.
+                If set, it will define a default instance for service instantiation,
+                if not set, the service will fetch all instances accessible within the account.
     Raises:
         IBMRemoteExecutionError: If the account could not be saved.
     """
@@ -32,12 +36,16 @@ def config_ibm_account(token: str, channel: str):
         QiskitRuntimeService.save_account(
             channel=channel,  # pyright: ignore[reportArgumentType]
             token=token.strip(),
+            instance=instance,
             overwrite=True,
             set_as_default=True,
         )
         save_env_variable("IBM_CONFIGURED", "True")
         save_env_variable("IBM_TOKEN", token.strip())
         save_env_variable("IBM_CHANNEL", channel)
+        save_env_variable("IBM_INSTANCE", instance if instance is not None else "")
+        global Runtime_Service
+        Runtime_Service = {}
     except Exception as err:
         # if an error occurred, we put False in the mpqp config file
         save_env_variable("IBM_CONFIGURED", "False")
@@ -92,15 +100,23 @@ def setup_ibm_account():
         getpass("Press 'Enter' to continue")
         return "", []
 
+    instance = input(
+        f"Enter the default instance CRN (optional, if not set service will fetch all instances"
+        "accessible by this account) :"
+    ).strip()
+    if instance == "":
+        instance = None
+
     old_token = get_env_variable("IBM_TOKEN")
     old_channel = get_env_variable("IBM_CHANNEL")
+    old_instance = get_env_variable("IBM_INSTANCE") or None
 
-    config_ibm_account(token, channel)
+    config_ibm_account(token, channel, instance)
     if test_connection():
         return "IBMQ account correctly configured", []
     else:
         if was_configured:
-            config_ibm_account(old_token, old_channel)
+            config_ibm_account(old_token, old_channel, old_instance)
         else:
             save_env_variable("IBM_CONFIGURED", "False")
         getpass("Press 'Enter' to continue")
@@ -118,7 +134,7 @@ def test_connection() -> bool:
 
     global Runtime_Service
     try:
-        Runtime_Service = QiskitRuntimeService()
+        Runtime_Service[None] = QiskitRuntimeService()
     except IBMNotAuthorizedError as err:
         if "Login failed" in str(err):
             print(colored("Wrong credentials", "red"))
@@ -128,9 +144,12 @@ def test_connection() -> bool:
     return True
 
 
-def get_QiskitRuntimeService() -> "QiskitRuntimeService":
+def get_QiskitRuntimeService(instance: Optional[str] = None) -> "QiskitRuntimeService":
     """Return the QiskitRuntimeService needed for remote connection and
     execution.
+
+    Args:
+        instance: IBM Quantum instance used to instantiate the QiskitRuntime service.
 
     Raises:
         IBMRemoteExecutionError: When the ``qiskit`` runtime is not configured
@@ -149,19 +168,19 @@ def get_QiskitRuntimeService() -> "QiskitRuntimeService":
     from qiskit_ibm_runtime import QiskitRuntimeService
 
     global Runtime_Service
-    if Runtime_Service is None:
+    if instance not in Runtime_Service:
         if get_env_variable("IBM_CONFIGURED") == "False":
             raise IBMRemoteExecutionError(
                 "Error when instantiating QiskitRuntimeService. No IBM account configured."
             )
         try:
-            Runtime_Service = QiskitRuntimeService()
+            Runtime_Service[instance] = QiskitRuntimeService(instance=instance)
         except Exception as err:
             raise IBMRemoteExecutionError(
                 "Error when instantiating QiskitRuntimeService (probably wrong token saved "
                 "in the account).\nTrace: " + str(err)
             )
-    return Runtime_Service
+    return Runtime_Service[instance]
 
 
 def get_active_account_info() -> str:
@@ -184,6 +203,7 @@ def get_active_account_info() -> str:
     if account is None:
         return "Account not configured"
     return f"""    Channel: {account["channel"]}
+    Instance: {account["instance"]}:
     Token: {account["token"][:5]}*****
     URL: {account["url"]}
     Verify: {account["verify"]}"""
@@ -212,8 +232,9 @@ def delete_ibm_account():
     save_env_variable("IBM_CONFIGURED", "False")
     save_env_variable("IBM_TOKEN", "")
     save_env_variable("IBM_CHANNEL", "")
+    save_env_variable("IBM_INSTANCE", "")
 
-    Runtime_Service = None
+    Runtime_Service = {}
 
     print(colored("IBM Quantum account deleted.", "green"))
     input("Press 'Enter' to continue")
@@ -221,11 +242,12 @@ def delete_ibm_account():
     return "IBM account deleted", []
 
 
-def get_backend(device: IBMDevice) -> "BackendV2":
+def get_backend(device: IBMDevice, instance: Optional[str] = None) -> "BackendV2":
     """Retrieve the corresponding ``qiskit`` remote device.
 
     Args:
         device: The device to get from the qiskit Runtime service.
+        instance: IBM Quantum instance used to retrive the backend.
 
     Returns:
         The requested backend.
@@ -245,12 +267,12 @@ def get_backend(device: IBMDevice) -> "BackendV2":
         raise ValueError("Expected a remote IBM device but got a local simulator.")
     from qiskit.providers.exceptions import QiskitBackendNotFoundError
 
-    service = get_QiskitRuntimeService()
+    service = get_QiskitRuntimeService(instance)
 
     try:
         if device == IBMDevice.IBM_LEAST_BUSY:
-            return service.least_busy(operational=True)
-        return service.backend(device.value)
+            return service.least_busy(operational=True, instance=instance)
+        return service.backend(device.value, instance=instance)
     except QiskitBackendNotFoundError as err:
         raise IBMRemoteExecutionError(
             f"Requested device {device} not found. Verify if your instances "

@@ -274,8 +274,9 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
             return self.qiskit_gate(_qiskit_parameter_adder(theta, qiskit_parameters))
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
+            from copy import deepcopy
 
-            connection = [target for target in self.targets]
+            connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):
                 connection += self.controls
             return Instruction(
@@ -285,7 +286,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         elif language == Language.CIRQ:
             return self.cirq_gate(theta)
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -387,8 +388,9 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
             return self.qiskit_gate()
         elif language == Language.BRAKET:
             from braket.circuits import Instruction
+            from copy import deepcopy
 
-            connection = [target for target in self.targets]
+            connection = deepcopy(self.targets)
             if isinstance(self, ControlledGate):
                 connection += self.controls
 
@@ -1161,7 +1163,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         elif language == Language.CIRQ:
             return self.cirq_gate(self.theta, self.phi, self.gamma)
         elif language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -1875,7 +1877,7 @@ class Rk(RotationGate, SingleQubitGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -1953,6 +1955,8 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
+        if language == Language.QASM2:
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
         if language == Language.CIRQ:
             from cirq import MatrixGate
 
@@ -2164,7 +2168,7 @@ class CRk(RotationGate, ControlledGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (
@@ -2273,7 +2277,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
         if language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (

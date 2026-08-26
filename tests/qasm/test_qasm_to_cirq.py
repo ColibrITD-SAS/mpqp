@@ -1,6 +1,6 @@
 import pytest
 
-from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
+from mpqp.translation.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 
 
 @pytest.mark.provider("cirq")

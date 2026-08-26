@@ -23,11 +23,13 @@ For more information about handling Remote devices, please refer to the `Remote 
 """
 
 from __future__ import annotations
+
+import warnings
 from abc import abstractmethod
 from enum import Enum, auto
-import warnings
 
 from mpqp.core.instruction.gates import Gate
+from mpqp.core.instruction.gates.native_gates import *
 from mpqp.environment.env_manager import get_env_variable
 
 from mpqp.core.instruction.gates.native_gates import *
@@ -93,7 +95,13 @@ class AvailableDevice(Enum):
     def supports_observable_ideal(self) -> bool:
         pass
 
-    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
+    def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
+        """Returns the set of gates supported by the devices.
+
+        Args:
+            native_set: If True returns the set of gates of the device without any transpilation.
+                (For example: optimization_level=0 on Qiskit or Verbatim box on Braket)
+        """
         return set()
 
 
@@ -119,12 +127,8 @@ class IBMDevice(AvailableDevice):
     IBM_KYIV = "ibm_kyiv"
 
     IBM_RENSSELAER = "ibm_rensselaer"
-    IBM_BRUSSELS = "ibm_brussels"
     IBM_KAWASAKI = "ibm_kawasaki"
     IBM_QUEBEC = "ibm_quebec"
-    IBM_TORINO = "ibm_torino"
-    IBM_NAZCA = "ibm_nazca"
-    IBM_STRASBOURG = "ibm_strasbourg"
 
     # NightHawk chips
     IBM_BOSTON = "ibm_boston"
@@ -132,11 +136,15 @@ class IBMDevice(AvailableDevice):
     IBM_PITTSBURGH = "ibm_pittsburgh"
     IBM_FEZ = "ibm_fez"
     IBM_MARRAKESH = "ibm_marrakesh"
-    IBM_AACHEN = "IBM_AACHEN"
+    IBM_AACHEN = "ibm_aachen"
 
     # Heron chips
     IBM_MIAMI = "ibm_miami"
     IBM_BERLIN = "ibm_berlin"
+
+    IBM_TORINO = "ibm_torino"
+    IBM_NAZCA = "ibm_nazca"
+    IBM_STRASBOURG = "ibm_strasbourg"
 
     IBM_CLEVELAND = "ibm_cleveland"
     IBM_PEEKSKILL = "ibm_peekskill"
@@ -189,12 +197,10 @@ class IBMDevice(AvailableDevice):
             IBMDevice.AER_SIMULATOR_STATEVECTOR,
             IBMDevice.AER_SIMULATOR_DENSITY_MATRIX,
             IBMDevice.AER_SIMULATOR_STABILIZER,
-            # IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
             IBMDevice.AER_SIMULATOR_MATRIX_PRODUCT_STATE,
         }
 
-    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
-
+    def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
             warnings.warn(
                 UserWarning(
@@ -209,12 +215,32 @@ class IBMDevice(AvailableDevice):
                 )
             )
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
-        elif self in IBM_CHIPS_HERON:
-            return {CZ, Id, Rx, Rz, Rzz, X}
-        elif self in IBM_CHIPS_NIGHTHAWK:
-            return {CZ, Id, Rx, Rz, X}
         else:
-            return set()
+            compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
+                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X},  # add Rzz
+                IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
+            }
+            family = {
+                IBMDevice.IBM_MIAMI: IBMDeviceFamily.HERON,
+                IBMDevice.IBM_BERLIN: IBMDeviceFamily.HERON,
+                IBMDevice.IBM_BOSTON: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_KINGSTON: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_PITTSBURGH: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_FEZ: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_MARRAKESH: IBMDeviceFamily.NIGHTHAWK,
+                IBMDevice.IBM_AACHEN: IBMDeviceFamily.NIGHTHAWK,
+            }
+            if self in family and family[self] in compatibilities:
+                return compatibilities[family[self]]
+            else:
+                return set()
+
+
+class IBMDeviceFamily(Enum):
+    """Enum regrouping all device families defined by IBM."""
+
+    HERON = auto()
+    NIGHTHAWK = auto()
 
 
 class ATOSDevice(AvailableDevice):

@@ -3,7 +3,7 @@ import pytest
 
 from mpqp import Barrier, BasisMeasure, Instruction, Language, QCircuit
 from mpqp.gates import *
-from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+from mpqp.translation.qasm.mpqp_to_qasm import mpqp_to_qasm2
 from mpqp.tools.circuit import random_circuit
 
 

@@ -47,6 +47,7 @@ from mpqp.core.instruction.breakpoint import Breakpoint
 from mpqp.core.instruction.gates import ControlledGate, Gate
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.instruction.measurement import BasisMeasure, Measure
 from mpqp.core.instruction.measurement.expectation_value import ExpectationMeasure
@@ -54,10 +55,10 @@ from mpqp.core.languages import Language
 from mpqp.noise.noise_model import DimensionalNoiseModel, NoiseModel
 from mpqp.tools.errors import (
     DeviceJobIncompatibleError,
+    InstructionAfterMeasurementError,
     InstructionParsingError,
     NonReversibleWarning,
     NumberQubitsError,
-    InstructionAfterMeasurementError,
 )
 from mpqp.tools.generics import OneOrMany
 from mpqp.tools.maths import matrix_eq
@@ -1122,6 +1123,7 @@ class QCircuit:
         language: Literal[Language.QASM2, Language.QASM3],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> str: ...
 
@@ -1131,6 +1133,7 @@ class QCircuit:
         language: Literal[Language.CIRQ],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> cirq_Circuit: ...
 
@@ -1140,6 +1143,7 @@ class QCircuit:
         language: Literal[Language.BRAKET],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> braket_Circuit: ...
     @overload
@@ -1148,6 +1152,7 @@ class QCircuit:
         language: Literal[Language.MY_QLM],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> myQLM_Circuit: ...
 
@@ -1157,6 +1162,7 @@ class QCircuit:
         language: Literal[Language.QISKIT],
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit: ...
 
@@ -1166,6 +1172,7 @@ class QCircuit:
         language: Language,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
 
@@ -1174,6 +1181,7 @@ class QCircuit:
         language: Language = Language.QISKIT,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
         """Transforms this circuit into the corresponding circuit in the language
@@ -1247,6 +1255,8 @@ class QCircuit:
             circuits.
 
         """
+        if authorized_gates is None:
+            authorized_gates = set()
         self._generated_g_phase = 0
         if language == Language.QISKIT:
             from mpqp.tools.circuit import mpqp_to_qiskit
@@ -1258,8 +1268,9 @@ class QCircuit:
                 Language.QASM2,
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=True,
+                authorized_gates=authorized_gates,
             )
-            from mpqp.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
+            from mpqp.translation.qasm.qasm_to_myqlm import qasm2_to_myqlm_Circuit
 
             myqlm_circuit = qasm2_to_myqlm_Circuit(qasm2_code)
             return myqlm_circuit
@@ -1275,7 +1286,7 @@ class QCircuit:
             return mpqp_to_cirq(self, skip_pre_measure, skip_measurements)
 
         elif language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import mpqp_to_qasm2
+            from mpqp.translation.qasm.mpqp_to_qasm import mpqp_to_qasm2
 
             qasm_str, gphase = mpqp_to_qasm2(
                 self,
@@ -1290,7 +1301,7 @@ class QCircuit:
                 skip_pre_measure=skip_pre_measure,
                 skip_measurements=skip_measurements,
             )
-            from mpqp.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
+            from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_2_to_3
 
             qasm3_code = open_qasm_2_to_3(qasm2_code, self._generated_g_phase)
             self._generated_g_phase = 0
@@ -1474,8 +1485,17 @@ class QCircuit:
 
                         from qiskit import transpile
 
+                        noise_model = getattr(backend_sim.options, "noise_model", None)
                         try:
-                            qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+                            if len(self.noises) != 0 and noise_model is not None:
+                                qiskit_circuit = transpile(
+                                    qiskit_circuit,
+                                    basis_gates=noise_model.basis_gates,
+                                    optimization_level=0,
+                                )
+                            else:
+                                qiskit_circuit = transpile(qiskit_circuit, backend_sim)
+
                         except Exception as e:
                             if (
                                 'HighLevelSynthesis is unable to synthesize "measure"'
@@ -1726,104 +1746,42 @@ class QCircuit:
         """
         from mpqp.environment.var_cache import (
             _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
+        )
+        from mpqp.environment.var_cache import (
             InstalledProviders,
         )
 
         if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
-            from qiskit.circuit import QuantumCircuit
+            from mpqp.translation.qiskit import qiskit_to_mpqp
+            from qiskit import QuantumCircuit
 
             if isinstance(qcircuit, QuantumCircuit):
-                from qiskit import qasm3
-
-                from mpqp.qasm import open_qasm_3_to_2
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-                from qiskit.transpiler.passes.synthesis import UnitarySynthesis
-
-                # translation step for custom gates so that we keep the g_phase
-                # UnitarySynthesis only translates unitaries so it doesn't affect the rest
-                unitary_translator = UnitarySynthesis(basis_gates=['u3', 'cx'])
-                translated_dag = unitary_translator.run(qcircuit.to_dag())
-                cq: QuantumCircuit = translated_dag.to_circuit()
-
-                qasm3_code = qasm3.dumps(cq)
-                qasm2_code = open_qasm_3_to_2(str(qasm3_code), language=Language.QISKIT)
-
-                qc = qasm2_parse(qasm2_code)
-                qc.input_g_phase = cq.global_phase
-                return qc
+                return qiskit_to_mpqp(qcircuit)
         if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
+            from mpqp.translation import cirq_to_mpqp
             from cirq.circuits.circuit import Circuit as cirq_Circuit
             from cirq.circuits.moment import Moment
 
-            if isinstance(qcircuit, cirq_Circuit) or isinstance(qcircuit, Moment):
-                from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates, qasm2_parse
-                from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
-                from cirq import GlobalPhaseGate
-                import numpy as np
-
-                if isinstance(qcircuit, Moment):
-                    qcircuit = cirq_Circuit([qcircuit])
-                g_phase = 0
-                for op in qcircuit.all_operations():
-                    if isinstance(op.gate, GlobalPhaseGate):
-
-                        g_phase += np.round(
-                            np.log(
-                                op.gate.coefficient  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
-                            )
-                            / 1j,
-                            10,
-                        )
-
-                qasm2_code, gphase = parse_qasm2_gates(qcircuit.to_qasm())
-                qc = qasm2_parse(qasm2_code)
-                qc.input_g_phase = gphase + g_phase
-
-                return qc
+            if isinstance(qcircuit, Moment | cirq_Circuit):
+                return cirq_to_mpqp(qcircuit)
 
         if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
+            from mpqp.translation.braket import braket_to_mpqp
             from braket.circuits import Circuit as braket_Circuit
 
             if isinstance(qcircuit, braket_Circuit):
-                from braket.circuits.serialization import IRType
-                from braket.ir.openqasm.program_v1 import Program
+                return braket_to_mpqp(qcircuit)
 
-                from mpqp.qasm.open_qasm_2_and_3 import open_qasm_3_to_2
-                from mpqp.qasm.qasm_to_braket import braket_noise_to_mpqp
-                from mpqp.qasm.qasm_to_mpqp import qasm2_parse
-
-                remove_measure = True
-                for instr in qcircuit.instructions:
-                    if instr.operator.name == "Measure":
-                        remove_measure = False
-                        break
-                qasm3_code = qcircuit.to_ir(IRType.OPENQASM)
-
-                if TYPE_CHECKING:
-                    assert isinstance(qasm3_code, Program)
-                noises, qasm3_code = braket_noise_to_mpqp(qasm3_code.source)
-
-                qasm2_code = open_qasm_3_to_2(
-                    qasm3_code,
-                    language=Language.BRAKET,
-                    remove_measure=remove_measure,
-                )
-
-                qc = qasm2_parse(qasm2_code)
-                # qc.input_g_phase = phase
-                if len(noises) != 0:
-                    qc.add(noises)
-                return qc
         if InstalledProviders.MY_QLM in _INSTALLED_MPQP_PROVIDERS:
             from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
 
             if isinstance(qcircuit, myQLM_Circuit):
-                from mpqp.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
+                from mpqp.translation.qasm.myqlm_to_mpqp import from_myqlm_to_mpqp
 
                 return from_myqlm_to_mpqp(qcircuit)
 
         if isinstance(qcircuit, str):
-            from mpqp.qasm.qasm_to_mpqp import qasm2_parse
+            from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 
             for line in qcircuit.split('\n'):
                 if not line.startswith("//") and line != '':
@@ -1835,7 +1793,7 @@ class QCircuit:
                             f"Error: only OpenQASM2 and OpenQASM3 are supported for qasm external description of the circuit"
                         )
                     elif line.startswith("OPENQASM 2.0"):
-                        from mpqp.qasm.qasm_to_mpqp import parse_qasm2_gates
+                        from mpqp.translation.qasm.qasm_to_mpqp import parse_qasm2_gates
 
                         qasm2_code, gphase = parse_qasm2_gates(qcircuit)
                         qc = qasm2_parse(qasm2_code)
@@ -1844,7 +1802,7 @@ class QCircuit:
                         return qc
 
                     elif line.startswith("OPENQASM 3.0"):
-                        from mpqp.qasm import open_qasm_3_to_2
+                        from mpqp.translation.qasm import open_qasm_3_to_2
 
                         qasm2_code = open_qasm_3_to_2(qcircuit)
                         qc = qasm2_parse(qasm2_code)

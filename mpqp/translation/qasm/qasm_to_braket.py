@@ -39,7 +39,7 @@ if TYPE_CHECKING:
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.noise import NoiseModel
-from mpqp.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
+from mpqp.translation.qasm.open_qasm_2_and_3 import open_qasm_hard_includes
 from mpqp.tools.errors import UnsupportedBraketFeaturesWarning
 
 

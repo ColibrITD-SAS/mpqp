@@ -132,6 +132,11 @@ class CustomGate(Gate):
                     label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
                 )
             return UnitaryGate(self.matrix, label=self.label, check_input=False)
+                dummy_circuit.id(0)
+                return dummy_circuit.to_gate(
+                    label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
+                )
+            return UnitaryGate(self.matrix, label=self.label, check_input=False)
         elif language == Language.BRAKET:
             from sympy import Expr
 
@@ -159,6 +164,9 @@ class CustomGate(Gate):
                     target=self.targets,
                 )
         elif language == Language.CIRQ:
+            from cirq import MatrixGate
+
+            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
             from cirq import MatrixGate
 
             return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
@@ -230,7 +238,11 @@ class CustomGate(Gate):
             from copy import deepcopy
 
             from mpqp.tools import rearrange_matrix
+            import warnings
 
+            warnings.warn(
+                "In order to decompose a CustomGate with non ordered targets, the matrix gets copied and ordered according to the targets provided."
+            )
             targets = deepcopy(self.targets)
             targets.sort()
 

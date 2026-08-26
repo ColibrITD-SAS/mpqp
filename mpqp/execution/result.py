@@ -827,6 +827,9 @@ class BatchResult:
     def __getitem__(self, index: int):
         return self.results[index]
 
+    def __len__(self) -> int:
+        return len(self.results)
+
     def plot(self, show: bool = True):
         """Display the result(s) using ``matplotlib.pyplot``.
 
