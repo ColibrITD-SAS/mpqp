@@ -17,7 +17,11 @@ from sympy import symbols
 
 from mpqp import *
 from mpqp.core.instruction.measurement import PauliString, pauli_string
-from mpqp.core.instruction.gates.gate_decomposition import resolve_composed_gate, resolve_gate, resolve_instructions
+from mpqp.core.instruction.gates.gate_decomposition import (
+    resolve_composed_gate,
+    resolve_gate,
+    resolve_instructions,
+)
 from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
 )

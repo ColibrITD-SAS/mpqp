@@ -130,14 +130,7 @@ def test_composedgates_decomposition(gate: ComposedGate):
     assert matrix_eq(c.to_matrix(), gate.to_matrix())
 
 
-@pytest.mark.parametrize(
-    "gate", 
-    [
-        (
-            Rxx(np.pi / 2, 0, 1)
-        )
-    ]
-)
+@pytest.mark.parametrize("gate", [Rxx(np.pi / 2, 0, 1)])
 def test_composedgates_error(gate: Gate):
     with pytest.raises(
         UnsupportedGateError,

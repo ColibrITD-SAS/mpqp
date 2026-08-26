@@ -20,6 +20,7 @@ class GateResolution:
             decomposition.
         decomposed: Whether the source gate was decomposed during the resolution.
     """
+
     source: Gate
     gates: tuple[Gate, ...]
     decomposed: bool
@@ -50,7 +51,7 @@ def resolve_instructions(
         >>> [type(gate).__name__ for gate in resolved]
         ['CNOT', 'Rz', 'CNOT']
     """
-    
+
     resolved: list[Instruction] = []
 
     for instruction in instructions:
