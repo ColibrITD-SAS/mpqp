@@ -554,11 +554,11 @@ class QUANTINUUMDevice(AvailableDevice):
     """Enum regrouping all available devices provided by Quantinuum."""
 
     TKET_AER_SIMULATOR = "tket-aer"
-    TKET_AER_STATE_SIMULATOR = "tket-aer-state"
+    TKET_AER_STATEVECTOR_SIMULATOR = "tket-aer-state"
     TKET_QULACS_SIMULATOR = "tket-qulacs"
 
     NEXUS_AER_SIMULATOR = "aer"
-    NEXUS_AER_STATE_SIMULATOR = "aer-state"
+    NEXUS_AER_STATEVECTOR_SIMULATOR = "aer-state"
     NEXUS_QULACS_SIMULATOR = "qulacs"
 
     H1_1LE = "H1-1LE"
@@ -569,7 +569,7 @@ class QUANTINUUMDevice(AvailableDevice):
     def is_remote(self) -> bool:
         return self not in {
             QUANTINUUMDevice.TKET_AER_SIMULATOR,
-            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }
 
@@ -587,15 +587,15 @@ class QUANTINUUMDevice(AvailableDevice):
 
     def supports_samples(self) -> bool:
         return self not in {
-            QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
-            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
         }
 
     def supports_state_vector(self) -> bool:
         return self in {
-            QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
-            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }
 
@@ -604,9 +604,9 @@ class QUANTINUUMDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return self in {
-            QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_SIMULATOR,
-            QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         }

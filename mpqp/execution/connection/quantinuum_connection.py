@@ -150,7 +150,7 @@ def get_quantinuum_config(device: QUANTINUUMDevice):
 
     if device == QUANTINUUMDevice.NEXUS_AER_SIMULATOR:
         return qnx.AerConfig()
-    if device == QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR:
+    if device == QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR:
         return qnx.AerStateConfig()
     if device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR:
         return qnx.QulacsConfig()

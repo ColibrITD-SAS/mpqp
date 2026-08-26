@@ -188,23 +188,27 @@ def run_tket_local(job: Job) -> Result:
         if job.measure.shots > 0:
             return run_quantinuum_observable(job)
 
-    from pytket.extensions.qiskit.backends.aer import AerBackend, AerStateBackend
-    from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
-    from pytket.extensions.qulacs.backends.qulacs_backend import QulacsBackend
-
     if job.circuit.transpiled_circuit is None:
         tket_circuit = job.circuit.to_other_device(job.device)
     else:
+        from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+
         qiskit_circuit = job.circuit.transpiled_circuit
         if TYPE_CHECKING:
             assert isinstance(qiskit_circuit, QuantumCircuit)
         tket_circuit = qiskit_to_tk(qiskit_circuit)
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
+        from pytket.extensions.qiskit.backends.aer import AerBackend
+
         backend = AerBackend()
-    elif job.device == QUANTINUUMDevice.TKET_AER_STATE_SIMULATOR:
+    elif job.device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
+        from pytket.extensions.qiskit.backends.aer import AerStateBackend
+
         backend = AerStateBackend()
     elif job.device == QUANTINUUMDevice.TKET_QULACS_SIMULATOR:
+        from pytket.extensions.qulacs.backends.qulacs_backend import QulacsBackend
+
         backend = QulacsBackend()
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
@@ -743,7 +747,7 @@ def get_result_from_quantinuum_job_id(
         job = Job(
             JobType.STATE_VECTOR,
             QCircuit(nb_qubits),
-            QUANTINUUMDevice.NEXUS_AER_STATE_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
         )
         job.id = job_id
         return extract_state_vector_result(amplitudes, job)
