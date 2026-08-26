@@ -234,7 +234,7 @@ def generate_qiskit_noise_model(
     used_qubits = set().union(
         *(
             inst.connections()
-            for inst in modified_circuit.instructions
+            for inst in modified_circuit.instructions + modified_circuit.measurements
             if isinstance(inst, Gate)
         )
     )
