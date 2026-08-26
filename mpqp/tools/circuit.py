@@ -9,7 +9,7 @@ from numpy.random import Generator
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.custom_controlled_gate import CustomControlledGate
 from mpqp.core.instruction.gates.custom_gate import CustomGate
-from mpqp.core.instruction.gates.decomposition import resolve_gate
+from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,

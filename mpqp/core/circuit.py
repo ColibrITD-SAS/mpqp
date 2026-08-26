@@ -1411,7 +1411,7 @@ class QCircuit:
         # Checks if all the gates or its direct decomposition are available on the device.
         from copy import deepcopy
 
-        from mpqp.core.instruction.gates.decomposition import (
+        from mpqp.core.instruction.gates.gate_decomposition import (
             resolve_instructions,
         )
 

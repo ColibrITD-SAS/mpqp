@@ -2,8 +2,10 @@ import numpy as np
 import pytest
 
 from mpqp.core.circuit import QCircuit
+from mpqp.core.instruction.gates.gate_decomposition import resolve_composed_gate
 from mpqp.core.languages import Language
 from mpqp.gates import *
+from mpqp.tools.errors import UnsupportedGateError
 from mpqp.tools.maths import matrix_eq
 
 COMPOSED_GATES = [
@@ -126,3 +128,19 @@ def test_composedgate_translation_decomposition(gate: Gate, language: Language):
 def test_composedgates_decomposition(gate: ComposedGate):
     c = QCircuit(gate.decompose())
     assert matrix_eq(c.to_matrix(), gate.to_matrix())
+
+
+@pytest.mark.parametrize(
+    "gate", 
+    [
+        (
+            Rxx(np.pi / 2, 0, 1)
+        )
+    ]
+)
+def test_composedgates_error(gate: Gate):
+    with pytest.raises(
+        UnsupportedGateError,
+        match=r"Rxx cannot be represented.*Missing gates: CNOT",
+    ):
+        resolve_composed_gate(gate, {Rx})
