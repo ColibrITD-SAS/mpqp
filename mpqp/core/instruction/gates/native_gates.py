@@ -1387,7 +1387,9 @@ class Rxx(RotationGate, ComposedGate):
         super().__init__(phi, [a, b])
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
+        return (
+            f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
+        )
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
@@ -1494,7 +1496,9 @@ class Ryy(RotationGate, ComposedGate):
         super().__init__(phi, [a, b])
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
+        return (
+            f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
+        )
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
@@ -1614,12 +1618,14 @@ class Rzz(RotationGate, ComposedGate):
         super().__init__(phi, [a, b])
 
     def __repr__(self):
-        return f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
+        return (
+            f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
+        )
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
-        e_minus = exp(-1j * phi / 2) # pyright: ignore[reportOperatorIssue]
-        e_plus = exp(1j * phi / 2) # pyright: ignore[reportOperatorIssue]
+        e_minus = exp(-1j * phi / 2)  # pyright: ignore[reportOperatorIssue]
+        e_plus = exp(1j * phi / 2)  # pyright: ignore[reportOperatorIssue]
 
         return np.array(
             [
