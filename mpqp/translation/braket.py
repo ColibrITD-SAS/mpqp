@@ -51,15 +51,15 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.gates import CNOT, PRX, Rxx, Ryy, Rzz, Rx, Ry, Rz
 
         return {
-                Rx,
-                Ry,
-                Rz,
-                PRX,
-                Rxx,
-                Ryy,
-                Rzz,
-                CNOT,
-            }
+            Rx,
+            Ry,
+            Rz,
+            PRX,
+            Rxx,
+            Ryy,
+            Rzz,
+            CNOT,
+        }
 
     def mpqp_to_braket(
         circuit: QCircuit,

@@ -145,9 +145,9 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
                                 pre_measure,
                                 get_cirq_gate_set(),
                             )
-                            qasm2_code, gphase = resolved_pre_measure[0].to_other_language(
-                                Language.QASM2
-                            )
+                            qasm2_code, gphase = resolved_pre_measure[
+                                0
+                            ].to_other_language(Language.QASM2)
                             if TYPE_CHECKING:
                                 assert isinstance(qasm2_code, str)
                             from mpqp.translation.qasm.qasm_to_cirq import (
