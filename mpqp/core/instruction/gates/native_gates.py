@@ -189,7 +189,7 @@ class NativeGate(Gate, SimpleClassReprABC):
         | PhaseGate
         | CPhaseGate
     ]:
-        pass
+        raise NotImplementedError
 
     @classproperty
     @abstractmethod
@@ -213,7 +213,7 @@ class NativeGate(Gate, SimpleClassReprABC):
         | gates.PhaseShift
         | gates.CPhaseShift
     ]:
-        pass
+        raise NotImplementedError
 
     @classproperty
     @abstractmethod
@@ -221,7 +221,7 @@ class NativeGate(Gate, SimpleClassReprABC):
         cls,
     ) -> type[Gate]:
         """Returns the corresponding ``cirq`` class for this gate."""
-        pass
+        raise NotImplementedError
 
 
 class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
@@ -237,16 +237,16 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
     """
 
     def __init__(
-        self, theta: list[Expr | float] | Expr | float, target: list[int] | int
+        self, theta: list[Expr | float] | Expr | float, targets: list[int] | int
     ):
         if not isinstance(theta, list):
             theta = [theta]
         self.parameters = theta
         definition = UnitaryMatrix(self.to_canonical_matrix())
-        if isinstance(target, int):
-            target = [target]
+        if isinstance(targets, int):
+            targets = [targets]
         ParametrizedGate.__init__(
-            self, definition, target, self.parameters, type(self).__name__.capitalize()
+            self, definition, targets, self.parameters, type(self).__name__.capitalize()
         )
 
     @property
@@ -255,7 +255,7 @@ class RotationGate(NativeGate, ParametrizedGate, SimpleClassReprABC):
         return self.parameters[0]
 
     def __repr__(self):
-        target = ", ".join(str(t) for t in self.targets)
+        target = "[" + ", ".join(str(t) for t in self.targets) + "]"
         return f"{type(self).__name__}({self.theta}, {target})"
 
     def to_other_language(
@@ -352,7 +352,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | IGate
     ]:
         """Returns the corresponding ``qiskit`` class for this gate."""
-        pass
+        raise NotImplementedError
 
     @classproperty
     @abstractmethod
@@ -372,7 +372,7 @@ class NoParameterGate(NativeGate, SimpleClassReprABC):
         | gates.I
     ]:
         """Returns the corresponding ``braket`` class for this gate."""
-        pass
+        raise NotImplementedError
 
     """Corresponding ``qiskit``'s gate class."""
     matrix: npt.NDArray[np.complex128]
@@ -695,7 +695,7 @@ class P(RotationGate, SingleQubitGate):
 
     @classproperty
     def cirq_gate(cls):
-        pass
+        raise NotImplementedError
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
@@ -1373,7 +1373,7 @@ class Rxx(RotationGate, ComposedGate):
 
     @classproperty
     def cirq_gate(cls):
-        pass
+        raise NotImplementedError
 
     qlm_aqasm_keyword = "RXX"
     qiskit_string = "rxx"
@@ -1383,6 +1383,9 @@ class Rxx(RotationGate, ComposedGate):
 
     def __init__(self, phi: Expr | float, a: int, b: int):
         super().__init__(phi, [a, b])
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
@@ -1477,7 +1480,7 @@ class Ryy(RotationGate, ComposedGate):
 
     @classproperty
     def cirq_gate(cls):
-        pass
+        raise NotImplementedError
 
     qlm_aqasm_keyword = "RYY"
     qiskit_string = "ryy"
@@ -1487,6 +1490,9 @@ class Ryy(RotationGate, ComposedGate):
 
     def __init__(self, phi: Expr | float, a: int, b: int):
         super().__init__(phi, [a, b])
+
+    def __repr__(self):
+        return f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
@@ -1594,7 +1600,7 @@ class Rzz(RotationGate, ComposedGate):
 
     @classproperty
     def cirq_gate(cls):
-        pass
+        raise NotImplementedError
 
     qlm_aqasm_keyword = "RZZ"
     qiskit_string = "rzz"
@@ -1605,10 +1611,13 @@ class Rzz(RotationGate, ComposedGate):
     def __init__(self, phi: Expr | float, a: int, b: int):
         super().__init__(phi, [a, b])
 
+    def __repr__(self):
+        return f"{type(self).__name__}({self.theta}, {self.targets[0]}, {self.targets[1]})"
+
     def to_canonical_matrix(self):
         phi = self.parameters[0]
-        e_minus = exp(-1j * phi / 2)
-        e_plus = exp(1j * phi / 2)
+        e_minus = exp(-1j * phi / 2) # pyright: ignore[reportOperatorIssue]
+        e_plus = exp(1j * phi / 2) # pyright: ignore[reportOperatorIssue]
 
         return np.array(
             [
@@ -1708,12 +1717,18 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
         super().__init__([theta, phi], self.targets)
 
     def to_canonical_matrix(self):
-        theta, phi = (self.parameters[0], self.parameters[1])
-        rz_plus = Rz(phi, self.targets[0]).to_matrix()
-        rx = Rx(theta, self.targets[0]).to_matrix()
-        rz_minus = Rz(-phi, self.targets[0]).to_matrix()
+        theta, phi = self.parameters
+        c = cos(theta / 2)
+        s = sin(theta / 2)
+        e_minus = exp(-1j * phi)
+        e_plus = exp(1j * phi)
 
-        return rz_plus @ rx @ rz_minus
+        return np.array(
+            [
+                [c, -1j * e_minus * s],
+                [-1j * e_plus * s, c],
+            ],
+        )
 
     def to_matrix(self, desired_gate_size: int = 0):
         return self.to_canonical_matrix()
@@ -1904,7 +1919,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
     @classproperty
     def cirq_gate(cls):
-        pass
+        raise NotImplementedError
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
