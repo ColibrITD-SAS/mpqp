@@ -5,6 +5,7 @@ from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.core.instruction.gates.gate import Gate
 from mpqp.core.instruction.gates.native_gates import ComposedGate
 from mpqp.core.instruction.instruction import Instruction
+from mpqp.tools.errors import UnsupportedGateError
 
 
 @dataclass(frozen=True)
@@ -14,28 +15,10 @@ class GateResolution:
     decomposed: bool
 
 
-class UnsupportedGateError(ValueError):
-    def __init__(
-        self,
-        gate: Gate,
-        gate_set: set[type[Gate]],
-        missing_gates: set[type[Gate]] | None = None,
-    ):
-        missing = missing_gates or {type(gate)}
-        missing_names = ", ".join(sorted(g.__name__ for g in missing))
-        available_names = ", ".join(sorted(g.__name__ for g in gate_set))
-
-        super().__init__(
-            f"{type(gate).__name__} cannot be represented with the target "
-            f"gate set. Missing gates: {missing_names}. "
-            f"Available gates: {available_names}."
-        )
-
-
 def resolve_instructions(
-    instructions: list["Instruction"],
+    instructions: list[Instruction],
     gate_set: set[type[Gate]],
-) -> list["Instruction"]:
+) -> list[Instruction]:
     resolved: list[Instruction] = []
 
     for instruction in instructions:
