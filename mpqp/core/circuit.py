@@ -1318,6 +1318,14 @@ class QCircuit:
             qasm3_code = open_qasm_2_to_3(qasm2_code, self._generated_g_phase)
             self._generated_g_phase = 0
             return qasm3_code
+        elif language == Language.TKET:
+
+            circuit_qiskit = self.to_other_language(
+                Language.QISKIT, skip_measurements, skip_pre_measure
+            )
+            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+
+            return qiskit_to_tk(circuit_qiskit)
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
