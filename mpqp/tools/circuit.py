@@ -674,7 +674,7 @@ def mpqp_to_cirq(
                         )
                         if TYPE_CHECKING:
                             assert isinstance(qasm2_code, str)
-                        from mpqp.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
+                        from mpqp.translation.qasm.qasm_to_cirq import qasm2_to_cirq_Circuit
 
                         qasm2_code = (
                             "OPENQASM 2.0;"

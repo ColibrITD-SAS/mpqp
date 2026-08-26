@@ -76,9 +76,7 @@ class CustomControlledGate(ControlledGate):
 
     def to_custom_gate(self) -> CustomGate:
         "returns the CustomGate equivalent of this gate."
-        import numpy as np
-
-        targets = list(np.sort(self.targets + self.controls))
+        targets = sorted(self.targets + self.controls)
 
         return CustomGate(self.to_matrix(), targets)
 

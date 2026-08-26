@@ -1427,7 +1427,7 @@ class QCircuit:
         )
 
         translated_circuit = deepcopy(self)
-        native_gates = device.compatible_gate()
+        native_gates = device.compatible_gates()
 
         if native_gates:
             translated_circuit.instructions = resolve_instructions(

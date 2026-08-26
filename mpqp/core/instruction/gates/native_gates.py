@@ -1961,8 +1961,6 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         language: Language = Language.QISKIT,
         qiskit_parameters: Optional[set["Parameter"]] = None,
     ):
-        if language == Language.QASM2:
-            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
         if language == Language.CIRQ:
             from cirq import MatrixGate
 
@@ -1970,7 +1968,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
                 matrix=self.to_matrix(), name=self.label, unitary_check=False
             )
         elif language == Language.QASM2:
-            from mpqp.qasm.mpqp_to_qasm import float_to_qasm_str
+            from mpqp.translation.qasm.mpqp_to_qasm import float_to_qasm_str
 
             instruction_str = self.qasm2_gate
             instruction_str += (

@@ -139,9 +139,6 @@ def _gray_code_decomposition(
 def _decompose(
     U: Matrix, circuit: QCircuit, targets: list[int], position: int = 0
 ) -> QCircuit:
-def _decompose(
-    U: Matrix, circuit: QCircuit, targets: list[int], position: int = 0
-) -> QCircuit:
     """
     This function recursively decompose the matrix U into the circuit then returns it.
 
@@ -210,7 +207,6 @@ def _decompose(
         circuit = _gray_code_decomposition(
             thetas,
             circuit,
-            targets,
             targets,
             position,
             Ry,  # pyright: ignore[reportArgumentType]

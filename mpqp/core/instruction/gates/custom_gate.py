@@ -132,11 +132,6 @@ class CustomGate(Gate):
                     label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
                 )
             return UnitaryGate(self.matrix, label=self.label, check_input=False)
-                dummy_circuit.id(0)
-                return dummy_circuit.to_gate(
-                    label=f"CustomGate({', '.join([str(s) for s in gate_symbols])})"
-                )
-            return UnitaryGate(self.matrix, label=self.label, check_input=False)
         elif language == Language.BRAKET:
             from sympy import Expr
 
