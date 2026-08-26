@@ -109,10 +109,19 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
             if isinstance(instruction, (Measure, Breakpoint)):
                 continue
             options = (
-                {"printing": printing} if isinstance(instruction, CustomGate) else {}
+                {"printing": printing}
+                if isinstance(instruction, (CustomGate, CustomControlledGate))
+                else {}
             )
 
-            if isinstance(instruction, Gate):
+            if (
+                printing
+                and isinstance(instruction, CustomControlledGate)
+                and isinstance(instruction.non_controlled_gate, CustomGate)
+            ):
+                instr = [instruction]
+
+            elif isinstance(instruction, Gate):
                 qiskit_gate_set = get_qiskit_gate_set()
                 instr = list(
                     resolve_gate(

@@ -81,6 +81,17 @@ def test_inverse(gate: CustomControlledGate, expected: CustomControlledGate):
     assert gate.inverse() == expected
 
 
+def test_print_keeps_custom_gate_controls_visible():
+    circuit = QCircuit(
+        [CustomControlledGate([0, 2], CustomGate(np.diag([1, -1]), [1]))]
+    )
+
+    drawing = str(circuit)
+
+    assert drawing.count("■") == 2
+    assert "Unitary" in drawing
+
+
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize(
     "gate",
