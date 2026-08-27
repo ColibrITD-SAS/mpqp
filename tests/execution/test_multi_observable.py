@@ -117,7 +117,7 @@ def optimized_devices_braket():
     ]
 
 
-def optimized_devices_quantinuum():
+def optimized_devices_quantinuum() -> list[AvailableDevice]:
     return [
         QUANTINUUMDevice.TKET_AER_SIMULATOR,
         QUANTINUUMDevice.TKET_QULACS_SIMULATOR,

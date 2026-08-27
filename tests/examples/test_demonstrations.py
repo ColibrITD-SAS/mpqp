@@ -168,7 +168,6 @@ def test_statevector_demo_cirq():
 def test_statevector_demo_quantinuum():
     exec_statevector_demo(
         [
-            QUANTINUUMDevice.TKET_AER_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
         ],
@@ -273,7 +272,7 @@ def test_observable_demo_cirq(shots: int):
 @pytest.mark.provider("quantinuum")
 @pytest.mark.parametrize("shots", [0, 1000])
 def test_observable_demo_quantinuum(shots: int):
-    devices = [
+    devices: list[AvailableDevice] = [
         QUANTINUUMDevice.TKET_AER_SIMULATOR,
         QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
     ]
@@ -413,7 +412,7 @@ def test_all_native_gates_myqlm():
 
 @pytest.mark.provider("quantinuum")
 def test_all_native_gates_quantinuum_aer():
-    exec_all_native_gates(QUANTINUUMDevice.TKET_AER_SIMULATOR)
+    exec_all_native_gates(QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR)
 
 
 @pytest.mark.provider("quantinuum")

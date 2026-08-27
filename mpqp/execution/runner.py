@@ -319,7 +319,18 @@ def _run_single(
         measure = circuit.measurements[0]
         if isinstance(measure, ExpectationMeasure):
             if measure.optim_diagonal and measure.only_diagonal_observables():
-                return _run_diagonal_observables(circuit, measure, device, job, values)
+                if (measure.shots == 0 and not device.supports_state_vector()) or (
+                    measure.shots != 0 and not device.supports_samples()
+                ):
+                    from warnings import warn
+
+                    warn(
+                        f"The diagonal observable(s) cannot be optimized on the device: {device} due to the optimization process changing the jobtype to an incompatible one."
+                    )
+                else:
+                    return _run_diagonal_observables(
+                        circuit, measure, device, job, values
+                    )
 
     if len(circuit.noises) != 0:
         if not device.is_noisy_simulator():

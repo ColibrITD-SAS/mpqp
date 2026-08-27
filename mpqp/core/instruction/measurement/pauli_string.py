@@ -800,11 +800,16 @@ class PauliString:
     def to_other_language(self, language: Literal[Language.MY_QLM]) -> list[Term]: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+        self,
+        language: Literal[Language.CIRQ],
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.TKET]
+        self,
+        language: Literal[Language.TKET],
+        targets: Optional[list[int]] = None,
     ) -> QubitPauliOperator: ...
     @overload
     def to_other_language(
@@ -812,7 +817,10 @@ class PauliString:
     ) -> Never: ...
     @overload
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
         CirqPauliSum,
         CirqPauliString,
@@ -825,7 +833,10 @@ class PauliString:
     ]: ...
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
         SparsePauliOp,
         BraketSum,
@@ -889,7 +900,7 @@ class PauliString:
         elif language == Language.CIRQ:
             cirq_pauli_string = None
             for monomial in self.monomials:
-                cirq_monomial = monomial.to_other_language(language, circuit)
+                cirq_monomial = monomial.to_other_language(language, circuit=circuit)
                 cirq_pauli_string = (
                     cirq_monomial
                     if cirq_pauli_string is None
@@ -908,14 +919,31 @@ class PauliString:
                 "Y": Pauli.Y,
                 "Z": Pauli.Z,
             }
-            qubits = [Qubit(index) for index in range(self.nb_qubits)]
-            terms = {
-                QubitPauliString(
-                    qubits,
-                    [pauli_gate_map[atom.label] for atom in monomial.atoms],
-                ): monomial.coef
-                for monomial in self.simplify().monomials
-            }
+            if targets is None:
+                qubits = [Qubit(index) for index in range(self.nb_qubits)]
+                terms = {
+                    QubitPauliString(
+                        qubits,
+                        [pauli_gate_map[atom.label] for atom in monomial.atoms],
+                    ): monomial.coef
+                    for monomial in self.simplify().monomials
+                }
+            else:
+
+                qubits = [Qubit(index) for index in targets]
+                terms = {}
+                for monom in self.simplify().monomials:
+                    local_targets = []
+                    mapped_obs = []
+                    for i, atom in enumerate(monom.atoms):
+                        if atom == pI:
+                            continue
+                        local_targets.append(qubits[i])
+                        mapped_obs.append(pauli_gate_map[atom.label])
+                    terms.update(
+                        {QubitPauliString(local_targets, mapped_obs): monom.coef}
+                    )
+
             return QubitPauliOperator(terms)  # pyright: ignore[reportArgumentType]
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
@@ -1304,11 +1332,16 @@ class PauliStringMonomial(PauliString):
     def to_other_language(self, language: Literal[Language.MY_QLM]) -> list[Term]: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+        self,
+        language: Literal[Language.CIRQ],
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.TKET]
+        self,
+        language: Literal[Language.TKET],
+        targets: Optional[list[int]] = None,
     ) -> QubitPauliOperator: ...
     @overload
     def to_other_language(
@@ -1316,7 +1349,10 @@ class PauliStringMonomial(PauliString):
     ) -> Never: ...
     @overload
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
         CirqPauliSum,
         CirqPauliString,
@@ -1329,7 +1365,10 @@ class PauliStringMonomial(PauliString):
     ]: ...
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ):
         if language == Language.QISKIT:
             from qiskit.quantum_info import SparsePauliOp
@@ -1396,7 +1435,7 @@ class PauliStringMonomial(PauliString):
                 * self.coef
             )
         elif language == Language.TKET:
-            return PauliString.to_other_language(self, Language.TKET)
+            return PauliString.to_other_language(self, Language.TKET, targets=targets)
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
@@ -1601,6 +1640,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_other_language(
         self,
         language: Literal[Language.BRAKET],
+        targets: Optional[list[int]] = None,
         circuit: Optional[CirqCircuit] = None,
         target: Optional[Qid] = None,
     ) -> BraketSum: ...
@@ -1608,6 +1648,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_other_language(
         self,
         language: Literal[Language.QISKIT],
+        targets: Optional[list[int]] = None,
         circuit: Optional[CirqCircuit] = None,
         target: Optional[Qid] = None,
     ) -> SparsePauliOp: ...
@@ -1615,6 +1656,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_other_language(
         self,
         language: Literal[Language.MY_QLM],
+        targets: Optional[list[int]] = None,
         circuit: Optional[CirqCircuit] = None,
         target: Optional[Qid] = None,
     ) -> list[Term]: ...
@@ -1622,12 +1664,17 @@ class PauliStringAtom(PauliStringMonomial):
     def to_other_language(
         self,
         language: Literal[Language.CIRQ],
+        targets: Optional[list[int]] = None,
         circuit: Optional[CirqCircuit] = None,
         target: Optional[Qid] = None,
     ) -> Union[CirqPauliSum, CirqPauliString, list[CirqPauliString]]: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.TKET]
+        self,
+        language: Literal[Language.TKET],
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
+        target: Optional[Qid] = None,
     ) -> QubitPauliOperator: ...
     @overload
     def to_other_language(
@@ -1637,6 +1684,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_other_language(
         self,
         language: Language,
+        targets: Optional[list[int]] = None,
         circuit: Optional[CirqCircuit] = None,
         target: Optional[Qid] = None,
     ) -> Union[
@@ -1652,6 +1700,7 @@ class PauliStringAtom(PauliStringMonomial):
     def to_other_language(
         self,
         language: Language,
+        targets: Optional[list[int]] = None,
         circuit: Optional[CirqCircuit] = None,
         target: Optional[Qid] = None,
     ):
@@ -1693,7 +1742,7 @@ class PauliStringAtom(PauliStringMonomial):
                 LineQubit(0) if target is None else target
             )
         elif language == Language.TKET:
-            return PauliString.to_other_language(self, Language.TKET)
+            return PauliString.to_other_language(self, Language.TKET, targets=targets)
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 

@@ -261,7 +261,7 @@ def run_tket_observable(
         job.measure.observables_labels,
         job.measure.observables,
     ):
-        operator = observable.to_other_language(Language.TKET)
+        operator = observable.to_other_language(Language.TKET, job.measure.targets)
         if TYPE_CHECKING:
             assert isinstance(operator, QubitPauliOperator)
         expectation_value = backend.get_operator_expectation_value(
@@ -594,7 +594,7 @@ def extract_state_vector_result(
     """
     state_vector = StateVector(amplitudes, nb_qubits=job.circuit.nb_qubits)
     job.status = JobStatus.DONE
-    return Result(job, state_vector, 0, 0)
+    return Result(job, state_vector, 0, 0, g_phase_handling=False)
 
 
 def extract_sample_result(

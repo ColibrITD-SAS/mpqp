@@ -1,5 +1,4 @@
 from copy import deepcopy
-
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -716,12 +715,19 @@ def exec_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
         if device.supports_samples():
             assert run(circuit_samples, device) is not None
         else:
-            run(circuit_samples, device)
+            if device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_samples, device)
+            else:
+                run(circuit_samples, device)
 
         if device.supports_state_vector():
             assert run(circuit_state_vector, device) is not None
         else:
-            if isinstance(device, IBMDevice) and not device.supports_state_vector():
+            if (
+                isinstance(device, IBMDevice | QUANTINUUMDevice)
+                and not device.supports_state_vector()
+            ):
                 with pytest.raises(DeviceJobIncompatibleError):
                     run(circuit_state_vector, device)
             else:
@@ -799,7 +805,7 @@ def exec_validity_native_gate_to_other_language(language: Language):
     for gate in NATIVE_GATES:
         gate_build = random_gate([gate])
 
-        if language in [Language.MY_QLM, Language.QASM3]:
+        if language in [Language.MY_QLM, Language.QASM3, Language.TKET]:
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
@@ -865,6 +871,7 @@ def exec_validity_measure_to_other_language(
             Language.MY_QLM,
             Language.BRAKET,
             Language.QASM3,
+            Language.TKET,
         ]:
             with pytest.raises(NotImplementedError):
                 measure.to_other_language(language)
@@ -1050,6 +1057,7 @@ def exec_validity_other_instr_to_other_language(
             Language.CIRQ,
             Language.BRAKET,
             Language.QASM3,
+            Language.TKET,
         ]:
             with pytest.raises(NotImplementedError):
                 instr.to_other_language(language)
@@ -1223,7 +1231,7 @@ def test_global_phase_statevector(matrix: Matrix, gphase: float):
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ATOSDevice.MYQLM_PYLINALG,
         QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
-        QUANTINUUMDevice.TKET_AER_SIMULATOR,
+        QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
     ]
     results = run(circuit, devices)
     for result_1, result_2 in pairwise(results.results):

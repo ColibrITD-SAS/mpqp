@@ -281,11 +281,14 @@ class Observable:
     ) -> QLMObservable: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+        self,
+        language: Literal[Language.CIRQ],
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[CirqPauliSum, CirqPauliString]: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.TKET]
+        self, language: Literal[Language.TKET], targets: Optional[list[int]] = None
     ) -> QubitPauliOperator: ...
     @overload
     def to_other_language(
@@ -293,7 +296,10 @@ class Observable:
     ) -> Never: ...
     @overload
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = [],
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
         SparsePauliOp,
         QLMObservable,
@@ -305,7 +311,10 @@ class Observable:
     ]: ...
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
         SparsePauliOp,
         QLMObservable,
@@ -365,9 +374,9 @@ class Observable:
                     ),
                 )
         elif language == Language.CIRQ:
-            return self.pauli_string.to_other_language(Language.CIRQ, circuit)
+            return self.pauli_string.to_other_language(Language.CIRQ, circuit=circuit)
         elif language == Language.TKET:
-            return self.pauli_string.to_other_language(Language.TKET)
+            return self.pauli_string.to_other_language(Language.TKET, targets=targets)
         else:
             raise ValueError(f"Unsupported language: {language}")
 

@@ -1305,7 +1305,6 @@ class QCircuit:
             self._generated_g_phase = 0
             return qasm3_code
         elif language == Language.TKET:
-
             circuit_qiskit = self.to_other_language(
                 Language.QISKIT, skip_measurements, skip_pre_measure
             )
