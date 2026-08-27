@@ -35,7 +35,7 @@ from mpqp.execution.providers.quantinuum import get_result_from_quantinuum_job_i
 def get_remote_result(
     job_data: str | Job, device: Optional[AvailableDevice] = None
 ) -> Result:
-    """Retrieve and parse a remote result from a job ID and device. If the
+    """Retrieve and parse a remote result from a job_id (or a Job) and device. If the
     job is still running, it will wait until it is done.
 
     Args:
