@@ -1771,12 +1771,10 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
             pass
 
         if language == Language.QISKIT:
-            from qiskit.circuit.library import RGate
-
             if qiskit_parameters is None:
                 qiskit_parameters = set()
 
-            return RGate(
+            return self.qiskit_gate(
                 _qiskit_parameter_adder(theta, qiskit_parameters),
                 _qiskit_parameter_adder(phi, qiskit_parameters),
             )
@@ -1793,9 +1791,7 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
                 target=connection,
             )
         elif language == Language.CIRQ:
-            from cirq import PhasedXPowGate
-
-            return PhasedXPowGate(
+            return self.cirq_gate(
                 phase_exponent=self.parameters[1] / np.pi,
                 exponent=self.parameters[0] / np.pi,
             )
