@@ -2,7 +2,10 @@ import numpy as np
 import pytest
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.gate_decomposition import resolve_composed_gate, resolve_gate
+from mpqp.core.instruction.gates.gate_decomposition import (
+    resolve_composed_gate,
+    resolve_gate,
+)
 from mpqp.core.languages import Language
 from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedGateError
@@ -53,10 +56,9 @@ def test_braket_translation_does_not_pad_sparse_circuit():
     translated = circuit.to_other_language(Language.BRAKET)
 
     assert all(
-        instruction.operator.name != "I"
-        for instruction in translated.instructions
+        instruction.operator.name != "I" for instruction in translated.instructions
     )
-    
+
 
 @pytest.mark.parametrize(
     "language, provider, gate_set_getter, gate, native_gates",

@@ -1437,7 +1437,9 @@ class QCircuit:
                 )
             from mpqp.translation.qiskit import mpqp_to_qiskit
 
-            qiskit_circuit = mpqp_to_qiskit(translated_circuit, skip_pre_measure, skip_measurements)
+            qiskit_circuit = mpqp_to_qiskit(
+                translated_circuit, skip_pre_measure, skip_measurements
+            )
             if TYPE_CHECKING:
                 assert isinstance(qiskit_circuit, QuantumCircuit)
 
