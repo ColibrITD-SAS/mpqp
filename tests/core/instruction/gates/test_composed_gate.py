@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from mpqp.core.circuit import QCircuit
-from mpqp.core.instruction.gates.gate_decomposition import resolve_composed_gate
+from mpqp.core.instruction.gates.gate_decomposition import resolve_composed_gate, resolve_gate
 from mpqp.core.languages import Language
 from mpqp.gates import *
 from mpqp.tools.errors import UnsupportedGateError
@@ -17,25 +17,46 @@ COMPOSED_GATES = [
 
 
 @pytest.mark.parametrize(
-    "gate",
+    "gate ,language",
     [
-        (Rxx(np.pi / 2, 0, 1)),
-        (Rxx(np.pi / 2, 0, 1)),
-        (Rxx(np.pi / 2, 0, 1)),
-        (Ryy(np.pi / 2, 0, 1)),
-        (Ryy(np.pi / 2, 0, 1)),
-        (Ryy(np.pi / 2, 0, 1)),
-        (Rzz(np.pi / 2, 0, 1)),
-        (Rzz(np.pi / 2, 0, 1)),
-        (Rzz(np.pi / 2, 0, 1)),
-        (PRX(np.pi / 3, 1, 0)),
-        (PRX(np.pi / 3, 1, 0)),
-        (PRX(np.pi / 3, 1, 0)),
+        (Rxx(np.pi / 2, 0, 1), Language.QISKIT),
+        (Ryy(np.pi / 2, 0, 1), Language.QISKIT),
+        (Rzz(np.pi / 2, 0, 1), Language.BRAKET),
+        (PRX(np.pi / 3, 1, 0), Language.BRAKET),
     ],
 )
-def test_composedgate_compatible(gate: Gate) -> None:
-    QCircuit([gate]).to_other_language(Language.QISKIT)
+def test_composedgate_compatible(gate: Gate, language: Language) -> None:
+    translated = QCircuit([gate]).to_other_language(language)
+    assert translated is not None
 
+
+@pytest.mark.parametrize(
+    "gate,gate_set,expected",
+    [
+        (PRX(1.0, 0.5, 0), {Rx, Rz}, [Rz, Rx, Rz]),
+        (Rzz(1.0, 0, 1), {CNOT, Rz}, [CNOT, Rz, CNOT]),
+    ],
+)
+def test_composed_gate_is_decomposed(
+    gate: Gate,
+    gate_set: set[type[Gate]],
+    expected: list[type[Gate]],
+) -> None:
+    resolved = resolve_gate(gate, gate_set)
+
+    assert [type(item) for item in resolved] == expected
+
+
+def test_braket_translation_does_not_pad_sparse_circuit():
+    circuit = QCircuit([H(1), CNOT(1, 3)], nb_qubits=4)
+
+    translated = circuit.to_other_language(Language.BRAKET)
+
+    assert all(
+        instruction.operator.name != "I"
+        for instruction in translated.instructions
+    )
+    
 
 @pytest.mark.parametrize(
     "language, provider, gate_set_getter, gate, native_gates",

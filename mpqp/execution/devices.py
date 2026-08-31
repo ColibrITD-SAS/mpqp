@@ -405,12 +405,12 @@ class AWSDevice(AvailableDevice):
         else:
             return get_env_variable("AWS_DEFAULT_REGION")
 
-    def compatible_gate(self, verbatim: bool = False) -> set[type[Gate]]:
+    def compatible_gate(self, native_set: bool = False) -> set[type[Gate]]:
         """List of compatible gates with the devices that can be found in MPQP.
         Lists pulled from here: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html#braket-qpu-partner-iqm
         """
         if self == AWSDevice.IQM_GARNET or self == AWSDevice.IQM_EMERALD:
-            if verbatim:  # authorized: cz, prx
+            if native_set:  # authorized: cz, prx
                 return set([CZ, PRX])
             else:
                 """authorized gates from doc:
@@ -424,6 +424,7 @@ class AWSDevice(AvailableDevice):
                         TOF,
                         CNOT,
                         SWAP,
+                        PRX,
                         CZ,
                         H,
                         Id,
@@ -439,7 +440,7 @@ class AWSDevice(AvailableDevice):
                 )
 
         elif self == AWSDevice.RIGETTI_ANKAA_3:
-            if verbatim:  # 'rx', 'rz', 'iswap'
+            if native_set:  # 'rx', 'rz', 'iswap'
                 return {Rz, Rx}
                 # TODO: add (ISWAP) to the set
             else:
