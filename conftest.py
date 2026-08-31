@@ -8,6 +8,8 @@ def pytest_addoption(parser: pytest.Parser):
     parser.addoption("--long", action="store_false", help="If set, long tests will run")
     parser.addoption(
         "--long-costly",
+        "--long-cost",
+        dest="long_costly",
         action="store_false",
         help="If set, long tests that cost credit will run",
     )
@@ -40,7 +42,7 @@ def pytest_configure(config: Any):
     """
     if (
         not config.getoption("--long")
-        or not config.getoption("--long-costly")
+        or not config.getoption("long_costly")
         or not config.getoption("--long-local")
     ):
         from tests.local_storage.test_local_storage import create_test_local_storage

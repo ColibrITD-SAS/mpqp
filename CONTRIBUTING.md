@@ -101,7 +101,7 @@ Here are some useful scripts for when you are developing:
 | `python -m pytest --long`                | Runs the long tests too                       |
 | `python -m pytest --long-local`          | Runs the local long tests                     |
 | `python -m pytest --seed=<your_seed>`    | Runs the test suite with a specified seed     |
-| `python -m pytest --provider <provider>` | Runs the test suite with a specified provider |
+| `python -m pytest --providers <provider>`| Runs the test suite with a specified provider |
 
 
 When making commits, make sure to follow the

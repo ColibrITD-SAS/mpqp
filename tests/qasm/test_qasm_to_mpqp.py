@@ -1,8 +1,9 @@
 from typing import TYPE_CHECKING
 
+import numpy as np
 import pytest
 
-from mpqp import CNOT, CP, BasisMeasure, H, Language
+from mpqp import CNOT, CP, BasisMeasure, CustomGate, H, Language, Rx
 from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 from mpqp.tools.circuit import random_circuit
 
@@ -176,19 +177,46 @@ def test_qasm2_to_mpqp(qasm_code: str, gate_names: list[str]):
 @pytest.mark.parametrize(
     "qasm_code",
     [
-        ("""OPENQASM 2.0;
+        (
+            """OPENQASM 2.0;
             include "qelib1.inc";
 
             qreg q[1];
             h q[0]
-            cx q[0], """),
+            cx q[0], """
+        ),
     ],
 )
 def test_invalid_qasm_code(qasm_code: str):
-    try:
+    with pytest.raises(SyntaxError):
         qasm2_parse(qasm_code)
-    except SyntaxError:
-        pass
+
+
+def test_invalid_qasm_header():
+    with pytest.raises(SyntaxError, match="must start with OPENQASM 2.0"):
+        qasm2_parse("NOTQASM 2.0; qreg q[1];")
+
+
+def test_qasm_numeric_expression_uses_power_operator():
+    circuit = qasm2_parse("OPENQASM 2.0; qreg q[1]; rx(2^3) q[0];")
+    assert circuit.instructions == [Rx(8, 0)]
+
+
+def test_custom_gate_pragma_accepts_only_literals():
+    circuit = qasm2_parse(
+        'OPENQASM 2.0; qreg q[1];\n'
+        '#pragma mpqp CustomGate(array([[0, 1], [1, 0]]), [0], "X")\n'
+    )
+    assert circuit.instructions == [CustomGate(np.array([[0, 1], [1, 0]]), [0], "X")]
+
+
+def test_custom_gate_pragma_rejects_function_calls(monkeypatch: pytest.MonkeyPatch):
+    def unexpected_load(*args: object, **kwargs: object):
+        pytest.fail("The custom-gate pragma executed an arbitrary NumPy function")
+
+    monkeypatch.setattr(np, "load", unexpected_load)
+    with pytest.raises(SyntaxError, match="Invalid MPQP custom gate pragma"):
+        qasm2_parse('OPENQASM 2.0; qreg q[1];\n#pragma mpqp np.load("untrusted.npy")\n')
 
 
 def test_random_qasm_code():

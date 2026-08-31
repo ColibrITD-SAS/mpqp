@@ -1,7 +1,7 @@
 ![license badge](https://img.shields.io/github/license/ColibrITD-SAS/mpqp?logo=openaccess&logoColor=white&color=97CA00)
 ![test status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/tests.yml?branch=dev&label=tests&logo=pytest&logoColor=white)
 ![doc status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/doc.yml?label=doc&logo=read-the-docs&logoColor=white)
-![pipy deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=pipy&logo=pypi&logoColor=white)
+![PyPI deployment status badge](https://img.shields.io/github/actions/workflow/status/ColibrITD-SAS/mpqp/pipy.yml?label=PyPI&logo=pypi&logoColor=white)
 ![release badge](https://img.shields.io/github/release/ColibrITD-SAS/mpqp?logo=github&color=blue)
 ![github stars badge](https://img.shields.io/github/stars/ColibrITD-SAS/mpqp?logo=github)
 ![python versions badge](https://img.shields.io/pypi/pyversions/mpqp?label=python&color=blue)
@@ -13,7 +13,7 @@
 MPQP stands for Multi-Platform Quantum Programming. It is a python library we at
 Colibri felt the need for but couldn't find a solution. We are working on
 quantum algorithms, but until now, there was no good solution to study quantum
-algorithms across devices, compares the devices, etc...
+algorithms across devices, compare the devices, etc...
 
 MPQP is thus the solution we bring to the community to tackle this problem.
 
@@ -28,11 +28,11 @@ On this page, you will find:
 ## Install
 
 For now, we support python versions 3.10 to 3.13, and every major OS (Windows,
-Linux and MacOS). We are dependant on the SDKs we support to enable various
+Linux and MacOS). We are dependent on the SDKs we support to enable various
 python versions and OS support, for instance, MPQP was validated on Ubuntu LTS
 20.04, while Ubuntu 18.04 is not supported because myQLM does not support it.
 
-The preferred installation method is with the `pipy` repo. In order to use this
+The preferred installation method is with the `PyPI` repository. In order to use this
 installation method, simply run
 
 ```

@@ -21,9 +21,10 @@ __pycache__/
 .vs/
 .idea/
 
-# private files
+# private files or folders
 .dockerenv
 .env
+venv/
 
 # results of tests
 examples/notebooks/latex_error.log

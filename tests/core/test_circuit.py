@@ -1140,6 +1140,26 @@ def test_qubits_dynamic_circuit(circuit: QCircuit, expected_qubits: int):
     assert circuit.nb_qubits == expected_qubits + 1
 
 
+def test_noisy_circuit_rejects_partial_measure_added_first():
+    circuit = QCircuit(2)
+    circuit.add(BasisMeasure([0]))
+
+    with pytest.raises(
+        ValueError, match="BasisMeasure must span all qubits in the circuit"
+    ):
+        circuit.add(Depolarizing(0.1, [0]))
+
+
+def test_noisy_circuit_rejects_partial_measure_added_last():
+    circuit = QCircuit(2)
+    circuit.add(Depolarizing(0.1, [0]))
+
+    with pytest.raises(
+        ValueError, match="BasisMeasure must span all qubits in the circuit"
+    ):
+        circuit.add(BasisMeasure([0]))
+
+
 @pytest.mark.parametrize(
     "circuit, expected_qubits",
     [

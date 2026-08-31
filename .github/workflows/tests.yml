@@ -40,6 +40,22 @@ on:
           - "braket"
           - "myqlm"
 jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+      - name: Build distributions
+        run: |
+          python -m pip install --upgrade build
+          python -m build
+      - name: Check packaged QASM resources
+        run: python -c "import glob, zipfile; wheel = glob.glob('dist/*.whl')[0]; files = zipfile.ZipFile(wheel).namelist(); assert 'mpqp/translation/qasm/header_codes/std_lib.qasm' in files"
   tests:
     runs-on: ubuntu-latest
     strategy:

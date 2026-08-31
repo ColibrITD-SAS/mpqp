@@ -129,5 +129,5 @@ def azure_sample(gates: list[Gate], basis_states: list[str]):
 if "--long" in sys.argv:
     test_running_remote_azure_sample = azure_sample
 
-if "--long-cost" in sys.argv:
+if "--long-costly" in sys.argv or "--long-cost" in sys.argv:
     test_running_remote_azure_sample_cost = azure_sample_cost
