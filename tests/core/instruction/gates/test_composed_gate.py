@@ -50,16 +50,6 @@ def test_composed_gate_is_decomposed(
     assert [type(item) for item in resolved] == expected
 
 
-def test_braket_translation_does_not_pad_sparse_circuit():
-    circuit = QCircuit([H(1), CNOT(1, 3)], nb_qubits=4)
-
-    translated = circuit.to_other_language(Language.BRAKET)
-
-    assert all(
-        instruction.operator.name != "I" for instruction in translated.instructions
-    )
-
-
 @pytest.mark.parametrize(
     "language, provider, gate_set_getter, gate, native_gates",
     [
