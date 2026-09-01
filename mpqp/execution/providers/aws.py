@@ -192,8 +192,8 @@ def run_braket_observable(job: Job):
             ]
             for circuit in pre_measure:
                 instructions = (
-                    circuit._instructions # pyright: ignore[reportPrivateUsage]
-                )  
+                    circuit._instructions  # pyright: ignore[reportPrivateUsage]
+                )
                 for instr in instructions:
                     instr.targets = [job.measure.targets[t] for t in instr.targets]
             transpiled_pre_measures = [
