@@ -610,5 +610,6 @@ def extract_result_STATE_VECTOR(
     Returns:
         The formatted result.
     """
-    state_vector = StateVector(result.final_state_vector, job.circuit.nb_qubits)
-    return Result(job, state_vector, 0, 0)
+    return Result(
+        job, StateVector(result.final_state_vector, job.circuit.nb_qubits), 0, 0, False
+    )
