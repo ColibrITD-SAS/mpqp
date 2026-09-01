@@ -912,12 +912,14 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     def circuitbinding_to_programset(
         binding: "CircuitBinding", device: "AvailableDevice"
     ) -> "tuple[ProgramSet, list[tuple[Any]]]":
-        from mpqp.core.instruction import ExpectationMeasure
 
+        # Will be used when pauli grouping is implemented
+        """
+        from mpqp.core.instruction import ExpectationMeasure
         if binding.measurements:
             if (
                 isinstance(binding.measurements[0], ExpectationMeasure)
                 and binding.measurements[0].optimize_measurement
             ):
-                return _cb_to_programset_pauli_grouping(binding, device, True)
+                return _cb_to_programset_pauli_grouping(binding, device, True)"""
         return _cb_to_programset(binding, device, True)

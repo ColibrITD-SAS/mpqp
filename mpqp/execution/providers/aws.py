@@ -177,7 +177,8 @@ def run_circuit_binding(job: Job) -> BatchResult:
         if TYPE_CHECKING:
             assert circuitBinding.measurements
             assert isinstance(circuitBinding.measurements[0], ExpectationMeasure)
-        if circuitBinding.measurements[0].optimize_measurement:  # Compute Grouping
+        # used when pauli grouping is done
+        """if circuitBinding.measurements[0].optimize_measurement:  # Compute Grouping
             print(circuitBinding.measurements[0].optimize_measurement)
             length = 2**job.circuit.nb_qubits
             sorted_values: list[float] = []
@@ -232,18 +233,16 @@ def run_circuit_binding(job: Job) -> BatchResult:
                         errors.update({f"observable_{len(errors)}": None})
                     results.append(Result(local_job, exp_value, errors))
                 index += 1
-        else:  # 1 run per monomials
-            index = 0
-            for execution in task:
-                exp_value = 0
-                for result in execution:
-                    exp_value += result.expectation
-                circuit, observable, variables = jobs[index]  # type: ignore
-                index += 1
-                local_job = Job(
-                    job.job_type, circuit, job.device, observable, variables
-                )
-                results.append(Result(local_job, exp_value))
+        else:  # 1 run per monomials"""
+        index = 0
+        for execution in task:
+            exp_value = 0
+            for result in execution:
+                exp_value += result.expectation
+            circuit, observable, variables = jobs[index]  # type: ignore
+            index += 1
+            local_job = Job(job.job_type, circuit, job.device, observable, variables)
+            results.append(Result(local_job, exp_value))
     else:
         i = 0
         for res in task:

@@ -2271,18 +2271,10 @@ class CircuitBinding:
     ) -> tuple[ProgramSet, list[tuple[Any]]]: ...
     @overload
     def to_other_device(
-        self, device: AWSDevice, programSet: Literal[True]
-    ) -> tuple[ProgramSet, list[tuple[Any]]]: ...
-    @overload
-    def to_other_device(
         self, device: IBMDevice
     ) -> list[tuple["EstimatorPubLike", "Job"]]: ...
-    @overload
     def to_other_device(
-        self, device: AvailableDevice, programSet: Literal[False]
-    ) -> "CircuitBinding": ...
-    def to_other_device(
-        self, device: AvailableDevice, programSet: bool = True
+        self, device: AvailableDevice
     ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]] | list[tuple[EstimatorPubLike, Job]]":
         from mpqp.execution.job import Job
         from mpqp.execution.devices import (
@@ -2305,9 +2297,13 @@ class CircuitBinding:
                 if c_id not in pubs_by_circuit:
                     pubs_by_circuit[c_id] = {"circuit": c, "params": [], "measures": []}
 
-                pubs_by_circuit[c_id]["params"].append(list(v.values()) if v else [])
+                params = [str(var) for var in c.variables()]
+                if v:
+                    values = [v[key] for key in params if key in v.keys()]
+                else:
+                    values = []
+                pubs_by_circuit[c_id]["params"].append(values)
                 pubs_by_circuit[c_id]["measures"].append(m)
-
             pubs_with_context = []
 
             for c_id, data in pubs_by_circuit.items():
@@ -2316,7 +2312,8 @@ class CircuitBinding:
                 if original_c.transpiled_circuit is None:
                     self.transpiled_circuits(device=device)
                 q_c = original_c.transpiled_circuit
-
+                if TYPE_CHECKING:
+                    assert isinstance(q_c, QuantumCircuit)
                 params = data["params"]
                 measures = data["measures"]
 
@@ -2335,11 +2332,14 @@ class CircuitBinding:
                     else:
                         q_obs.append([])
 
+                c_context = original_c.without_measurements(deep_copy=False)
+                c_context.add(measures)
+                context_job = Job(self.job_type, c_context, device)
+
                 if all(len(p) == 0 for p in params):
                     params = None
                 if all(len(o) == 0 for o in q_obs):
                     q_obs = None
-
                 if q_obs and params:
                     pub = (q_c, q_obs, params)
                 elif q_obs:
@@ -2348,10 +2348,6 @@ class CircuitBinding:
                     pub = (q_c, None, params)
                 else:
                     pub = (q_c,)
-
-                c_context = original_c.without_measurements(deep_copy=False)
-                c_context.add(measures)
-                context_job = Job(self.job_type, c_context, device)
 
                 pubs_with_context.append((pub, context_job))
 
