@@ -346,6 +346,19 @@ def test_add(
         assert str(init_circuit) == f.read()
 
 
+def test_remove_instructions():
+    circuit = QCircuit([X(0), H(1), CNOT(0, 1)])
+
+    circuit.remove(H(1))
+    assert circuit.instructions == [X(0), CNOT(0, 1)]
+
+    circuit.remove([X(0), CNOT(0, 1)])
+    assert circuit.instructions == []
+
+    with pytest.raises(ValueError):
+        circuit.remove(X(0))
+
+
 def test_instructions_cannot_be_modified_directly():
     circuit = QCircuit([X(0)])
 

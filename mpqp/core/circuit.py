@@ -313,6 +313,34 @@ class QCircuit:
             else:
                 self.__instructions.append(components)
 
+    def remove(self, instructions: OneOrMany[Instruction]) -> None:
+        """Remove one or several instructions from the circuit.
+
+        When several equal instructions are present, only the first matching
+        instruction is removed for each instruction provided.
+
+        Args:
+            instructions: Instruction(s) to remove from the circuit.
+
+        Raises:
+            ValueError: If an instruction is not present in the circuit.
+
+        Examples:
+            >>> circuit = QCircuit([X(0), H(1), CNOT(0, 1)])
+            >>> circuit.remove(H(1))
+            >>> circuit.instructions
+            [X(0), CNOT(0, 1)]
+            >>> circuit.remove([X(0), CNOT(0, 1)])
+            >>> circuit.instructions
+            []
+        """
+        if isinstance(instructions, Instruction):
+            self.__instructions.remove(instructions)
+            return
+
+        for instruction in instructions:
+            self.remove(instruction)
+
     def _insert_instruction(self, index: int, instruction: Instruction) -> None:
         """Insert an instruction while keeping instruction storage encapsulated."""
         if isinstance(instruction, Measure):
