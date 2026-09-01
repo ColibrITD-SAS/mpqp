@@ -134,7 +134,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     ],
                     nb_qubits=circuit.nb_qubits,
                 ) + deepcopy(circuit)
-                instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
+                instructions = (
+                    circuit._instructions
+                )  # pyright: ignore[reportPrivateUsage]
 
         for instruction in instructions + circuit.measurements:
             targets = [target for target in instruction.targets]

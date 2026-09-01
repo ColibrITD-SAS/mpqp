@@ -574,7 +574,7 @@ def display_kth_breakpoint(
         relevant_instructions = list(
             filter(
                 lambda i: i is bp or not isinstance(i, Breakpoint),
-                circuit._instructions,   # pyright: ignore[reportPrivateUsage]
+                circuit._instructions,  # pyright: ignore[reportPrivateUsage]
             )
         )
         bp_instructions_index = find_index(relevant_instructions, lambda i: i is bp)
