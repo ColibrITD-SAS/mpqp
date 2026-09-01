@@ -157,7 +157,7 @@ class QCircuit:
 
         self.label = label
         """See parameter description."""
-        self.__instructions: list[Instruction] = []
+        self._instructions: list[Instruction] = []
         """Private list of instructions with positions in the circuit."""
         self.measurements: list[Measure] = []
         """List of Measurements in the circuit."""
@@ -226,7 +226,7 @@ class QCircuit:
         A copy is returned so the circuit cannot be modified by mutating this
         list directly. Use :meth:`add` to add instructions to the circuit.
         """
-        return self.__instructions.copy()
+        return self._instructions.copy()
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
@@ -311,7 +311,7 @@ class QCircuit:
             if isinstance(components, Measure):
                 self.measurements.append(components)
             else:
-                self.__instructions.append(components)
+                self._instructions.append(components)
 
     def remove(self, instructions: OneOrMany[Instruction]) -> None:
         """Remove one or several instructions from the circuit.
@@ -335,7 +335,7 @@ class QCircuit:
             []
         """
         if isinstance(instructions, Instruction):
-            self.__instructions.remove(instructions)
+            self._instructions.remove(instructions)
             return
 
         for instruction in instructions:
@@ -347,8 +347,8 @@ class QCircuit:
             raise ValueError("Measurements cannot be inserted among instructions.")
 
         self.add(instruction)
-        inserted_instruction = self.__instructions.pop()
-        self.__instructions.insert(index, inserted_instruction)
+        inserted_instruction = self._instructions.pop()
+        self._instructions.insert(index, inserted_instruction)
 
     def _pop_instruction(self, index: int = -1) -> Instruction:
         """Remove and return an instruction at ``index``.
@@ -356,7 +356,7 @@ class QCircuit:
         This internal method lets MPQP transformations modify a circuit without
         exposing its instruction storage.
         """
-        return self.__instructions.pop(index)
+        return self._instructions.pop(index)
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -374,9 +374,7 @@ class QCircuit:
                     f"the dimension {components.dimension}."
                 )
             hardcoded_basis_measures = [
-                instr
-                for instr in self.__instructions
-                if isinstance(instr, BasisMeasure)
+                instr for instr in self._instructions if isinstance(instr, BasisMeasure)
             ]
             if any(
                 len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures
@@ -775,7 +773,7 @@ class QCircuit:
 
         current_layer = 0
         last_barrier = 0
-        for instr in self.__instructions:
+        for instr in self._instructions:
             if isinstance(instr, Barrier):
                 last_barrier = current_layer
                 current_layer += 1
@@ -804,7 +802,7 @@ class QCircuit:
             4
 
         """
-        return len(self.__instructions) + len(self.measurements)
+        return len(self._instructions) + len(self.measurements)
 
     def is_equivalent(self, circuit: QCircuit) -> bool:
         """Whether the circuit in parameter is equivalent to this circuit, in
@@ -920,7 +918,7 @@ class QCircuit:
             deep_copy=True,
         )
 
-        for instr in reversed(self.__instructions):
+        for instr in reversed(self._instructions):
             if isinstance(instr, Gate):
                 dagger.add(instr.inverse())
             elif not isinstance(instr, Measure):
@@ -1032,12 +1030,12 @@ class QCircuit:
 
         """
         filter2 = Gate if gate is None else gate
-        return len([inst for inst in self.__instructions if isinstance(inst, filter2)])
+        return len([inst for inst in self._instructions if isinstance(inst, filter2)])
 
     @property
     def breakpoints(self) -> list[Breakpoint]:
         """Returns the breakpoints of the circuit in order."""
-        return [inst for inst in self.__instructions if isinstance(inst, Breakpoint)]
+        return [inst for inst in self._instructions if isinstance(inst, Breakpoint)]
 
     def _clone_without(
         self, exclude_attrs: Optional[list[str] | str] = None, deep_copy: bool = True
@@ -1057,7 +1055,7 @@ class QCircuit:
         if isinstance(exclude_attrs, str):
             exclude_attrs = [exclude_attrs]
         excluded_attrs = {
-            "_QCircuit__instructions" if attr == "instructions" else attr
+            "_instructions" if attr == "instructions" else attr
             for attr in exclude_attrs
         }
         new_obj = QCircuit()
@@ -1078,7 +1076,7 @@ class QCircuit:
 
         """
         gates: list[Gate] = []
-        for g in self.__instructions:
+        for g in self._instructions:
             if isinstance(g, Gate):
                 gates.append(g)
 
@@ -1125,9 +1123,9 @@ class QCircuit:
         if deep_copy:
             from copy import deepcopy
 
-            return deepcopy(self.__instructions + self.measurements)
+            return deepcopy(self._instructions + self.measurements)
         else:
-            return self.__instructions.copy() + self.measurements
+            return self._instructions.copy() + self.measurements
 
     def without_noises(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the noise models removed.
@@ -1606,7 +1604,7 @@ class QCircuit:
                 qiskit_circuit = pm.run(qiskit_circuit)
             # TODO: removed with PR - Circuit Handling and PauliString Utilities #154
             if any(
-                isinstance(gate, CustomControlledGate) for gate in self.__instructions
+                isinstance(gate, CustomControlledGate) for gate in self._instructions
             ):
                 from qiskit import transpile
 
@@ -1902,7 +1900,7 @@ class QCircuit:
 
         """
         new_circuit = deepcopy(self)
-        new_circuit.__instructions = [inst.subs(values) for inst in self.__instructions]
+        new_circuit._instructions = [inst.subs(values) for inst in self._instructions]
         return new_circuit
 
     def pretty_print(self):
@@ -1982,7 +1980,7 @@ class QCircuit:
         from sympy import Expr
 
         params: set[Basic] = set()
-        for inst in self.__instructions:
+        for inst in self._instructions:
             if isinstance(inst, ParametrizedGate):
                 for param in inst.parameters:
                     if isinstance(param, Expr):

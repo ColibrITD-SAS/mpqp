@@ -101,7 +101,7 @@ if InstalledProviders.QISKIT in _INSTALLED_MPQP_PROVIDERS:
         if circuit.label is not None:
             new_circ.name = circuit.label
 
-        for instruction in circuit.instructions:
+        for instruction in circuit._instructions:  # pyright: ignore[reportPrivateUsage]
             if isinstance(instruction, (Measure, Breakpoint)):
                 continue
             options = (

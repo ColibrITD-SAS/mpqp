@@ -278,7 +278,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
     gates = [
         instruction
-        for instruction in qcircuit.instructions
+        for instruction in qcircuit._instructions   # pyright: ignore[reportPrivateUsage]
         if isinstance(instruction, Gate)
     ]
     nb_qubits = qcircuit.nb_qubits

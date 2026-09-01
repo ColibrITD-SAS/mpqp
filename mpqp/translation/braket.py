@@ -105,8 +105,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
         if authorized_gates is None:
             authorized_gates = set()
+        instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
         if len(circuit.noises) != 0:
-            if any(isinstance(instr, CRk) for instr in circuit.instructions):
+            if any(isinstance(instr, CRk) for instr in instructions):
                 raise NotImplementedError(
                     "Cannot simulate noisy circuit with CRk gate due to "
                     "an error on AWS Braket side."
@@ -119,11 +120,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
         # Otherwise the circuit can remain non continuous.
         if circuit._user_nb_qubits is not None:  # pyright: ignore[reportPrivateUsage]
             used_qubits = set().union(
-                *(
-                    inst.connections()
-                    for inst in circuit.instructions
-                    if isinstance(inst, Gate)
-                )
+                *(inst.connections() for inst in instructions if isinstance(inst, Gate))
             )
             if len(used_qubits) != circuit.nb_qubits:
                 from mpqp.gates import Id
@@ -137,8 +134,9 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     ],
                     nb_qubits=circuit.nb_qubits,
                 ) + deepcopy(circuit)
+                instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
 
-        for instruction in circuit.instructions + circuit.measurements:
+        for instruction in instructions + circuit.measurements:
             targets = [target for target in instruction.targets]
             if isinstance(instruction, (Barrier, Breakpoint)):
                 continue
