@@ -2332,7 +2332,6 @@ class CircuitBinding:
                     else:
                         q_obs.append([])
 
-
                 if self.mode == BindingMode.ZIP and q_obs and params:
                     for i in range(len(q_obs)):
                         c_context = original_c.without_measurements(deep_copy=False)
@@ -2347,7 +2346,7 @@ class CircuitBinding:
                 if all(len(o) == 0 for o in q_obs):
                     q_obs = None
                 if q_obs and params:
-                   
+
                     pub = (q_c, q_obs, params)
                 elif q_obs:
                     pub = (q_c, q_obs)
