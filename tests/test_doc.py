@@ -145,7 +145,7 @@ from mpqp.tools.maths import (
     rearrange_matrix,
     symbolic_product,
     symbolic_divide,
-    rotation_denominator
+    rotation_denominator,
 )
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy

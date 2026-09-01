@@ -52,7 +52,14 @@ from mpqp.core.instruction.gates.gate_definition import UnitaryMatrix
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
 from mpqp.core.languages import Language
 from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
-from mpqp.tools.maths import cos, exp, sin, symbolic_product, symbolic_divide, rotation_denominator
+from mpqp.tools.maths import (
+    cos,
+    exp,
+    sin,
+    symbolic_product,
+    symbolic_divide,
+    rotation_denominator,
+)
 
 # pylance doesn't handle well Expr, so a lot of "type:ignore" will happen in
 # this file :/
@@ -932,7 +939,9 @@ class T(OneQubitNoParamGate):
     def to_canonical_matrix(self):
         from sympy import pi
 
-        return np.array([[1, 0], [0, exp(symbolic_product(symbolic_divide(pi, 4), 1j))]])
+        return np.array(
+            [[1, 0], [0, exp(symbolic_product(symbolic_divide(pi, 4), 1j))]]
+        )
 
 
 class SWAP(InvolutionGate, NoParameterGate):
@@ -1095,7 +1104,11 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 q = qubits[0]
                 return [
                     GlobalPhaseGate(
-                        exp(symbolic_product(1j, symbolic_divide(self.lmda + self.phi, 2)))
+                        exp(
+                            symbolic_product(
+                                1j, symbolic_divide(self.lmda + self.phi, 2)
+                            )
+                        )
                     ).on(),
                     cirq_rz(self.lmda).on(q),
                     cirq_ry(self.theta).on(q),
