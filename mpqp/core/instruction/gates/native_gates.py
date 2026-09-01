@@ -113,7 +113,7 @@ def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
             return FreeParameter(str(val))  # note: Braket won't parse expressions
         else:
             try:
-                return float(val.evalf()) # pyright: ignore[reportArgumentType]
+                return float(val.evalf())  # pyright: ignore[reportArgumentType]
             except Exception as e:
                 raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
     else:
@@ -1225,8 +1225,8 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
         )
         return np.array(
             [
-                [c, -eg * s], # pyright: ignore[reportOperatorIssue]
-                [ep * s, eg * ep * c], # pyright: ignore[reportOperatorIssue]
+                [c, -eg * s],  # pyright: ignore[reportOperatorIssue]
+                [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
             ]
         )
 
@@ -1369,7 +1369,7 @@ class Rz(RotationGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         e = exp(_complex_product(-0.5j, self.parameters[0]))
-        return np.array([[e, 0], [0, 1 / e]]) # pyright: ignore[reportOperatorIssue]
+        return np.array([[e, 0], [0, 1 / e]])  # pyright: ignore[reportOperatorIssue]
 
 
 class Rxx(RotationGate, ComposedGate):

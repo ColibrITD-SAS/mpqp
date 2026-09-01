@@ -152,9 +152,7 @@ class PauliString:
                 coef_str = re.sub(r'([a-zA-Z])(\d)', r'\1*\2', coef_str)
                 coef = sympify(coef_str)
                 if dict_value:
-                    coef = coef.subs(
-                        dict_value  
-                    )
+                    coef = coef.subs(dict_value)
 
             atoms_dict = {
                 "I": pI,
@@ -1089,7 +1087,7 @@ class PauliStringMonomial(PauliString):
         return f"PauliStringMonomial({coef}{atoms})"
 
     def to_matrix(self) -> Matrix:
-        return ( 
+        return (
             reduce(
                 np.kron,
                 map(lambda a: a.to_matrix(), self.atoms),
@@ -1254,11 +1252,7 @@ class PauliStringMonomial(PauliString):
         new_monomial = deepcopy(self)
         caster = lambda v: _unpack_expr(v) if isinstance(v, Expr) else v
         if isinstance(new_monomial.coef, Expr):
-            new_coef: "Coef" = caster(
-                new_monomial.coef.subs(
-                    values 
-                )
-            )
+            new_coef: "Coef" = caster(new_monomial.coef.subs(values))
             new_monomial.coef = new_coef
 
         return new_monomial
@@ -1358,9 +1352,9 @@ class PauliStringMonomial(PauliString):
                 for index, atom in enumerate(self.atoms)
             ]
             return (  # pyright: ignore[reportOperatorIssue]
-                reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType] 
-                * self.coef 
-            ) 
+                reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType]
+                * self.coef
+            )
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 

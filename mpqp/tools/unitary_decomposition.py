@@ -179,26 +179,20 @@ def _decompose(
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
         # Extracts the rotations of both multiplexed Rz for later decomposition
-        du = np.asarray(
-            np.angle(
-                MuxRzu.diagonal()
-            )
-        )
+        du = np.asarray(np.angle(MuxRzu.diagonal()))
         for i in range(len(du) // 2):
             du[i] *= -1
 
-        dv = np.asarray(
-            np.angle(
-                MuxRzv.diagonal()
-            )
-        )
+        dv = np.asarray(np.angle(MuxRzv.diagonal()))
         for i in range(len(dv) // 2):
             dv[i] *= -1
 
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, targets, position + 1)
         circuit = _decompose(Wv, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(dv, circuit, targets, position, Rz) # pyright: ignore[reportArgumentType]
+        circuit = _gray_code_decomposition(
+            dv, circuit, targets, position, Rz
+        )  # pyright: ignore[reportArgumentType]
         circuit = _decompose(Vv, circuit, targets, position + 1)
         circuit = _decompose(Vv, circuit, targets, position + 1)
 
@@ -212,7 +206,9 @@ def _decompose(
 
         circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _decompose(Wu, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(du, circuit, targets, position, Rz) # pyright: ignore[reportArgumentType]
+        circuit = _gray_code_decomposition(
+            du, circuit, targets, position, Rz
+        )  # pyright: ignore[reportArgumentType]
         circuit = _decompose(Vu, circuit, targets, position + 1)
         circuit = _decompose(Vu, circuit, targets, position + 1)
 
