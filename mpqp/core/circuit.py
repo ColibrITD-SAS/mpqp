@@ -2332,15 +2332,22 @@ class CircuitBinding:
                     else:
                         q_obs.append([])
 
-                c_context = original_c.without_measurements(deep_copy=False)
-                c_context.add(measures)
-                context_job = Job(self.job_type, c_context, device)
+
+                if self.mode == BindingMode.ZIP and q_obs and params:
+                    for i in range(len(q_obs)):
+                        c_context = original_c.without_measurements(deep_copy=False)
+                        c_context.add(measures[i])
+                        context_job = Job(self.job_type, c_context, device)
+                        pub = (q_c, q_obs[i], params[i])
+                        pubs_with_context.append((pub, context_job))
+                    continue
 
                 if all(len(p) == 0 for p in params):
                     params = None
                 if all(len(o) == 0 for o in q_obs):
                     q_obs = None
                 if q_obs and params:
+                   
                     pub = (q_c, q_obs, params)
                 elif q_obs:
                     pub = (q_c, q_obs)
@@ -2348,6 +2355,10 @@ class CircuitBinding:
                     pub = (q_c, None, params)
                 else:
                     pub = (q_c,)
+
+                c_context = original_c.without_measurements(deep_copy=False)
+                c_context.add(measures)
+                context_job = Job(self.job_type, c_context, device)
 
                 pubs_with_context.append((pub, context_job))
 
