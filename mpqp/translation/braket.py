@@ -753,11 +753,13 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                         if isinstance(c, braket_Circuit)
                                     ]
                                 )
-                                context.extend(
-                                    [(c, mpqp_obs, inside_val)]
-                                    for c in t._translated_circuits  # pyright: ignore[reportGeneralTypeIssues,reportPrivateUsage]
-                                    if isinstance(c, braket_Circuit)
-                                )
+                                for (
+                                    c
+                                ) in (
+                                    t._translated_circuits  # pyright: ignore[reportGeneralTypeIssues,reportPrivateUsage]
+                                ):
+                                    if isinstance(c, braket_Circuit):
+                                        context.append((c, mpqp_obs, inside_val))
                             else:
                                 result.extend(
                                     [

@@ -160,6 +160,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
         )
     device = get_braket_device(job.device, is_noisy=circuitBinding.is_noisy)
     braket_circuit, jobs = circuitBinding.to_other_device(job.device)
+
     if TYPE_CHECKING:
         from braket.circuits import Circuit as braket_Circuit
 
@@ -238,7 +239,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
         for execution in task:
             exp_value = 0
             for result in execution:
-                exp_value += result.expectation
+                exp_value += result.expectation  # pyright: ignore[reportOperatorIssue]
             circuit, observable, variables = jobs[index]  # type: ignore
             index += 1
             local_job = Job(job.job_type, circuit, job.device, observable, variables)

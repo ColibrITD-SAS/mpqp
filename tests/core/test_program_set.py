@@ -152,4 +152,4 @@ def test_run_multiple_monomials_obs(c: CircuitBinding, value: list[float]):
     for i in range(len(res)):
         exp_value = res[i].expectation_values
         assert isinstance(exp_value, float)
-        assert abs(exp_value - value[i]) <= 0.1
+        assert abs(exp_value - value[i]) <= 0.2

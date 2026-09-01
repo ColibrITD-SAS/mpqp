@@ -515,11 +515,11 @@ class Result:
             )
 
             return f"""{header}
-                Counts: {self._counts}
-                Probabilities: {clean_1D_array(self.probabilities)}
-                Samples:
-                {samples_str}
-                Error: {self.error}"""
+  Counts: {self._counts}
+  Probabilities: {clean_1D_array(self.probabilities)}
+  Samples:
+{samples_str}
+  Error: {self.error}"""
 
         if self.job.job_type == JobType.STATE_VECTOR:
             return header + "\n" + str(self.state_vector)
@@ -534,16 +534,16 @@ class Result:
                 else:
                     observables = ""
                 return f"""{header}
-                Expectation value: {self.expectation_values}
-                Error/Variance: {self.error}""" + observables
+  Expectation value: {self.expectation_values}
+  Error/Variance: {self.error}""" + observables
             else:
                 if TYPE_CHECKING:
                     assert isinstance(self.expectation_values, dict)
                     assert isinstance(self.error, dict)
                 expectation_str = "\n".join(
                     f"  {label}:\n"
-                    f"    Expectation value: {self.expectation_values[label]}\n"
-                    f"    Error/Variance: {self.error[label]}"
+                    f"Expectation value: {self.expectation_values[label]}\n"
+                    f"Error/Variance: {self.error[label]}"
                     for label in self.expectation_values
                 )
                 return header + "\n" + expectation_str

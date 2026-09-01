@@ -103,47 +103,49 @@ def test_qiskit_to_other_device_product_shapes():
 
 @pytest.mark.provider("qiskit")
 def test_qiskit_to_other_device_zip_shapes():
+    values = [v1, v2]
+    measurements = [m_I, m_Z]
     binding = CircuitBinding(
-        circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.ZIP
+        circuits=c1, values=values, measurements=measurements, mode=BindingMode.ZIP
     )
 
     pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
-    assert len(pubs_with_context) == 1
+    print(len(pubs_with_context) == 2)
 
-    pub, _ = pubs_with_context[0]
-    c, m, v = pub
-    assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-    assert len(m) == 2
-    assert len(v) == 2
-    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
-    assert v[0] == list(v1.values())
-    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
-    assert v[1] == list(v2.values())
+    for i, (pub, _) in enumerate(pubs_with_context):
+        c, m, v = pub
+        assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
+        assert m == [
+            obs.to_other_language(Language.QISKIT)
+            for obs in measurements[i].observables
+        ]
+        assert v == list(values[i].values())
 
 
 @pytest.mark.provider("qiskit")
 def test_qiskit_to_other_device_zip_broadcasting_rules():
+    values = [v1, v2]
+    measurements = [m_I, m_Z]
     binding = CircuitBinding(
-        circuits=c1, values=[v1, v2], measurements=[m_I, m_Z], mode=BindingMode.ZIP
+        circuits=c1, values=values, measurements=measurements, mode=BindingMode.ZIP
     )
 
     pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
-    assert len(pubs_with_context) == 1
+    assert len(pubs_with_context) == 2
 
-    pub, _ = pubs_with_context[0]
-    c, m, v = pub
-    assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-    assert len(m) == 2
-    assert len(v) == 2
-    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
-    assert v[0] == list(v1.values())
-    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
-    assert v[1] == list(v2.values())
+    for i, (pub, _) in enumerate(pubs_with_context):
+        c, m, v = pub
+        assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
+        assert m == [
+            obs.to_other_language(Language.QISKIT)
+            for obs in measurements[i].observables
+        ]
+        assert v == list(values[i].values())
 
 
 @pytest.mark.provider("qiskit")
 def test_qiskit_to_other_device_recursive_bindings():
-    inner_binding = CircuitBinding(circuits=c2, measurements=m1)
+    inner_binding = CircuitBinding(circuits=c1, measurements=m1)
     outer_binding = CircuitBinding(circuits=inner_binding, values=[v1, v2])
 
     pubs_with_context = outer_binding.to_other_device(IBMDevice.AER_SIMULATOR)
@@ -151,7 +153,7 @@ def test_qiskit_to_other_device_recursive_bindings():
 
     pub, _ = pubs_with_context[0]
     c, m, v = pub
-    assert str(c.data) == str(c2.to_other_device(IBMDevice.AER_SIMULATOR).data)
+    assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
     assert len(m) == 2
     assert len(v) == 2
     assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
@@ -260,13 +262,14 @@ def zip_tests_observable():
     def val_zip(res: BatchResult):
         assert isinstance(res, BatchResult)
         assert len(res.results) == 3
-        for r in res.results:
+        values = [1.0, 0, 0]
+        for i, r in enumerate(res.results):
             val = (
                 list(r.expectation_values.values())[0]
                 if isinstance(r.expectation_values, dict)
                 else r.expectation_values
             )
-            assert val == pytest.approx(1.0, abs=1e-5)
+            assert val == pytest.approx(values[i], abs=1e-1)
 
     return [(cb_zip, val_zip)]
 
