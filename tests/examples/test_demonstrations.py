@@ -111,14 +111,18 @@ def test_sample_demo_aer_stabilizers():
     circuit.add(BasisMeasure([0, 1, 2, 3], shots=2000))
 
     # Run the circuit on a selected device
-    run(
-        circuit,
-        [
-            IBMDevice.AER_SIMULATOR,
-            IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
-            IBMDevice.AER_SIMULATOR_STABILIZER,
-        ],
-    )
+    with pytest.warns(
+        UserWarning,
+        match=r"For IBMDevice\.AER_SIMULATOR_(?:EXTENDED_)?STABILIZER",
+    ):
+        run(
+            circuit,
+            [
+                IBMDevice.AER_SIMULATOR,
+                IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+                IBMDevice.AER_SIMULATOR_STABILIZER,
+            ],
+        )
     assert True
 
 
