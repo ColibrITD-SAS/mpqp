@@ -252,6 +252,7 @@ class Result:
         errors: Information about the error or the variance in the measurement.
         shots: Number of shots of the experiment (equal to zero if the exact
             value was required).
+        label: Optional string to contextualize the data.
 
     Examples:
         >>> job = Job(JobType.STATE_VECTOR, QCircuit(2), ATOSDevice.MYQLM_CLINALG)
@@ -294,6 +295,7 @@ class Result:
         errors: Optional[float | dict[Any, Any]] = None,
         shots: int = 0,
         g_phase_handling: bool = True,
+        label: Optional[str] = None,
     ):
         self.job = job
         """See parameter description."""
@@ -307,7 +309,13 @@ class Result:
         self.error = errors
         """See parameter description."""
         self._data = data
+        self.label = label
+        from mpqp.core.circuit import CircuitBinding
 
+        if isinstance(job.circuit, CircuitBinding):
+            raise ValueError(
+                "The result class should be only use to hold the result of one job. A CircuitBinding should be associated with a BatchResult."
+            )
         if data is None:
             if job.status != JobStatus.ERROR:
                 raise TypeError("Result data cannot be None unless job.status == ERROR")
@@ -463,12 +471,20 @@ class Result:
         return self._counts
 
     def __str__(self):
-        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
-        header = f"Result: {label}{type(self.device).__name__}, {self.device.name}"
+        from mpqp import QCircuit
 
+        if not isinstance(self.job.circuit, QCircuit):
+            raise ValueError(
+                "Result's job should be made for one individual circuit not a CircuitBinding."
+            )
+
+        label = "" if self.job.circuit.label is None else self.job.circuit.label + ", "
+        val = f"\nVariables' values: {str(self.job.values)}" if self.job.values else ""
+        header = (
+            f"Result: {label}{type(self.device).__name__}, {self.device.name}" + val
+        )
         if self.job.status == JobStatus.ERROR:
             return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
-
         if self.job.job_type == JobType.SAMPLE:
             measures = self.job.circuit.measurements
             if not len(measures) == 1:
@@ -510,17 +526,24 @@ class Result:
 
         if self.job.job_type == JobType.OBSERVABLE:
             if isinstance(self.expectation_values, float):
+                if self.job.measurement:
+                    from mpqp import ExpectationMeasure
+
+                    assert isinstance(self.job.measurement, ExpectationMeasure)
+                    observables = f"\nWith observables: {[o.pauli_string for o in self.job.measurement.observables]}"
+                else:
+                    observables = ""
                 return f"""{header}
   Expectation value: {self.expectation_values}
-  Error/Variance: {self.error}"""
+  Error/Variance: {self.error}""" + observables
             else:
                 if TYPE_CHECKING:
                     assert isinstance(self.expectation_values, dict)
                     assert isinstance(self.error, dict)
                 expectation_str = "\n".join(
                     f"  {label}:\n"
-                    f"    Expectation value: {self.expectation_values[label]}\n"
-                    f"    Error/Variance: {self.error[label]}"
+                    f"Expectation value: {self.expectation_values[label]}\n"
+                    f"Error/Variance: {self.error[label]}"
                     for label in self.expectation_values
                 )
                 return header + "\n" + expectation_str
@@ -563,7 +586,16 @@ class Result:
         plt.xlabel("State")
         plt.ylabel("Counts")
         device = self.job.device
-        plt.title(f"{self.job.circuit.label}, {type(device).__name__}\n{device.name}")
+        from mpqp import QCircuit
+
+        if not self.label is None:
+            label = self.label
+        else:
+            if isinstance(self.job.circuit, QCircuit):
+                label = "" if self.job.circuit.label is None else self.job.circuit.label
+            else:
+                label = ""
+        plt.title(f"{label}, {type(device).__name__}\n{device.name}")
 
         if show:
             plt.show()
@@ -802,7 +834,7 @@ class BatchResult:
         body = "\n".join(
             "    " + line
             for result in self.results
-            for line in str(result).splitlines()
+            for line in str(result).splitlines() + ["\n"]
         )
         return header + body
 

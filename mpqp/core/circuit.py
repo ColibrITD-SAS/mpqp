@@ -34,8 +34,18 @@ could be used to add CNOT gates to your circuit, using the two registers
 from __future__ import annotations
 
 from copy import deepcopy
+from enum import Enum, auto
 from numbers import Complex
-from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Literal,
+    Optional,
+    Sequence,
+    Type,
+    Union,
+    overload,
+)
 from warnings import warn
 
 import numpy as np
@@ -68,7 +78,9 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
+    from qiskit.primitives.containers import EstimatorPubLike
     from sympy import Basic, Expr
+    from mpqp.execution.job import JobType, Job
 
     from mpqp.execution.devices import (
         ATOSDevice,
@@ -78,6 +90,7 @@ if TYPE_CHECKING:
         IBMDevice,
     )
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
+    from braket.program_sets import ProgramSet
 
 
 class QCircuit:
@@ -1334,6 +1347,14 @@ class QCircuit:
         backend_sim: Optional["AerSimulator"] = None,
     ) -> QuantumCircuit: ...
 
+    @overload
+    def to_other_device(
+        self,
+        device: AvailableDevice,
+        skip_pre_measure: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit: ...
+
     def to_other_device(
         self,
         device: AvailableDevice,
@@ -1447,7 +1468,7 @@ class QCircuit:
 
                         if backend_sim is None:
                             if isinstance(device, StaticIBMSimulatedDevice):
-                                if len(self.noises) != 0:
+                                if self.is_noisy:
                                     warn(
                                         "NoiseModel are ignored when running the circuit on a "
                                         "SimulatedDevice"
@@ -1456,7 +1477,7 @@ class QCircuit:
                                     # (grab qiskit NoiseModel from AerSimulator generated below, and add
                                     # to it directly)
                                 backend_sim = device.to_noisy_simulator()
-                            elif len(self.noises) != 0:
+                            elif self.is_noisy:
                                 from qiskit_aer import AerSimulator
 
                                 if self.transpiled_noise_model is None:
@@ -1799,6 +1820,30 @@ class QCircuit:
             f"Error: {type(qcircuit)} is not supported, or sdk not installed."
         )
 
+    @property
+    def job_type(self) -> "JobType":
+        """
+        Returns the type of job associated with the circuit based on its measurements.
+        """
+        from mpqp.execution.job import JobType
+
+        for measurement in self.measurements:
+            if isinstance(measurement, BasisMeasure):
+                if measurement.shots <= 0:
+                    return JobType.STATE_VECTOR
+                else:
+                    return JobType.SAMPLE
+            elif isinstance(measurement, ExpectationMeasure):
+                return JobType.OBSERVABLE
+        return JobType.STATE_VECTOR
+
+    @property
+    def is_noisy(self) -> bool:
+        """
+        Returns True if the circuit has any noise instructions, False otherwise.
+        """
+        return len(self.noises) > 0
+
     def subs(self, values: dict[Expr | str, Complex]) -> QCircuit:
         r"""Substitute the parameters of the circuit with values for each of the
         specified parameters. Optionally also remove all symbolic variables such
@@ -1879,7 +1924,7 @@ class QCircuit:
 
             assert isinstance(qiskit_circ, QuantumCircuit)
         output = str(qiskit_circ.draw(output="text", fold=0))
-        if len(self.noises) != 0:
+        if self.is_noisy:
             noises = "\n    ".join(str(noise) for noise in self.noises)
             output += f"\nNoiseModel:\n    {noises}"
         return output
@@ -1928,3 +1973,388 @@ class QCircuit:
                     if isinstance(param, Expr):
                         params.update(param.free_symbols)
         return params
+
+
+class BindingMode(Enum):
+    PRODUCT = auto()
+    ZIP = auto()
+
+
+class CircuitBinding:
+    def __init__(
+        self,
+        circuits: OneOrMany[QCircuit | CircuitBinding],
+        values: Optional[OneOrMany[dict[Expr | str, Complex | float]]] = None,
+        measurements: Optional[OneOrMany[Measure]] = None,
+        mode: BindingMode = BindingMode.PRODUCT,
+        noises: Optional[list[NoiseModel]] = None,
+        shots: Optional[int] = None,
+    ) -> None:
+        from mpqp.execution.runner import adjust_measure
+        from mpqp.execution.job import JobType
+
+        if mode == BindingMode.ZIP and measurements is not None and values is not None:
+            m = measurements if isinstance(measurements, Sequence) else [measurements]
+            v = values if isinstance(values, Sequence) else [values]
+            if len(m) != len(v):
+                raise ValueError(
+                    f"In ZIP mode, the number of measurements {len(m)} must match the number of parameter sets {len(v)}."
+                )
+
+        if not isinstance(circuits, Sequence):
+            circuits = [circuits]
+        else:
+            circuits = list(circuits)
+
+        normalized_circuits: list[QCircuit | CircuitBinding] = []
+
+        for circuit in circuits:
+            if isinstance(circuit, QCircuit) and circuit.measurements:
+                if measurements is not None:
+                    raise ValueError(
+                        "your circuit already contains measurements, "
+                        "you cannot have multiple measurements"
+                    )
+
+                circuit_measurements = circuit.measurements
+                circuit_without_measurements = circuit.without_measurements(
+                    deep_copy=False
+                )
+
+                circuit_without_measurements.transpiled_circuit = None
+
+                normalized_circuits.append(
+                    CircuitBinding(
+                        circuits=circuit_without_measurements,
+                        measurements=circuit_measurements,
+                        shots=shots,
+                    )
+                )
+            else:
+                normalized_circuits.append(circuit)
+
+        circuits = normalized_circuits
+
+        if isinstance(values, Sequence):
+            parameters = list(values)
+        elif values is not None:
+            parameters = [values]
+        else:
+            parameters = None
+
+        self.transpiled_noise_model = None
+        self.noises = noises
+        self.shots = shots
+        self._translated_circuits = None
+        self._translated_observables = None
+        self._translated_variables = None
+        self.is_noisy = noises is not None and len(noises) > 0
+        """ is_noisy is True if any of the circuits in the binding has noise instructions, False otherwise. """
+        self.measurements = None
+
+        c = circuits
+
+        self.job_type = circuits[0].job_type
+        self.nb_qubits = circuits[0].nb_qubits
+        for circ in circuits:
+            if circ.job_type != self.job_type:
+                raise ValueError(
+                    "All circuits in CircuitBinding must have the same job type."
+                )
+            if circ.is_noisy:
+                if isinstance(circ, CircuitBinding) and self.noises is None:
+                    self.noises = circ.noises
+                    self.is_noisy = True
+                else:
+                    raise ValueError(
+                        "All circuits in CircuitBinding must have the same noise. please use the noises parameter."
+                    )
+            if isinstance(circ, CircuitBinding):
+                if self.shots is None:
+                    self.shots = circ.shots
+                elif circ.shots is not None and circ.shots != self.shots:
+                    raise ValueError(
+                        "All circuits in CircuitBinding must have the same number of shots."
+                    )
+
+            self.nb_qubits = max(self.nb_qubits, circ.nb_qubits)
+
+        if measurements is not None:
+            if (
+                self.job_type != JobType.STATE_VECTOR
+            ):  # TODO: check for basisMeasure shots = 0
+                raise ValueError(
+                    "your circuit already contains measurements, you cannot have multiple measurements"
+                )
+            measurements = (
+                [measurements]
+                if isinstance(measurements, Measure)
+                else list(measurements)
+            )
+            self.job_type = (
+                JobType.OBSERVABLE
+                if isinstance(measurements[0], ExpectationMeasure)
+                else JobType.SAMPLE
+            )
+
+            shots_ = None
+            for index, measure in enumerate(measurements):
+                if self.shots is not None:
+                    # TODO: this is a check for default shots but it is hardcode
+                    if isinstance(measure, ExpectationMeasure) and measure.shots != 0:
+                        raise ValueError(
+                            "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
+                        )
+                    elif isinstance(measure, BasisMeasure) and measure.shots != 1024:
+                        raise ValueError(
+                            "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
+                        )
+                    else:
+                        measure.shots = self.shots
+                else:
+                    if shots_ is None:
+                        shots_ = measure.shots
+                    elif measure.shots != shots_:
+                        raise ValueError(
+                            "All measurements in CircuitBinding must have the same number of shots."
+                        )
+                if isinstance(measure, ExpectationMeasure):
+                    measurements[index] = adjust_measure(measure, self.nb_qubits)
+                    if self.job_type != JobType.OBSERVABLE:
+                        raise ValueError(
+                            "All measurements in CircuitBinding must be of the same type."
+                        )
+                elif isinstance(measure, BasisMeasure):
+                    if self.job_type != JobType.SAMPLE:
+                        raise ValueError(
+                            "All measurements in CircuitBinding must be of the same type."
+                        )
+            if shots_ is not None:
+                self.shots = shots_
+
+        self.circuits: list["QCircuit | CircuitBinding"] = c
+        self.value = parameters
+        self.measurements = (
+            self.measurements if self.measurements is not None else measurements
+        )
+        self.mode = mode
+
+    def transpiled_circuits(
+        self,
+        device: AvailableDevice,
+        skip_pre_measure: bool = False,
+        backend_sim: Optional["AerSimulator"] = None,
+    ) -> None:
+
+        from mpqp.execution.providers.ibm import generate_qiskit_noise_model
+
+        for i, c in enumerate(self.circuits):
+            if isinstance(c, QCircuit):
+                if self.is_noisy:
+                    if c.transpiled_circuit is None:
+                        original_noises = c.noises
+                        c.noises = self.noises if self.noises is not None else []
+                        nm, modified_circuit = generate_qiskit_noise_model(c)
+                        c.noises = original_noises
+                        if self.transpiled_noise_model is None:
+                            self.transpiled_noise_model = nm
+
+                        modified_circuit.transpiled_circuit = (
+                            modified_circuit.to_other_device(
+                                device, skip_pre_measure, backend_sim
+                            )
+                        )
+                        self.circuits[i] = (
+                            modified_circuit  # TODO: check if we need to update the circuit in the list or if we can just modify it in place
+                        )
+                else:
+                    c.transpiled_circuit = c.to_other_device(
+                        device, skip_pre_measure, backend_sim
+                    )
+            else:
+                c.transpiled_circuits(device, skip_pre_measure, backend_sim)
+
+    def unroll(
+        self,
+    ) -> list[
+        tuple[
+            QCircuit,
+            Optional[dict["Expr | str", "Complex | float"]],
+            Optional["Measure"],
+        ]
+    ]:
+        """Resolves the lazy execution graph and returns a flat list of
+        (circuit, values, expectation_measure) tuples representing each execution.
+        """
+        import itertools
+
+        base_items = []
+        circs = self.circuits
+        for c in circs:
+            if isinstance(c, CircuitBinding):
+                base_items.extend(c.unroll())
+            else:
+                base_items.append((c, None, None))
+
+        vals = (
+            self.value
+            if isinstance(self.value, list)
+            else ([self.value] if self.value is not None else [None])
+        )
+        exps = (
+            self.measurements
+            if isinstance(self.measurements, list)
+            else ([self.measurements] if self.measurements is not None else [None])
+        )
+
+        def merge_vals(v_base, v_curr):
+            if v_base is None and v_curr is None:
+                return None
+            merged = dict(v_base) if v_base is not None else {}
+            if v_curr is not None:
+                merged.update(v_curr)
+            return merged
+
+        result = []
+
+        if self.mode == BindingMode.ZIP:
+            max_len = max(len(base_items), len(vals), len(exps))
+
+            def broadcast(lst, target_length):
+                if not lst:
+                    return [None] * target_length
+                if len(lst) == 1:
+                    return [lst[0]] * target_length
+                if len(lst) != target_length:
+                    raise ValueError(
+                        f"In ZIP mode, lists must be length 1 or match the maximum list length ({target_length})."
+                    )
+                return lst
+
+            b_items = broadcast(base_items, max_len)
+            b_vals = broadcast(vals, max_len)
+            b_exps = broadcast(exps, max_len)
+
+            for (c, v_base, e_base), v_curr, e_curr in zip(b_items, b_vals, b_exps):
+                merged_val = merge_vals(v_base, v_curr)
+                merged_exp = e_curr if e_curr is not None else e_base
+                result.append((c, merged_val, merged_exp))
+
+        else:
+            for (c, v_base, e_base), v_curr, e_curr in itertools.product(
+                base_items, vals, exps
+            ):
+                merged_val = merge_vals(v_base, v_curr)
+                merged_exp = e_curr if e_curr is not None else e_base
+                result.append((c, merged_val, merged_exp))
+
+        return result
+
+    def __repr__(self):
+        return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"
+
+    @overload
+    def to_other_device(
+        self, device: AWSDevice
+    ) -> tuple[ProgramSet, list[tuple[Any]]]: ...
+    @overload
+    def to_other_device(
+        self, device: IBMDevice
+    ) -> list[tuple["EstimatorPubLike", "Job"]]: ...
+    def to_other_device(
+        self, device: AvailableDevice
+    ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]] | list[tuple[EstimatorPubLike, Job]]":
+        from mpqp.execution.job import Job
+        from mpqp.execution.devices import (
+            IBMDevice,
+            AWSDevice,
+        )
+        from mpqp.execution.providers.ibm import JobType
+
+        if isinstance(device, IBMDevice):
+            if self.job_type != JobType.OBSERVABLE:
+                raise ValueError(
+                    "to_other_device is only supported for circuits with expectation measurements."
+                )
+
+            unrolled = self.unroll()
+
+            pubs_by_circuit = {}
+            for c, v, m in unrolled:
+                c_id = id(c)
+                if c_id not in pubs_by_circuit:
+                    pubs_by_circuit[c_id] = {"circuit": c, "params": [], "measures": []}
+
+                params = [str(var) for var in c.variables()]
+                if v:
+                    values = [v[key] for key in params if key in v.keys()]
+                else:
+                    values = []
+                pubs_by_circuit[c_id]["params"].append(values)
+                pubs_by_circuit[c_id]["measures"].append(m)
+            pubs_with_context = []
+
+            for c_id, data in pubs_by_circuit.items():
+                original_c = data["circuit"]
+                assert isinstance(original_c, QCircuit)
+                if original_c.transpiled_circuit is None:
+                    self.transpiled_circuits(device=device)
+                q_c = original_c.transpiled_circuit
+                if TYPE_CHECKING:
+                    assert isinstance(q_c, QuantumCircuit)
+                params = data["params"]
+                measures = data["measures"]
+
+                q_obs = []
+                for m in measures:
+                    if m is not None and hasattr(m, "observables"):
+                        obs_list = [
+                            (
+                                obs.pre_transpiled
+                                if obs.pre_transpiled is not None
+                                else obs.to_other_language(Language.QISKIT)
+                            )
+                            for obs in m.observables
+                        ]
+                        q_obs.append(obs_list)
+                    else:
+                        q_obs.append([])
+
+                if self.mode == BindingMode.ZIP and q_obs and params:
+                    for i in range(len(q_obs)):
+                        c_context = original_c.without_measurements(deep_copy=False)
+                        c_context.add(measures[i])
+                        context_job = Job(self.job_type, c_context, device)
+                        pub = (q_c, q_obs[i], params[i])
+                        pubs_with_context.append((pub, context_job))
+                    continue
+
+                if all(len(p) == 0 for p in params):
+                    params = None
+                if all(len(o) == 0 for o in q_obs):
+                    q_obs = None
+                if q_obs and params:
+
+                    pub = (q_c, q_obs, params)
+                elif q_obs:
+                    pub = (q_c, q_obs)
+                elif params:
+                    pub = (q_c, None, params)
+                else:
+                    pub = (q_c,)
+
+                c_context = original_c.without_measurements(deep_copy=False)
+                c_context.add(measures)
+                context_job = Job(self.job_type, c_context, device)
+
+                pubs_with_context.append((pub, context_job))
+
+            return pubs_with_context
+        elif isinstance(device, AWSDevice):
+            from mpqp.translation.braket import circuitbinding_to_programset
+
+            return circuitbinding_to_programset(self, device)
+        else:
+            raise NotImplementedError(
+                f"Translation to {device} is not supported yet on CircuitBindings"
+            )
