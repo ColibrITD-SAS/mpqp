@@ -17,7 +17,7 @@ import inspect
 import sys
 from abc import abstractmethod
 from numbers import Integral
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, cast
 
 from qiskit.circuit.library import (
     CCXGate,
@@ -113,11 +113,46 @@ def _sympy_to_braket_param(val: Expr | float) -> "float | FreeParameter":
             return FreeParameter(str(val))  # note: Braket won't parse expressions
         else:
             try:
-                return float(val.evalf())
+                return float(val.evalf()) # pyright: ignore[reportArgumentType]
             except Exception as e:
                 raise ValueError(f"Failed to evaluate sympy expression '{val}': {e}")
     else:
         return float(val)
+
+
+def _complex_product(*factors: Expr | complex) -> Expr | complex:
+    """Multiply numeric or symbolic factors without mixing Python complex
+    numbers directly with SymPy expressions.
+    """
+    from sympy import Expr, prod, sympify
+
+    if any(isinstance(factor, Expr) for factor in factors):
+        return cast(Expr, prod(sympify(factor) for factor in factors))
+
+    result = 1 + 0j
+    for factor in factors:
+        result *= cast(complex, factor)
+    return result
+
+
+def _divide(dividend: Expr | float, divisor: Expr | float) -> Expr | float:
+    """Divide numeric or symbolic values without mixing their operator types."""
+    from sympy import Expr, sympify
+
+    if isinstance(dividend, Expr) or isinstance(divisor, Expr):
+        return sympify(dividend) / sympify(divisor)
+
+    return dividend / divisor
+
+
+def _rotation_denominator(k: Expr | float) -> Expr | float:
+    """Return ``2 ** (k - 1)`` for a numeric or symbolic rotation index."""
+    from sympy import Expr, Integer
+
+    if isinstance(k, Expr):
+        return Integer(2) ** (k - Integer(1))
+
+    return 2.0 ** (k - 1.0)
 
 
 class NativeGate(Gate, SimpleClassReprABC):
@@ -725,7 +760,7 @@ class P(RotationGate, SingleQubitGate):
                 [1, 0],
                 [
                     0,
-                    exp(self.parameters[0] * 1j),
+                    exp(_complex_product(self.parameters[0], 1j)),
                 ],
             ]
         )
@@ -765,7 +800,9 @@ class CP(RotationGate, ControlledGate):
         from cirq.ops.common_gates import ZPowGate
         from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
-        return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
+        return lambda theta: CirqControlledGate(
+            ZPowGate(exponent=_divide(theta, np.pi))
+        )
 
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
@@ -778,7 +815,7 @@ class CP(RotationGate, ControlledGate):
         ParametrizedGate.__init__(self, definition, [target], [theta], "CP")
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)
+        e = exp(_complex_product(self.theta, 1j))
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def __repr__(self) -> str:
@@ -930,7 +967,7 @@ class T(OneQubitNoParamGate):
     def to_canonical_matrix(self):
         from sympy import pi
 
-        return np.array([[1, 0], [0, exp((pi / 4) * 1j)]])
+        return np.array([[1, 0], [0, exp(_complex_product(_divide(pi, 4), 1j))]])
 
 
 class SWAP(InvolutionGate, NoParameterGate):
@@ -1092,7 +1129,9 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             def _decompose_(self, qubits: tuple[Qid, ...]):
                 q = qubits[0]
                 return [
-                    GlobalPhaseGate(np.exp(1j * (self.lmda + self.phi) / 2)).on(),
+                    GlobalPhaseGate(
+                        exp(_complex_product(1j, _divide(self.lmda + self.phi, 2)))
+                    ).on(),
                     cirq_rz(self.lmda).on(q),
                     cirq_ry(self.theta).on(q),
                     cirq_rz(self.phi).on(q),
@@ -1179,15 +1218,15 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
 
     def to_canonical_matrix(self):
         c, s, eg, ep = (
-            cos(self.theta / 2),
-            sin(self.theta / 2),
-            exp(self.gamma * 1j),
-            exp(self.phi * 1j),
+            cos(_divide(self.theta, 2)),
+            sin(_divide(self.theta, 2)),
+            exp(_complex_product(self.gamma, 1j)),
+            exp(_complex_product(self.phi, 1j)),
         )
         return np.array(
             [
-                [c, -eg * s],
-                [ep * s, eg * ep * c],
+                [c, -eg * s], # pyright: ignore[reportOperatorIssue]
+                [ep * s, eg * ep * c], # pyright: ignore[reportOperatorIssue]
             ]
         )
 
@@ -1236,9 +1275,10 @@ class Rx(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        c = cos(self.parameters[0] / 2)
-        s = sin(self.parameters[0] / 2)
-        return np.array([[c, -1j * s], [-1j * s, c]])
+        c = cos(_divide(self.parameters[0], 2))
+        s = sin(_divide(self.parameters[0], 2))
+        imaginary_sine = _complex_product(-1j, s)
+        return np.array([[c, imaginary_sine], [imaginary_sine, c]])
 
 
 class Ry(RotationGate, SingleQubitGate):
@@ -1282,8 +1322,8 @@ class Ry(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        c = cos(self.parameters[0] / 2)
-        s = sin(self.parameters[0] / 2)
+        c = cos(_divide(self.parameters[0], 2))
+        s = sin(_divide(self.parameters[0], 2))
         return np.array([[c, -s], [s, c]])
 
 
@@ -1328,8 +1368,8 @@ class Rz(RotationGate, SingleQubitGate):
         super().__init__(theta, target)
 
     def to_canonical_matrix(self):
-        e = exp(-1j * self.parameters[0] / 2)
-        return np.array([[e, 0], [0, 1 / e]])
+        e = exp(_complex_product(-0.5j, self.parameters[0]))
+        return np.array([[e, 0], [0, 1 / e]]) # pyright: ignore[reportOperatorIssue]
 
 
 class Rxx(RotationGate, ComposedGate):
@@ -1393,15 +1433,15 @@ class Rxx(RotationGate, ComposedGate):
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
-        c = cos(phi / 2)
-        s = sin(phi / 2)
+        c = cos(_divide(phi, 2))
+        s = sin(_divide(phi, 2))
 
         return np.array(
             [
-                [c, 0, 0, -1j * s],
-                [0, c, -1j * s, 0],
-                [0, -1j * s, c, 0],
-                [-1j * s, 0, 0, c],
+                [c, 0, 0, _complex_product(-1j, s)],
+                [0, c, _complex_product(-1j, s), 0],
+                [0, _complex_product(-1j, s), c, 0],
+                [_complex_product(-1j, s), 0, 0, c],
             ],
         )
 
@@ -1502,15 +1542,15 @@ class Ryy(RotationGate, ComposedGate):
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
-        c = cos(phi / 2)
-        s = sin(phi / 2)
+        c = cos(_divide(phi, 2))
+        s = sin(_divide(phi, 2))
 
         return np.array(
             [
-                [c, 0, 0, 1j * s],
-                [0, c, -1j * s, 0],
-                [0, -1j * s, c, 0],
-                [1j * s, 0, 0, c],
+                [c, 0, 0, _complex_product(1j, s)],
+                [0, c, _complex_product(-1j, s), 0],
+                [0, _complex_product(-1j, s), c, 0],
+                [_complex_product(1j, s), 0, 0, c],
             ],
         )
 
@@ -1624,8 +1664,8 @@ class Rzz(RotationGate, ComposedGate):
 
     def to_canonical_matrix(self):
         phi = self.parameters[0]
-        e_minus = exp(-1j * phi / 2)  # pyright: ignore[reportOperatorIssue]
-        e_plus = exp(1j * phi / 2)  # pyright: ignore[reportOperatorIssue]
+        e_minus = exp(_complex_product(-0.5j, phi))
+        e_plus = exp(_complex_product(0.5j, phi))
 
         return np.array(
             [
@@ -1726,15 +1766,15 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
 
     def to_canonical_matrix(self):
         theta, phi = self.parameters
-        c = cos(theta / 2)
-        s = sin(theta / 2)
-        e_minus = exp(-1j * phi)
-        e_plus = exp(1j * phi)
+        c = cos(_divide(theta, 2))
+        s = sin(_divide(theta, 2))
+        e_minus = exp(_complex_product(-1j, phi))
+        e_plus = exp(_complex_product(1j, phi))
 
         return np.array(
             [
-                [c, -1j * e_minus * s],
-                [-1j * e_plus * s, c],
+                [c, _complex_product(-1j, e_minus, s)],
+                [_complex_product(-1j, e_plus, s), c],
             ],
         )
 
@@ -1792,10 +1832,10 @@ class PRX(RotationGate, SingleQubitGate, ComposedGate):
             )
         elif language == Language.CIRQ:
             return self.cirq_gate(
-                phase_exponent=self.parameters[1] / np.pi,
-                exponent=self.parameters[0] / np.pi,
+                phase_exponent=_divide(self.parameters[1], np.pi),
+                exponent=_divide(self.parameters[0], np.pi),
             )
-        if language == Language.QASM2:
+        elif language == Language.QASM2:
             target = self.targets[0]
 
             return f"rz({self.parameters[1]}) q[{target}];\nrx({self.parameters[0]}) q[{target}];\nrz({-self.parameters[1]}) q[{target}];"
@@ -1839,7 +1879,7 @@ class Rk(RotationGate, SingleQubitGate):
     def cirq_gate(cls):
         from cirq.ops.common_gates import ZPowGate
 
-        return lambda theta: ZPowGate(exponent=theta / np.pi)
+        return lambda theta: ZPowGate(exponent=_divide(theta, np.pi))
 
     qlm_aqasm_keyword = "PH"
     qiskit_string = "p"
@@ -1856,7 +1896,7 @@ class Rk(RotationGate, SingleQubitGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)
+        return _divide(p, _rotation_denominator(self.k))
 
     @property
     def k(self) -> Expr | int:
@@ -1864,7 +1904,7 @@ class Rk(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)
+        e = exp(_complex_product(self.theta, 1j))
         return np.array([[1, 0], [0, e]])
 
     def __repr__(self):
@@ -1941,7 +1981,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
 
         # TODO study the relevance of having pi from sympy
         p = np.pi if isinstance(self.k, Integral) else pi
-        return -(p / 2 ** (self.k - 1))
+        return -_divide(p, _rotation_denominator(self.k))
 
     @property
     def k(self) -> Expr | float:
@@ -1949,7 +1989,7 @@ class Rk_dagger(RotationGate, SingleQubitGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)
+        e = exp(_complex_product(self.theta, 1j))
         return np.array([[1, 0], [0, e]])
 
     def to_other_language(
@@ -2132,7 +2172,9 @@ class CRk(RotationGate, ControlledGate):
         from cirq.ops.common_gates import ZPowGate
         from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
-        return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
+        return lambda theta: CirqControlledGate(
+            ZPowGate(exponent=_divide(theta, np.pi))
+        )
 
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
@@ -2151,7 +2193,7 @@ class CRk(RotationGate, ControlledGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return p / 2 ** (self.k - 1)
+        return _divide(p, _rotation_denominator(self.k))
 
     @property
     def k(self) -> Expr | float:
@@ -2159,7 +2201,7 @@ class CRk(RotationGate, ControlledGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)
+        e = exp(_complex_product(self.theta, 1j))
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def to_other_language(
@@ -2230,7 +2272,9 @@ class CRk_dagger(RotationGate, ControlledGate):
         from cirq.ops.common_gates import ZPowGate
         from cirq.ops.controlled_gate import ControlledGate as CirqControlledGate
 
-        return lambda theta: CirqControlledGate(ZPowGate(exponent=theta / np.pi))
+        return lambda theta: CirqControlledGate(
+            ZPowGate(exponent=_divide(theta, np.pi))
+        )
 
     # TODO: this is a special case, see if it needs to be generalized
     qlm_aqasm_keyword = "CNOT;PH"
@@ -2249,7 +2293,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         from sympy import pi
 
         p = np.pi if isinstance(self.k, Integral) else pi
-        return -(p / 2 ** (self.k - 1))
+        return -_divide(p, _rotation_denominator(self.k))
 
     @property
     def k(self) -> Expr | int:
@@ -2257,7 +2301,7 @@ class CRk_dagger(RotationGate, ControlledGate):
         return self.parameters[0]
 
     def to_canonical_matrix(self):
-        e = exp(self.theta * 1j)
+        e = exp(_complex_product(self.theta, 1j))
         return np.array([[1, 0, 0, 0], [0, 1, 0, 0], [0, 0, 1, 0], [0, 0, 0, e]])
 
     def __repr__(self) -> str:

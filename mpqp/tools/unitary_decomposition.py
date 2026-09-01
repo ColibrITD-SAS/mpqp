@@ -181,7 +181,7 @@ def _decompose(
         # Extracts the rotations of both multiplexed Rz for later decomposition
         du = np.asarray(
             np.angle(
-                MuxRzu.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
+                MuxRzu.diagonal()
             )
         )
         for i in range(len(du) // 2):
@@ -189,7 +189,7 @@ def _decompose(
 
         dv = np.asarray(
             np.angle(
-                MuxRzv.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
+                MuxRzv.diagonal()
             )
         )
         for i in range(len(dv) // 2):
@@ -198,9 +198,7 @@ def _decompose(
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, targets, position + 1)
         circuit = _decompose(Wv, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(
-            dv, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(dv, circuit, targets, position, Rz) # pyright: ignore[reportArgumentType]
         circuit = _decompose(Vv, circuit, targets, position + 1)
         circuit = _decompose(Vv, circuit, targets, position + 1)
 
@@ -209,14 +207,12 @@ def _decompose(
             circuit,
             targets,
             position,
-            Ry,  # pyright: ignore[reportArgumentType]
+            Ry,
         )
 
         circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _decompose(Wu, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(
-            du, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(du, circuit, targets, position, Rz) # pyright: ignore[reportArgumentType]
         circuit = _decompose(Vu, circuit, targets, position + 1)
         circuit = _decompose(Vu, circuit, targets, position + 1)
 

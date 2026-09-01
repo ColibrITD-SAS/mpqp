@@ -289,7 +289,7 @@ def _gen_ith_oper(
 
     if qubits - i - 1 != 0:
         result = np.kron(result, np.eye(2 ** (qubits - i - 1)))
-    return result  # pyright: ignore[reportReturnType]
+    return result
 
 
 def _apply_unitary(circuit: QCircuit, operator: Matrix, parameter: float):
