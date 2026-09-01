@@ -346,6 +346,16 @@ def test_add(
         assert str(init_circuit) == f.read()
 
 
+def test_instructions_cannot_be_modified_directly():
+    circuit = QCircuit([X(0)])
+
+    circuit.instructions.append(H(0))
+
+    assert circuit.instructions == [X(0)]
+    with pytest.raises(AttributeError):
+        circuit.instructions = [H(0)]  # type: ignore[reportAttributeAccessIssue]
+
+
 @pytest.mark.parametrize(
     "instructions, result",
     [

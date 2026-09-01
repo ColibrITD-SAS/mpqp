@@ -226,8 +226,8 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
             j = i + 1
             while isinstance(circuit.instructions[j], CNOT):
                 if circuit.instructions[i] == circuit.instructions[j]:
-                    circuit.instructions.pop(j)
-                    circuit.instructions.pop(i)
+                    circuit._pop_instruction(j)  # pyright: ignore[reportPrivateUsage]
+                    circuit._pop_instruction(i)  # pyright: ignore[reportPrivateUsage]
                     length -= 2
                     i -= 1
                     break
