@@ -320,7 +320,9 @@ class QCircuit:
                     f"the dimension {components.dimension}."
                 )
             hardcoded_basis_measures = [
-                instr for instr in self.instructions if isinstance(instr, BasisMeasure)
+                measure
+                for measure in self.measurements
+                if isinstance(measure, BasisMeasure)
             ]
             if any(
                 len(meas.targets) != self.nb_qubits for meas in hardcoded_basis_measures

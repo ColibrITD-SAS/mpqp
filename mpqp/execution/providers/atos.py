@@ -3,7 +3,7 @@ from __future__ import annotations
 import warnings
 from itertools import permutations
 from statistics import mean
-from typing import TYPE_CHECKING, Callable, Optional, Union
+from typing import TYPE_CHECKING, Callable, Optional, TypeVar, Union
 
 import numpy as np
 
@@ -35,6 +35,18 @@ if TYPE_CHECKING:
     from qat.core.wrappers.result import Result as QLM_Result
     from qat.hardware.default import HardwareModel
     from qat.qlmaas.result import AsyncResult
+
+
+T = TypeVar("T")
+
+
+def _constant_callable(value: T) -> Callable[..., T]:
+    """Return a provider callback that always yields the captured value."""
+
+    def constant(*_: object) -> T:
+        return value
+
+    return constant
 
 
 def job_pre_processing(job: Job) -> "Circuit":
@@ -358,20 +370,18 @@ def generate_hardware_model(
 
         if len(noise.gates) == 0:  # we add an idle noise
             if this_noise_all_qubits_target:
-                idle_lambda_global.append(eval("lambda *_: c", {"c": channel}, {}))
+                idle_lambda_global.append(_constant_callable(channel))
             else:
                 for target in noise.targets:
                     if target not in idle_lambda_local:
                         idle_lambda_local[target] = []
-                    idle_lambda_local[target].append(
-                        eval("lambda *_: c", {"c": channel}, {})
-                    )
+                    idle_lambda_local[target].append(_constant_callable(channel))
 
     if all_qubits_target:
 
         for gate_name in gate_noise_global:
-            gate_noise_lambdas[gate_name] = eval(
-                "lambda *_: c", {"c": gate_noise_global[gate_name]}, {}
+            gate_noise_lambdas[gate_name] = _constant_callable(
+                gate_noise_global[gate_name]
             )
 
         return HardwareModel(
@@ -424,36 +434,24 @@ def generate_hardware_model(
             if isinstance(example_elem, int):
                 for qubit in range(nb_qubits):
                     if qubit in gate_noise_local[gate_name]:
-                        per_qubit_gate_noise_lambdas[gate_name][qubit] = eval(
-                            "lambda *_: c",
-                            {"c": gate_noise_local[gate_name][qubit]},
-                            {},
+                        per_qubit_gate_noise_lambdas[gate_name][qubit] = (
+                            _constant_callable(gate_noise_local[gate_name][qubit])
                         )
                     else:
                         # Identity channel, because it is required that every qubit is filled with a lambda
-                        per_qubit_gate_noise_lambdas[gate_name][qubit] = eval(
-                            "lambda *_: c",
-                            {"c": make_depolarizing_channel(prob=0.0)},
-                            {},
+                        per_qubit_gate_noise_lambdas[gate_name][qubit] = (
+                            _constant_callable(make_depolarizing_channel(prob=0.0))
                         )
             else:
                 gate_nb_qubits = len(example_elem)
                 for t in permutations(list(range(nb_qubits)), gate_nb_qubits):
                     if t in gate_noise_local[gate_name]:
-                        per_qubit_gate_noise_lambdas[gate_name][t] = eval(
-                            "lambda *_: c",
-                            {"c": gate_noise_local[gate_name][t]},
-                            {},
+                        per_qubit_gate_noise_lambdas[gate_name][t] = _constant_callable(
+                            gate_noise_local[gate_name][t]
                         )
                     else:
-                        per_qubit_gate_noise_lambdas[gate_name][t] = eval(
-                            "lambda *_: c",
-                            {
-                                "c": make_depolarizing_channel(
-                                    prob=0.0, nqbits=gate_nb_qubits
-                                )
-                            },
-                            {},
+                        per_qubit_gate_noise_lambdas[gate_name][t] = _constant_callable(
+                            make_depolarizing_channel(prob=0.0, nqbits=gate_nb_qubits)
                         )
 
         if idle_lambda_global or idle_lambda_local:
@@ -467,14 +465,10 @@ def generate_hardware_model(
                     else:
                         # Identity channel, because it is required that every qubit is filled with a list of lambda
                         idle_lambda_local[qubit] = [
-                            eval(
-                                "lambda *_: c",
-                                {"c": make_depolarizing_channel(prob=0.0)},
-                                {},
-                            )
+                            _constant_callable(make_depolarizing_channel(prob=0.0))
                         ]
 
-        gate_noise = gate_noise_lambdas | gate_noise_lambdas
+        gate_noise = gate_noise_lambdas | per_qubit_gate_noise_lambdas
 
         return HardwareModel(
             DefaultGatesSpecification(),

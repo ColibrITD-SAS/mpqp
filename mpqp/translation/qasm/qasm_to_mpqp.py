@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+import ast
+from typing import TYPE_CHECKING, Any, TypeAlias
 from venv import logger
 
 import numpy as np
@@ -24,6 +25,7 @@ from mpqp.translation.qasm.open_qasm_2_and_3 import (
 # no ID name handle for qreg or creg
 
 lexer = None
+Numeric: TypeAlias = int | float | complex
 
 
 def lex_openqasm(input_string: str) -> list[LexToken]:
@@ -79,10 +81,11 @@ def qasm2_parse(input_string: str) -> QCircuit:
     tokens = lex_openqasm(input_string)
 
     if (
-        tokens[0].type != 'OPENQASM'
-        and tokens[1].type != 'REALN'
-        and tokens[1].value != '2.0'
-        and tokens[2].type != 'SEMICOLON'
+        len(tokens) < 3
+        or tokens[0].type != 'OPENQASM'
+        or tokens[1].type != 'REALN'
+        or tokens[1].value != 2.0
+        or tokens[2].type != 'SEMICOLON'
     ):
         raise SyntaxError('Invalid OpenQASM, must start with OPENQASM 2.0;')
 
@@ -306,8 +309,35 @@ def _Gate_tof(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
     return idx + 1
 
 
+def _evaluate_numeric_expression(node: ast.AST) -> Numeric:
+    """Evaluate the arithmetic subset accepted in OpenQASM gate parameters."""
+    if isinstance(node, ast.Expression):
+        return _evaluate_numeric_expression(node.body)
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float, complex)):
+        return node.value
+    if isinstance(node, ast.Attribute) and isinstance(node.value, ast.Name):
+        if node.value.id == "np" and node.attr == "pi":
+            return np.pi
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, (ast.UAdd, ast.USub)):
+        value = _evaluate_numeric_expression(node.operand)
+        return value if isinstance(node.op, ast.UAdd) else -value
+    if isinstance(node, ast.BinOp):
+        left = _evaluate_numeric_expression(node.left)
+        right = _evaluate_numeric_expression(node.right)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Div):
+            return left / right
+        if isinstance(node.op, ast.Pow):
+            return left**right
+    raise SyntaxError("Unsupported OpenQASM numeric expression")
+
+
 def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
-    import numpy as np  # pyright: ignore[reportUnusedImport]
 
     expr = ""
     open_paren = 0
@@ -339,7 +369,11 @@ def _eval_expr(tokens: list[LexToken], idx: int) -> tuple[Any, int]:
         else:
             expr += str(tokens[idx].value)
         idx += 1
-    return eval(expr), idx + 1
+    try:
+        parsed_expr = ast.parse(expr.replace("^", "**"), mode="eval")
+        return _evaluate_numeric_expression(parsed_expr), idx + 1
+    except (ArithmeticError, SyntaxError, TypeError, ValueError) as error:
+        raise SyntaxError(f"Invalid OpenQASM numeric expression: {expr}") from error
 
 
 def _Gate_one_parametrized(
@@ -392,20 +426,47 @@ def _TokenCustom(circuit: QCircuit, tokens: list[LexToken], idx: int) -> int:
 
     expr = raw[len("#pragma mpqp") :].strip()
 
-    safe_globals = {
-        "__builtins__": {},
-    }
-
-    safe_locals = {
-        "CustomGate": CustomGate,
-        "array": np.array,
-        "np": np,
-    }
-
     try:
-        gate = eval(expr, safe_globals, safe_locals)
-    except Exception as e:
-        raise SyntaxError(f"Custom gate eval failed: {expr}") from e
+        parsed = ast.parse(expr, mode="eval").body
+        if not (
+            isinstance(parsed, ast.Call)
+            and isinstance(parsed.func, ast.Name)
+            and parsed.func.id == "CustomGate"
+            and 2 <= len(parsed.args) <= 3
+            and not parsed.keywords
+        ):
+            raise ValueError("Only a CustomGate constructor is allowed")
+
+        matrix_call = parsed.args[0]
+        if not isinstance(matrix_call, ast.Call):
+            raise ValueError("The CustomGate matrix must be an array literal")
+        is_array_constructor = (
+            isinstance(matrix_call.func, ast.Name)
+            and matrix_call.func.id == "array"
+            or isinstance(matrix_call.func, ast.Attribute)
+            and isinstance(matrix_call.func.value, ast.Name)
+            and matrix_call.func.value.id == "np"
+            and matrix_call.func.attr == "array"
+        )
+        if not (
+            is_array_constructor
+            and len(matrix_call.args) == 1
+            and not matrix_call.keywords
+        ):
+            raise ValueError("The CustomGate matrix must be an array literal")
+
+        matrix = np.array(ast.literal_eval(matrix_call.args[0]))
+        targets = ast.literal_eval(parsed.args[1])
+        label = ast.literal_eval(parsed.args[2]) if len(parsed.args) == 3 else None
+        if not (
+            isinstance(targets, list)
+            and all(isinstance(target, int) and target >= 0 for target in targets)
+            and (label is None or isinstance(label, str))
+        ):
+            raise ValueError("Invalid CustomGate targets or label")
+        gate = CustomGate(matrix, targets, label)
+    except (SyntaxError, ValueError, TypeError) as error:
+        raise SyntaxError(f"Invalid MPQP custom gate pragma: {expr}") from error
 
     circuit.add(gate)
     return idx + 1
