@@ -34,7 +34,7 @@ if TYPE_CHECKING:
 
 
 def run_quantinuum(job: Job) -> Result:
-    """Execute the job on the selected Quantinuum device (local or remote),
+    """Executes the job on the selected Quantinuum device (local or remote),
     wait until execution is complete, and return the result.
 
     Args:
