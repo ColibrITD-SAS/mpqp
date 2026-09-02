@@ -4,6 +4,7 @@ import math
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+import numpy.typing as npt
 
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates import CRk
@@ -39,7 +40,7 @@ def _ordered_measurement_probabilities(
     probabilities: dict[str, float],
     measured_qubits: list[int],
     targets: list[int],
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     """Return probabilities with bits ordered like the observable targets."""
     measured_positions = {
         qubit: position for position, qubit in enumerate(measured_qubits)
@@ -402,7 +403,9 @@ def _run_sampled_braket_observables(
 
     assert isinstance(job.measure, ExpectationMeasure)
     programs = []
-    result_specs: list[tuple[int, np.ndarray | None, list[int] | None]] = []
+    result_specs: list[tuple[int, npt.NDArray[np.float64] | None, list[int] | None]] = (
+        []
+    )
 
     for index, observable in enumerate(job.measure.observables):
         if observable._pauli_string is None:  # pyright: ignore[reportPrivateUsage]

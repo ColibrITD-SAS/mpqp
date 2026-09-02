@@ -7,6 +7,7 @@ import math
 from typing import Optional, Union
 
 import numpy as np
+import numpy.typing as npt
 from scipy.linalg import cossin
 
 from mpqp.core.circuit import QCircuit
@@ -175,18 +176,20 @@ def _decompose(
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
         # Extracts the rotations of both multiplexed Rz for later decomposition
-        du = np.asarray(
+        du: npt.NDArray[np.float64] = np.asarray(
             np.angle(
-                MuxRzu.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
-            )
+                np.asarray(MuxRzu, dtype=np.complex128).diagonal(),
+            ),
+            dtype=np.float64,
         )
         for i in range(len(du) // 2):
             du[i] *= -1
 
-        dv = np.asarray(
+        dv: npt.NDArray[np.float64] = np.asarray(
             np.angle(
-                MuxRzv.diagonal()  # pyright: ignore[reportCallIssue, reportArgumentType]
-            )
+                np.asarray(MuxRzv, dtype=np.complex128).diagonal(),
+            ),
+            dtype=np.float64,
         )
         for i in range(len(dv) // 2):
             dv[i] *= -1
