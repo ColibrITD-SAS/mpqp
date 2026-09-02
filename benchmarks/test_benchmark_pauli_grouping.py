@@ -11,7 +11,6 @@ from mpqp.core.instruction.measurement.pauli_string import (
 )
 from mpqp.tools.pauli_grouping import pauli_grouping_greedy
 
-
 pytestmark = pytest.mark.performance
 
 

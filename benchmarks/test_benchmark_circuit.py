@@ -7,7 +7,6 @@ import pytest
 
 from mpqp import QCircuit
 
-
 pytestmark = pytest.mark.performance
 
 
