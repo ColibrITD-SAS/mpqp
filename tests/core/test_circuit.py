@@ -557,8 +557,9 @@ def test_measurement_indexes_are_updated(
     circuit: QCircuit, expected_indexes: list[int], expected_measurements: list[Measure]
 ):
     assert (
-        circuit._measurement_indexes == expected_indexes # pyright: ignore[reportPrivateUsage]
-    )  
+        circuit._measurement_indexes
+        == expected_indexes  # pyright: ignore[reportPrivateUsage]
+    )
     assert repr(circuit.measurements) == repr(expected_measurements)
 
 
