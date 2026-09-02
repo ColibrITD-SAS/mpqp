@@ -33,6 +33,7 @@ could be used to add CNOT gates to your circuit, using the two registers
 
 from __future__ import annotations
 
+from bisect import insort
 from copy import deepcopy
 from numbers import Complex
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
@@ -68,7 +69,7 @@ if TYPE_CHECKING:
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
-    from sympy import Basic, Expr
+    from sympy import Expr
 
     from mpqp.execution.devices import (
         ATOSDevice,
@@ -161,6 +162,8 @@ class QCircuit:
         """Private list of instructions with positions in the circuit."""
         self._measurement_indexes: list[int] = []
         """Indexes of the measurements in ``_instructions``."""
+        self._variables: dict[Expr, list[int]] = {}
+        """Instruction indexes for each symbolic variable in the circuit."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -319,8 +322,37 @@ class QCircuit:
             self.noises.append(components)
         else:
             self._instructions.append(components)
+            instruction_index = len(self._instructions) - 1
             if isinstance(components, Measure):
-                self._measurement_indexes.append(len(self._instructions) - 1)
+                self._measurement_indexes.append(instruction_index)
+            self._register_variables(components, instruction_index)
+
+    @staticmethod
+    def _instruction_variables(instruction: Instruction) -> set[Expr]:
+        """Return the free symbolic variables used by an instruction."""
+        from sympy import Expr
+
+        variables: set[Expr] = set()
+        if isinstance(instruction, ParametrizedGate):
+            for parameter in instruction.parameters:
+                if isinstance(parameter, Expr):
+                    variables.update(
+                        symbol
+                        for symbol in parameter.free_symbols
+                        if isinstance(symbol, Expr)
+                    )
+        return variables
+
+    def _register_variables(self, instruction: Instruction, index: int) -> None:
+        """Register the variables used by ``instruction`` at ``index``."""
+        for variable in self._instruction_variables(instruction):
+            insort(self._variables.setdefault(variable, []), index)
+
+    def _rebuild_variables(self) -> None:
+        """Rebuild variable indexes from the circuit instructions."""
+        self._variables = {}
+        for index, instruction in enumerate(self._instructions):
+            self._register_variables(instruction, index)
 
     def remove(self, instructions: OneOrMany[Instruction]) -> None:
         """Remove one or several instructions from the circuit.
@@ -371,7 +403,19 @@ class QCircuit:
             )
             for measurement_index in self._measurement_indexes
         ]
+        self._variables = {
+            variable: [
+                (
+                    variable_index + 1
+                    if variable_index >= normalized_index
+                    else variable_index
+                )
+                for variable_index in indexes
+            ]
+            for variable, indexes in self._variables.items()
+        }
         self._instructions.insert(index, inserted_instruction)
+        self._register_variables(inserted_instruction, normalized_index)
 
     def _pop_instruction(self, index: int = -1) -> Instruction:
         """Remove and return an instruction at ``index``.
@@ -390,6 +434,20 @@ class QCircuit:
             for measurement_index in self._measurement_indexes
             if measurement_index != normalized_index
         ]
+        updated_variables: dict[Expr, list[int]] = {}
+        for variable, indexes in self._variables.items():
+            updated_indexes = [
+                (
+                    variable_index - 1
+                    if variable_index > normalized_index
+                    else variable_index
+                )
+                for variable_index in indexes
+                if variable_index != normalized_index
+            ]
+            if updated_indexes:
+                updated_variables[variable] = updated_indexes
+        self._variables = updated_variables
         return instruction
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
@@ -1092,7 +1150,9 @@ class QCircuit:
             exclude_attrs = [exclude_attrs]
         excluded_attrs = set(exclude_attrs)
         if {"instructions", "measurements"} & excluded_attrs:
-            excluded_attrs.update({"_instructions", "_measurement_indexes"})
+            excluded_attrs.update(
+                {"_instructions", "_measurement_indexes", "_variables"}
+            )
         new_obj = QCircuit()
         for attr, val in self.__dict__.items():
             if attr not in excluded_attrs:
@@ -1156,6 +1216,7 @@ class QCircuit:
         new_circuit._instructions = (
             deepcopy(instructions) if deep_copy else instructions
         )
+        new_circuit._rebuild_variables()
 
         return new_circuit
 
@@ -1941,6 +2002,7 @@ class QCircuit:
         """
         new_circuit = deepcopy(self)
         new_circuit._instructions = [inst.subs(values) for inst in self._instructions]
+        new_circuit._rebuild_variables()
         return new_circuit
 
     def pretty_print(self):
@@ -2002,7 +2064,7 @@ class QCircuit:
 
         return f'QCircuit({args_repr})'
 
-    def variables(self) -> set[Basic]:
+    def variables(self) -> set[Expr]:
         """Returns all the symbolic parameters involved in this circuit.
 
         Returns:
@@ -2017,12 +2079,4 @@ class QCircuit:
             {θ, k}
 
         """
-        from sympy import Expr
-
-        params: set[Basic] = set()
-        for inst in self._instructions:
-            if isinstance(inst, ParametrizedGate):
-                for param in inst.parameters:
-                    if isinstance(param, Expr):
-                        params.update(param.free_symbols)
-        return params
+        return set(self._variables)

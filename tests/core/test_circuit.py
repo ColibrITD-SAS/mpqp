@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import random
+from numbers import Complex
 from typing import TYPE_CHECKING, Optional, Sequence
 
 import numpy as np
@@ -10,6 +11,7 @@ from qiskit import ClassicalRegister
 from qiskit import QuantumCircuit as QiskitCircuit
 from qiskit import QuantumRegister
 from qiskit.circuit.random import random_circuit as random_qiskit_circuit
+from sympy import symbols
 
 from mpqp.core.instruction.gates.custom_gate import CustomGate
 from mpqp.execution.devices import (
@@ -25,6 +27,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as cirq_Circuit
     from cirq.circuits.moment import Moment
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
+    from sympy import Expr
 
 from mpqp import (
     CNOT,
@@ -77,6 +80,8 @@ from mpqp.tools.display import one_lined_repr
 from mpqp.tools.errors import NonReversibleWarning
 from mpqp.tools.generics import Matrix, OneOrMany
 from mpqp.tools.maths import matrix_eq
+
+theta, phi, alpha = symbols("theta phi alpha")
 
 
 @pytest.fixture
@@ -552,8 +557,8 @@ def test_measurement_indexes_are_updated(
     circuit: QCircuit, expected_indexes: list[int], expected_measurements: list[Measure]
 ):
     assert (
-        circuit._measurement_indexes == expected_indexes
-    )  # pyright: ignore[reportPrivateUsage]
+        circuit._measurement_indexes == expected_indexes # pyright: ignore[reportPrivateUsage]
+    )  
     assert repr(circuit.measurements) == repr(expected_measurements)
 
 
@@ -570,6 +575,80 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         encoding="utf-8",
     ) as f:
         assert str(circuit.without_measurements(deep_copy=False)) == f.read()
+
+
+@pytest.mark.parametrize(
+    (
+        "initial_instructions, added_instruction, removed_instruction, "
+        "expected_initial, expected_after_add, expected_after_remove"
+    ),
+    [
+        (
+            [X(0), Rx(theta, 0), Ry(theta + phi, 0)],
+            Rz(phi, 0),
+            Rx(theta, 0),
+            {theta: [1, 2], phi: [2]},
+            {theta: [1, 2], phi: [2, 3]},
+            {theta: [1], phi: [1, 2]},
+        ),
+        (
+            [Rx(alpha, 0), Rz(1.5, 0)],
+            Ry(2 * alpha, 0),
+            Rx(alpha, 0),
+            {alpha: [0]},
+            {alpha: [0, 2]},
+            {alpha: [1]},
+        ),
+    ],
+)
+def test_variables_are_registered_and_shifted_by_add_and_remove(
+    initial_instructions: list[Instruction],
+    added_instruction: Instruction,
+    removed_instruction: Instruction,
+    expected_initial: dict[Expr, list[int]],
+    expected_after_add: dict[Expr, list[int]],
+    expected_after_remove: dict[Expr, list[int]],
+):
+    circuit = QCircuit(initial_instructions)
+
+    assert circuit._variables == expected_initial  # pyright: ignore[reportPrivateUsage]
+
+    circuit.add(added_instruction)
+    assert (
+        circuit._variables == expected_after_add  # pyright: ignore[reportPrivateUsage]
+    )
+
+    circuit.remove(removed_instruction)
+    assert (
+        circuit._variables  # pyright: ignore[reportPrivateUsage]
+        == expected_after_remove
+    )
+
+
+@pytest.mark.parametrize(
+    "substitutions, expected_variables",
+    [
+        ({theta: 1}, {phi: [0]}),
+        ({theta: phi}, {phi: [0, 1]}),
+        ({theta: 1, phi: 2}, {}),
+    ],
+)
+def test_variable_indexes_are_rebuilt_after_substitution(
+    substitutions: dict[Expr | str, Complex],
+    expected_variables: dict[Expr, list[int]],
+):
+    circuit = QCircuit([Rx(theta + phi, 0), Rz(theta, 0)])
+
+    substituted = circuit.subs(substitutions)
+
+    assert (
+        substituted._variables  # pyright: ignore[reportPrivateUsage]
+        == expected_variables
+    )
+    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
+        theta: [0, 1],
+        phi: [0],
+    }
 
 
 @pytest.mark.provider("qiskit")
