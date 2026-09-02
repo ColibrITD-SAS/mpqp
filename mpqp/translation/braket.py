@@ -138,7 +138,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     circuit._instructions  # pyright: ignore[reportPrivateUsage]
                 )
 
-        for instruction in instructions + circuit.measurements:
+        for instruction in instructions:
             targets = [target for target in instruction.targets]
             if isinstance(instruction, (Barrier, Breakpoint)):
                 continue

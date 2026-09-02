@@ -512,6 +512,31 @@ def test_get_measurements(circuit: QCircuit, result_repr: str):
 
 
 @pytest.mark.parametrize(
+    "circuit, expected_indexes, expected_measurements",
+    [
+        (
+            QCircuit([X(0), BasisMeasure([0], shots=100), H(0), BasisMeasure([0], shots=200)]),
+            [1, 3],
+            [BasisMeasure([0], shots=100), BasisMeasure([0], shots=200)]
+        ),
+        (
+            QCircuit([BasisMeasure([0], shots=100), H(0), BasisMeasure([0], shots=200)]),
+            [0, 2],
+            [BasisMeasure([0], shots=100), BasisMeasure([0], shots=200)]
+        ),
+        (
+            QCircuit([X(0), H(1), BasisMeasure([0], shots=100), X(1), BasisMeasure([0], shots=100)]) + QCircuit([H(0), BasisMeasure([0], shots=100)]),
+            [2, 4, 6],
+            [BasisMeasure([0], shots=100), BasisMeasure([0], shots=100), BasisMeasure([0], shots=100)]
+        )
+    ]
+)
+def test_measurement_indexes_are_updated(circuit: QCircuit, expected_indexes: list[int], expected_measurements: list[Measure]):
+    assert circuit._measurement_indexes == expected_indexes # pyright: ignore[reportPrivateUsage]
+    assert repr(circuit.measurements) == repr(expected_measurements)
+
+
+@pytest.mark.parametrize(
     "circuit, printed_result_filename",
     [
         (QCircuit([X(0), CNOT(0, 1), BasisMeasure([0, 1], shots=100)]), "all"),

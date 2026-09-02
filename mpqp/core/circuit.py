@@ -159,8 +159,8 @@ class QCircuit:
         """See parameter description."""
         self._instructions: list[Instruction] = []
         """Private list of instructions with positions in the circuit."""
-        self.measurements: list[Measure] = []
-        """List of Measurements in the circuit."""
+        self._measurement_indexes: list[int] = []
+        """Indexes of the measurements in ``_instructions``."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -221,12 +221,22 @@ class QCircuit:
 
     @property
     def instructions(self) -> list[Instruction]:
-        """Instructions in the circuit.
+        """All instructions in the circuit.
 
         A copy is returned so the circuit cannot be modified by mutating this
         list directly. Use :meth:`add` to add instructions to the circuit.
         """
         return self._instructions.copy()
+
+    @property
+    def measurements(self) -> list[Measure]:
+        """Measurements in the circuit, ordered by their instruction index."""
+        measurements: list[Measure] = []
+        for index in self._measurement_indexes:
+            measurement = self._instructions[index]
+            assert isinstance(measurement, Measure)
+            measurements.append(measurement)
+        return measurements
 
     def __eq__(self, value: object) -> bool:
         return isinstance(value, type(self)) and self.to_dict() == value.to_dict()
@@ -308,10 +318,9 @@ class QCircuit:
         if isinstance(components, NoiseModel):
             self.noises.append(components)
         else:
+            self._instructions.append(components)
             if isinstance(components, Measure):
-                self.measurements.append(components)
-            else:
-                self._instructions.append(components)
+                self._measurement_indexes.append(len(self._instructions) - 1)
 
     def remove(self, instructions: OneOrMany[Instruction]) -> None:
         """Remove one or several instructions from the circuit.
@@ -335,7 +344,8 @@ class QCircuit:
             []
         """
         if isinstance(instructions, Instruction):
-            self._instructions.remove(instructions)
+            index = self._instructions.index(instructions)
+            self._pop_instruction(index)
             return
 
         for instruction in instructions:
@@ -347,7 +357,20 @@ class QCircuit:
             raise ValueError("Measurements cannot be inserted among instructions.")
 
         self.add(instruction)
-        inserted_instruction = self._instructions.pop()
+        inserted_instruction = self._pop_instruction()
+        normalized_index = (
+            min(index, len(self._instructions))
+            if index >= 0
+            else max(0, len(self._instructions) + index)
+        )
+        self._measurement_indexes = [
+            (
+                measurement_index + 1
+                if measurement_index >= normalized_index
+                else measurement_index
+            )
+            for measurement_index in self._measurement_indexes
+        ]
         self._instructions.insert(index, inserted_instruction)
 
     def _pop_instruction(self, index: int = -1) -> Instruction:
@@ -356,7 +379,18 @@ class QCircuit:
         This internal method lets MPQP transformations modify a circuit without
         exposing its instruction storage.
         """
-        return self._instructions.pop(index)
+        normalized_index = index if index >= 0 else len(self._instructions) + index
+        instruction = self._instructions.pop(index)
+        self._measurement_indexes = [
+            (
+                measurement_index - 1
+                if measurement_index > normalized_index
+                else measurement_index
+            )
+            for measurement_index in self._measurement_indexes
+            if measurement_index != normalized_index
+        ]
+        return instruction
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -580,7 +614,7 @@ class QCircuit:
                 " index and the size of this circuit"
             )
 
-        for inst in deepcopy(other.instructions + other.measurements):
+        for inst in deepcopy(other.instructions):
             inst.targets = [qubit + qubits_offset for qubit in inst.targets]
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
@@ -774,6 +808,8 @@ class QCircuit:
         current_layer = 0
         last_barrier = 0
         for instr in self._instructions:
+            if isinstance(instr, Measure):
+                continue
             if isinstance(instr, Barrier):
                 last_barrier = current_layer
                 current_layer += 1
@@ -802,7 +838,7 @@ class QCircuit:
             4
 
         """
-        return len(self._instructions) + len(self.measurements)
+        return len(self._instructions)
 
     def is_equivalent(self, circuit: QCircuit) -> bool:
         """Whether the circuit in parameter is equivalent to this circuit, in
@@ -1054,10 +1090,9 @@ class QCircuit:
             exclude_attrs = []
         if isinstance(exclude_attrs, str):
             exclude_attrs = [exclude_attrs]
-        excluded_attrs = {
-            "_instructions" if attr == "instructions" else attr
-            for attr in exclude_attrs
-        }
+        excluded_attrs = set(exclude_attrs)
+        if {"instructions", "measurements"} & excluded_attrs:
+            excluded_attrs.update({"_instructions", "_measurement_indexes"})
         new_obj = QCircuit()
         for attr, val in self.__dict__.items():
             if attr not in excluded_attrs:
@@ -1110,22 +1145,27 @@ class QCircuit:
 
         """
         new_circuit = self._clone_without(
-            ["measurements", "_nb_cbits"], deep_copy=deep_copy
+            ["instructions", "measurements", "_nb_cbits"], deep_copy=deep_copy
+        )
+        measurement_indexes = set(self._measurement_indexes)
+        instructions = [
+            instruction
+            for index, instruction in enumerate(self._instructions)
+            if index not in measurement_indexes
+        ]
+        new_circuit._instructions = (
+            deepcopy(instructions) if deep_copy else instructions
         )
 
         return new_circuit
 
     def with_measurement(self, deep_copy: bool = True) -> list[Instruction]:
-        """Returns the instructions with the measurements added at the back.
+        """Return all instructions, including measurements, in circuit order.
+
         Args:
             deep_copy: If True, returns the deepcopy of the resulting list, otherwise returns a shallow copy.
         """
-        if deep_copy:
-            from copy import deepcopy
-
-            return deepcopy(self._instructions + self.measurements)
-        else:
-            return self._instructions.copy() + self.measurements
+        return deepcopy(self._instructions) if deep_copy else self._instructions.copy()
 
     def without_noises(self, deep_copy: bool = True) -> QCircuit:
         """Provides a shallow copy of this circuit with all the noise models removed.

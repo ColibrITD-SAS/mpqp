@@ -142,7 +142,7 @@ def mpqp_to_qasm2(
     gphase = 0
 
     instructions = qcircuit._instructions  # pyright: ignore[reportPrivateUsage]
-    for instruction in instructions + qcircuit.measurements:
+    for instruction in instructions:
         if not skip_pre_measure:
             if isinstance(instruction, Measure):
                 for pre_measure in instruction.pre_measure:

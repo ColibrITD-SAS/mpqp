@@ -235,7 +235,6 @@ def generate_qiskit_noise_model(
         *(
             inst.connections()
             for inst in modified_circuit._instructions  # pyright: ignore[reportPrivateUsage]
-            + modified_circuit.measurements
             if isinstance(inst, Gate)
         )
     )

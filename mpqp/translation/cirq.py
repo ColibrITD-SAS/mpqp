@@ -136,7 +136,7 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             cirq_circuit.append(I(qubit))
 
         instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
-        for instruction in instructions + circuit.measurements:
+        for instruction in instructions:
             if not skip_pre_measure:
                 if isinstance(instruction, Measure):
                     for pre_measure in instruction.pre_measure:
