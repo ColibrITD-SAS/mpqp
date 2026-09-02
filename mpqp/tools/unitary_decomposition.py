@@ -193,9 +193,7 @@ def _decompose(
 
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(
-            dv, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(dv, circuit, targets, position, Rz)
         circuit = _decompose(Vv, circuit, targets, position + 1)
 
         circuit = _gray_code_decomposition(
@@ -207,9 +205,7 @@ def _decompose(
         )
 
         circuit = _decompose(Wu, circuit, targets, position + 1)
-        circuit = _gray_code_decomposition(
-            du, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
-        )
+        circuit = _gray_code_decomposition(du, circuit, targets, position, Rz)
         circuit = _decompose(Vu, circuit, targets, position + 1)
 
         return circuit

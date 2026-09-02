@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from braket.program_sets import ProgramSet
     from braket.tasks import GateModelQuantumTaskResult, QuantumTask
     from braket.tasks.program_set_quantum_task_result import (
+        CompositeEntry,
         ProgramSetQuantumTaskResult,
     )
 
@@ -227,8 +228,8 @@ def _run_exact_braket_observables(
     """Evaluate all exact observables as result types of one circuit."""
     from copy import deepcopy
 
-    from braket.circuits import ResultType
     from braket.circuits.observables import Hermitian, I as BraketIdentity
+    from braket.circuits.result_types import Expectation
     from braket.tasks import GateModelQuantumTaskResult
 
     assert isinstance(job.measure, ExpectationMeasure)
@@ -242,13 +243,15 @@ def _run_exact_braket_observables(
         observable_specs: list[tuple[int, float]] = []
         if observable._pauli_string is not None:  # pyright: ignore[reportPrivateUsage]
             for monomial in observable.pauli_string.monomials:
+                if TYPE_CHECKING:
+                    assert isinstance(monomial.coef, (int, float))
                 coefficient = float(monomial.coef)
                 if coefficient == 0:
                     continue
                 braket_observable = (monomial / coefficient).to_other_language(
                     Language.BRAKET
                 )
-                result_type = ResultType.Expectation(
+                result_type = Expectation(
                     observable=braket_observable,
                     target=braket_targets,
                 )
@@ -259,7 +262,7 @@ def _run_exact_braket_observables(
                 )
 
             if not observable_specs:
-                result_type = ResultType.Expectation(
+                result_type = Expectation(
                     observable=BraketIdentity(),
                     target=[braket_targets[0]],
                 )
@@ -275,7 +278,7 @@ def _run_exact_braket_observables(
                     observable.label if observable.label is not None else "Hermitian"
                 ),
             )
-            result_type = ResultType.Expectation(
+            result_type = Expectation(
                 observable=braket_observable,
                 target=braket_targets,
             )
@@ -354,8 +357,10 @@ def _run_optimized_braket_observables(
 
     expectation_values: dict[str, float] = {}
     for eigenvalues_by_name, program_result in zip(
-        eigenvalues, program_set_result, strict=True
+        eigenvalues, program_set_result.entries, strict=True
     ):
+        if TYPE_CHECKING:
+            assert isinstance(program_result, CompositeEntry)
         measured_entry = program_result.entries[0]
         probabilities = _ordered_measurement_probabilities(
             measured_entry.probabilities,
@@ -370,10 +375,11 @@ def _run_optimized_braket_observables(
     results: dict[str, float] = {}
     errors: dict[str, None] = {}
     for index, observable in enumerate(job.measure.observables):
-        expectation = sum(
-            expectation_values[monomial.name] * float(monomial.coef)
-            for monomial in observable.pauli_string.monomials
-        )
+        expectation = 0.0
+        for monomial in observable.pauli_string.monomials:
+            if TYPE_CHECKING:
+                assert isinstance(monomial.coef, (int, float))
+            expectation += expectation_values[monomial.name] * monomial.coef
         results[f"observable_{index}"] = expectation
         errors[f"observable_{index}"] = None
     job.status = JobStatus.DONE
@@ -391,7 +397,7 @@ def _run_sampled_braket_observables(
     from copy import deepcopy
 
     from braket.circuits import Instruction
-    from braket.circuits.observables import Hermitian
+    from braket.circuits.observables import Hermitian, Sum
     from braket.program_sets import CircuitBinding, ProgramSet
 
     assert isinstance(job.measure, ExpectationMeasure)
@@ -420,10 +426,12 @@ def _run_sampled_braket_observables(
                 job.measure.targets,
                 job.circuit.nb_qubits,
             )
+            braket_observable = embedded_observable.to_other_language(Language.BRAKET)
+            assert isinstance(braket_observable, Sum)
             programs.append(
                 CircuitBinding(
                     deepcopy(transpiled_circuit),
-                    observables=embedded_observable.to_other_language(Language.BRAKET),
+                    observables=braket_observable,
                 )
             )
             result_specs.append((index, None, None))
@@ -434,8 +442,10 @@ def _run_sampled_braket_observables(
     results: dict[str, float] = {}
     errors: dict[str, None] = {}
     for (observable_index, eigenvalues, targets), program_result in zip(
-        result_specs, program_set_result, strict=True
+        result_specs, program_set_result.entries, strict=True
     ):
+        if TYPE_CHECKING:
+            assert isinstance(program_result, CompositeEntry)
         if eigenvalues is None:
             expectation = program_result.expectation()
             if expectation is None:

@@ -1357,10 +1357,7 @@ class PauliStringMonomial(PauliString):
                 atom.to_other_language(Language.CIRQ, target=all_qubits[index])
                 for index, atom in enumerate(self.atoms)
             ]
-            return (  # pyright: ignore[reportOperatorIssue]
-                reduce(mul, cirq_atoms)  # pyright: ignore[reportArgumentType]
-                * self.coef
-            )
+            return reduce(mul, cirq_atoms) * self.coef
         else:
             raise NotImplementedError(f"Unsupported language: {language}")
 
