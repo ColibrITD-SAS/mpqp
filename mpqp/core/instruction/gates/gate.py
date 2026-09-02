@@ -250,8 +250,9 @@ class Gate(Instruction, ABC):
 
         """
         # TODO: test
-        from mpqp.core.instruction.gates.custom_gate import CustomGate
         from scipy.linalg import fractional_matrix_power
+
+        from mpqp.core.instruction.gates.custom_gate import CustomGate
 
         if exponent == 1:
             return deepcopy(self)
