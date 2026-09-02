@@ -55,7 +55,7 @@ def test_run_braket_preserves_task_id_in_result():
 
 @pytest.mark.provider("braket")
 @pytest.mark.parametrize(
-    "observables, optimize_measurement",
+    "observables, optimize_measurement, expected_id_count",
     [
         (
             [
@@ -63,13 +63,17 @@ def test_run_braket_preserves_task_id_in_result():
                 Observable(np.array([[0.5, 0.3j], [-0.3j, -0.5]], dtype=np.complex128)),
             ],
             False,
+            2,
         ),
-        ([Observable(pX), Observable(pZ)], True),
+        ([Observable(pX), Observable(pZ)], True, 2),
+        ([Observable(pX), Observable(pZ)], False, 1),
     ],
-    ids=["hermitian", "pauli-grouping"],
+    ids=["hermitian", "pauli-grouping", "pauli-program-set"],
 )
 def test_run_braket_observables_bind_multiple_task_ids(
-    observables: list[Observable], optimize_measurement: bool
+    observables: list[Observable],
+    optimize_measurement: bool,
+    expected_id_count: int,
 ):
     circuit = QCircuit(
         [
@@ -84,8 +88,11 @@ def test_run_braket_observables_bind_multiple_task_ids(
 
     result = run(circuit, AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
-    assert isinstance(result.job.id, list)
-    assert len(result.job.id) == len(observables)
+    if expected_id_count == 1:
+        assert isinstance(result.job.id, str)
+    else:
+        assert isinstance(result.job.id, list)
+        assert len(result.job.id) == expected_id_count
 
 
 @pytest.mark.provider("braket")

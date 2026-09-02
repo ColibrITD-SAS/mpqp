@@ -848,7 +848,10 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
         assert isinstance(backend, BackendV2)
     ibm_device = IBMDevice(backend.name)
 
-    return extract_result(result, None, ibm_device)
+    parsed_result = extract_result(result, None, ibm_device)
+    parsed_result.job.id = job_id
+    parsed_result.job.status = JobStatus.DONE
+    return parsed_result
 
 
 def extract_samples(job: Job, result: QiskitResult) -> list[Sample]:

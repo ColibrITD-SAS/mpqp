@@ -261,6 +261,7 @@ def run_braket_observable(job: Job):
 
         if len(job.id) == 1:
             job.id = job.id[0]
+        job.status = JobStatus.DONE
         if len(results) == 1:
             return Result(job, results["observable_0"], shots=job.measure.shots)
         return Result(job, results, errors, shots=job.measure.shots)
@@ -313,7 +314,7 @@ def run_braket_observable(job: Job):
             program_set = ProgramSet(
                 CircuitBinding(
                     copy,
-                    observables=[braket_sum],
+                    observables=braket_sum,
                 )
             )
             job.status = JobStatus.RUNNING
@@ -339,6 +340,7 @@ def run_braket_observable(job: Job):
 
         if len(job.id) == 1:
             job.id = job.id[0]
+        job.status = JobStatus.DONE
         if len(results) == 1:
             return Result(job, results["observable_0"], None, job.measure.shots)
         return Result(job, results, errors, job.measure.shots)
@@ -579,7 +581,10 @@ def get_result_from_aws_task_arn(task_arn: str) -> Result:
     device_arn = task.metadata()["deviceArn"]
     device = AWSDevice.from_arn(device_arn)
 
-    return extract_result(result, None, device)
+    parsed_result = extract_result(result, None, device)
+    parsed_result.job.id = task_arn
+    parsed_result.job.status = JobStatus.DONE
+    return parsed_result
 
 
 def estimate_cost_single_job(
