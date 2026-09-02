@@ -557,8 +557,8 @@ def test_measurement_indexes_are_updated(
     circuit: QCircuit, expected_indexes: list[int], expected_measurements: list[Measure]
 ):
     assert (
-        circuit._measurement_indexes
-        == expected_indexes  # pyright: ignore[reportPrivateUsage]
+        circuit._measurement_indexes  # pyright: ignore[reportPrivateUsage]
+        == expected_indexes
     )
     assert repr(circuit.measurements) == repr(expected_measurements)
 
@@ -685,7 +685,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -693,12 +694,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -706,14 +709,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -721,7 +726,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 
