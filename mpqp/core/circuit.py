@@ -928,7 +928,7 @@ class QCircuit:
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
             >>> print(qc)
-                   ┌─────────┐                   
+                   ┌─────────┐
             q_0: ──┤ Ry(π/2) ├─────■─────────────
                  ┌─┴─────────┴──┐┌─┴─┐┌─────────┐
             q_1: ┤ U(π/2,π/2,π) ├┤ X ├┤ Rx(π/2) ├

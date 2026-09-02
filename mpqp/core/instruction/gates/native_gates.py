@@ -1242,7 +1242,7 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
             T(target),
             Rx(self.theta, target),
             Ry(self.theta, target),
-            P(self.phi + self.gamma, target), # pyright: ignore[reportOperatorIssue]
+            P(self.phi + self.gamma, target),  # pyright: ignore[reportOperatorIssue]
         ]
 
         source_matrix = self.to_matrix()
