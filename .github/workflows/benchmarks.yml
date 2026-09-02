@@ -3,6 +3,7 @@ name: Benchmarks dashboard
 on:
   push:
     branches:
+      - perf-benchmark
       - main
   workflow_dispatch:
     inputs:
