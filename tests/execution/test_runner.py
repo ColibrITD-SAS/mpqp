@@ -90,6 +90,52 @@ def test_adjust_measure_matrix_reordering():
     assert matrix_eq(measure.observables[0].matrix, original_matrix)
 
 
+@pytest.mark.parametrize(
+    ("pauli_string", "expected_pauli_string"),
+    [
+        (pX @ pZ, pZ @ pX),
+        (
+            2 * (pY @ pI) - 0.5 * (pZ @ pX),
+            2 * (pI @ pY) - 0.5 * (pX @ pZ),
+        ),
+        (pI @ pX, pX @ pI),
+    ],
+    ids=["tensor-product", "weighted-sum", "identity"],
+)
+def test_adjust_measure_without_register_expansion_preserves_representations(
+    pauli_string: PauliString,
+    expected_pauli_string: PauliString,
+):
+    matrix_observable = Observable((pX @ pZ).to_matrix())
+    measure = ExpectationMeasure(
+        [matrix_observable, Observable(pauli_string)],
+        targets=[2, 0],
+        optimize_measurement=True,
+    )
+
+    adjusted_measure = adjust_measure(
+        measure,
+        QCircuit(3),
+        expand_to_full_register=False,
+    )
+
+    assert adjusted_measure.targets == [0, 2]
+    assert adjusted_measure.observables[0].nb_qubits == 2
+    assert (
+        adjusted_measure.observables[
+            0
+        ]._pauli_string  # pyright: ignore[reportPrivateUsage]
+        is None
+    )
+    assert matrix_eq(
+        adjusted_measure.observables[0].matrix,
+        (pZ @ pX).to_matrix(),
+    )
+    pauli_observable = adjusted_measure.observables[1]
+    assert pauli_observable.pauli_string == expected_pauli_string
+    assert pauli_observable._matrix is None  # pyright: ignore[reportPrivateUsage]
+
+
 def test_adjust_measure_targets_mismatch():
     measure = ExpectationMeasure(Observable(pX), targets=[0, 1])
 

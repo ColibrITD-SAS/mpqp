@@ -59,6 +59,7 @@ if TYPE_CHECKING:
 def adjust_measure(
     measure: ExpectationMeasure,
     circuit: QCircuit,
+    expand_to_full_register: bool = True,
 ) -> ExpectationMeasure:
     """A measure can be incomplete and not span the entire circuit, but providers
     usually do not support this behavior. The function therefore adjusts each
@@ -67,17 +68,21 @@ def adjust_measure(
     In order to do this, we place identity operators on the qubits not targeted
     by the measure. If the targets are not ordered, each observable is first
     reordered so that its local qubit order matches the sorted target order.
-    Pauli observables are directly embedded on their target qubits, while matrix
-    observables are padded with identity matrices when the targets are ordered
-    and contiguous, and are otherwise embedded through their pauli decomposition.
+    When ``expand_to_full_register`` is enabled, Pauli observables are directly
+    embedded on their target qubits, while matrix observables are padded with
+    identity matrices when the targets are ordered and contiguous, and are
+    otherwise embedded through their pauli decomposition.
 
     Args:
         measure: The expectation measure, potentially incomplete.
         circuit: The circuit defining the full qubit register.
+        expand_to_full_register: Whether observables must span the complete
+            circuit register. Providers supporting local observable targets can
+            disable this while still benefiting from target reordering.
 
     Returns:
-        A measure targeting all circuit qubits, with observables embedded into
-        the full register.
+        The reordered measure. Its observables target the complete circuit
+        register when ``expand_to_full_register`` is enabled.
 
     Raises:
         ValueError: If the number of target qubits does not match the number
@@ -113,9 +118,8 @@ def adjust_measure(
         reordered_observables: list[Observable] = []
 
         for observable in observables:
-            if (
-                observable._matrix is None  # pyright: ignore[reportPrivateUsage]
-                or measure.optimize_measurement
+            if observable._matrix is None or (  # pyright: ignore[reportPrivateUsage]
+                measure.optimize_measurement and expand_to_full_register
             ):
                 reordered_observables.append(
                     Observable(
@@ -136,66 +140,69 @@ def adjust_measure(
         targets = ordered_targets
         observables = reordered_observables
 
-    targets_are_contiguous = bool(targets) and targets == list(
-        range(targets[0], targets[-1] + 1)
-    )
-    # Extend observables to cover the circuit's full qubit register
-    adjusted_observables: list[Observable] = []
+    adjusted_observables = observables
+    adjusted_targets = targets
+    if expand_to_full_register:
+        targets_are_contiguous = bool(targets) and targets == list(
+            range(targets[0], targets[-1] + 1)
+        )
+        adjusted_observables = []
 
-    from mpqp.core.instruction.measurement.pauli_string import (
-        PauliString,
-        PauliStringMonomial,
-        pI,
-    )
+        from mpqp.core.instruction.measurement.pauli_string import (
+            PauliString,
+            PauliStringMonomial,
+            pI,
+        )
 
-    for observable in observables:
-        if (
-            observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
-            and targets_are_contiguous
-        ):
-            nb_qubits_before = targets[0]
-            nb_qubits_after = nb_qubits - targets[-1] - 1
+        for observable in observables:
+            if (
+                observable._pauli_string is None  # pyright: ignore[reportPrivateUsage]
+                and targets_are_contiguous
+            ):
+                nb_qubits_before = targets[0]
+                nb_qubits_after = nb_qubits - targets[-1] - 1
 
-            full_matrix = observable.matrix
+                full_matrix = observable.matrix
 
-            if nb_qubits_before > 0:
-                identity_before = np.eye(2**nb_qubits_before)
-                full_matrix = np.kron(identity_before, full_matrix)
+                if nb_qubits_before > 0:
+                    identity_before = np.eye(2**nb_qubits_before)
+                    full_matrix = np.kron(identity_before, full_matrix)
 
-            if nb_qubits_after > 0:
-                identity_after = np.eye(2**nb_qubits_after)
-                full_matrix = np.kron(full_matrix, identity_after)
+                if nb_qubits_after > 0:
+                    identity_after = np.eye(2**nb_qubits_after)
+                    full_matrix = np.kron(full_matrix, identity_after)
 
-            adjusted_observables.append(
-                Observable(
-                    full_matrix,  # pyright: ignore[reportArgumentType]
-                    label=observable.label,
+                adjusted_observables.append(
+                    Observable(
+                        full_matrix,  # pyright: ignore[reportArgumentType]
+                        label=observable.label,
+                    )
                 )
-            )
-        else:
-            embedded_pauli_string = PauliString()
+            else:
+                embedded_pauli_string = PauliString()
 
-            for monomial in observable.pauli_string.monomials:
-                embedded_atoms = [pI] * nb_qubits
+                for monomial in observable.pauli_string.monomials:
+                    embedded_atoms = [pI] * nb_qubits
 
-                for local_idx, target in enumerate(targets):
-                    embedded_atoms[target] = monomial.atoms[local_idx]
+                    for local_idx, target in enumerate(targets):
+                        embedded_atoms[target] = monomial.atoms[local_idx]
 
-                embedded_pauli_string += PauliStringMonomial(
-                    monomial.coef,
-                    embedded_atoms,
+                    embedded_pauli_string += PauliStringMonomial(
+                        monomial.coef,
+                        embedded_atoms,
+                    )
+
+                adjusted_observables.append(
+                    Observable(
+                        embedded_pauli_string.simplify(),
+                        label=observable.label,
+                    )
                 )
-
-            adjusted_observables.append(
-                Observable(
-                    embedded_pauli_string.simplify(),
-                    label=observable.label,
-                )
-            )
+        adjusted_targets = list(range(nb_qubits))
 
     adjusted_measure = ExpectationMeasure(
         adjusted_observables,
-        list(range(nb_qubits)),
+        adjusted_targets,
         measure.shots,
         measure.commuting_type,
         measure.grouping_method,
@@ -242,10 +249,13 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            if not (measurement.optimize_measurement and isinstance(device, AWSDevice)):
-                m = adjust_measure(measurement, circuit)
-                circuit = circuit.without_measurements(deep_copy=False)
-                circuit.add(m)
+            m = adjust_measure(
+                measurement,
+                circuit,
+                expand_to_full_register=not isinstance(device, AWSDevice),
+            )
+            circuit = circuit.without_measurements(deep_copy=False)
+            circuit.add(m)
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
