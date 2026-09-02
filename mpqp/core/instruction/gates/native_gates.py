@@ -55,6 +55,7 @@ from mpqp.tools.generics import Matrix, SimpleClassReprABC, classproperty
 from mpqp.tools.maths import (
     cos,
     exp,
+    matrix_eq,
     sin,
     symbolic_product,
     symbolic_divide,
@@ -1207,6 +1208,59 @@ class U(NativeGate, ParametrizedGate, SingleQubitGate):
                 [ep * s, eg * ep * c],  # pyright: ignore[reportOperatorIssue]
             ]
         )
+
+    def simplify(self) -> NativeGate:
+        """Return the simplest native gate exactly equivalent to this gate.
+
+        ``U`` is useful as a universal one-qubit gate, but decompositions often
+        emit it for operations already represented by a more specific MPQP
+        native gate.  Numeric comparisons use the same tolerance as
+        :func:`~mpqp.tools.maths.matrix_eq`; symbolic rotations are simplified
+        when their matrices can be proven equal.
+
+        Returns:
+            A more specific native gate when one is equivalent, otherwise this
+            gate itself.
+
+        Examples:
+            >>> type(U(0, 0, 0, 1).simplify()).__name__
+            'Id'
+            >>> type(U(np.pi / 2, 0, np.pi, 1).simplify()).__name__
+            'H'
+            >>> type(U(0.3, 0, 0, 1).simplify()).__name__
+            'Ry'
+        """
+        target = self.targets[0]
+        candidates: list[NativeGate] = [
+            Id(target),
+            X(target),
+            Y(target),
+            Z(target),
+            H(target),
+            S(target),
+            S_dagger(target),
+            T(target),
+            Rx(self.theta, target),
+            Ry(self.theta, target),
+            P(self.phi + self.gamma, target), # pyright: ignore[reportOperatorIssue]
+        ]
+
+        source_matrix = self.to_matrix()
+        for candidate in candidates:
+            candidate_matrix = candidate.to_matrix()
+            try:
+                # Sympy numeric constants and numpy scalars do not always
+                # compare reliably when kept in object arrays.
+                equivalent = matrix_eq(
+                    np.asarray(source_matrix, dtype=np.complex128),
+                    np.asarray(candidate_matrix, dtype=np.complex128),
+                )
+            except (TypeError, ValueError):
+                equivalent = matrix_eq(source_matrix, candidate_matrix)
+            if equivalent:
+                return candidate
+
+        return self
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self.theta}, {self.phi}, {self.gamma}, {self.targets[0]})"

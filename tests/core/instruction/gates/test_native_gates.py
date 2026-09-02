@@ -3,6 +3,7 @@ import pytest
 from sympy import Expr, I, pi, symbols
 
 from mpqp.gates import *
+from mpqp.core.instruction.gates.native_gates import NativeGate
 from mpqp.tools.generics import Matrix
 from mpqp.tools.maths import cos, exp, matrix_eq, sin
 
@@ -61,6 +62,38 @@ def test_P(angle: float, result_matrix: Matrix):
 )
 def test_U(theta: float, phi: float, gamma: float, result_matrix: Matrix):
     assert matrix_eq(U(theta, phi, gamma, 0).to_matrix(), result_matrix)
+
+
+@pytest.mark.parametrize(
+    "gate, expected_type",
+    [
+        (U(0, 0, 0, 1), Id),
+        (U(np.pi, 0, np.pi, 1), X),
+        (U(np.pi, np.pi / 2, np.pi / 2, 1), Y),
+        (U(0, 0, np.pi, 1), Z),
+        (U(np.pi / 2, 0, np.pi, 1), H),
+        (U(0, 0, np.pi / 2, 1), S),
+        (U(0, 0, -np.pi / 2, 1), S_dagger),
+        (U(0, 0, np.pi / 4, 1), T),
+        (U(0.3, -np.pi / 2, np.pi / 2, 1), Rx),
+        (U(0.3, 0, 0, 1), Ry),
+        (U(0, 0.1, 0.2, 1), P),
+        (U(theta, 0, 0, 1), Ry),
+        (U(0.3, 0.1, 0.2, 1), U),
+    ],
+)
+def test_U_simplify(gate: U, expected_type: type[NativeGate]):
+    simplified = gate.simplify()
+
+    assert type(simplified) is expected_type
+    assert simplified.targets == gate.targets
+    try:
+        assert np.allclose(
+            np.asarray(simplified.to_matrix(), dtype=np.complex128),
+            np.asarray(gate.to_matrix(), dtype=np.complex128),
+        )
+    except (TypeError, ValueError):
+        assert matrix_eq(simplified.to_matrix(), gate.to_matrix())
 
 
 @pytest.mark.parametrize(

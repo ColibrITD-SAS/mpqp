@@ -917,24 +917,22 @@ class QCircuit:
 
     @classmethod
     def initializer(cls, state: npt.NDArray[np.complex128]) -> QCircuit:
-        """Initialize this circuit at a given state, given in parameter.
-        This will imply adding gates at the beginning of the circuit.
+        """Build a circuit preparing the given state from the all-zero state.
 
         Args:
-            state: StateVector modeling the state for initializing the circuit.
+            state: State vector to prepare. It is normalized before synthesis.
 
         Returns:
-            A copy of the input circuit with additional instructions added
-            before-hand to generate the right initial state.
+            A circuit made of simplified native gates preparing ``state``.
 
         Examples:
             >>> qc = QCircuit.initializer(np.array([1, 0, 0 ,1])/np.sqrt(2))
-            >>> print(qc)  # doctest: +SKIP
-                   ┌────────────┐
-            q_0: ──┤ U(π/2,0,0) ├────■──────────────────────────
-                 ┌─┴────────────┴─┐┌─┴─┐┌──────────────────────┐
-            q_1: ┤ U(0,-π/4,-π/4) ├┤ X ├┤ U(0,-6.8934,0.61023) ├
-                 └────────────────┘└───┘└──────────────────────┘
+            >>> print(qc)
+                   ┌─────────┐                   
+            q_0: ──┤ Ry(π/2) ├─────■─────────────
+                 ┌─┴─────────┴──┐┌─┴─┐┌─────────┐
+            q_1: ┤ U(π/2,π/2,π) ├┤ X ├┤ Rx(π/2) ├
+                 └──────────────┘└───┘└─────────┘
             >>> pprint(run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR).amplitudes)
             [0.70711, 0, 0, 0.70711]
         """
@@ -942,6 +940,7 @@ class QCircuit:
         from qiskit.circuit.library import StatePreparation
         from qiskit.quantum_info import Statevector
 
+        from mpqp.core.instruction.gates import Id, U
         from mpqp.tools.circuit import replace_custom_gate
         from mpqp.tools.maths import normalize
 
@@ -954,9 +953,17 @@ class QCircuit:
             StatePreparation(Statevector(normalize(state))), range(size)
         )
         circ, phase = replace_custom_gate(qiskit_circuit, size, list(range(size)))
-        cls = QCircuit.from_other_language(circ.reverse_bits())
-        cls.input_g_phase = phase
-        return cls
+        circuit = QCircuit.from_other_language(circ.reverse_bits())
+        simplified_instructions: list[Instruction] = []
+        for instruction in circuit.instructions:
+            simplified = (
+                instruction.simplify() if isinstance(instruction, U) else instruction
+            )
+            if not isinstance(simplified, Id):
+                simplified_instructions.append(simplified)
+        circuit.instructions = simplified_instructions
+        circuit.input_g_phase = phase
+        return circuit
 
     def count_gates(self, gate: Optional[Type[Gate]] = None) -> int:
         """Returns the number of gates contained in the circuit. If a specific
