@@ -8,7 +8,6 @@ from mpqp import QCircuit
 from mpqp.translation.qasm.mpqp_to_qasm import mpqp_to_qasm2
 from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
 
-
 pytestmark = pytest.mark.performance
 
 
