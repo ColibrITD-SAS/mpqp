@@ -149,10 +149,10 @@ def run_circuit_binding(job: Job) -> BatchResult:
 
     circuitBinding = job.circuit
     assert isinstance(circuitBinding, CircuitBinding)
-    if job.job_type == JobType.STATE_VECTOR:
+    """if job.job_type == JobType.STATE_VECTOR:
         raise ValueError(
             "Cannot run state vectors through CircuitBinding on braket because of braket's ProgramSet limitations."
-        )
+        )"""
     if not isinstance(job.device, AWSDevice):
         raise ValueError(
             "`job` must correspond to an `AWSDevice`, but corresponds to a "
@@ -248,7 +248,7 @@ def run_circuit_binding(job: Job) -> BatchResult:
         i = 0
         for res in task:
             for execution in res:
-                counts = res.measurement_counts
+                counts = execution.counts
                 sample_info = []
                 for state in counts.keys():
                     sample_info.append(
@@ -258,11 +258,17 @@ def run_circuit_binding(job: Job) -> BatchResult:
                             bin_str=state,
                         )
                     )
-                circuit, values, measurement = jobs[i]
+                circuit, values = jobs[i]  # pyright:ignore
                 i += 1
-                local_job = Job(job.job_type, circuit, job.device, measurement, values)
+                local_job = Job(job.job_type, circuit, job.device, values)
 
-                results.append(Result(local_job, sample_info))
+                results.append(
+                    Result(
+                        local_job,
+                        sample_info,
+                        shots=circuitBinding.shots if circuitBinding.shots else 0,
+                    )
+                )
 
     return BatchResult(results)
 

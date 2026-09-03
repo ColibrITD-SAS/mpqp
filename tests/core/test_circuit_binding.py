@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any, Callable
 
 
 import numpy as np
@@ -7,52 +8,26 @@ import pytest
 from mpqp.core.circuit import BindingMode, CircuitBinding
 from mpqp.execution.devices import (
     AvailableDevice,
-    ATOSDevice,
-    GOOGLEDevice,
     IBMDevice,
     AWSDevice,
 )
 
 from mpqp import (
     CNOT,
-    CZ,
-    SWAP,
-    TOF,
-    AmplitudeDamping,
-    ATOSDevice,
-    Barrier,
     BasisMeasure,
-    BitFlip,
-    CRk,
-    Depolarizing,
     ExpectationMeasure,
-    Gate,
     H,
     IBMDevice,
-    Id,
-    Instruction,
     Language,
-    Measure,
     Observable,
-    P,
-    PhaseDamping,
     QCircuit,
-    Result,
-    Rx,
-    Ry,
-    Rz,
-    S,
-    T,
     U,
-    X,
-    Y,
-    Z,
     pI,
     pZ,
     pX,
     run,
 )
-from mpqp.execution.result import BatchResult, StateVector
+from mpqp.execution.result import BatchResult
 from sympy import Symbol
 
 theta, phi, psi = Symbol('θ'), Symbol('phi'), Symbol('psi')
@@ -87,17 +62,17 @@ def test_qiskit_to_other_device_product_shapes():
     assert len(pubs_with_context) == 1
 
     pub, _ = pubs_with_context[0]
-    c, m, v = pub
+    c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
     assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-    assert len(m) == 4
+    assert len(m) == 4  # pyright: ignore[reportArgumentType]
     assert len(v) == 4
-    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
+    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
     assert v[0] == list(v1.values())
-    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
+    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]  # type: ignore
     assert v[1] == list(v1.values())
-    assert m[2] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
+    assert m[2] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
     assert v[2] == list(v2.values())
-    assert m[3] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]
+    assert m[3] == [obs.to_other_language(Language.QISKIT) for obs in m_Z.observables]  # type: ignore
     assert v[3] == list(v2.values())
 
 
@@ -113,7 +88,7 @@ def test_qiskit_to_other_device_zip_shapes():
     print(len(pubs_with_context) == 2)
 
     for i, (pub, _) in enumerate(pubs_with_context):
-        c, m, v = pub
+        c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
         assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
         assert m == [
             obs.to_other_language(Language.QISKIT)
@@ -134,7 +109,7 @@ def test_qiskit_to_other_device_zip_broadcasting_rules():
     assert len(pubs_with_context) == 2
 
     for i, (pub, _) in enumerate(pubs_with_context):
-        c, m, v = pub
+        c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
         assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
         assert m == [
             obs.to_other_language(Language.QISKIT)
@@ -152,13 +127,13 @@ def test_qiskit_to_other_device_recursive_bindings():
     assert len(pubs_with_context) == 1
 
     pub, _ = pubs_with_context[0]
-    c, m, v = pub
+    c, m, v = pub  # pyright: ignore[reportAssignmentType, reportGeneralTypeIssues]
     assert str(c.data) == str(c1.to_other_device(IBMDevice.AER_SIMULATOR).data)
-    assert len(m) == 2
+    assert len(m) == 2  # type: ignore
     assert len(v) == 2
-    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
+    assert m[0] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
     assert v[0] == list(v1.values())
-    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]
+    assert m[1] == [obs.to_other_language(Language.QISKIT) for obs in m_I.observables]  # type: ignore
     assert v[1] == list(v2.values())
 
 
@@ -318,54 +293,75 @@ def zip_tests_recursive():
     return [(cb_outer, val_outer)]
 
 
-def execute_and_validate(bindings_and_validators, device):
+def execute_and_validate(
+    bindings_and_validators: list[tuple[CircuitBinding, Callable[..., Any]]],
+    device: AvailableDevice,
+):
     for binding, validator in bindings_and_validators:
         result = run(binding, device=device)
         validator(result)
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_product_observable(product_tests_observable):
+def test_qiskit_product_observable(
+    product_tests_observable: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(product_tests_observable, device=IBMDevice.AER_SIMULATOR)
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_product_sample(product_tests_sample):
+def test_qiskit_product_sample(
+    product_tests_sample: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(product_tests_sample, device=IBMDevice.AER_SIMULATOR)
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_product_state_vector(product_tests_state_vector):
+def test_qiskit_product_state_vector(
+    product_tests_state_vector: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(product_tests_state_vector, device=IBMDevice.AER_SIMULATOR)
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_zip_observable(zip_tests_observable):
+def test_qiskit_zip_observable(
+    zip_tests_observable: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(zip_tests_observable, device=IBMDevice.AER_SIMULATOR)
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_zip_sample(zip_tests_sample):
+def test_qiskit_zip_sample(
+    zip_tests_sample: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(zip_tests_sample, device=IBMDevice.AER_SIMULATOR)
 
 
 @pytest.mark.provider("qiskit")
-def test_qiskit_zip_recursive(zip_tests_recursive):
+def test_qiskit_zip_recursive(
+    zip_tests_recursive: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(zip_tests_recursive, device=IBMDevice.AER_SIMULATOR)
 
 
 @pytest.mark.provider("braket")
-def test_braket_product_observable(product_tests_observable):
+def test_braket_product_observable(
+    product_tests_observable: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(
         product_tests_observable, device=AWSDevice.BRAKET_LOCAL_SIMULATOR
     )
 
 
 @pytest.mark.provider("braket")
-def test_braket_zip_observable(zip_tests_observable):
+def test_braket_zip_observable(
+    zip_tests_observable: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(zip_tests_observable, device=AWSDevice.BRAKET_LOCAL_SIMULATOR)
 
 
 @pytest.mark.provider("braket")
-def test_braket_zip_recursive(zip_tests_recursive):
+def test_braket_zip_recursive(
+    zip_tests_recursive: list[tuple[CircuitBinding, Callable[..., Any]]],
+):
     execute_and_validate(zip_tests_recursive, device=AWSDevice.BRAKET_LOCAL_SIMULATOR)

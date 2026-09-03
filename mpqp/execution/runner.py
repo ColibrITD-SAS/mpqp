@@ -420,7 +420,7 @@ def _run_circuit_binding(
 
 @overload
 def run(
-    circuit: CircuitBinding | QCircuit,
+    circuit: CircuitBinding | OneOrMany[QCircuit],
     device: Sequence[AvailableDevice],
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,
@@ -440,7 +440,7 @@ def run(
 
 @overload
 def run(
-    circuit: QCircuit,
+    circuit: OneOrMany[QCircuit],
     device: AvailableDevice,
     values: "Optional[dict[Expr | str, Complex]]" = None,
     display_breakpoints: bool = True,

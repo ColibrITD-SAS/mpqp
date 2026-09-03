@@ -1996,7 +1996,7 @@ class CircuitBinding:
     def __init__(
         self,
         circuits: OneOrMany[QCircuit | CircuitBinding],
-        values: Optional[OneOrMany[dict[Expr | str, Complex | float]]] = None,
+        values: Optional[OneOrMany[dict[str, float] | dict[Expr, float]]] = None,
         measurements: Optional[OneOrMany[Measure]] = None,
         mode: BindingMode = BindingMode.PRODUCT,
         noises: Optional[list[NoiseModel]] = None,
@@ -2044,7 +2044,6 @@ class CircuitBinding:
                 )
             else:
                 normalized_circuits.append(circuit)
-
         circuits = normalized_circuits
 
         if isinstance(values, Sequence):
@@ -2143,6 +2142,12 @@ class CircuitBinding:
                         )
             if shots_ is not None:
                 self.shots = shots_
+        """else:
+            c_ = c[0]
+            if isinstance(c_, CircuitBinding):
+                self.shots = c_.shots
+            else:
+                self.shots = c_.measurements[0].shots"""
 
         self.circuits: list["QCircuit | CircuitBinding"] = c
         self.value = parameters
@@ -2219,7 +2224,7 @@ class CircuitBinding:
             else ([self.measurements] if self.measurements is not None else [None])
         )
 
-        def merge_vals(v_base, v_curr):
+        def merge_vals(v_base: Any, v_curr: Any):
             if v_base is None and v_curr is None:
                 return None
             merged = dict(v_base) if v_base is not None else {}
@@ -2232,7 +2237,7 @@ class CircuitBinding:
         if self.mode == BindingMode.ZIP:
             max_len = max(len(base_items), len(vals), len(exps))
 
-            def broadcast(lst, target_length):
+            def broadcast(lst: list[Any], target_length: int):
                 if not lst:
                     return [None] * target_length
                 if len(lst) == 1:
@@ -2247,7 +2252,13 @@ class CircuitBinding:
             b_vals = broadcast(vals, max_len)
             b_exps = broadcast(exps, max_len)
 
-            for (c, v_base, e_base), v_curr, e_curr in zip(b_items, b_vals, b_exps):
+            for (
+                (c, v_base, e_base),
+                v_curr,
+                e_curr,
+            ) in zip(  # pyright: ignore[reportGeneralTypeIssues]
+                b_items, b_vals, b_exps
+            ):
                 merged_val = merge_vals(v_base, v_curr)
                 merged_exp = e_curr if e_curr is not None else e_base
                 result.append((c, merged_val, merged_exp))

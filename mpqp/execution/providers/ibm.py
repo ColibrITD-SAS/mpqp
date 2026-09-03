@@ -977,6 +977,8 @@ def extract_result(
                             if obs_idx < len(observables)
                             else f"ibm_obs_{obs_idx}"
                         )
+                        if TYPE_CHECKING:
+                            assert label
                         batch_results.append(
                             Result(job, {label: float(val)}, {label: std_val}, shots)
                         )

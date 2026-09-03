@@ -313,9 +313,17 @@ class Result:
         from mpqp.core.circuit import CircuitBinding
 
         if isinstance(job.circuit, CircuitBinding):
-            raise ValueError(
-                "The result class should be only use to hold the result of one job. A CircuitBinding should be associated with a BatchResult."
-            )
+            if len(job.circuit.circuits) == 1:
+                if TYPE_CHECKING:
+                    assert job.circuit.measurements
+                job.measurement = job.circuit.measurements[0]
+                job.circuit = job.circuit.circuits[0]
+                print(job.circuit)
+                print(job.measurement)
+            else:
+                raise ValueError(
+                    "The result class should be only use to hold the result of one job. A CircuitBinding should be associated with a BatchResult."
+                )
         if data is None:
             if job.status != JobStatus.ERROR:
                 raise TypeError("Result data cannot be None unless job.status == ERROR")

@@ -6,7 +6,6 @@ from mpqp.core.instruction.measurement.expectation_value import (
     ExpectationMeasure,
     Observable,
 )
-from mpqp.core.languages import Language
 from mpqp.execution.devices import AWSDevice
 from mpqp.gates import *
 from mpqp.core.instruction.measurement.pauli_string import pX, pZ
