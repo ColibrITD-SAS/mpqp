@@ -18,6 +18,7 @@ from mpqp.translation.qasm.open_qasm_2_and_3 import (
     remove_user_gates,
 )
 from mpqp.translation.qasm.qasm_to_mpqp import qasm2_parse
+from mpqp.tools.errors import OpenQASMTranslationWarning
 from mpqp.tools.theoretical_simulation import amplitude
 
 qasm_folder = "tests/qasm/qasm_examples/"
@@ -265,7 +266,14 @@ def test_conversion_2_and_3(qasm_code: str):
     ],
 )
 def test_conversion_2_to_3(qasm_code: str, expected_output: str):
-    convert = open_qasm_2_to_3(qasm_code)
+    if re.search(r"\bu\s*\(", qasm_code):
+        with pytest.warns(
+            OpenQASMTranslationWarning,
+            match=r"There is a phase.*difference between U",
+        ):
+            convert = open_qasm_2_to_3(qasm_code)
+    else:
+        convert = open_qasm_2_to_3(qasm_code)
     assert normalize_whitespace(convert) == normalize_whitespace(expected_output)
 
 

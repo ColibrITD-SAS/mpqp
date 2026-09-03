@@ -18,6 +18,11 @@ from sympy import symbols
 
 from mpqp import *
 from mpqp.core.instruction.measurement import PauliString, pauli_string
+from mpqp.core.instruction.gates.gate_decomposition import (
+    resolve_composed_gate,
+    resolve_gate,
+    resolve_instructions,
+)
 from mpqp.environment.env_manager import (
     _create_config_if_needed,  # pyright: ignore[reportPrivateUsage]
 )
@@ -138,6 +143,9 @@ from mpqp.tools.maths import (
     rand_unitary_2x2_matrix,
     rand_unitary_matrix,
     rearrange_matrix,
+    symbolic_product,
+    symbolic_divide,
+    rotation_denominator,
 )
 from mpqp.tools.operators import *
 from mpqp.tools.pauli_grouping import CommutingTypes, pauli_grouping_greedy

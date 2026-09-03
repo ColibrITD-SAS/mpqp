@@ -3,10 +3,13 @@ unitary operator into elementary gates regrouped in a quantum circuit."""
 
 from __future__ import annotations
 
+
 import math
 from typing import Optional, Union
 
 import numpy as np
+from scipy.linalg import cossin
+
 from scipy.linalg import cossin
 
 from mpqp.core.circuit import QCircuit
@@ -126,6 +129,7 @@ def _gray_code_decomposition(
         changed = _gray_code(i) ^ _gray_code(i + 1)
         control = next(i for i in range(len(thetas)) if (changed >> i & 1))
         control = max(-control - targets[position] - 1 + circuit.nb_qubits, 1)
+        control = max(-control - targets[position] - 1 + circuit.nb_qubits, 1)
         if np.abs(angle) > PRECISION:  # Dodge unnecessary rotations
             circuit.add(rotation(angle, targets[position]))
         circuit.add(CNOT(control + targets[position], targets[position]))
@@ -162,15 +166,15 @@ def _decompose(
     else:  # 2 qubits or more
         length = len(U)
         U12, MuxRy, V12 = cossin(U, p=length // 2, q=length // 2, separate=False)
-
         # Extracts the rotations of the multiplexed Ry for later decomposition
         thetas = []
         for i in range(MuxRy.shape[0] // 2):
             thetas.append(np.arccos(MuxRy[i][i]))
-        thetas = np.array(thetas)
+        thetas = np.array(thetas, dtype=np.float64)
 
         assert isinstance(U12, np.ndarray)
         assert isinstance(V12, np.ndarray)
+
         Vu, MuxRzu, Wu = _unitary_SVD(U12)
         Vv, MuxRzv, Wv = _unitary_SVD(V12)
 
@@ -193,9 +197,11 @@ def _decompose(
 
         # Now recursively decompose every obtained matrices.
         circuit = _decompose(Wv, circuit, targets, position + 1)
+        circuit = _decompose(Wv, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
             dv, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
         )
+        circuit = _decompose(Vv, circuit, targets, position + 1)
         circuit = _decompose(Vv, circuit, targets, position + 1)
 
         circuit = _gray_code_decomposition(
@@ -203,13 +209,15 @@ def _decompose(
             circuit,
             targets,
             position,
-            Ry,
+            Ry,  # pyright: ignore[reportArgumentType]
         )
 
+        circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _decompose(Wu, circuit, targets, position + 1)
         circuit = _gray_code_decomposition(
             du, circuit, targets, position, Rz  # pyright: ignore[reportArgumentType]
         )
+        circuit = _decompose(Vu, circuit, targets, position + 1)
         circuit = _decompose(Vu, circuit, targets, position + 1)
 
         return circuit
@@ -233,7 +241,6 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
                     break
                 j += 1
         i += 1
-
     return circuit
 
 
@@ -263,7 +270,7 @@ def quantum_shannon_decomposition(
 
     Examples:
         >>> U = np.array([[1,0],[0,1]])
-        >>> circuit = quantum_shannon_decomposition(U)
+        >>> circuit = quantum_shannon_decomposition(U, [0])
         >>> print(matrix_eq(U, circuit.to_matrix()))
         True
     """
