@@ -106,6 +106,31 @@ class StateVector:
             "nb_qubits": self.nb_qubits,
         }
 
+    def to_sample_list(self) -> list[Sample]:
+        """
+        Converts the StateVector object into a list of Samples. This allows 
+        to quickly have a binary representation of the basis states composing
+        a StateVector. 
+        
+        Note that the samples will be instantiated with probabilities, so
+        we cannot come back after that to the StateVector amplitudes.
+
+        Returns:
+            A list of Samples representing the possible measurement outcomes 
+            of the state represented by this StateVector.
+
+        Example:
+            >>> state_vector = StateVector(np.array([1, 0, 0, -1])/np.sqrt(2), 2)
+            >>> state_vector.to_sample_list()
+            [Sample(2, index=0, count=None, probability=0.5), Sample(2, index=3, count=None, probability=0.5)]
+
+        """
+        return [
+            Sample(self.nb_qubits, index=index, probability=proba)
+            for index, proba in enumerate(self.probabilities)
+            if not np.isclose(proba, 0)
+        ] 
+
     def __eq__(self, other) -> bool:  # pyright: ignore[reportMissingParameterType]
         if not isinstance(other, StateVector):
             return False
