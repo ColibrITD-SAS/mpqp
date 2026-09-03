@@ -21,3 +21,17 @@ class QiskitParams(ProviderParams):
 
     def __init__(self, instance: Optional[str] = None):
         self.instance = instance
+
+
+class TketParams(ProviderParams):
+    """
+    Class meant to regroup all IBM specific parameters for remote execution.
+
+    Args:
+        optimisation_level: Optimisation level with which the circuit should be compiled (default at 0)
+    """
+
+    def __init__(self, optimisation_level: Optional[int] = None):
+        self.optimisation_level = (
+            optimisation_level if optimisation_level is not None else 0
+        )

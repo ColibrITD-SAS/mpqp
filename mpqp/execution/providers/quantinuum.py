@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from collections import Counter
 from numbers import Complex, Real
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
 
@@ -14,6 +14,7 @@ from mpqp.core.languages import Language
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
 from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
+from mpqp.execution.providers.providers_params import TketParams
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError
 
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
     )
 
 
-def run_quantinuum(job: Job) -> Result:
+def run_quantinuum(job: Job, provider_params: Optional[TketParams] = None) -> Result:
     """Executes the job on the selected Quantinuum device (local or remote),
     wait until execution is complete, and return the result.
 
@@ -56,12 +57,9 @@ def run_quantinuum(job: Job) -> Result:
             )
 
         if not job.device.is_remote():
-            return run_tket_local(job)
-        if job.job_type == JobType.OBSERVABLE:
-            check_job_compatibility(job)
-            return run_quantinuum_observable(job)
+            return run_tket_local(job, provider_params)
 
-        _, execute_job_ref = submit_job_quantinuum(job)
+        _, execute_job_ref = submit_job_nexus(job, provider_params)
 
         import qnexus as qnx
 
@@ -167,7 +165,7 @@ def check_job_compatibility(job: Job) -> None:
         )
 
 
-def run_tket_local(job: Job) -> Result:
+def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Result:
     """Execute a job using a local TKET backend.
 
     Args:
@@ -182,21 +180,19 @@ def run_tket_local(job: Job) -> Result:
     if job.device.is_remote():
         raise ValueError("The job must target a local TKET device.")
 
-    if job.job_type == JobType.OBSERVABLE:
-        if TYPE_CHECKING:
-            assert isinstance(job.measure, ExpectationMeasure)
-        if job.measure.shots > 0:
-            return run_quantinuum_observable(job)
-
     if job.circuit.transpiled_circuit is None:
         tket_circuit = job.circuit.to_other_device(job.device)
     else:
         from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+        from pytket.circuit import Circuit as tket_Circuit
 
-        qiskit_circuit = job.circuit.transpiled_circuit
-        if TYPE_CHECKING:
-            assert isinstance(qiskit_circuit, QuantumCircuit)
-        tket_circuit = qiskit_to_tk(qiskit_circuit)
+        transpiled_circuit = job.circuit.transpiled_circuit
+        if isinstance(transpiled_circuit, QuantumCircuit):
+            tket_circuit = qiskit_to_tk(transpiled_circuit)
+        elif isinstance(transpiled_circuit, tket_Circuit):
+            tket_circuit = transpiled_circuit
+        else:
+            tket_circuit = job.circuit.to_other_device(job.device)
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerBackend
@@ -212,49 +208,79 @@ def run_tket_local(job: Job) -> Result:
         backend = QulacsBackend()
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
-
     compiled_circuit = backend.get_compiled_circuit(
         tket_circuit,
-        optimisation_level=0,
+        optimisation_level=(
+            0 if provider_params is None else provider_params.optimisation_level
+        ),
     )
     if job.job_type == JobType.OBSERVABLE:
-        return run_tket_observable(job, compiled_circuit, backend)
-
-    if job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
-            assert isinstance(job.measure, BasisMeasure)
-        n_shots = job.measure.shots
-    else:
-        n_shots = None
+            assert job.measure
+        if job.measure.shots == 0:
+            return run_quantinuum_observable_ideal(job, compiled_circuit, backend)
+        return run_quantinuum_observable(job, backend, provider_params)
+
+    n_shots = None if job.measure is None else job.measure.shots
 
     job.status = JobStatus.RUNNING
     backend_result = backend.run_circuit(compiled_circuit, n_shots=n_shots)
     return extract_result(backend_result, job)
 
 
-def run_tket_observable(
+def run_quantinuum_observable_ideal(
     job: Job,
     tket_circuit: "TKETCircuit",
     backend: "Backend",
+    provider_params: Optional[TketParams] = None,
 ) -> Result:
     """Return the result of an exact `OBSERVABLE` job using the built in
-    observable evaluation of a local TKET backend.
+    observable evaluation of a local Quantinuum backend.
 
     The backend computes the expectation values directly. This function should
     be called by :func:`run_tket_local` for observable jobs without sampling, it
     is not intended for remote Nexus jobs.
 
+    In case the shots are at 0 the executed job produces a state_vector with which we compute
+    the desired expectation values.
+
     Args:
         job: Job to execute.
         tket_circuit: Compiled TKET circuit on which the observables are evaluated.
-        backend: Local TKET backend used to evaluate the observables.
+        backend: Local Quantinuum backend used to evaluate the observables.
 
     Returns:
         A result containing the exact expectation values of the observables.
     """
-    if not isinstance(job.measure, ExpectationMeasure):
-        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+    if TYPE_CHECKING:
+        assert isinstance(job.measure, ExpectationMeasure)
+    if job.device.supports_state_vector():
+        circuit = job.circuit.without_measurements()
 
+        observable_labels = job.measure.observables_labels
+        tket_circuit = circuit.to_other_language(Language.TKET)
+        compiled_circuit = backend.get_compiled_circuit(
+            tket_circuit,
+            optimisation_level=(
+                0 if provider_params is None else provider_params.optimisation_level
+            ),
+        )
+        job.status = JobStatus.RUNNING
+        state_result = backend.run_circuit(compiled_circuit, n_shots=None)
+        state_amplitudes = state_result.get_state()
+
+        expectation_values: dict[str, float] = {}
+        for label, observable in zip(
+            observable_labels,
+            job.measure.observables,
+        ):
+            expectation_values[label] = float(
+                np.vdot(
+                    state_amplitudes,
+                    observable.matrix @ state_amplitudes,
+                ).real
+            )
+        return extract_observable_result(job, expectation_values, 0.0, 0)
     job.status = JobStatus.RUNNING
     expectation_values: dict[str, float] = {}
     for label, observable in zip(
@@ -273,11 +299,12 @@ def run_tket_observable(
     return extract_observable_result(job, expectation_values, 0.0, 0)
 
 
-def run_quantinuum_observable(job: Job) -> Result:
+def run_quantinuum_observable(
+    job: Job,
+    backend: "Backend",
+    provider_params: Optional[TketParams] = None,
+) -> Result:
     """Execute an observable job using a supported Quantinuum backend.
-
-    Exact observables are computed from a state vector when `shots=0`.
-    When `shots>0`, observables are estimated from measurement results.
 
     Args:
         job: Job to execute.
@@ -289,19 +316,21 @@ def run_quantinuum_observable(job: Job) -> Result:
         assert isinstance(job.device, QUANTINUUMDevice)
         assert isinstance(job.measure, ExpectationMeasure)
 
-    observable_labels = job.measure.observables_labels
-
     circuit = job.circuit.without_measurements()
 
     if job.measure.shots == 0:
-        state_job = Job(
-            JobType.STATE_VECTOR,
-            circuit,
-            job.device,
+        observable_labels = job.measure.observables_labels
+        tket_circuit = circuit.to_other_language(Language.TKET)
+
+        compiled_circuit = backend.get_compiled_circuit(
+            tket_circuit,
+            optimisation_level=(
+                0 if provider_params is None else provider_params.optimisation_level
+            ),
         )
-        state_result = run_quantinuum(state_job)
-        job.id = state_job.id
-        job.status = state_job.status
+        job.status = JobStatus.RUNNING
+        state_result = backend.run_circuit(compiled_circuit, n_shots=None)
+        state_amplitudes = state_result.get_state()
 
         expectation_values: dict[str, float] = {}
         for label, observable in zip(
@@ -310,8 +339,8 @@ def run_quantinuum_observable(job: Job) -> Result:
         ):
             expectation_values[label] = float(
                 np.vdot(
-                    state_result.amplitudes,
-                    observable.matrix @ state_result.amplitudes,
+                    state_amplitudes,
+                    observable.matrix @ state_amplitudes,
                 ).real
             )
         return extract_observable_result(job, expectation_values, 0.0, 0)
@@ -320,27 +349,53 @@ def run_quantinuum_observable(job: Job) -> Result:
 
     grouped_probabilities = []
     grouping = job.measure.get_pauli_grouping()
+    translated_circuit = circuit.to_other_language(Language.TKET)
     for group in grouping:
-        pre_measure = QCircuit(find_qubitwise_rotations(group))
-        sample_circuit = circuit + pre_measure
-        sample_circuit.add(
-            BasisMeasure(
-                list(range(job.circuit.nb_qubits)),
-                shots=job.measure.shots,
-            )
+        pre_measure = QCircuit(
+            find_qubitwise_rotations(group)
+            + [BasisMeasure(job.measure.targets, shots=job.measure.shots)]
+        ).to_other_language(Language.TKET)
+        # Can only append in place so we need to copy this every time
+        # TODO: Talk with provider how could this be optimized
+        sample_circuit = translated_circuit.copy()
+        sample_circuit.append(pre_measure)
+        compiled_circuit = backend.get_compiled_circuit(
+            sample_circuit,
+            optimisation_level=(
+                0 if provider_params is None else provider_params.optimisation_level
+            ),
         )
-        sample_job = Job(JobType.SAMPLE, sample_circuit, job.device)
-        sample_result = run_quantinuum(sample_job)
-        job.id = sample_job.id
-        grouped_probabilities.append(sample_result.probabilities)
+
+        sample_result = backend.run_circuit(compiled_circuit, n_shots=job.measure.shots)
+        result_counts = sample_result.get_counts()
+        samples = [
+            Sample(
+                bin_str="".join(str(bit) for bit in outcome),
+                nb_qubits=job.circuit.nb_qubits,
+                count=int(count),
+            )
+            for outcome, count in result_counts.items()
+        ]
+        counts: list[int] = [0] * (2**job.measure.nb_qubits)
+        for sample in samples:
+            if TYPE_CHECKING:
+                assert sample.count is not None
+            counts[sample.index] = sample.count
+        probabilities = np.array(counts, dtype=float) / job.measure.shots
+        for sample in samples:
+            sample.probability = probabilities[sample.index]
+
+        grouped_probabilities.append(probabilities)
 
     return extract_sampled_observable_result(job, grouped_probabilities)
 
 
-def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
+def submit_job_nexus(
+    job: Job, provider_params: Optional[TketParams] = None
+) -> tuple[str, "ExecuteJobRef"]:
     """Submit a job to a supported Quantinuum Nexus backend."""
     if job.job_type == JobType.OBSERVABLE:
-        return submit_quantinuum_observable(job)
+        return submit_nexus_observable(job, provider_params)
 
     check_job_compatibility(job)
     n_shots: int | list[None]
@@ -356,10 +411,13 @@ def submit_job_quantinuum(job: Job) -> tuple[str, "ExecuteJobRef"]:
         [job.circuit],
         n_shots,
         name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
+        provider_params=provider_params,
     )
 
 
-def submit_quantinuum_observable(job: Job) -> tuple[str, "ExecuteJobRef"]:
+def submit_nexus_observable(
+    job: Job, provider_params: Optional[TketParams] = None
+) -> tuple[str, "ExecuteJobRef"]:
     """Submit an observable as one Nexus execution job.
 
     Exact observables submit one state-vector circuit. For sampled observables,
@@ -401,6 +459,7 @@ def submit_quantinuum_observable(job: Job) -> tuple[str, "ExecuteJobRef"]:
         n_shots,
         name=f"mpqp-observable-{job.device.value}",
         description="mpqp:observable",
+        provider_params=provider_params,
     )
 
 
@@ -410,6 +469,7 @@ def submit_circuits_to_nexus(
     n_shots: int | list[None],
     name: str,
     description: str = "",
+    provider_params: Optional[TketParams] = None,
 ) -> tuple[str, "ExecuteJobRef"]:
     """Upload, compile, and submit several circuits as one Nexus execute job."""
 
@@ -441,7 +501,9 @@ def submit_circuits_to_nexus(
     compile_job_ref = qnx.start_compile_job(
         programs=uploaded_circuit_refs,
         backend_config=backend_config,
-        optimisation_level=0,
+        optimisation_level=(
+            0 if provider_params is None else provider_params.optimisation_level
+        ),
         name=f"{name}-compilation-job",
     )
 
@@ -471,7 +533,6 @@ def submit_circuits_to_nexus(
         )
 
     job.status = JobStatus.RUNNING
-
     execute_job_ref = qnx.start_execute_job(
         programs=compiled_circuit_refs,
         backend_config=backend_config,

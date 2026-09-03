@@ -1153,7 +1153,15 @@ class QCircuit:
         authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit: ...
-
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.TKET],
+        skip_pre_measure: bool = False,
+        skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
+        printing: bool = False,
+    ) -> tket_Circuit: ...
     @overload
     def to_other_language(
         self,
@@ -1162,7 +1170,14 @@ class QCircuit:
         skip_measurements: bool = False,
         authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
+    ) -> (
+        QuantumCircuit
+        | myQLM_Circuit
+        | braket_Circuit
+        | cirq_Circuit
+        | tket_Circuit
+        | str
+    ): ...
 
     def to_other_language(
         self,
@@ -1171,7 +1186,14 @@ class QCircuit:
         skip_measurements: bool = False,
         authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
+    ) -> (
+        QuantumCircuit
+        | myQLM_Circuit
+        | braket_Circuit
+        | cirq_Circuit
+        | tket_Circuit
+        | str
+    ):
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 

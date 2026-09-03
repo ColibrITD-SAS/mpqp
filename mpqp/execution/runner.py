@@ -47,8 +47,12 @@ from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
 from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
-from mpqp.execution.providers.providers_params import ProviderParams, QiskitParams
-from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_quantinuum
+from mpqp.execution.providers.providers_params import (
+    ProviderParams,
+    QiskitParams,
+    TketParams,
+)
+from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_nexus
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
@@ -251,7 +255,7 @@ def _run_diagonal_observables(
     exp_values = dict()
     errors = dict()
     for obs in exp_measure.observables:
-        # 3M-TODO: replace this dot product with cupy, apparently more optim
+        # 3M-TODO: replace this dot product with copy, apparently more optim
         exp_values[obs.label] = float(probas.dot(obs.diagonal_elements))
         errors[obs.label] = error
 
@@ -359,7 +363,12 @@ def _run_single(
     elif isinstance(device, AZUREDevice):
         return run_azure(job)
     elif isinstance(device, QUANTINUUMDevice):
-        return run_quantinuum(job)
+        if provider_params is None or isinstance(provider_params, TketParams):
+            return run_quantinuum(job, provider_params)
+        else:
+            raise ValueError(
+                f"provider_params should be TketParams not {type(provider_params)}"
+            )
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
@@ -563,7 +572,7 @@ def submit(
     elif isinstance(device, AZUREDevice):
         job_id, _ = submit_job_azure(job)
     elif isinstance(device, QUANTINUUMDevice):
-        job_id, _ = submit_job_quantinuum(job)
+        job_id, _ = submit_job_nexus(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
 
