@@ -16,6 +16,7 @@ from mpqp.core.instruction.gates import *
 from mpqp.core.instruction.gates.gate import SingleQubitGate
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
 from mpqp.core.languages import Language
+from mpqp.tools.circuit import get_sorted_instructions_and_measurements
 
 
 def float_to_qasm_str(f: float) -> str:
@@ -141,7 +142,7 @@ def mpqp_to_qasm2(
     c_targets = {i: 0 for i in range(qcircuit.nb_qubits)}
     gphase = 0
 
-    instructions = qcircuit._instructions  # pyright: ignore[reportPrivateUsage]
+    instructions = get_sorted_instructions_and_measurements(qcircuit)
     for instruction in instructions:
         if not skip_pre_measure:
             if isinstance(instruction, Measure):

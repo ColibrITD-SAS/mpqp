@@ -126,6 +126,7 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         )
         from mpqp.core.languages import Language
         from mpqp.core.instruction.gates.gate import Gate
+        from mpqp.tools.circuit import get_sorted_instructions_and_measurements
 
         if authorized_gates is None:
             authorized_gates = set()
@@ -135,7 +136,7 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         for qubit in cirq_qubits:
             cirq_circuit.append(I(qubit))
 
-        instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
+        instructions = get_sorted_instructions_and_measurements(circuit)
         for instruction in instructions:
             if not skip_pre_measure:
                 if isinstance(instruction, Measure):

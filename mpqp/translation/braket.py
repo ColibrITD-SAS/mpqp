@@ -102,10 +102,11 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             BasisMeasure,
         )
         from mpqp.core.circuit import QCircuit
+        from mpqp.tools.circuit import get_sorted_instructions_and_measurements
 
         if authorized_gates is None:
             authorized_gates = set()
-        instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
+        instructions = get_sorted_instructions_and_measurements(circuit)
         if len(circuit.noises) != 0:
             if any(isinstance(instr, CRk) for instr in instructions):
                 raise NotImplementedError(
@@ -134,9 +135,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     ],
                     nb_qubits=circuit.nb_qubits,
                 ) + deepcopy(circuit)
-                instructions = (
-                    circuit._instructions  # pyright: ignore[reportPrivateUsage]
-                )
+                instructions = get_sorted_instructions_and_measurements(circuit)
 
         for instruction in instructions:
             targets = [target for target in instruction.targets]

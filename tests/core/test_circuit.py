@@ -677,6 +677,49 @@ def test_to_other_language_qiskit(
     assert repr(converted_circuit.data) == result_repr
 
 
+def _circuit_with_intermediate_measurement() -> QCircuit:
+    return QCircuit([X(0), BasisMeasure([0], [0], shots=1)]) + QCircuit([X(0)])
+
+
+@pytest.mark.provider("qiskit")
+def test_qiskit_translation_keeps_measurements_terminal():
+    converted_circuit = _circuit_with_intermediate_measurement().to_other_language(
+        Language.QISKIT
+    )
+
+    assert [instruction.operation.name for instruction in converted_circuit.data] == [
+        "x",
+        "x",
+        "measure",
+    ]
+
+
+@pytest.mark.provider("cirq")
+def test_cirq_translation_keeps_measurements_terminal():
+    from cirq import MeasurementGate
+
+    converted_circuit = _circuit_with_intermediate_measurement().to_other_language(
+        Language.CIRQ
+    )
+    operations = list(converted_circuit.all_operations())
+
+    assert isinstance(operations[-1].gate, MeasurementGate)
+    assert not any(
+        isinstance(operation.gate, MeasurementGate) for operation in operations[:-1]
+    )
+
+
+@pytest.mark.provider("braket")
+def test_braket_translation_keeps_measurements_terminal():
+    converted_circuit = _circuit_with_intermediate_measurement().to_other_language(
+        Language.BRAKET
+    )
+
+    assert [
+        instruction.operator.name for instruction in converted_circuit.instructions
+    ] == ["X", "X", "Measure"]
+
+
 @pytest.fixture
 def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
     from braket.circuits import Circuit as BraketCircuit
@@ -685,7 +728,8 @@ def list_braket_circuit() -> list[tuple[QCircuit, type, str]]:
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1])]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -693,12 +737,14 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌───────────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit([CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2)]),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -706,14 +752,16 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
         (
             QCircuit(
                 [CNOT(0, 1), Depolarizing(0.5, [0, 1], dimension=2, gates=[CNOT])]
             ),
             BraketCircuit,
-            ("""\
+            (
+                """\
 T  : │         0         │
             ┌───────────┐ 
 q0 : ───●───┤ DEPO(0.5) ├─
@@ -721,7 +769,8 @@ q0 : ───●───┤ DEPO(0.5) ├─
       ┌─┴─┐ ┌─────┴─────┐ 
 q1 : ─┤ X ├─┤ DEPO(0.5) ├─
       └───┘ └───────────┘ 
-T  : │         0         │"""),
+T  : │         0         │"""
+            ),
         ),
     ]
 

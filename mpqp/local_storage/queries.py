@@ -358,10 +358,12 @@ def fetch_jobs_with_result_and_job(
                     json.dumps(repr(res.job.measure)) if res.job.measure else None
                 )
 
-                job_filters.append("""
+                job_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ? 
                     AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         data_json,
@@ -439,9 +441,11 @@ def fetch_jobs_with_result(result: Result | BatchResult | list[Result]) -> list[
                     json.dumps(repr(res.error)) if res.error is not None else None
                 )
 
-                job_filters.append("""
+                job_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         data_json,
@@ -521,10 +525,12 @@ def fetch_results_with_result_and_job(
                     json.dumps(repr(res.job.measure)) if res.job.measure else None
                 )
 
-                result_filters.append("""
+                result_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ? 
                     AND jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         data_json,
@@ -593,9 +599,11 @@ def fetch_results_with_job(jobs: Job | list[Job]) -> list[DictDB]:
                 circuit_json = json.dumps(repr(job.circuit))
                 measure_json = json.dumps(repr(job.measure)) if job.measure else None
 
-                result_filters.append("""
+                result_filters.append(
+                    """
                     (jobs.type is ? AND jobs.circuit is ? AND jobs.device is ? AND jobs.measure is ?)
-                """)
+                """
+                )
                 params.extend(
                     [
                         job.job_type.name,
@@ -673,9 +681,11 @@ def fetch_results_with_result(
                     json.dumps(repr(res.error)) if res.error is not None else None
                 )
 
-                result_filters.append("""
+                result_filters.append(
+                    """
                     (results.data is ? AND results.error is ? AND results.shots is ?)
-                """)
+                """
+                )
                 params.extend([data_json, error_json, res.shots])
 
             query = f"""
