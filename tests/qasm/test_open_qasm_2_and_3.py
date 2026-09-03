@@ -85,8 +85,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
 @pytest.mark.parametrize(
     "qasm_code",
     [
-        (
-            """OPENQASM 2.0;
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
 
             gate rzz(theta) a,b {
@@ -97,10 +96,8 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             qreg q[3];
             creg c[2];
             rzz(0.2) q[1], q[2];
-            measure q[2] -> c[0];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q[2] -> c[0];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             gate my_gate a,b {
                 h a;
@@ -109,25 +106,19 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             qreg q[2];
             creg c[2];
             my_gate q[0], q[1];
-            measure q -> c;"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q -> c;"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             qreg q[3];
             cx q[0],q[1];
-            cx q[1],q[2];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            cx q[1],q[2];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             qreg q[3];
             creg c[2];
             u1(0.2) q[1], q[2];
-            measure q[2] -> c[0];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q[2] -> c[0];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
             gate rzz(theta) a,b {
                 cx a,b;
@@ -137,10 +128,8 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             qreg q[3];
             creg c[2];
             rzz(0.2) q[1] , q[2];
-            measure q[2] ->  c[0];"""
-        ),
-        (
-            """OPENQASM 2.0;
+            measure q[2] ->  c[0];"""),
+        ("""OPENQASM 2.0;
             include "qelib1.inc";
 
             gate MyGate a, b {
@@ -158,8 +147,7 @@ def test_circular_dependency_detection_false_positive_3_to_2():
             creg c[3];
 
             MyGate q[0], q[1];
-            MyGate2 q[0], q[1], q[2];"""
-        ),
+            MyGate2 q[0], q[1], q[2];"""),
     ],
 )
 def test_conversion_2_and_3(qasm_code: str):
