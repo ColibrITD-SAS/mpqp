@@ -1,38 +1,32 @@
-# Stage 1: Build dependencies
-FROM python:3.10 AS builder
+ARG PYTHON_VERSION=3.13
+FROM python:${PYTHON_VERSION}
 
-WORKDIR /usr/src/app
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
 
-COPY requirements.txt requirements-dev.txt ./
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements-dev.txt
-
-FROM python:3.10
-
-RUN apt update && \
-    apt install -y \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
         pandoc \
-        texlive-latex-base \
-        texlive-fonts-recommended \
+        poppler-utils \
         texlive-fonts-extra \
+        texlive-fonts-recommended \
+        texlive-latex-base \
         texlive-latex-extra \
-        poppler-utils && \
-    apt clean && \
+        unzip && \
     rm -rf /var/lib/apt/lists/*
 
-
-COPY mpqp_scripts/awscli_installation/linux_awscli_install.sh ./
-RUN sed $'s/\r$//' linux_awscli_install.sh > linux_awscli_install.sh
-RUN chmod +x linux_awscli_install.sh && ./linux_awscli_install.sh
+COPY mpqp_scripts/awscli_installation/linux_awscli_install.sh /tmp/linux_awscli_install.sh
+RUN sed -i 's/\r$//' /tmp/linux_awscli_install.sh && \
+    chmod +x /tmp/linux_awscli_install.sh && \
+    /tmp/linux_awscli_install.sh && \
+    rm /tmp/linux_awscli_install.sh
 
 WORKDIR /usr/src/app/mpqp
+COPY . .
 
-COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
-COPY .. /usr/src/app/mpqp/
+RUN python -m pip install --upgrade pip && \
+    python -m pip install -r requirements-dev.txt && \
+    python -m pip install ".[all]"
 
-COPY requirements.txt requirements-dev.txt /usr/src/app/
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r /usr/src/app/requirements.txt && \
-    pip install .
-
-RUN echo "alias pytest='python -m pytest'" >> ~/.bashrc
+RUN echo "alias pytest='python -m pytest'" >> /root/.bashrc
