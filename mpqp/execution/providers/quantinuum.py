@@ -220,12 +220,7 @@ def run_tket_local(job: Job) -> Result:
     if job.job_type == JobType.OBSERVABLE:
         return run_tket_observable(job, compiled_circuit, backend)
 
-    if job.job_type == JobType.SAMPLE:
-        if TYPE_CHECKING:
-            assert isinstance(job.measure, BasisMeasure)
-        n_shots = job.measure.shots
-    else:
-        n_shots = None
+    n_shots = job.measure.shots if job.job_type == JobType.SAMPLE else None
 
     job.status = JobStatus.RUNNING
     backend_result = backend.run_circuit(compiled_circuit, n_shots=n_shots)
