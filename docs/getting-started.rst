@@ -317,7 +317,7 @@ Aer simulator:
 
     from mpqp import BasisMeasure, H, QCircuit, QUANTINUUMDevice, run
 
-    circuit = QCircuit([H(0), BasisMeasure([0], shots=100)])
+    circuit = QCircuit([H(0), BasisMeasure(shots=100)])
     result = run(circuit, QUANTINUUMDevice.NEXUS_AER_SIMULATOR)
     print(result)
 
