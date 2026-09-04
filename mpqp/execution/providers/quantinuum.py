@@ -52,13 +52,14 @@ def run_quantinuum(job: Job, provider_params: Optional[TketParams] = None) -> Re
         This function is not meant to be used directly, please use
         :func:`~mpqp.execution.runner.run` instead.
     """
-    try:
-        if not isinstance(job.device, QUANTINUUMDevice):
-            raise DeviceJobIncompatibleError(
-                "`job` must correspond to a `QUANTINUUMDevice`, but corresponds "
-                f"to a {job.device} instead."
-            )
+    if not isinstance(job.device, QUANTINUUMDevice):
+        raise DeviceJobIncompatibleError(
+            "`job` must correspond to a `QUANTINUUMDevice`, but corresponds "
+            f"to a {job.device} instead."
+        )
 
+    check_job_compatibility(job)
+    try:
         if not job.device.is_remote():
             return run_tket_local(job, provider_params)
 
@@ -130,42 +131,44 @@ def check_job_compatibility(job: Job) -> None:
             f"{job.device} does not support `STATE_VECTOR` jobs."
         )
 
-    if (
-        job.job_type == JobType.OBSERVABLE
-        and isinstance(job.measure, ExpectationMeasure)
-        and job.measure.shots == 0
-    ):
-        supports_exact_observable = (
-            job.device.supports_state_vector()
-            if job.device.is_remote()
-            else job.device.supports_observable_ideal()
-        )
-        if not supports_exact_observable:
+    if job.job_type == JobType.OBSERVABLE:
+        if TYPE_CHECKING:
+            assert isinstance(job.measure, ExpectationMeasure)
+        if job.measure.shots == 0:
+            if job.device.is_remote():
+                supports_exact_observable = job.device.supports_state_vector()
+            else:
+                if job.measure.optimize_measurement:
+                    supports_exact_observable = job.device.supports_state_vector()
+                else:
+                    supports_exact_observable = False
+                supports_exact_observable |= job.device.supports_observable_ideal()
+
+            if not supports_exact_observable:
+                raise DeviceJobIncompatibleError(
+                    f"{job.device} requires a positive number of shots for "
+                    "observable jobs."
+                )
+        else:
+            if not job.device.supports_samples() and job.measure.optimize_measurement:
+                raise DeviceJobIncompatibleError(
+                    f"{job.device} does not support sampled observable jobs."
+                )
+            if (
+                not job.device.supports_observable()
+                or not job.device.supports_samples()
+            ):
+                raise DeviceJobIncompatibleError(
+                    f"{job.device} does not support sampled observable jobs."
+                )
+        if (
+            job.measure.shots > 0
+            and job.measure.commuting_type != CommutingTypes.QUBITWISE
+        ):
             raise DeviceJobIncompatibleError(
-                f"{job.device} requires a positive number of shots for "
-                "observable jobs."
+                "Quantinuum sampled observable jobs currently require qubit-wise "
+                "commuting Pauli grouping."
             )
-
-    if (
-        job.job_type == JobType.OBSERVABLE
-        and isinstance(job.measure, ExpectationMeasure)
-        and job.measure.shots > 0
-        and (not job.device.supports_observable() or not job.device.supports_samples())
-    ):
-        raise DeviceJobIncompatibleError(
-            f"{job.device} does not support sampled observable jobs."
-        )
-
-    if (
-        job.job_type == JobType.OBSERVABLE
-        and isinstance(job.measure, ExpectationMeasure)
-        and job.measure.shots > 0
-        and job.measure.commuting_type != CommutingTypes.QUBITWISE
-    ):
-        raise DeviceJobIncompatibleError(
-            "Quantinuum sampld observable jobs currently require qubit-wise "
-            "commuting Pauli grouping."
-        )
 
 
 def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Result:
@@ -177,7 +180,6 @@ def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Re
     Returns:
         The result after local compilation and execution.
     """
-    check_job_compatibility(job)
     if TYPE_CHECKING:
         assert isinstance(job.device, QUANTINUUMDevice)
     if job.device.is_remote():
@@ -236,50 +238,157 @@ def run_quantinuum_observable(
         A result containing the expectation values of the observables.
     """
     from pytket.utils.expectations import get_operator_expectation_value
-    from pytket.partition import PauliPartitionStrat
 
     if TYPE_CHECKING:
         assert isinstance(job.measure, ExpectationMeasure)
     circuit = job.circuit.without_measurements().to_other_language(Language.TKET)
 
-    if job.measure.optimize_measurement:
-        if provider_params is None:
-            optimisation_strat = PauliPartitionStrat.CommutingSets
-        else:
-            optimisation_strat = provider_params.optimisation_strategy
+    circuit = backend.get_compiled_circuit(
+        circuit,
+        optimisation_level=(
+            0 if provider_params is None else provider_params.optimisation_level
+        ),
+    )
+    job_change_compatibility = (
+        job.measure.shots == 0 and not job.device.supports_state_vector()
+    ) or (job.measure.shots != 0 and not job.device.supports_samples())
+    exp_values, errors = {}, {}
+    if job.measure.optimize_measurement and job_change_compatibility:
+        from warnings import warn
 
-    else:
+        warn(
+            "MPQP's optimize_measurement changes the type of the Job to SAMPLE or STATE_VECTOR."
+            f"Your chosen device:{job.device} is not compatible with it so this optimization won't be used here."
+        )
+    if job.measure.optimize_measurement and not job_change_compatibility:
+        from mpqp.tools.pauli_grouping import (
+            find_qubitwise_rotations,
+            pauli_monomial_eigenvalues,
+        )
+
+        if job.measure.pre_transpiled is None:
+            grouping = job.measure.get_pauli_grouping()
+            pre_measure = [
+                QCircuit(
+                    find_qubitwise_rotations(group, job.measure.targets)
+                    + (
+                        [BasisMeasure(targets=job.measure.targets)]
+                        if job.measure.shots != 0
+                        else []
+                    )
+                )
+                for group in grouping
+            ]
+            transpiled_pre_measures = [
+                pre_m.to_other_language(Language.TKET) for pre_m in pre_measure
+            ]
+            eigenvalues = [
+                {
+                    monomial.name: pauli_monomial_eigenvalues(monomial)
+                    for monomial in group
+                }
+                for group in grouping
+            ]
+        else:
+            eigenvalues, transpiled_pre_measures = (
+                job.measure.pre_transpiled
+            )  # pyright: ignore[reportGeneralTypeIssues]
+
+        expectation_values = {}
+        # For each group, runs the circuit and store the computed exp_values
+        for eigenv, pre_measure in zip(eigenvalues, transpiled_pre_measures):
+            job.status = JobStatus.RUNNING
+
+            cirq = circuit.copy()
+            cirq.append(pre_measure)
+            local_result = backend.run_circuit(
+                cirq, n_shots=job.measure.shots if job.measure.shots != 0 else None
+            )
+            # Runs a StateVector
+            # TODO: Find a way to return a statevector only on parts of the circuit
+            # if the observable doesn't cover the whole circuit we'll get diff results here
+            # if at all...
+            if job.measure.shots == 0:
+                values = local_result.get_state()
+                sorted_values = []
+                for i in range(len(values)):
+                    sorted_values.append(float(np.abs(values[i]) ** 2))
+            else:
+                length = 2**job.measure.nb_qubits
+                measurements = local_result.get_counts()
+                sorted_values: list[float] = []
+                for i in range(length):
+                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+                    tket_binary = tuple(int(b) for b in binary_state)
+                    if tket_binary in measurements:
+                        sorted_values.append(
+                            measurements[tket_binary].real / job.measure.shots
+                        )
+                    else:
+                        sorted_values.append(0)
+
+            for name, eigenvalue in eigenv.items():
+                expectation_value: float = np.dot(
+                    eigenvalue,
+                    np.array(sorted_values, dtype=np.float64),
+                )
+                expectation_values[name] = expectation_value
+
+        # Put the pauli string's exp_value back together
+        for i, obs in enumerate(job.measure.observables):
+            string = obs.pauli_string
+            local: float = 0
+            for monoms in string.monomials:
+                if TYPE_CHECKING:
+                    assert isinstance(monoms.coef, (int, float))
+                local += expectation_values[monoms.name] * monoms.coef
+            exp_values.update(
+                {f"observable_{i}" if obs.label is None else obs.label: local}
+            )
+            if job.measure.shots == 0:
+                variance = 0.0
+            else:
+                variance = (1.0 - local**2) / job.measure.shots
+            errors.update(
+                {f"observable_{i}" if obs.label is None else obs.label: variance}
+            )
+        if len(exp_values) == 1:
+            return Result(
+                job,
+                next(iter(exp_values.values())),
+                next(iter(errors.values())),
+                shots=job.measure.shots,
+            )
+        return Result(job, exp_values, errors, shots=job.measure.shots)
+
+    else:  # No optimization by MPQP but could have some by pytket
         if provider_params is not None:
             if provider_params.optimisation_strategy is not None:
-                from warnings import warn
-
-                warn(
-                    "optimized_measurement was set to False but an optimisation_strategy was provided, hence the strategy will be ignored for this run."
-                )
+                optimisation_strat = provider_params.optimisation_strategy
         optimisation_strat = None
-    exp_values = {}
-    errors = {}
-    for i, o in enumerate(job.measure.observables):
-        translated_obs = o.to_other_language(Language.TKET, targets=job.measure.targets)
-        backend.get_operator_expectation_value
-        exp_value = get_operator_expectation_value(
-            circuit, translated_obs, backend, job.measure.shots, optimisation_strat
-        ).real
-        exp_values.update(
-            {f"observable_{i}" if o.label is None else o.label: exp_value}
-        )
-        if job.measure.shots == 0:
-            variance = 0.0
-        else:
-            variance = (1.0 - exp_value**2) / job.measure.shots
-        errors.update({f"observable_{i}" if o.label is None else o.label: variance})
-    if len(exp_values) == 1:
-        return Result(
-            job,
-            next(iter(exp_values.values())),
-            next(iter(errors.values())),
-            shots=job.measure.shots,
-        )
+        for i, o in enumerate(job.measure.observables):
+            translated_obs = o.to_other_language(
+                Language.TKET, targets=job.measure.targets
+            )
+
+            exp_value = get_operator_expectation_value(
+                circuit, translated_obs, backend, job.measure.shots, optimisation_strat
+            ).real
+            exp_values.update(
+                {f"observable_{i}" if o.label is None else o.label: exp_value}
+            )
+            if job.measure.shots == 0:
+                variance = 0.0
+            else:
+                variance = (1.0 - exp_value**2) / job.measure.shots
+            errors.update({f"observable_{i}" if o.label is None else o.label: variance})
+        if len(exp_values) == 1:
+            return Result(
+                job,
+                next(iter(exp_values.values())),
+                next(iter(errors.values())),
+                shots=job.measure.shots,
+            )
     return Result(job, exp_values, errors, shots=job.measure.shots)
 
 
@@ -327,27 +436,25 @@ def submit_nexus_observable(
     if job.measure.optimize_measurement:
         # If for some reason the device supports state vector
         # Otherwise this quirk was caught way before arriving here
-        if job.measure.shots == 0:
-            circuits = [circuit]
-            n_shots = [None]
-            grouping = None
-        else:
-            from mpqp.tools.pauli_grouping import find_qubitwise_rotations
 
-            circuits = []
-            grouping = job.measure.get_pauli_grouping()
-            for group in grouping:
-                sample_circuit = circuit + QCircuit(
-                    find_qubitwise_rotations(group, job.measure.targets)
+        from mpqp.tools.pauli_grouping import find_qubitwise_rotations
+
+        circuits = []
+        grouping = job.measure.get_pauli_grouping()
+        for group in grouping:
+            sample_circuit = circuit + QCircuit(
+                find_qubitwise_rotations(group, job.measure.targets)
+            )
+            sample_circuit.add(
+                BasisMeasure(
+                    job.measure.targets,
+                    shots=job.measure.shots,
                 )
-                sample_circuit.add(
-                    BasisMeasure(
-                        job.measure.targets,
-                        shots=job.measure.shots,
-                    )
-                )
-                circuits.append(sample_circuit)
-            n_shots = job.measure.shots
+            )
+            circuits.append(sample_circuit)
+        n_shots = (
+            job.measure.shots if job.measure.shots != 0 else [None] * len(grouping)
+        )
     else:
         raise ValueError(
             "Cannot submit Observable jobs as is through Nexus. Enable optimize_measurement to proceed."
@@ -565,7 +672,7 @@ def extract_sampled_observable_result(
 
 
 def extract_state_vector_result(
-    amplitudes: "list[Complex] | npt.NDArray[np.complex128]",
+    amplitudes: list[Complex] | npt.NDArray[np.complex128],
     job: Job,
 ) -> Result:
     """Construct an MPQP result from Quantinuum state-vector amplitudes.
@@ -661,66 +768,87 @@ def get_result_from_quantinuum_job_id(
             f"Quantinuum Nexus execution job '{job_id}' finished with status "
             f"'{status}', but no result was returned."
         )
+    if job is None and (
+        JobType.OBSERVABLE or job_ref.annotations.description == "mpqp:observable"
+    ):
+        raise ValueError(
+            "Retrieving a Quantinuum observable result requires the original MPQP `Job`."
+        )
 
     if job is not None and job.job_type == JobType.OBSERVABLE:
+
+        from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
+
         if grouping is None:
             grouping = []
         if not isinstance(job.measure, ExpectationMeasure):
             raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
         job.id = job_id
-        if job.measure.shots == 0:
-            if len(result_refs) != 1:
-                raise ValueError(
-                    "An exact Quantinuum observable job must return one state-vector "
-                    f"result, but returned {len(result_refs)}."
-                )
-            result_ref = result_refs[0]
-            if TYPE_CHECKING:
-                assert isinstance(result_ref, ExecutionResultRef)
-            backend_result = result_ref.download_result()
-            if TYPE_CHECKING:
-                assert isinstance(backend_result, BackendResult)
-            state = backend_result.get_state()
-            expectation_values = {
-                label: float(np.vdot(state, observable.matrix @ state).real)
-                for label, observable in zip(
-                    job.measure.observables_labels,
-                    job.measure.observables,
-                )
-            }
-            return extract_observable_result(job, expectation_values, 0.0, 0)
-
-        grouped_probabilities = []
-        for result_ref in result_refs:
-            if TYPE_CHECKING:
-                assert isinstance(result_ref, ExecutionResultRef)
-            backend_result = result_ref.download_result()
-            if TYPE_CHECKING:
-                assert isinstance(backend_result, BackendResult)
-            raw_counts = backend_result.get_counts()
-            shots = sum(raw_counts.values())
-            if shots == 0:
-                raise ValueError(
-                    f"Quantinuum observable job '{job_id}' returned no sample counts."
-                )
-            probabilities = np.zeros(2**job.circuit.nb_qubits, dtype=np.float64)
-            for outcome, count in raw_counts.items():
-                index = int("".join(str(bit) for bit in outcome), 2)
-                probabilities[index] = count / shots
-            grouped_probabilities.append(probabilities)
-
-        if len(grouped_probabilities) != len(grouping):
+        grouping = job.measure.get_pauli_grouping()
+        eigenvalues = [
+            {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
+            for group in grouping
+        ]
+        if len(result_refs) != len(grouping):
             raise ValueError(
-                "The number of Quantinuum observable results "
-                f"({len(grouped_probabilities)}) does not match the number of "
-                f"submitted Pauli groups ({len(grouping)})."
+                "The number of circuit sent for an OBSERVABLE job must be the same as the number of groups in the pauli grouping"
+                "This can happen because of different grouping algorithm make sure you're using the same observable(s) and grouping method as this job."
             )
-        return extract_sampled_observable_result(job, grouped_probabilities, grouping)
+        exp_values, errors = {}, {}
+        for index, result_ref in enumerate(result_refs):
+            if TYPE_CHECKING:
+                assert isinstance(result_ref, ExecutionResultRef)
+            backend_result = result_ref.download_result()
+            if TYPE_CHECKING:
+                assert isinstance(backend_result, BackendResult)
+            if job.measure.shots == 0:
+                state = backend_result.get_state()
+                sorted_values = []
+                for i in range(len(state)):
+                    sorted_values.append(float(np.abs(state[i]) ** 2))
+            else:
+                raw_counts = backend_result.get_counts()
+                received_shots = sum(raw_counts.values())
+                if received_shots != job.measure.shots:
+                    raise ValueError(
+                        "Received number of shots is different from given number of shots."
+                    )
+                length = 2**job.measure.nb_qubits
+                sorted_values: list[float] = []
+                for i in range(length):
+                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+                    tket_binary = tuple(int(b) for b in binary_state)
+                    if tket_binary in raw_counts:
+                        sorted_values.append(
+                            raw_counts[tket_binary].real / job.measure.shots
+                        )
+                    else:
+                        sorted_values.append(0)
+            for name, eigenvalue in eigenvalues[index].items():
+                expectation_value: float = np.dot(
+                    eigenvalue,
+                    np.array(sorted_values, dtype=np.float64),
+                )
+                exp_values[name] = expectation_value
+        for i, obs in enumerate(job.measure.observables):
+            string = obs.pauli_string
+            local: float = 0
+            for monoms in string.monomials:
+                if TYPE_CHECKING:
+                    assert isinstance(monoms.coef, (int, float))
+                local += exp_values[monoms.name] * monoms.coef
+            exp_values.update(
+                {f"observable_{i}" if obs.label is None else obs.label: local}
+            )
+            if job.measure.shots == 0:
+                variance = 0.0
+            else:
+                variance = (1.0 - local**2) / job.measure.shots
+            errors.update(
+                {f"observable_{i}" if obs.label is None else obs.label: variance}
+            )
 
-    if job is None and job_ref.annotations.description == "mpqp:observable":
-        raise ValueError(
-            "Retrieving a Quantinuum observable result requires the original MPQP `Job`."
-        )
+        return Result(job, exp_values, errors, shots=job.measure.shots)
 
     result_ref = result_refs[0]
     if TYPE_CHECKING:
