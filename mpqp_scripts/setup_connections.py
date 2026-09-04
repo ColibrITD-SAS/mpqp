@@ -137,7 +137,7 @@ def main_setup():
             AnswerNode("Amazon Braket", setup_aws_braket_account),
             AnswerNode("IonQ", config_ionq_key),
             AnswerNode("Azure", config_azure_account),
-            AnswerNode("Quantinuum", setup_quantinuum_account),
+            AnswerNode("Quantinuum Nexus", setup_quantinuum_account),
             AnswerNode("Recap", print_config_info),
             AnswerNode("Delete a configuration", delete_config),
         ],
