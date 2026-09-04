@@ -364,6 +364,43 @@ def test_remove_instructions():
         circuit.remove(X(0))
 
 
+def test_remove_recomputes_dynamic_dimensions():
+    measurement = BasisMeasure([0])
+    circuit = QCircuit([measurement])
+
+    circuit.remove(measurement)
+
+    assert circuit.nb_qubits == 0
+    assert circuit.nb_cbits == 0
+
+    replacement = BasisMeasure([0])
+    circuit.add(replacement)
+
+    assert replacement.c_targets == [0]
+    assert circuit.nb_qubits == 1
+    assert circuit.nb_cbits == 1
+
+
+def test_remove_recomputes_highest_used_qubit():
+    highest_gate = X(3)
+    circuit = QCircuit([highest_gate, X(0)])
+
+    circuit.remove(highest_gate)
+
+    assert circuit.nb_qubits == 1
+
+
+def test_remove_preserves_explicit_dimensions():
+    gate = X(3)
+    measurement = BasisMeasure([3], [2])
+    circuit = QCircuit([gate, measurement], nb_qubits=5, nb_cbits=4)
+
+    circuit.remove([gate, measurement])
+
+    assert circuit.nb_qubits == 5
+    assert circuit.nb_cbits == 4
+
+
 def test_instructions_cannot_be_modified_directly():
     circuit = QCircuit([X(0)])
 
@@ -372,6 +409,31 @@ def test_instructions_cannot_be_modified_directly():
     assert circuit.instructions == [X(0)]
     with pytest.raises(AttributeError):
         circuit.instructions = [H(0)]  # type: ignore[reportAttributeAccessIssue]
+
+
+@pytest.mark.parametrize(
+    "circuit, instructions, measurements, ordered, unordered",
+    [
+        (
+            QCircuit([X(0), BasisMeasure([0], shots=100), H(0)]),
+            [X(0), H(0)],
+            [BasisMeasure([0], shots=100)],
+            [X(0), H(0), BasisMeasure([0], shots=100)],
+            [X(0), BasisMeasure([0], shots=100), H(0)],
+        )
+    ],
+)
+def test_instructions_and_measurements_are_exposed_separately(
+    circuit: QCircuit,
+    instructions: list[Instruction],
+    measurements: list[Measure],
+    ordered: list[Instruction],
+    unordered: list[Instruction],
+):
+    assert circuit.instructions == instructions
+    assert repr(circuit.measurements) == repr(measurements)
+    assert repr(circuit.instructions + circuit.measurements) == repr(ordered)
+    assert repr(circuit.with_measurement(deep_copy=False)) == repr(unordered)
 
 
 @pytest.mark.parametrize(
@@ -578,78 +640,49 @@ def test_without_measurements(circuit: QCircuit, printed_result_filename: str):
         assert str(circuit.without_measurements(deep_copy=False)) == f.read()
 
 
-@pytest.mark.parametrize(
-    (
-        "initial_instructions, added_instruction, removed_instruction, "
-        "expected_initial, expected_after_add, expected_after_remove"
-    ),
-    [
-        (
-            [X(0), Rx(theta, 0), Ry(theta + phi, 0)],
-            Rz(phi, 0),
-            Rx(theta, 0),
-            {theta: [1, 2], phi: [2]},
-            {theta: [1, 2], phi: [2, 3]},
-            {theta: [1], phi: [1, 2]},
-        ),
-        (
-            [Rx(alpha, 0), Rz(1.5, 0)],
-            Ry(2 * alpha, 0),
-            Rx(alpha, 0),
-            {alpha: [0]},
-            {alpha: [0, 2]},
-            {alpha: [1]},
-        ),
-    ],
-)
-def test_variables_are_registered_and_shifted_by_add_and_remove(
-    initial_instructions: list[Instruction],
-    added_instruction: Instruction,
-    removed_instruction: Instruction,
-    expected_initial: dict[Expr, list[int]],
-    expected_after_add: dict[Expr, list[int]],
-    expected_after_remove: dict[Expr, list[int]],
-):
-    circuit = QCircuit(initial_instructions)
+def test_variables_follow_add_and_remove():
+    theta_gate = Rx(theta, 0)
+    phi_gate = Rz(phi, 0)
+    circuit = QCircuit([theta_gate])
 
-    assert circuit._variables == expected_initial  # pyright: ignore[reportPrivateUsage]
+    assert circuit.variables() == {theta}
 
-    circuit.add(added_instruction)
-    assert (
-        circuit._variables == expected_after_add  # pyright: ignore[reportPrivateUsage]
-    )
+    circuit.add(phi_gate)
+    assert circuit.variables() == {theta, phi}
 
-    circuit.remove(removed_instruction)
-    assert (
-        circuit._variables  # pyright: ignore[reportPrivateUsage]
-        == expected_after_remove
-    )
+    circuit.remove(theta_gate)
+    assert circuit.variables() == {phi}
+
+
+def test_variables_follow_external_instruction_mutation():
+    gate = Rx(theta, 0)
+    circuit = QCircuit([gate])
+
+    assert circuit.variables() == {theta}
+
+    gate.parameters[0] = phi
+
+    assert circuit.variables() == {phi}
 
 
 @pytest.mark.parametrize(
     "substitutions, expected_variables",
     [
-        ({theta: 1}, {phi: [0]}),
-        ({theta: phi}, {phi: [0, 1]}),
-        ({theta: 1, phi: 2}, {}),
+        ({theta: 1}, {phi}),
+        ({theta: phi}, {phi}),
+        ({theta: 1, phi: 2}, set()),
     ],
 )
-def test_variable_indexes_are_rebuilt_after_substitution(
+def test_variables_are_updated_after_substitution(
     substitutions: dict[Expr | str, Complex],
-    expected_variables: dict[Expr, list[int]],
+    expected_variables: set[Expr],
 ):
     circuit = QCircuit([Rx(theta + phi, 0), Rz(theta, 0)])
 
     substituted = circuit.subs(substitutions)
 
-    assert (
-        substituted._variables  # pyright: ignore[reportPrivateUsage]
-        == expected_variables
-    )
-    assert circuit._variables == {  # pyright: ignore[reportPrivateUsage]
-        theta: [0, 1],
-        phi: [0],
-    }
+    assert substituted.variables() == expected_variables
+    assert circuit.variables() == {theta, phi}
 
 
 @pytest.mark.provider("qiskit")
@@ -1147,7 +1180,7 @@ def exec_measure_no_target(measure: Measure, device: AvailableDevice):
     if isinstance(measure, ExpectationMeasure):
         isinstance(run(circuit, device).expectation_values, float)
     else:
-        assert run(circuit, device).job.measure.nb_qubits == circuit.nb_qubits  # type: ignore[AttributeAccessIssue]
+        assert run(circuit, device).job.measure.nb_qubits == circuit.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
 
 
 @pytest.mark.parametrize(
@@ -1165,14 +1198,14 @@ def test_instruction_no_target(component: Instruction | NoiseModel):
     circuit.add(component)
 
     qubits = list(range(circuit.nb_qubits))
-    for instruction in circuit.instructions:
+    for instruction in circuit.with_measurement(deep_copy=False):
         assert qubits == instruction.targets
     for noise in circuit.noises:
         assert qubits == noise.targets
 
     circuit.nb_qubits += 1
     qubits = list(range(circuit.nb_qubits))
-    for instruction in circuit.instructions:
+    for instruction in circuit.with_measurement(deep_copy=False):
         assert qubits == instruction.targets
     for noise in circuit.noises:
         assert qubits == noise.targets
@@ -1277,13 +1310,17 @@ def test_to_matrix_gphase():
     ],
 )
 def test_inverse(circuit: QCircuit, expected_inverse: QCircuit):
-    if any(not isinstance(inst, (Gate, Barrier)) for inst in circuit.instructions):
+    if any(
+        not isinstance(inst, (Gate, Barrier))
+        for inst in circuit.with_measurement(deep_copy=False)
+    ):
         with pytest.warns(NonReversibleWarning):
             inverse_circuit = circuit.inverse()
     else:
         inverse_circuit = circuit.inverse()
     for inverse_inst, expected_inst in zip(
-        inverse_circuit.instructions, expected_inverse.instructions
+        inverse_circuit.with_measurement(deep_copy=False),
+        expected_inverse.with_measurement(deep_copy=False),
     ):
         if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
             assert matrix_eq(
@@ -1301,7 +1338,8 @@ def test_inverse_random():
         qcircuit = random_circuit(nb_qubits=4)
         inverse_circuit = qcircuit.inverse()
         for inverse_inst, expected_inst in zip(
-            inverse_circuit.instructions, reversed(qcircuit.instructions)
+            inverse_circuit.with_measurement(deep_copy=False),
+            reversed(qcircuit.with_measurement(deep_copy=False)),
         ):
             if isinstance(expected_inst, Gate) and isinstance(inverse_inst, Gate):
                 assert matrix_eq(

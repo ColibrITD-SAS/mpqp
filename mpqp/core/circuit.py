@@ -33,7 +33,6 @@ could be used to add CNOT gates to your circuit, using the two registers
 
 from __future__ import annotations
 
-from bisect import insort
 from copy import deepcopy
 from numbers import Complex
 from typing import TYPE_CHECKING, Literal, Optional, Sequence, Type, Union, overload
@@ -162,8 +161,6 @@ class QCircuit:
         """Private list of instructions with positions in the circuit."""
         self._measurement_indexes: list[int] = []
         """Indexes of the measurements in ``_instructions``."""
-        self._variables: dict[Expr, list[int]] = {}
-        """Instruction indexes for each symbolic variable in the circuit."""
         self.noises: list[NoiseModel] = []
         """List of noise models attached to the circuit."""
         self._user_nb_cbits: Optional[int] = None
@@ -224,12 +221,16 @@ class QCircuit:
 
     @property
     def instructions(self) -> list[Instruction]:
-        """All instructions in the circuit.
+        """Non-measurement instructions in circuit order.
 
         A copy is returned so the circuit cannot be modified by mutating this
         list directly. Use :meth:`add` to add instructions to the circuit.
         """
-        return self._instructions.copy()
+        return [
+            instruction
+            for instruction in self._instructions
+            if not isinstance(instruction, Measure)
+        ]
 
     @property
     def measurements(self) -> list[Measure]:
@@ -325,7 +326,6 @@ class QCircuit:
             instruction_index = len(self._instructions) - 1
             if isinstance(components, Measure):
                 self._measurement_indexes.append(instruction_index)
-            self._register_variables(components, instruction_index)
 
     @staticmethod
     def _instruction_variables(instruction: Instruction) -> set[Expr]:
@@ -342,17 +342,6 @@ class QCircuit:
                         if isinstance(symbol, Expr)
                     )
         return variables
-
-    def _register_variables(self, instruction: Instruction, index: int) -> None:
-        """Register the variables used by ``instruction`` at ``index``."""
-        for variable in self._instruction_variables(instruction):
-            insort(self._variables.setdefault(variable, []), index)
-
-    def _rebuild_variables(self) -> None:
-        """Rebuild variable indexes from the circuit instructions."""
-        self._variables = {}
-        for index, instruction in enumerate(self._instructions):
-            self._register_variables(instruction, index)
 
     def remove(self, instructions: OneOrMany[Instruction]) -> None:
         """Remove one or several instructions from the circuit.
@@ -380,8 +369,12 @@ class QCircuit:
             self._pop_instruction(index)
             return
 
-        for instruction in instructions:
-            self.remove(instruction)
+        try:
+            for instruction in instructions:
+                index = self._instructions.index(instruction)
+                self._pop_instruction(index, recompute_dimensions=False)
+        finally:
+            self._recompute_dynamic_dimensions()
 
     def _insert_instruction(self, index: int, instruction: Instruction) -> None:
         """Insert an instruction while keeping instruction storage encapsulated."""
@@ -389,7 +382,7 @@ class QCircuit:
             raise ValueError("Measurements cannot be inserted among instructions.")
 
         self.add(instruction)
-        inserted_instruction = self._pop_instruction()
+        inserted_instruction = self._pop_instruction(recompute_dimensions=False)
         normalized_index = (
             min(index, len(self._instructions))
             if index >= 0
@@ -403,25 +396,20 @@ class QCircuit:
             )
             for measurement_index in self._measurement_indexes
         ]
-        self._variables = {
-            variable: [
-                (
-                    variable_index + 1
-                    if variable_index >= normalized_index
-                    else variable_index
-                )
-                for variable_index in indexes
-            ]
-            for variable, indexes in self._variables.items()
-        }
         self._instructions.insert(index, inserted_instruction)
-        self._register_variables(inserted_instruction, normalized_index)
 
-    def _pop_instruction(self, index: int = -1) -> Instruction:
+    def _pop_instruction(
+        self, index: int = -1, recompute_dimensions: bool = True
+    ) -> Instruction:
         """Remove and return an instruction at ``index``.
 
         This internal method lets MPQP transformations modify a circuit without
         exposing its instruction storage.
+
+        Args:
+            index: Index of the instruction to remove.
+            recompute_dimensions: Whether to recompute dynamic circuit dimensions
+                after removal. Disable this for temporary removals or batched edits.
         """
         normalized_index = index if index >= 0 else len(self._instructions) + index
         instruction = self._instructions.pop(index)
@@ -434,21 +422,34 @@ class QCircuit:
             for measurement_index in self._measurement_indexes
             if measurement_index != normalized_index
         ]
-        updated_variables: dict[Expr, list[int]] = {}
-        for variable, indexes in self._variables.items():
-            updated_indexes = [
-                (
-                    variable_index - 1
-                    if variable_index > normalized_index
-                    else variable_index
-                )
-                for variable_index in indexes
-                if variable_index != normalized_index
-            ]
-            if updated_indexes:
-                updated_variables[variable] = updated_indexes
-        self._variables = updated_variables
+        if recompute_dimensions:
+            self._recompute_dynamic_dimensions()
         return instruction
+
+    def _recompute_dynamic_dimensions(self) -> None:
+        """Recompute dimensions that were not explicitly set by the user."""
+        if self._user_nb_qubits is None:
+            static_components = [
+                component
+                for component in [*self._instructions, *self.noises]
+                if not component._dynamic  # pyright: ignore[reportPrivateUsage]
+            ]
+            connections = {
+                connection
+                for component in static_components
+                for connection in component.connections()
+            }
+            self._set_nb_qubits_dynamic(max(connections, default=-1) + 1)
+
+        if self._user_nb_cbits is None:
+            classical_targets = {
+                target
+                for measurement in self.measurements
+                if isinstance(measurement, BasisMeasure)
+                and measurement.c_targets is not None
+                for target in measurement.c_targets
+            }
+            self._nb_cbits = max(classical_targets, default=-1) + 1
 
     def _check_components_targets(self, components: Instruction | NoiseModel):
         if isinstance(components, BasisMeasure):
@@ -672,7 +673,7 @@ class QCircuit:
                 " index and the size of this circuit"
             )
 
-        for inst in deepcopy(other.instructions):
+        for inst in other.with_measurement(deep_copy=True):
             inst.targets = [qubit + qubits_offset for qubit in inst.targets]
             if isinstance(inst, ControlledGate):
                 inst.controls = [qubit + qubits_offset for qubit in inst.controls]
@@ -1150,9 +1151,7 @@ class QCircuit:
             exclude_attrs = [exclude_attrs]
         excluded_attrs = set(exclude_attrs)
         if {"instructions", "measurements"} & excluded_attrs:
-            excluded_attrs.update(
-                {"_instructions", "_measurement_indexes", "_variables"}
-            )
+            excluded_attrs.update({"_instructions", "_measurement_indexes"})
         new_obj = QCircuit()
         for attr, val in self.__dict__.items():
             if attr not in excluded_attrs:
@@ -1216,7 +1215,6 @@ class QCircuit:
         new_circuit._instructions = (
             deepcopy(instructions) if deep_copy else instructions
         )
-        new_circuit._rebuild_variables()
 
         return new_circuit
 
@@ -1224,7 +1222,8 @@ class QCircuit:
         """Return all instructions, including measurements, in circuit order.
 
         Args:
-            deep_copy: If True, returns the deepcopy of the resulting list, otherwise returns a shallow copy.
+            deep_copy: If True, returns a deep copy of the resulting list;
+                otherwise, returns a shallow copy.
         """
         return deepcopy(self._instructions) if deep_copy else self._instructions.copy()
 
@@ -2002,7 +2001,6 @@ class QCircuit:
         """
         new_circuit = deepcopy(self)
         new_circuit._instructions = [inst.subs(values) for inst in self._instructions]
-        new_circuit._rebuild_variables()
         return new_circuit
 
     def pretty_print(self):
@@ -2079,4 +2077,7 @@ class QCircuit:
             {θ, k}
 
         """
-        return set(self._variables)
+        variables: set[Expr] = set()
+        for instruction in self._instructions:
+            variables.update(self._instruction_variables(instruction))
+        return variables

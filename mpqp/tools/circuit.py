@@ -363,10 +363,4 @@ def replace_custom_gate(
 
 
 def get_sorted_instructions_and_measurements(qcircuit: QCircuit) -> list[Instruction]:
-    from mpqp.core.instruction.measurement import Measure
-
-    return [
-        instruction
-        for instruction in qcircuit._instructions  # pyright: ignore[reportPrivateUsage]
-        if not isinstance(instruction, Measure)
-    ] + qcircuit.measurements
+    return qcircuit.instructions + qcircuit.measurements
