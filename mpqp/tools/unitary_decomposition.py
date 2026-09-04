@@ -219,21 +219,27 @@ def _optimize_circuit(circuit: QCircuit) -> QCircuit:
     """
     Optimize the circuit of the decomposition by removing useless CNOT gates.
     """
-    length = len(circuit.instructions)
+    instructions = circuit._instructions  # pyright: ignore[reportPrivateUsage]
+    length = len(instructions)
     i = 0
     while i < length - 2:
-        if isinstance(circuit.instructions[i], CNOT):
+        if isinstance(instructions[i], CNOT):
             j = i + 1
-            while isinstance(circuit.instructions[j], CNOT):
-                if circuit.instructions[i] == circuit.instructions[j]:
-                    circuit.instructions.pop(j)
-                    circuit.instructions.pop(i)
+            while isinstance(instructions[j], CNOT):
+                if instructions[i] == instructions[j]:
+                    circuit._pop_instruction(  # pyright: ignore[reportPrivateUsage]
+                        j, recompute_dimensions=False
+                    )
+                    circuit._pop_instruction(  # pyright: ignore[reportPrivateUsage]
+                        i, recompute_dimensions=False
+                    )
                     length -= 2
                     i -= 1
                     break
                 j += 1
         i += 1
 
+    circuit._recompute_dynamic_dimensions()  # pyright: ignore[reportPrivateUsage]
     return circuit
 
 
