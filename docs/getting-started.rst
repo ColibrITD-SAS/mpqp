@@ -284,7 +284,7 @@ After installing the ``quantinuum`` extra, run the connection setup script:
 
     $ setup_connections
 
-Select ``Quantinuum``. MPQP calls ``qnx.login()`` to start the Nexus
+Select ``Quantinuum Nexus``. MPQP calls ``qnx.login()`` to start the Nexus
 browser authentication flow and then asks whether you want to use an existing
 Nexus project or create a new one. If a browser cannot be opened, QNexus
 displays a login link in the terminal instead.
