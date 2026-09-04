@@ -183,7 +183,7 @@ def delete_quantinuum_account():
     """Delete the locally stored Quantinuum Nexus configuration."""
     decision = input(
         colored(
-            "This will delete the local Quantinuum configuration and log out from Nexus. Continue? [y/N] ",
+            "This will delete the local Quantinuum Nexus configuration and log out from Nexus. Continue? [y/N] ",
             "yellow",
         )
     )
