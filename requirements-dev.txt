@@ -1,5 +1,5 @@
 -r requirements-all.txt
-setuptools==83.0.0
+setuptools==84.0.0
 pytest==9.0.3
 nbmake
 sphinx==9.1.0 ; python_version >= "3.12"
