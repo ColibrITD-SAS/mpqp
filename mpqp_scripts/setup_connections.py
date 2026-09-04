@@ -104,7 +104,7 @@ def delete_config():
             AnswerNode("Braket", delete_aws_braket_account),
             AnswerNode("IonQ", delete_ionq_account),
             AnswerNode("Azure", delete_azure_account),
-            AnswerNode("Quantinuum", delete_quantinuum_account),
+            AnswerNode("Quantinuum Nexus", delete_quantinuum_account),
             AnswerNode("All", delete_all),
         ],
         leaf_loop_to_here=True,
