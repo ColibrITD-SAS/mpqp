@@ -882,7 +882,7 @@ class PauliString:
 
             pauli_string = []
             pauli_string_coef = []
-            for mono in self.monomials:
+            for mono in reversed(self.monomials):
                 pauli_string.append("".join(atom.label for atom in mono.atoms))
                 pauli_string_coef.append(mono.coef)
             return SparsePauliOp(pauli_string, np.array(pauli_string_coef))
@@ -1371,7 +1371,7 @@ class PauliStringMonomial(PauliString):
         if language == Language.QISKIT:
             from qiskit.quantum_info import SparsePauliOp
 
-            pauli_mono_str = "".join(atom.label for atom in self.atoms)
+            pauli_mono_str = "".join(atom.label for atom in reversed(self.atoms))
             return SparsePauliOp(pauli_mono_str, np.array(self.coef))
         elif language == Language.MY_QLM:
             from qat.core.wrappers.observable import Term

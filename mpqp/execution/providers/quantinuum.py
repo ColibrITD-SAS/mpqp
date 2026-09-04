@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from numbers import Complex, Real
+from numbers import Complex
 from typing import TYPE_CHECKING, Optional
 
 import numpy as np

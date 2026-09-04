@@ -248,10 +248,9 @@ def generate_job(
             else:
                 job = Job(JobType.SAMPLE, circuit, device)
         elif isinstance(measurement, ExpectationMeasure):
-            if not (measurement.optimize_measurement and isinstance(device, AWSDevice)):
-                m = adjust_measure(measurement, circuit)
-                circuit = circuit.without_measurements(deep_copy=False)
-                circuit.add(m)
+            m = adjust_measure(measurement, circuit)
+            circuit = circuit.without_measurements(deep_copy=False)
+            circuit.add(m)
             job = Job(
                 JobType.OBSERVABLE,
                 circuit,
