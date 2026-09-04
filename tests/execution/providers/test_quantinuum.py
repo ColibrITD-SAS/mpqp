@@ -195,7 +195,7 @@ def test_local_tket_sampled_observables(device: QUANTINUUMDevice):
     assert isinstance(result.error, float)
     assert np.isclose(result.expectation_values, 1, atol=0.15)
 
-    sampled_z_expectation = result.expectation_values - 1
+    sampled_z_expectation = result.expectation_values
     expected_variance = (1 - sampled_z_expectation**2) / shots
 
     assert np.isclose(result.error, expected_variance)

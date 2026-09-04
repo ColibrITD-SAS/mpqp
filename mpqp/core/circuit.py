@@ -171,7 +171,7 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit]]" = (None)
+        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit, tket_Circuit]]" = (None)
         """A pre-transpiled circuit to skip repeated transpilation when running 
         the circuit. Useful when working with a symbolic circuit that needs to
         be executed with different parameters."""

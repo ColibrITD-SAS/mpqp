@@ -21,11 +21,14 @@ from mpqp.tools.errors import DeviceJobIncompatibleError
 if TYPE_CHECKING:
     import numpy as np
     import numpy.typing as npt
-    from pytket import Circuit as TKETCircuit
+    from mpqp.core.instruction.measurement.pauli_string import (
+        CommutingTypes,
+        PauliStringMonomial,
+    )
+
+    # from pytket import Circuit as TKETCircuit
     from pytket.backends.backend import Backend
     from pytket.backends.backendresult import BackendResult
-    from pytket.utils.operators import QubitPauliOperator
-    from qiskit import QuantumCircuit
     from qnexus.models.references import (
         CircuitRef,
         CompilationResultRef,
@@ -183,16 +186,11 @@ def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Re
     if job.circuit.transpiled_circuit is None:
         tket_circuit = job.circuit.to_other_device(job.device)
     else:
-        from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
-        from pytket.circuit import Circuit as tket_Circuit
+        tket_circuit = job.circuit.transpiled_circuit
+        if TYPE_CHECKING:
+            from pytket.circuit import Circuit as tket_Circuit
 
-        transpiled_circuit = job.circuit.transpiled_circuit
-        if isinstance(transpiled_circuit, QuantumCircuit):
-            tket_circuit = qiskit_to_tk(transpiled_circuit)
-        elif isinstance(transpiled_circuit, tket_Circuit):
-            tket_circuit = transpiled_circuit
-        else:
-            tket_circuit = job.circuit.to_other_device(job.device)
+            assert isinstance(tket_circuit, tket_Circuit)
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerBackend
@@ -215,10 +213,6 @@ def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Re
         ),
     )
     if job.job_type == JobType.OBSERVABLE:
-        if TYPE_CHECKING:
-            assert job.measure
-        if job.measure.shots == 0:
-            return run_quantinuum_observable_ideal(job, compiled_circuit, backend)
         return run_quantinuum_observable(job, backend, provider_params)
 
     n_shots = None if job.measure is None else job.measure.shots
@@ -226,77 +220,6 @@ def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Re
     job.status = JobStatus.RUNNING
     backend_result = backend.run_circuit(compiled_circuit, n_shots=n_shots)
     return extract_result(backend_result, job)
-
-
-def run_quantinuum_observable_ideal(
-    job: Job,
-    tket_circuit: "TKETCircuit",
-    backend: "Backend",
-    provider_params: Optional[TketParams] = None,
-) -> Result:
-    """Return the result of an exact `OBSERVABLE` job using the built in
-    observable evaluation of a local Quantinuum backend.
-
-    The backend computes the expectation values directly. This function should
-    be called by :func:`run_tket_local` for observable jobs without sampling, it
-    is not intended for remote Nexus jobs.
-
-    In case the shots are at 0 the executed job produces a state_vector with which we compute
-    the desired expectation values.
-
-    Args:
-        job: Job to execute.
-        tket_circuit: Compiled TKET circuit on which the observables are evaluated.
-        backend: Local Quantinuum backend used to evaluate the observables.
-
-    Returns:
-        A result containing the exact expectation values of the observables.
-    """
-    if TYPE_CHECKING:
-        assert isinstance(job.measure, ExpectationMeasure)
-    if job.device.supports_state_vector():
-        circuit = job.circuit.without_measurements()
-
-        observable_labels = job.measure.observables_labels
-        tket_circuit = circuit.to_other_language(Language.TKET)
-        compiled_circuit = backend.get_compiled_circuit(
-            tket_circuit,
-            optimisation_level=(
-                0 if provider_params is None else provider_params.optimisation_level
-            ),
-        )
-        job.status = JobStatus.RUNNING
-        state_result = backend.run_circuit(compiled_circuit, n_shots=None)
-        state_amplitudes = state_result.get_state()
-
-        expectation_values: dict[str, float] = {}
-        for label, observable in zip(
-            observable_labels,
-            job.measure.observables,
-        ):
-            expectation_values[label] = float(
-                np.vdot(
-                    state_amplitudes,
-                    observable.matrix @ state_amplitudes,
-                ).real
-            )
-        return extract_observable_result(job, expectation_values, 0.0, 0)
-    job.status = JobStatus.RUNNING
-    expectation_values: dict[str, float] = {}
-    for label, observable in zip(
-        job.measure.observables_labels,
-        job.measure.observables,
-    ):
-        operator = observable.to_other_language(Language.TKET, job.measure.targets)
-        if TYPE_CHECKING:
-            assert isinstance(operator, QubitPauliOperator)
-        expectation_value = backend.get_operator_expectation_value(
-            tket_circuit,
-            operator,
-        )
-        expectation_values[label] = float(expectation_value.real)
-
-    return extract_observable_result(job, expectation_values, 0.0, 0)
 
 
 def run_quantinuum_observable(
@@ -312,82 +235,52 @@ def run_quantinuum_observable(
     Returns:
         A result containing the expectation values of the observables.
     """
+    from pytket.utils.expectations import get_operator_expectation_value
+    from pytket.partition import PauliPartitionStrat
+
     if TYPE_CHECKING:
-        assert isinstance(job.device, QUANTINUUMDevice)
         assert isinstance(job.measure, ExpectationMeasure)
+    circuit = job.circuit.without_measurements().to_other_language(Language.TKET)
 
-    circuit = job.circuit.without_measurements()
+    if job.measure.optimize_measurement:
+        if provider_params is None:
+            optimisation_strat = PauliPartitionStrat.CommutingSets
+        else:
+            optimisation_strat = provider_params.optimisation_strategy
 
-    if job.measure.shots == 0:
-        observable_labels = job.measure.observables_labels
-        tket_circuit = circuit.to_other_language(Language.TKET)
+    else:
+        if provider_params is not None:
+            if provider_params.optimisation_strategy is not None:
+                from warnings import warn
 
-        compiled_circuit = backend.get_compiled_circuit(
-            tket_circuit,
-            optimisation_level=(
-                0 if provider_params is None else provider_params.optimisation_level
-            ),
+                warn(
+                    "optimized_measurement was set to False but an optimisation_strategy was provided, hence the strategy will be ignored for this run."
+                )
+        optimisation_strat = None
+    exp_values = {}
+    errors = {}
+    for i, o in enumerate(job.measure.observables):
+        translated_obs = o.to_other_language(Language.TKET, targets=job.measure.targets)
+        backend.get_operator_expectation_value
+        exp_value = get_operator_expectation_value(
+            circuit, translated_obs, backend, job.measure.shots, optimisation_strat
+        ).real
+        exp_values.update(
+            {f"observable_{i}" if o.label is None else o.label: exp_value}
         )
-        job.status = JobStatus.RUNNING
-        state_result = backend.run_circuit(compiled_circuit, n_shots=None)
-        state_amplitudes = state_result.get_state()
-
-        expectation_values: dict[str, float] = {}
-        for label, observable in zip(
-            observable_labels,
-            job.measure.observables,
-        ):
-            expectation_values[label] = float(
-                np.vdot(
-                    state_amplitudes,
-                    observable.matrix @ state_amplitudes,
-                ).real
-            )
-        return extract_observable_result(job, expectation_values, 0.0, 0)
-
-    from mpqp.tools.pauli_grouping import find_qubitwise_rotations
-
-    grouped_probabilities = []
-    grouping = job.measure.get_pauli_grouping()
-    translated_circuit = circuit.to_other_language(Language.TKET)
-    for group in grouping:
-        pre_measure = QCircuit(
-            find_qubitwise_rotations(group)
-            + [BasisMeasure(job.measure.targets, shots=job.measure.shots)]
-        ).to_other_language(Language.TKET)
-        # Can only append in place so we need to copy this every time
-        # TODO: Talk with provider how could this be optimized
-        sample_circuit = translated_circuit.copy()
-        sample_circuit.append(pre_measure)
-        compiled_circuit = backend.get_compiled_circuit(
-            sample_circuit,
-            optimisation_level=(
-                0 if provider_params is None else provider_params.optimisation_level
-            ),
+        if job.measure.shots == 0:
+            variance = 0.0
+        else:
+            variance = (1.0 - exp_value**2) / job.measure.shots
+        errors.update({f"observable_{i}" if o.label is None else o.label: variance})
+    if len(exp_values) == 1:
+        return Result(
+            job,
+            next(iter(exp_values.values())),
+            next(iter(errors.values())),
+            shots=job.measure.shots,
         )
-
-        sample_result = backend.run_circuit(compiled_circuit, n_shots=job.measure.shots)
-        result_counts = sample_result.get_counts()
-        samples = [
-            Sample(
-                bin_str="".join(str(bit) for bit in outcome),
-                nb_qubits=job.circuit.nb_qubits,
-                count=int(count),
-            )
-            for outcome, count in result_counts.items()
-        ]
-        counts: list[int] = [0] * (2**job.measure.nb_qubits)
-        for sample in samples:
-            if TYPE_CHECKING:
-                assert sample.count is not None
-            counts[sample.index] = sample.count
-        probabilities = np.array(counts, dtype=float) / job.measure.shots
-        for sample in samples:
-            sample.probability = probabilities[sample.index]
-
-        grouped_probabilities.append(probabilities)
-
-    return extract_sampled_observable_result(job, grouped_probabilities)
+    return Result(job, exp_values, errors, shots=job.measure.shots)
 
 
 def submit_job_nexus(
@@ -426,32 +319,39 @@ def submit_nexus_observable(
     MPQP `Job` is required to reconstruct the expectation value from the
     returned states or counts.
     """
-    check_job_compatibility(job)
     if TYPE_CHECKING:
-        assert isinstance(job.device, QUANTINUUMDevice)
         assert isinstance(job.measure, ExpectationMeasure)
-    if not job.device.is_remote():
-        raise ValueError("Observable submission requires a remote Quantinuum device.")
 
     circuit = job.circuit.without_measurements()
     n_shots: int | list[None]
-    if job.measure.shots == 0:
-        circuits = [circuit]
-        n_shots = [None]
-    else:
-        from mpqp.tools.pauli_grouping import find_qubitwise_rotations
+    if job.measure.optimize_measurement:
+        # If for some reason the device supports state vector
+        # Otherwise this quirk was caught way before arriving here
+        if job.measure.shots == 0:
+            circuits = [circuit]
+            n_shots = [None]
+            grouping = None
+        else:
+            from mpqp.tools.pauli_grouping import find_qubitwise_rotations
 
-        circuits = []
-        for group in job.measure.get_pauli_grouping():
-            sample_circuit = circuit + QCircuit(find_qubitwise_rotations(group))
-            sample_circuit.add(
-                BasisMeasure(
-                    list(range(job.circuit.nb_qubits)),
-                    shots=job.measure.shots,
+            circuits = []
+            grouping = job.measure.get_pauli_grouping()
+            for group in grouping:
+                sample_circuit = circuit + QCircuit(
+                    find_qubitwise_rotations(group, job.measure.targets)
                 )
-            )
-            circuits.append(sample_circuit)
-        n_shots = job.measure.shots
+                sample_circuit.add(
+                    BasisMeasure(
+                        job.measure.targets,
+                        shots=job.measure.shots,
+                    )
+                )
+                circuits.append(sample_circuit)
+            n_shots = job.measure.shots
+    else:
+        raise ValueError(
+            "Cannot submit Observable jobs as is through Nexus. Enable optimize_measurement to proceed."
+        )
 
     return submit_circuits_to_nexus(
         job,
@@ -460,6 +360,7 @@ def submit_nexus_observable(
         name=f"mpqp-observable-{job.device.value}",
         description="mpqp:observable",
         provider_params=provider_params,
+        grouping=grouping,
     )
 
 
@@ -470,30 +371,50 @@ def submit_circuits_to_nexus(
     name: str,
     description: str = "",
     provider_params: Optional[TketParams] = None,
+    grouping: Optional[list[list[PauliStringMonomial]]] = None,
 ) -> tuple[str, "ExecuteJobRef"]:
-    """Upload, compile, and submit several circuits as one Nexus execute job."""
+    """This function compiles the inputted circuit(s) and send them as one Job to Nexus.
+    The generated job can contain multiple circuits if the jobType is OBSERVABLE because of Pauli grouping.
+    In this case one circuit will be generated and sent by commuting groups of monomials.
 
-    if not isinstance(job.device, QUANTINUUMDevice) or not job.device.is_remote():
-        raise ValueError("Nexus submission requires a remote Quantinuum device.")
+    If the jobType is something different or optimize_measurement is set at False this function should send 1 circuit through 1 job.
+
+    Note:
+        If you want to retrieve which circuits is for which group, the index of the group in measure.get_pauli_grouping(),
+        is the same as the circuit's index or the one present in its description.
+        Since PauliMonomials can get quite long we cannot put everything in the description;
+    Args:
+        job: The job to be executed
+        circuits: One or several circuit(s) to be submitted
+        n_shots: The number of shots to be requested on the hardware, if at None the jobType will be STATE_VECTOR or OBSERVABLE (ideal).
+        name: The name of the job
+        decription: The description of the job, holds the index of the group being ran.
+        provider_params: Provider specific parameters
+        grouping: Optional grouping kept in memory for perforances reasons.
+    """
 
     import qnexus as qnx
-    from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
 
+    if TYPE_CHECKING:
+        assert isinstance(job.device, QUANTINUUMDevice)
     tket_circuits = []
     for circuit in circuits:
         if circuit.transpiled_circuit is None:
             tket_circuits.append(circuit.to_other_device(job.device))
         else:
-            qiskit_circuit = circuit.transpiled_circuit
-            if TYPE_CHECKING:
-                assert isinstance(qiskit_circuit, QuantumCircuit)
-            tket_circuits.append(qiskit_to_tk(qiskit_circuit))
+            tket_circuits.append(circuit.transpiled_circuit)
 
     backend_config = get_quantinuum_config(job.device)
     uploaded_circuit_refs = [
         qnx.circuits.upload(
             circuit=tket_circuit,
             name=f"{name}-circuit-{index}",
+            description=(
+                f"observable-group-{index}"
+                if isinstance(job.measure, ExpectationMeasure)
+                and job.measure.optimize_measurement
+                else ""
+            ),
         )
         for index, tket_circuit in enumerate(tket_circuits)
     ]
@@ -540,7 +461,6 @@ def submit_circuits_to_nexus(
         name=f"{name}-execution-job",
         description=description,
     )
-
     job.id = str(execute_job_ref.id)
 
     return job.id, execute_job_ref
@@ -552,7 +472,7 @@ def extract_observable_result(
     errors: float | dict[str, float],
     shots: int,
 ) -> Result:
-    """Construct an MPQP result from Quantinuum expectation values."""
+    """Fills out the data of a MPQP Result with the results of a Quantinuum OBSERVABLE job."""
     job.status = JobStatus.DONE
     if len(expectation_values) == 1:
         label = list(expectation_values)[0]
@@ -567,15 +487,19 @@ def extract_observable_result(
 def extract_sampled_observable_result(
     job: Job,
     grouped_probabilities: list[npt.NDArray[np.float64]],
+    grouping: Optional[list[list[PauliStringMonomial]]] = None,
 ) -> Result:
-    """Reconstruct a sampled observable result from one probability vector per
-    Pauli group by combining the measured probabilities with the eigenvalues and
-    coefficients of the observable's Pauli terms.
-    """
-    if not isinstance(job.measure, ExpectationMeasure):
-        raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
+    """Returns an MPQP Result computed from the probability vectors obtained by executing the submitted circuits.
 
-    grouping = job.measure.get_pauli_grouping()
+    Args:
+        job: The Job being executed.
+        grouped_probabilities: list of vectors from which the expectation_measures are going to be computed.
+        grouping: Optional list of PauliStringMonomial holds the grouping of the monomials into commuting sets.
+    """
+    if TYPE_CHECKING:
+        assert isinstance(job.measure, ExpectationMeasure)
+    if grouping is None:
+        grouping = job.measure.get_pauli_grouping()
     if len(grouped_probabilities) != len(grouping):
         raise ValueError(
             "The number of Quantinuum observable results "
@@ -710,6 +634,7 @@ def extract_result(backend_result: "BackendResult", job: Job) -> Result:
 def get_result_from_quantinuum_job_id(
     job_id: str,
     job: Job | None = None,
+    grouping: Optional[list[list[PauliStringMonomial]]] = None,
 ) -> Result:
     """Retrieve and parse the result of a Quantinuum Nexus job.
 
@@ -738,6 +663,8 @@ def get_result_from_quantinuum_job_id(
         )
 
     if job is not None and job.job_type == JobType.OBSERVABLE:
+        if grouping is None:
+            grouping = []
         if not isinstance(job.measure, ExpectationMeasure):
             raise ValueError("Observable jobs must have an `ExpectationMeasure`.")
         job.id = job_id
@@ -781,7 +708,14 @@ def get_result_from_quantinuum_job_id(
                 index = int("".join(str(bit) for bit in outcome), 2)
                 probabilities[index] = count / shots
             grouped_probabilities.append(probabilities)
-        return extract_sampled_observable_result(job, grouped_probabilities)
+
+        if len(grouped_probabilities) != len(grouping):
+            raise ValueError(
+                "The number of Quantinuum observable results "
+                f"({len(grouped_probabilities)}) does not match the number of "
+                f"submitted Pauli groups ({len(grouping)})."
+            )
+        return extract_sampled_observable_result(job, grouped_probabilities, grouping)
 
     if job is None and job_ref.annotations.description == "mpqp:observable":
         raise ValueError(
