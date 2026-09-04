@@ -1180,7 +1180,9 @@ def exec_measure_no_target(measure: Measure, device: AvailableDevice):
     if isinstance(measure, ExpectationMeasure):
         isinstance(run(circuit, device).expectation_values, float)
     else:
-        assert run(circuit, device).job.measure.nb_qubits == circuit.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
+        assert (
+            run(circuit, device).job.measure.nb_qubits == circuit.nb_qubits
+        )  # pyright: ignore[reportOptionalMemberAccess]
 
 
 @pytest.mark.parametrize(

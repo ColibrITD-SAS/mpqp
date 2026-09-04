@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING
 from mpqp.environment.var_cache import (
-    _INSTALLED_MPQP_PROVIDERS,   # pyright: ignore[reportPrivateUsage]
+    _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
 )
 
