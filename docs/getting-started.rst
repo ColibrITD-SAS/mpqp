@@ -299,7 +299,7 @@ available in the `QNexus projects API reference
 MPQP provides local TKET simulators that do not require Nexus authentication.
 The Nexus connection is required for the remote Nexus-hosted Aer and Qulacs
 simulators, the noiseless H-Series ``QUANTINUUMDevice.H1_1LE`` and
-``QUANTINUUMDevice.H2_1LE`` emulators, and the noisy H-Series
+``QUANTINUUMDevice.H2_1LE`` simulators, and the noisy H-Series
 ``QUANTINUUMDevice.H1_EMULATOR`` and ``QUANTINUUMDevice.H2_EMULATOR``
 emulators.
 
