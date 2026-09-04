@@ -176,6 +176,7 @@ def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Re
 
     Args:
         job: Job targeting a local TKET device.
+        provider_params: Quantinuum specific parameters, mainly for remote submissions.
 
     Returns:
         The result after local compilation and execution.
@@ -495,9 +496,9 @@ def submit_circuits_to_nexus(
         circuits: One or several circuit(s) to be submitted
         n_shots: The number of shots to be requested on the hardware, if at None the jobType will be STATE_VECTOR or OBSERVABLE (ideal).
         name: The name of the job
-        decription: The description of the job, holds the index of the group being ran.
+        description: The description of the job, holds the index of the group being run.
         provider_params: Provider specific parameters
-        grouping: Optional grouping kept in memory for perforances reasons.
+        grouping: Optional grouping kept in memory for performances reasons.
     """
 
     import qnexus as qnx

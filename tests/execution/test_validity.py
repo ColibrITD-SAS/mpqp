@@ -553,6 +553,22 @@ list_gate_obs_vector = [
             ]
         ),
     ),
+    (
+        [H(2), H(1), X(1), X(2)],
+        Observable(2*pZ @ pI @ pX + pY @ pY @ pY ).matrix,
+        np.array(
+            [
+                0.5,
+                0.5,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+            ]
+        ),
+    )
 ]
 
 

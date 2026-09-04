@@ -1,5 +1,5 @@
 -r requirements-all.txt
-setuptools
+setuptools<82 # because pkg_resources has been remove in latest version, and is needed by myqlm
 pytest==9.0.3
 nbmake
 sphinx==7.3.7
