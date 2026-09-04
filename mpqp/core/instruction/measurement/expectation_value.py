@@ -298,7 +298,7 @@ class Observable:
     def to_other_language(
         self,
         language: Language,
-        targets: Optional[list[int]] = [],
+        targets: Optional[list[int]] = None,
         circuit: Optional[CirqCircuit] = None,
     ) -> Union[
         SparsePauliOp,
@@ -376,6 +376,8 @@ class Observable:
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit=circuit)
         elif language == Language.TKET:
+            if targets is None:
+                targets = []
             return self.pauli_string.to_other_language(Language.TKET, targets=targets)
         else:
             raise ValueError(f"Unsupported language: {language}")
