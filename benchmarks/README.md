@@ -67,6 +67,8 @@ fonctionnels présents dans `tests/`.
 Le workflow `.github/workflows/benchmarks.yml` peut être lancé :
 
 - automatiquement après un push ou un merge sur `main` ;
+- automatiquement sur `perf-benchmark` pour valider le workflow sans enregistrer
+  la mesure ;
 - manuellement depuis **Actions → Benchmarks dashboard → Run workflow**.
 
 Pour une exécution manuelle, les paramètres suivants sont disponibles :
@@ -79,21 +81,29 @@ Pour une exécution manuelle, les paramètres suivants sont disponibles :
 | `save` | Indique si le résultat doit être ajouté à l'historique permanent. |
 | `gh_pages_branch` | Branche cible dans `MPQP-PrivateBenchmark`. |
 
-Les fichiers JSON temporaires du workflow sont créés dans :
+Les fichiers JSON du workflow sont d'abord créés dans un dossier qui identifie
+le runner et la version de Python :
 
 ```text
-.benchmarks/results/benchmark-results.json
+.benchmarks/<runner>-CPython-<version>/log/<run>_<commit>.json
 ```
 
-Ils sont également disponibles pendant 90 jours dans les artefacts de
-l'exécution GitHub Actions.
+Par exemple :
+
+```text
+.benchmarks/ubuntu-24.04-CPython-3.12/log/42_a1b2c3d4.json
+```
+
+Ils sont disponibles pendant 90 jours dans les artefacts GitHub Actions. Quand
+la mesure est sauvegardée, le même fichier JSON est aussi archivé avec la page
+web dans `MPQP-PrivateBenchmark`.
 
 ## Fonctionnement de `save`
 
 Avec `save=false`, le workflow :
 
 1. exécute les benchmarks ;
-2. produit le fichier JSON sous `.benchmarks/results/` ;
+2. produit le fichier JSON sous `.benchmarks/<environnement>/log/` ;
 3. compare les résultats avec l'historique existant ;
 4. ajoute un résumé dans GitHub Actions ;
 5. ne pousse aucune modification dans `MPQP-PrivateBenchmark`.
@@ -117,22 +127,26 @@ de ne comparer que des mesures prises dans un environnement équivalent :
 MPQP-PrivateBenchmark/
 └── dev/
     └── bench/
-        ├── Linux-CPython-3.12/
+        ├── ubuntu-24.04-CPython-3.12/
         │   ├── index.html
-        │   └── data.js
-        └── Windows-CPython-3.12/
+        │   ├── data.js
+        │   └── log/
+        │       ├── 41_a1b2c3d4.json
+        │       └── 42_e5f6a7b8.json
+        └── windows-2025-CPython-3.12/
             ├── index.html
-            └── data.js
+            ├── data.js
+            └── log/
+                └── 43_c9d0e1f2.json
 ```
 
 La page Linux/Python 3.12 est disponible à l'adresse suivante lorsque GitHub
 Pages est activé :
 
 ```text
-https://colibritd-sas.github.io/MPQP-PrivateBenchmark/dev/bench/Linux-CPython-3.12/
+https://colibritd-sas.github.io/MPQP-PrivateBenchmark/dev/bench/ubuntu-24.04-CPython-3.12/
 ```
 
 Chaque page contient l'évolution temporelle de chaque benchmark ainsi que les
 informations du commit correspondant. L'historique est limité aux 100 dernières
 mesures par graphique.
-

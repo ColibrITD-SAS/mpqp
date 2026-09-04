@@ -58,6 +58,11 @@ jobs:
           ref: ${{ inputs.commit_ref || github.sha }}
           fetch-depth: 0
 
+      - name: Resolve benchmarked commit
+        id: benchmark_ref
+        shell: pwsh
+        run: '"sha=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT'
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -71,36 +76,51 @@ jobs:
           python -m pip install pytest==9.0.3 pytest-benchmark==5.3.0
 
       - name: Prepare benchmark output directory
-        run: python -c "from pathlib import Path; Path('.benchmarks/results').mkdir(parents=True, exist_ok=True)"
+        run: >-
+          python -c "from pathlib import Path;
+          Path('.benchmarks/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log').mkdir(parents=True, exist_ok=True)"
 
       - name: Run benchmarks
         run: >-
           python -m pytest benchmarks
           --benchmark-only
-          --benchmark-json=.benchmarks/results/benchmark-results.json
+          --benchmark-json=.benchmarks/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
           --benchmark-columns=min,median,mean,stddev,rounds
 
       - name: Upload raw benchmark result
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
-          path: .benchmarks/results/benchmark-results.json
+          name: benchmark-results-${{ inputs.runner || 'ubuntu-24.04' }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
+          path: .benchmarks/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
           retention-days: 90
+
+      - name: Prepare dashboard publishing workspace
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_ref || github.sha }}
+          fetch-depth: 0
+
+      - name: Restore raw benchmark result in dashboard directory
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-${{ inputs.runner || 'ubuntu-24.04' }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
+          path: dev/bench/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log
 
       - name: Update historical charts and detect regressions
         uses: benchmark-action/github-action-benchmark@v1
         with:
-          name: MPQP / ${{ runner.os }} / Python ${{ inputs.python_version || '3.12' }}
+          name: MPQP / ${{ inputs.runner || 'ubuntu-24.04' }} / Python ${{ inputs.python_version || '3.12' }}
           tool: pytest
-          output-file-path: .benchmarks/results/benchmark-results.json
-          benchmark-data-dir-path: dev/bench/${{ runner.os }}-CPython-${{ inputs.python_version || '3.12' }}
+          output-file-path: dev/bench/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
+          benchmark-data-dir-path: dev/bench/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}
           gh-pages-branch: ${{ inputs.gh_pages_branch || 'main' }}
           gh-repository: github.com/ColibrITD-SAS/MPQP-PrivateBenchmark
           github-token: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
-          auto-push: ${{ github.event_name == 'push' || inputs.save }}
+          ref: ${{ steps.benchmark_ref.outputs.sha }}
+          auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
           alert-threshold: 120%
           fail-threshold: 150%
           fail-on-alert: true
-          comment-on-alert: true
+          comment-on-alert: false
           summary-always: true
           max-items-in-chart: 100
