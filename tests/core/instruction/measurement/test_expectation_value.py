@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, Language, Observable, pI, pX
+from mpqp import ExpectationMeasure, Language, Observable, pI, pX, pY, pZ
 
 
 @pytest.mark.parametrize(
@@ -49,3 +49,26 @@ def test_to_other_language_cirq(
 ):
     for obs, translation in list_to_cirq_pauli:
         assert obs.to_other_language(Language.CIRQ) == translation
+
+
+@pytest.mark.provider("quantinuum")
+def test_to_other_language_tket():
+    from pytket.circuit import Qubit
+    from pytket.pauli import Pauli, QubitPauliString
+    from pytket.utils.operators import QubitPauliOperator
+
+    observable = Observable(2 * (pX @ pZ) - 0.5 * (pY @ pI))
+    expected = QubitPauliOperator(
+        {
+            QubitPauliString(
+                [Qubit(0), Qubit(1)],
+                [Pauli.X, Pauli.Z],
+            ): 2,
+            QubitPauliString(
+                [Qubit(0), Qubit(1)],
+                [Pauli.Y, Pauli.I],
+            ): -0.5,
+        }
+    )
+
+    assert observable.to_other_language(Language.TKET) == expected

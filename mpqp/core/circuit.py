@@ -65,6 +65,7 @@ from mpqp.tools.maths import matrix_eq
 if TYPE_CHECKING:
     from braket.circuits import Circuit as braket_Circuit
     from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from pytket import Circuit as tket_Circuit
     from qat.core.wrappers.circuit import Circuit as myQLM_Circuit
     from qiskit.circuit import QuantumCircuit
     from qiskit_aer import AerSimulator
@@ -76,6 +77,7 @@ if TYPE_CHECKING:
         AWSDevice,
         GOOGLEDevice,
         IBMDevice,
+        QUANTINUUMDevice,
     )
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
@@ -169,7 +171,7 @@ class QCircuit:
         self._user_nb_qubits: Optional[int] = None
         self._nb_qubits: int
 
-        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit]]" = (None)
+        self.transpiled_circuit: "Optional[Union[braket_Circuit, cirq_Circuit, myQLM_Circuit, QuantumCircuit, tket_Circuit]]" = (None)
         """A pre-transpiled circuit to skip repeated transpilation when running 
         the circuit. Useful when working with a symbolic circuit that needs to
         be executed with different parameters."""
@@ -1151,7 +1153,15 @@ class QCircuit:
         authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
     ) -> QuantumCircuit: ...
-
+    @overload
+    def to_other_language(
+        self,
+        language: Literal[Language.TKET],
+        skip_pre_measure: bool = False,
+        skip_measurements: bool = False,
+        authorized_gates: Optional[set[type[NativeGate]]] = None,
+        printing: bool = False,
+    ) -> tket_Circuit: ...
     @overload
     def to_other_language(
         self,
@@ -1160,7 +1170,14 @@ class QCircuit:
         skip_measurements: bool = False,
         authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str: ...
+    ) -> (
+        QuantumCircuit
+        | myQLM_Circuit
+        | braket_Circuit
+        | cirq_Circuit
+        | tket_Circuit
+        | str
+    ): ...
 
     def to_other_language(
         self,
@@ -1169,7 +1186,14 @@ class QCircuit:
         skip_measurements: bool = False,
         authorized_gates: Optional[set[type[NativeGate]]] = None,
         printing: bool = False,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | str:
+    ) -> (
+        QuantumCircuit
+        | myQLM_Circuit
+        | braket_Circuit
+        | cirq_Circuit
+        | tket_Circuit
+        | str
+    ):
         """Transforms this circuit into the corresponding circuit in the language
         specified in the ``language`` arg.
 
@@ -1302,6 +1326,13 @@ class QCircuit:
             qasm3_code = open_qasm_2_to_3(qasm2_code, self._generated_g_phase)
             self._generated_g_phase = 0
             return qasm3_code
+        elif language == Language.TKET:
+            circuit_qiskit = self.to_other_language(
+                Language.QISKIT, skip_measurements, skip_pre_measure
+            )
+            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+
+            return qiskit_to_tk(circuit_qiskit)
         else:
             raise NotImplementedError(f"Error: {language} is not supported")
 
@@ -1329,6 +1360,13 @@ class QCircuit:
     @overload
     def to_other_device(
         self,
+        device: QUANTINUUMDevice,
+        skip_pre_measure: bool = False,
+    ) -> tket_Circuit: ...
+
+    @overload
+    def to_other_device(
+        self,
         device: Union[IBMDevice, StaticIBMSimulatedDevice],
         skip_pre_measure: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
@@ -1339,7 +1377,7 @@ class QCircuit:
         device: AvailableDevice,
         skip_pre_measure: bool = False,
         backend_sim: Optional["AerSimulator"] = None,
-    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit:
+    ) -> QuantumCircuit | myQLM_Circuit | braket_Circuit | cirq_Circuit | tket_Circuit:
         """Transforms this circuit into the corresponding device specified
         in the ``device`` arg.
 
@@ -1393,6 +1431,7 @@ class QCircuit:
             AWSDevice,
             GOOGLEDevice,
             IBMDevice,
+            QUANTINUUMDevice,
         )
         from mpqp.execution.providers.ibm import JobType
         from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
@@ -1625,6 +1664,19 @@ class QCircuit:
                 skip_measurements,
             )
             return circuit
+        elif isinstance(device, QUANTINUUMDevice):
+            if job_type == JobType.STATE_VECTOR:
+                skip_measurements = True
+
+            qiskit_circuit = self.to_other_language(
+                Language.QISKIT,
+                skip_pre_measure,
+                skip_measurements,
+            )
+
+            from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
+
+            return qiskit_to_tk(qiskit_circuit)
         else:
             raise NotImplementedError(f"Error: {device} is not supported")
 

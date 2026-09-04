@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from pytket.utils.operators import QubitPauliOperator
     from qat.core.wrappers.observable import Observable as QLMObservable
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
@@ -280,23 +281,48 @@ class Observable:
     ) -> QLMObservable: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+        self,
+        language: Literal[Language.CIRQ],
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[CirqPauliSum, CirqPauliString]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.TKET], targets: Optional[list[int]] = None
+    ) -> QubitPauliOperator: ...
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
     @overload
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        Sum,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]: ...
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, Sum, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        Sum,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]:
         """Converts the observable to the representation of another quantum
         programming language.
@@ -348,7 +374,11 @@ class Observable:
                     ),
                 )
         elif language == Language.CIRQ:
-            return self.pauli_string.to_other_language(Language.CIRQ, circuit)
+            return self.pauli_string.to_other_language(Language.CIRQ, circuit=circuit)
+        elif language == Language.TKET:
+            if targets is None:
+                targets = []
+            return self.pauli_string.to_other_language(Language.TKET, targets=targets)
         else:
             raise ValueError(f"Unsupported language: {language}")
 

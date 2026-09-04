@@ -1,5 +1,4 @@
 from copy import deepcopy
-
 import numpy as np
 import numpy.typing as npt
 import pytest
@@ -24,6 +23,7 @@ from mpqp import (
     Observable,
     PhaseDamping,
     QCircuit,
+    QUANTINUUMDevice,
     Result,
     VariableSizeBasis,
     pI,
@@ -73,6 +73,12 @@ state_vector_devices_myqlm: list[AvailableDevice] = [
     if not device.is_remote() and device.supports_state_vector()
 ]
 
+state_vector_devices_quantinuum: list[AvailableDevice] = [
+    device
+    for device in QUANTINUUMDevice
+    if not device.is_remote() and device.supports_state_vector()
+]
+
 sampling_devices_qiskit: list[AvailableDevice] = [
     device
     for device in IBMDevice
@@ -96,6 +102,12 @@ sampling_devices_braket: list[AvailableDevice] = [
 sampling_devices_myqlm: list[AvailableDevice] = [
     device
     for device in ATOSDevice
+    if not device.is_remote() and device.supports_samples()
+]
+
+sampling_devices_quantinuum: list[AvailableDevice] = [
+    device
+    for device in QUANTINUUMDevice
     if not device.is_remote() and device.supports_samples()
 ]
 
@@ -193,6 +205,16 @@ def test_state_vector_result_HEA_ansatz_braket(
 ):
     exec_state_vector_result_HEA_ansatz(
         parameters, expected_vector, state_vector_devices_braket
+    )
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("parameters, expected_vector", list_param_expect_vector)
+def test_state_vector_result_HEA_ansatz_quantinuum(
+    parameters: list[float], expected_vector: npt.NDArray[np.complex128]
+):
+    exec_state_vector_result_HEA_ansatz(
+        parameters, expected_vector, state_vector_devices_quantinuum
     )
 
 
@@ -309,6 +331,16 @@ def test_state_vector_various_native_gates_myqlm(
     )
 
 
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("gates, expected_vector", list_gates_expect_vector)
+def test_state_vector_various_native_gates_quantinuum(
+    gates: list[Gate], expected_vector: Matrix
+):
+    exec_state_vector_various_native_gates(
+        gates, expected_vector, state_vector_devices_quantinuum
+    )
+
+
 def exec_state_vector_various_native_gates(
     gates: list[Gate],
     expected_vector: Matrix,
@@ -389,6 +421,14 @@ def test_sample_basis_state_in_samples_myqlm(
     exec_sample_basis_state_in_samples(gates, basis_states, sampling_devices_myqlm)
 
 
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("gates, basis_states", list_gates_basis_states)
+def test_sample_basis_state_in_samples_quantinuum(
+    gates: list[Gate], basis_states: list[str]
+):
+    exec_sample_basis_state_in_samples(gates, basis_states, sampling_devices_quantinuum)
+
+
 def exec_sample_basis_state_in_samples(
     gates: list[Gate], basis_states: list[str], sampling_devices: list[AvailableDevice]
 ):
@@ -456,6 +496,16 @@ def test_sample_counts_in_trust_interval_myqlm(
     )
 
 
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("instructions, probabilities", list_instruction_proba)
+def test_sample_counts_in_trust_interval_quantinuum(
+    instructions: list[Gate], probabilities: list[float]
+):
+    exec_sample_counts_in_trust_interval(
+        instructions, probabilities, sampling_devices_quantinuum
+    )
+
+
 def exec_sample_counts_in_trust_interval(
     instructions: list[Gate],
     probabilities: list[float],
@@ -503,6 +553,22 @@ list_gate_obs_vector = [
             ]
         ),
     ),
+    (
+        [H(2), H(1), X(1), X(2)],
+        Observable(2 * pZ @ pI @ pX + pY @ pY @ pY).matrix,
+        np.array(
+            [
+                0.5,
+                0.5,
+                0.5,
+                0.5,
+                0,
+                0,
+                0,
+                0,
+            ]
+        ),
+    ),
 ]
 
 
@@ -543,6 +609,16 @@ def test_observable_ideal_case_myqlm(
 ):
     exec_observable_ideal_case(
         gates, observable, expected_vector, state_vector_devices_myqlm
+    )
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("gates, observable, expected_vector", list_gate_obs_vector)
+def test_observable_ideal_case_quantinuum(
+    gates: list[Gate], observable: npt.NDArray[np.complex128], expected_vector: Matrix
+):
+    exec_observable_ideal_case(
+        gates, observable, expected_vector, state_vector_devices_quantinuum
     )
 
 
@@ -626,6 +702,14 @@ def test_validity_run_job_type_braket(
     exec_validity_run_job_type(device, circuits_type)
 
 
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize("device", list(QUANTINUUMDevice))
+def test_validity_run_job_type_quantinuum(
+    device: AvailableDevice, circuits_type: list[QCircuit]
+):
+    exec_validity_run_job_type(device, circuits_type)
+
+
 @pytest.mark.provider("azure")
 @pytest.mark.parametrize(
     "device",
@@ -647,12 +731,19 @@ def exec_validity_run_job_type(device: AvailableDevice, circuits_type: list[QCir
         if device.supports_samples():
             assert run(circuit_samples, device) is not None
         else:
-            run(circuit_samples, device)
+            if device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
+                with pytest.raises(DeviceJobIncompatibleError):
+                    run(circuit_samples, device)
+            else:
+                run(circuit_samples, device)
 
         if device.supports_state_vector():
             assert run(circuit_state_vector, device) is not None
         else:
-            if isinstance(device, IBMDevice) and not device.supports_state_vector():
+            if (
+                isinstance(device, IBMDevice | QUANTINUUMDevice)
+                and not device.supports_state_vector()
+            ):
                 with pytest.raises(DeviceJobIncompatibleError):
                     run(circuit_state_vector, device)
             else:
@@ -713,6 +804,11 @@ def test_validity_native_gate_to_other_language_myqlm():
     exec_validity_native_gate_to_other_language(Language.MY_QLM)
 
 
+@pytest.mark.provider("quantinuum")
+def test_validity_native_gate_to_other_language_quantinuum():
+    exec_validity_native_gate_to_other_language(Language.TKET)
+
+
 def test_validity_native_gate_to_other_language_qasm2():
     exec_validity_native_gate_to_other_language(Language.QASM2)
 
@@ -725,7 +821,7 @@ def exec_validity_native_gate_to_other_language(language: Language):
     for gate in NATIVE_GATES:
         gate_build = random_gate([gate])
 
-        if language in [Language.MY_QLM, Language.QASM3]:
+        if language in [Language.MY_QLM, Language.QASM3, Language.TKET]:
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
@@ -767,6 +863,11 @@ def test_validity_measure_to_other_language_myqlm(measures: list[Measure]):
     exec_validity_measure_to_other_language(Language.MY_QLM, measures)
 
 
+@pytest.mark.provider("quantinuum")
+def test_validity_measure_to_other_language_quantinuum(measures: list[Measure]):
+    exec_validity_measure_to_other_language(Language.TKET, measures)
+
+
 def test_validity_measure_to_other_language_qasm2(measures: list[Measure]):
     exec_validity_measure_to_other_language(Language.QASM2, measures)
 
@@ -786,6 +887,7 @@ def exec_validity_measure_to_other_language(
             Language.MY_QLM,
             Language.BRAKET,
             Language.QASM3,
+            Language.TKET,
         ]:
             with pytest.raises(NotImplementedError):
                 measure.to_other_language(language)
@@ -822,6 +924,13 @@ def test_validity_pauli_string_to_other_language_myqlm(
     pauli_strings: list[PauliString],
 ):
     exec_validity_pauli_string_to_other_language(Language.MY_QLM, pauli_strings)
+
+
+@pytest.mark.provider("quantinuum")
+def test_validity_pauli_string_to_other_language_quantinuum(
+    pauli_strings: list[PauliString],
+):
+    exec_validity_pauli_string_to_other_language(Language.TKET, pauli_strings)
 
 
 def test_validity_pauli_string_to_other_language_qasm2(
@@ -868,6 +977,11 @@ def test_validity_noise_to_other_language_myqlm():
     exec_validity_noise_to_other_language(Language.MY_QLM)
 
 
+@pytest.mark.provider("quantinuum")
+def test_validity_noise_to_other_language_quantinuum():
+    exec_validity_noise_to_other_language(Language.TKET)
+
+
 def test_validity_noise_to_other_language_qasm2():
     exec_validity_noise_to_other_language(Language.QASM2)
 
@@ -880,7 +994,7 @@ def exec_validity_noise_to_other_language(language: Language):
     for noise in NOISE_MODELS:
         noise_build = random_noise([noise])
 
-        if language in [Language.QASM3, Language.QASM2]:
+        if language in [Language.QASM3, Language.QASM2, Language.TKET]:
             with pytest.raises(NotImplementedError):
                 noise_build.to_other_language(language)
 
@@ -928,6 +1042,13 @@ def test_validity_other_instr_to_other_language_myqlm(
     exec_validity_other_instr_to_other_language(Language.MY_QLM, other_instr)
 
 
+@pytest.mark.provider("quantinuum")
+def test_validity_other_instr_to_other_language_quantinuum(
+    other_instr: list[Instruction],
+):
+    exec_validity_other_instr_to_other_language(Language.TKET, other_instr)
+
+
 def test_validity_other_instr_to_other_language_qasm2(
     other_instr: list[Instruction],
 ):
@@ -952,6 +1073,7 @@ def exec_validity_other_instr_to_other_language(
             Language.CIRQ,
             Language.BRAKET,
             Language.QASM3,
+            Language.TKET,
         ]:
             with pytest.raises(NotImplementedError):
                 instr.to_other_language(language)
@@ -990,7 +1112,7 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run_cirq(
     circuit: QCircuit, observable: Observable
 ):
     exec_validity_optim_ideal_single_diag_obs_and_regular_run(
-        circuit, observable, IBMDevice.AER_SIMULATOR
+        circuit, observable, GOOGLEDevice.CIRQ_LOCAL_SIMULATOR
     )
 
 
@@ -1019,6 +1141,19 @@ def test_validity_optim_ideal_single_diag_obs_and_regular_run_myqlm(
 ):
     exec_validity_optim_ideal_single_diag_obs_and_regular_run(
         circuit, observable, ATOSDevice.MYQLM_PYLINALG
+    )
+
+
+@pytest.mark.provider("quantinuum")
+@pytest.mark.parametrize(
+    "circuit, observable",
+    list_circ_obs,
+)
+def test_validity_optim_ideal_single_diag_obs_and_regular_run_quantinuum(
+    circuit: QCircuit, observable: Observable
+):
+    exec_validity_optim_ideal_single_diag_obs_and_regular_run(
+        circuit, observable, QUANTINUUMDevice.TKET_QULACS_SIMULATOR
     )
 
 
@@ -1063,18 +1198,22 @@ def test_validity_optim_ideal_multi_diag_obs_and_regular_run(
         c1,
         [
             IBMDevice.AER_SIMULATOR,
-            # ATOSDevice.MYQLM_PYLINALG,
-            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
         ],
     )
     br2 = run(
         c2,
         [
             IBMDevice.AER_SIMULATOR,
-            # ATOSDevice.MYQLM_PYLINALG,
-            # AWSDevice.BRAKET_LOCAL_SIMULATOR,
-            # GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            ATOSDevice.MYQLM_PYLINALG,
+            AWSDevice.BRAKET_LOCAL_SIMULATOR,
+            GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
         ],
     )
 
@@ -1107,6 +1246,8 @@ def test_global_phase_statevector(matrix: Matrix, gphase: float):
         GOOGLEDevice.CIRQ_LOCAL_SIMULATOR,
         AWSDevice.BRAKET_LOCAL_SIMULATOR,
         ATOSDevice.MYQLM_PYLINALG,
+        QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
     ]
     results = run(circuit, devices)
     for result_1, result_2 in pairwise(results.results):

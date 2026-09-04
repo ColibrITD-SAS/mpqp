@@ -1,9 +1,8 @@
--r requirements.txt
-setuptools==83.0.0
+-r requirements-all.txt
+setuptools<82 # because pkg_resources has been remove in latest version, and is needed by myqlm
 pytest==9.0.3
 nbmake
-sphinx==9.1.0 ; python_version >= "3.12"
-sphinx==8.1.3 ; python_version < "3.12"
+sphinx==7.3.7
 sphinx-rtd-dark-mode>=1.3.0
 sphinx-copybutton>=0.5.2
 sphinx_github_changelog>=1.3.0
