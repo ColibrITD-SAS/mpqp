@@ -50,7 +50,7 @@ from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.providers.providers_params import (
     ProviderParams,
     QiskitParams,
-    TketParams,
+    QuantinuumParams,
 )
 from mpqp.execution.providers.quantinuum import run_quantinuum, submit_job_nexus
 from mpqp.execution.result import BatchResult, Result
@@ -404,7 +404,7 @@ def _run_single(
     elif isinstance(device, AZUREDevice):
         return run_azure(job)
     elif isinstance(device, QUANTINUUMDevice):
-        if provider_params is None or isinstance(provider_params, TketParams):
+        if provider_params is None or isinstance(provider_params, QuantinuumParams):
             return run_quantinuum(job, provider_params)
         else:
             raise ValueError(

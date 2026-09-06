@@ -26,7 +26,7 @@ class QiskitParams(ProviderParams):
         self.instance = instance
 
 
-class TketParams(ProviderParams):
+class QuantinuumParams(ProviderParams):
     """
     Class meant to regroup all IBM specific parameters for remote execution.
 

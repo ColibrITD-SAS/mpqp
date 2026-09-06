@@ -5,16 +5,13 @@ from collections import Counter
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional
 
-import numpy as np
-
 from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.measurement import BasisMeasure, ExpectationMeasure
-from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 from mpqp.core.languages import Language
 from mpqp.execution.connection.quantinuum_connection import get_quantinuum_config
 from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
-from mpqp.execution.providers.providers_params import TketParams
+from mpqp.execution.providers.providers_params import QuantinuumParams
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError
 
@@ -37,13 +34,14 @@ if TYPE_CHECKING:
     )
 
 
-def run_quantinuum(job: Job, provider_params: Optional[TketParams] = None) -> Result:
+def run_quantinuum(job: Job, quantinuum_params: Optional[QuantinuumParams] = None) -> Result:
     """Executes the job on the selected Quantinuum device (local or remote),
     wait until execution is complete, and return the result.
 
     Args:
         job: Job to execute. It must target a
             :class:`mpqp.execution.devices.QUANTINUUMDevice`.
+        quantinuum_params: TODO fill docstring.
 
     Returns:
         The result of the job.
@@ -59,36 +57,12 @@ def run_quantinuum(job: Job, provider_params: Optional[TketParams] = None) -> Re
         )
 
     check_job_compatibility(job)
-    try:
-        if not job.device.is_remote():
-            return run_tket_local(job, provider_params)
 
-        _, execute_job_ref = submit_job_nexus(job, provider_params)
+    if not job.device.is_remote():
+        return run_tket_local(job, quantinuum_params) # TODO: I believe for local case we don't need providers params, to be double checked
+    else:
+        return run_nexus_remote(job, quantinuum_params)
 
-        import qnexus as qnx
-
-        execution_status = qnx.jobs.wait_for(execute_job_ref)
-        result_refs = qnx.jobs.results(execute_job_ref)
-        if not result_refs:
-            status = execution_status.status.value
-            raise RuntimeError(
-                f"Quantinuum Nexus execution job '{execute_job_ref.id}' finished "
-                f"with status '{status}', but no result was returned."
-            )
-
-        result_ref = result_refs[0]
-        if TYPE_CHECKING:
-            assert isinstance(result_ref, ExecutionResultRef)
-
-        backend_result = result_ref.download_result()
-        if TYPE_CHECKING:
-            assert isinstance(backend_result, BackendResult)
-
-        return extract_result(backend_result, job)
-    except Exception as error:
-        job.status = JobStatus.ERROR
-        job.status_message = str(error)
-        raise
 
 
 def check_job_compatibility(job: Job) -> None:
@@ -171,7 +145,7 @@ def check_job_compatibility(job: Job) -> None:
             )
 
 
-def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Result:
+def run_tket_local(job: Job, provider_params: Optional[QuantinuumParams] = None) -> Result:
     """Execute a job using a local TKET backend.
 
     Args:
@@ -183,40 +157,31 @@ def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Re
     """
     if TYPE_CHECKING:
         assert isinstance(job.device, QUANTINUUMDevice)
-    if job.device.is_remote():
-        raise ValueError("The job must target a local TKET device.")
 
     if job.circuit.transpiled_circuit is None:
-        tket_circuit = job.circuit.to_other_device(job.device)
+        job.circuit.transpiled_circuit = job.circuit.to_other_device(job.device)
     else:
-        tket_circuit = job.circuit.transpiled_circuit
-        if TYPE_CHECKING:
-            from pytket.circuit import Circuit as tket_Circuit
-
-            assert isinstance(tket_circuit, tket_Circuit)
+        from pytket.circuit import Circuit as tket_Circuit
+        assert isinstance(job.circuit.transpiled_circuit, tket_Circuit)
+    tket_circuit = job.circuit.transpiled_circuit
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerBackend
-
         backend = AerBackend()
     elif job.device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerStateBackend
-
         backend = AerStateBackend()
     elif job.device == QUANTINUUMDevice.TKET_QULACS_SIMULATOR:
         from pytket.extensions.qulacs.backends.qulacs_backend import QulacsBackend
-
         backend = QulacsBackend()
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
-    compiled_circuit = backend.get_compiled_circuit(
-        tket_circuit,
-        optimisation_level=(
-            0 if provider_params is None else provider_params.optimisation_level
-        ),
-    )
+
+    compiled_circuit = backend.get_compiled_circuit(tket_circuit, optimisation_level=0)
+
     if job.job_type == JobType.OBSERVABLE:
-        return run_quantinuum_observable(job, backend, provider_params)
+        return run_tket_observable()
+        #return run_quantinuum_observable(job, backend, provider_params)
 
     n_shots = None if job.measure is None else job.measure.shots
 
@@ -225,15 +190,55 @@ def run_tket_local(job: Job, provider_params: Optional[TketParams] = None) -> Re
     return extract_result(backend_result, job)
 
 
-def run_quantinuum_observable(
+def run_tket_observable(...):
+    #TODO MOVE ALL THE LOCAL OBSERVABLE CASE HERE
+    pass
+
+
+def run_nexus_remote(job: Job, quantinuum_params: Optional[QuantinuumParams] = None):
+    """TODO: docstring"""
+
+    try:
+        _, execute_job_ref = submit_job_nexus(job, quantinuum_params)
+
+        import qnexus as qnx
+
+        execution_status = qnx.jobs.wait_for(execute_job_ref)
+        result_refs = qnx.jobs.results(execute_job_ref)
+        if not result_refs:
+            status = execution_status.status.value
+            raise RuntimeError(
+                f"Quantinuum Nexus execution job '{execute_job_ref.id}' finished "
+                f"with status '{status}', but no result was returned."
+            )
+
+        result_ref = result_refs[0]
+        if TYPE_CHECKING:
+            assert isinstance(result_ref, ExecutionResultRef)
+
+        backend_result = result_ref.download_result()
+        if TYPE_CHECKING:
+            assert isinstance(backend_result, BackendResult)
+
+        return extract_result(backend_result, job)
+
+    except Exception as error:
+        job.status = JobStatus.ERROR
+        job.status_message = str(error)
+        raise
+
+
+def run_quantinuum_observable( # TODO clarify if this is remote or local
     job: Job,
     backend: "Backend",
-    provider_params: Optional[TketParams] = None,
+    quantinuum_params: Optional[QuantinuumParams] = None,
 ) -> Result:
     """Execute an observable job using a supported Quantinuum backend.
 
     Args:
         job: Job to execute.
+        backend: TODO DOC
+        quantinuum_params: TODO DOC
 
     Returns:
         A result containing the expectation values of the observables.
@@ -247,7 +252,7 @@ def run_quantinuum_observable(
     circuit = backend.get_compiled_circuit(
         circuit,
         optimisation_level=(
-            0 if provider_params is None else provider_params.optimisation_level
+            0 if quantinuum_params is None else quantinuum_params.optimisation_level
         ),
     )
     job_change_compatibility = (
@@ -363,9 +368,9 @@ def run_quantinuum_observable(
         return Result(job, exp_values, errors, shots=job.measure.shots)
 
     else:  # No optimization by MPQP but could have some by pytket
-        if provider_params is not None:
-            if provider_params.optimisation_strategy is not None:
-                optimisation_strat = provider_params.optimisation_strategy
+        if quantinuum_params is not None:
+            if quantinuum_params.optimisation_strategy is not None:
+                optimisation_strat = quantinuum_params.optimisation_strategy
         optimisation_strat = None
         for i, o in enumerate(job.measure.observables):
             translated_obs = o.to_other_language(
@@ -394,7 +399,7 @@ def run_quantinuum_observable(
 
 
 def submit_job_nexus(
-    job: Job, provider_params: Optional[TketParams] = None
+    job: Job, provider_params: Optional[QuantinuumParams] = None
 ) -> tuple[str, "ExecuteJobRef"]:
     """Submit a job to a supported Quantinuum Nexus backend."""
     if job.job_type == JobType.OBSERVABLE:
@@ -419,7 +424,7 @@ def submit_job_nexus(
 
 
 def submit_nexus_observable(
-    job: Job, provider_params: Optional[TketParams] = None
+    job: Job, provider_params: Optional[QuantinuumParams] = None
 ) -> tuple[str, "ExecuteJobRef"]:
     """Submit an observable as one Nexus execution job.
 
@@ -478,7 +483,7 @@ def submit_circuits_to_nexus(
     n_shots: int | list[None],
     name: str,
     description: str = "",
-    provider_params: Optional[TketParams] = None,
+    provider_params: Optional[QuantinuumParams] = None,
     grouping: Optional[list[list[PauliStringMonomial]]] = None,
 ) -> tuple[str, "ExecuteJobRef"]:
     """This function compiles the inputted circuit(s) and send them as one Job to Nexus.

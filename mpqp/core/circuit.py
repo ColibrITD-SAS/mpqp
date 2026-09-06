@@ -1675,7 +1675,6 @@ class QCircuit:
             )
 
             from pytket.extensions.qiskit.qiskit_convert import qiskit_to_tk
-
             return qiskit_to_tk(qiskit_circuit)
         else:
             raise NotImplementedError(f"Error: {device} is not supported")
