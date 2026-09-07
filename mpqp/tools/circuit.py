@@ -22,6 +22,7 @@ from mpqp.core.instruction.gates.native_gates import (
     U,
 )
 from mpqp.core.instruction.gates.parametrized_gate import ParametrizedGate
+from mpqp.core.instruction.instruction import Instruction
 from mpqp.noise.noise_model import (
     NOISE_MODELS,
     AmplitudeDamping,
@@ -278,7 +279,7 @@ def compute_expected_matrix(qcircuit: QCircuit):
 
     gates = [
         instruction
-        for instruction in qcircuit.instructions
+        for instruction in qcircuit._instructions  # pyright: ignore[reportPrivateUsage]
         if isinstance(instruction, Gate)
     ]
     nb_qubits = qcircuit.nb_qubits
@@ -359,3 +360,7 @@ def replace_custom_gate(
         else:
             raise e
     return transpiled, transpiled.global_phase
+
+
+def get_sorted_instructions_and_measurements(qcircuit: QCircuit) -> list[Instruction]:
+    return qcircuit.instructions + qcircuit.measurements

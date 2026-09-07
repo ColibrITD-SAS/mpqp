@@ -234,11 +234,11 @@ def generate_qiskit_noise_model(
     used_qubits = set().union(
         *(
             inst.connections()
-            for inst in modified_circuit.instructions + modified_circuit.measurements
+            for inst in modified_circuit._instructions  # pyright: ignore[reportPrivateUsage]
             if isinstance(inst, Gate)
         )
     )
-    modified_circuit.instructions.extend(
+    modified_circuit.add(
         [
             Id(qubit)
             for qubit in range(modified_circuit.nb_qubits)
@@ -392,8 +392,10 @@ def generate_qiskit_noise_model(
                                 [qubit],
                                 warnings=False,
                             )
-                            gate_index = modified_circuit.instructions.index(gate)
-                            modified_circuit.instructions.insert(
+                            gate_index = modified_circuit._instructions.index(  # pyright: ignore[reportPrivateUsage]
+                                gate
+                            )
+                            modified_circuit._insert_instruction(  # pyright: ignore[reportPrivateUsage]
                                 gate_index + 1, labeled_identity
                             )
                             noisy_identity_counter += 1

@@ -252,6 +252,21 @@ def test_mpqp_to_qasm_gate(instructions: list[Instruction], qasm_expectation: st
     assert str_circuit == qasm_expectation
 
 
+def test_mpqp_to_qasm_keeps_measurements_terminal():
+    circuit = QCircuit([X(0), BasisMeasure([0], [0], shots=1)]) + QCircuit([X(0)])
+
+    qasm = circuit.to_other_language(Language.QASM2)
+    relevant_instructions = [
+        line for line in qasm.splitlines() if line.startswith(("x ", "measure "))
+    ]
+
+    assert relevant_instructions == [
+        "x q[0];",
+        "x q[0];",
+        "measure q[0] -> c[0];",
+    ]
+
+
 @pytest.mark.parametrize(
     "instructions",
     [
