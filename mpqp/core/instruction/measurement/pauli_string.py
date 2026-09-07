@@ -610,7 +610,9 @@ class PauliString:
         for pauli_str, coef in pauli.to_list():
             monomial = PauliStringMonomial()
             for atom in pauli_str:
-                monomial = _pauli_atom_dict[atom] @ monomial # reversed order of atoms from qiskit
+                monomial = (
+                    _pauli_atom_dict[atom] @ monomial
+                )  # reversed order of atoms from qiskit
             monomial *= coef.real
             pauli_string += monomial
         return pauli_string
@@ -883,7 +885,9 @@ class PauliString:
             pauli_string = []
             pauli_string_coef = []
             for mono in self.monomials:
-                pauli_string.append("".join(atom.label for atom in reversed(mono.atoms)))
+                pauli_string.append(
+                    "".join(atom.label for atom in reversed(mono.atoms))
+                )
                 pauli_string_coef.append(mono.coef)
             return SparsePauliOp(pauli_string, np.array(pauli_string_coef))
         elif language == Language.MY_QLM:
