@@ -715,7 +715,7 @@ class PauliString:
             >>> from qiskit.quantum_info import SparsePauliOp
             >>> qiskit_ps = SparsePauliOp(["IIX", "ZYI"], coeffs=[2.0 + 0.0j, 0.25 + 0.0j])
             >>> PauliString.from_other_language(qiskit_ps)
-            2*px@pI@pI + 0.25*pI@pY@pZ
+            2*pX@pI@pI + 0.25*pI@pY@pZ
 
 
             >>> from qat.core.wrappers.observable import Term # doctest: +MYQLM
@@ -851,6 +851,7 @@ class PauliString:
 
         Args:
             language: The target programming language.
+            targets: TODO doc
             circuit: The Cirq circuit associated with the pauli string (required
                 for ``cirq``).
 
@@ -927,17 +928,16 @@ class PauliString:
                     for monomial in self.simplify().monomials
                 }
             else:
-
                 qubits = [Qubit(index) for index in targets]
                 terms = {}
                 for monom in self.simplify().monomials:
                     local_targets = []
                     mapped_obs = []
-                    for i, atom in enumerate(monom.atoms):
-                        if atom == pI:
-                            continue
-                        local_targets.append(qubits[i])
-                        mapped_obs.append(pauli_gate_map[atom.label])
+                    atoms = monom.atoms
+                    for i, target in enumerate(targets):
+                        if atoms[target] != pI:
+                            local_targets.append(qubits[i])
+                            mapped_obs.append(pauli_gate_map[atoms[target].label])
                     terms.update(
                         {QubitPauliString(local_targets, mapped_obs): monom.coef}
                     )

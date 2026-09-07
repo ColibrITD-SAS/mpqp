@@ -329,6 +329,7 @@ class Observable:
 
         Args:
             language: The target programming language.
+            targets: TODO doc
             circuit: The Cirq circuit associated with the observable (required
                 if ``language == Language.CIRQ``).
 
@@ -376,8 +377,6 @@ class Observable:
         elif language == Language.CIRQ:
             return self.pauli_string.to_other_language(Language.CIRQ, circuit=circuit)
         elif language == Language.TKET:
-            if targets is None:
-                targets = []
             return self.pauli_string.to_other_language(Language.TKET, targets=targets)
         else:
             raise ValueError(f"Unsupported language: {language}")
