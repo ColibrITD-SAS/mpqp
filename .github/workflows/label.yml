@@ -75,3 +75,23 @@ jobs:
         startsWith(github.event.pull_request.head.ref, 'test')
       with:
         labels: testing
+
+    # Label when "ai" is a distinct part of the branch name or PR title.
+    # Examples: ai/my-branch, feat/ai-support, [AI] Add a provider.
+    - name: Label AI-related pull requests
+      uses: actions/github-script@v7
+      with:
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        script: |
+          const branch = context.payload.pull_request.head.ref;
+          const title = context.payload.pull_request.title;
+          const aiMarker = /(^|[\s/_.\-[({])ai(?=$|[\s/_.\-\])}:,])/i;
+
+          if (aiMarker.test(branch) || aiMarker.test(title)) {
+            await github.rest.issues.addLabels({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              labels: ['AI'],
+            });
+          }
