@@ -35,7 +35,9 @@ if TYPE_CHECKING:
     )
 
 
-def run_quantinuum(job: Job, quantinuum_params: Optional[QuantinuumParams] = None) -> Result:
+def run_quantinuum(
+    job: Job, quantinuum_params: Optional[QuantinuumParams] = None
+) -> Result:
     """Executes the job on the selected Quantinuum device (local or remote),
     wait until execution is complete, and return the result.
 
@@ -60,10 +62,11 @@ def run_quantinuum(job: Job, quantinuum_params: Optional[QuantinuumParams] = Non
     check_job_compatibility(job)
 
     if not job.device.is_remote():
-        return run_tket_local(job, quantinuum_params) # TODO: I believe for local case we don't need providers params, to be double checked
+        return run_tket_local(
+            job, quantinuum_params
+        )  # TODO: I believe for local case we don't need providers params, to be double checked
     else:
         return run_nexus_remote(job, quantinuum_params)
-
 
 
 def check_job_compatibility(job: Job) -> None:
@@ -146,7 +149,9 @@ def check_job_compatibility(job: Job) -> None:
             )
 
 
-def run_tket_local(job: Job, provider_params: Optional[QuantinuumParams] = None) -> Result:
+def run_tket_local(
+    job: Job, provider_params: Optional[QuantinuumParams] = None
+) -> Result:
     """Execute a job using a local TKET backend.
 
     Args:
@@ -163,17 +168,21 @@ def run_tket_local(job: Job, provider_params: Optional[QuantinuumParams] = None)
         job.circuit.transpiled_circuit = job.circuit.to_other_device(job.device)
     else:
         from pytket.circuit import Circuit as tket_Circuit
+
         assert isinstance(job.circuit.transpiled_circuit, tket_Circuit)
     tket_circuit = job.circuit.transpiled_circuit
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerBackend
+
         backend = AerBackend()
     elif job.device == QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerStateBackend
+
         backend = AerStateBackend()
     elif job.device == QUANTINUUMDevice.TKET_QULACS_SIMULATOR:
         from pytket.extensions.qulacs.backends.qulacs_backend import QulacsBackend
+
         backend = QulacsBackend()
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
@@ -190,7 +199,12 @@ def run_tket_local(job: Job, provider_params: Optional[QuantinuumParams] = None)
     return extract_result(backend_result, job)
 
 
-def run_tket_observable(compiled_circuit: "tket_Circuit", backend: "Backend", job: Job, quantinuum_params: Optional[QuantinuumParams] = None) -> Result:
+def run_tket_observable(
+    compiled_circuit: "tket_Circuit",
+    backend: "Backend",
+    job: Job,
+    quantinuum_params: Optional[QuantinuumParams] = None,
+) -> Result:
     """
     TODO
 
@@ -210,20 +224,26 @@ def run_tket_observable(compiled_circuit: "tket_Circuit", backend: "Backend", jo
     if nb_shots == 0 or not job.measure.optimize_measurement:
         optimisation_strat = None
     else:
-        if quantinuum_params is not None and quantinuum_params.commutation_strategy is not None:
+        if (
+            quantinuum_params is not None
+            and quantinuum_params.commutation_strategy is not None
+        ):
             optimisation_strat = quantinuum_params.commutation_strategy
         else:
             from pytket.partition import PauliPartitionStrat
-            optimisation_strat = PauliPartitionStrat.NonConflictingSets if job.measure.commuting_type == CommutingTypes.QUBITWISE else PauliPartitionStrat.CommutingSets
+
+            optimisation_strat = (
+                PauliPartitionStrat.NonConflictingSets
+                if job.measure.commuting_type == CommutingTypes.QUBITWISE
+                else PauliPartitionStrat.CommutingSets
+            )
 
     from pytket.utils import get_operator_expectation_value
 
     expectation_values = {}
     errors = {}
     for i, o in enumerate(job.measure.observables):
-        translated_obs = o.to_other_language(
-            Language.TKET, targets=job.measure.targets
-        )
+        translated_obs = o.to_other_language(Language.TKET, targets=job.measure.targets)
 
         exp_value = get_operator_expectation_value(
             compiled_circuit, translated_obs, backend, nb_shots, optimisation_strat
@@ -236,7 +256,7 @@ def run_tket_observable(compiled_circuit: "tket_Circuit", backend: "Backend", jo
         if nb_shots == 0:
             variance = 0.0
         else:
-            variance = (1.0 - exp_value ** 2) / job.measure.shots
+            variance = (1.0 - exp_value**2) / job.measure.shots
         errors.update({f"observable_{i}" if o.label is None else o.label: variance})
     if len(expectation_values) == 1:
         return Result(
@@ -246,7 +266,6 @@ def run_tket_observable(compiled_circuit: "tket_Circuit", backend: "Backend", jo
             shots=job.measure.shots,
         )
     return Result(job, expectation_values, errors, shots=job.measure.shots)
-
 
 
 def run_nexus_remote(job: Job, quantinuum_params: Optional[QuantinuumParams] = None):
@@ -282,7 +301,7 @@ def run_nexus_remote(job: Job, quantinuum_params: Optional[QuantinuumParams] = N
         raise
 
 
-def run_quantinuum_observable( # TODO clarify if this is remote or local
+def run_quantinuum_observable(  # TODO clarify if this is remote or local
     job: Job,
     backend: "Backend",
     quantinuum_params: Optional[QuantinuumParams] = None,
@@ -422,7 +441,9 @@ def run_quantinuum_observable( # TODO clarify if this is remote or local
         return Result(job, exp_values, errors, shots=job.measure.shots)
 
     else:
-        raise ValueError(f"Cannot perform Observable jobs without optimizing measurements (pauli grouping) on device {job.device}. Change parameters of ExpectationValue and retry.")
+        raise ValueError(
+            f"Cannot perform Observable jobs without optimizing measurements (pauli grouping) on device {job.device}. Change parameters of ExpectationValue and retry."
+        )
 
 
 def submit_job_nexus(
