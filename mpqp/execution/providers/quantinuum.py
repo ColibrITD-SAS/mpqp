@@ -14,6 +14,7 @@ from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QuantinuumParams
 from mpqp.execution.result import Result, Sample, StateVector
 from mpqp.tools.errors import DeviceJobIncompatibleError
+from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 
 if TYPE_CHECKING:
     import numpy as np
@@ -23,7 +24,7 @@ if TYPE_CHECKING:
         PauliStringMonomial,
     )
 
-    # from pytket import Circuit as TKETCircuit
+    from pytket.circuit import Circuit as tket_Circuit
     from pytket.backends.backend import Backend
     from pytket.backends.backendresult import BackendResult
     from qnexus.models.references import (
@@ -180,8 +181,7 @@ def run_tket_local(job: Job, provider_params: Optional[QuantinuumParams] = None)
     compiled_circuit = backend.get_compiled_circuit(tket_circuit, optimisation_level=0)
 
     if job.job_type == JobType.OBSERVABLE:
-        return run_tket_observable()
-        #return run_quantinuum_observable(job, backend, provider_params)
+        return run_tket_observable(compiled_circuit, backend, job)
 
     n_shots = None if job.measure is None else job.measure.shots
 
@@ -190,9 +190,63 @@ def run_tket_local(job: Job, provider_params: Optional[QuantinuumParams] = None)
     return extract_result(backend_result, job)
 
 
-def run_tket_observable(...):
-    #TODO MOVE ALL THE LOCAL OBSERVABLE CASE HERE
-    pass
+def run_tket_observable(compiled_circuit: "tket_Circuit", backend: "Backend", job: Job, quantinuum_params: Optional[QuantinuumParams] = None) -> Result:
+    """
+    TODO
+
+    Args:
+        compiled_circuit:
+        backend:
+        job:
+        quantinuum_params:
+
+    Returns:
+    """
+    nb_shots = job.measure.shots
+
+    if TYPE_CHECKING:
+        assert isinstance(job.measure, ExpectationMeasure)
+
+    if nb_shots == 0 or not job.measure.optimize_measurement:
+        optimisation_strat = None
+    else:
+        if quantinuum_params is not None and quantinuum_params.commutation_strategy is not None:
+            optimisation_strat = quantinuum_params.commutation_strategy
+        else:
+            from pytket.partition import PauliPartitionStrat
+            optimisation_strat = PauliPartitionStrat.NonConflictingSets if job.measure.commuting_type == CommutingTypes.QUBITWISE else PauliPartitionStrat.CommutingSets
+
+    from pytket.utils import get_operator_expectation_value
+
+    expectation_values = {}
+    errors = {}
+    for i, o in enumerate(job.measure.observables):
+        translated_obs = o.to_other_language(
+            Language.TKET, targets=job.measure.targets
+        )
+
+        exp_value = get_operator_expectation_value(
+            compiled_circuit, translated_obs, backend, nb_shots, optimisation_strat
+        ).real
+
+        expectation_values.update(
+            {f"observable_{i}" if o.label is None else o.label: exp_value}
+        )
+
+        if nb_shots == 0:
+            variance = 0.0
+        else:
+            variance = (1.0 - exp_value ** 2) / job.measure.shots
+        errors.update({f"observable_{i}" if o.label is None else o.label: variance})
+    if len(expectation_values) == 1:
+        return Result(
+            job,
+            next(iter(expectation_values.values())),
+            next(iter(errors.values())),
+            shots=job.measure.shots,
+        )
+    return Result(job, expectation_values, errors, shots=job.measure.shots)
+
 
 
 def run_nexus_remote(job: Job, quantinuum_params: Optional[QuantinuumParams] = None):
@@ -367,35 +421,8 @@ def run_quantinuum_observable( # TODO clarify if this is remote or local
             )
         return Result(job, exp_values, errors, shots=job.measure.shots)
 
-    else:  # No optimization by MPQP but could have some by pytket
-        if quantinuum_params is not None:
-            if quantinuum_params.optimisation_strategy is not None:
-                optimisation_strat = quantinuum_params.optimisation_strategy
-        optimisation_strat = None
-        for i, o in enumerate(job.measure.observables):
-            translated_obs = o.to_other_language(
-                Language.TKET, targets=job.measure.targets
-            )
-
-            exp_value = get_operator_expectation_value(
-                circuit, translated_obs, backend, job.measure.shots, optimisation_strat
-            ).real
-            exp_values.update(
-                {f"observable_{i}" if o.label is None else o.label: exp_value}
-            )
-            if job.measure.shots == 0:
-                variance = 0.0
-            else:
-                variance = (1.0 - exp_value**2) / job.measure.shots
-            errors.update({f"observable_{i}" if o.label is None else o.label: variance})
-        if len(exp_values) == 1:
-            return Result(
-                job,
-                next(iter(exp_values.values())),
-                next(iter(errors.values())),
-                shots=job.measure.shots,
-            )
-    return Result(job, exp_values, errors, shots=job.measure.shots)
+    else:
+        raise ValueError(f"Cannot perform Observable jobs without optimizing measurements (pauli grouping) on device {job.device}. Change parameters of ExpectationValue and retry.")
 
 
 def submit_job_nexus(
@@ -651,10 +678,10 @@ def extract_result(backend_result: "BackendResult", job: Job) -> Result:
         backend_result: TKET result returned by a local backend or retrieved from
             Quantinuum Nexus.
         job: Original MPQP job used for the execution. It provides the job type,
-            circuit, measurement, and target device required to construct the result
+            circuit, measurement, and target device required to construct the result.
 
     Returns:
-        The backend result converted to our format.
+        The backend result converted to MPQP format.
     """
     if job.job_type == JobType.STATE_VECTOR:
         return extract_state_vector_result(backend_result.get_state(), job)
@@ -677,6 +704,7 @@ def get_result_from_quantinuum_job_id(
         job_id: id of the remote Quantinuum Nexus job.
         job: Original MPQP job used for submission. Required when retrieving
         an observable result.
+        grouping: TODO DOC
 
     Returns:
         The result converted to our format.

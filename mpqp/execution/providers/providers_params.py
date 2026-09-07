@@ -32,14 +32,15 @@ class QuantinuumParams(ProviderParams):
 
     Args:
         optimisation_level: Optimisation level with which the circuit should be compiled (default at 0)
+        commutation_strategy: TODO docstring
     """
 
     def __init__(
         self,
         optimisation_level: Optional[int] = None,
-        optimisation_strategy: Optional["PauliPartitionStrat"] = None,
+        commutation_strategy: Optional["PauliPartitionStrat"] = None,
     ):
         self.optimisation_level = (
             optimisation_level if optimisation_level is not None else 0
         )
-        self.optimisation_strategy = optimisation_strategy
+        self.commutation_strategy = commutation_strategy
