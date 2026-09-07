@@ -610,7 +610,7 @@ class PauliString:
         for pauli_str, coef in pauli.to_list():
             monomial = PauliStringMonomial()
             for atom in pauli_str:
-                monomial = monomial @ _pauli_atom_dict[atom]
+                monomial = _pauli_atom_dict[atom] @ monomial # reversed order of atoms from qiskit
             monomial *= coef.real
             pauli_string += monomial
         return pauli_string
@@ -715,7 +715,7 @@ class PauliString:
             >>> from qiskit.quantum_info import SparsePauliOp
             >>> qiskit_ps = SparsePauliOp(["IIX", "ZYI"], coeffs=[2.0 + 0.0j, 0.25 + 0.0j])
             >>> PauliString.from_other_language(qiskit_ps)
-            2*pI@pI@pX + 0.25*pZ@pY@pI
+            2*px@pI@pI + 0.25*pI@pY@pZ
 
 
             >>> from qat.core.wrappers.observable import Term # doctest: +MYQLM
@@ -867,7 +867,7 @@ class PauliString:
             Y [1]
             Z [2]
             >>> ps.to_other_language(Language.QISKIT)
-            SparsePauliOp(['XXI', 'IYI', 'IIZ'],
+            SparsePauliOp(['IXX', 'IYI', 'ZII'],
                           coeffs=[1.+0.j, 1.+0.j, 1.+0.j])
             >>> for tensor in ps.to_other_language(Language.BRAKET).summands:  # doctest: +BRAKET
             ...     print(tensor.coefficient, "".join(a.name for a in tensor.factors))
@@ -882,8 +882,8 @@ class PauliString:
 
             pauli_string = []
             pauli_string_coef = []
-            for mono in reversed(self.monomials):
-                pauli_string.append("".join(atom.label for atom in mono.atoms))
+            for mono in self.monomials:
+                pauli_string.append("".join(atom.label for atom in reversed(mono.atoms)))
                 pauli_string_coef.append(mono.coef)
             return SparsePauliOp(pauli_string, np.array(pauli_string_coef))
         elif language == Language.MY_QLM:
