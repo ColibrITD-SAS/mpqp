@@ -109,7 +109,7 @@ jobs:
           path: dev/${{ steps.benchmark_ref.outputs.folder }}/log
 
       - name: Check benchmark publishing token
-        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        if: ${{ github.event_name == 'push' || inputs.save }}
         shell: pwsh
         env:
           BENCHMARK_TOKEN: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
@@ -129,7 +129,7 @@ jobs:
           gh-repository: github.com/ColibrITD-SAS/MPQP-PrivateBenchmark
           github-token: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
           ref: ${{ steps.benchmark_ref.outputs.sha }}
-          auto-push: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+          auto-push: ${{ github.event_name == 'push' || inputs.save }}
           alert-threshold: 120%
           fail-threshold: 150%
           fail-on-alert: true
@@ -138,7 +138,7 @@ jobs:
           max-items-in-chart: 100
 
       - name: Checkout benchmark archive
-        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        if: ${{ github.event_name == 'push' || inputs.save }}
         uses: actions/checkout@v4
         with:
           repository: ColibrITD-SAS/MPQP-PrivateBenchmark
@@ -148,14 +148,14 @@ jobs:
           fetch-depth: 0
 
       - name: Archive raw benchmark result
-        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        if: ${{ github.event_name == 'push' || inputs.save }}
         uses: actions/download-artifact@v4
         with:
           name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
           path: .benchmarks/publish/dev/${{ steps.benchmark_ref.outputs.folder }}/log
 
       - name: Push raw benchmark result
-        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        if: ${{ github.event_name == 'push' || inputs.save }}
         shell: pwsh
         working-directory: .benchmarks/publish
         run: |

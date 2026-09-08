@@ -67,8 +67,7 @@ fonctionnels présents dans `tests/`.
 Le workflow `.github/workflows/benchmarks.yml` peut être lancé :
 
 - automatiquement après un push ou un merge sur `main` ;
-- automatiquement sur `perf-benchmark` pour valider le workflow sans enregistrer
-  la mesure ;
+- automatiquement sur `perf-benchmark`, en enregistrant également la mesure ;
 - manuellement depuis **Actions → Benchmarks dashboard → Run workflow**.
 
 Pour une exécution manuelle, les paramètres suivants sont disponibles :
@@ -115,12 +114,9 @@ jour la page web dans :
 ColibrITD-SAS/MPQP-PrivateBenchmark
 ```
 
-Les exécutions automatiques sur `main` sont toujours sauvegardées, même si le
-paramètre `save` n'est pas présent sur ce type d'événement.
-
-Un push sur `perf-benchmark` exécute le workflow pour le valider, mais ne publie
-pas de résultat. Pour publier depuis cette branche, il faut lancer manuellement
-le workflow, sélectionner la branche et conserver `save=true`.
+Les exécutions automatiques sur `main` et `perf-benchmark` sont toujours
+sauvegardées, même si le paramètre `save` n'est pas présent sur ce type
+d'événement.
 
 Si la publication échoue à l'étape `Check benchmark publishing token`, le secret
 est absent. Si elle échoue ensuite pendant `github-action-benchmark`, vérifier
