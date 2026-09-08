@@ -201,6 +201,9 @@ class IBMDevice(AvailableDevice):
         }
 
     def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
+        """List of native gate set of IBM's chips.
+        Pulled from this link: https://quantum.cloud.ibm.com/computers
+        """
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
             warnings.warn(
                 UserWarning(
@@ -217,7 +220,7 @@ class IBMDevice(AvailableDevice):
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         else:
             compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
-                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X},  # add Rzz
+                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X, Rzz},
                 IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
             }
             family = {
