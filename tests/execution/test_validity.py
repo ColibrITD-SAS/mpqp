@@ -599,7 +599,14 @@ def circuits_type():
 def test_validity_run_job_type_qiskit(
     device: AvailableDevice, circuits_type: list[QCircuit]
 ):
-    exec_validity_run_job_type(device, circuits_type)
+    if device in {
+        IBMDevice.AER_SIMULATOR_STABILIZER,
+        IBMDevice.AER_SIMULATOR_EXTENDED_STABILIZER,
+    }:
+        with pytest.warns(UserWarning, match=rf"For {device}"):
+            exec_validity_run_job_type(device, circuits_type)
+    else:
+        exec_validity_run_job_type(device, circuits_type)
 
 
 @pytest.mark.provider("cirq")
@@ -729,7 +736,15 @@ def exec_validity_native_gate_to_other_language(language: Language):
             with pytest.raises(NotImplementedError):
                 gate_build.to_other_language(language)
         else:
-            assert gate_build.to_other_language(language) is not None
+            if isinstance(gate_build, ComposedGate):
+                assert all(
+                    [
+                        gate.to_other_language(language) is not None
+                        for gate in gate_build.decompose()
+                    ]
+                )
+            else:
+                assert gate_build.to_other_language(language) is not None
 
 
 @pytest.fixture

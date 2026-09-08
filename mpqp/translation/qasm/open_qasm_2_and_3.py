@@ -48,6 +48,7 @@ code transformations. Key functionalities include:
 """
 
 from __future__ import annotations
+
 import os
 import re
 from enum import Enum, auto
@@ -135,6 +136,7 @@ qelib1_gates = [
     "cry",
     "cp",
     "cu",
+    "rzz",
 ]
 std_gates_3 = [
     "u1",
@@ -166,6 +168,7 @@ std_gates_3 = [
     "cphase",
     "phase",
     "sx",
+    "rzz",
 ]
 std_gates_3_to_2_map = {
     "U": "u",
@@ -192,6 +195,7 @@ std_qiskit_gates = [
     "rxx",
     "ryy",
     "rzz",
+    "prx",
 ]
 std_braket_gates = [
     "i",
@@ -214,6 +218,8 @@ std_braket_gates = [
     "gpi",
     "gpi2",
     "ms",
+    "prx",
+    "rzz",
 ]
 
 
@@ -1279,7 +1285,6 @@ def open_qasm_3_to_2(
     if language == Language.QISKIT or language == Language.BRAKET:
         code = _replace_header(code)
         code = remove_user_gates(code)
-
     instructions = parse_openqasm_3_file(code)
 
     included_instructions = set()
@@ -1288,7 +1293,6 @@ def open_qasm_3_to_2(
         defined_gates.update(std_qiskit_gates)
     elif language == Language.BRAKET:
         defined_gates.update(std_braket_gates)
-
     for instr in instructions:
         i_code, h_code, gphase = convert_instruction_3_to_2(
             instr,

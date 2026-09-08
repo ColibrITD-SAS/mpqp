@@ -10,6 +10,7 @@ from mpqp.core.circuit import QCircuit
 from mpqp.core.instruction.gates.gate import Gate, SingleQubitGate
 from mpqp.core.instruction.gates.native_gates import (
     NATIVE_GATES,
+    PRX,
     TOF,
     CRk,
     P,
@@ -116,9 +117,14 @@ def statevector_from_random_circuit(
         The statevector with the specified number of qubits
 
     Examples:
-        >>> print(statevector_from_random_circuit(2, seed=123)) # doctest: +NORMALIZE_WHITESPACE
-        [0.70710678+0.j         0.        -0.j         0.26893257-0.65396886j
-         0.        -0.j        ]
+        >>> expected = np.array([
+        ...     0.4364437 + 0.13832902j,
+        ...     0,
+        ...     0.21760065 + 0.861993j,
+        ...     0,
+        ... ])
+        >>> np.allclose(statevector_from_random_circuit(2, seed=123), expected)
+        True
     """
     from mpqp.execution import IBMDevice, Result, run
 
@@ -186,6 +192,12 @@ def random_gate(
                 )
             elif issubclass(gate_class, Rk):
                 return Rk(int(rng.integers(1, 10)), target)
+            elif issubclass(gate_class, PRX):
+                return gate_class(
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    np.round(rng.uniform(0, 2 * np.pi), 5),
+                    target,
+                )
             elif issubclass(gate_class, RotationGate):
                 if TYPE_CHECKING:
                     assert issubclass(gate_class, (Rx, Ry, Rz, P))

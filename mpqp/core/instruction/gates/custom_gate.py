@@ -162,6 +162,9 @@ class CustomGate(Gate):
             from cirq import MatrixGate
 
             return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
+            from cirq import MatrixGate
+
+            return MatrixGate(matrix=self.matrix, name=self.label, unitary_check=False)
 
         elif language == Language.QASM2:
             from qiskit import QuantumCircuit, qasm2
@@ -183,9 +186,7 @@ class CustomGate(Gate):
                 self.label,
             )
 
-            circuit, gphase = replace_custom_gate(
-                qiskit_circ.data[0], nb_qubits, self.targets
-            )
+            circuit, gphase = replace_custom_gate(qiskit_circ, nb_qubits, self.targets)
 
             qasm_str = qasm2.dumps(circuit)
             qasm_lines = qasm_str.splitlines()

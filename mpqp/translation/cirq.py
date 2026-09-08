@@ -1,20 +1,19 @@
 from typing import TYPE_CHECKING
 
+from mpqp.core.instruction.gates.gate_decomposition import resolve_gate
+from mpqp.core.instruction.gates.gate import Gate
 from mpqp.environment.var_cache import (
     _INSTALLED_MPQP_PROVIDERS,  # pyright: ignore[reportPrivateUsage]
     InstalledProviders,
 )
-from mpqp.translation.utils import verify_convert_instructions
 
 if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
 
-    if TYPE_CHECKING:
-        from mpqp.core.circuit import QCircuit
-        from mpqp.core.instruction.gates.native_gates import NativeGate
-        from cirq.circuits.circuit import Circuit as cirq_Circuit
-        from cirq.circuits.moment import Moment
+    from mpqp.core.circuit import QCircuit
+    from cirq.circuits.circuit import Circuit as cirq_Circuit
+    from cirq.circuits.moment import Moment
 
-    def cirq_to_mpqp(qcircuit: "cirq_Circuit | Moment") -> "QCircuit":
+    def cirq_to_mpqp(qcircuit: cirq_Circuit | Moment) -> QCircuit:
         """Translate a cirq Circuit to a MPQP QCircuit.
         Note:
             If the provided qcircuit is a Moment it will be translated to a fully fledged cirq circuit.
@@ -81,12 +80,17 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             c.input_g_phase = gphase
         return c
 
+    def get_cirq_gate_set() -> set[type[Gate]]:
+        """Return gates directly representable by Cirq."""
+        from mpqp.gates import CNOT, Rx, Ry, Rz
+
+        return {Rx, Ry, Rz, CNOT}
+
     def mpqp_to_cirq(
-        circuit: "QCircuit",
+        circuit: QCircuit,
         skip_pre_measure: bool = False,
         skip_measurements: bool = False,
-        authorized_gates: set[type["NativeGate"]] | None = None,
-    ) -> "cirq_Circuit":
+    ) -> cirq_Circuit:
         """Translate a MPQP circuit to a Cirq equivalent.
 
         Note:
@@ -96,7 +100,6 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
             circuit: The original MPQP circuit to be translated.
             skip_pre_measure: If set at True will translate the circuit without its pre-measurement circuit (see QCircuit.to_other_language for more information).
             skip_measurements: If set at True will translate the circuit without any measurement.
-            authorized_gates: The set of gates allowed on the circuit, if the circuit contains any other gates it raises a ValueError.
 
         Examples:
             >>> circuit = QCircuit([H(0), CNOT(0,1), BasisMeasure()])
@@ -127,8 +130,6 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
         from mpqp.core.languages import Language
         from mpqp.core.instruction.gates.gate import Gate
 
-        if authorized_gates is None:
-            authorized_gates = set()
         cirq_qubits = [NamedQubit(f"q_{i}") for i in range(circuit.nb_qubits)]
         cirq_circuit = CirqCircuit()
 
@@ -140,12 +141,13 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
                 if isinstance(instruction, Measure):
                     for pre_measure in instruction.pre_measure:
                         if isinstance(pre_measure, (CustomGate, CustomControlledGate)):
-                            instr = verify_convert_instructions(
-                                pre_measure, authorized_gates
+                            resolved_pre_measure = resolve_gate(
+                                pre_measure,
+                                get_cirq_gate_set(),
                             )
-                            qasm2_code, gphase = pre_measure.to_other_language(
-                                Language.QASM2
-                            )  # pyright: ignore[reportGeneralTypeIssues]
+                            qasm2_code, gphase = resolved_pre_measure[
+                                0
+                            ].to_other_language(Language.QASM2)
                             if TYPE_CHECKING:
                                 assert isinstance(qasm2_code, str)
                             from mpqp.translation.qasm.qasm_to_cirq import (
@@ -172,17 +174,20 @@ if InstalledProviders.CIRQ in _INSTALLED_MPQP_PROVIDERS:
                             cirq_circuit.append(cirq_pre_measure.on(*targets))
 
             if isinstance(instruction, Gate):
-                instr = verify_convert_instructions(instruction, authorized_gates)
+                instructions = resolve_gate(
+                    instruction,
+                    get_cirq_gate_set(),
+                )
             else:
-                instr = [instruction]
+                instructions = (instruction,)
 
-            for gate in instr:
+            for gate in instructions:
                 if isinstance(gate, (ExpectationMeasure, Barrier, Breakpoint)):
                     continue
                 elif isinstance(gate, CustomGate):
                     from cirq.ops.raw_types import Gate as CirqGate
 
-                    custom_gate = instr[0]
+                    custom_gate = instructions[0]
 
                     targets = []
                     for target in custom_gate.targets:

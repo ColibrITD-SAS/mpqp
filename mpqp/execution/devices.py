@@ -32,6 +32,8 @@ from mpqp.core.instruction.gates import Gate
 from mpqp.core.instruction.gates.native_gates import *
 from mpqp.environment.env_manager import get_env_variable
 
+from mpqp.core.instruction.gates.native_gates import *
+
 
 class AvailableDevice(Enum):
     """Class used to define a generic device (quantum computer or simulator)."""
@@ -120,6 +122,10 @@ class IBMDevice(AvailableDevice):
     AER_SIMULATOR_EXTENDED_STABILIZER = "extended_stabilizer"
     AER_SIMULATOR_MATRIX_PRODUCT_STATE = "matrix_product_state"
 
+    IBM_SHERBROOKE = "ibm_sherbrooke"
+    IBM_BRISBANE = "ibm_brisbane"
+    IBM_KYIV = "ibm_kyiv"
+
     IBM_RENSSELAER = "ibm_rensselaer"
     IBM_KAWASAKI = "ibm_kawasaki"
     IBM_QUEBEC = "ibm_quebec"
@@ -135,6 +141,10 @@ class IBMDevice(AvailableDevice):
     # Heron chips
     IBM_MIAMI = "ibm_miami"
     IBM_BERLIN = "ibm_berlin"
+
+    IBM_TORINO = "ibm_torino"
+    IBM_NAZCA = "ibm_nazca"
+    IBM_STRASBOURG = "ibm_strasbourg"
 
     IBM_CLEVELAND = "ibm_cleveland"
     IBM_PEEKSKILL = "ibm_peekskill"
@@ -191,6 +201,9 @@ class IBMDevice(AvailableDevice):
         }
 
     def compatible_gates(self, native_set: bool = False) -> set[type[Gate]]:
+        """List of native gate set of IBM's chips.
+        Pulled from this link: https://quantum.cloud.ibm.com/computers
+        """
         if self == IBMDevice.AER_SIMULATOR_STABILIZER:
             warnings.warn(
                 UserWarning(
@@ -207,7 +220,7 @@ class IBMDevice(AvailableDevice):
             return {Rx, Ry, Rz, X, Y, Z, H, CNOT, CZ, S, S_dagger, SWAP}
         else:
             compatibilities: dict[IBMDeviceFamily, set[type[Gate]]] = {
-                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X},  # add Rzz
+                IBMDeviceFamily.HERON: {CZ, Id, Rx, Rz, X, Rzz},
                 IBMDeviceFamily.NIGHTHAWK: {CZ, Id, Rx, Rz, X},
             }
             family = {
@@ -395,6 +408,70 @@ class AWSDevice(AvailableDevice):
         else:
             return get_env_variable("AWS_DEFAULT_REGION")
 
+    def compatible_gate(self, native_set: bool = False) -> set[type[Gate]]:
+        """List of compatible gates with the devices that can be found in MPQP.
+        Lists pulled from here: https://docs.aws.amazon.com/braket/latest/developerguide/braket-submit-tasks.html#braket-qpu-partner-iqm
+        """
+        if self == AWSDevice.IQM_GARNET or self == AWSDevice.IQM_EMERALD:
+            if native_set:  # authorized: cz, prx
+                return set([CZ, PRX])
+            else:
+                """authorized gates from doc:
+                "ccnot", "cnot",
+                "cphaseshift", "cphaseshift00", "cphaseshift01", "cphaseshift10", "phaseshift"
+                "cswap", "swap", "iswap", "pswap",
+                "ecr", "cy", "cz", "xy", "xx", "yy", "zz", "h", "i", "rx", "ry", "rz", "s", "si", "t", "ti", "v", "vi", "x", "y", "z"
+                """
+                return set(
+                    [
+                        TOF,
+                        CNOT,
+                        SWAP,
+                        PRX,
+                        CZ,
+                        H,
+                        Id,
+                        Rx,
+                        Ry,
+                        Rz,
+                        S,
+                        T,
+                        X,
+                        Y,
+                        Z,
+                    ]
+                )
+
+        elif self == AWSDevice.RIGETTI_ANKAA_3:
+            if native_set:  # 'rx', 'rz', 'iswap'
+                return {Rz, Rx}
+                # TODO: add (ISWAP) to the set
+            else:
+                """
+                'cz', 'xy', 'ccnot', 'cnot',
+                'cphaseshift', 'cphaseshift00', 'cphaseshift01', 'cphaseshift10',
+                'cswap', 'h', 'i', 'iswap', 'phaseshift', 'pswap',
+                'rx', 'ry', 'rz', 's', 'si', 'swap', 't', 'ti', 'x', 'y', 'z'
+                """
+                authorized = [
+                    TOF,
+                    CNOT,
+                    CZ,
+                    H,
+                    Id,
+                    Rx,
+                    Ry,
+                    Rz,
+                    S,
+                    T,
+                    X,
+                    Y,
+                    Z,
+                ]
+                return set(authorized)
+
+        return set()
+
     @staticmethod
     def from_arn(arn: str):
         """Returns the right AWSDevice from the arn given in parameter.
@@ -546,3 +623,14 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
+
+
+IBM_CHIPS_HERON = [IBMDevice.IBM_MIAMI, IBMDevice.IBM_BERLIN]
+IBM_CHIPS_NIGHTHAWK = [
+    IBMDevice.IBM_BOSTON,
+    IBMDevice.IBM_KINGSTON,
+    IBMDevice.IBM_PITTSBURGH,
+    IBMDevice.IBM_FEZ,
+    IBMDevice.IBM_MARRAKESH,
+    IBMDevice.IBM_AACHEN,
+]

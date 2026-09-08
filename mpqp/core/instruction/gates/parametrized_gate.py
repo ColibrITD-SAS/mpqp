@@ -53,6 +53,13 @@ class ParametrizedGate(Gate, ABC):
         self.parameters = parameters
         """See parameter description."""
 
+        from sympy import Expr
+
+        self.symbols = []
+        for param in parameters:
+            if isinstance(param, Expr):
+                self.symbols.extend(param.free_symbols)
+
     def subs(self, values: dict[Expr | str, Complex]) -> ParametrizedGate:
         from sympy import Expr
 

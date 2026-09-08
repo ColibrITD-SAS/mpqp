@@ -6,7 +6,8 @@ from __future__ import annotations
 import math
 from functools import reduce
 from numbers import Complex, Real
-from typing import TYPE_CHECKING, Any, Optional, Union
+
+from typing import TYPE_CHECKING, Any, Optional, Union, cast
 
 import numpy as np
 import numpy.typing as npt
@@ -393,6 +394,11 @@ def rand_product_local_unitaries(
         nb_qubits: Number of qubits on which the product of unitaries will act.
         seed: Seed used to initialize the random number generation.
 
+        seed: Used for the random number generation. If unspecified, a new
+            generator will be used. If a ``Generator`` is provided, it will be
+            used to generate any random number needed. Finally if an ``int`` is
+            provided, it will be used to initialize a new generator.
+
     Returns:
         A tensor product of random unitary matrices.
 
@@ -417,12 +423,16 @@ def rand_product_local_unitaries(
     )  # pyright: ignore[reportReturnType]
 
 
-def rand_unitary_matrix(size: int) -> Matrix:
-    """Generate a random Unitary matrix sampled from the group U(N), calling the
-    associated `scipy` function.
+def rand_unitary_matrix(size: int, seed: Optional[int] = None) -> Matrix:
+    """Generate a random Unitary matrix sampled from the group U(N), calling the associated `scipy` function.
 
     Args:
         size: Size (number of columns) of the square matrix to generate.
+
+        seed: Used for the random number generation. If unspecified, a new
+            generator will be used. If a ``Generator`` is provided, it will be
+            used to generate any random number needed. Finally if an ``int`` is
+            provided, it will be used to initialize a new generator.
 
     Returns:
         A random unitary matrix with complex coefficients.
@@ -434,8 +444,12 @@ def rand_unitary_matrix(size: int) -> Matrix:
         True
     """
     from scipy.stats import unitary_group
+    import numpy as np
 
-    return np.asarray(unitary_group.rvs(size), dtype=np.complex128)
+    return np.asarray(
+        unitary_group.rvs(size, random_state=np.random.default_rng(seed)),
+        dtype=np.complex128,
+    )
 
 
 def rand_hermitian_matrix(
@@ -549,3 +563,98 @@ def rearrange_matrix(m: Matrix, targets: list[int], do_copy: bool = True) -> Mat
 
     m[...] = rearranged_matrix
     return m
+
+
+def symbolic_product(*factors: Expr | complex) -> Expr | complex:
+    """Multiplies numeric or symbolic factors while preserving their
+    arithmetic type.
+
+    If at least one factor is a SymPy expression, all factors are converted to
+    SymPy objects before the multiplication. Otherwise, the multiplication is
+    performed using Python complex numbers.
+
+    Args:
+        factors: Numeric or symbolic factors to multiply.
+
+    Returns:
+        The product as a SymPy expression if any factor is symbolic, or as a
+        Python complex number otherwise.
+
+    Examples:
+        >>> symbolic_product(2, 3j)
+        6j
+        >>> x = symbols("x")
+        >>> symbolic_product(2, x)
+        2*x
+
+    """
+    from sympy import Expr, prod, sympify
+
+    if any(isinstance(factor, Expr) for factor in factors):
+        return cast(Expr, prod(sympify(factor) for factor in factors))
+
+    result = 1 + 0j
+    for factor in factors:
+        result *= cast(complex, factor)
+    return result
+
+
+def symbolic_divide(dividend: Expr | float, divisor: Expr | float) -> Expr | float:
+    """Divides numeric or symbolic values while preserving their arithmetic
+    type.
+
+    If either operand is a SymPy expression, both operands are converted to
+    SymPy objects before the division. Otherwise, regular Python division is
+    used.
+
+    Args:
+        dividend: Value to divide.
+        divisor: Value by which the ``dividend`` is divided.
+
+    Returns:
+        The quotient as a SymPy expression if either operand is symbolic, or as
+        a floating-point number otherwise.
+
+    Examples:
+        >>> symbolic_divide(3.0, 2.0)
+        1.5
+        >>> x = symbols("x")
+        >>> symbolic_divide(x, 2)
+        x/2
+
+    """
+    from sympy import Expr, sympify
+
+    if isinstance(dividend, Expr) or isinstance(divisor, Expr):
+        return sympify(dividend) / sympify(divisor)
+
+    return dividend / divisor
+
+
+def rotation_denominator(k: Expr | float) -> Expr | float:
+    """Computes the denominator of the angle of an :class:`Rk` gate.
+
+    The denominator is defined as :math:`2^{k-1}`. A symbolic ``k`` produces a
+    SymPy expression, while a numeric ``k`` produces a floating-point number.
+
+    Args:
+        k: Numeric or symbolic index of the rotation gate.
+
+    Returns:
+        The value :math:`2^{k-1}` with the same symbolic or numeric nature as
+        ``k``.
+
+    Examples:
+        >>> rotation_denominator(4)
+        8.0
+        >>> k = symbols("k")
+        >>> rotation_denominator(k)
+        2**(k - 1)
+
+    """
+    from sympy import Expr, Integer
+
+    if isinstance(k, Expr):
+        return Integer(2) ** (k - Integer(1))
+
+    return 2.0 ** (k - 1.0)
