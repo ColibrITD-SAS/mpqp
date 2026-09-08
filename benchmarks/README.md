@@ -85,13 +85,13 @@ Les fichiers JSON du workflow sont d'abord créés dans un dossier qui identifie
 le runner et la version de Python :
 
 ```text
-.benchmarks/<runner>-CPython-<version>/log/<run>_<commit>.json
+.benchmarks/<system>-CPython-<version>/log/<run>_<commit>.json
 ```
 
 Par exemple :
 
 ```text
-.benchmarks/ubuntu-24.04-CPython-3.12/log/42_a1b2c3d4.json
+.benchmarks/Linux-CPython-3.12/log/42_a1b2c3d4.json
 ```
 
 Ils sont disponibles pendant 90 jours dans les artefacts GitHub Actions. Quand
@@ -118,6 +118,16 @@ ColibrITD-SAS/MPQP-PrivateBenchmark
 Les exécutions automatiques sur `main` sont toujours sauvegardées, même si le
 paramètre `save` n'est pas présent sur ce type d'événement.
 
+Un push sur `perf-benchmark` exécute le workflow pour le valider, mais ne publie
+pas de résultat. Pour publier depuis cette branche, il faut lancer manuellement
+le workflow, sélectionner la branche et conserver `save=true`.
+
+Si la publication échoue à l'étape `Check benchmark publishing token`, le secret
+est absent. Si elle échoue ensuite pendant `github-action-benchmark`, vérifier
+que le token n'est pas expiré, que son accès à l'organisation est approuvé et
+qu'il possède la permission **Contents: Read and write** sur
+`MPQP-PrivateBenchmark`.
+
 ## Organisation du dépôt MPQP-PrivateBenchmark
 
 Les résultats sont séparés par système d'exploitation et version de Python afin
@@ -126,25 +136,24 @@ de ne comparer que des mesures prises dans un environnement équivalent :
 ```text
 MPQP-PrivateBenchmark/
 └── dev/
-    └── bench/
-        ├── ubuntu-24.04-CPython-3.12/
-        │   ├── index.html
-        │   ├── data.js
-        │   └── log/
-        │       ├── 41_a1b2c3d4.json
-        │       └── 42_e5f6a7b8.json
-        └── windows-2025-CPython-3.12/
-            ├── index.html
-            ├── data.js
-            └── log/
-                └── 43_c9d0e1f2.json
+    ├── Linux-CPython-3.12/
+    │   ├── index.html
+    │   ├── data.js
+    │   └── log/
+    │       ├── 41_a1b2c3d4.json
+    │       └── 42_e5f6a7b8.json
+    └── Windows-CPython-3.12/
+        ├── index.html
+        ├── data.js
+        └── log/
+            └── 43_c9d0e1f2.json
 ```
 
 La page Linux/Python 3.12 est disponible à l'adresse suivante lorsque GitHub
 Pages est activé :
 
 ```text
-https://colibritd-sas.github.io/MPQP-PrivateBenchmark/dev/bench/ubuntu-24.04-CPython-3.12/
+https://colibritd-sas.github.io/MPQP-PrivateBenchmark/dev/Linux-CPython-3.12/
 ```
 
 Chaque page contient l'évolution temporelle de chaque benchmark ainsi que les

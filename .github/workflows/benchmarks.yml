@@ -61,7 +61,9 @@ jobs:
       - name: Resolve benchmarked commit
         id: benchmark_ref
         shell: pwsh
-        run: '"sha=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT'
+        run: |
+          "sha=$(git rev-parse HEAD)" >> $env:GITHUB_OUTPUT
+          "folder=${{ runner.os }}-CPython-${{ inputs.python_version || '3.12' }}" >> $env:GITHUB_OUTPUT
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -78,20 +80,20 @@ jobs:
       - name: Prepare benchmark output directory
         run: >-
           python -c "from pathlib import Path;
-          Path('.benchmarks/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log').mkdir(parents=True, exist_ok=True)"
+          Path('.benchmarks/${{ steps.benchmark_ref.outputs.folder }}/log').mkdir(parents=True, exist_ok=True)"
 
       - name: Run benchmarks
         run: >-
           python -m pytest benchmarks
           --benchmark-only
-          --benchmark-json=.benchmarks/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
+          --benchmark-json=.benchmarks/${{ steps.benchmark_ref.outputs.folder }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
           --benchmark-columns=min,median,mean,stddev,rounds
 
       - name: Upload raw benchmark result
         uses: actions/upload-artifact@v4
         with:
-          name: benchmark-results-${{ inputs.runner || 'ubuntu-24.04' }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
-          path: .benchmarks/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
+          name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
+          path: .benchmarks/${{ steps.benchmark_ref.outputs.folder }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
           retention-days: 90
 
       - name: Prepare dashboard publishing workspace
@@ -103,16 +105,26 @@ jobs:
       - name: Restore raw benchmark result in dashboard directory
         uses: actions/download-artifact@v4
         with:
-          name: benchmark-results-${{ inputs.runner || 'ubuntu-24.04' }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
-          path: dev/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log
+          name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
+          path: dev/${{ steps.benchmark_ref.outputs.folder }}/log
+
+      - name: Check benchmark publishing token
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        shell: pwsh
+        env:
+          BENCHMARK_TOKEN: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:BENCHMARK_TOKEN)) {
+            throw "MPQP_BENCHMARK_TOKEN is missing. Add a token with Contents: Read and write access to MPQP-PrivateBenchmark."
+          }
 
       - name: Update historical charts and detect regressions
-        uses: benchmark-action/github-action-benchmark@v1
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
         with:
-          name: MPQP / ${{ inputs.runner || 'ubuntu-24.04' }} / Python ${{ inputs.python_version || '3.12' }}
+          name: MPQP / ${{ runner.os }} / Python ${{ inputs.python_version || '3.12' }}
           tool: pytest
-          output-file-path: dev/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
-          benchmark-data-dir-path: dev/${{ inputs.runner || 'ubuntu-24.04' }}-CPython-${{ inputs.python_version || '3.12' }}
+          output-file-path: dev/${{ steps.benchmark_ref.outputs.folder }}/log/${{ github.run_number }}_${{ steps.benchmark_ref.outputs.sha }}.json
+          benchmark-data-dir-path: dev/${{ steps.benchmark_ref.outputs.folder }}
           gh-pages-branch: ${{ inputs.gh_pages_branch || 'main' }}
           gh-repository: github.com/ColibrITD-SAS/MPQP-PrivateBenchmark
           github-token: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
@@ -123,4 +135,38 @@ jobs:
           fail-on-alert: true
           comment-on-alert: false
           summary-always: true
-          max-items-in-chart: 100 
+          max-items-in-chart: 100
+
+      - name: Checkout benchmark archive
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        uses: actions/checkout@v4
+        with:
+          repository: ColibrITD-SAS/MPQP-PrivateBenchmark
+          ref: ${{ inputs.gh_pages_branch || 'main' }}
+          path: .benchmarks/publish
+          token: ${{ secrets.MPQP_BENCHMARK_TOKEN }}
+          fetch-depth: 0
+
+      - name: Archive raw benchmark result
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-${{ runner.os }}-py${{ inputs.python_version || '3.12' }}-${{ github.run_number }}
+          path: .benchmarks/publish/dev/${{ steps.benchmark_ref.outputs.folder }}/log
+
+      - name: Push raw benchmark result
+        if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') || inputs.save }}
+        shell: pwsh
+        working-directory: .benchmarks/publish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- "dev/${{ steps.benchmark_ref.outputs.folder }}/log"
+          git diff --cached --quiet
+          if ($LASTEXITCODE -eq 0) {
+            Write-Output "The raw benchmark result is already archived."
+            exit 0
+          }
+          git commit -m "Add raw benchmark result for run ${{ github.run_number }}"
+          git pull --rebase origin "${{ inputs.gh_pages_branch || 'main' }}"
+          git push origin "HEAD:${{ inputs.gh_pages_branch || 'main' }}"
