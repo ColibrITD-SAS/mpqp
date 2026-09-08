@@ -14,6 +14,9 @@ __pycache__/
 *.pyc
 .mypy_cache/
 .pytest_cache/
+.benchmarks/
+benchmark-results.json
+benchmark-histogram*.svg
 .ipynb_checkpoints/
 
 # IDE

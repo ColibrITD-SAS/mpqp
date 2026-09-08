@@ -102,7 +102,10 @@ Here are some useful scripts for when you are developing:
 | `python -m pytest --long-local`          | Runs the local long tests                     |
 | `python -m pytest --seed=<your_seed>`    | Runs the test suite with a specified seed     |
 | `python -m pytest --provider <provider>` | Runs the test suite with a specified provider |
+| `python -m pytest benchmarks --benchmark-only` | Runs the performance benchmarks       |
 
+See [`benchmarks/README.md`](benchmarks/README.md) for saving a baseline,
+comparing runs, and generating local graphs.
 
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)
