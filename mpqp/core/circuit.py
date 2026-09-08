@@ -2063,8 +2063,6 @@ class CircuitBinding:
         """ is_noisy is True if any of the circuits in the binding has noise instructions, False otherwise. """
         self.measurements = None
 
-        c = circuits
-
         self.job_type = circuits[0].job_type
         self.nb_qubits = circuits[0].nb_qubits
         for circ in circuits:
@@ -2142,14 +2140,39 @@ class CircuitBinding:
                         )
             if shots_ is not None:
                 self.shots = shots_
-        """else:
-            c_ = c[0]
-            if isinstance(c_, CircuitBinding):
-                self.shots = c_.shots
-            else:
-                self.shots = c_.measurements[0].shots"""
 
-        self.circuits: list["QCircuit | CircuitBinding"] = c
+        if (
+            self.job_type != JobType.STATE_VECTOR
+            and measurements is None
+            and self.shots is None
+        ):
+            shots = -1
+            for circuit in circuits:
+                if isinstance(circuit, 'CircuitBinding'):
+                    for c in circuit.circuits:
+                        if TYPE_CHECKING:
+                            assert c.measurements is not None
+                        m = c.measurements[0]
+                        if m.shots != shots:
+                            if shots == -1:
+                                shots = m.shots
+                            else:
+                                raise ValueError(
+                                    "All measurements in CircuitBinding must have the same number of shots"
+                                )
+                else:
+                    if TYPE_CHECKING:
+                        assert circuit.measurements
+                    m = circuit.measurements[0]
+                    if m.shots != shots:
+                        if shots == -1:
+                            shots = m.shots
+                        else:
+                            raise ValueError(
+                                "All measurements in CircuitBinding must have the same number of shots"
+                            )
+
+        self.circuits: list["QCircuit | CircuitBinding"] = circuits
         self.value = parameters
         self.measurements = (
             self.measurements if self.measurements is not None else measurements

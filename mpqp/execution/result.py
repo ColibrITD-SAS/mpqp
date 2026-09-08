@@ -347,8 +347,8 @@ class Result:
             else:
                 self._state_vector = data
                 gphase = (
-                    job.circuit.input_g_phase
-                    + job.circuit._generated_g_phase  # pyright: ignore[reportPrivateUsage]
+                    job.circuit.input_g_phase  # type: ignore
+                    + job.circuit._generated_g_phase  # pyright: ignore
                 )
                 if g_phase_handling and gphase != 0:
                     # Reverse the global phase introduced when using CustomGate, due to Qiskit decomposition in QASM2
@@ -359,31 +359,38 @@ class Result:
                 raise TypeError(
                     "Wrong type of data in the result (not a list). Expecting list of Sample"
                 )
-            if self.job.measure is None:
+            if self.job.measure is None and self.job.measurement is None:
                 raise ValueError(
                     f"{self.job=} has no measure, making the counting impossible"
                 )
+            nb_qubits = (
+                self.job.measure.nb_qubits
+                if self.job.measure
+                else self.job.measurement.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
+            )
+            shots = (
+                self.job.measure.shots
+                if self.job.measure
+                else self.job.measurement.shots  # pyright: ignore[reportOptionalMemberAccess]
+            )
             self._samples = data
             is_counts = all([sample.count is not None for sample in data])
             is_probas = all([sample.probability is not None for sample in data])
             if is_probas:
-                probas = [0.0] * (2**self.job.measure.nb_qubits)
+                probas = [0.0] * (2**nb_qubits)
                 for sample in data:
                     probas[sample.index] = sample.probability
                 self._probabilities = np.array(probas, dtype=float)
 
                 if not is_counts:
                     counts = [
-                        int(count)
-                        for count in np.round(
-                            self.job.measure.shots * self._probabilities
-                        )
+                        int(count) for count in np.round(shots * self._probabilities)
                     ]
                     self._counts = counts
                     for sample in self._samples:
                         sample.count = self._counts[sample.index]
             if is_counts:
-                counts: list[int] = [0] * (2**self.job.measure.nb_qubits)
+                counts: list[int] = [0] * (2**nb_qubits)
                 for sample in data:
                     if TYPE_CHECKING:
                         assert sample.count is not None
@@ -494,16 +501,14 @@ class Result:
         if self.job.status == JobStatus.ERROR:
             return f"{header}\n  Status: ERROR\n  Message: {self.job.status_message}"
         if self.job.job_type == JobType.SAMPLE:
-            measures = self.job.circuit.measurements
-            if not len(measures) == 1:
-                raise ValueError(
-                    "Mismatch between the number of measurements and the job type."
-                )
-            measure = measures[0]
+            measure = (
+                self.job.measure
+                if self.job.measure is not None
+                else self.job.measurement
+            )
+
             if not isinstance(measure, BasisMeasure):
                 raise ValueError("Mismatch between measurements type and job type.")
-
-            # assert all(sample.probability is not None for sample in self.samples)
 
             probabilities = [
                 sample.probability
@@ -619,11 +624,15 @@ class Result:
             raise NotImplementedError(
                 f"{self.job.job_type} not handled, only {JobType.SAMPLE} is handled for now."
             )
-        if self.job.measure is None:
+        if self.job.measure is None and self.job.measurement is None:
             raise ValueError(
                 f"{self.job=} has no measure, making the counting impossible"
             )
-        n = self.job.measure.nb_qubits
+        n = (
+            self.job.measure.nb_qubits
+            if self.job.measure
+            else self.job.measurement.nb_qubits  # pyright: ignore[reportOptionalMemberAccess]
+        )
         x_array = [f"|{bin(i)[2:].zfill(n)}⟩" for i in range(2**n)]
         y_array = self.counts
         return x_array, y_array

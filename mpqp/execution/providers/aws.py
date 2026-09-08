@@ -145,7 +145,6 @@ def run_braket(job: Job) -> Result | BatchResult:
 
 
 def run_circuit_binding(job: Job) -> BatchResult:
-    from mpqp.core.instruction.measurement import Measure
 
     circuitBinding = job.circuit
     assert isinstance(circuitBinding, CircuitBinding)
@@ -258,10 +257,15 @@ def run_circuit_binding(job: Job) -> BatchResult:
                             bin_str=state,
                         )
                     )
-                circuit, values = jobs[i]  # pyright:ignore
+                circuit, measure, values = jobs[i]  # pyright:ignore
                 i += 1
-                local_job = Job(job.job_type, circuit, job.device, values)
-
+                local_job = Job(
+                    job.job_type,
+                    circuit,
+                    job.device,
+                    measurement=measure,
+                    values=values,
+                )
                 results.append(
                     Result(
                         local_job,
@@ -515,7 +519,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
     from mpqp.core.circuit import CircuitBinding
 
     if isinstance(job.circuit, CircuitBinding):
-        braket_circuit = job.circuit.to_other_language(Language.BRAKET)
+        braket_circuit = job.circuit.to_other_device(job.device)
     else:
         if job.circuit.transpiled_circuit is None:
             braket_circuit = job.circuit.to_other_device(job.device)

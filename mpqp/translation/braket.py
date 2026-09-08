@@ -574,14 +574,14 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     ) -> "tuple[ProgramSet, list[tuple[Any]]]": ...
     @overload
     def _cb_to_programset(
-        binding: "CircuitBinding", device: "AvailableDevice"
-    ) -> "tuple[ProgramSet, list[tuple[Any]]]": ...
+        binding: "CircuitBinding", device: "AvailableDevice", depth: Literal[1, 2]
+    ) -> "CircuitBinding": ...
     @overload
     def _cb_to_programset(
         binding: "CircuitBinding",
         device: "AvailableDevice",
         depth: Literal[0, 1, 2],
-    ) -> "CircuitBinding": ...
+    ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding": ...
     def _cb_to_programset(
         binding: "CircuitBinding",
         device: "AvailableDevice",
@@ -752,6 +752,8 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                                 c + braket_obs,
                                                 input_sets=inside_val,
                                             )
+                                            if inside_val
+                                            else c + braket_obs
                                         )
                                     else:
                                         result.append(
@@ -768,7 +770,11 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                         )
                                     else:
                                         context.append(
-                                            (t.circuits[index], mpqp_obs, inside_val)
+                                            (
+                                                t.circuits[index],
+                                                mpqp_obs,
+                                                inside_val,
+                                            )
                                         )
                             else:
                                 for index, c in enumerate(t._translated_circuits):  # type: ignore
