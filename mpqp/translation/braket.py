@@ -575,20 +575,21 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     @overload
     def _cb_to_programset(
         binding: "CircuitBinding", device: "AvailableDevice", depth: Literal[1, 2]
-    ) -> "CircuitBinding": ...
+    ) -> "CircuitBinding | braket_Circuit | list[CircuitBinding | braket_Circuit]": ...
     @overload
     def _cb_to_programset(
         binding: "CircuitBinding",
         device: "AvailableDevice",
         depth: Literal[0, 1, 2],
-    ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding": ...
+    ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding | braket_Circuit | list[CircuitBinding | braket_Circuit]": ...
     def _cb_to_programset(
         binding: "CircuitBinding",
         device: "AvailableDevice",
         depth: Literal[0, 1, 2] = 0,
-    ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding":
+    ) -> "tuple[ProgramSet, list[tuple[Any]]] | CircuitBinding | braket_Circuit | list[CircuitBinding | braket_Circuit]":
         from braket.program_sets import ProgramSet
         from braket.circuits import Circuit as braket_Circuit
+        from mpqp.execution.job import JobType
 
         from mpqp.core import Language
         from mpqp.core.circuit import CircuitBinding, QCircuit
@@ -599,7 +600,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
             if isinstance(c, QCircuit):
                 translated.append(c.to_other_language(Language.BRAKET))
             else:
-                print(c)
                 translation = _cb_to_programset(c, device, depth=depth + 1)  # type: ignore
 
                 if isinstance(translation, list):
@@ -627,9 +627,23 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
 
         obs = []
         if binding.measurements:
-
             for m in binding.measurements:
                 if isinstance(m, ExpectationMeasure):
+                    # If depth == 2 we're in a controlled edge case which means we can just return the circuit(s) with its measurements.
+                    if depth == 2:
+                        translation = []
+                        for o in m.observables:
+                            braket_obs = o.to_other_language(Language.BRAKET)
+
+                            translated_measure = braket_Circuit()
+                            translated_measure.expectation(  # pyright: ignore[reportAttributeAccessIssue]
+                                observable=braket_obs, target=m.targets
+                            )
+                            translation.append(
+                                translated[0]
+                                + translated_measure  # pyright: ignore[reportOperatorIssue]
+                            )
+                        return translation
                     if any([o.is_matrix() for o in m.observables]):
                         # This is because of braket's programSet limitations
                         warn(
@@ -739,7 +753,6 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                             if inside_observable:
                                 if TYPE_CHECKING:
                                     assert isinstance(inside_observable, tuple)
-                                from mpqp.execution.job import JobType
 
                                 mpqp_obs, braket_obs = (
                                     inside_observable  # pyright: ignore[reportGeneralTypeIssues]
@@ -856,7 +869,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                     cb: CircuitBinding = translated[
                         i
                     ]  # pyright: ignore[reportAssignmentType]
-                    for index, c in enumerate(translated[i]._translated_circuits):  # type: ignore
+                    for index, c in enumerate(cb._translated_circuits):  # type: ignore
                         if TYPE_CHECKING:
                             assert isinstance(c, braket_Circuit)
                         for inside_observable, inside_val in inside_executables:
@@ -866,13 +879,23 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                 mpqp_obs, braket_obs = (
                                     inside_observable  # pyright: ignore[reportGeneralTypeIssues]
                                 )
-                                result.append(
-                                    BraketBinding(
-                                        c,
-                                        input_sets=inside_val,
-                                        observables=braket_obs,
+                                if binding.job_type == JobType.SAMPLE:
+                                    result.append(
+                                        BraketBinding(
+                                            c + braket_obs,
+                                            input_sets=inside_val,
+                                        )
+                                        if inside_val
+                                        else c + braket_obs
                                     )
-                                )
+                                else:
+                                    result.append(
+                                        BraketBinding(
+                                            c,
+                                            input_sets=inside_val,
+                                            observables=braket_obs,
+                                        )
+                                    )
                                 context.append(
                                     (
                                         cb.circuits[index],
@@ -891,8 +914,10 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                         else c
                                     )
                                 )
-                                context.append((cb.circuits[index], inside_val))
+                                context.append((cb.circuits[index], None, inside_val))
                 else:
+                    mpqp_circuit = binding.circuits[i]
+
                     if observable:
                         if TYPE_CHECKING:
                             assert isinstance(observable, tuple)
@@ -906,8 +931,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                 observables=braket_obs,
                             )
                         )
-                        c = binding.circuits[i]
-                        context.append((c, mpqp_obs, values))
+                        context.append((mpqp_circuit, mpqp_obs, values))
                     else:
                         result.append(
                             BraketBinding(
@@ -916,8 +940,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                             if values
                             else translated[i]
                         )
-                        c = binding.circuits[i]
-                        context.append((c, values))
+                        context.append((mpqp_circuit, None, values))
                 i += 1 if i != -1 else 0
 
         from braket.program_sets import ProgramSet

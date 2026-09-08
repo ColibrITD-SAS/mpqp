@@ -318,8 +318,6 @@ class Result:
                     assert job.circuit.measurements
                 job.measurement = job.circuit.measurements[0]
                 job.circuit = job.circuit.circuits[0]
-                print(job.circuit)
-                print(job.measurement)
             else:
                 raise ValueError(
                     "The result class should be only use to hold the result of one job. A CircuitBinding should be associated with a BatchResult."

@@ -2236,6 +2236,7 @@ class CircuitBinding:
             else:
                 base_items.append((c, None, None))
 
+        print('base_items', base_items)
         vals = (
             self.value
             if isinstance(self.value, list)
@@ -2274,6 +2275,9 @@ class CircuitBinding:
             b_items = broadcast(base_items, max_len)
             b_vals = broadcast(vals, max_len)
             b_exps = broadcast(exps, max_len)
+            print(b_items)
+            print(b_vals)
+            print(b_exps)
 
             for (
                 (c, v_base, e_base),
