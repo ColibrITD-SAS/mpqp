@@ -2236,7 +2236,6 @@ class CircuitBinding:
             else:
                 base_items.append((c, None, None))
 
-        print('base_items', base_items)
         vals = (
             self.value
             if isinstance(self.value, list)
@@ -2255,6 +2254,41 @@ class CircuitBinding:
             if v_curr is not None:
                 merged.update(v_curr)
             return merged
+
+        def zip_items(
+            v_base: Any, e_base: Any, v_curr: Any, e_curr: Any
+        ) -> list[tuple[Any, Any]]:
+            """Combine execution data selected at two nested ZIP levels.
+
+            Values binding the same variable and measurements declared at both
+            levels represent distinct executions. Missing data is inherited from
+            the other level, while disjoint parameter dictionaries are layered.
+            """
+            values_conflict = False
+            if v_base is not None and v_curr is not None:
+                base_keys = {str(key) for key in v_base}
+                current_keys = {str(key) for key in v_curr}
+                values_conflict = bool(base_keys & current_keys)
+
+            measurements_conflict = e_base is not None and e_curr is not None
+            if not values_conflict and not measurements_conflict:
+                return [
+                    (
+                        merge_vals(v_base, v_curr),
+                        e_curr if e_curr is not None else e_base,
+                    )
+                ]
+
+            if values_conflict:
+                outer_values = dict(v_curr) # pyright: ignore[reportCallIssue, reportArgumentType]
+                inner_values = dict(v_base) # pyright: ignore[reportCallIssue, reportArgumentType]
+            else:
+                outer_values = inner_values = merge_vals(v_base, v_curr)
+
+            return [
+                (outer_values, e_curr if e_curr is not None else e_base),
+                (inner_values, e_base if e_base is not None else e_curr),
+            ]
 
         result = []
 
@@ -2275,9 +2309,6 @@ class CircuitBinding:
             b_items = broadcast(base_items, max_len)
             b_vals = broadcast(vals, max_len)
             b_exps = broadcast(exps, max_len)
-            print(b_items)
-            print(b_vals)
-            print(b_exps)
 
             for (
                 (c, v_base, e_base),
@@ -2286,9 +2317,10 @@ class CircuitBinding:
             ) in zip(  # pyright: ignore[reportGeneralTypeIssues]
                 b_items, b_vals, b_exps
             ):
-                merged_val = merge_vals(v_base, v_curr)
-                merged_exp = e_curr if e_curr is not None else e_base
-                result.append((c, merged_val, merged_exp))
+                for merged_val, merged_exp in zip_items(
+                    v_base, e_base, v_curr, e_curr
+                ):
+                    result.append((c, merged_val, merged_exp))
 
         else:
             for (c, v_base, e_base), v_curr, e_curr in itertools.product(
