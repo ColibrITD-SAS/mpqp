@@ -1,7 +1,8 @@
 import numpy as np
 import pytest
 
-from mpqp import ExpectationMeasure, H, Observable, QCircuit, Rx
+from mpqp import ExpectationMeasure, H, Observable, QCircuit, Rx, pI, pX, pY, pZ
+from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
 from mpqp.tools.maths import matrix_eq
 
@@ -39,3 +40,58 @@ def test_adjust_measure(
         adjust_measure(measure, circuit).observables[0].matrix,
         adjusted_observable_matrix,
     )
+
+
+@pytest.mark.parametrize(
+    ("observable", "measure_targets", "circuit_size", "expected_observable"),
+    [
+        (pX @ pZ, [0, 2], 3, pX @ pI @ pZ),  # ordered, non-contiguous
+        (pX @ pZ, [2, 0], 3, pZ @ pI @ pX),  # unordered, non-contiguous
+        (
+            pX @ pY @ pZ,
+            [1, 2, 0],
+            4,
+            pZ @ pX @ pY @ pI,
+        ),  # unordered targets, multiple positions reordered
+    ],
+)
+def test_adjust_measure_target_order(
+    observable: PauliString,
+    measure_targets: list[int],
+    circuit_size: int,
+    expected_observable: PauliString,
+):
+    measure = ExpectationMeasure(Observable(observable), measure_targets)
+
+    adjusted_measure = adjust_measure(measure, QCircuit(circuit_size))
+
+    assert adjusted_measure.targets == list(range(circuit_size))
+    assert matrix_eq(
+        adjusted_measure.observables[0].matrix,
+        expected_observable.to_matrix(),
+    )
+
+
+def test_adjust_measure_matrix_reordering():
+    observable = Observable((pX @ pY @ pZ).to_matrix())
+    measure = ExpectationMeasure(
+        observable,
+        targets=[1, 2, 0],
+        optimize_measurement=False,
+    )
+    original_matrix = observable.matrix
+
+    adjusted_measure = adjust_measure(measure, QCircuit(3))
+
+    assert matrix_eq(
+        adjusted_measure.observables[0].matrix,
+        (pZ @ pX @ pY).to_matrix(),
+    )
+    assert matrix_eq(measure.observables[0].matrix, original_matrix)
+
+
+def test_adjust_measure_targets_mismatch():
+    measure = ExpectationMeasure(Observable(pX), targets=[0, 1])
+
+    with pytest.raises(ValueError, match="Each observable must act on 2 qubits"):
+        adjust_measure(measure, QCircuit(2))

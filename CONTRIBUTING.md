@@ -106,12 +106,12 @@ Here are some useful scripts for when you are developing:
 
 When making commits, make sure to follow the
 [conventional commit](https://www.conventionalcommits.org/en/v1.0.0/)
-guidelines, i.e. prepending the message with `feat:`, `fix:`, `doc:`, etc... You
+guidelines, i.e. prepending the message with `feat:`, `fix:`, `docs:`, etc... You
 can use `git status` to double check which files have not yet been staged for
 commit:
 
 ```bash
-git add <file> && git commit -m "feat/fix/doc: commit message"
+git add <file> && git commit -m "feat: concise imperative summary"
 ```
 
 Note that our docstrings follow broadly the
@@ -147,7 +147,53 @@ When all that's done, it's time to file a pull request to upstream:
 gh pr create --web
 ```
 
-and fill out the title and body appropriately.
+### Pull request guidelines
+
+Pull requests should be easy to understand, review, and revert. Please follow
+these guidelines:
+
+- Keep each pull request focused on one precise topic. Do not include unrelated
+  fixes, refactors, formatting, dependency updates, or documentation changes.
+  If the work contains independent changes, split it into separate pull
+  requests.
+- Keep the diff as concise as the change allows. Large features are welcome,
+  but preparatory refactors or mechanical changes should be isolated when they
+  can be reviewed independently.
+- Use a lowercase type prefix, followed by a colon and one space, in the pull
+  request title: `<type>: <concise imperative summary>`. Avoid generic titles
+  such as `Dev`, `Update`, `Second part`, or `Various fixes`.
+
+| Prefix | Use it for | Example |
+| --- | --- | --- |
+| `feat` | New user-facing behavior | `feat: add Quantinuum provider support` |
+| `fix` | Bug fixes | `fix: preserve measurement target order` |
+| `perf` | Performance improvements | `perf: avoid rebuilding measurements` |
+| `docs` | Documentation-only changes | `docs: update the provider setup guide` |
+| `test` | Test-only changes | `test: cover parameterized custom gates` |
+| `refactor` | Internal changes without behavior changes | `refactor: simplify circuit translation` |
+| `chore` | Maintenance and dependency updates | `chore: update provider dependencies` |
+| `ci` | Continuous-integration changes | `ci: run documentation checks on pull requests` |
+| `build` | Packaging and build-system changes | `build: configure package versioning` |
+
+The pull request body must give reviewers enough context without requiring them
+to reconstruct the intent from the diff. Include:
+
+- the problem being solved and why the change is needed;
+- a concise summary of the implementation;
+- the tests and checks you ran, including any relevant command or known
+  limitation;
+- documentation, compatibility, or migration impacts, when applicable;
+- a linked issue, preferably using `Closes #123` when the pull request fully
+  resolves it.
+
+Add or update tests for behavior changes, and update the documentation for any
+user-facing API or workflow change. Before requesting a review, remove
+debugging code and unrelated formatting, make sure the relevant checks pass,
+and review the final diff yourself. During review, answer questions, explain
+non-obvious decisions, and address every review conversation. A conversation
+must be marked as resolved by the person who opened it, not by the pull request
+author. This lets the reviewer confirm that their question or concern was fully
+addressed.
 
 ## Translations
 
