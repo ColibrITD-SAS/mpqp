@@ -2280,8 +2280,12 @@ class CircuitBinding:
                 ]
 
             if values_conflict:
-                outer_values = dict(v_curr) # pyright: ignore[reportCallIssue, reportArgumentType]
-                inner_values = dict(v_base) # pyright: ignore[reportCallIssue, reportArgumentType]
+                outer_values = dict(
+                    v_curr
+                )  # pyright: ignore[reportCallIssue, reportArgumentType]
+                inner_values = dict(
+                    v_base
+                )  # pyright: ignore[reportCallIssue, reportArgumentType]
             else:
                 outer_values = inner_values = merge_vals(v_base, v_curr)
 
@@ -2317,9 +2321,7 @@ class CircuitBinding:
             ) in zip(  # pyright: ignore[reportGeneralTypeIssues]
                 b_items, b_vals, b_exps
             ):
-                for merged_val, merged_exp in zip_items(
-                    v_base, e_base, v_curr, e_curr
-                ):
+                for merged_val, merged_exp in zip_items(v_base, e_base, v_curr, e_curr):
                     result.append((c, merged_val, merged_exp))
 
         else:
