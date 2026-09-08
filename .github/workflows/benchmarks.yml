@@ -123,4 +123,4 @@ jobs:
           fail-on-alert: true
           comment-on-alert: false
           summary-always: true
-          max-items-in-chart: 100
+          max-items-in-chart: 100 
