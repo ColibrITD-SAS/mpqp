@@ -32,7 +32,7 @@ on:
       save:
         description: Save the result and update the web page
         required: false
-        default: false
+        default: true
         type: boolean
       gh_pages_branch:
         description: Branch in MPQP-PrivateBenchmark containing the web pages
