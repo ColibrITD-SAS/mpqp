@@ -62,33 +62,41 @@ def test_adjust_measure_target_order(
     circuit_size: int,
     expected_observable: PauliString,
 ):
-    measure = ExpectationMeasure(Observable(observable), measure_targets)
+    with pytest.warns(
+        UserWarning,
+        match="Non contiguous or non sorted observable target will introduce additional CNOTs.",
+    ):
+        measure = ExpectationMeasure(Observable(observable), measure_targets)
 
-    adjusted_measure = adjust_measure(measure, QCircuit(circuit_size))
+        adjusted_measure = adjust_measure(measure, QCircuit(circuit_size))
 
-    assert adjusted_measure.targets == list(range(circuit_size))
-    assert matrix_eq(
-        adjusted_measure.observables[0].matrix,
-        expected_observable.to_matrix(),
-    )
+        assert adjusted_measure.targets == list(range(circuit_size))
+        assert matrix_eq(
+            adjusted_measure.observables[0].matrix,
+            expected_observable.to_matrix(),
+        )
 
 
 def test_adjust_measure_matrix_reordering():
     observable = Observable((pX @ pY @ pZ).to_matrix())
-    measure = ExpectationMeasure(
-        observable,
-        targets=[1, 2, 0],
-        optimize_measurement=False,
-    )
-    original_matrix = observable.matrix
+    with pytest.warns(
+        UserWarning,
+        match="Non contiguous or non sorted observable target will introduce additional CNOTs.",
+    ):
+        measure = ExpectationMeasure(
+            observable,
+            targets=[1, 2, 0],
+            optimize_measurement=False,
+        )
+        original_matrix = observable.matrix
 
-    adjusted_measure = adjust_measure(measure, QCircuit(3))
+        adjusted_measure = adjust_measure(measure, QCircuit(3))
 
-    assert matrix_eq(
-        adjusted_measure.observables[0].matrix,
-        (pZ @ pX @ pY).to_matrix(),
-    )
-    assert matrix_eq(measure.observables[0].matrix, original_matrix)
+        assert matrix_eq(
+            adjusted_measure.observables[0].matrix,
+            (pZ @ pX @ pY).to_matrix(),
+        )
+        assert matrix_eq(measure.observables[0].matrix, original_matrix)
 
 
 def test_adjust_measure_targets_mismatch():
