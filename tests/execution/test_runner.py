@@ -4,6 +4,7 @@ import pytest
 from mpqp import ExpectationMeasure, H, Observable, QCircuit, Rx, pI, pX, pY, pZ
 from mpqp.core.instruction.measurement import PauliString
 from mpqp.execution import adjust_measure
+from mpqp.tools.errors import NumberQubitsError
 from mpqp.tools.maths import matrix_eq
 
 
@@ -91,7 +92,7 @@ def test_adjust_measure_matrix_reordering():
 
 
 def test_adjust_measure_targets_mismatch():
-    measure = ExpectationMeasure(Observable(pX), targets=[0, 1])
-
-    with pytest.raises(ValueError, match="Each observable must act on 2 qubits"):
-        adjust_measure(measure, QCircuit(2))
+    with pytest.raises(
+        NumberQubitsError, match="Target size 2 doesn't match observable size 1"
+    ):
+        ExpectationMeasure(Observable(pX), targets=[0, 1])
