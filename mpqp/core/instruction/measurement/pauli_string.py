@@ -938,10 +938,10 @@ class PauliString:
                     local_targets = []
                     mapped_obs = []
                     atoms = monom.atoms
-                    for i, target in enumerate(targets):
-                        if atoms[target] != pI:
+                    for i, atom in enumerate(monom.atoms):
+                        if atom != pI:
                             local_targets.append(qubits[i])
-                            mapped_obs.append(pauli_gate_map[atoms[target].label])
+                            mapped_obs.append(pauli_gate_map[atom.label])
                     terms.update(
                         {QubitPauliString(local_targets, mapped_obs): monom.coef}
                     )
