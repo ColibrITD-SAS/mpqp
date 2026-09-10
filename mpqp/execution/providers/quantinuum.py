@@ -185,8 +185,12 @@ def run_tket_local(
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
 
-    optim_level = 0 if quantinuum_params is None else quantinuum_params.optimisation_level
-    compiled_circuit = backend.get_compiled_circuit(tket_circuit, optimisation_level=optim_level)
+    optim_level = (
+        0 if quantinuum_params is None else quantinuum_params.optimisation_level
+    )
+    compiled_circuit = backend.get_compiled_circuit(
+        tket_circuit, optimisation_level=optim_level
+    )
 
     if job.job_type == JobType.OBSERVABLE:
         return run_tket_observable(compiled_circuit, backend, job, quantinuum_params)
