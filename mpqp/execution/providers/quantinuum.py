@@ -468,12 +468,14 @@ def submit_job_nexus(
     else:
         n_shots = [None]
 
-    return submit_circuits_to_nexus( #TODO, not good, this is not calling extract_result
-        job,
-        [job.circuit],
-        n_shots,
-        name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
-        provider_params=provider_params,
+    return (
+        submit_circuits_to_nexus(  # TODO, not good, this is not calling extract_result
+            job,
+            [job.circuit],
+            n_shots,
+            name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
+            provider_params=provider_params,
+        )
     )
 
 
@@ -513,14 +515,16 @@ def submit_nexus_observable(
             )
             circuits.append(sample_circuit)
         n_shots = (
-            job.measure.shots if job.measure.shots != 0 else [None] * len(grouping) # TODO double check
+            job.measure.shots
+            if job.measure.shots != 0
+            else [None] * len(grouping)  # TODO double check
         )
     else:
         raise ValueError(
             "Cannot submit Observable jobs as is through Nexus. Enable optimize_measurement to proceed."
         )
 
-    return submit_circuits_to_nexus( # TODO treat the result and send to exctract_result_obs
+    return submit_circuits_to_nexus(  # TODO treat the result and send to exctract_result_obs
         job,
         circuits,
         n_shots,
@@ -633,7 +637,7 @@ def submit_circuits_to_nexus(
     return job.id, execute_job_ref
 
 
-def extract_observable_result( # TODO this function is not called for local, check if needed for remote, otherwise transform into specialized grouping extraction
+def extract_observable_result(  # TODO this function is not called for local, check if needed for remote, otherwise transform into specialized grouping extraction
     job: Job,
     expectation_values: dict[str, float],
     errors: float | dict[str, float],
