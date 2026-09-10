@@ -343,7 +343,6 @@ class Observable:
             [('II', (0.425+0j)), ('IZ', (-0.575+0j)), ('ZI', (0.425+0j)), ('ZZ', (0.425+0j))]
 
         """
-        # TODO: use PauliString instead of matrix
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator, SparsePauliOp
 
@@ -462,6 +461,10 @@ class ExpectationMeasure(Measure):
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
         self.pre_transpiled = None
+        """See parameter description."""
+        self.current_grouping: tuple[list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes]= None
+        """Stores the last computed Pauli grouping to avoid recomputing it."""
+
         if isinstance(observable, Observable):
             observable = [observable]
         else:
@@ -507,6 +510,10 @@ class ExpectationMeasure(Measure):
         """Return the grouped monomials of the Pauli string of the observable.
         The grouping is done according to the grouping method of the expectation
         measure and the chosen commutativity type."""
+
+        if self.current_grouping is not None and self.current_grouping[1] == self.grouping_method and self.current_grouping[2] == self.commuting_type:
+            return self.current_grouping[0]
+
         unique_monos = list(
             {
                 mono / mono.coef
