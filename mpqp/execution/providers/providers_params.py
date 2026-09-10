@@ -28,7 +28,7 @@ class QiskitParams(ProviderParams):
 
 class QuantinuumParams(ProviderParams):
     """
-    Class meant to regroup all IBM specific parameters for remote execution.
+    Class meant to regroup all Quantinuum Nexus specific parameters for remote execution.
 
     Args:
         optimisation_level: Optimisation level with which the circuit should be compiled (default at 0)
@@ -37,10 +37,8 @@ class QuantinuumParams(ProviderParams):
 
     def __init__(
         self,
-        optimisation_level: Optional[int] = None,
+        optimisation_level: Optional[int] = 0,
         commutation_strategy: Optional["PauliPartitionStrat"] = None,
     ):
-        self.optimisation_level = (
-            optimisation_level if optimisation_level is not None else 0
-        )
+        self.optimisation_level = optimisation_level
         self.commutation_strategy = commutation_strategy

@@ -59,12 +59,8 @@ def run_quantinuum(
             f"to a {job.device} instead."
         )
 
-    check_job_compatibility(job)
-
     if not job.device.is_remote():
-        return run_tket_local(
-            job, quantinuum_params
-        )  # TODO: I believe for local case we don't need providers params, to be double checked
+        return run_tket_local(job, quantinuum_params)
     else:
         return run_nexus_remote(job, quantinuum_params)
 
@@ -150,17 +146,19 @@ def check_job_compatibility(job: Job) -> None:
 
 
 def run_tket_local(
-    job: Job, provider_params: Optional[QuantinuumParams] = None
+    job: Job, quantinuum_params: Optional[QuantinuumParams] = None
 ) -> Result:
     """Execute a job using a local TKET backend.
 
     Args:
         job: Job targeting a local TKET device.
-        provider_params: Quantinuum specific parameters, mainly for remote submissions.
+        quantinuum_params: Quantinuum specific parameters, mainly for optimization level and grouping strategy.
 
     Returns:
         The result after local compilation and execution.
     """
+    check_job_compatibility(job)
+
     if TYPE_CHECKING:
         assert isinstance(job.device, QUANTINUUMDevice)
 
@@ -187,7 +185,7 @@ def run_tket_local(
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
 
-    compiled_circuit = backend.get_compiled_circuit(tket_circuit, optimisation_level=0)
+    compiled_circuit = backend.get_compiled_circuit(tket_circuit, optimisation_level=quantinuum_params.optimisation_level)
 
     if job.job_type == JobType.OBSERVABLE:
         return run_tket_observable(compiled_circuit, backend, job)
@@ -206,7 +204,7 @@ def run_tket_observable(
     quantinuum_params: Optional[QuantinuumParams] = None,
 ) -> Result:
     """
-    TODO
+    TODO doc
 
     Args:
         compiled_circuit:
@@ -253,10 +251,8 @@ def run_tket_observable(
             {f"observable_{i}" if o.label is None else o.label: exp_value}
         )
 
-        if nb_shots == 0:
-            variance = 0.0
-        else:
-            variance = (1.0 - exp_value**2) / job.measure.shots
+        variance = (1.0 - exp_value**2) / job.measure.shots if nb_shots != 0 else 0.0
+
         errors.update({f"observable_{i}" if o.label is None else o.label: variance})
     if len(expectation_values) == 1:
         return Result(
@@ -298,7 +294,7 @@ def run_nexus_remote(job: Job, quantinuum_params: Optional[QuantinuumParams] = N
     except Exception as error:
         job.status = JobStatus.ERROR
         job.status_message = str(error)
-        raise
+        raise error
 
 
 def run_quantinuum_observable(  # TODO clarify if this is remote or local
@@ -449,11 +445,12 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
 def submit_job_nexus(
     job: Job, provider_params: Optional[QuantinuumParams] = None
 ) -> tuple[str, "ExecuteJobRef"]:
-    """Submit a job to a supported Quantinuum Nexus backend."""
+    """Submit a job to a supported Quantinuum Nexus backend. TODO DOC"""
+    check_job_compatibility(job)
+
     if job.job_type == JobType.OBSERVABLE:
         return submit_nexus_observable(job, provider_params)
 
-    check_job_compatibility(job)
     n_shots: int | list[None]
     if job.job_type == JobType.SAMPLE:
         if TYPE_CHECKING:
@@ -462,7 +459,7 @@ def submit_job_nexus(
     else:
         n_shots = [None]
 
-    return submit_circuits_to_nexus(
+    return submit_circuits_to_nexus( #TODO, not good, this is not calling extract_result
         job,
         [job.circuit],
         n_shots,
@@ -507,14 +504,14 @@ def submit_nexus_observable(
             )
             circuits.append(sample_circuit)
         n_shots = (
-            job.measure.shots if job.measure.shots != 0 else [None] * len(grouping)
+            job.measure.shots if job.measure.shots != 0 else [None] * len(grouping) # TODO double check
         )
     else:
         raise ValueError(
             "Cannot submit Observable jobs as is through Nexus. Enable optimize_measurement to proceed."
         )
 
-    return submit_circuits_to_nexus(
+    return submit_circuits_to_nexus( # TODO treat the result and send to exctract_result_obs
         job,
         circuits,
         n_shots,
@@ -627,13 +624,14 @@ def submit_circuits_to_nexus(
     return job.id, execute_job_ref
 
 
-def extract_observable_result(
+def extract_observable_result( # TODO this function is not called for local, check if needed for remote, otherwise transform into specialized grouping extraction
     job: Job,
     expectation_values: dict[str, float],
     errors: float | dict[str, float],
     shots: int,
 ) -> Result:
-    """Fills out the data of a MPQP Result with the results of a Quantinuum OBSERVABLE job."""
+    """Fills out the data of a MPQP Result with the results of a Quantinuum OBSERVABLE job. TODO"""
+
     job.status = JobStatus.DONE
     if len(expectation_values) == 1:
         label = list(expectation_values)[0]
