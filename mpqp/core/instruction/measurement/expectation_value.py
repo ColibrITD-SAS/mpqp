@@ -462,7 +462,9 @@ class ExpectationMeasure(Measure):
         """See parameter description."""
         self.pre_transpiled = None
         """See parameter description."""
-        self.current_grouping: tuple[list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes]= None
+        self.current_grouping: tuple[
+            list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes
+        ] = None
         """Stores the last computed Pauli grouping to avoid recomputing it."""
 
         if isinstance(observable, Observable):
@@ -511,7 +513,11 @@ class ExpectationMeasure(Measure):
         The grouping is done according to the grouping method of the expectation
         measure and the chosen commutativity type."""
 
-        if self.current_grouping is not None and self.current_grouping[1] == self.grouping_method and self.current_grouping[2] == self.commuting_type:
+        if (
+            self.current_grouping is not None
+            and self.current_grouping[1] == self.grouping_method
+            and self.current_grouping[2] == self.commuting_type
+        ):
             return self.current_grouping[0]
 
         unique_monos = list(
