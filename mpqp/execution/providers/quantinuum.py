@@ -473,12 +473,14 @@ def submit_job_nexus(
     else:
         n_shots = [None]
 
-    execute_job_ref = submit_circuits_to_nexus(  # TODO, not good, this is not calling extract_result
-        job,
-        [job.circuit],
-        n_shots,
-        name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
-        provider_params=provider_params,
+    execute_job_ref = (
+        submit_circuits_to_nexus(  # TODO, not good, this is not calling extract_result
+            job,
+            [job.circuit],
+            n_shots,
+            name=f"mpqp-{job.job_type.name.lower()}-{job.device.value}",
+            provider_params=provider_params,
+        )
     )
 
     return
@@ -642,15 +644,16 @@ def submit_circuits_to_nexus(
     return execute_job_ref
 
 
-def extract_remote_observable_grouped_result(backend_results: list["BackendResult"], job: Job) -> Result:
-
+def extract_remote_observable_grouped_result(
+    backend_results: list["BackendResult"], job: Job
+) -> Result:
     """Fills out the data of a MPQP Result with the results of a Quantinuum OBSERVABLE job.
 
-     Args:
-         backend_results:
-         job:
+    Args:
+        backend_results:
+        job:
 
-         TODO doc
+        TODO doc
     """
 
     from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
@@ -685,18 +688,14 @@ def extract_remote_observable_grouped_result(backend_results: list["BackendResul
                     f"We will proceed with the received number of shots instead.",
                     ModifiedShotsNumberWarning,
                 )
-                raise (
-
-                )
-            length = 2 ** job.measure.nb_qubits
+                raise ()
+            length = 2**job.measure.nb_qubits
             sorted_values: list[float] = []
             for i in range(length):
                 binary_state = f"{bin(i)[2:].zfill(len(bin(length)) - 3)}"
                 tket_binary = tuple(int(b) for b in binary_state)
                 if tket_binary in raw_counts:
-                    sorted_values.append(
-                        raw_counts[tket_binary].real / received_shots
-                    )
+                    sorted_values.append(raw_counts[tket_binary].real / received_shots)
                 else:
                     sorted_values.append(0)
         for name, eigenvalue in eigenvalues[index].items():
@@ -718,14 +717,11 @@ def extract_remote_observable_grouped_result(backend_results: list["BackendResul
         if job.measure.shots == 0:
             variance = 0.0
         else:
-            variance = (1.0 - local ** 2) / received_shots
+            variance = (1.0 - local**2) / received_shots
             # FIXME the variance of an observable is not really the variance of a single monomial, coefs play a role
-        errors.update(
-            {f"observable_{i}" if obs.label is None else obs.label: variance}
-        )
+        errors.update({f"observable_{i}" if obs.label is None else obs.label: variance})
 
     return Result(job, exp_values, errors, shots=job.measure.shots)
-
 
     # job.status = JobStatus.DONE
     # if len(expectation_values) == 1:
