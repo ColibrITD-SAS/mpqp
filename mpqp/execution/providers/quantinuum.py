@@ -185,10 +185,11 @@ def run_tket_local(
     else:
         raise ValueError(f"Local TKET device {job.device} is not handled.")
 
-    compiled_circuit = backend.get_compiled_circuit(tket_circuit, optimisation_level=quantinuum_params.optimisation_level)
+    optim_level = 0 if quantinuum_params is None else quantinuum_params.optimisation_level
+    compiled_circuit = backend.get_compiled_circuit(tket_circuit, optimisation_level=optim_level)
 
     if job.job_type == JobType.OBSERVABLE:
-        return run_tket_observable(compiled_circuit, backend, job)
+        return run_tket_observable(compiled_circuit, backend, job, quantinuum_params)
 
     n_shots = None if job.measure is None else job.measure.shots
 
@@ -270,24 +271,7 @@ def run_nexus_remote(job: Job, quantinuum_params: Optional[QuantinuumParams] = N
     try:
         _, execute_job_ref = submit_job_nexus(job, quantinuum_params)
 
-        import qnexus as qnx
-
-        execution_status = qnx.jobs.wait_for(execute_job_ref)
-        result_refs = qnx.jobs.results(execute_job_ref)
-        if not result_refs:
-            status = execution_status.status.value
-            raise RuntimeError(
-                f"Quantinuum Nexus execution job '{execute_job_ref.id}' finished "
-                f"with status '{status}', but no result was returned."
-            )
-
-        result_ref = result_refs[0]
-        if TYPE_CHECKING:
-            assert isinstance(result_ref, ExecutionResultRef)
-
-        backend_result = result_ref.download_result()
-        if TYPE_CHECKING:
-            assert isinstance(backend_result, BackendResult)
+        backend_results = fetch_nexus_results(execute_job_ref)
 
         return extract_result(backend_result, job)
 
@@ -295,6 +279,31 @@ def run_nexus_remote(job: Job, quantinuum_params: Optional[QuantinuumParams] = N
         job.status = JobStatus.ERROR
         job.status_message = str(error)
         raise error
+
+
+def fetch_nexus_results(execute_job_ref: "ExecuteJobRef") -> list["BackendResult"]:
+    """TODO doc
+
+    Args:
+        execute_job_ref: TODO doc
+
+    Returns:
+
+    """
+    import qnexus as qnx
+
+    execution_status = qnx.jobs.wait_for(execute_job_ref)
+    result_refs = qnx.jobs.results(execute_job_ref)
+
+    if not result_refs:
+        status = execution_status.status.value
+        raise RuntimeError(
+            f"Quantinuum Nexus execution job '{execute_job_ref.id}' finished "
+            f"with status '{status}', but no result was returned."
+        )
+
+    return [ref.download_result() for ref in result_refs]
+    # TODO test that the circuits and results are orderered in the same way, critical for pauli groups
 
 
 def run_quantinuum_observable(  # TODO clarify if this is remote or local
@@ -690,11 +699,11 @@ def extract_sample_result(
     return Result(job, samples, None, job.measure.shots)
 
 
-def extract_result(backend_result: "BackendResult", job: Job) -> Result:
+def extract_result(backend_results: list["BackendResult"], job: Job) -> Result:
     """Construct a Result from a backend execution result.
 
     Args:
-        backend_result: TKET result returned by a local backend or retrieved from
+        backend_results: List of TKET results returned by a local backend or retrieved from
             Quantinuum Nexus.
         job: Original MPQP job used for the execution. It provides the job type,
             circuit, measurement, and target device required to construct the result.
@@ -703,11 +712,12 @@ def extract_result(backend_result: "BackendResult", job: Job) -> Result:
         The backend result converted to MPQP format.
     """
     if job.job_type == JobType.STATE_VECTOR:
-        return extract_state_vector_result(backend_result.get_state(), job)
-    elif job.job_type == JobType.SAMPLE:
-        return extract_sample_result(backend_result.get_counts(), job)
-    else:
-        raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
+        return extract_state_vector_result(backend_results[0].get_state(), job)
+    if job.job_type == JobType.SAMPLE:
+        return extract_sample_result(backend_results[0].get_counts(), job)
+    if job.job_type == JobType.OBSERVABLE:
+        return extract_observable_result(backend_results, job)
+    raise ValueError(f"Job type {job.job_type} not handled on {job.device}.")
 
 
 def get_result_from_quantinuum_job_id(
