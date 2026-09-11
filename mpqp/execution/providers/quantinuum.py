@@ -473,7 +473,7 @@ def submit_job_nexus(
     else:
         n_shots = [None]
 
-    execute_job_ref = submit_circuits_to_nexus(  # TODO, not good, this is not calling extract_result
+    execute_job_ref = submit_circuits_to_nexus(
         job,
         [job.circuit],
         n_shots,
@@ -685,6 +685,9 @@ def extract_remote_observable_grouped_result(backend_results: list["BackendResul
                     f"We will proceed with the received number of shots instead.",
                     ModifiedShotsNumberWarning,
                 )
+                raise (
+
+                )
             length = 2 ** job.measure.nb_qubits
             sorted_values: list[float] = []
             for i in range(length):
@@ -805,7 +808,7 @@ def extract_result(backend_results: list["BackendResult"], job: Job) -> Result:
 
 def get_result_from_quantinuum_job_id(
     job_id: str,
-    job: Job | None = None,
+    job: Job,
 ) -> Result:
     """Retrieve and parse the result of a Quantinuum Nexus job.
 
@@ -825,21 +828,31 @@ def get_result_from_quantinuum_job_id(
 
     if TYPE_CHECKING:
         assert isinstance(job_ref, ExecuteJobRef)
+    execution_status = qnx.jobs.wait_for(job_ref)
+    result_refs = qnx.jobs.results(job_ref)
 
-    backend_results = fetch_nexus_results(job_ref)
-    if job is None and job_ref.annotations.description == "mpqp:observable":
+    if not result_refs:
+        status = execution_status.status.value
+        raise RuntimeError(
+            f"Quantinuum Nexus execution job '{job_id}' finished with status "
+            f"'{status}', but no result was returned."
+        )
+    if job is None and (
+        JobType.OBSERVABLE or job_ref.annotations.description == "mpqp:observable"
+    ):
         raise ValueError(
             "Retrieving a Quantinuum observable result requires the original MPQP `Job`."
         )
 
     if job is not None and job.job_type == JobType.OBSERVABLE:
         # TODO REMPLIR ICI AVEC LES NOUVELLES FONCTIONS
-        return extract_remote_observable_grouped_result(backend_results, job)
+        return extract_remote_observable_grouped_result(result_refs, job)
 
-    backend_result = backend_results[0]
+    result_ref = result_refs[0]
+    if TYPE_CHECKING:
+        assert isinstance(result_ref, ExecutionResultRef)
 
     backend_config = job_ref.backend_config_store
-
     if backend_config is None:
         raise ValueError(
             f"Quantinuum Nexus job '{job_id}' does not contain backend "
@@ -847,6 +860,7 @@ def get_result_from_quantinuum_job_id(
         )
 
     if isinstance(backend_config, qnx.AerStateConfig):
+        backend_result = result_ref.download_result()
         if TYPE_CHECKING:
             assert isinstance(backend_result, BackendResult)
         amplitudes = backend_result.get_state()
@@ -878,6 +892,9 @@ def get_result_from_quantinuum_job_id(
             f"configuration '{type(backend_config).__name__}'."
         )
 
+    backend_result = result_ref.download_result()
+    if TYPE_CHECKING:
+        assert isinstance(backend_result, BackendResult)
     if (
         device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR
         and backend_result.contains_state_results
