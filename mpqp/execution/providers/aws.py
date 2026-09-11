@@ -240,9 +240,9 @@ def run_circuit_binding(job: Job) -> BatchResult:
             for result in execution:
                 exp_value += result.expectation  # pyright: ignore[reportOperatorIssue]
             circuit, observable, variables = jobs[index]  # type: ignore
-            index += 1
             local_job = Job(job.job_type, circuit, job.device, observable, variables)
             results.append(Result(local_job, exp_value))
+            index += 1
     else:
         i = 0
         for res in task:

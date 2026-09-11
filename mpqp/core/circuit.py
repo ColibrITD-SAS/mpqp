@@ -2067,9 +2067,15 @@ class CircuitBinding:
         self.nb_qubits = circuits[0].nb_qubits
         for circ in circuits:
             if circ.job_type != self.job_type:
-                raise ValueError(
-                    "All circuits in CircuitBinding must have the same job type."
-                )
+                if (
+                    circ.job_type == JobType.STATE_VECTOR
+                    or self.job_type == JobType.STATE_VECTOR
+                ):
+                    self.job_type = circ.job_type
+                else:
+                    raise ValueError(
+                        "All circuits in CircuitBinding must have the same job type."
+                    )
             if circ.is_noisy:
                 if isinstance(circ, CircuitBinding) and self.noises is None:
                     self.noises = circ.noises
@@ -2089,12 +2095,12 @@ class CircuitBinding:
             self.nb_qubits = max(self.nb_qubits, circ.nb_qubits)
 
         if measurements is not None:
-            if (
-                self.job_type != JobType.STATE_VECTOR
-            ):  # TODO: check for basisMeasure shots = 0
-                raise ValueError(
-                    "your circuit already contains measurements, you cannot have multiple measurements"
-                )
+            for c in circuits:
+                if isinstance(c, QCircuit):
+                    if c.job_type != JobType.STATE_VECTOR:
+                        raise ValueError(
+                            "your circuit already contains measurements, you cannot have multiple measurements"
+                        )
             measurements = (
                 [measurements]
                 if isinstance(measurements, Measure)
@@ -2110,16 +2116,22 @@ class CircuitBinding:
             for index, measure in enumerate(measurements):
                 if self.shots is not None:
                     # TODO: this is a check for default shots but it is hardcode
-                    if isinstance(measure, ExpectationMeasure) and measure.shots != 0:
-                        raise ValueError(
-                            "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
-                        )
-                    elif isinstance(measure, BasisMeasure) and measure.shots != 1024:
-                        raise ValueError(
-                            "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
-                        )
-                    else:
-                        measure.shots = self.shots
+                    if self.shots != measure.shots:
+                        if (
+                            isinstance(measure, ExpectationMeasure)
+                            and measure.shots != 0
+                        ):
+                            raise ValueError(
+                                "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
+                            )
+                        elif (
+                            isinstance(measure, BasisMeasure) and measure.shots != 1024
+                        ):
+                            raise ValueError(
+                                "shots is already specified in CircuitBinding, you cannot specify it again in the measures"
+                            )
+                        else:
+                            measure.shots = self.shots
                 else:
                     if shots_ is None:
                         shots_ = measure.shots
@@ -2236,7 +2248,6 @@ class CircuitBinding:
             else:
                 base_items.append((c, None, None))
 
-        print('base_items', base_items)
         vals = (
             self.value
             if isinstance(self.value, list)
@@ -2275,9 +2286,6 @@ class CircuitBinding:
             b_items = broadcast(base_items, max_len)
             b_vals = broadcast(vals, max_len)
             b_exps = broadcast(exps, max_len)
-            print(b_items)
-            print(b_vals)
-            print(b_exps)
 
             for (
                 (c, v_base, e_base),
