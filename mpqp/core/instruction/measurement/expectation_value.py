@@ -527,10 +527,13 @@ class ExpectationMeasure(Measure):
                 for mono in obs.pauli_string.monomials
             }
         )
+
         if self.grouping_method == GroupingMethods.GREEDY:
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
+            pauli_grouping = pauli_grouping_greedy(unique_monos, self.commuting_type)
+            self.current_grouping = (pauli_grouping, GroupingMethods.GREEDY, self.commuting_type.__copy__())
+            return pauli_grouping
 
-            return pauli_grouping_greedy(unique_monos, self.commuting_type)
         elif self.grouping_method == GroupingMethods.QISKIT_COLORING_GREEDY:
             from qiskit.quantum_info import PauliList
 
@@ -556,8 +559,13 @@ class ExpectationMeasure(Measure):
                 ]
                 for pauli in grouped
             ]
-
+            self.current_grouping = (
+                grouped_monomials,
+                GroupingMethods.QISKIT_COLORING_GREEDY,
+                self.commuting_type.__copy__()
+            )
             return grouped_monomials  # pyright: ignore[reportReturnType]
+
         else:
             raise NotImplementedError(f"{self.grouping_method} is not yet supported.")
 

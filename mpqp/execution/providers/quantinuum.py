@@ -14,7 +14,7 @@ from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QuantinuumParams
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.tools.errors import DeviceJobIncompatibleError, ModifiedShotsNumberWarning
+from mpqp.tools.errors import DeviceJobIncompatibleError, ModifiedShotsNumberWarning, NumberQubitsWarning
 from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 
 if TYPE_CHECKING:
@@ -344,7 +344,6 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
     exp_values, errors = {}, {}
     if job.measure.optimize_measurement and job_change_compatibility:
         from warnings import warn
-
         warn(
             "MPQP's optimize_measurement changes the type of the Job to SAMPLE or STATE_VECTOR."
             f"Your chosen device:{job.device} is not compatible with it so this optimization won't be used here."
@@ -500,6 +499,7 @@ def submit_nexus_observable(
 
     circuit = job.circuit.without_measurements()
     n_shots: int | list[None]
+
     if job.measure.optimize_measurement:
         # If for some reason the device supports state vector
         # Otherwise this quirk was caught way before arriving here
@@ -655,12 +655,16 @@ def extract_remote_observable_grouped_result(backend_results: list["BackendResul
 
     from mpqp.tools.pauli_grouping import pauli_monomial_eigenvalues
 
+    job.status = JobStatus.DONE
+
     grouping = job.measure.get_pauli_grouping()
 
-    eigenvalues = [  # TODO: improve this, 1. compute eigenvalues with a method in the monomial ? 2. store it in an attribute so we don' recompute that at each iteration ?
+    eigenvalues = [
         {monomial.name: pauli_monomial_eigenvalues(monomial) for monomial in group}
         for group in grouping
     ]
+    # TODO: improve this, 1. compute eigenvalues with a method in the monomial ?
+    #  2. store it in an attribute so we don't recompute that at each iteration ?
 
     if len(backend_results) != len(grouping):
         raise ValueError(
@@ -669,6 +673,15 @@ def extract_remote_observable_grouped_result(backend_results: list["BackendResul
         )
 
     exp_values, errors = {}, {}
+
+    if job.measure.nb_qubits != job.circuit.nb_qubits:
+        warn(
+            "Did not implement the extraction of expectation values from counts for partial targets. "
+            "The result size is the full circuit size currently (which may introduce errors in how counts indices "
+            "returned by the device are mapped in the final result.)",
+             NumberQubitsWarning
+        )
+        # TODO: implement when we precise the targets, the mapping of the counts and basis state indices can be wrong.
 
     for index, backend_result in enumerate(backend_results):
         if job.measure.shots == 0:
@@ -724,7 +737,7 @@ def extract_remote_observable_grouped_result(backend_results: list["BackendResul
             {f"observable_{i}" if obs.label is None else obs.label: variance}
         )
 
-    return Result(job, exp_values, errors, shots=job.measure.shots)
+    return Result(job, exp_values, errors, shots=0 if job.measure.shots == 0 else received_shots)
 
 
     # job.status = JobStatus.DONE
