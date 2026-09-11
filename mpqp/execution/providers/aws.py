@@ -162,21 +162,22 @@ def run_braket_observable(job: Job):
     from braket.circuits import Circuit
     from braket.tasks import GateModelQuantumTaskResult
 
-    assert isinstance(job.device, AWSDevice)
-    if job.circuit.transpiled_circuit is None:
-        transpiled_circuit = job.circuit.to_other_device(job.device)
+    if TYPE_CHECKING:
+        assert isinstance(job.measure, ExpectationMeasure)
+        assert isinstance(job.device, AWSDevice)
+
+    circuit = job.circuit.without_measurements()
+    if circuit.transpiled_circuit is None:
+        transpiled_circuit = circuit.to_other_device(job.device)
     else:
-        transpiled_circuit = job.circuit.transpiled_circuit
-        assert isinstance(transpiled_circuit, Circuit)
+        transpiled_circuit = circuit.transpiled_circuit
+        if TYPE_CHECKING:
+            assert isinstance(transpiled_circuit, Circuit)
 
     device = get_braket_device(
         job.device,
         is_noisy=bool(job.circuit.noises),
     )
-
-    if job.measure is None:
-        raise NotImplementedError("job.measure is None")
-    assert isinstance(job.measure, ExpectationMeasure)
 
     results, errors = {}, {}
     if job.measure.optimize_measurement:
@@ -188,19 +189,26 @@ def run_braket_observable(job: Job):
         if job.measure.pre_transpiled is None:
             grouping = job.measure.get_pauli_grouping()
             pre_measure = [
-                QCircuit(find_qubitwise_rotations(group)) for group in grouping
+                QCircuit(
+                    find_qubitwise_rotations(group, job.measure.targets)
+                    + (
+                        [BasisMeasure(targets=job.measure.targets)]
+                        if job.measure.shots != 0
+                        else []
+                    )
+                )
+                for group in grouping
             ]
-            for circuit in pre_measure:
-                for instr in circuit.instructions:
-                    instr.targets = [job.measure.targets[t] for t in instr.targets]
             transpiled_pre_measures = [
                 pre_m.to_other_language(Language.BRAKET) for pre_m in pre_measure
             ]
             eigenvalues = [
-                {monom.name: pauli_monomial_eigenvalues(monom) for monom in group}
+                {
+                    monomial.name: pauli_monomial_eigenvalues(monomial)
+                    for monomial in group
+                }
                 for group in grouping
             ]
-
         else:
             eigenvalues, transpiled_pre_measures = (
                 job.measure.pre_transpiled

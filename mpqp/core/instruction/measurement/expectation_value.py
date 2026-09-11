@@ -30,6 +30,7 @@ if TYPE_CHECKING:
     from cirq.circuits.circuit import Circuit as CirqCircuit
     from cirq.ops.linear_combinations import PauliSum as CirqPauliSum
     from cirq.ops.pauli_string import PauliString as CirqPauliString
+    from pytket.utils.operators import QubitPauliOperator
     from qat.core.wrappers.observable import Observable as QLMObservable
     from qiskit._accelerate.circuit import Parameter
     from qiskit.quantum_info import SparsePauliOp
@@ -280,29 +281,55 @@ class Observable:
     ) -> QLMObservable: ...
     @overload
     def to_other_language(
-        self, language: Literal[Language.CIRQ], circuit: Optional[CirqCircuit] = None
+        self,
+        language: Literal[Language.CIRQ],
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[CirqPauliSum, CirqPauliString]: ...
+    @overload
+    def to_other_language(
+        self, language: Literal[Language.TKET], targets: Optional[list[int]] = None
+    ) -> QubitPauliOperator: ...
     @overload
     def to_other_language(
         self, language: Literal[Language.QASM2, Language.QASM3]
     ) -> Never: ...
     @overload
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        Sum,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]: ...
 
     def to_other_language(
-        self, language: Language, circuit: Optional[CirqCircuit] = None
+        self,
+        language: Language,
+        targets: Optional[list[int]] = None,
+        circuit: Optional[CirqCircuit] = None,
     ) -> Union[
-        SparsePauliOp, QLMObservable, Hermitian, Sum, CirqPauliSum, CirqPauliString
+        SparsePauliOp,
+        QLMObservable,
+        Hermitian,
+        Sum,
+        CirqPauliSum,
+        CirqPauliString,
+        QubitPauliOperator,
     ]:
         """Converts the observable to the representation of another quantum
         programming language.
 
         Args:
             language: The target programming language.
+            targets: TODO doc
             circuit: The Cirq circuit associated with the observable (required
                 if ``language == Language.CIRQ``).
 
@@ -316,7 +343,6 @@ class Observable:
             [('II', (0.425+0j)), ('IZ', (-0.575+0j)), ('ZI', (0.425+0j)), ('ZZ', (0.425+0j))]
 
         """
-        # TODO: use PauliString instead of matrix
         if language == Language.QISKIT:
             from qiskit.quantum_info import Operator, SparsePauliOp
 
@@ -348,7 +374,9 @@ class Observable:
                     ),
                 )
         elif language == Language.CIRQ:
-            return self.pauli_string.to_other_language(Language.CIRQ, circuit)
+            return self.pauli_string.to_other_language(Language.CIRQ, circuit=circuit)
+        elif language == Language.TKET:
+            return self.pauli_string.to_other_language(Language.TKET, targets=targets)
         else:
             raise ValueError(f"Unsupported language: {language}")
 
@@ -433,6 +461,12 @@ class ExpectationMeasure(Measure):
         self.optimize_measurement = optimize_measurement
         """See parameter description."""
         self.pre_transpiled = None
+        """See parameter description."""
+        self.current_grouping: tuple[
+            list[list[PauliStringMonomial]], GroupingMethods, CommutingTypes
+        ] = None
+        """Stores the last computed Pauli grouping to avoid recomputing it."""
+
         if isinstance(observable, Observable):
             observable = [observable]
         else:
@@ -478,6 +512,14 @@ class ExpectationMeasure(Measure):
         """Return the grouped monomials of the Pauli string of the observable.
         The grouping is done according to the grouping method of the expectation
         measure and the chosen commutativity type."""
+
+        if (
+            self.current_grouping is not None
+            and self.current_grouping[1] == self.grouping_method
+            and self.current_grouping[2] == self.commuting_type
+        ):
+            return self.current_grouping[0]
+
         unique_monos = list(
             {
                 mono / mono.coef

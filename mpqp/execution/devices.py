@@ -7,14 +7,16 @@ Each supported provider has its available devices listed as these enums:
 - :class:`IBMDevice`,
 - :class:`ATOSDevice`,
 - :class:`AWSDevice`,
-- :class:`GOOGLEDevice`.
-- :class:`AZUREDevice`.
+- :class:`GOOGLEDevice`,
+- :class:`AZUREDevice`,
+- :class:`QUANTINUUMDevice`.
 
 Not all combinations of :class:`AvailableDevice` and
 :class:`~mpqp.execution.job.JobType` are possible. Here is the list of
-compatible jobs types and devices.
+compatible job types and devices.
 
-For more information about handling Remote devices, please refer to the `Remote devices handling <execution-extras.html>`_ section.
+For more information about handling remote devices, please refer to the
+`Remote devices handling <execution-extras.html>`_ section.
 
 .. csv-table:: Job/Device Compatibility Matrix
    :file: ../../docs/resources/job-device_compat.csv
@@ -546,3 +548,65 @@ class AZUREDevice(AvailableDevice):
 
     def supports_observable_ideal(self) -> bool:
         return False
+
+
+class QUANTINUUMDevice(AvailableDevice):
+    """Enum regrouping all available devices provided by Quantinuum."""
+
+    TKET_AER_SIMULATOR = "tket-aer"
+    TKET_AER_STATEVECTOR_SIMULATOR = "tket-aer-state"
+    TKET_QULACS_SIMULATOR = "tket-qulacs"
+
+    NEXUS_AER_SIMULATOR = "aer"
+    NEXUS_AER_STATEVECTOR_SIMULATOR = "aer-state"
+    NEXUS_QULACS_SIMULATOR = "qulacs"
+
+    H1_1LE = "H1-1LE"
+    H2_1LE = "H2-1LE"
+    H1_EMULATOR = "H1-Emulator"
+    H2_EMULATOR = "H2-Emulator"
+
+    def is_remote(self) -> bool:
+        return self not in {
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        }
+
+    def is_gate_based(self) -> bool:
+        return True
+
+    def is_simulator(self) -> bool:
+        return True
+
+    def is_noisy_simulator(self) -> bool:
+        return self in {
+            QUANTINUUMDevice.H1_EMULATOR,
+            QUANTINUUMDevice.H2_EMULATOR,
+        }
+
+    def supports_samples(self) -> bool:
+        return self not in {
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+        }
+
+    def supports_state_vector(self) -> bool:
+        return self in {
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        }
+
+    def supports_observable(self) -> bool:
+        return True
+
+    def supports_observable_ideal(self) -> bool:
+        return self in {
+            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_SIMULATOR,
+            QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
+            QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
+        }

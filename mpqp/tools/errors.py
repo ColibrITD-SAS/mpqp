@@ -77,3 +77,8 @@ class AdditionalGateNoiseWarning(UserWarning):
 
 class NonReversibleWarning(UserWarning):
     """Warning for nonreversible instruction used in inverse function."""
+
+
+class ModifiedShotsNumberWarning(UserWarning):
+    """Warning for different number of shots executed by the QPU compared to
+    what request by the Job."""
