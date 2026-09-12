@@ -437,11 +437,27 @@ def states() -> list[npt.NDArray[np.complex128]]:
 def test_initializer(states: list[npt.NDArray[np.complex128]]):
     for state in states:
         qc = QCircuit.initializer(state)
+        assert all(not isinstance(gate, Id) for gate in qc.gates)
         res = run(qc, IBMDevice.AER_SIMULATOR_STATEVECTOR)
         if TYPE_CHECKING:
             assert isinstance(res, Result)
         state_vector_initialized = res.state_vector.vector
         assert matrix_eq(state, state_vector_initialized)
+
+
+@pytest.mark.provider("qiskit")
+@pytest.mark.parametrize(
+    "state",
+    [
+        np.array([1, 0]),
+        np.array([0, 1]),
+        np.array([1, 1]) / np.sqrt(2),
+    ],
+)
+def test_initializer_simplifies_u_gates(state: npt.NDArray[np.complex128]):
+    circuit = QCircuit.initializer(state)
+
+    assert all(not isinstance(gate, (Id, U)) for gate in circuit.gates)
 
 
 @pytest.mark.parametrize(
