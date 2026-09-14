@@ -721,11 +721,11 @@ def extract_remote_observable_grouped_result(
 
     if len(result_dict) == 1:
         return Result(
-                        job,
-                        next(iter(result_dict.values())),
-                        next(iter(errors.values())),
-                        shots=job.measure.shots,
-                    )
+            job,
+            next(iter(result_dict.values())),
+            next(iter(errors.values())),
+            shots=job.measure.shots,
+        )
 
     return Result(job, result_dict, errors,  received_shots)
 
