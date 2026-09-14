@@ -1,8 +1,8 @@
 from typing import Optional
 
-from mpqp import JobType
 from termcolor import colored
 
+from mpqp.execution.job import JobType
 from mpqp.environment.env_manager import get_env_variable, save_env_variable
 from mpqp.execution.devices import QUANTINUUMDevice
 
@@ -156,11 +156,7 @@ def get_quantinuum_config(device: QUANTINUUMDevice, job_type: Optional[JobType] 
     if device == QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR:
         return qnx.AerStateConfig()
     if device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR:
-        return qnx.QulacsConfig(
-            result_type=(
-                "state_vector" if job_type == JobType.STATE_VECTOR else "probability"
-            )
-        )
+        return qnx.QulacsConfig()
     return qnx.QuantinuumConfig(device_name=device.value)
 
 
