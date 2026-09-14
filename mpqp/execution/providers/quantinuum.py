@@ -14,7 +14,11 @@ from mpqp.execution.devices import QUANTINUUMDevice
 from mpqp.execution.job import Job, JobStatus, JobType
 from mpqp.execution.providers.providers_params import QuantinuumParams
 from mpqp.execution.result import Result, Sample, StateVector
-from mpqp.tools.errors import DeviceJobIncompatibleError, ModifiedShotsNumberWarning, NumberQubitsWarning
+from mpqp.tools.errors import (
+    DeviceJobIncompatibleError,
+    ModifiedShotsNumberWarning,
+    NumberQubitsWarning,
+)
 from mpqp.core.instruction.measurement.pauli_string import CommutingTypes
 
 if TYPE_CHECKING:
@@ -111,7 +115,9 @@ def check_job_compatibility(job: Job) -> None:
             assert isinstance(job.measure, ExpectationMeasure)
         if job.measure.shots == 0:
             if job.device.is_remote():
-                raise DeviceJobIncompatibleError("Quantinuum Nexus does not handle ideal observable job. You can submit a statevector job instead and compute it locally.")
+                raise DeviceJobIncompatibleError(
+                    "Quantinuum Nexus does not handle ideal observable job. You can submit a statevector job instead and compute it locally."
+                )
         else:
             if not job.device.supports_samples() and job.measure.optimize_measurement:
                 raise DeviceJobIncompatibleError(
@@ -124,12 +130,14 @@ def check_job_compatibility(job: Job) -> None:
                 raise DeviceJobIncompatibleError(
                     f"{job.device} does not support sampled or observable jobs."
                 )
-            if job.measure.optimize_measurement and job.measure.commuting_type != CommutingTypes.QUBITWISE:
+            if (
+                job.measure.optimize_measurement
+                and job.measure.commuting_type != CommutingTypes.QUBITWISE
+            ):
                 raise NotImplementedError(
                     "Quantinuum optimized sampled observable jobs currently only supports qubit-wise "
                     "commuting Pauli grouping."
                 )
-
 
 
 def run_tket_local(
@@ -337,7 +345,11 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
             pre_measure = [
                 QCircuit(
                     find_qubitwise_rotations(group, job.measure.targets)
-                    + [BasisMeasure(targets=job.measure.targets, shots=job.measure.shots)]
+                    + [
+                        BasisMeasure(
+                            targets=job.measure.targets, shots=job.measure.shots
+                        )
+                    ]
                 )
                 for group in grouping
             ]
@@ -355,7 +367,7 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
             job.measure.pre_transpiled = (eigenvalues, transpiled_pre_measures)
         else:
             eigenvalues, transpiled_pre_measures = (
-                job.measure.pre_transpiled # pyright: ignore[reportGeneralTypeIssues]
+                job.measure.pre_transpiled  # pyright: ignore[reportGeneralTypeIssues]
             )
 
         expectation_values = {}
@@ -481,6 +493,7 @@ def submit_nexus_observable(
 
     if job.measure.optimize_measurement:
         from warnings import warn
+
         warn(
             "MPQP's optimize_measurement changes the type of the Job from OBSERVABLE to SAMPLE, "
             "and may submit several circuits (one per Pauli group)"
@@ -663,7 +676,7 @@ def extract_remote_observable_grouped_result(
             "Did not implement the extraction of expectation values from counts for partial targets. "
             "The result size is the full circuit size currently (which may introduce errors in how counts indices "
             "returned by the device are mapped in the final result.)",
-             NumberQubitsWarning
+            NumberQubitsWarning,
         )
         # TODO: implement when we precise the targets, the mapping of the counts and basis state indices can be wrong.
 
@@ -715,7 +728,9 @@ def extract_remote_observable_grouped_result(
             # FIXME the variance of an observable is not really the variance of a single monomial, coefs play a role
         errors.update({f"observable_{i}" if obs.label is None else obs.label: variance})
 
-    return Result(job, exp_values, errors, shots=0 if job.measure.shots == 0 else received_shots)
+    return Result(
+        job, exp_values, errors, shots=0 if job.measure.shots == 0 else received_shots
+    )
 
     # job.status = JobStatus.DONE
     # if len(expectation_values) == 1:

@@ -530,8 +530,13 @@ class ExpectationMeasure(Measure):
 
         if self.grouping_method == GroupingMethods.GREEDY:
             from mpqp.tools.pauli_grouping import pauli_grouping_greedy
+
             pauli_grouping = pauli_grouping_greedy(unique_monos, self.commuting_type)
-            self.current_grouping = (pauli_grouping, GroupingMethods.GREEDY, self.commuting_type.__copy__())
+            self.current_grouping = (
+                pauli_grouping,
+                GroupingMethods.GREEDY,
+                self.commuting_type.__copy__(),
+            )
             return pauli_grouping
 
         elif self.grouping_method == GroupingMethods.QISKIT_COLORING_GREEDY:
@@ -562,7 +567,7 @@ class ExpectationMeasure(Measure):
             self.current_grouping = (
                 grouped_monomials,
                 GroupingMethods.QISKIT_COLORING_GREEDY,
-                self.commuting_type.__copy__()
+                self.commuting_type.__copy__(),
             )
             return grouped_monomials  # pyright: ignore[reportReturnType]
 
