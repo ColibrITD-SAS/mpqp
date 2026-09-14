@@ -1,3 +1,6 @@
+from typing import Optional
+
+from mpqp import JobType
 from termcolor import colored
 
 from mpqp.environment.env_manager import get_env_variable, save_env_variable
@@ -142,7 +145,7 @@ def _activate_quantinuum_project() -> None:
     qnx.context.set_active_project(project)
 
 
-def get_quantinuum_config(device: QUANTINUUMDevice):
+def get_quantinuum_config(device: QUANTINUUMDevice, job_type: Optional[JobType] = None):
     """Return the Nexus backend configuration associated with a device."""
     import qnexus as qnx
 
@@ -153,7 +156,9 @@ def get_quantinuum_config(device: QUANTINUUMDevice):
     if device == QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR:
         return qnx.AerStateConfig()
     if device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR:
-        return qnx.QulacsConfig()
+        return qnx.QulacsConfig(
+            result_type="state_vector" if job_type == JobType.STATE_VECTOR else "probability"
+        )
     return qnx.QuantinuumConfig(device_name=device.value)
 
 

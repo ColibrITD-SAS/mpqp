@@ -535,7 +535,7 @@ def submit_circuits_to_nexus(
     circuits: list[QCircuit],
     n_shots: int | list[None],
     name: str,
-    description: str = "",
+    description: Optional[str] = None,
     provider_params: Optional[QuantinuumParams] = None,
 ) -> "ExecuteJobRef":
     """This function compiles the inputted circuit(s) and send them as one Job to Nexus.
@@ -566,7 +566,7 @@ def submit_circuits_to_nexus(
     for circuit in circuits:
         tket_circuits.append(circuit.to_other_device(job.device))
 
-    backend_config = get_quantinuum_config(job.device)
+    backend_config = get_quantinuum_config(job.device, job.job_type)
     uploaded_circuit_refs = [
         qnx.circuits.upload(
             circuit=tket_circuit,
@@ -575,7 +575,7 @@ def submit_circuits_to_nexus(
                 f"observable-group-{index}"
                 if isinstance(job.measure, ExpectationMeasure)
                 and job.measure.optimize_measurement
-                else ""
+                else None
             ),
         )
         for index, tket_circuit in enumerate(tket_circuits)
