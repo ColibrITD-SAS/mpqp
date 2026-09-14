@@ -111,19 +111,7 @@ def check_job_compatibility(job: Job) -> None:
             assert isinstance(job.measure, ExpectationMeasure)
         if job.measure.shots == 0:
             if job.device.is_remote():
-                supports_exact_observable = job.device.supports_state_vector()
-            else:
-                if job.measure.optimize_measurement:
-                    supports_exact_observable = job.device.supports_state_vector()
-                else:
-                    supports_exact_observable = False
-                supports_exact_observable |= job.device.supports_observable_ideal()
-
-            if not supports_exact_observable:
-                raise DeviceJobIncompatibleError(
-                    f"{job.device} requires a positive number of shots for "
-                    "observable jobs."
-                )
+                raise DeviceJobIncompatibleError("Quantinuum Nexus does not handle ideal observable job. You can submit a statevector job instead and compute it locally.")
         else:
             if not job.device.supports_samples() and job.measure.optimize_measurement:
                 raise DeviceJobIncompatibleError(
@@ -134,16 +122,14 @@ def check_job_compatibility(job: Job) -> None:
                 or not job.device.supports_samples()
             ):
                 raise DeviceJobIncompatibleError(
-                    f"{job.device} does not support sampled observable jobs."
+                    f"{job.device} does not support sampled or observable jobs."
                 )
-        if (
-            job.measure.shots > 0
-            and job.measure.commuting_type != CommutingTypes.QUBITWISE
-        ):
-            raise DeviceJobIncompatibleError(
-                "Quantinuum sampled observable jobs currently require qubit-wise "
-                "commuting Pauli grouping."
-            )
+            if job.measure.optimize_measurement and job.measure.commuting_type != CommutingTypes.QUBITWISE:
+                raise NotImplementedError(
+                    "Quantinuum optimized sampled observable jobs currently only supports qubit-wise "
+                    "commuting Pauli grouping."
+                )
+
 
 
 def run_tket_local(
@@ -338,17 +324,9 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
             0 if quantinuum_params is None else quantinuum_params.optimisation_level
         ),
     )
-    job_change_compatibility = (
-        job.measure.shots == 0 and not job.device.supports_state_vector()
-    ) or (job.measure.shots != 0 and not job.device.supports_samples())
+
     exp_values, errors = {}, {}
-    if job.measure.optimize_measurement and job_change_compatibility:
-        from warnings import warn
-        warn(
-            "MPQP's optimize_measurement changes the type of the Job to SAMPLE or STATE_VECTOR."
-            f"Your chosen device:{job.device} is not compatible with it so this optimization won't be used here."
-        )
-    if job.measure.optimize_measurement and not job_change_compatibility:
+    if job.measure.optimize_measurement:
         from mpqp.tools.pauli_grouping import (
             find_qubitwise_rotations,
             pauli_monomial_eigenvalues,
@@ -359,11 +337,7 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
             pre_measure = [
                 QCircuit(
                     find_qubitwise_rotations(group, job.measure.targets)
-                    + (
-                        [BasisMeasure(targets=job.measure.targets)]
-                        if job.measure.shots != 0
-                        else []
-                    )
+                    + [BasisMeasure(targets=job.measure.targets, shots=job.measure.shots)]
                 )
                 for group in grouping
             ]
@@ -377,10 +351,12 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
                 }
                 for group in grouping
             ]
+
+            job.measure.pre_transpiled = (eigenvalues, transpiled_pre_measures)
         else:
             eigenvalues, transpiled_pre_measures = (
-                job.measure.pre_transpiled
-            )  # pyright: ignore[reportGeneralTypeIssues]
+                job.measure.pre_transpiled # pyright: ignore[reportGeneralTypeIssues]
+            )
 
         expectation_values = {}
         # For each group, runs the circuit and store the computed exp_values
@@ -451,7 +427,8 @@ def run_quantinuum_observable(  # TODO clarify if this is remote or local
 
     else:
         raise ValueError(
-            f"Cannot perform Observable jobs without optimizing measurements (pauli grouping) on device {job.device}. Change parameters of ExpectationValue and retry."
+            f"Cannot perform Observable jobs without optimizing measurements (pauli grouping) on device {job.device}. "
+            f"Change parameters of ExpectationValue and retry."
         )
 
 
@@ -488,11 +465,13 @@ def submit_nexus_observable(
 ) -> tuple[str, "ExecuteJobRef"]:
     """Submit an observable as one Nexus execution job.
 
-    Exact observables submit one state-vector circuit. For sampled observables,
+    Exact observables are not supported by Nexus. For sampled observables,
     each qubit-wise commuting Pauli group is submitted as a circuit containing
     the required basis change followed by a measurement. The original
-    MPQP `Job` is required to reconstruct the expectation value from the
+    MPQP `Job` is required to reconstruct later the expectation value from the
     returned states or counts.
+
+    TODO documentation
     """
     if TYPE_CHECKING:
         assert isinstance(job.measure, ExpectationMeasure)
@@ -501,8 +480,11 @@ def submit_nexus_observable(
     n_shots: int | list[None]
 
     if job.measure.optimize_measurement:
-        # If for some reason the device supports state vector
-        # Otherwise this quirk was caught way before arriving here
+        from warnings import warn
+        warn(
+            "MPQP's optimize_measurement changes the type of the Job from OBSERVABLE to SAMPLE, "
+            "and may submit several circuits (one per Pauli group)"
+        )
 
         from mpqp.tools.pauli_grouping import find_qubitwise_rotations
 
@@ -526,7 +508,8 @@ def submit_nexus_observable(
         )
     else:
         raise ValueError(
-            "Cannot submit Observable jobs as is through Nexus. Enable optimize_measurement to proceed."
+            "Cannot submit remote Observable jobs on Nexus. Enable optimize_measurement=True in the "
+            "ExpectationMeasure to let MPQP handle the Pauli grouping through a sampling job."
         )
 
     execute_job_ref = submit_circuits_to_nexus(  # TODO check that the ordering of the group is the same as circuits
@@ -844,15 +827,12 @@ def get_result_from_quantinuum_job_id(
             f"Quantinuum Nexus execution job '{job_id}' finished with status "
             f"'{status}', but no result was returned."
         )
-    if job is None and (
-        JobType.OBSERVABLE or job_ref.annotations.description == "mpqp:observable"
-    ):
+    if job is None and job_ref.annotations.description == "mpqp:observable":
         raise ValueError(
             "Retrieving a Quantinuum observable result requires the original MPQP `Job`."
         )
 
     if job is not None and job.job_type == JobType.OBSERVABLE:
-        # TODO REMPLIR ICI AVEC LES NOUVELLES FONCTIONS
         return extract_remote_observable_grouped_result(result_refs, job)
 
     result_ref = result_refs[0]
