@@ -19,10 +19,10 @@ return the corresponding job id and :class:`~mpqp.execution.job.Job` object.
 from __future__ import annotations
 
 from copy import copy
-from numbers import Complex, Number
 from itertools import pairwise
-from numbers import Complex
-from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union, overload
+from numbers import Complex, Number
+from textwrap import indent
+from typing import TYPE_CHECKING, Optional, Sequence, Union, overload
 
 import numpy as np
 
@@ -46,12 +46,11 @@ from mpqp.execution.providers.atos import run_atos, submit_QLM
 from mpqp.execution.providers.aws import run_braket, submit_job_braket
 from mpqp.execution.providers.azure import run_azure, submit_job_azure
 from mpqp.execution.providers.google import run_google
-from mpqp.execution.providers.ibm import run_ibm, submit_remote_ibm
 from mpqp.execution.providers.providers_params import ProviderParams, QiskitParams
 from mpqp.execution.result import BatchResult, Result
 from mpqp.tools.display import state_vector_ket_shape
 from mpqp.tools.errors import DeviceJobIncompatibleError, RemoteExecutionError
-from mpqp.tools.generics import OneOrMany, find_index, flatten
+from mpqp.tools.generics import OneOrMany, find_index
 
 if TYPE_CHECKING:
     from qiskit.circuit import Parameter
@@ -204,9 +203,8 @@ def generate_job(
     circuit: QCircuit,
     device: AvailableDevice,
     values: Optional[ValuesDict] = None,
-    exec_mode: Optional[ExecutionMode] = ExecutionMode.JOB,
+    exec_mode: Optional[ExecutionMode] = None,
 ) -> Job:
-    # TODO: docstring
     """Creates the Job of appropriate type and containing the information needed
     for the execution of the circuit.
 
@@ -218,11 +216,12 @@ def generate_job(
         circuit: Circuit to be run.
         device: Device on which the circuit will be run.
         values: Set of values to substitute for symbolic variables.
-        exec_mode:
+        exec_mode: Execution mode. ``None`` selects sequential job execution.
 
     Returns:
         The Job containing information about the execution of the circuit.
     """
+    exec_mode = exec_mode or ExecutionMode.JOB
     if values is not None:
         from sympy import Expr
 
@@ -560,7 +559,7 @@ def run(
 
     """
 
-    def namer(circ: QCircuit, i: int):
+    def namer(circ: QCircuit, i: int) -> QCircuit:
         circ.label = f"circuit {i}" if circ.label is None else circ.label
         return circ
 
@@ -634,7 +633,6 @@ def submit(
     values: Optional[ValuesDict] = None,
     mode: Optional[ExecutionMode] = None,
     reservation_arn: Optional[str] = None,
-    values: Optional[dict[Expr | str, Complex]] = None,
     provider_params: Optional[ProviderParams] = None,
 ) -> tuple[str, Job]:
     # TODO replace reservation_arn + docstring

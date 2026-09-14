@@ -3,7 +3,7 @@
 library."""
 
 from enum import Enum
-from functools import partial
+from copy import deepcopy
 from typing import Any, Callable, Optional, Sequence, Union
 
 import numpy as np
@@ -12,9 +12,8 @@ from scipy.optimize import OptimizeResult
 from scipy.optimize import minimize as scipy_minimize
 
 OptimizerInput = Union[list[float], npt.NDArray[np.float64]]
-OptimizableFunc = Union[partial[float], Callable[[OptimizerInput], float]]
+OptimizableFunc = Callable[[OptimizerInput], float]
 OptimizerOptions = dict[str, Any]
-# OptimizerCallback = Callable[[OptimizerInput, float], None]
 
 
 class Optimizer(Enum):
@@ -40,9 +39,29 @@ def run_optimizer(
         Callable[[Sequence[npt.NDArray[np.float64]]], Sequence[float]]
     ] = None,
 ) -> tuple[float, npt.NDArray[np.float64]]:
+    """Minimize an objective using SciPy or the optional CMA-ES implementation.
 
-    if optimizer_options is None:
-        optimizer_options = {}
+    Args:
+        eval_func: Objective evaluated at a parameter vector.
+        method: Optimizer to run.
+        init_params: Initial parameter vector.
+        optimizer_options: Optimizer-specific options, copied before use.
+            CMA-ES accepts ``sigma0`` for its initial search scale.
+        callback: Function receiving the current parameters after each iteration.
+        batch_eval: Optional population evaluator for CMA-ES. Results must
+            follow the order of candidate vectors. Ignored by SciPy optimizers.
+
+    Returns:
+        Best loss reported by the optimizer and its corresponding parameters.
+
+    Raises:
+        ImportError: If CMA-ES is selected but the ``cma`` package is unavailable.
+
+    Note:
+        This function does not modify the supplied optimizer options.
+    """
+
+    optimizer_options = deepcopy(optimizer_options or {})
 
     x0 = np.asarray(init_params, dtype=float)
 
@@ -51,9 +70,6 @@ def run_optimizer(
 
         sigma0 = float(optimizer_options.pop("sigma0", 0.5))
         es = cma.CMAEvolutionStrategy([float(x) for x in x0], sigma0, optimizer_options)
-
-        best_value = float("inf")
-        best_params = np.asarray(x0, dtype=float)
 
         while not es.stop():
             solutions = es.ask()
@@ -70,7 +86,7 @@ def run_optimizer(
             if callback is not None:
                 callback(np.asarray(es.best.x, dtype=float))
 
-        return float(best_value), np.asarray(best_params, dtype=float)
+        return float(es.result.fbest), np.asarray(es.result.xbest, dtype=float)
 
     result: OptimizeResult = scipy_minimize(
         eval_func,

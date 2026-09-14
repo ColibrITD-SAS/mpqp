@@ -490,7 +490,9 @@ def run_aer(job: Job):
 
 
 def _submit_remote_ibm(
-    job: Job, qiskit_params: Optional[QiskitParams] = None, runtime_target: Union[BackendV2, Session]
+    job: Job,
+    qiskit_params: Optional[QiskitParams] = None,
+    runtime_target: Union[BackendV2, Session],
 ) -> tuple[str, "RuntimeJobV2"]:
     """Submits the job on the remote IBM device (quantum computer or simulator).
 
@@ -534,8 +536,8 @@ def _submit_remote_ibm(
         qiskit_observables = [
             (
                 obs.to_other_language(Language.QISKIT)
-                if obs.pre_transpiled is None
-                else obs.pre_transpiled
+                if job.device not in obs.pre_transpiled
+                else obs.pre_transpiled[job.device]
             )
             for obs in meas.observables
         ]
