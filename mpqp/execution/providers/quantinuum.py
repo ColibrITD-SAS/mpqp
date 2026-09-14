@@ -727,7 +727,7 @@ def extract_remote_observable_grouped_result(
             shots=job.measure.shots,
         )
 
-    return Result(job, result_dict, errors,  received_shots)
+    return Result(job, result_dict, errors, received_shots)
 
 
 def extract_state_vector_result(
