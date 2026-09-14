@@ -720,13 +720,13 @@ def extract_remote_observable_grouped_result(
 
     if len(exp_values) == 1:
         return Result(
-                        job,
-                        next(iter(exp_values.values())),
-                        next(iter(errors.values())),
-                        shots=job.measure.shots,
-                    )
+            job,
+            next(iter(exp_values.values())),
+            next(iter(errors.values())),
+            shots=job.measure.shots,
+        )
 
-    return Result(job, exp_values, errors,  received_shots)
+    return Result(job, exp_values, errors, received_shots)
 
 
 def extract_state_vector_result(
