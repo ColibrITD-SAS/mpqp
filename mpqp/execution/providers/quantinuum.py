@@ -158,13 +158,7 @@ def run_tket_local(
     if TYPE_CHECKING:
         assert isinstance(job.device, QUANTINUUMDevice)
 
-    if job.circuit.transpiled_circuit is None:
-        job.circuit.transpiled_circuit = job.circuit.to_other_device(job.device)
-    else:
-        from pytket.circuit import Circuit as tket_Circuit
-
-        assert isinstance(job.circuit.transpiled_circuit, tket_Circuit)
-    tket_circuit = job.circuit.transpiled_circuit
+    tket_circuit = job.circuit.to_other_device(job.device)
 
     if job.device == QUANTINUUMDevice.TKET_AER_SIMULATOR:
         from pytket.extensions.qiskit.backends.aer import AerBackend
@@ -570,10 +564,7 @@ def submit_circuits_to_nexus(
         assert isinstance(job.device, QUANTINUUMDevice)
     tket_circuits = []
     for circuit in circuits:
-        if circuit.transpiled_circuit is None:
-            tket_circuits.append(circuit.to_other_device(job.device))
-        else:
-            tket_circuits.append(circuit.transpiled_circuit)
+        tket_circuits.append(circuit.to_other_device(job.device))
 
     backend_config = get_quantinuum_config(job.device)
     uploaded_circuit_refs = [
@@ -800,7 +791,7 @@ def extract_result(backend_results: list["BackendResult"], job: Job) -> Result:
 
 def get_result_from_quantinuum_job_id(
     job_id: str,
-    job: Job,
+    job: Optional[Job] = None,
 ) -> Result:
     """Retrieve and parse the result of a Quantinuum Nexus job.
 

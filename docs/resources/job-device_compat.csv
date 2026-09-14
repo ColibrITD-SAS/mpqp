@@ -51,11 +51,11 @@ Azure    ,RIGETTI_SIM_QVM                   ,      ,✓      ,             ,    
 Azure    ,RIGETTI_SIM_QPU_ANKAA_2           ,      ,✓      ,             ,           ,
 Azure    ,MICROSOFT_ESTIMATOR               ,      ,       ,             ,           ,
 Quantinuum,TKET_AER_SIMULATOR               ,✓     ,✓      ,             ,✓          ,✓
-Quantinuum,TKET_AER_STATE_SIMULATOR         ,✓     ,       ,✓            ,✓          ,✓
+Quantinuum,TKET_AER_STATEVECTOR_SIMULATOR         ,✓     ,       ,✓            ,✓          ,✓
 Quantinuum,TKET_QULACS_SIMULATOR            ,✓     ,✓      ,✓            ,✓          ,✓
 Quantinuum,NEXUS_AER_SIMULATOR              ,      ,✓      ,             ,✓          ,
-Quantinuum,NEXUS_AER_STATE_SIMULATOR        ,      ,       ,✓            ,✓          ,✓
-Quantinuum,NEXUS_QULACS_SIMULATOR           ,      ,✓      ,✓            ,✓          ,✓
+Quantinuum,NEXUS_AER_STATEVECTOR_SIMULATOR        ,      ,       ,✓            ,✓          ,
+Quantinuum,NEXUS_QULACS_SIMULATOR           ,      ,✓      ,✓            ,✓          ,
 Quantinuum,H1_1LE                           ,      ,✓      ,             ,✓          ,
 Quantinuum,H2_1LE                           ,      ,✓      ,             ,✓          ,
 Quantinuum,H1_EMULATOR                      ,      ,✓      ,             ,✓          ,
