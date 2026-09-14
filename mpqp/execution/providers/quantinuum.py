@@ -254,6 +254,7 @@ def run_tket_observable(
         variance = (1.0 - exp_value**2) / job.measure.shots if nb_shots != 0 else 0.0
 
         errors.update({f"observable_{i}" if o.label is None else o.label: variance})
+
     if len(expectation_values) == 1:
         return Result(
             job,
@@ -261,6 +262,7 @@ def run_tket_observable(
             next(iter(errors.values())),
             shots=job.measure.shots,
         )
+
     return Result(job, expectation_values, errors, shots=job.measure.shots)
 
 
@@ -677,35 +679,31 @@ def extract_remote_observable_grouped_result(
         # TODO: implement when we precise the targets, the mapping of the counts and basis state indices can be wrong.
 
     for index, backend_result in enumerate(backend_results):
-        if job.measure.shots == 0:
-            state = backend_result.get_state()
-            sorted_values = []
-            for i in range(len(state)):
-                sorted_values.append(float(np.abs(state[i]) ** 2))
-        else:
-            raw_counts = backend_result.get_counts()
-            received_shots = sum(raw_counts.values())
-            if received_shots != job.measure.shots:
-                warn(
-                    f"Received number of shots is different {received_shots} from given number of shots {job.measure.shots}. "
-                    f"We will proceed with the received number of shots instead.",
-                    ModifiedShotsNumberWarning,
-                )
-            length = 2**job.measure.nb_qubits
-            sorted_values: list[float] = []
-            for i in range(length):
-                binary_state = f"{bin(i)[2:].zfill(len(bin(length)) - 3)}"
-                tket_binary = tuple(int(b) for b in binary_state)
-                if tket_binary in raw_counts:
-                    sorted_values.append(raw_counts[tket_binary].real / received_shots)
-                else:
-                    sorted_values.append(0)
+        raw_counts = backend_result.get_counts()
+        received_shots = sum(raw_counts.values())
+        if received_shots != job.measure.shots:
+            warn(
+                f"Received number of shots is different {received_shots} from given number of shots {job.measure.shots}. "
+                f"We will proceed with the received number of shots instead.",
+                ModifiedShotsNumberWarning,
+            )
+        length = 2**job.measure.nb_qubits
+        sorted_values: list[float] = []
+        for i in range(length):
+            binary_state = f"{bin(i)[2:].zfill(len(bin(length)) - 3)}"
+            tket_binary = tuple(int(b) for b in binary_state)
+            if tket_binary in raw_counts:
+                sorted_values.append(raw_counts[tket_binary].real / received_shots)
+            else:
+                sorted_values.append(0)
         for name, eigenvalue in eigenvalues[index].items():
             expectation_value: float = np.dot(
                 eigenvalue,
                 np.array(sorted_values, dtype=np.float64),
             )
             exp_values[name] = expectation_value
+
+    result_dict = {}
     for i, obs in enumerate(job.measure.observables):
         string = obs.pauli_string
         local: float = 0
@@ -713,29 +711,22 @@ def extract_remote_observable_grouped_result(
             if TYPE_CHECKING:
                 assert isinstance(monoms.coef, (int, float))
             local += exp_values[monoms.name] * monoms.coef
-        exp_values.update(
+        result_dict.update(
             {f"observable_{i}" if obs.label is None else obs.label: local}
         )
-        if job.measure.shots == 0:
-            variance = 0.0
-        else:
-            variance = (1.0 - local**2) / received_shots
-            # FIXME the variance of an observable is not really the variance of a single monomial, coefs play a role
+        variance = (1.0 - local**2) / received_shots
+        # FIXME the variance of an observable is not really the variance of a single monomial, coefs play a role
         errors.update({f"observable_{i}" if obs.label is None else obs.label: variance})
 
-    return Result(
-        job, exp_values, errors, shots=0 if job.measure.shots == 0 else received_shots
-    )
+    if len(exp_values) == 1:
+        return Result(
+                        job,
+                        next(iter(exp_values.values())),
+                        next(iter(errors.values())),
+                        shots=job.measure.shots,
+                    )
 
-    # job.status = JobStatus.DONE
-    # if len(expectation_values) == 1:
-    #     label = list(expectation_values)[0]
-    #     expectation_value = expectation_values[label]
-    #     error = errors[label] if isinstance(errors, dict) else errors
-    #     return Result(job, expectation_value, error, shots)
-    # if not isinstance(errors, dict):
-    #     errors = dict.fromkeys(expectation_values, errors)
-    # return Result(job, expectation_values, errors, shots)
+    return Result(job, exp_values, errors,  received_shots)
 
 
 def extract_state_vector_result(

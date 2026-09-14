@@ -600,12 +600,10 @@ class QUANTINUUMDevice(AvailableDevice):
         }
 
     def supports_observable(self) -> bool:
-        return True
+        return self.supports_samples() or not self.is_remote()
 
     def supports_observable_ideal(self) -> bool:
         return self in {
-            QUANTINUUMDevice.NEXUS_AER_STATEVECTOR_SIMULATOR,
-            QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_SIMULATOR,
             QUANTINUUMDevice.TKET_AER_STATEVECTOR_SIMULATOR,
             QUANTINUUMDevice.TKET_QULACS_SIMULATOR,
