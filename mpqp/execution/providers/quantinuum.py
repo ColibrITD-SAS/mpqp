@@ -305,143 +305,143 @@ def fetch_nexus_results(execute_job_ref: "ExecuteJobRef") -> list["BackendResult
     # TODO test that the circuits and results are orderered in the same way, critical for pauli groups
 
 
-def run_quantinuum_observable(  # TODO clarify if this is remote or local
-    job: Job,
-    backend: "Backend",
-    quantinuum_params: Optional[QuantinuumParams] = None,
-) -> Result:
-    """Execute an observable job using a supported Quantinuum backend.
-
-    Args:
-        job: Job to execute.
-        backend: TODO DOC
-        quantinuum_params: TODO DOC
-
-    Returns:
-        A result containing the expectation values of the observables.
-    """
-    from pytket.utils.expectations import get_operator_expectation_value
-
-    if TYPE_CHECKING:
-        assert isinstance(job.measure, ExpectationMeasure)
-    circuit = job.circuit.without_measurements().to_other_language(Language.TKET)
-
-    circuit = backend.get_compiled_circuit(
-        circuit,
-        optimisation_level=(
-            0 if quantinuum_params is None else quantinuum_params.optimisation_level
-        ),
-    )
-
-    exp_values, errors = {}, {}
-    if job.measure.optimize_measurement:
-        from mpqp.tools.pauli_grouping import (
-            find_qubitwise_rotations,
-            pauli_monomial_eigenvalues,
-        )
-
-        if job.measure.pre_transpiled is None:
-            grouping = job.measure.get_pauli_grouping()
-            pre_measure = [
-                QCircuit(
-                    find_qubitwise_rotations(group, job.measure.targets)
-                    + [
-                        BasisMeasure(
-                            targets=job.measure.targets, shots=job.measure.shots
-                        )
-                    ]
-                )
-                for group in grouping
-            ]
-            transpiled_pre_measures = [
-                pre_m.to_other_language(Language.TKET) for pre_m in pre_measure
-            ]
-            eigenvalues = [
-                {
-                    monomial.name: pauli_monomial_eigenvalues(monomial)
-                    for monomial in group
-                }
-                for group in grouping
-            ]
-
-            job.measure.pre_transpiled = (eigenvalues, transpiled_pre_measures)
-        else:
-            eigenvalues, transpiled_pre_measures = (
-                job.measure.pre_transpiled  # pyright: ignore[reportGeneralTypeIssues]
-            )
-
-        expectation_values = {}
-        # For each group, runs the circuit and store the computed exp_values
-        for eigenv, pre_measure in zip(eigenvalues, transpiled_pre_measures):
-            job.status = JobStatus.RUNNING
-
-            cirq = circuit.copy()
-            cirq.append(pre_measure)
-            local_result = backend.run_circuit(
-                cirq, n_shots=job.measure.shots if job.measure.shots != 0 else None
-            )
-            # Runs a StateVector
-            # TODO: Find a way to return a statevector only on parts of the circuit
-            # if the observable doesn't cover the whole circuit we'll get diff results here
-            # if at all...
-            if job.measure.shots == 0:
-                values = local_result.get_state()
-                sorted_values = []
-                for i in range(len(values)):
-                    sorted_values.append(float(np.abs(values[i]) ** 2))
-            else:
-                length = 2**job.measure.nb_qubits
-                measurements = local_result.get_counts()
-                sorted_values: list[float] = []
-                for i in range(length):
-                    binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
-                    tket_binary = tuple(int(b) for b in binary_state)
-                    if tket_binary in measurements:
-                        sorted_values.append(
-                            measurements[tket_binary].real / job.measure.shots
-                        )
-                    else:
-                        sorted_values.append(0)
-
-            for name, eigenvalue in eigenv.items():
-                expectation_value: float = np.dot(
-                    eigenvalue,
-                    np.array(sorted_values, dtype=np.float64),
-                )
-                expectation_values[name] = expectation_value
-
-        # Put the pauli string's exp_value back together
-        for i, obs in enumerate(job.measure.observables):
-            string = obs.pauli_string
-            local: float = 0
-            for monoms in string.monomials:
-                if TYPE_CHECKING:
-                    assert isinstance(monoms.coef, (int, float))
-                local += expectation_values[monoms.name] * monoms.coef
-            exp_values.update(
-                {f"observable_{i}" if obs.label is None else obs.label: local}
-            )
-            if job.measure.shots == 0:
-                variance = 0.0
-            else:
-                variance = (1.0 - local**2) / job.measure.shots
-            errors.update(
-                {f"observable_{i}" if obs.label is None else obs.label: variance}
-            )
-        if len(exp_values) == 1:
-            return Result(
-                job,
-                next(iter(exp_values.values())),
-                next(iter(errors.values())),
-                shots=job.measure.shots,
-            )
-        return Result(job, exp_values, errors, shots=job.measure.shots)
-
-    else:
-        raise ValueError(
-            f"Cannot perform Observable jobs without optimizing measurements (pauli grouping) on device {job.device}. "
-            f"Change parameters of ExpectationValue and retry."
-        )
+# def run_quantinuum_observable(  #NO MORE USED, BUT WE CAN GRAB FEATURES FROM IT, LIKE TRANSPILED STUFF
+#     job: Job,
+#     backend: "Backend",
+#     quantinuum_params: Optional[QuantinuumParams] = None,
+# ) -> Result:
+#     """Execute an observable job using a supported Quantinuum backend.
+#
+#     Args:
+#         job: Job to execute.
+#         backend: TODO DOC
+#         quantinuum_params: TODO DOC
+#
+#     Returns:
+#         A result containing the expectation values of the observables.
+#     """
+#     from pytket.utils.expectations import get_operator_expectation_value
+#
+#     if TYPE_CHECKING:
+#         assert isinstance(job.measure, ExpectationMeasure)
+#     circuit = job.circuit.without_measurements().to_other_language(Language.TKET)
+#
+#     circuit = backend.get_compiled_circuit(
+#         circuit,
+#         optimisation_level=(
+#             0 if quantinuum_params is None else quantinuum_params.optimisation_level
+#         ),
+#     )
+#
+#     exp_values, errors = {}, {}
+#     if job.measure.optimize_measurement:
+#         from mpqp.tools.pauli_grouping import (
+#             find_qubitwise_rotations,
+#             pauli_monomial_eigenvalues,
+#         )
+#
+#         if job.measure.pre_transpiled is None:
+#             grouping = job.measure.get_pauli_grouping()
+#             pre_measure = [
+#                 QCircuit(
+#                     find_qubitwise_rotations(group, job.measure.targets)
+#                     + [
+#                         BasisMeasure(
+#                             targets=job.measure.targets, shots=job.measure.shots
+#                         )
+#                     ]
+#                 )
+#                 for group in grouping
+#             ]
+#             transpiled_pre_measures = [
+#                 pre_m.to_other_language(Language.TKET) for pre_m in pre_measure
+#             ]
+#             eigenvalues = [
+#                 {
+#                     monomial.name: pauli_monomial_eigenvalues(monomial)
+#                     for monomial in group
+#                 }
+#                 for group in grouping
+#             ]
+#
+#             job.measure.pre_transpiled = (eigenvalues, transpiled_pre_measures)
+#         else:
+#             eigenvalues, transpiled_pre_measures = (
+#                 job.measure.pre_transpiled  # pyright: ignore[reportGeneralTypeIssues]
+#             )
+#
+#         expectation_values = {}
+#         # For each group, runs the circuit and store the computed exp_values
+#         for eigenv, pre_measure in zip(eigenvalues, transpiled_pre_measures):
+#             job.status = JobStatus.RUNNING
+#
+#             cirq = circuit.copy()
+#             cirq.append(pre_measure)
+#             local_result = backend.run_circuit(
+#                 cirq, n_shots=job.measure.shots if job.measure.shots != 0 else None
+#             )
+#             # Runs a StateVector
+#             # TODO: Find a way to return a statevector only on parts of the circuit
+#             # if the observable doesn't cover the whole circuit we'll get diff results here
+#             # if at all...
+#             if job.measure.shots == 0:
+#                 values = local_result.get_state()
+#                 sorted_values = []
+#                 for i in range(len(values)):
+#                     sorted_values.append(float(np.abs(values[i]) ** 2))
+#             else:
+#                 length = 2**job.measure.nb_qubits
+#                 measurements = local_result.get_counts()
+#                 sorted_values: list[float] = []
+#                 for i in range(length):
+#                     binary_state = f"{bin(i)[2:].zfill(len(bin(length))- 3)}"
+#                     tket_binary = tuple(int(b) for b in binary_state)
+#                     if tket_binary in measurements:
+#                         sorted_values.append(
+#                             measurements[tket_binary].real / job.measure.shots
+#                         )
+#                     else:
+#                         sorted_values.append(0)
+#
+#             for name, eigenvalue in eigenv.items():
+#                 expectation_value: float = np.dot(
+#                     eigenvalue,
+#                     np.array(sorted_values, dtype=np.float64),
+#                 )
+#                 expectation_values[name] = expectation_value
+#
+#         # Put the pauli string's exp_value back together
+#         for i, obs in enumerate(job.measure.observables):
+#             string = obs.pauli_string
+#             local: float = 0
+#             for monoms in string.monomials:
+#                 if TYPE_CHECKING:
+#                     assert isinstance(monoms.coef, (int, float))
+#                 local += expectation_values[monoms.name] * monoms.coef
+#             exp_values.update(
+#                 {f"observable_{i}" if obs.label is None else obs.label: local}
+#             )
+#             if job.measure.shots == 0:
+#                 variance = 0.0
+#             else:
+#                 variance = (1.0 - local**2) / job.measure.shots
+#             errors.update(
+#                 {f"observable_{i}" if obs.label is None else obs.label: variance}
+#             )
+#         if len(exp_values) == 1:
+#             return Result(
+#                 job,
+#                 next(iter(exp_values.values())),
+#                 next(iter(errors.values())),
+#                 shots=job.measure.shots,
+#             )
+#         return Result(job, exp_values, errors, shots=job.measure.shots)
+#
+#     else:
+#         raise ValueError(
+#             f"Cannot perform Observable jobs without optimizing measurements (pauli grouping) on device {job.device}. "
+#             f"Change parameters of ExpectationValue and retry."
+#         )
 
 
 def submit_job_nexus(
@@ -514,11 +514,7 @@ def submit_nexus_observable(
                 )
             )
             circuits.append(sample_circuit)
-        n_shots = (
-            job.measure.shots
-            if job.measure.shots != 0
-            else [None] * len(grouping)  # TODO double check
-        )
+        n_shots = job.measure.shots
     else:
         raise ValueError(
             "Cannot submit remote Observable jobs on Nexus. Enable optimize_measurement=True in the "
@@ -695,7 +691,6 @@ def extract_remote_observable_grouped_result(
                     f"We will proceed with the received number of shots instead.",
                     ModifiedShotsNumberWarning,
                 )
-                raise ()
             length = 2**job.measure.nb_qubits
             sorted_values: list[float] = []
             for i in range(length):
@@ -833,26 +828,20 @@ def get_result_from_quantinuum_job_id(
 
     if TYPE_CHECKING:
         assert isinstance(job_ref, ExecuteJobRef)
-    execution_status = qnx.jobs.wait_for(job_ref)
-    result_refs = qnx.jobs.results(job_ref)
 
-    if not result_refs:
-        status = execution_status.status.value
-        raise RuntimeError(
-            f"Quantinuum Nexus execution job '{job_id}' finished with status "
-            f"'{status}', but no result was returned."
-        )
     if job is None and job_ref.annotations.description == "mpqp:observable":
         raise ValueError(
             "Retrieving a Quantinuum observable result requires the original MPQP `Job`."
         )
 
-    if job is not None and job.job_type == JobType.OBSERVABLE:
-        return extract_remote_observable_grouped_result(result_refs, job)
+    backend_results = fetch_nexus_results(job_ref)
 
-    result_ref = result_refs[0]
+    if job is not None and job.job_type == JobType.OBSERVABLE:
+        return extract_remote_observable_grouped_result(backend_results, job)
+
+    backend_result = backend_results[0]
     if TYPE_CHECKING:
-        assert isinstance(result_ref, ExecutionResultRef)
+        assert isinstance(backend_result, BackendResult)
 
     backend_config = job_ref.backend_config_store
     if backend_config is None:
@@ -862,9 +851,6 @@ def get_result_from_quantinuum_job_id(
         )
 
     if isinstance(backend_config, qnx.AerStateConfig):
-        backend_result = result_ref.download_result()
-        if TYPE_CHECKING:
-            assert isinstance(backend_result, BackendResult)
         amplitudes = backend_result.get_state()
         nb_qubits = int(math.log2(len(amplitudes)))
         job = Job(
@@ -894,9 +880,6 @@ def get_result_from_quantinuum_job_id(
             f"configuration '{type(backend_config).__name__}'."
         )
 
-    backend_result = result_ref.download_result()
-    if TYPE_CHECKING:
-        assert isinstance(backend_result, BackendResult)
     if (
         device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR
         and backend_result.contains_state_results
