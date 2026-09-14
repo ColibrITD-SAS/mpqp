@@ -145,7 +145,7 @@ def _activate_quantinuum_project() -> None:
     qnx.context.set_active_project(project)
 
 
-def get_quantinuum_config(device: QUANTINUUMDevice, job_type: Optional[JobType] = None):
+def get_quantinuum_config(device: QUANTINUUMDevice):
     """Return the Nexus backend configuration associated with a device."""
     import qnexus as qnx
 

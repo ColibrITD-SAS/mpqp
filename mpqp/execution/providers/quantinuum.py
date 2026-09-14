@@ -566,7 +566,7 @@ def submit_circuits_to_nexus(
     for circuit in circuits:
         tket_circuits.append(circuit.to_other_device(job.device))
 
-    backend_config = get_quantinuum_config(job.device, job.job_type)
+    backend_config = get_quantinuum_config(job.device)
     uploaded_circuit_refs = [
         qnx.circuits.upload(
             circuit=tket_circuit,
@@ -863,27 +863,27 @@ def get_result_from_quantinuum_job_id(
             f"configuration '{type(backend_config).__name__}'."
         )
 
-    if (
-        device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR
-        and backend_result.contains_state_results
-    ):
-        amplitudes = backend_result.get_state()
-        nb_qubits = int(math.log2(len(amplitudes)))
-        job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device)
-        job.id = job_id
-        return extract_state_vector_result(amplitudes, job)
+    if device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR:
+        if backend_result.contains_measured_results:
+            raw_counts = backend_result.get_counts()
+            if not raw_counts:
+                raise ValueError(f"Quantinuum Nexus job '{job_id}' returned no sample counts.")
 
-    raw_counts = backend_result.get_counts()
-    if not raw_counts:
-        raise ValueError(f"Quantinuum Nexus job '{job_id}' returned no sample counts.")
+            nb_qubits = len(list(raw_counts)[0])
+            shots = sum(raw_counts.values())
+            circuit = QCircuit(
+                [BasisMeasure(list(range(nb_qubits)), shots=shots)],
+                nb_qubits=nb_qubits,
+            )
+            job = Job(JobType.SAMPLE, circuit, device)
+            job.id = job_id
 
-    nb_qubits = len(list(raw_counts)[0])
-    shots = sum(raw_counts.values())
-    circuit = QCircuit(
-        [BasisMeasure(list(range(nb_qubits)), shots=shots)],
-        nb_qubits=nb_qubits,
-    )
-    job = Job(JobType.SAMPLE, circuit, device)
-    job.id = job_id
-
-    return extract_sample_result(raw_counts, job)
+            return extract_sample_result(raw_counts, job)
+        elif backend_result.contains_state_results:
+            amplitudes = backend_result.get_state()
+            nb_qubits = int(math.log2(len(amplitudes)))
+            job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device)
+            job.id = job_id
+            return extract_state_vector_result(amplitudes, job)
+        else:
+            raise ValueError("Unexpected result from Nexus, doesn't contain state neither samples.")
