@@ -864,21 +864,19 @@ def get_result_from_quantinuum_job_id(
         )
 
     if (
-            device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR
-            and not backend_result.contains_measured_results
-            and backend_result.contains_state_results
+        device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR
+        and not backend_result.contains_measured_results
+        and backend_result.contains_state_results
     ):
-            amplitudes = backend_result.get_state()
-            nb_qubits = int(math.log2(len(amplitudes)))
-            job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device)
-            job.id = job_id
-            return extract_state_vector_result(amplitudes, job)
+        amplitudes = backend_result.get_state()
+        nb_qubits = int(math.log2(len(amplitudes)))
+        job = Job(JobType.STATE_VECTOR, QCircuit(nb_qubits), device)
+        job.id = job_id
+        return extract_state_vector_result(amplitudes, job)
 
     raw_counts = backend_result.get_counts()
     if not raw_counts:
-        raise ValueError(
-            f"Quantinuum Nexus job '{job_id}' returned no sample counts."
-        )
+        raise ValueError(f"Quantinuum Nexus job '{job_id}' returned no sample counts.")
 
     nb_qubits = len(list(raw_counts)[0])
     shots = sum(raw_counts.values())
