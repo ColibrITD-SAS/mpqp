@@ -157,7 +157,9 @@ def get_quantinuum_config(device: QUANTINUUMDevice, job_type: Optional[JobType] 
         return qnx.AerStateConfig()
     if device == QUANTINUUMDevice.NEXUS_QULACS_SIMULATOR:
         return qnx.QulacsConfig(
-            result_type="state_vector" if job_type == JobType.STATE_VECTOR else "probability"
+            result_type=(
+                "state_vector" if job_type == JobType.STATE_VECTOR else "probability"
+            )
         )
     return qnx.QuantinuumConfig(device_name=device.value)
 
