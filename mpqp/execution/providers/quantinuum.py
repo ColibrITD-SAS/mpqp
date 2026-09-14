@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import numpy as np
 from collections import Counter
 from numbers import Complex
 from typing import TYPE_CHECKING, Optional
@@ -718,15 +719,15 @@ def extract_remote_observable_grouped_result(
         # FIXME the variance of an observable is not really the variance of a single monomial, coefs play a role
         errors.update({f"observable_{i}" if obs.label is None else obs.label: variance})
 
-    if len(exp_values) == 1:
+    if len(result_dict) == 1:
         return Result(
                         job,
-                        next(iter(exp_values.values())),
+                        next(iter(result_dict.values())),
                         next(iter(errors.values())),
                         shots=job.measure.shots,
                     )
 
-    return Result(job, exp_values, errors,  received_shots)
+    return Result(job, result_dict, errors,  received_shots)
 
 
 def extract_state_vector_result(
