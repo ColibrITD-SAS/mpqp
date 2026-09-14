@@ -867,7 +867,9 @@ def get_result_from_quantinuum_job_id(
         if backend_result.contains_measured_results:
             raw_counts = backend_result.get_counts()
             if not raw_counts:
-                raise ValueError(f"Quantinuum Nexus job '{job_id}' returned no sample counts.")
+                raise ValueError(
+                    f"Quantinuum Nexus job '{job_id}' returned no sample counts."
+                )
 
             nb_qubits = len(list(raw_counts)[0])
             shots = sum(raw_counts.values())
@@ -886,4 +888,6 @@ def get_result_from_quantinuum_job_id(
             job.id = job_id
             return extract_state_vector_result(amplitudes, job)
         else:
-            raise ValueError("Unexpected result from Nexus, doesn't contain state neither samples.")
+            raise ValueError(
+                "Unexpected result from Nexus, doesn't contain state neither samples."
+            )
