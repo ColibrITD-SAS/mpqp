@@ -266,7 +266,7 @@ def pauli_strings_in_all_languages() -> list[
             Language.BRAKET: lambda: Braket_X(0) @ Braket_I(1) @ Braket_I(2)
             + Braket_I(0) @ Braket_Y(1) @ Braket_I(2)
             + Braket_I(0) @ Braket_I(1) @ Braket_Z(2),
-            Language.QISKIT: lambda: SparsePauliOp(["XII", "IYI", "IIZ"]),
+            Language.QISKIT: lambda: SparsePauliOp(["IIX", "IYI", "ZII"]),
             Language.MY_QLM: lambda: [
                 Term(1, "X", [0]),
                 Term(1, "Y", [1]),
@@ -279,7 +279,7 @@ def pauli_strings_in_all_languages() -> list[
             * Cirq_Y(b)  # pyright: ignore[reportOperatorIssue]
             * Cirq_Z(c),
             Language.BRAKET: lambda: Braket_X(0) @ Braket_Y(1) @ Braket_Z(2),
-            Language.QISKIT: lambda: SparsePauliOp(["XYZ"]),
+            Language.QISKIT: lambda: SparsePauliOp(["ZYX"]),
             Language.MY_QLM: lambda: Term(1, "XYZ", [0, 1, 2]),
             None: lambda: pX @ pY @ pZ,
         },
@@ -288,7 +288,7 @@ def pauli_strings_in_all_languages() -> list[
             Language.BRAKET: lambda: Braket_I(0) @ Braket_I(1) @ Braket_I(2)
             + Braket_I(0) @ Braket_Z(1) @ Braket_I(2)
             + Braket_I(0) @ Braket_I(1) @ Braket_X(2),
-            Language.QISKIT: lambda: SparsePauliOp(["III", "IZI", "IIX"]),
+            Language.QISKIT: lambda: SparsePauliOp(["III", "IZI", "XII"]),
             Language.MY_QLM: lambda: [
                 Term(1, "I", [0]),
                 Term(1, "Z", [1]),
@@ -301,7 +301,7 @@ def pauli_strings_in_all_languages() -> list[
             * Cirq_Z(b)  # pyright: ignore[reportOperatorIssue]
             * Cirq_X(c),
             Language.BRAKET: lambda: Braket_Y(0) @ Braket_Z(1) @ Braket_X(2),
-            Language.QISKIT: lambda: SparsePauliOp(["YZX"]),
+            Language.QISKIT: lambda: SparsePauliOp(["XZY"]),
             Language.MY_QLM: lambda: Term(1, "YZX", [0, 1, 2]),
             None: lambda: pY @ pZ @ pX,
         },
@@ -311,7 +311,7 @@ def pauli_strings_in_all_languages() -> list[
             + Cirq_X(c),
             Language.BRAKET: lambda: Braket_Z(0) @ Braket_Y(1) @ Braket_I(2)
             + Braket_I(0) @ Braket_I(1) @ Braket_X(2),
-            Language.QISKIT: lambda: SparsePauliOp(["ZYI", "IIX"]),
+            Language.QISKIT: lambda: SparsePauliOp(["IYZ", "XII"]),
             Language.MY_QLM: lambda: [Term(1, "ZY", [0, 1]), Term(1, "X", [2])],
             None: lambda: pZ @ pY @ pI + pI @ pI @ pX,
         },
@@ -319,7 +319,7 @@ def pauli_strings_in_all_languages() -> list[
             Language.CIRQ: lambda: Cirq_X(a) + Cirq_I(b) * Cirq_Y(c),
             Language.BRAKET: lambda: Braket_X(0) @ Braket_I(1) @ Braket_I(2)
             + Braket_I(0) @ Braket_I(1) @ Braket_Y(2),
-            Language.QISKIT: lambda: SparsePauliOp(["XII", "IIY"]),
+            Language.QISKIT: lambda: SparsePauliOp(["IIX", "YII"]),
             Language.MY_QLM: lambda: [Term(1, "X", [0]), Term(1, "Y", [2])],
             None: lambda: pX @ pI @ pI + pI @ pI @ pY,
         },
@@ -327,7 +327,7 @@ def pauli_strings_in_all_languages() -> list[
             Language.CIRQ: lambda: Cirq_I(a) * Cirq_X(b) + Cirq_Y(c),
             Language.BRAKET: lambda: Braket_I(0) @ Braket_X(1) @ Braket_I(2)
             + Braket_I(0) @ Braket_I(1) @ Braket_Y(2),
-            Language.QISKIT: lambda: SparsePauliOp(["IXI", "IIY"]),
+            Language.QISKIT: lambda: SparsePauliOp(["IXI", "YII"]),
             Language.MY_QLM: lambda: [Term(1, "X", [1]), Term(1, "Y", [2])],
             None: lambda: pI @ pX @ pI + pI @ pI @ pY,
         },
@@ -348,7 +348,7 @@ def pauli_strings_in_all_languages() -> list[
             @ Braket_I(1)
             @ Braket_Z(2),
             Language.QISKIT: lambda: SparsePauliOp(
-                ["XII", "IYI", "IIZ"], coeffs=np.array([2, 3, 4])
+                ["IIX", "IYI", "ZII"], coeffs=np.array([2, 3, 4])
             ),
             Language.MY_QLM: lambda: [
                 Term(2, "X", [0]),
@@ -367,7 +367,7 @@ def pauli_strings_in_all_languages() -> list[
             @ (1.5 * Braket_Y(1))  # pyright: ignore[reportOperatorIssue]
             @ (0.5 * Braket_Z(2)),  # pyright: ignore[reportOperatorIssue]
             Language.QISKIT: lambda: SparsePauliOp(
-                ["XYZ"], coeffs=np.array([-1 * 1.5 * 0.5])
+                ["ZYX"], coeffs=np.array([-1 * 1.5 * 0.5])
             ),
             Language.MY_QLM: lambda: Term(-0.75, "XYZ", [0, 1, 2]),
             None: lambda: -pX @ (1.5 * pY) @ (0.5 * pZ),
@@ -387,7 +387,7 @@ def pauli_strings_in_all_languages() -> list[
             @ Braket_I(1)
             @ (2 * Braket_X(2)),  # pyright: ignore[reportOperatorIssue]
             Language.QISKIT: lambda: SparsePauliOp(
-                ["ZYI", "IIX"], coeffs=np.array([0.5 * 0.5, 2])
+                ["IYZ", "XII"], coeffs=np.array([0.5 * 0.5, 2])
             ),
             Language.MY_QLM: lambda: [Term(0.25, "ZY", [0, 1]), Term(2, "X", [2])],
             None: lambda: ((0.5 * pZ) @ (0.5 * pY) @ pI) + (2 * pI @ pI @ pX),
@@ -404,7 +404,7 @@ def pauli_strings_in_all_languages() -> list[
             @ Braket_I(1)
             @ (-2.5 * Braket_Y(2)),  # pyright: ignore[reportOperatorIssue]
             Language.QISKIT: lambda: SparsePauliOp(
-                ["XII", "IIY"], coeffs=np.array([1.5, -2.5])
+                ["IIX", "YII"], coeffs=np.array([1.5, -2.5])
             ),
             Language.MY_QLM: lambda: [Term(1.5, "X", [0]), Term(-2.5, "Y", [2])],
             None: lambda: (1.5 * pX @ pI @ pI) + (pI @ pI @ (-2.5 * pY)),
@@ -421,7 +421,7 @@ def pauli_strings_in_all_languages() -> list[
             @ Braket_I(1)
             @ (3 * Braket_Y(2)),  # pyright: ignore[reportOperatorIssue]
             Language.QISKIT: lambda: SparsePauliOp(
-                ["IXI", "IIY"], coeffs=np.array([0.25 * 4, 3])
+                ["IXI", "YII"], coeffs=np.array([0.25 * 4, 3])
             ),
             Language.MY_QLM: lambda: [Term(4 * 0.25, "X", [1]), Term(3, "Y", [2])],
             None: lambda: ((0.25 * pI) @ (4 * pX) @ pI) + (pI @ pI @ (3 * pY)),
@@ -465,7 +465,7 @@ def pauli_strings_in_all_languages() -> list[
             Language.CIRQ: lambda: 1
             * Cirq_X(b),  # pyright: ignore[reportOperatorIssue]
             Language.BRAKET: lambda: Braket_I(0) @ Braket_X(1),
-            Language.QISKIT: lambda: SparsePauliOp(["IX"]),
+            Language.QISKIT: lambda: SparsePauliOp(["XI"]),
             Language.MY_QLM: lambda: Term(1, "X", [1]),
             None: lambda: pI @ pX,
         },
@@ -473,7 +473,7 @@ def pauli_strings_in_all_languages() -> list[
             Language.CIRQ: lambda: 1
             * Cirq_Z(b),  # pyright: ignore[reportOperatorIssue]
             Language.BRAKET: lambda: Braket_I(0) @ Braket_Z(1),
-            Language.QISKIT: lambda: SparsePauliOp(["IZ"]),
+            Language.QISKIT: lambda: SparsePauliOp(["ZI"]),
             Language.MY_QLM: lambda: Term(1, "Z", [1]),
             None: lambda: pI @ pZ,
         },
@@ -481,7 +481,7 @@ def pauli_strings_in_all_languages() -> list[
             Language.CIRQ: lambda: 1
             * Cirq_Y(b),  # pyright: ignore[reportOperatorIssue]
             Language.BRAKET: lambda: Braket_I(0) @ Braket_Y(1),
-            Language.QISKIT: lambda: SparsePauliOp(["IY"]),
+            Language.QISKIT: lambda: SparsePauliOp(["YI"]),
             Language.MY_QLM: lambda: Term(1, "Y", [1]),
             None: lambda: pI @ pY,
         },
