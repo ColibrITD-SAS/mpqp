@@ -72,13 +72,18 @@ def compute_expectation_value(
     simulator: Optional["AerSimulator"],
     ibm_circuit: Optional["QuantumCircuit"] = None,
     pubs: Optional[list["EstimatorPubLike"]] = None,
-    pubs_contexts: Optional[list["Job"]] = None,
+    pubs_contexts: Optional[list[list["Job"]]] = None,
     shots: Optional[int] = None,
 ) -> Result | BatchResult:
     """Configures observable job and run it locally, and returns the
     corresponding Result. Supports both single circuits and batched PUBs.
+
+    Each batched PUB has an ordered list of context jobs, one for each
+    parameter/measurement pair resolved by the binding mode.
     """
     from qiskit.quantum_info import SparsePauliOp
+    from qiskit.primitives import PubResult
+    from qiskit.primitives.containers import DataBin
     from mpqp.execution.simulated_devices import StaticIBMSimulatedDevice
 
     pubs_to_run = []
@@ -102,14 +107,17 @@ def compute_expectation_value(
             obs_array = pub[1] if len(pub) > 1 else None
             params = pub[2] if len(pub) > 2 else None
 
+            if obs_array is not None:
+                if params is not None:
+                    params = [
+                        values
+                        for observables, values in zip(obs_array, params)
+                        for _ in observables
+                    ]
+                obs_array = [obs for observables in obs_array for obs in observables]
+
             if obs_array is not None and circ.layout is not None:
-
-                def _apply_layout(obs_item):
-                    if isinstance(obs_item, list):
-                        return [_apply_layout(o) for o in obs_item]
-                    return obs_item.apply_layout(circ.layout)
-
-                obs_array = _apply_layout(obs_array)
+                obs_array = [obs.apply_layout(circ.layout) for obs in obs_array]
 
             if params is not None:
                 pubs_to_run.append((circ, obs_array, params))
@@ -149,7 +157,7 @@ def compute_expectation_value(
             qiskit_observables.append(translated)
 
         pubs_to_run = [(ibm_circuit, qiskit_observables)]
-        context_jobs_to_run = [job]
+        context_jobs_to_run = [[job]]
 
     if isinstance(job.device, StaticIBMSimulatedDevice) or nb_shots != 0:
         from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
@@ -182,16 +190,26 @@ def compute_expectation_value(
 
     extracted_items = []
 
-    for i, context_job in enumerate(context_jobs_to_run):
-        pub = pubs_to_run[i]
-
-        extracted = extract_result(
-            result=estimator_result[i],
-            job=context_job,
-            device=job.device,
-            experiment_index=0,
-        )
-        extracted_items.append(extracted)
+    for i, contexts in enumerate(context_jobs_to_run):
+        offset = 0
+        for context_job in contexts:
+            pub_result = estimator_result[i]
+            if pubs is not None:
+                assert isinstance(context_job.measure, ExpectationMeasure)
+                count = len(context_job.measure.observables)
+                data = pub_result.data
+                pub_result = PubResult(
+                    DataBin(
+                        evs=data.evs[offset : offset + count],
+                        stds=data.stds[offset : offset + count],
+                        shape=(count,),
+                    ),
+                    metadata=pub_result.metadata,
+                )
+                offset += count
+            extracted_items.append(
+                extract_result(pub_result, context_job, job.device, experiment_index=0)
+            )
 
     final_flat_results = []
     for item in extracted_items:
@@ -523,57 +541,45 @@ def run_aer(job: Job) -> Result | BatchResult:
                     assert isinstance(q_c, QuantumCircuit)
 
                 if v:
-                    qc_params = q_c.parameters
-                    qc_param_names = {p.name for p in qc_params}
-
-                    filtered_v = {
-                        key: val
-                        for key, val in v.items()
-                        if key in qc_params
-                        or (isinstance(key, str) and key in qc_param_names)
-                    }
-                    b_c = q_c.assign_parameters(filtered_v)
+                    normalized_values = {str(key): val for key, val in v.items()}
+                    b_c = q_c.assign_parameters(
+                        {p: normalized_values[p.name] for p in q_c.parameters}
+                    )
                 else:
                     b_c = q_c.copy()
 
+                c_context = c.without_measurements(deep_copy=False)
+                if m is not None:
+                    c_context.add(deepcopy(m))
                 if job.job_type == JobType.STATE_VECTOR:
                     b_c.save_statevector()  # pyright: ignore[reportAttributeAccessIssue]
                 elif job.job_type == JobType.SAMPLE:
-                    assert isinstance(m, BasisMeasure)
-                    for pre_measure in m.pre_measure:
-                        cargs = []
+                    measure = c_context.measurements[0]
+                    assert isinstance(measure, BasisMeasure)
+                    assert measure.c_targets is not None
+                    from qiskit.circuit import ClassicalRegister
+
+                    if b_c.num_clbits < c_context.nb_cbits:
+                        b_c.add_register(
+                            ClassicalRegister(c_context.nb_cbits - b_c.num_clbits)
+                        )
+                    for pre_measure in measure.pre_measure:
                         qiskit_pre_measure = pre_measure.to_other_language(
                             Language.QISKIT
                         )
                         b_c.append(
                             qiskit_pre_measure,
                             list(reversed(pre_measure.targets)),
-                            cargs=cargs,
+                            cargs=[],
                         )
-                    if m._dynamic:
-                        tagrets = list(range(c.nb_qubits))
-                        c_targets = list(range(c.nb_qubits))
-                        from qiskit.circuit import ClassicalRegister
-
-                        creg = ClassicalRegister(c.nb_qubits, "c")
-                        b_c.add_register(creg)
-                    else:
-                        tagrets = list(m.targets)
-                        c_targets = list(m.c_targets)
-
                     b_c.append(
-                        m.to_other_language(Language.QISKIT),
-                        [tagrets],
-                        [c_targets],
+                        measure.to_other_language(Language.QISKIT),
+                        [measure.targets],
+                        [measure.c_targets],
                     )
                 bound_circuits.append(b_c)
 
-                c_context = c.without_measurements(deep_copy=False)
-                if m is not None:
-                    c_context.add(m)
-                else:
-                    c_context.add(c.measurements)
-                context_jobs.append(Job(job.job_type, c_context, job.device))
+                context_jobs.append(Job(job.job_type, c_context, job.device, values=v))
 
             job.status = JobStatus.RUNNING
 
