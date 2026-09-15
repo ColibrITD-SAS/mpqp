@@ -135,7 +135,7 @@ def check_job_compatibility(job: Job) -> None:
                 job.measure.optimize_measurement
                 and job.measure.commuting_type != CommutingTypes.QUBITWISE
             ):
-                raise NotImplementedError(
+                raise DeviceJobIncompatibleError(
                     "Quantinuum optimized sampled observable jobs currently only supports qubit-wise "
                     "commuting Pauli grouping."
                 )
