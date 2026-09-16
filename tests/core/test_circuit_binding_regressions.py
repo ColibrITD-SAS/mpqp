@@ -1,6 +1,5 @@
 from copy import deepcopy
 from importlib import import_module
-from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import numpy as np
@@ -22,7 +21,7 @@ from mpqp import (
 )
 from mpqp.core.circuit import BindingMode, CircuitBinding
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.result import BatchResult, Result
+from mpqp.execution.result import BatchResult
 
 
 @pytest.mark.provider("qiskit")
@@ -64,11 +63,11 @@ def test_explicit_measurement_registers(targets: list[int], explicit_cbits: bool
     original = deepcopy(measure)
     binding = CircuitBinding(QCircuit([X(0)], nb_qubits=2), measurements=measure)
     result = run(binding, IBMDevice.AER_SIMULATOR)
-    if TYPE_CHECKING:
-        assert isinstance(result, Result)
+    assert isinstance(result, BatchResult)
+    execution = result.results[0]
     expected = int("".join("1" if target == 0 else "0" for target in targets), 2)
-    assert result.counts[expected] == 16
-    assert sum(result.counts) == 16
+    assert execution.counts[expected] == 16
+    assert sum(execution.counts) == 16
     assert measure == original
 
 
@@ -159,9 +158,8 @@ def test_binding_preserves_pre_measurement_basis():
     measure = BasisMeasure(shots=16, basis=HadamardBasis())
     binding = CircuitBinding(QCircuit([H(0)]), measurements=measure)
     result = run(binding, IBMDevice.AER_SIMULATOR)
-    if TYPE_CHECKING:
-        assert isinstance(result, Result)
-    assert result.counts == [16, 0]
+    assert isinstance(result, BatchResult)
+    assert result.results[0].counts == [16, 0]
 
 
 @pytest.mark.provider("qiskit")

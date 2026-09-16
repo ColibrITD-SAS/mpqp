@@ -43,7 +43,9 @@ from typing import (
     Optional,
     Sequence,
     Type,
+    TypeVar,
     Union,
+    cast,
     overload,
 )
 from warnings import warn
@@ -1987,6 +1989,12 @@ class QCircuit:
         return params
 
 
+BindingParameters = dict[Union["Expr", str], Union[Complex, float]]
+BindingExecution = tuple[QCircuit, Optional[BindingParameters], Optional[Measure]]
+BindingOptions = tuple[Optional[BindingParameters], Optional[Measure]]
+_AxisElement = TypeVar("_AxisElement")
+
+
 class BindingMode(Enum):
     PRODUCT = auto()
     ZIP = auto()
@@ -2228,123 +2236,242 @@ class CircuitBinding:
 
     def unroll(
         self,
-    ) -> list[
-        tuple[
-            QCircuit,
-            Optional[dict["Expr | str", "Complex | float"]],
-            Optional["Measure"],
-        ]
-    ]:
+    ) -> list[BindingExecution]:
         """Resolves the lazy execution graph and returns a flat list of
         (circuit, values, expectation_measure) tuples representing each execution.
         """
         import itertools
 
-        base_items = []
-        circs = self.circuits
-        for c in circs:
-            if isinstance(c, CircuitBinding):
-                base_items.extend(c.unroll())
-            else:
-                base_items.append((c, None, None))
-
-        vals = (
+        raw_parent_values = (
             self.value
             if isinstance(self.value, list)
             else ([self.value] if self.value is not None else [None])
         )
-        exps = (
+        parent_values: list[Optional[BindingParameters]] = [
+            cast(BindingParameters, parameter_set)
+            if parameter_set is not None
+            else None
+            for parameter_set in raw_parent_values
+        ]
+        parent_measurements: list[Measure | None] = (
             self.measurements
             if isinstance(self.measurements, list)
             else ([self.measurements] if self.measurements is not None else [None])
         )
 
-        def merge_vals(v_base: Any, v_curr: Any):
-            if v_base is None and v_curr is None:
+        def merge_values(
+            child_parameters: Optional[BindingParameters],
+            parent_parameters: Optional[BindingParameters],
+        ) -> Optional[BindingParameters]:
+            if child_parameters is None and parent_parameters is None:
                 return None
-            merged = dict(v_base) if v_base is not None else {}
-            if v_curr is not None:
-                merged.update(v_curr)
-            return merged
+            combined_parameters = (
+                dict(child_parameters) if child_parameters is not None else {}
+            )
+            if parent_parameters is not None:
+                combined_parameters.update(parent_parameters)
+            return combined_parameters
 
-        def zip_items(
-            v_base: Any, e_base: Any, v_curr: Any, e_curr: Any
-        ) -> list[tuple[Any, Any]]:
-            """Combine execution data selected at two nested ZIP levels.
+        def bind_same_parameters(
+            child_parameters: Optional[BindingParameters],
+            parent_parameters: Optional[BindingParameters],
+        ) -> bool:
+            if child_parameters is None or parent_parameters is None:
+                return False
+            child_names = {str(key) for key in child_parameters}
+            parent_names = {str(key) for key in parent_parameters}
+            return bool(child_names & parent_names)
 
-            Values binding the same variable and measurements declared at both
-            levels represent distinct executions. Missing data is inherited from
-            the other level, while disjoint parameter dictionaries are layered.
-            """
-            values_conflict = False
-            if v_base is not None and v_curr is not None:
-                base_keys = {str(key) for key in v_base}
-                current_keys = {str(key) for key in v_curr}
-                values_conflict = bool(base_keys & current_keys)
-
-            measurements_conflict = e_base is not None and e_curr is not None
-            if not values_conflict and not measurements_conflict:
+        def combine_zipped_options(
+            child_parameters: Optional[BindingParameters],
+            child_measurement: Optional[Measure],
+            parent_parameters: Optional[BindingParameters],
+            parent_measurement: Optional[Measure],
+        ) -> list[BindingOptions]:
+            parameter_collision = bind_same_parameters(
+                child_parameters, parent_parameters
+            )
+            measurement_collision = (
+                child_measurement is not None and parent_measurement is not None
+            )
+            if not parameter_collision and not measurement_collision:
                 return [
                     (
-                        merge_vals(v_base, v_curr),
-                        e_curr if e_curr is not None else e_base,
+                        merge_values(child_parameters, parent_parameters),
+                        parent_measurement
+                        if parent_measurement is not None
+                        else child_measurement,
                     )
                 ]
 
-            if values_conflict:
-                outer_values = dict(
-                    v_curr
-                )  # pyright: ignore[reportCallIssue, reportArgumentType]
-                inner_values = dict(
-                    v_base
-                )  # pyright: ignore[reportCallIssue, reportArgumentType]
+            if parameter_collision:
+                parent_execution_parameters = parent_parameters.copy()
+                child_execution_parameters = child_parameters.copy()
             else:
-                outer_values = inner_values = merge_vals(v_base, v_curr)
+                parent_execution_parameters = child_execution_parameters = (
+                    merge_values(child_parameters, parent_parameters)
+                )
 
             return [
-                (outer_values, e_curr if e_curr is not None else e_base),
-                (inner_values, e_base if e_base is not None else e_curr),
+                (
+                    parent_execution_parameters,
+                    parent_measurement
+                    if parent_measurement is not None
+                    else child_measurement,
+                ),
+                (
+                    child_execution_parameters,
+                    child_measurement
+                    if child_measurement is not None
+                    else parent_measurement,
+                ),
             ]
 
-        result = []
+        def parameter_set_key(
+            parameter_set: Optional[BindingParameters],
+        ) -> Optional[tuple[tuple[str, str]]]:
+            if parameter_set is None:
+                return None
+            return tuple(
+                sorted((str(key), repr(value)) for key, value in parameter_set.items())
+            )
+
+        def execution_key(
+            execution: BindingExecution,
+        ) -> tuple[int, Optional[tuple[tuple[str, str]]], int]:
+            circuit, parameters, measurement = execution
+            return id(circuit), parameter_set_key(parameters), id(measurement)
+
+        def product_values(
+            child_parameters: Optional[BindingParameters],
+        ) -> list[Optional[BindingParameters]]:
+            unique_values: dict[
+                Optional[tuple[tuple[str, str]]], Optional[BindingParameters]
+            ] = {}
+            keep_child_parameters = False
+
+            for parent_parameters in parent_values:
+                if child_parameters is None:
+                    parameter_set = (
+                        parent_parameters.copy()
+                        if parent_parameters is not None
+                        else None
+                    )
+                elif parent_parameters is None:
+                    keep_child_parameters = True
+                    continue
+                elif bind_same_parameters(child_parameters, parent_parameters):
+                    parameter_set = parent_parameters.copy()
+                    keep_child_parameters = True
+                else:
+                    parameter_set = merge_values(
+                        child_parameters, parent_parameters
+                    )
+
+                unique_values.setdefault(
+                    parameter_set_key(parameter_set), parameter_set
+                )
+
+            if keep_child_parameters:
+                child_parameters = child_parameters.copy()
+                unique_values.setdefault(
+                    parameter_set_key(child_parameters), child_parameters
+                )
+
+            return list(unique_values.values())
+
+        def product_measurements(
+            child_measurement: Optional[Measure],
+        ) -> list[Optional[Measure]]:
+            unique_measurements: dict[int, Optional[Measure]] = {}
+            keep_child_measurement = False
+
+            for parent_measurement in parent_measurements:
+                if child_measurement is None:
+                    unique_measurements.setdefault(
+                        id(parent_measurement), parent_measurement
+                    )
+                elif parent_measurement is None:
+                    keep_child_measurement = True
+                else:
+                    unique_measurements.setdefault(
+                        id(parent_measurement), parent_measurement
+                    )
+                    keep_child_measurement = True
+
+            if keep_child_measurement:
+                unique_measurements.setdefault(
+                    id(child_measurement), child_measurement
+                )
+
+            return list(unique_measurements.values())
+
+        def expand_branch(
+            branch: QCircuit | CircuitBinding,
+        ) -> list[BindingExecution]:
+            if isinstance(branch, CircuitBinding):
+                return branch.unroll()
+            return [(branch, None, None)]
+
+        executions: list[BindingExecution] = []
 
         if self.mode == BindingMode.ZIP:
-            max_len = max(len(base_items), len(vals), len(exps))
+            zip_length = max(
+                len(self.circuits),
+                len(parent_values),
+                len(parent_measurements),
+            )
 
-            def broadcast(lst: list[Any], target_length: int):
-                if not lst:
-                    return [None] * target_length
-                if len(lst) == 1:
-                    return [lst[0]] * target_length
-                if len(lst) != target_length:
+            def broadcast_axis(
+                axis: list[_AxisElement], target_length: int
+            ) -> list[_AxisElement]:
+                if len(axis) == 1:
+                    return [axis[0]] * target_length
+                if len(axis) != target_length:
                     raise ValueError(
                         f"In ZIP mode, lists must be length 1 or match the maximum list length ({target_length})."
                     )
-                return lst
+                return axis
 
-            b_items = broadcast(base_items, max_len)
-            b_vals = broadcast(vals, max_len)
-            b_exps = broadcast(exps, max_len)
+            branches = broadcast_axis(self.circuits, zip_length)
+            values = broadcast_axis(parent_values, zip_length)
+            measurements = broadcast_axis(parent_measurements, zip_length)
 
-            for (
-                (c, v_base, e_base),
-                v_curr,
-                e_curr,
-            ) in zip(  # pyright: ignore[reportGeneralTypeIssues]
-                b_items, b_vals, b_exps
+            for branch, parent_parameters, parent_measurement in zip(
+                branches, values, measurements
             ):
-                for merged_val, merged_exp in zip_items(v_base, e_base, v_curr, e_curr):
-                    result.append((c, merged_val, merged_exp))
+                assert branch is not None
+                for circuit, child_parameters, child_measurement in expand_branch(
+                    branch
+                ):
+                    for parameters, measurement in combine_zipped_options(
+                        child_parameters,
+                        child_measurement,
+                        parent_parameters,
+                        parent_measurement,
+                    ):
+                        executions.append((circuit, parameters, measurement))
 
         else:
-            for (c, v_base, e_base), v_curr, e_curr in itertools.product(
-                base_items, vals, exps
-            ):
-                merged_val = merge_vals(v_base, v_curr)
-                merged_exp = e_curr if e_curr is not None else e_base
-                result.append((c, merged_val, merged_exp))
+            for branch in self.circuits:
+                unique_branch_executions: dict[
+                    tuple[int, Optional[tuple[tuple[str, str]]], int],
+                    BindingExecution,
+                ] = {}
+                for circuit, child_parameters, child_measurement in expand_branch(
+                    branch
+                ):
+                    for parameters, measurement in itertools.product(
+                        product_values(child_parameters),
+                        product_measurements(child_measurement),
+                    ):
+                        execution = (circuit, parameters, measurement)
+                        unique_branch_executions.setdefault(
+                            execution_key(execution), execution
+                        )
+                executions.extend(unique_branch_executions.values())
 
-        return result
+        return executions
 
     def __repr__(self):
         return f"CircuitBinding(circuits={repr(self.circuits)}, values={repr(self.value)}, measurements={repr(self.measurements)}, mode={repr(self.mode)}, noises={repr(self.noises)}, shots={repr(self.shots)})"

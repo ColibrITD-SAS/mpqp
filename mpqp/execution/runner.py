@@ -374,7 +374,7 @@ def _run_circuit_binding(
     circuit_binding: CircuitBinding,
     device: AvailableDevice,
     display_breakpoints: bool = True,
-) -> Result | BatchResult:
+) -> BatchResult:
     """ """
     from mpqp.execution.simulated_devices import (
         SimulatedDevice,
@@ -422,7 +422,7 @@ def _run_circuit_binding(
     #        result[i], exp_measure, job
     #    )
 
-    return result
+    return result if isinstance(result, BatchResult) else BatchResult([result])
 
 
 @overload
@@ -570,10 +570,7 @@ def run(
                 if values is not None:
                     raise ValueError("values must be specified in CircuitBinding")
                 result = _run_circuit_binding(circuit, dev, display_breakpoints)
-                if isinstance(result, BatchResult):
-                    results.extend(result.results)
-                else:
-                    results.append(result)
+                results.extend(result.results)
         return BatchResult(results)
     else:
         if isinstance(circuit, QCircuit):

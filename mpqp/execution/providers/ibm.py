@@ -601,10 +601,7 @@ def run_aer(job: Job) -> Result | BatchResult:
                 )
                 extracted_items.append(extracted)
 
-            if len(extracted_items) == 1:
-                result = extracted_items[0]
-            else:
-                result = BatchResult(extracted_items)
+            result = BatchResult(extracted_items)
 
             job.status = JobStatus.DONE
             return result
