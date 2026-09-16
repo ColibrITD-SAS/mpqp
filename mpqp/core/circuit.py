@@ -2248,9 +2248,11 @@ class CircuitBinding:
             else ([self.value] if self.value is not None else [None])
         )
         parent_values: list[Optional[BindingParameters]] = [
-            cast(BindingParameters, parameter_set)
-            if parameter_set is not None
-            else None
+            (
+                cast(BindingParameters, parameter_set)
+                if parameter_set is not None
+                else None
+            )
             for parameter_set in raw_parent_values
         ]
         parent_measurements: list[Measure | None] = (
@@ -2298,9 +2300,11 @@ class CircuitBinding:
                 return [
                     (
                         merge_values(child_parameters, parent_parameters),
-                        parent_measurement
-                        if parent_measurement is not None
-                        else child_measurement,
+                        (
+                            parent_measurement
+                            if parent_measurement is not None
+                            else child_measurement
+                        ),
                     )
                 ]
 
@@ -2308,22 +2312,26 @@ class CircuitBinding:
                 parent_execution_parameters = parent_parameters.copy()
                 child_execution_parameters = child_parameters.copy()
             else:
-                parent_execution_parameters = child_execution_parameters = (
-                    merge_values(child_parameters, parent_parameters)
+                parent_execution_parameters = child_execution_parameters = merge_values(
+                    child_parameters, parent_parameters
                 )
 
             return [
                 (
                     parent_execution_parameters,
-                    parent_measurement
-                    if parent_measurement is not None
-                    else child_measurement,
+                    (
+                        parent_measurement
+                        if parent_measurement is not None
+                        else child_measurement
+                    ),
                 ),
                 (
                     child_execution_parameters,
-                    child_measurement
-                    if child_measurement is not None
-                    else parent_measurement,
+                    (
+                        child_measurement
+                        if child_measurement is not None
+                        else parent_measurement
+                    ),
                 ),
             ]
 
@@ -2364,9 +2372,7 @@ class CircuitBinding:
                     parameter_set = parent_parameters.copy()
                     keep_child_parameters = True
                 else:
-                    parameter_set = merge_values(
-                        child_parameters, parent_parameters
-                    )
+                    parameter_set = merge_values(child_parameters, parent_parameters)
 
                 unique_values.setdefault(
                     parameter_set_key(parameter_set), parameter_set
@@ -2400,9 +2406,7 @@ class CircuitBinding:
                     keep_child_measurement = True
 
             if keep_child_measurement:
-                unique_measurements.setdefault(
-                    id(child_measurement), child_measurement
-                )
+                unique_measurements.setdefault(id(child_measurement), child_measurement)
 
             return list(unique_measurements.values())
 
