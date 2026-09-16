@@ -52,12 +52,12 @@ m_Z = ExpectationMeasure(Observable(pZ), label="Exp_Z", shots=2024)
 
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("mode", list(BindingMode))
-def test_qiskit_to_other_device_grouped_shapes(mode):
+def test_qiskit_to_other_device_grouped_shapes(mode: BindingMode):
     binding = CircuitBinding(c1, values=[v1, v2], measurements=[m_I, m_Z], mode=mode)
     pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
     pub, contexts = pubs_with_context[0]
-    circuit, observables, parameters = pub
+    circuit, observables, parameters = pub  # type: ignore
     expected = (
         [(v1, m_I), (v2, m_Z)]
         if mode == BindingMode.ZIP
@@ -65,7 +65,7 @@ def test_qiskit_to_other_device_grouped_shapes(mode):
     )
     assert len(contexts) == len(expected)
     for row, (values, measure) in enumerate(expected):
-        assert observables[row] == [
+        assert observables[row] == [  # type: ignore
             o.to_other_language(Language.QISKIT) for o in measure.observables
         ]
         assert parameters[row] == [values[p.name] for p in circuit.parameters]
@@ -79,9 +79,9 @@ def test_qiskit_to_other_device_recursive_bindings():
     pubs_with_context = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs_with_context) == 1
     pub, contexts = pubs_with_context[0]
-    circuit, observables, parameters = pub
+    circuit, observables, parameters = pub  # type: ignore
     for row, values in enumerate([v1, v2]):
-        assert observables[row] == [
+        assert observables[row] == [  # type: ignore
             o.to_other_language(Language.QISKIT) for o in m1.observables
         ]
         assert parameters[row] == [values[p.name] for p in circuit.parameters]

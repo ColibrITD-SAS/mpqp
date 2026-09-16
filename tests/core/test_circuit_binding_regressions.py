@@ -1,5 +1,6 @@
 from copy import deepcopy
 from importlib import import_module
+from typing import TYPE_CHECKING
 from unittest.mock import patch
 
 import numpy as np
@@ -21,19 +22,21 @@ from mpqp import (
 )
 from mpqp.core.circuit import BindingMode, CircuitBinding
 from mpqp.execution.providers.providers_params import QiskitParams
-from mpqp.execution.result import BatchResult
+from mpqp.execution.result import BatchResult, Result
 
 
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("mode", list(BindingMode))
 @pytest.mark.parametrize("symbol_keys", [False, True])
-def test_parameter_order_and_observable_association(mode, symbol_keys):
+def test_parameter_order_and_observable_association(
+    mode: BindingMode, symbol_keys: bool
+):
     a, z = Symbol("a"), Symbol("z")
     circuit = QCircuit([Ry(z, 0), Rz(a, 0)])
     values = [{a: 0.0, z: 0.0}, {a: 0.0, z: np.pi}]
     if not symbol_keys:
         values = [{str(k): v for k, v in item.items()} for item in values]
-    binding = CircuitBinding(circuit, values=values, measurements=None, mode=mode)
+    binding = CircuitBinding(circuit, values=values, measurements=None, mode=mode)  # type: ignore
     # Put the measurement on an outer level to broadcast it in both modes.
     binding = CircuitBinding(
         binding,
@@ -52,7 +55,7 @@ def test_parameter_order_and_observable_association(mode, symbol_keys):
 @pytest.mark.provider("qiskit")
 @pytest.mark.parametrize("targets", [[0], [1], [1, 0]])
 @pytest.mark.parametrize("explicit_cbits", [False, True])
-def test_explicit_measurement_registers(targets, explicit_cbits):
+def test_explicit_measurement_registers(targets: list[int], explicit_cbits: bool):
     measure = BasisMeasure(
         targets,
         c_targets=list(range(len(targets))) if explicit_cbits else None,
@@ -61,6 +64,8 @@ def test_explicit_measurement_registers(targets, explicit_cbits):
     original = deepcopy(measure)
     binding = CircuitBinding(QCircuit([X(0)], nb_qubits=2), measurements=measure)
     result = run(binding, IBMDevice.AER_SIMULATOR)
+    if TYPE_CHECKING:
+        assert isinstance(result, Result)
     expected = int("".join("1" if target == 0 else "0" for target in targets), 2)
     assert result.counts[expected] == 16
     assert sum(result.counts) == 16
@@ -69,7 +74,7 @@ def test_explicit_measurement_registers(targets, explicit_cbits):
 
 @pytest.mark.parametrize("many_circuits", [False, True])
 @pytest.mark.parametrize("many_devices", [False, True])
-def test_provider_parameters_forwarded(many_circuits, many_devices):
+def test_provider_parameters_forwarded(many_circuits: bool, many_devices: bool):
     runner = import_module("mpqp.execution.runner")
     circuits = [QCircuit(1), QCircuit(1)] if many_circuits else QCircuit(1)
     devices = (
@@ -106,7 +111,7 @@ def test_binding_runs_on_every_device():
         (BindingMode.PRODUCT, [1.0, 0.0, -1.0, 0.0]),
     ],
 )
-def test_grouped_binding_modes(mode, expected):
+def test_grouped_binding_modes(mode: BindingMode, expected: float):
     theta = Symbol("theta")
     circuit = QCircuit([Ry(theta, 0)])
     binding = CircuitBinding(
@@ -139,7 +144,7 @@ def test_grouped_pub_without_parameters_and_ragged_observables():
     )
     pubs = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs) == 1
-    assert len(pubs[0][0]) == 2
+    assert len(pubs[0][0]) == 2  # type: ignore
     result = run(binding, IBMDevice.AER_SIMULATOR)
     assert len(result.results) == 2
     assert result.results[0].expectation_values == pytest.approx(-1)
@@ -154,6 +159,8 @@ def test_binding_preserves_pre_measurement_basis():
     measure = BasisMeasure(shots=16, basis=HadamardBasis())
     binding = CircuitBinding(QCircuit([H(0)]), measurements=measure)
     result = run(binding, IBMDevice.AER_SIMULATOR)
+    if TYPE_CHECKING:
+        assert isinstance(result, Result)
     assert result.counts == [16, 0]
 
 
@@ -172,8 +179,8 @@ def test_grouping_keeps_circuit_and_execution_order():
     )
     pubs = binding.to_other_device(IBMDevice.AER_SIMULATOR)
     assert len(pubs) == 2
-    assert pubs[0][0][0] is first.transpiled_circuit
-    assert pubs[1][0][0] is second.transpiled_circuit
+    assert pubs[0][0][0] is first.transpiled_circuit  # pyright: ignore
+    assert pubs[1][0][0] is second.transpiled_circuit  # pyright: ignore
     assert [len(contexts) for _, contexts in pubs] == [2, 1]
     result = run(binding, IBMDevice.AER_SIMULATOR)
     assert [r.expectation_values for r in result.results] == pytest.approx([-1, 0, 1])

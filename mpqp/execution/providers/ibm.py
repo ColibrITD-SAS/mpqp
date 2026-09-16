@@ -712,6 +712,7 @@ def submit_remote_ibm(
 
     if TYPE_CHECKING:
         assert isinstance(job.device, IBMDevice)
+        assert isinstance(job.circuit, QCircuit)
 
     instance = qiskit_params.instance if qiskit_params is not None else None
 
@@ -776,7 +777,6 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
     from qiskit import QuantumCircuit
     from qiskit_ibm_runtime import EstimatorV2 as Runtime_Estimator
     from qiskit_ibm_runtime import Session
-    from qiskit.primitives.containers import EstimatorPubLike
 
     pubs: list[EstimatorPubLike] = []
     for job in jobs:
@@ -845,7 +845,9 @@ def submit_remote_ibm_pubs(jobs: list[Job]):
         return job.id, ibm_job
 
 
-def run_remote_ibm(job: Job, qiskit_params: Optional[QiskitParams] = None) -> Result:
+def run_remote_ibm(
+    job: Job, qiskit_params: Optional[QiskitParams] = None
+) -> Result | BatchResult:
     """Submits the job on the right IBM remote device, precised in the job in
     parameter, and waits until the job is completed.
 
@@ -899,9 +901,9 @@ def extract_result(
             if job is None:
                 job = Job(JobType.OBSERVABLE, QCircuit(0), device)
 
-            exp_values = np.array(res_data.evs)
+            exp_values = np.array(res_data.evs)  # type: ignore
             stds = (
-                np.array(res_data.stds)
+                np.array(res_data.stds)  # type: ignore
                 if hasattr(res_data, "stds")
                 else np.zeros_like(exp_values)
             )
@@ -914,7 +916,7 @@ def extract_result(
 
             measures: list[ExpectationMeasure] = (
                 job.circuit.measurements if job.circuit.measurements else []
-            )
+            )  # pyright: ignore[reportAssignmentType]
 
             if exp_values.ndim == 0:
                 val = float(exp_values)
@@ -954,7 +956,7 @@ def extract_result(
                     for idx, val in enumerate(exp_values):
                         std_val = (
                             float(stds[idx])
-                            if stds.size.item() > 0 and stds.size > idx
+                            if stds.size.item() > 0 and stds.size > idx  # type: ignore
                             else 0.0
                         )
                         m_idx = idx % len(measures) if len(measures) > 0 else 0
@@ -1183,7 +1185,10 @@ def get_result_from_ibm_job_id(job_id: str) -> Result:
         assert isinstance(backend, BackendV2)
     ibm_device = IBMDevice(backend.name)
 
-    return extract_result(result, None, ibm_device)
+    result = extract_result(result, None, ibm_device)
+    if TYPE_CHECKING:
+        assert isinstance(result, Result)
+    return result
 
 
 def extract_samples(

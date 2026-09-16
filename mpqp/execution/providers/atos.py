@@ -47,7 +47,8 @@ def job_pre_processing(job: Job) -> "Circuit":
     Returns:
           The myQLM Circuit translated from the circuit of the job in parameter.
     """
-
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
     if (
         job.job_type == JobType.STATE_VECTOR
         and job.measure is not None
@@ -126,6 +127,8 @@ def get_remote_qpu(device: ATOSDevice, job: Job):
         raise ValueError(
             f"Excepted a remote device, but got a local myQLM simulator {device}"
         )
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
 
     if len(job.circuit.noises) > 0:
         if not device.is_noisy_simulator():

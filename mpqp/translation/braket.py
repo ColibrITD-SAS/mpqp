@@ -201,7 +201,7 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
     @overload
     def _cb_to_programset_pauli_grouping(
         binding: "CircuitBinding", device: "AvailableDevice", depth: Literal[0, 1, 2]
-    ) -> "CircuitBinding": ...
+    ) -> "CircuitBinding | tuple[ProgramSet, list[tuple[Any]]]": ...
     def _cb_to_programset_pauli_grouping(
         binding: "CircuitBinding",
         device: "AvailableDevice",
@@ -513,34 +513,34 @@ if InstalledProviders.BRAKET in _INSTALLED_MPQP_PROVIDERS:
                                             grouping[index],
                                         )
                                     )
-                    else:
-                        for inside_observable, inside_val in inside_executables:
-                            if TYPE_CHECKING:
-                                assert isinstance(c, braket_Circuit)
-                            mpqp_circuit = binding.circuits[translated.index(c)]
-                            (
-                                observables,
-                                eigenvalues,
-                                transpiled_pre_measures,
-                                grouping,
-                            ) = inside_observable  # pyright: ignore[reportGeneralTypeIssues]
-                            for index in range(len(grouping)):
-                                executable_list.append(
-                                    BraketBinding(
-                                        c + transpiled_pre_measures[index],
-                                        input_sets=inside_val,
-                                    )
-                                )
-
-                                context.append(
+                            else:
+                                for inside_observable, inside_val in inside_executables:
+                                    if TYPE_CHECKING:
+                                        assert isinstance(c, braket_Circuit)
+                                    mpqp_circuit = binding.circuits[translated.index(c)]
                                     (
-                                        mpqp_circuit,
                                         observables,
-                                        inside_val,
-                                        eigenvalues[index],
-                                        grouping[index],
-                                    )
-                                )
+                                        eigenvalues,
+                                        transpiled_pre_measures,
+                                        grouping,
+                                    ) = inside_observable  # pyright: ignore[reportGeneralTypeIssues]
+                                    for index in range(len(grouping)):
+                                        executable_list.append(
+                                            BraketBinding(
+                                                c + transpiled_pre_measures[index],
+                                                input_sets=inside_val,
+                                            )
+                                        )
+
+                                        context.append(
+                                            (
+                                                mpqp_circuit,
+                                                observables,
+                                                inside_val,
+                                                eigenvalues[index],
+                                                grouping[index],
+                                            )
+                                        )
                 else:
                     if i == -1:
                         executable_list.append(

@@ -513,20 +513,19 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
             f"Job of type {job.job_type} is not supported for noisy circuits."
         )
 
+    if TYPE_CHECKING:
+        assert isinstance(job.circuit, QCircuit)
+
     from braket.circuits import Circuit
 
     device = get_braket_device(job.device, is_noisy=is_noisy)
-    from mpqp.core.circuit import CircuitBinding
 
-    if isinstance(job.circuit, CircuitBinding):
+    if job.circuit.transpiled_circuit is None:
         braket_circuit = job.circuit.to_other_device(job.device)
     else:
-        if job.circuit.transpiled_circuit is None:
-            braket_circuit = job.circuit.to_other_device(job.device)
-        else:
-            braket_circuit = job.circuit.transpiled_circuit
-        if TYPE_CHECKING:
-            assert isinstance(braket_circuit, Circuit)
+        braket_circuit = job.circuit.transpiled_circuit
+    if TYPE_CHECKING:
+        assert isinstance(braket_circuit, Circuit)
 
     if job.job_type == JobType.STATE_VECTOR:
         # rebind safe_retrieve_samples from braket to Normalize the probability
@@ -548,6 +547,7 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
 
         if TYPE_CHECKING:
             assert isinstance(device, AWSDevice)
+
         task = device.run(braket_circuit, shots=0, inputs=None)
 
     elif job.job_type == JobType.SAMPLE:
@@ -563,9 +563,6 @@ def submit_job_braket(job: Job) -> tuple[str, "QuantumTask"]:
         if TYPE_CHECKING:
             assert isinstance(job.measure, ExpectationMeasure)
 
-        if isinstance(job.circuit, CircuitBinding):
-            task = device.run(braket_circuit, shots=job.circuit.shots, inputs=None)
-        else:
             if job.measure.observables[0].pre_transpiled is None:
                 herm_op = job.measure.observables[0].to_other_language(Language.BRAKET)
             else:

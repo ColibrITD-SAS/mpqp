@@ -353,17 +353,21 @@ def _run_single(
             raise ValueError(
                 f"provider_params should be QiskitParam not {type(provider_params)}"
             )
-        return run_ibm(job, provider_params)
+        result = run_ibm(job, provider_params)
     elif isinstance(device, ATOSDevice):
         return run_atos(job)
     elif isinstance(device, AWSDevice):
-        return run_braket(job)
+        result = run_braket(job)
     elif isinstance(device, GOOGLEDevice):
         return run_google(job)
     elif isinstance(device, AZUREDevice):
         return run_azure(job)
     else:
         raise NotImplementedError(f"Device {device} not handled")
+
+    if TYPE_CHECKING:
+        assert isinstance(result, Result)
+    return result
 
 
 def _run_circuit_binding(
@@ -403,7 +407,7 @@ def _run_circuit_binding(
         raise NotImplementedError(f"Device {device} not handled")
         result = run_atos(jobs)  # TODO
     elif isinstance(device, AWSDevice):
-        result = run_braket(job)  # TODO
+        result = run_braket(job)
     elif isinstance(device, GOOGLEDevice):
         raise NotImplementedError(f"Device {device} not handled")
         result = run_google(jobs)  # TODO
